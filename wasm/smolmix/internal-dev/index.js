@@ -1,20 +1,9 @@
-// smolmix-wasm internal-dev test harness
-//
-// Runs WASM in a Web Worker via Comlink — all mixnet I/O (smoltcp
-// polling, TLS crypto, DNS) runs off the main thread, keeping
-// the UI responsive during concurrent requests.
+// smolmix-wasm internal-dev test harness.
+// WASM runs in a Web Worker so mixnet I/O stays off the main thread.
 
 import * as Comlink from "comlink";
 import { MixSocket } from "./mix-socket.js";
 
-// Worker setup
-
-// Create the Web Worker and wait for its "Loaded" signal before
-// wrapping with Comlink.  The worker loads WASM lazily (inside
-// setupMixTunnel), so this resolves quickly.
-//
-// Returns both the raw Worker (for MixSocket postMessage) and
-// the Comlink proxy (for fetch request/response calls).
 function createWorker() {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("./worker.js", import.meta.url));
@@ -32,13 +21,11 @@ function createWorker() {
   });
 }
 
-// Comlink proxy to the worker — set in the setup handler.
 let api = null;
-
-// Output
 
 const outputEl = document.getElementById("output");
 
+// Global timeline. Per-section feedback goes through logTo() instead.
 function display(msg, colour) {
   const ts = new Date().toISOString().slice(11, 23);
   const line = document.createElement("div");
@@ -48,7 +35,17 @@ function display(msg, colour) {
   outputEl.scrollTop = outputEl.scrollHeight;
 }
 
-// Hex preview of a Uint8Array/ArrayBuffer — first `maxBytes` shown as hex pairs
+function logTo(targetId, msg, colour) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const ts = new Date().toISOString().slice(11, 23);
+  const line = document.createElement("div");
+  if (colour) line.style.color = colour;
+  line.textContent = `[${ts}] ${msg}`;
+  target.appendChild(line);
+  target.scrollTop = target.scrollHeight;
+}
+
 function hexPreview(data, maxBytes = 64) {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const len = Math.min(bytes.length, maxBytes);
@@ -58,10 +55,8 @@ function hexPreview(data, maxBytes = 64) {
   return bytes.length > maxBytes ? `${hex} ...` : hex;
 }
 
-// Response wrapper
-
-// mixFetch returns { body: Uint8Array, status, statusText, headers }.
-// Wrap it in a native Response so callers get .json(), .text(), etc.
+// Wrap mixFetch's { body, status, statusText, headers } in a native Response
+// so callers get .json(), .text(), .arrayBuffer().
 function toResponse(raw) {
   return new Response(raw.body, {
     status: raw.status,
@@ -70,7 +65,25 @@ function toResponse(raw) {
   });
 }
 
-// Setup / disconnect
+// Tunnel-gated fieldsets and buttons. GET and DNS fieldsets are excluded:
+// their clearnet buttons work without a tunnel, so only the tunnel buttons
+// inside them are gated individually.
+const GATED_FIELDSETS = [
+  "ws-controls",
+  "stress-controls",
+  "download-controls",
+];
+
+const GATED_BUTTONS = ["btn-get-tunnel", "btn-dns-tunnel"];
+
+function setTunnelButtonsEnabled(enabled) {
+  for (const id of GATED_FIELDSETS) {
+    document.getElementById(id).disabled = !enabled;
+  }
+  for (const id of GATED_BUTTONS) {
+    document.getElementById(id).disabled = !enabled;
+  }
+}
 
 document.getElementById("btn-setup").addEventListener("click", async () => {
   const iprAddress = document.getElementById("ipr-address").value.trim();
@@ -102,8 +115,6 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   const disablePoisson = document.getElementById("opt-disable-poisson").checked;
   const disableCover = document.getElementById("opt-disable-cover").checked;
 
-  // Clamp to the same 1..50 range advertised by the inputs, in case a user
-  // pastes a wild value past HTML validation.
   const clampSurbs = (n) => Math.min(50, Math.max(1, n));
   const openReplySurbs = clampSurbs(
     parseInt(document.getElementById("opt-open-surbs").value, 10) || 5,
@@ -113,10 +124,7 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   );
 
   display(
-    `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(
-      0,
-      30,
-    )}...)...`,
+    `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(0, 30)}...)...`,
   );
   statusEl.textContent = "Connecting to mixnet...";
 
@@ -130,10 +138,10 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
       openReplySurbs,
       dataReplySurbs,
     });
-    display("setupMixTunnel OK — tunnel ready", "green");
+    display("setupMixTunnel OK: tunnel ready", "green");
     statusEl.textContent = "Connected";
     statusEl.style.color = "green";
-    document.getElementById("test-controls").disabled = false;
+    setTunnelButtonsEnabled(true);
     document.getElementById("btn-disconnect").disabled = false;
   } catch (e) {
     display(`setupMixTunnel failed: ${e}`, "red");
@@ -152,112 +160,119 @@ document
       display("Disconnected", "green");
       document.getElementById("tunnel-status").textContent = "Disconnected";
       document.getElementById("tunnel-status").style.color = "gray";
-      document.getElementById("test-controls").disabled = true;
+      setTunnelButtonsEnabled(false);
       document.getElementById("btn-disconnect").disabled = true;
-      document.getElementById("btn-setup").disabled = true; // OnceLock — can't reinit
+      document.getElementById("btn-setup").disabled = true; // OnceLock: can't reinit
     } catch (e) {
       display(`Disconnect failed: ${e}`, "red");
     }
   });
 
-// HTTPS GET
+document.getElementById("btn-dns-tunnel").addEventListener("click", async () => {
+  const hostname = document.getElementById("dns-host").value.trim();
+  if (!hostname) {
+    logTo("dns-log", "Hostname is required", "red");
+    return;
+  }
 
-async function doGet(url) {
-  display(`GET ${url}`);
+  const btn = document.getElementById("btn-dns-tunnel");
+  btn.disabled = true;
+  logTo("dns-log", `tunnel resolve ${hostname}`);
+  const t0 = performance.now();
+  try {
+    const ip = await api.mixResolve(hostname);
+    const ms = (performance.now() - t0).toFixed(0);
+    logTo("dns-log", `tunnel ${hostname} => ${ip} (${ms} ms)`, "green");
+  } catch (e) {
+    logTo("dns-log", `tunnel resolve failed: ${e}`, "red");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// The browser exposes no raw DNS API; "clearnet DNS" from JS is DoH (HTTPS)
+// to a public resolver. Google's JSON API is CORS-friendly and returns
+// { Status, Answer: [{ name, type, TTL, data }] }, where type=1 is an A
+// record. The request appears in DevTools Network as an HTTPS fetch.
+document.getElementById("btn-dns-clearnet").addEventListener("click", async () => {
+  const hostname = document.getElementById("dns-host").value.trim();
+  if (!hostname) {
+    logTo("dns-log", "Hostname is required", "red");
+    return;
+  }
+
+  logTo("dns-log", `clearnet DoH resolve ${hostname}`);
+  const t0 = performance.now();
+  try {
+    const resp = await window.fetch(
+      `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`,
+      { mode: "cors" },
+    );
+    const json = await resp.json();
+    const ms = (performance.now() - t0).toFixed(0);
+
+    if (json.Status !== 0) {
+      logTo("dns-log", `clearnet DoH error: status=${json.Status} (${ms} ms)`, "red");
+      return;
+    }
+    const aRecord = json.Answer?.find((a) => a.type === 1);
+    if (!aRecord) {
+      logTo("dns-log", `clearnet DoH: no A record (${ms} ms)`, "orange");
+      return;
+    }
+    logTo(
+      "dns-log",
+      `clearnet ${hostname} => ${aRecord.data} (${ms} ms); visible in DevTools Network`,
+      "green",
+    );
+  } catch (e) {
+    logTo("dns-log", `clearnet DoH failed: ${e}`, "red");
+  }
+});
+
+// Same URL, two transports. Filter DevTools Network by the target host:
+// clearnet produces a row, tunnel does not.
+
+document.getElementById("btn-get-tunnel").addEventListener("click", async () => {
+  const url = document.getElementById("get-url").value.trim();
+  if (!url) {
+    logTo("get-log", "URL is required", "red");
+    return;
+  }
+
+  logTo("get-log", `tunnel GET ${url}`);
   const t0 = performance.now();
   try {
     const raw = await api.mixFetch(url, {});
     const resp = toResponse(raw);
     const ms = (performance.now() - t0).toFixed(0);
-    display(`${resp.status} ${resp.statusText} (${ms} ms)`, "green");
-
-    // Body logged to browser devtools (Rust side) — keep output panel clean
+    logTo("get-log", `tunnel ${resp.status} ${resp.statusText} (${ms} ms)`, "green");
   } catch (e) {
-    display(`GET failed: ${e}`, "red");
+    logTo("get-log", `tunnel GET failed: ${e}`, "red");
   }
-}
-
-document.getElementById("btn-https").addEventListener("click", () => {
-  doGet(document.getElementById("https-url").value.trim());
 });
 
-document.getElementById("btn-clearnet").addEventListener("click", async () => {
-  const url = document.getElementById("clearnet-url").value.trim();
-  const statusEl = document.getElementById("clearnet-status");
+document.getElementById("btn-get-clearnet").addEventListener("click", async () => {
+  const url = document.getElementById("get-url").value.trim();
   if (!url) {
-    display("Clearnet URL is required", "red");
+    logTo("get-log", "URL is required", "red");
     return;
   }
 
-  display(`window.fetch (clearnet) GET ${url}`);
-  statusEl.textContent = "fetching...";
-  statusEl.style.color = "orange";
-
+  logTo("get-log", `clearnet GET ${url}`);
   const t0 = performance.now();
   try {
     const resp = await window.fetch(url, { mode: "cors" });
     const ms = (performance.now() - t0).toFixed(0);
-    const tag = `${resp.status} ${resp.statusText} (${ms} ms)`;
-    display(`clearnet ${tag} — visible in DevTools Network tab`, "green");
-    statusEl.textContent = tag;
-    statusEl.style.color = "green";
+    logTo(
+      "get-log",
+      `clearnet ${resp.status} ${resp.statusText} (${ms} ms); visible in DevTools Network`,
+      "green",
+    );
   } catch (e) {
-    display(`clearnet fetch failed: ${e}`, "red");
-    statusEl.textContent = "failed";
-    statusEl.style.color = "red";
+    logTo("get-log", `clearnet fetch failed: ${e}`, "red");
   }
 });
-
-// DNS resolve
-
-document
-  .getElementById("btn-dns-resolve")
-  .addEventListener("click", async () => {
-    const hostname = document.getElementById("dns-host").value.trim();
-    if (!hostname) {
-      display("Hostname is required", "red");
-      return;
-    }
-
-    const btn = document.getElementById("btn-dns-resolve");
-    btn.disabled = true;
-    display(`[dns] resolve ${hostname}`);
-    const t0 = performance.now();
-    try {
-      const ip = await api.mixResolve(hostname);
-      const ms = (performance.now() - t0).toFixed(0);
-      display(`[dns] ${hostname} => ${ip} (${ms} ms)`, "green");
-    } catch (e) {
-      display(`[dns] resolve failed: ${e}`, "red");
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-// POST
-
-document.getElementById("btn-post").addEventListener("click", async () => {
-  const url = document.getElementById("post-url").value.trim();
-  const body = document.getElementById("post-body").value;
-
-  display(`POST ${url}`);
-  const t0 = performance.now();
-  try {
-    const raw = await api.mixFetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-    const resp = toResponse(raw);
-    const ms = (performance.now() - t0).toFixed(0);
-    display(`${resp.status} ${resp.statusText} (${ms} ms)`, "green");
-    await resp.text(); // consume body (logged on Rust side)
-  } catch (e) {
-    display(`POST failed: ${e}`, "red");
-  }
-});
-
-// Formatting helpers
 
 function formatSize(bytes) {
   if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
@@ -270,8 +285,6 @@ function formatRate(bytes, ms) {
   return kbps.toFixed(1) + " KB/s";
 }
 
-// WebSocket
-
 let activeWs = null;
 let wsConnectT0 = 0;
 
@@ -279,7 +292,6 @@ let wsConnectT0 = 0;
 // WebSocket preserves message order, so each recv pops the oldest send.
 const wsSendQueue = [];
 
-// Burst state
 let wsBurstActive = false;
 let wsBurstRtts = [];
 let wsBurstExpected = 0;
@@ -297,7 +309,7 @@ function setWsButtonState(state) {
 document.getElementById("btn-ws-connect").addEventListener("click", () => {
   const url = document.getElementById("ws-url").value.trim();
   if (!url) {
-    display("WebSocket URL is required", "red");
+    logTo("ws-log", "WebSocket URL is required", "red");
     return;
   }
 
@@ -307,17 +319,14 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
   setWsButtonState("connecting");
   wsSendQueue.length = 0;
 
-  display(`[ws] connecting to ${url}`);
+  logTo("ws-log", `connecting to ${url}`);
   wsConnectT0 = performance.now();
 
   const ws = new MixSocket(url);
 
   ws.onopen = () => {
     const ms = (performance.now() - wsConnectT0).toFixed(0);
-    display(
-      `[ws] connected in ${ms} ms (protocol=${ws.protocol || "none"})`,
-      "green",
-    );
+    logTo("ws-log", `connected in ${ms} ms (protocol=${ws.protocol || "none"})`, "green");
     statusEl.textContent = `Connected (${ms} ms)`;
     statusEl.style.color = "green";
     setWsButtonState("connected");
@@ -350,15 +359,16 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
     }
 
     if (rttMs != null) {
-      display(`[ws] recv (${rttMs.toFixed(0)} ms RTT): ${preview}`, "green");
+      logTo("ws-log", `recv (${rttMs.toFixed(0)} ms RTT): ${preview}`, "green");
     } else {
-      display(`[ws] recv: ${preview}`, "green");
+      logTo("ws-log", `recv: ${preview}`, "green");
     }
   };
 
   ws.onclose = (e) => {
-    display(
-      `[ws] closed: ${e.code} ${e.reason}${e.wasClean ? "" : " (unclean)"}`,
+    logTo(
+      "ws-log",
+      `closed: ${e.code} ${e.reason}${e.wasClean ? "" : " (unclean)"}`,
       "orange",
     );
     statusEl.textContent = "Closed";
@@ -368,7 +378,7 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
   };
 
   ws.onerror = () => {
-    display("[ws] error", "red");
+    logTo("ws-log", "error", "red");
     statusEl.textContent = "Error";
     statusEl.style.color = "red";
   };
@@ -381,19 +391,17 @@ document.getElementById("btn-ws-send").addEventListener("click", () => {
   const msg = document.getElementById("ws-message").value;
   wsSendQueue.push(performance.now());
   activeWs.send(msg);
-  display(`[ws] send: ${msg}`);
+  logTo("ws-log", `send: ${msg}`);
 });
 
 document.getElementById("btn-ws-close").addEventListener("click", () => {
   if (!activeWs) return;
   const t0 = performance.now();
-  const origOnclose = activeWs.onclose;
   activeWs.onclose = (e) => {
     const ms = (performance.now() - t0).toFixed(0);
-    display(
-      `[ws] closed in ${ms} ms: ${e.code} ${e.reason}${
-        e.wasClean ? "" : " (unclean)"
-      }`,
+    logTo(
+      "ws-log",
+      `closed in ${ms} ms: ${e.code} ${e.reason}${e.wasClean ? "" : " (unclean)"}`,
       "orange",
     );
     document.getElementById("ws-status").textContent = "Closed";
@@ -401,11 +409,10 @@ document.getElementById("btn-ws-close").addEventListener("click", () => {
     setWsButtonState("disconnected");
     activeWs = null;
   };
-  display("[ws] closing...");
+  logTo("ws-log", "closing...");
   activeWs.close();
 });
 
-// Echo burst — send N random binary payloads, verify echoes, collect RTT stats
 document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   if (!activeWs || activeWs.readyState !== MixSocket.OPEN) return;
   const count = parseInt(document.getElementById("ws-burst-count").value, 10);
@@ -413,11 +420,11 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   const maxSize = parseInt(document.getElementById("ws-burst-max").value, 10);
 
   if (count < 1 || count > 500) {
-    display("[ws] burst count must be 1-500", "red");
+    logTo("ws-log", "burst count must be 1-500", "red");
     return;
   }
   if (minSize < 1 || maxSize < minSize) {
-    display("[ws] invalid size range", "red");
+    logTo("ws-log", "invalid size range", "red");
     return;
   }
 
@@ -428,7 +435,6 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   document.getElementById("btn-ws-burst").disabled = true;
   document.getElementById("btn-ws-send").disabled = true;
 
-  // Generate payloads up front
   const payloads = [];
   let totalBytes = 0;
   for (let i = 0; i < count; i++) {
@@ -442,17 +448,15 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
     totalBytes += size;
   }
 
-  display(
-    `[ws] echo burst: ${count} msgs, ${formatSize(minSize)}-${formatSize(
-      maxSize,
-    )} ` + `(${formatSize(totalBytes)} total)`,
+  logTo(
+    "ws-log",
+    `echo burst: ${count} msgs, ${formatSize(minSize)}-${formatSize(maxSize)} (${formatSize(totalBytes)} total)`,
   );
 
   wsBurstActive = true;
   wsBurstRtts = [];
   wsBurstExpected = count;
 
-  // Track per-message data for verification
   let received = 0;
   let verified = 0;
   let mismatches = 0;
@@ -462,7 +466,6 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   const burstDone = new Promise((resolve) => {
     wsBurstResolve = resolve;
 
-    // Override onmessage for burst — verify echo content
     const origOnmessage = activeWs.onmessage;
     activeWs.onmessage = (e) => {
       let rttMs = null;
@@ -471,7 +474,6 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
         wsBurstRtts.push(rttMs);
       }
 
-      // Verify echo matches sent payload
       const sent = payloads[received];
       const recvBuf = new Uint8Array(e.data);
       sizes.push(recvBuf.byteLength);
@@ -512,7 +514,6 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   wsBurstResolve = null;
   activeWs.binaryType = prevBinaryType;
 
-  // RTT stats
   const rtts = wsBurstRtts.slice().sort((a, b) => a - b);
   const rttMin = rtts[0].toFixed(0);
   const rttMax = rtts[rtts.length - 1].toFixed(0);
@@ -523,25 +524,24 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   const throughput = formatRate(totalBytes, totalMs);
 
   const verifyColour = mismatches === 0 ? "green" : "red";
-  display(
-    `[ws] burst done: ${count} msgs in ${(totalMs / 1000).toFixed(2)}s ` +
-      `(${msgPerSec} msg/s, ${throughput})`,
+  logTo(
+    "ws-log",
+    `burst done: ${count} msgs in ${(totalMs / 1000).toFixed(2)}s (${msgPerSec} msg/s, ${throughput})`,
     "green",
   );
-  display(
-    `[ws] verify: ${verified}/${count} OK` +
-      (mismatches > 0 ? `, ${mismatches} MISMATCH` : ""),
+  logTo(
+    "ws-log",
+    `verify: ${verified}/${count} OK` + (mismatches > 0 ? `, ${mismatches} MISMATCH` : ""),
     verifyColour,
   );
-  display(
-    `[ws] RTT: min=${rttMin} avg=${rttAvg} p50=${p50} p95=${p95} max=${rttMax} ms`,
+  logTo(
+    "ws-log",
+    `RTT: min=${rttMin} avg=${rttAvg} p50=${p50} p95=${p95} max=${rttMax} ms`,
   );
 
   document.getElementById("btn-ws-burst").disabled = false;
   document.getElementById("btn-ws-send").disabled = false;
 });
-
-// Stress test — request generation
 
 const SIZE_PROFILES = [
   { label: "tiny", bytes: 128 },
@@ -553,30 +553,10 @@ const SIZE_PROFILES = [
 
 function buildDripProfiles(timeoutSec) {
   return [
-    {
-      label: "safe",
-      duration: Math.round(timeoutSec * 0.5),
-      delay: 0,
-      bytes: 100,
-    },
-    {
-      label: "boundary",
-      duration: Math.round(timeoutSec * 0.92),
-      delay: 0,
-      bytes: 100,
-    },
-    {
-      label: "over",
-      duration: Math.round(timeoutSec * 1.08),
-      delay: 0,
-      bytes: 100,
-    },
-    {
-      label: "slow-start",
-      duration: Math.round(timeoutSec * 0.83),
-      delay: Math.round(timeoutSec * 0.17),
-      bytes: 100,
-    },
+    { label: "safe", duration: Math.round(timeoutSec * 0.5), delay: 0, bytes: 100 },
+    { label: "boundary", duration: Math.round(timeoutSec * 0.92), delay: 0, bytes: 100 },
+    { label: "over", duration: Math.round(timeoutSec * 1.08), delay: 0, bytes: 100 },
+    { label: "slow-start", duration: Math.round(timeoutSec * 0.83), delay: Math.round(timeoutSec * 0.17), bytes: 100 },
   ];
 }
 
@@ -590,11 +570,7 @@ function generateRequests(count, mode, timeoutSec) {
   } else if (mode === "mixed") {
     for (let i = 1; i <= count; i++) {
       const p = SIZE_PROFILES[Math.floor(Math.random() * SIZE_PROFILES.length)];
-      requests.push({
-        id: i,
-        url: `https://httpbin.org/bytes/${p.bytes}`,
-        label: p.label,
-      });
+      requests.push({ id: i, url: `https://httpbin.org/bytes/${p.bytes}`, label: p.label });
     }
   } else if (mode === "drip") {
     const profiles = buildDripProfiles(timeoutSec);
@@ -610,8 +586,6 @@ function generateRequests(count, mode, timeoutSec) {
   return requests;
 }
 
-// Stress test — execution
-
 async function runOneStressRequest(req) {
   const tag = `#${req.id} ${req.label}`;
   const start = performance.now();
@@ -620,29 +594,12 @@ async function runOneStressRequest(req) {
     const resp = toResponse(raw);
     const body = await resp.text();
     const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-    display(
-      `[${tag}] ${resp.status} OK ${elapsed}s (${body.length}B)`,
-      "green",
-    );
-
-    return {
-      id: req.id,
-      label: req.label,
-      ok: true,
-      status: resp.status,
-      elapsed,
-      textLength: body.length,
-    };
+    logTo("stress-log", `[${tag}] ${resp.status} OK ${elapsed}s (${body.length}B)`, "green");
+    return { id: req.id, label: req.label, ok: true, status: resp.status, elapsed, textLength: body.length };
   } catch (e) {
     const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-    display(`[${tag}] FAIL ${elapsed}s: ${e}`, "red");
-    return {
-      id: req.id,
-      label: req.label,
-      ok: false,
-      elapsed,
-      error: String(e),
-    };
+    logTo("stress-log", `[${tag}] FAIL ${elapsed}s: ${e}`, "red");
+    return { id: req.id, label: req.label, ok: false, elapsed, error: String(e) };
   }
 }
 
@@ -662,20 +619,14 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
 
   if (mode === "mixed" || mode === "drip") {
     const breakdown = {};
-    for (const r of requests)
-      breakdown[r.label] = (breakdown[r.label] || 0) + 1;
-    display(
-      `Stress test: ${count} requests, ${mode} mode, profiles: ${JSON.stringify(
-        breakdown,
-      )}`,
-    );
+    for (const r of requests) breakdown[r.label] = (breakdown[r.label] || 0) + 1;
+    logTo("stress-log", `${count} requests, ${mode} mode, profiles: ${JSON.stringify(breakdown)}`);
   } else {
-    display(`Stress test: ${count} requests, ${mode} mode`);
+    logTo("stress-log", `${count} requests, ${mode} mode`);
   }
 
   const t0 = performance.now();
 
-  // All requests fire concurrently — the worker handles them in parallel
   const settled = await Promise.allSettled(
     requests.map((r) => runOneStressRequest(r)),
   );
@@ -688,22 +639,17 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
   const fail = results.filter((r) => !r.ok).length;
 
   const colour = fail === 0 ? "green" : "red";
-  display(
-    `Stress test done: ${ok}/${count} OK, ${fail} failed (${totalSec}s total)`,
-    colour,
-  );
+  logTo("stress-log", `done: ${ok}/${count} OK, ${fail} failed (${totalSec}s total)`, colour);
 
   if (fail > 0) {
     for (const r of results.filter((r) => !r.ok)) {
-      display(`  FAIL #${r.id} ${r.label} (${r.elapsed}s): ${r.error}`);
+      logTo("stress-log", `  FAIL #${r.id} ${r.label} (${r.elapsed}s): ${r.error}`);
     }
   }
 
   statusEl.textContent = `Done: ${ok}/${count} OK, ${fail} failed (${totalSec}s)`;
   document.getElementById("btn-stress").disabled = false;
 });
-
-// Stress test — mode selector
 
 document.getElementById("stress-mode").addEventListener("change", function () {
   document.getElementById("stress-uniform-opts").style.display =
@@ -713,8 +659,6 @@ document.getElementById("stress-mode").addEventListener("change", function () {
   document.getElementById("stress-drip-opts").style.display =
     this.value === "drip" ? "block" : "none";
 });
-
-// File download
 
 const VERIFY_TEXT_URL =
   "https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-demo.txt";
@@ -726,7 +670,6 @@ async function sha256hex(bytes) {
   ).join("");
 }
 
-// Trigger a browser download (Save As) for an ArrayBuffer
 function saveFile(buf, filename, mimeType) {
   const blob = new Blob([buf], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -737,10 +680,7 @@ function saveFile(buf, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-// Cached ArrayBuffer for Save button
 let cachedPdf = null;
-
-// -- Text: UTF-8 demo --
 
 async function verifyText() {
   const statusEl = document.getElementById("verify-text-status");
@@ -760,24 +700,19 @@ async function verifyText() {
     statusEl.style.color = "green";
     outputEl.style.display = "block";
     outputEl.textContent = text;
-    display(
-      `[verify] UTF-8 demo: ${formatSize(text.length)} in ${ms} ms`,
-      "green",
-    );
+    logTo("download-log", `UTF-8 demo: ${formatSize(text.length)} in ${ms} ms`, "green");
   } catch (e) {
     statusEl.textContent = `Failed: ${e}`;
     statusEl.style.color = "red";
-    display(`[verify] UTF-8 demo FAILED: ${e}`, "red");
+    logTo("download-log", `UTF-8 demo FAILED: ${e}`, "red");
   }
   document.getElementById("btn-verify-text").disabled = false;
 }
 
-// -- File download (configurable URL) --
-
 async function fetchFile() {
   const url = document.getElementById("download-url").value.trim();
   if (!url) {
-    display("Download URL is required", "red");
+    logTo("download-log", "Download URL is required", "red");
     return;
   }
 
@@ -801,43 +736,31 @@ async function fetchFile() {
       `${buf.byteLength.toLocaleString()} bytes`;
     document.getElementById("verify-pdf-sha").textContent = hash;
 
-    statusEl.textContent = `${formatSize(buf.byteLength)} in ${(
-      parseFloat(ms) / 1000
-    ).toFixed(1)}s`;
+    statusEl.textContent = `${formatSize(buf.byteLength)} in ${(parseFloat(ms) / 1000).toFixed(1)}s`;
     statusEl.style.color = "green";
     outputEl.style.display = "block";
 
     cachedPdf = buf;
     document.getElementById("btn-save-pdf").disabled = false;
 
-    display(
-      `[download] ${formatSize(buf.byteLength)} in ${(
-        parseFloat(ms) / 1000
-      ).toFixed(1)}s ` +
-        `(${formatRate(
-          buf.byteLength,
-          parseFloat(ms),
-        )}) — SHA-256: ${hash.slice(0, 16)}...`,
+    logTo(
+      "download-log",
+      `${formatSize(buf.byteLength)} in ${(parseFloat(ms) / 1000).toFixed(1)}s (${formatRate(buf.byteLength, parseFloat(ms))}); SHA-256: ${hash.slice(0, 16)}...`,
       "green",
     );
   } catch (e) {
     statusEl.textContent = `Failed: ${e}`;
     statusEl.style.color = "red";
-    display(`[download] FAILED: ${e}`, "red");
+    logTo("download-log", `FAILED: ${e}`, "red");
   }
   document.getElementById("btn-verify-pdf").disabled = false;
 }
 
-// Event listeners
-
-document
-  .getElementById("btn-verify-text")
-  .addEventListener("click", verifyText);
+document.getElementById("btn-verify-text").addEventListener("click", verifyText);
 document.getElementById("btn-verify-pdf").addEventListener("click", fetchFile);
 
 document.getElementById("btn-save-pdf").addEventListener("click", () => {
   if (!cachedPdf) return;
-  // Extract filename from URL, fall back to 'download'
   const url = document.getElementById("download-url").value.trim();
   const filename = url.split("/").pop()?.split("?")[0] || "download";
   saveFile(cachedPdf, filename, "application/octet-stream");
@@ -849,28 +772,25 @@ document
     const statusEl = document.getElementById("verify-all-status");
     statusEl.textContent = "Running...";
     statusEl.style.color = "orange";
-    display("[download] running both downloads...");
+    logTo("download-log", "running both downloads...");
 
     const t0 = performance.now();
     await Promise.allSettled([verifyText(), fetchFile()]);
     const totalMs = (performance.now() - t0).toFixed(0);
 
-    statusEl.textContent = `Done in ${(parseFloat(totalMs) / 1000).toFixed(
-      1,
-    )}s`;
+    statusEl.textContent = `Done in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`;
     statusEl.style.color = "green";
-    display(
-      `[download] both complete in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`,
+    logTo(
+      "download-log",
+      `both complete in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`,
       "green",
     );
   });
-
-// Init
 
 // Randomise client ID on each page load for clean state
 document.getElementById("opt-client-id").value =
   "smolmix-" + Math.random().toString(36).slice(2, 8);
 
 display(
-  "smolmix-wasm dev ready (worker mode). Enter an IPR address and click setupMixTunnel.",
+  "smolmix-wasm dev ready. Enter an IPR address and click setupMixTunnel. The clearnet GET works without setup.",
 );

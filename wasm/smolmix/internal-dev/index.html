@@ -4,6 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>smolmix-wasm dev</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 1000px;
+        margin: 16px auto;
+        padding: 0 12px;
+      }
+      fieldset { margin-bottom: 12px; }
+      legend { font-weight: bold; }
+      .row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .status { font-size: 0.85em; color: gray; }
+      .local-log {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        padding: 6px;
+        margin: 8px 0 0;
+        max-height: 140px;
+        overflow-y: auto;
+        font-size: 0.82em;
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+      }
+    </style>
     <script src="bundle.js" defer></script>
   </head>
 
@@ -55,121 +83,74 @@
       </div>
     </fieldset>
 
-    <!-- Clearnet fetch: proof-by-contrast for tunnel encapsulation -->
-    <fieldset>
-      <legend>Clearnet fetch (proof-by-contrast)</legend>
-      <p style="font-size: 0.85em; color: #666; margin: 0 0 6px">
-        Calls <code>window.fetch()</code> directly, bypassing the tunnel.
-        Open DevTools &rarr; Network, filter by the target host, and compare:
-        tunnel requests below never produce a row; this one will.
-      </p>
-      <p style="font-size: 0.85em; color: #666; margin: 0 0 8px">
-        Works without setting up the tunnel. The contrast is the point.
-      </p>
-      <div>
-        <input type="text" size="60" id="clearnet-url" value="https://httpbin.org/get" />
-        <button id="btn-clearnet">window.fetch (clearnet)</button>
-        <span id="clearnet-status" style="margin-left: 6px; font-size: 0.85em; color: gray">idle</span>
+    <!-- DNS Resolve: tunnel (smoltcp UDP to 8.8.8.8) vs clearnet (DoH JSON) -->
+    <fieldset id="dns-controls">
+      <legend>DNS Resolve</legend>
+      <div class="row">
+        <input type="text" size="40" id="dns-host" value="example.com" />
+        <button id="btn-dns-tunnel" disabled>via tunnel</button>
+        <button id="btn-dns-clearnet">via DoH (clearnet)</button>
       </div>
+      <pre class="local-log" id="dns-log"></pre>
     </fieldset>
 
-    <!-- Tests -->
-    <fieldset id="test-controls" disabled>
-      <legend>Tests</legend>
-
-      <!-- HTTPS -->
-      <h3>HTTPS</h3>
-      <div>
-        <input type="text" size="60" id="https-url" value="https://httpbin.org/get" />
-        <button id="btn-https">GET</button>
+    <!-- GET: clearnet vs tunnel, same URL -->
+    <fieldset id="get-controls">
+      <legend>GET</legend>
+      <div class="row">
+        <input type="text" size="60" id="get-url" value="https://httpbin.org/get" />
+        <button id="btn-get-tunnel" disabled>via tunnel</button>
+        <button id="btn-get-clearnet">via window.fetch (clearnet)</button>
       </div>
-      <p style="font-size: 0.85em; color: #666">
-        Full pipeline: DNS + TCP + TLS (futures-rustls) + HTTP/1.1.
-      </p>
+      <pre class="local-log" id="get-log"></pre>
+    </fieldset>
 
-      <hr />
-
-      <!-- DNS resolve -->
-      <h3>DNS Resolve</h3>
-      <div>
-        <input type="text" size="40" id="dns-host" value="example.com" />
-        <button id="btn-dns-resolve">Resolve</button>
-      </div>
-      <p style="font-size: 0.85em; color: #666">
-        UDP / IPR only (no TCP, TLS, or HTTP). Isolates the DNS path; useful when mixFetch misbehaves.
-      </p>
-
-      <hr />
-
-      <!-- POST -->
-      <h3>POST</h3>
-      <div>
-        <input type="text" size="60" id="post-url" value="https://jsonplaceholder.typicode.com/posts" />
-      </div>
-      <div style="margin-top: 4px">
-        <textarea id="post-body" rows="3" cols="60">{"title": "Test Post", "body": "Hello from smolmix-wasm!", "userId": 1}</textarea>
-      </div>
-      <button id="btn-post">POST</button>
-
-      <hr />
-
-      <!-- WebSocket -->
-      <h3>WebSocket</h3>
-      <div>
+    <!-- WebSocket -->
+    <fieldset id="ws-controls" disabled>
+      <legend>WebSocket</legend>
+      <div class="row">
         <input type="text" size="60" id="ws-url" value="wss://echo.websocket.org" />
         <button id="btn-ws-connect">Connect</button>
         <button id="btn-ws-close" disabled>Close</button>
-        <span id="ws-status" style="margin-left: 10px; color: gray">Not connected</span>
+        <span id="ws-status" class="status">Not connected</span>
       </div>
-      <div style="margin-top: 4px">
+      <div class="row" style="margin-top: 4px">
         <input type="text" size="50" id="ws-message" value="Hello from smolmix-wasm!" />
         <button id="btn-ws-send" disabled>Send</button>
       </div>
-      <div style="margin-top: 4px">
+      <div class="row" style="margin-top: 4px">
         <label>Echo burst:</label>
         <input type="number" id="ws-burst-count" value="10" min="1" max="500" style="width: 60px" />
-        <label style="margin-left: 8px">Size:</label>
+        <label>Size:</label>
         <input type="number" id="ws-burst-min" value="64" min="1" max="1048576" style="width: 80px" />
         <span>&ndash;</span>
         <input type="number" id="ws-burst-max" value="1024" min="1" max="1048576" style="width: 80px" />
-        <span style="font-size: 0.85em; color: #888">bytes</span>
-        <button id="btn-ws-burst" disabled style="margin-left: 8px">Send Burst</button>
+        <span class="status">bytes</span>
+        <button id="btn-ws-burst" disabled>Send Burst</button>
       </div>
-      <p style="font-size: 0.85em; color: #666; margin: 4px 0 0">
-        Sends N random binary payloads (size uniformly sampled from range), verifies echo matches, reports RTT stats.
-      </p>
-      <p style="font-size: 0.85em; color: #666; margin: 4px 0">
-        Drop-in <code>MixSocket</code> class (mirrors browser <code>WebSocket</code> API).
-        DNS + TCP + TLS + HTTP 101 upgrade through the mixnet, then framed messages.
-      </p>
+      <pre class="local-log" id="ws-log"></pre>
+    </fieldset>
 
-      <hr />
-
-      <!-- Stress Test -->
-      <h3>Stress Test</h3>
-      <div>
+    <!-- Stress Test -->
+    <fieldset id="stress-controls" disabled>
+      <legend>Stress Test</legend>
+      <div class="row">
         <label>Requests:</label>
         <input type="number" id="stress-count" value="10" min="1" max="200" style="width: 60px" />
-        <label style="margin-left: 8px">Mode:</label>
+        <label>Mode:</label>
         <select id="stress-mode">
-          <option value="uniform">Uniform (same URL, incremented ID)</option>
+          <option value="uniform">Uniform</option>
           <option value="mixed" selected>Mixed sizes</option>
-          <option value="drip">Slow drip (timeout boundary)</option>
+          <option value="drip">Slow drip</option>
         </select>
       </div>
 
       <div id="stress-uniform-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
         <label>Base URL:</label>
         <input type="text" size="50" id="stress-url" value="https://jsonplaceholder.typicode.com/posts/" />
-        <p style="margin: 4px 0 0; font-size: 0.85em; color: #666">
-          Request ID (1..N) appended. All requests same size.
-        </p>
       </div>
 
       <div id="stress-mixed-opts" style="margin-top: 8px; padding: 8px; background: #f9f9f9">
-        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
-          Random payload sizes via <code>httpbin.org/bytes/{n}</code>.
-        </p>
         <table style="font-size: 0.9em; border-collapse: collapse">
           <tr><td style="padding: 1px 10px 1px 0"><b>tiny</b></td><td>128 B</td></tr>
           <tr><td style="padding: 1px 10px 1px 0"><b>small</b></td><td>1 KB</td></tr>
@@ -180,15 +161,11 @@
       </div>
 
       <div id="stress-drip-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
-        <p style="margin: 0 0 4px; font-size: 0.85em; color: #666">
-          Uses <code>httpbin.org/drip</code> to slowly drip bytes, testing timeout boundaries.
-          Profiles computed from the request timeout.
-        </p>
         <table style="font-size: 0.9em; border-collapse: collapse">
-          <tr><td style="padding: 1px 10px 1px 0"><b>safe</b></td><td>~50% of timeout</td><td style="padding-left: 10px; color: #666">well under limit</td></tr>
-          <tr><td style="padding: 1px 10px 1px 0"><b>boundary</b></td><td>~92% of timeout</td><td style="padding-left: 10px; color: #666">mixnet latency pushes over</td></tr>
-          <tr><td style="padding: 1px 10px 1px 0"><b>over</b></td><td>~108% of timeout</td><td style="padding-left: 10px; color: #666">exceeds on its own</td></tr>
-          <tr><td style="padding: 1px 10px 1px 0"><b>slow-start</b></td><td>~17% delay + ~83% drip</td><td style="padding-left: 10px; color: #666">late first byte</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>safe</b></td><td>~50% of timeout</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>boundary</b></td><td>~92% of timeout</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>over</b></td><td>~108% of timeout</td></tr>
+          <tr><td style="padding: 1px 10px 1px 0"><b>slow-start</b></td><td>~17% delay + ~83% drip</td></tr>
         </table>
         <div style="margin-top: 6px">
           <label>Request timeout (s):</label>
@@ -196,32 +173,24 @@
         </div>
       </div>
 
-      <div style="margin-top: 8px">
+      <div class="row" style="margin-top: 8px">
         <button id="btn-stress">Run Stress Test</button>
-        <span id="stress-status" style="margin-left: 10px"></span>
+        <span id="stress-status" class="status"></span>
       </div>
+      <pre class="local-log" id="stress-log"></pre>
+    </fieldset>
 
-      <hr />
-
-      <!-- File Download -->
-      <h3>File Download</h3>
-      <p style="font-size: 0.85em; color: #666; margin: 0 0 8px">
-        Download files through the mixnet. Saved to disk.
-      </p>
-
+    <!-- File Download -->
+    <fieldset id="download-controls" disabled>
+      <legend>File Download</legend>
       <div style="display: flex; gap: 12px; flex-wrap: wrap">
-        <!-- Text: UTF-8 Demo -->
         <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
           <b>UTF-8 Demo</b>
-          <div style="font-size: 0.85em; color: #666; margin: 2px 0 6px">
-            ~14 KB — every Unicode script (Cambridge CS)
-          </div>
+          <div class="status">Unicode text (Cambridge CS)</div>
           <button id="btn-verify-text">Fetch</button>
-          <span id="verify-text-status" style="margin-left: 6px; font-size: 0.85em"></span>
+          <span id="verify-text-status" class="status"></span>
           <pre id="verify-text-output" style="margin-top: 6px; max-height: 200px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; display: none; background: #fff; padding: 6px; border: 1px solid #eee"></pre>
         </div>
-
-        <!-- File download (configurable URL) -->
         <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
           <b>File Download</b>
           <div style="margin: 4px 0 6px">
@@ -229,25 +198,25 @@
               value="https://nymtech.net/uploads/Nym_WFP_Paper_5_58a1105679.pdf" />
           </div>
           <button id="btn-verify-pdf">Fetch</button>
-          <button id="btn-save-pdf" disabled style="margin-left: 4px">Save</button>
-          <span id="verify-pdf-status" style="margin-left: 6px; font-size: 0.85em"></span>
+          <button id="btn-save-pdf" disabled>Save</button>
+          <span id="verify-pdf-status" class="status"></span>
           <div id="verify-pdf-output" style="margin-top: 6px; font-size: 0.8em; display: none">
             <div>Size: <code id="verify-pdf-size"></code></div>
             <div>SHA-256: <code id="verify-pdf-sha"></code></div>
           </div>
         </div>
       </div>
-
-      <div style="margin-top: 8px">
+      <div class="row" style="margin-top: 8px">
         <button id="btn-verify-all">Run Both</button>
-        <span id="verify-all-status" style="margin-left: 6px; font-size: 0.85em"></span>
+        <span id="verify-all-status" class="status"></span>
       </div>
+      <pre class="local-log" id="download-log"></pre>
     </fieldset>
 
-    <!-- Output -->
+    <!-- Master timeline -->
     <fieldset>
-      <legend>Output</legend>
-      <pre id="output" style="background: #f5f5f5; padding: 8px; max-height: 400px; overflow-y: auto; font-size: 0.85em; white-space: pre-wrap"></pre>
+      <legend>Output (master timeline)</legend>
+      <pre id="output" style="background: #f5f5f5; padding: 8px; max-height: 300px; overflow-y: auto; font-size: 0.85em; white-space: pre-wrap"></pre>
     </fieldset>
   </body>
 </html>

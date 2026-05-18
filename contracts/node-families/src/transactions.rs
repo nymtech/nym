@@ -1,9 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! State-mutating execute handlers. Each entry is currently a stub returning
-//! an empty response; concrete implementations will be filled in as the
-//! corresponding tickets land.
+//! State-mutating execute handlers
 
 use crate::helpers::{
     ensure_address_holds_no_family_membership, ensure_has_bonded_node, ensure_node_is_bonded,
@@ -36,10 +34,11 @@ pub(crate) fn try_update_config(
 /// [`NodeFamiliesStorage::register_new_family`]: validates the attached fee
 /// matches the configured `create_family_fee`, that name and description
 /// are within their configured length limits, that the name normalises to a
-/// non-empty string, and that the sender doesn't already own a family or
-/// collide with an existing family's normalised name. The unique indexes on
-/// `owner` and `name` provide defence-in-depth, but pre-checking yields
-/// typed errors with useful context.
+/// non-empty string, that the sender doesn't already own a family or
+/// collide with an existing family's normalised name, and that the sender's
+/// bonded node (if any) isn't already in a family. The unique indexes on
+/// `owner` and `normalised_name` provide defence-in-depth, but pre-checking
+/// yields typed errors with useful context.
 pub(crate) fn try_create_family(
     deps: DepsMut,
     env: Env,
@@ -122,6 +121,10 @@ pub(crate) fn try_create_family(
             .add_attribute(
                 events::FAMILY_CREATION_EVENT_FAMILY_ID,
                 family.id.to_string(),
+            )
+            .add_attribute(
+                events::FAMILY_CREATION_EVENT_PAID_FEE,
+                family.paid_fee.to_string(),
             ),
     ))
 }

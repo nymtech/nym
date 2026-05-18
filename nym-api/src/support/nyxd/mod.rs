@@ -33,13 +33,15 @@ use nym_mixnet_contract_common::{
     ExecuteMsg, GatewayBond, HistoricalNymNodeVersionEntry, IdentityKey, KeyRotationState,
     NymNodeDetails, RewardedSet, RoleAssignment,
 };
+use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     LastSubmission, NodePerformance,
 };
 use nym_validator_client::nyxd::contract_traits::{
-    PagedDkgQueryClient, PagedPerformanceQueryClient, PerformanceQueryClient,
+    NodeFamiliesQueryClient, PagedDkgQueryClient, PagedPerformanceQueryClient,
+    PerformanceQueryClient,
 };
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
@@ -200,6 +202,13 @@ impl Client {
     #[allow(dead_code)]
     pub(crate) async fn current_block_timestamp(&self) -> Result<TendermintTime, NyxdError> {
         let time = nyxd_query!(self, get_current_block_timestamp().await?);
+
+        Ok(time)
+    }
+
+    /// Tendermint block timestamp at the given height.
+    pub(crate) async fn block_timestamp(&self, height: u32) -> Result<TendermintTime, NyxdError> {
+        let time = nyxd_query!(self, get_block_timestamp(Some(height)).await?);
 
         Ok(time)
     }
@@ -693,5 +702,18 @@ impl DkgQueryClient for Client {
         for<'a> T: Deserialize<'a>,
     {
         nyxd_query!(self, query_dkg_contract(query).await)
+    }
+}
+
+#[async_trait]
+impl NodeFamiliesQueryClient for Client {
+    async fn query_node_families_contract<T>(
+        &self,
+        query: NodeFamiliesQueryMsg,
+    ) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        nyxd_query!(self, query_node_families_contract(query).await)
     }
 }

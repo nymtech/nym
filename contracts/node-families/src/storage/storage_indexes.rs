@@ -4,12 +4,12 @@
 use crate::storage::FamilyMember;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Index, IndexList, MultiIndex, UniqueIndex};
-use node_families_contract_common::constants::storage_keys;
-use node_families_contract_common::{
+use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::constants::storage_keys;
+use nym_node_families_contract_common::{
     FamilyInvitation, FamilyMembership, NodeFamily, NodeFamilyId, PastFamilyInvitation,
     PastFamilyMember,
 };
-use nym_mixnet_contract_common::NodeId;
 
 /// Secondary indexes over [`NodeFamily`]. Enforces one-family-per-owner and
 /// globally-unique family names via `UniqueIndex`es on `owner` and `name`.

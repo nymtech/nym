@@ -28,8 +28,8 @@ use mixnet_contract_common::{
     NodeCostParams, NymNodeBondingPayload, NymNodeDetails, PendingEpochEventKind,
     PendingIntervalEventKind,
 };
-use node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
+use nym_node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
 use serde::Serialize;
 
 pub fn try_add_nym_node(

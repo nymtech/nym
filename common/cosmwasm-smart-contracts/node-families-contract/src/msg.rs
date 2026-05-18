@@ -10,9 +10,9 @@ use nym_mixnet_contract_common::NodeId;
 
 #[cfg(feature = "schema")]
 use crate::{
-    AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMembersPagedResponse,
-    NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyMembershipResponse,
-    NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
+    AllFamilyMembersPagedResponse, AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse,
+    FamilyMembersPagedResponse, NodeFamilyByNameResponse, NodeFamilyByOwnerResponse,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
     PastFamilyInvitationsPagedResponse, PastFamilyMembersForNodePagedResponse,
     PastFamilyMembersPagedResponse, PendingFamilyInvitationResponse,
     PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
@@ -114,6 +114,15 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(FamilyMembersPagedResponse))]
     GetFamilyMembersPaged {
         family_id: NodeFamilyId,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every current family member across all families, in
+    /// ascending [`NodeId`] order. Each entry carries the membership record
+    /// (which in turn names the family the node belongs to).
+    #[cfg_attr(feature = "schema", returns(AllFamilyMembersPagedResponse))]
+    GetAllFamilyMembersPaged {
         start_after: Option<NodeId>,
         limit: Option<u32>,
     },

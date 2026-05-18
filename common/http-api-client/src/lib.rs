@@ -1732,7 +1732,7 @@ where
         Err(HttpClientError::EndpointFailure {
             url: Box::new(url),
             status,
-            headers: Box::new(HeaderMap::new()),
+            headers: Box::new(headers),
             error: String::from("received vercel rate limit challenge response"),
         })
     } else {

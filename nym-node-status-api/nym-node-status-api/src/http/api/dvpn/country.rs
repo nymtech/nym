@@ -13,7 +13,7 @@ use crate::http::{error::HttpResult, state::AppState};
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route(
-            "/country/:two_letter_country_code",
+            "/country/{two_letter_country_code}",
             axum::routing::get(get_gateways_by_country),
         )
         .route("/countries", axum::routing::get(get_gateway_countries))

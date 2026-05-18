@@ -81,6 +81,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio_util::sync::WaitForCancellationFutureOwned;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
@@ -872,7 +873,10 @@ impl NymNode {
             .collect()
     }
 
-    pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
+    pub(crate) async fn build_http_server(
+        &self,
+        shutdown: WaitForCancellationFutureOwned,
+    ) -> Result<NymNodeHttpServer, NymNodeError> {
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
             announce_ports: AnnouncePorts {
@@ -1023,7 +1027,7 @@ impl NymNode {
         );
 
         Ok(NymNodeRouter::new(config, app_state)
-            .build_server(&self.config.http.bind_address)
+            .build_server(&self.config.http.bind_address, shutdown)
             .await?)
     }
 
@@ -1342,16 +1346,17 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
-        let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
-        let server_shutdown = self.shutdown_manager.clone_shutdown_token();
+        let shutdown = self
+            .shutdown_manager
+            .clone_shutdown_token()
+            .cancelled_owned();
+        let http_server = self.build_http_server(shutdown).await?;
 
         self.shutdown_manager.try_spawn_named(
             async move {
                 info!("starting NymNodeHTTPServer on {bind_address}");
-                http_server
-                    .with_graceful_shutdown(async move { server_shutdown.cancelled().await })
-                    .await
+                http_server.await
             },
             "HttpApi",
         );

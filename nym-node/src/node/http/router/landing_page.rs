@@ -14,7 +14,7 @@ pub struct Config {
 
 pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
     if let Some(assets) = config.assets_path {
-        Router::new().nest_service("/", ServeDir::new(assets))
+        Router::new().fallback_service(ServeDir::new(assets))
     } else {
         Router::new().route("/", get(default))
     }

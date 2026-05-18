@@ -1369,8 +1369,7 @@ impl TestFixture {
                 Router::new()
                     .nest("/v1/ecash", ecash_routes())
                     .with_state(app_state),
-            )
-            .unwrap(),
+            ),
             storage,
             chain_state: bundle.chain_state,
             epoch: bundle.epoch,

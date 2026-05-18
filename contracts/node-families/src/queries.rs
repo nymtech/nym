@@ -322,8 +322,10 @@ pub fn query_past_invitations_for_family_paged(
         .unwrap_or(retrieval_limits::PAST_INVITATIONS_DEFAULT_LIMIT)
         .min(retrieval_limits::PAST_INVITATIONS_MAX_LIMIT) as usize;
 
-    let lower =
-        start_after.map(|(node_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
+    let lower = Some(match start_after {
+        Some((node_id, counter)) => Bound::exclusive(((family_id, node_id), counter)),
+        None => Bound::inclusive(((family_id, 0), 0)),
+    });
 
     // upper bound = first key of next family;
     let upper = Some(Bound::exclusive(((family_id + 1, 0), 0)));
@@ -456,8 +458,10 @@ pub fn query_past_members_for_family_paged(
         .unwrap_or(retrieval_limits::PAST_MEMBERS_DEFAULT_LIMIT)
         .min(retrieval_limits::PAST_MEMBERS_MAX_LIMIT) as usize;
 
-    let lower =
-        start_after.map(|(node_id, counter)| Bound::exclusive(((family_id, node_id), counter)));
+    let lower = Some(match start_after {
+        Some((node_id, counter)) => Bound::exclusive(((family_id, node_id), counter)),
+        None => Bound::inclusive(((family_id, 0), 0)),
+    });
 
     // upper bound = first key of next family;
     let upper = Some(Bound::exclusive(((family_id + 1, 0), 0)));
@@ -1537,6 +1541,29 @@ mod tests {
                 retrieval_limits::PAST_INVITATIONS_MAX_LIMIT as usize
             );
         }
+
+        #[test]
+        fn start_after_none_does_not_leak_earlier_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f1.id, 11);
+
+            let res =
+                query_past_invitations_for_family_paged(tester.deps(), f2.id, None, None).unwrap();
+
+            assert_eq!(res.family_id, f2.id);
+            assert!(
+                res.invitations.is_empty(),
+                "expected no entries for f2 but got: {:?}",
+                res.invitations
+                    .iter()
+                    .map(|e| (e.invitation.family_id, e.invitation.node_id))
+                    .collect::<Vec<_>>()
+            );
+            assert!(res.start_next_after.is_none());
+        }
     }
 
     #[cfg(test)]
@@ -2079,6 +2106,31 @@ mod tests {
                 res.members.len(),
                 retrieval_limits::PAST_MEMBERS_MAX_LIMIT as usize
             );
+        }
+
+        #[test]
+        fn start_after_none_does_not_leak_earlier_families() {
+            let mut tester = init_contract_tester();
+            let f1 = tester.add_dummy_family();
+            let f2 = tester.add_dummy_family();
+            tester.add_to_family(f1.id, 10);
+            tester.add_to_family(f1.id, 11);
+            tester.remove_from_family(10);
+            tester.remove_from_family(11);
+
+            let res =
+                query_past_members_for_family_paged(tester.deps(), f2.id, None, None).unwrap();
+
+            assert_eq!(res.family_id, f2.id);
+            assert!(
+                res.members.is_empty(),
+                "expected no entries for f2 but got: {:?}",
+                res.members
+                    .iter()
+                    .map(|m| (m.family_id, m.node_id))
+                    .collect::<Vec<_>>()
+            );
+            assert!(res.start_next_after.is_none());
         }
     }
 

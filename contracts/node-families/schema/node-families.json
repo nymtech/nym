@@ -1,0 +1,31 @@
+{
+  "contract_name": "node-families",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "type": "string",
+    "enum": []
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "type": "string",
+    "enum": []
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {}
+}

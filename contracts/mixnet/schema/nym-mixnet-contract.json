@@ -11,6 +11,7 @@
       "epoch_duration",
       "epochs_in_interval",
       "initial_rewarding_params",
+      "node_families_contract_address",
       "rewarding_denom",
       "rewarding_validator_address",
       "vesting_contract_address"
@@ -49,6 +50,9 @@
         ],
         "format": "uint32",
         "minimum": 0.0
+      },
+      "node_families_contract_address": {
+        "type": "string"
       },
       "profit_margin": {
         "default": {
@@ -3510,6 +3514,12 @@
     "title": "MigrateMsg",
     "type": "object",
     "properties": {
+      "node_families_contract_address": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "unsafe_skip_state_updates": {
         "type": [
           "boolean",
@@ -10774,12 +10784,21 @@
       "description": "The current state of the mixnet contract.",
       "type": "object",
       "required": [
+        "node_families_contract_address",
         "params",
         "rewarding_denom",
         "rewarding_validator_address",
         "vesting_contract_address"
       ],
       "properties": {
+        "node_families_contract_address": {
+          "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        },
         "owner": {
           "description": "Address of the contract owner.",
           "default": null,

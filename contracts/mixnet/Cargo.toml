@@ -28,6 +28,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mixnet-contract-common = { workspace = true }
 vesting-contract-common = { workspace = true }
+node-families-contract-common = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-contracts-common-testing = { workspace = true, optional = true }
 

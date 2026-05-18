@@ -19,8 +19,10 @@ pub mod storage;
 mod helpers;
 /// Read-only query handlers backing [`contract::query`].
 mod queries;
-/// Test-only helpers — only compiled when running the contract's unit tests.
-#[cfg(test)]
+/// Test-only helpers — always compiled for this crate's own unit tests via
+/// `cfg(test)`; downstream crates can pull them in for their own test
+/// harnesses by enabling the `testable-node-families-contract` feature.
+#[cfg(any(test, feature = "testable-node-families-contract"))]
 pub mod testing;
 /// State-mutating execute handlers backing [`contract::execute`].
 mod transactions;

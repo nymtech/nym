@@ -12,6 +12,7 @@ use nym_mixnet_contract_common::NodeId;
 pub type NodeFamilyId = u32;
 
 /// Runtime configuration of the node families contract.
+#[cw_serde]
 pub struct Config {
     /// Fee charged on each successful `create_family` execution.
     pub create_family_fee: Coin,
@@ -21,6 +22,11 @@ pub struct Config {
 
     /// Maximum allowed length, in characters, of a family description.
     pub family_description_length_limit: usize,
+
+    /// Default lifetime, in seconds, used by `invite_to_family` when the
+    /// sender doesn't supply an explicit value. Senders may override this
+    /// per-invitation via the optional `validity_secs` argument.
+    pub default_invitation_validity_secs: u64,
 }
 
 /// On-chain representation of a node family.
@@ -32,11 +38,18 @@ pub struct NodeFamily {
     /// The name of the node family
     pub name: String,
 
+    /// Normalised name of the node family used for uniqueness checks
+    pub normalised_name: String,
+
     /// The optional description of the node family
     pub description: String,
 
     /// The owner of the node family
     pub owner: Addr,
+
+    /// Records the fee paid when the family was created,
+    /// so that the appropriate amount could be returned upon it getting disbanded.
+    pub paid_fee: Coin,
 
     /// Memoized value of the current number of members in the node family
     /// Used to detect if the family is empty

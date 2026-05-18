@@ -1,11 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::MixnetContractQuerier;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, StdError, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
 use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::MixnetContractQuerier;
 use nym_performance_contract_common::constants::storage_keys;
 use nym_performance_contract_common::{
     BatchSubmissionResult, EpochId, LastSubmission, LastSubmittedData, NetworkMonitorDetails,
@@ -580,6 +580,7 @@ mod tests {
     mod performance_contract_storage {
         use super::*;
         use crate::testing::{init_contract_tester, PerformanceContractTesterExt, PreInitContract};
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, ContractOpts};
 
         #[cfg(test)]
@@ -2856,6 +2857,7 @@ mod tests {
     mod performance_storage {
         use super::*;
         use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::ContractOpts;
         use std::str::FromStr;
 

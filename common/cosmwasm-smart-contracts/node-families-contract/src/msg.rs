@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::{
-    GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
+    Config, GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
     PastFamilyInvitationForNodeCursor, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
 };
 use cosmwasm_schema::cw_serde;
@@ -22,13 +22,64 @@ use crate::{
 /// Message used to instantiate the node families contract.
 #[cw_serde]
 pub struct InstantiateMsg {
-    //
+    pub config: Config,
+
+    pub mixnet_contract_address: String,
 }
 
 /// Execute messages accepted by the contract.
 #[cw_serde]
 pub enum ExecuteMsg {
-    //
+    /// Replace the contract's runtime [`Config`]. Restricted to the contract
+    /// admin.
+    UpdateConfig { config: Config },
+
+    /// Create a new family owned by the message sender. The configured
+    /// `create_family_fee` must be attached as funds.
+    CreateFamily { name: String, description: String },
+
+    /// Disband the family owned by the message sender. The family must have
+    /// no current members; any still-pending invitations are revoked.
+    DisbandFamily {},
+
+    /// Invite a node to the family owned by the message sender. If
+    /// `validity_secs` is omitted the invitation expires
+    /// `default_invitation_validity_secs` seconds (from [`Config`]) after the
+    /// current block time.
+    InviteToFamily {
+        node_id: NodeId,
+        validity_secs: Option<u64>,
+    },
+
+    /// Revoke a still-pending invitation previously issued by the sender's
+    /// family.
+    RevokeFamilyInvitation { node_id: NodeId },
+
+    /// Accept a pending invitation. The sender must control `node_id`.
+    AcceptFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Reject a pending invitation. The sender must control `node_id`.
+    RejectFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Leave the family `node_id` currently belongs to. The sender must
+    /// control `node_id`.
+    LeaveFamily { node_id: NodeId },
+
+    /// Remove `node_id` from the family owned by the message sender.
+    KickFromFamily { node_id: NodeId },
+
+    /// Cross-contract callback fired by the mixnet contract the moment
+    /// node with `node_id` initiates unbonding.
+    /// Removes the node from any family it currently
+    /// belongs to and rejects every pending invitation issued to it.
+    /// Sender must be the configured mixnet contract address.
+    OnNymNodeUnbond { node_id: NodeId },
 }
 
 /// Query messages accepted by the contract.

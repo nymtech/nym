@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::contract::{execute, instantiate, migrate, query};
+use crate::helpers::normalise_family_name;
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{Addr, MessageInfo, StdError, StdResult, Storage};
 use node_families_contract_common::{
@@ -115,13 +116,24 @@ pub trait NodeFamiliesContractTesterExt:
         self.set_contract_storage_value(address, key, value)
     }
 
-    fn make_family(&mut self, owner: &Addr) -> NodeFamily {
+    fn make_named_family(&mut self, owner: &Addr, name: &str) -> NodeFamily {
+        let name = normalise_family_name(name);
         let env = self.env();
+        NodeFamiliesStorage::new()
+            .register_new_family(
+                self,
+                &env,
+                owner.clone(),
+                name.to_string(),
+                "dummy".to_string(),
+            )
+            .unwrap()
+    }
+
+    fn make_family(&mut self, owner: &Addr) -> NodeFamily {
         // names must be globally unique; derive from owner addr (also unique)
         let name = format!("family-{owner}");
-        NodeFamiliesStorage::new()
-            .register_new_family(self, &env, owner.clone(), name, "dummy".to_string())
-            .unwrap()
+        self.make_named_family(owner, &name)
     }
 
     fn add_dummy_family(&mut self) -> NodeFamily {
@@ -152,9 +164,36 @@ pub trait NodeFamiliesContractTesterExt:
             .unwrap();
     }
 
+    fn reject_invitation(&mut self, family: NodeFamilyId, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .reject_pending_invitation(self, &env, family, node)
+            .unwrap();
+    }
+
+    fn revoke_invitation(&mut self, family: NodeFamilyId, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .revoke_pending_invitation(self, &env, family, node)
+            .unwrap();
+    }
+
     fn add_to_family(&mut self, family: NodeFamilyId, node: NodeId) {
         self.invite_to_family(family, node);
         self.accept_invitation(family, node);
+    }
+
+    fn remove_from_family(&mut self, node: NodeId) {
+        let env = self.env();
+        NodeFamiliesStorage::new()
+            .remove_family_member(self, &env, node)
+            .unwrap();
+    }
+
+    fn add_n_family_members(&mut self, family: NodeFamilyId, count: u32) {
+        for n in 1..=count {
+            self.add_to_family(family, n);
+        }
     }
 }
 

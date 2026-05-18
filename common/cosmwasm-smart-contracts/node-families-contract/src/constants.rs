@@ -13,8 +13,12 @@ pub mod storage_keys {
     pub const CONTRACT_ADMIN: &str = "contract-admin";
     /// `Item<NodeFamilyId>`: monotonically increasing id counter for new families.
     pub const NODE_FAMILY_ID_COUNTER: &str = "node-family-id-counter";
-    /// `Map<NodeId, NodeFamilyId>`: lookup of which family a node currently belongs to.
+    /// Primary namespace for the current family-members `IndexedMap`,
+    /// keyed by `NodeId` with value [`crate::FamilyMembership`].
     pub const NODE_FAMILY_MEMBERS: &str = "node-family-members";
+    /// Multi-index over current family members keyed by family id —
+    /// enables paginated listing of all nodes in a given family.
+    pub const NODE_FAMILY_MEMBERS_FAMILY_IDX_NAMESPACE: &str = "node-family-members__family";
 
     /// Primary namespace for the families `IndexedMap`.
     pub const FAMILIES_NAMESPACE: &str = "families";

@@ -357,21 +357,20 @@ pub struct DVpnGateway {
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
     pub bridges: Option<BridgeInformation>,
-
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
     pub performance: String,
-
     // Node performance information needed by the NymVPN UI / Explorer to show more information
     // about the node in a user-friendly way
     pub performance_v2: Option<DVpnGatewayPerformance>,
-
     pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
 
     pub family_data: Option<NodeFamilyInformation>,
     pub staking_data: Option<NodeStakeInformation>,
 
     pub build_information: BinaryBuildInformationOwned,
+    pub ports_check: Option<serde_json::Value>,
+    pub last_ports_check_utc: Option<String>,
 }
 
 impl DVpnGateway {
@@ -434,6 +433,8 @@ impl DVpnGateway {
             family_data: family_details,
             staking_data: staking_details,
             build_information: self_described.build_information,
+            ports_check: gateway.ports_check,
+            last_ports_check_utc: gateway.last_ports_check_utc,
         })
     }
 }

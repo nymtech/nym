@@ -55,6 +55,24 @@
       </div>
     </fieldset>
 
+    <!-- Clearnet fetch: proof-by-contrast for tunnel encapsulation -->
+    <fieldset>
+      <legend>Clearnet fetch (proof-by-contrast)</legend>
+      <p style="font-size: 0.85em; color: #666; margin: 0 0 6px">
+        Calls <code>window.fetch()</code> directly, bypassing the tunnel.
+        Open DevTools &rarr; Network, filter by the target host, and compare:
+        tunnel requests below never produce a row; this one will.
+      </p>
+      <p style="font-size: 0.85em; color: #666; margin: 0 0 8px">
+        Works without setting up the tunnel. The contrast is the point.
+      </p>
+      <div>
+        <input type="text" size="60" id="clearnet-url" value="https://httpbin.org/get" />
+        <button id="btn-clearnet">window.fetch (clearnet)</button>
+        <span id="clearnet-status" style="margin-left: 6px; font-size: 0.85em; color: gray">idle</span>
+      </div>
+    </fieldset>
+
     <!-- Tests -->
     <fieldset id="test-controls" disabled>
       <legend>Tests</legend>

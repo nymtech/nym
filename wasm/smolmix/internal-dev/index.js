@@ -27,7 +27,7 @@ function createWorker() {
           resolve({ worker, api: Comlink.wrap(worker) });
         }
       },
-      { once: true }
+      { once: true },
     );
   });
 }
@@ -53,7 +53,7 @@ function hexPreview(data, maxBytes = 64) {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const len = Math.min(bytes.length, maxBytes);
   const hex = Array.from(bytes.slice(0, len), (b) =>
-    b.toString(16).padStart(2, "0")
+    b.toString(16).padStart(2, "0"),
   ).join(" ");
   return bytes.length > maxBytes ? `${hex} ...` : hex;
 }
@@ -106,17 +106,17 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   // pastes a wild value past HTML validation.
   const clampSurbs = (n) => Math.min(50, Math.max(1, n));
   const openReplySurbs = clampSurbs(
-    parseInt(document.getElementById("opt-open-surbs").value, 10) || 5
+    parseInt(document.getElementById("opt-open-surbs").value, 10) || 5,
   );
   const dataReplySurbs = clampSurbs(
-    parseInt(document.getElementById("opt-data-surbs").value, 10) || 2
+    parseInt(document.getElementById("opt-data-surbs").value, 10) || 2,
   );
 
   display(
     `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(
       0,
-      30
-    )}...)...`
+      30,
+    )}...)...`,
   );
   statusEl.textContent = "Connecting to mixnet...";
 
@@ -179,6 +179,33 @@ async function doGet(url) {
 
 document.getElementById("btn-https").addEventListener("click", () => {
   doGet(document.getElementById("https-url").value.trim());
+});
+
+document.getElementById("btn-clearnet").addEventListener("click", async () => {
+  const url = document.getElementById("clearnet-url").value.trim();
+  const statusEl = document.getElementById("clearnet-status");
+  if (!url) {
+    display("Clearnet URL is required", "red");
+    return;
+  }
+
+  display(`window.fetch (clearnet) GET ${url}`);
+  statusEl.textContent = "fetching...";
+  statusEl.style.color = "orange";
+
+  const t0 = performance.now();
+  try {
+    const resp = await window.fetch(url, { mode: "cors" });
+    const ms = (performance.now() - t0).toFixed(0);
+    const tag = `${resp.status} ${resp.statusText} (${ms} ms)`;
+    display(`clearnet ${tag} — visible in DevTools Network tab`, "green");
+    statusEl.textContent = tag;
+    statusEl.style.color = "green";
+  } catch (e) {
+    display(`clearnet fetch failed: ${e}`, "red");
+    statusEl.textContent = "failed";
+    statusEl.style.color = "red";
+  }
 });
 
 // DNS resolve
@@ -289,7 +316,7 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
     const ms = (performance.now() - wsConnectT0).toFixed(0);
     display(
       `[ws] connected in ${ms} ms (protocol=${ws.protocol || "none"})`,
-      "green"
+      "green",
     );
     statusEl.textContent = `Connected (${ms} ms)`;
     statusEl.style.color = "green";
@@ -332,7 +359,7 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
   ws.onclose = (e) => {
     display(
       `[ws] closed: ${e.code} ${e.reason}${e.wasClean ? "" : " (unclean)"}`,
-      "orange"
+      "orange",
     );
     statusEl.textContent = "Closed";
     statusEl.style.color = "gray";
@@ -367,7 +394,7 @@ document.getElementById("btn-ws-close").addEventListener("click", () => {
       `[ws] closed in ${ms} ms: ${e.code} ${e.reason}${
         e.wasClean ? "" : " (unclean)"
       }`,
-      "orange"
+      "orange",
     );
     document.getElementById("ws-status").textContent = "Closed";
     document.getElementById("ws-status").style.color = "gray";
@@ -417,8 +444,8 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
 
   display(
     `[ws] echo burst: ${count} msgs, ${formatSize(minSize)}-${formatSize(
-      maxSize
-    )} ` + `(${formatSize(totalBytes)} total)`
+      maxSize,
+    )} ` + `(${formatSize(totalBytes)} total)`,
   );
 
   wsBurstActive = true;
@@ -499,15 +526,15 @@ document.getElementById("btn-ws-burst").addEventListener("click", async () => {
   display(
     `[ws] burst done: ${count} msgs in ${(totalMs / 1000).toFixed(2)}s ` +
       `(${msgPerSec} msg/s, ${throughput})`,
-    "green"
+    "green",
   );
   display(
     `[ws] verify: ${verified}/${count} OK` +
       (mismatches > 0 ? `, ${mismatches} MISMATCH` : ""),
-    verifyColour
+    verifyColour,
   );
   display(
-    `[ws] RTT: min=${rttMin} avg=${rttAvg} p50=${p50} p95=${p95} max=${rttMax} ms`
+    `[ws] RTT: min=${rttMin} avg=${rttAvg} p50=${p50} p95=${p95} max=${rttMax} ms`,
   );
 
   document.getElementById("btn-ws-burst").disabled = false;
@@ -595,7 +622,7 @@ async function runOneStressRequest(req) {
     const elapsed = ((performance.now() - start) / 1000).toFixed(2);
     display(
       `[${tag}] ${resp.status} OK ${elapsed}s (${body.length}B)`,
-      "green"
+      "green",
     );
 
     return {
@@ -624,7 +651,7 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
   const mode = document.getElementById("stress-mode").value;
   const timeoutSec = parseInt(
     (document.getElementById("stress-timeout") || { value: "60" }).value,
-    10
+    10,
   );
 
   const statusEl = document.getElementById("stress-status");
@@ -639,8 +666,8 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
       breakdown[r.label] = (breakdown[r.label] || 0) + 1;
     display(
       `Stress test: ${count} requests, ${mode} mode, profiles: ${JSON.stringify(
-        breakdown
-      )}`
+        breakdown,
+      )}`,
     );
   } else {
     display(`Stress test: ${count} requests, ${mode} mode`);
@@ -650,12 +677,12 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
 
   // All requests fire concurrently — the worker handles them in parallel
   const settled = await Promise.allSettled(
-    requests.map((r) => runOneStressRequest(r))
+    requests.map((r) => runOneStressRequest(r)),
   );
 
   const totalSec = ((performance.now() - t0) / 1000).toFixed(2);
   const results = settled.map((s) =>
-    s.status === "fulfilled" ? s.value : { ok: false, error: s.reason }
+    s.status === "fulfilled" ? s.value : { ok: false, error: s.reason },
   );
   const ok = results.filter((r) => r.ok).length;
   const fail = results.filter((r) => !r.ok).length;
@@ -663,7 +690,7 @@ document.getElementById("btn-stress").addEventListener("click", async () => {
   const colour = fail === 0 ? "green" : "red";
   display(
     `Stress test done: ${ok}/${count} OK, ${fail} failed (${totalSec}s total)`,
-    colour
+    colour,
   );
 
   if (fail > 0) {
@@ -695,7 +722,7 @@ const VERIFY_TEXT_URL =
 async function sha256hex(bytes) {
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(hash), (b) =>
-    b.toString(16).padStart(2, "0")
+    b.toString(16).padStart(2, "0"),
   ).join("");
 }
 
@@ -735,7 +762,7 @@ async function verifyText() {
     outputEl.textContent = text;
     display(
       `[verify] UTF-8 demo: ${formatSize(text.length)} in ${ms} ms`,
-      "green"
+      "green",
     );
   } catch (e) {
     statusEl.textContent = `Failed: ${e}`;
@@ -770,9 +797,8 @@ async function fetchFile() {
     const ms = (performance.now() - t0).toFixed(0);
     const hash = await sha256hex(buf);
 
-    document.getElementById(
-      "verify-pdf-size"
-    ).textContent = `${buf.byteLength.toLocaleString()} bytes`;
+    document.getElementById("verify-pdf-size").textContent =
+      `${buf.byteLength.toLocaleString()} bytes`;
     document.getElementById("verify-pdf-sha").textContent = hash;
 
     statusEl.textContent = `${formatSize(buf.byteLength)} in ${(
@@ -790,9 +816,9 @@ async function fetchFile() {
       ).toFixed(1)}s ` +
         `(${formatRate(
           buf.byteLength,
-          parseFloat(ms)
+          parseFloat(ms),
         )}) — SHA-256: ${hash.slice(0, 16)}...`,
-      "green"
+      "green",
     );
   } catch (e) {
     statusEl.textContent = `Failed: ${e}`;
@@ -830,12 +856,12 @@ document
     const totalMs = (performance.now() - t0).toFixed(0);
 
     statusEl.textContent = `Done in ${(parseFloat(totalMs) / 1000).toFixed(
-      1
+      1,
     )}s`;
     statusEl.style.color = "green";
     display(
       `[download] both complete in ${(parseFloat(totalMs) / 1000).toFixed(1)}s`,
-      "green"
+      "green",
     );
   });
 
@@ -846,5 +872,5 @@ document.getElementById("opt-client-id").value =
   "smolmix-" + Math.random().toString(36).slice(2, 8);
 
 display(
-  "smolmix-wasm dev ready (worker mode). Enter an IPR address and click setupMixTunnel."
+  "smolmix-wasm dev ready (worker mode). Enter an IPR address and click setupMixTunnel.",
 );

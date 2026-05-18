@@ -89,7 +89,7 @@ pub(crate) struct CachedFamily {
     /// Owner address (cosmos `Addr` rendered as a string).
     pub(crate) owner: String,
 
-    /// Time-weighted average age of members, computed from cached per-height
+    /// Average age of members, computed from cached per-height
     /// block timestamps.
     #[serde(with = "humantime_serde")]
     pub(crate) average_node_age: Duration,

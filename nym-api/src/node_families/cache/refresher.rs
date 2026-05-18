@@ -185,7 +185,7 @@ impl NodeFamiliesDataProvider {
     }
 }
 
-/// Time-weighted average member age: for each member with a known bonding
+/// Average member age: for each member with a known bonding
 /// height we have a cached block-time, take `now - t` and average. Heights we
 /// failed to resolve are skipped rather than poisoning the average.
 fn average_node_age(
@@ -199,11 +199,15 @@ fn average_node_age(
         let Some(ts) = block_timestamps.get(&height) else {
             continue;
         };
-        total_secs += (now - *ts).whole_seconds();
+        let age = (now - *ts).whole_seconds();
+        if age < 0 {
+            continue;
+        }
+        total_secs += age;
         count += 1;
     }
     if count == 0 {
         return Duration::ZERO;
     }
-    Duration::from_secs((total_secs / count).max(0) as u64)
+    Duration::from_secs((total_secs / count) as u64)
 }

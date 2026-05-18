@@ -69,7 +69,8 @@ pub enum NodeFamiliesContractError {
         now: u64,
     },
 
-    // AI-DEV: add comments here
+    /// The funds attached to a paid execution failed `cw_utils` payment
+    /// validation (no funds, wrong/extra denom).
     #[error("invalid fee provided: {0}")]
     InvalidDeposit(#[from] PaymentError),
 

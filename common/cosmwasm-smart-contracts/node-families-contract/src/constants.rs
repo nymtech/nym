@@ -67,6 +67,7 @@ pub mod events {
     pub const FAMILY_CREATION_EVENT_FAMILY_NAME: &str = "family_name";
     pub const FAMILY_CREATION_EVENT_OWNER_ADDRESS: &str = "owner_address";
     pub const FAMILY_CREATION_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_CREATION_EVENT_PAID_FEE: &str = "paid_fee";
 
     pub const FAMILY_DISBAND_EVENT_NAME: &str = "family_disband";
     pub const FAMILY_DISBAND_EVENT_FAMILY_ID: &str = "family_id";

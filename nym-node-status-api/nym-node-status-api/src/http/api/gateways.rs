@@ -35,7 +35,7 @@ async fn gateways(
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<Gateway>>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(&storage).await;
+    let res = state.cache().get_gateway_list(storage).await;
 
     Ok(Json(PagedResult::paginate(pagination, res)))
 }
@@ -56,7 +56,7 @@ async fn gateways_skinny(
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<GatewaySkinny>>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(&storage).await;
+    let res = state.cache().get_gateway_list(storage).await;
     let res: Vec<GatewaySkinny> = filter_bonded_gateways_to_skinny(res);
 
     Ok(Json(PagedResult::paginate(pagination, res)))
@@ -84,7 +84,7 @@ async fn get_gateway(
     State(state): State<AppState>,
 ) -> HttpResult<Json<Gateway>> {
     let storage = state.storage();
-    let res = state.cache().get_gateway_list(&storage).await;
+    let res = state.cache().get_gateway_list(storage).await;
 
     match res
         .iter()

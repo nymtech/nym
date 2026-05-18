@@ -45,7 +45,7 @@ async fn nym_nodes(
 
     let nodes = state
         .cache()
-        .get_nym_nodes_list(&storage, node_geocache)
+        .get_nym_nodes_list(storage, node_geocache)
         .await
         .map_err(|e| {
             tracing::error!("{e}");

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_families\n                (family_id, name, description, owner, family_stake_unym, members_count, created_at, last_updated_utc)\n             SELECT * FROM UNNEST(\n                $1::BIGINT[], $2::TEXT[], $3::TEXT[], $4::TEXT[],\n                $5::BIGINT[], $6::INTEGER[], $7::BIGINT[], $8::BIGINT[]\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Int8Array",
+        "Int4Array",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "486bbf89adfd9343549263e84a1fce8994aa1d0b4ef4078a98f5a3efa4c70493"
+}

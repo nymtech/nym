@@ -1,6 +1,6 @@
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use crate::{
-    db::DbPool,
+    db,
     http::{api::RouterBuilder, state::AppState},
     monitor::{DelegationsCache, NodeGeoCache},
 };
@@ -15,7 +15,7 @@ use tokio::{net::TcpListener, sync::RwLock};
 /// background tokio task
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn start_http_api(
-    db_pool: DbPool,
+    storage: db::Storage,
     http_port: u16,
     nym_http_cache_ttl: u64,
     agent_key_list: Vec<PublicKey>,
@@ -29,7 +29,7 @@ pub(crate) async fn start_http_api(
     let router_builder = RouterBuilder::with_default_routes();
 
     let state = AppState::new(
-        db_pool,
+        storage,
         nym_http_cache_ttl,
         agent_key_list,
         agent_max_count,

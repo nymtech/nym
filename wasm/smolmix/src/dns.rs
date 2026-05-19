@@ -91,6 +91,12 @@ enum DnsResult {
 }
 
 /// Send a single DNS query and parse the response.
+///
+/// The `WasmUdpSocket` is shared across PRIMARY → FALLBACK, A → AAAA, and
+/// every CNAME hop in one resolve, so leftover datagrams from a prior query
+/// can be sitting in the receive buffer. We loop on `recv_from`, dropping
+/// any datagram whose transaction ID doesn't match the query we just sent,
+/// until either a match arrives or [`DNS_TIMEOUT`] elapses.
 async fn query_record(
     udp: &WasmUdpSocket,
     hostname: &str,
@@ -103,29 +109,41 @@ async fn query_record(
         .map_err(FetchError::Io)?;
     crate::util::debug_log!("[dns] query sent to {server} (id={query_id:#06x}), waiting...");
 
-    let mut buf = [0u8; 512];
-    let (len, _) = wasmtimer::tokio::timeout(DNS_TIMEOUT, udp.recv_from(&mut buf))
-        .await
-        .map_err(|_| {
-            crate::util::debug_error!("[dns] recv_from TIMED OUT after {DNS_TIMEOUT:?}");
-            FetchError::Timeout
-        })?
-        .map_err(FetchError::Io)?;
+    let start = wasmtimer::std::Instant::now();
 
-    let response = Message::from_vec(&buf[..len])
-        .map_err(|e| FetchError::Dns(format!("failed to parse DNS response: {e}")))?;
+    loop {
+        let remaining = DNS_TIMEOUT
+            .checked_sub(start.elapsed())
+            .ok_or(FetchError::Timeout)?;
 
-    // Anti-spoof: drop responses whose transaction ID doesn't match the
-    // query we sent. Without this an attacker who guesses our open queries
-    // can inject forged A records.
-    if response.id != query_id {
-        return Err(FetchError::Dns(format!(
-            "DNS response ID mismatch: expected {query_id:#06x}, got {:#06x}",
-            response.id
-        )));
+        let mut buf = [0u8; 512];
+        let (len, _) = wasmtimer::tokio::timeout(remaining, udp.recv_from(&mut buf))
+            .await
+            .map_err(|_| {
+                crate::util::debug_error!("[dns] recv_from TIMED OUT after {DNS_TIMEOUT:?}");
+                FetchError::Timeout
+            })?
+            .map_err(FetchError::Io)?;
+
+        let response = Message::from_vec(&buf[..len])
+            .map_err(|e| FetchError::Dns(format!("failed to parse DNS response: {e}")))?;
+
+        // Anti-spoof: drop responses whose transaction ID doesn't match the
+        // query we sent. Without this an attacker who guesses our open queries
+        // can inject forged A records. With socket reuse across hops we must
+        // *drop and keep reading* rather than error out, otherwise a late
+        // reply from an earlier query (or a buffered timeout victim) turns
+        // the current lookup into a false failure.
+        if response.id != query_id {
+            crate::util::debug_log!(
+                "[dns] dropped stale datagram (id={:#06x}, expected {query_id:#06x})",
+                response.id,
+            );
+            continue;
+        }
+
+        return parse_response(&response, hostname);
     }
-
-    parse_response(&response, hostname)
 }
 
 /// Build a DNS query and return its bytes plus transaction ID.

@@ -5,7 +5,7 @@
 
 use std::net::SocketAddr;
 
-use js_sys::{Object, Reflect, Uint8Array};
+use js_sys::{Array, Object, Reflect, Uint8Array};
 use url::Url;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -85,12 +85,17 @@ pub async fn fetch(
             result
         };
 
-        // Retry pooled connections once on first-write error; fresh-conn errors propagate.
+        // Retry pooled connections once on first-write error; fresh-conn
+        // errors propagate. We only retry idempotent methods because hyper
+        // can fail mid-body-write, and we have no reliable way to tell
+        // whether the server already received and acted on the request. A
+        // silent retry of POST/PUT/PATCH/DELETE could duplicate side-effects
+        // (double payment, repeat resource creation, etc.).
         let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
 
         let (response, reusable, conn) = match http_result {
             Ok(result) => result,
-            Err(stale_err) if from_pool => {
+            Err(stale_err) if from_pool && is_idempotent(&method) => {
                 crate::util::debug_log!(
                     "[fetch] pooled connection failed ({stale_err}), retrying with fresh connection"
                 );
@@ -289,11 +294,20 @@ fn extract_body(init: &JsValue) -> Result<Option<Vec<u8>>, FetchError> {
 
 /// Serialise an `HttpResponse` into a plain JS object for Comlink transfer.
 ///
-/// Shape: `{ body: Uint8Array, status: number, statusText: string, headers: object }`
+/// Shape: `{ body: Uint8Array, status: number, statusText: string, headers: Array<[string, string]> }`
+///
+/// `headers` is a sequence of `[name, value]` pairs (not a record) so that
+/// repeated names like `Set-Cookie`, `Vary`, `Link`, or `WWW-Authenticate`
+/// survive the hop. The JS layer feeds it straight into `new Headers(raw.headers)`,
+/// which accepts both shapes.
 ///
 /// The TS layer reconstructs a native browser `Response` from this:
 /// ```js
-/// new Response(raw.body, { status: raw.status, statusText: raw.statusText, headers })
+/// new Response(raw.body, {
+///   status: raw.status,
+///   statusText: raw.statusText,
+///   headers: new Headers(raw.headers),
+/// })
 /// ```
 fn serialise_response(resp: &HttpResponse) -> Result<JsValue, FetchError> {
     let obj = Object::new();
@@ -303,11 +317,14 @@ fn serialise_response(resp: &HttpResponse) -> Result<JsValue, FetchError> {
     set_prop(&obj, "status", &JsValue::from(resp.status))?;
     set_prop(&obj, "statusText", &JsValue::from_str(&resp.status_text))?;
 
-    let headers_obj = Object::new();
+    let headers_arr = Array::new();
     for (k, v) in &resp.headers {
-        set_prop(&headers_obj, k, &JsValue::from_str(v))?;
+        let pair = Array::new();
+        pair.push(&JsValue::from_str(k));
+        pair.push(&JsValue::from_str(v));
+        headers_arr.push(&pair);
     }
-    set_prop(&obj, "headers", &headers_obj)?;
+    set_prop(&obj, "headers", &headers_arr)?;
 
     Ok(obj.into())
 }
@@ -322,6 +339,15 @@ fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
 /// Whether the URL scheme is one we'll forward to.
 fn is_http_scheme(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https")
+}
+
+/// HTTP methods we're willing to retry without operator-visible side-effects.
+/// Matches RFC 9110's idempotent set minus TRACE (which we'd never send).
+fn is_idempotent(method: &str) -> bool {
+    matches!(
+        method.to_ascii_uppercase().as_str(),
+        "GET" | "HEAD" | "OPTIONS" | "PUT" | "DELETE"
+    )
 }
 
 /// Drop credential-bearing headers when a redirect crosses origins.

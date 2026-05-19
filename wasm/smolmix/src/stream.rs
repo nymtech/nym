@@ -252,6 +252,31 @@ pub(crate) fn allocate_port(next_port: &Arc<AtomicU16>) -> u16 {
     current
 }
 
+/// Drop-bomb for a `SocketHandle` mid-flight in `tcp_connect`. If the caller
+/// errors out before producing a `WasmTcpStream`, `Drop` removes the handle
+/// from the `SocketSet`. On success, `defuse()` disarms the guard and hands
+/// back the handle for ownership transfer into `WasmTcpStream`.
+struct InflightSocket {
+    stack: Option<Arc<Mutex<SmoltcpStack>>>,
+    handle: SocketHandle,
+}
+
+impl InflightSocket {
+    fn defuse(mut self) -> SocketHandle {
+        self.stack = None;
+        self.handle
+    }
+}
+
+impl Drop for InflightSocket {
+    fn drop(&mut self) {
+        if let Some(stack) = self.stack.take() {
+            let mut s = stack.lock().unwrap();
+            s.sockets.remove(self.handle);
+        }
+    }
+}
+
 /// Open a TCP connection through the tunnel and wait for `Established`.
 ///
 /// Used by `WasmTunnel::tcp_connect` and by the DNS resolver provider; both
@@ -270,6 +295,8 @@ pub(crate) async fn tcp_connect(
     let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
     socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
 
+    // Synchronous phase: add + connect under one lock. If `connect()` errors,
+    // clean up immediately while we still hold the lock.
     let handle = {
         let mut s = stack.lock().unwrap();
         let handle = s.sockets.add(socket);
@@ -278,14 +305,24 @@ pub(crate) async fn tcp_connect(
             ref mut sockets,
             ..
         } = *s;
-        sockets
+        if let Err(e) = sockets
             .get_mut::<smoltcp_tcp::Socket>(handle)
             .connect(iface.context(), remote, local_port)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, format!("{e:?}")))?;
+        {
+            sockets.remove(handle);
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("{e:?}")));
+        }
         handle
     };
 
     let _ = notify.unbounded_send(());
+
+    // Async phase: any error past this point must remove the socket. The
+    // guard removes it on drop; we defuse it once the stream is constructed.
+    let guard = InflightSocket {
+        stack: Some(stack.clone()),
+        handle,
+    };
 
     {
         let stack = stack.clone();
@@ -314,7 +351,7 @@ pub(crate) async fn tcp_connect(
 
     Ok(WasmTcpStream {
         stack,
-        handle,
+        handle: guard.defuse(),
         notify,
     })
 }

@@ -886,5 +886,5 @@ pub enum QueryMsg {
 pub struct MigrateMsg {
     pub unsafe_skip_state_updates: Option<bool>,
     pub vesting_contract_address: Option<String>,
-    pub node_families_contract_address: Option<String>,
+    pub node_families_contract_address: String,
 }

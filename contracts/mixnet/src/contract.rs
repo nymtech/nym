@@ -635,10 +635,10 @@ pub fn migrate(
     let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
 
     if !skip_state_updates {
-        if let Some(node_families_contract) = msg.node_families_contract_address {
-            let addr = deps.api.addr_validate(&node_families_contract)?;
-            introduce_node_families_contract(deps.branch(), addr)?;
-        }
+        let addr = deps
+            .api
+            .addr_validate(&msg.node_families_contract_address)?;
+        introduce_node_families_contract(deps.branch(), addr)?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

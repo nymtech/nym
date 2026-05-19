@@ -92,7 +92,10 @@ impl LocalnetOrchestrator {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.data.contracts.vesting.address()?.to_string()),
             unsafe_skip_state_updates: Some(true),
-            node_families_contract_address: None,
+            // currently the orchestrator is NOT instantiating the node families contract,
+            // however, because we have set `unsafe_skip_state_updates to true,
+            // the address will not actually be used, so we can put any placeholder value here
+            node_families_contract_address: ctx.data.contracts.vesting.address()?.to_string(),
         })
     }
 

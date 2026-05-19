@@ -305,12 +305,16 @@ pub(crate) async fn tcp_connect(
             ref mut sockets,
             ..
         } = *s;
-        if let Err(e) = sockets
-            .get_mut::<smoltcp_tcp::Socket>(handle)
-            .connect(iface.context(), remote, local_port)
-        {
+        if let Err(e) = sockets.get_mut::<smoltcp_tcp::Socket>(handle).connect(
+            iface.context(),
+            remote,
+            local_port,
+        ) {
             sockets.remove(handle);
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("{e:?}")));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("{e:?}"),
+            ));
         }
         handle
     };

@@ -68,19 +68,19 @@ impl NsApiClient {
             }
         }
 
-        serde_json::from_str(&response_text)
-            .map(|testrun: TestrunAssignmentWithTickets| {
-                tracing::info!(
-                    testrun_id = testrun.assignment.testrun_id,
-                    gateway = %testrun.assignment.gateway_identity_key,
-                    "Received testrun assignment",
-                );
-                testrun
-            })
-            .map_err(|err| {
+        let testrun: TestrunAssignmentWithTickets =
+            serde_json::from_str(&response_text).map_err(|err| {
                 tracing::error!("{err}");
-                err.into()
-            })
+                anyhow::Error::from(err)
+            })?;
+
+        tracing::info!(
+            testrun_id = testrun.assignment.testrun_id,
+            gateway = %testrun.assignment.gateway_identity_key,
+            "Received testrun assignment",
+        );
+
+        Ok(Some(testrun))
     }
 
     #[instrument(level = "info", skip_all)]
@@ -118,19 +118,19 @@ impl NsApiClient {
             }
         }
 
-        serde_json::from_str(&response_text)
-            .map(|testrun: TestrunAssignmentWithTickets| {
-                tracing::info!(
-                    testrun_id = testrun.assignment.testrun_id,
-                    gateway = %testrun.assignment.gateway_identity_key,
-                    "Received ports-check testrun assignment",
-                );
-                testrun
-            })
-            .map_err(|err| {
+        let testrun: TestrunAssignmentWithTickets =
+            serde_json::from_str(&response_text).map_err(|err| {
                 tracing::error!("{err}");
-                err.into()
-            })
+                anyhow::Error::from(err)
+            })?;
+
+        tracing::info!(
+            testrun_id = testrun.assignment.testrun_id,
+            gateway = %testrun.assignment.gateway_identity_key,
+            "Received ports-check testrun assignment",
+        );
+
+        Ok(Some(testrun))
     }
 
     #[instrument(level = "info", fields(testrun_id, assigned_at_utc), skip_all)]
@@ -171,7 +171,7 @@ impl NsApiClient {
                 response.error_for_status()
             })?;
 
-        tracing::debug!("Submitted results: {})", res.status());
+        tracing::debug!("Submitted results: {}", res.status());
         Ok(())
     }
 
@@ -204,7 +204,7 @@ impl NsApiClient {
             .await
             .and_then(|response| response.error_for_status())?;
 
-        tracing::debug!("Submitted results with context: {})", res.status());
+        tracing::debug!("Submitted results with context: {}", res.status());
         Ok(())
     }
 
@@ -238,7 +238,7 @@ impl NsApiClient {
             .await
             .and_then(|response| response.error_for_status())?;
 
-        tracing::debug!("Submitted ports-check results: {})", res.status());
+        tracing::debug!("Submitted ports-check results: {}", res.status());
         Ok(())
     }
 

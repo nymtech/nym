@@ -2,22 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::NymNodeHttpServer;
-use crate::node::http::api::v1::lewes_protocol;
 use crate::node::http::error::NymNodeHttpError;
 use crate::node::http::state::AppState;
 use axum::Router;
 use axum::response::Redirect;
 use axum::routing::get;
-use nym_bin_common::bin_info_owned;
 use nym_http_api_common::middleware::logging;
-use nym_node_requests::api::SignedLewesProtocol;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Bridges, Gateway};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
-use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, HostSystem, NodeDescription};
 use nym_node_requests::routes;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -35,18 +31,12 @@ pub struct HttpServerConfig {
 }
 
 impl HttpServerConfig {
-    pub fn new(signed_lewes_protocol: SignedLewesProtocol) -> Self {
+    pub fn new() -> Self {
         HttpServerConfig {
             landing: Default::default(),
             api: api::Config {
                 v1_config: api::v1::Config {
-                    node: api::v1::node::Config {
-                        build_information: bin_info_owned!(),
-                        system_info: None,
-                        roles: Default::default(),
-                        description: Default::default(),
-                        auxiliary_details: Default::default(),
-                    },
+                    node: api::v1::node::Config {},
                     metrics: Default::default(),
                     gateway: Default::default(),
                     mixnode: Default::default(),
@@ -54,9 +44,10 @@ impl HttpServerConfig {
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
                     authenticator: Default::default(),
-                    lewes_protocol: lewes_protocol::Config {
-                        details: signed_lewes_protocol,
-                    },
+                    lewes_protocol: Default::default(),
+                },
+                v2_config: api::v2::Config {
+                    node: api::v2::node::Config {},
                 },
             },
         }
@@ -65,24 +56,6 @@ impl HttpServerConfig {
     #[must_use]
     pub fn with_landing_page_assets<P: AsRef<Path>>(mut self, assets_path: Option<P>) -> Self {
         self.landing.assets_path = assets_path.map(|p| p.as_ref().to_path_buf());
-        self
-    }
-
-    #[must_use]
-    pub fn with_system_info(mut self, info: HostSystem) -> Self {
-        self.api.v1_config.node.system_info = Some(info);
-        self
-    }
-
-    #[must_use]
-    pub fn with_description(mut self, description: NodeDescription) -> Self {
-        self.api.v1_config.node.description = description;
-        self
-    }
-
-    #[must_use]
-    pub fn with_auxiliary_details(mut self, auxiliary_details: AuxiliaryDetails) -> Self {
-        self.api.v1_config.node.auxiliary_details = auxiliary_details;
         self
     }
 

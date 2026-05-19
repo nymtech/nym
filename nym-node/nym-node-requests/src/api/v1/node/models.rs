@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
 pub use crate::api::SignedHostInformation;
+use crate::api::v2::node::models::AuxiliaryDetailsV2;
 pub use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
 #[derive(Clone, Default, Debug, Copy, Serialize, Deserialize, JsonSchema)]
@@ -366,7 +367,7 @@ pub struct NodeDescription {
 /// Auxiliary details of the associated Nym Node.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct AuxiliaryDetails {
+pub struct AuxiliaryDetailsV1 {
     /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
     #[cfg_attr(feature = "openapi", schema(example = "PL", value_type = Option<String>))]
     #[schemars(with = "Option<String>")]
@@ -381,6 +382,16 @@ pub struct AuxiliaryDetails {
     // make sure to include the default deserialisation as this field hasn't existed when the struct was first created
     #[serde(default)]
     pub accepted_operator_terms_and_conditions: bool,
+}
+
+impl From<AuxiliaryDetailsV2> for AuxiliaryDetailsV1 {
+    fn from(v2: AuxiliaryDetailsV2) -> Self {
+        Self {
+            location: v2.location,
+            announce_ports: v2.announce_ports,
+            accepted_operator_terms_and_conditions: v2.accepted_operator_terms_and_conditions,
+        }
+    }
 }
 
 #[cfg(test)]

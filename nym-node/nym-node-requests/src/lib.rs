@@ -22,8 +22,10 @@ pub mod routes {
 
     pub mod api {
         pub const V1: &str = "/v1";
+        pub const V2: &str = "/v2";
 
         absolute_route!(v1_absolute, super::API, V1);
+        absolute_route!(v2_absolute, super::API, V2);
 
         pub mod v1 {
             use super::*;
@@ -150,6 +152,14 @@ pub mod routes {
             pub mod lewes_protocol {
                 // use super::*;
             }
+        }
+
+        pub mod v2 {
+            use super::*;
+
+            pub const AUXILIARY: &str = "/auxiliary-details";
+
+            absolute_route!(auxiliary_absolute, v2_absolute(), AUXILIARY);
         }
     }
 }

@@ -23,6 +23,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::lp::LpSetup;
+use crate::node::lp::directory::LpNodes;
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -41,9 +42,12 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::{
     CachedNetwork, CachedTopologyProvider, LocalGatewayNode, NetworkRefresher,
 };
-use nym_bin_common::bin_info;
+use nym_bin_common::{bin_info, bin_info_owned};
+use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+pub use nym_gateway::node::ActiveClientsStore;
+pub use nym_gateway::node::GatewayStorage;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -62,13 +66,16 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_requests::api::SignedData;
 use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
-use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription, NodeRoles};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
-use nym_validator_client::UserAgent;
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::signing::signer::OfflineSigner;
+use nym_validator_client::{DirectSecp256k1HdWallet, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
@@ -83,10 +90,6 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
-
-use crate::node::lp::directory::LpNodes;
-pub use nym_gateway::node::ActiveClientsStore;
-pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
@@ -872,9 +875,24 @@ impl NymNode {
             .collect()
     }
 
+    fn node_chain_address(&self) -> Result<AccountId, NymNodeError> {
+        let network_details = NymNetworkDetails::new_from_env();
+
+        // derive the address (annoyingly, this will derive our private keys that we will rederive
+        // when starting the gateway, but changing this behaviour requires too much refactoring)
+        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(
+            &network_details.chain_details.bech32_account_prefix,
+            (**self.entry_gateway.mnemonic).clone(),
+        )
+        .map_err(NyxdError::from)?;
+
+        Ok(wallet.get_accounts()[0].address.clone())
+    }
+
     pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
-        let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
+        let auxiliary_data = api_requests::v2::node::models::AuxiliaryDetailsV2 {
             location: self.config.host.location,
+            address: self.node_chain_address()?.to_string(),
             announce_ports: AnnouncePorts {
                 verloc_port: self.config.verloc.announce_port,
                 mix_port: self.config.mixnet.announce_port,
@@ -959,7 +977,7 @@ impl NymNode {
         let signed_lewes_protocol =
             SignedData::new(lewes_protocol, self.ed25519_identity_keys.private_key()).unwrap();
 
-        let mut config = HttpServerConfig::new(signed_lewes_protocol)
+        let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
             .with_gateway_details(gateway_details)
@@ -967,28 +985,16 @@ impl NymNode {
             .with_ip_packet_router_details(ipr_details)
             .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
-            .with_description(self.description.clone())
-            .with_auxiliary_details(auxiliary_details)
             .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
-        if self.config.http.expose_system_info {
-            config = config.with_system_info(get_system_info(
+        let system_info = if self.config.http.expose_system_info {
+            Some(get_system_info(
                 self.config.http.expose_system_hardware,
                 self.config.http.expose_crypto_hardware,
             ))
-        }
-        if self.config.modes.mixnode {
-            config.api.v1_config.node.roles.mixnode_enabled = true;
-        }
-
-        if self.config.modes.entry {
-            config.api.v1_config.node.roles.gateway_enabled = true
-        }
-
-        if self.config.modes.exit {
-            config.api.v1_config.node.roles.network_requester_enabled = true;
-            config.api.v1_config.node.roles.ip_packet_router_enabled = true;
-        }
+        } else {
+            None
+        };
 
         if let Some(path) = &self.config.gateway_tasks.storage_paths.bridge_client_params {
             config = config.with_bridge_client_params_file(path);
@@ -1009,6 +1015,17 @@ impl NymNode {
                 x25519_versioned_noise_key,
                 ip_addresses: self.config.host.public_ips.clone(),
                 hostname: self.config.host.hostname.clone(),
+                build_information: bin_info_owned!(),
+                system_info,
+                roles: NodeRoles {
+                    mixnode_enabled: self.config.modes.mixnode,
+                    gateway_enabled: self.config.modes.entry,
+                    network_requester_enabled: self.config.modes.exit,
+                    ip_packet_router_enabled: self.config.modes.exit,
+                },
+                description: self.description.clone(),
+                auxiliary_data,
+                lewes_protocol: signed_lewes_protocol,
             },
             self.active_sphinx_keys()?.clone(),
             self.metrics.clone(),

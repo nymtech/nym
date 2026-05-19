@@ -56,7 +56,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::node::models::Cpu,
             api_requests::v1::node::models::CryptoHardware,
             api_requests::v1::node::models::NodeDescription,
-            api_requests::v1::node::models::AuxiliaryDetails,
+            api_requests::v1::node::models::AuxiliaryDetailsV1,
             api_requests::v1::metrics::models::LegacyMixingStats,
             api_requests::v1::metrics::models::VerlocStats,
             api_requests::v1::metrics::models::VerlocResult,

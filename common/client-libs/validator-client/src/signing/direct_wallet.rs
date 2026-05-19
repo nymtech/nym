@@ -11,6 +11,8 @@ use cosmrs::tx;
 use cosmrs::tx::SignDoc;
 use nym_config::defaults;
 use std::borrow::Cow;
+use std::ops::Deref;
+use std::sync::Arc;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -45,6 +47,22 @@ pub struct DirectSecp256k1HdWallet {
     #[zeroize(skip)]
     // unfortunately `dyn EcdsaSigner` does not guarantee Zeroize
     accounts: Vec<AccountData>,
+}
+
+impl OfflineSigner for Arc<DirectSecp256k1HdWallet> {
+    type Error = DirectSecp256k1HdWalletError;
+
+    fn get_accounts(&self) -> &[AccountData] {
+        self.deref().get_accounts()
+    }
+
+    fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<tx::Raw, Self::Error> {
+        self.deref().sign_direct_with_account(signer, sign_doc)
+    }
 }
 
 impl OfflineSigner for DirectSecp256k1HdWallet {

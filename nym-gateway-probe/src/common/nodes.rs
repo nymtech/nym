@@ -16,7 +16,7 @@ use nym_lp::packet::version;
 use nym_lp::peer::{DHPublicKey, LpRemotePeer};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::client::NymNodeApiClientExt;
-use nym_node_requests::api::v1::node::models::AuxiliaryDetails as NodeAuxiliaryDetails;
+use nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1 as NodeAuxiliaryDetails;
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;

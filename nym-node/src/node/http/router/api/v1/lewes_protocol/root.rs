@@ -1,7 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use axum::extract::Query;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::{SignedLewesProtocol, SignedLewesProtocolInfo};
@@ -23,10 +24,10 @@ use nym_node_requests::api::{SignedLewesProtocol, SignedLewesProtocolInfo};
     params(OutputParams)
 )]
 pub(crate) async fn root_lewes_protocol(
-    config: SignedLewesProtocol,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> Result<LewesProtocolResponse, StatusCode> {
-    Ok(output.to_response(config))
+    Ok(output.to_response(state.static_information.lewes_protocol.clone()))
 }
 
 pub type LewesProtocolResponse = FormattedResponse<SignedLewesProtocol>;

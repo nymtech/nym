@@ -306,6 +306,22 @@ pub enum ExecuteMsg {
     MigrateVestedDelegation {
         mix_id: NodeId,
     },
+    /// Admin-only: forcibly migrate the vested mixnode owned by `owner`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedMixNode {
+        owner: String,
+    },
+    /// Admin-only: forcibly migrate the vested delegation `(mix_id, owner)`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedDelegation {
+        mix_id: NodeId,
+        owner: String,
+    },
+    /// Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`].
+    /// Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.
+    AdminBatchMigrateVestedDelegations {
+        entries: Vec<VestedDelegationMigrationEntry>,
+    },
 
     // testing-only
     #[cfg(feature = "contract-testing")]
@@ -395,6 +411,15 @@ impl ExecuteMsg {
             }
             ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
             ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
+            ExecuteMsg::AdminMigrateVestedMixNode { owner } => {
+                format!("admin migrating vested mixnode of {owner}")
+            }
+            ExecuteMsg::AdminMigrateVestedDelegation { mix_id, owner } => {
+                format!("admin migrating vested delegation of {owner} on mixnode {mix_id}")
+            }
+            ExecuteMsg::AdminBatchMigrateVestedDelegations { entries } => {
+                format!("admin batch migrating {} vested delegations", entries.len())
+            }
             ExecuteMsg::AssignRoles { .. } => "assigning epoch roles".into(),
             ExecuteMsg::MigrateMixnode { .. } => "migrating legacy mixnode".into(),
             ExecuteMsg::MigrateGateway { .. } => "migrating legacy gateway".into(),
@@ -880,6 +905,12 @@ pub enum QueryMsg {
     /// Gets the current key rotation id
     #[cfg_attr(feature = "schema", returns(KeyRotationIdResponse))]
     GetKeyRotationId {},
+}
+
+#[cw_serde]
+pub struct VestedDelegationMigrationEntry {
+    pub mix_id: NodeId,
+    pub owner: String,
 }
 
 #[cw_serde]

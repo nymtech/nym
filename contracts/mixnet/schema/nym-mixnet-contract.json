@@ -1271,6 +1271,81 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: forcibly migrate the vested mixnode owned by `owner`. Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.",
+        "type": "object",
+        "required": [
+          "admin_migrate_vested_mix_node"
+        ],
+        "properties": {
+          "admin_migrate_vested_mix_node": {
+            "type": "object",
+            "required": [
+              "owner"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: forcibly migrate the vested delegation `(mix_id, owner)`. Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.",
+        "type": "object",
+        "required": [
+          "admin_migrate_vested_delegation"
+        ],
+        "properties": {
+          "admin_migrate_vested_delegation": {
+            "type": "object",
+            "required": [
+              "mix_id",
+              "owner"
+            ],
+            "properties": {
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`]. Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.",
+        "type": "object",
+        "required": [
+          "admin_batch_migrate_vested_delegations"
+        ],
+        "properties": {
+          "admin_batch_migrate_vested_delegations": {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/VestedDelegationMigrationEntry"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -1959,6 +2034,24 @@
           },
           "penalty_scaling": {
             "$ref": "#/definitions/Decimal"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VestedDelegationMigrationEntry": {
+        "type": "object",
+        "required": [
+          "mix_id",
+          "owner"
+        ],
+        "properties": {
+          "mix_id": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "owner": {
+            "type": "string"
           }
         },
         "additionalProperties": false

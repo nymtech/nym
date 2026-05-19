@@ -307,6 +307,19 @@ pub fn execute(
         ExecuteMsg::MigrateVestedDelegation { mix_id } => {
             crate::vesting_migration::try_migrate_vested_delegation(deps, env, info, mix_id)
         }
+        ExecuteMsg::AdminMigrateVestedMixNode { owner } => {
+            crate::vesting_migration::try_admin_migrate_vested_mixnode(deps, info, owner)
+        }
+        ExecuteMsg::AdminMigrateVestedDelegation { mix_id, owner } => {
+            crate::vesting_migration::try_admin_migrate_vested_delegation(
+                deps, env, info, mix_id, owner,
+            )
+        }
+        ExecuteMsg::AdminBatchMigrateVestedDelegations { entries } => {
+            crate::vesting_migration::try_admin_batch_migrate_vested_delegations(
+                deps, env, info, entries,
+            )
+        }
 
         // legacy vesting
         ExecuteMsg::BondMixnodeOnBehalf { .. }

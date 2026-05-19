@@ -64,10 +64,11 @@ impl NodeFamiliesTestFixture {
     /// Replace the cached data with the provided snapshot.
     async fn seed(&self, data: NodeFamiliesCacheData) {
         // try_overwrite_old_value swaps the entire cached value
-        self.cache
+        let res = self
+            .cache
             .try_overwrite_old_value(data, "node-families-test")
-            .await
-            .ok();
+            .await;
+        assert!(res.is_ok(), "failed to seed node-families cache: {res:?}");
     }
 }
 

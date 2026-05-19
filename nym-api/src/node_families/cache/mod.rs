@@ -16,7 +16,7 @@ pub(crate) mod refresher;
 
 /// Cached view of a single family member, joining the contract membership
 /// record with mixnet-contract node details (bond height + stake).
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct CachedFamilyMember {
     pub(crate) node_id: NodeId,
 
@@ -49,7 +49,7 @@ impl CachedFamilyMember {
 }
 
 /// Cached pending invitation entry for a family.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct CachedFamilyInvitation {
     /// Node the invitation is addressed to.
     pub(crate) node_id: NodeId,
@@ -75,7 +75,7 @@ impl From<nym_node_families_contract_common::PendingFamilyInvitationDetails>
 
 /// Cached family record with its current members, pending invitations and
 /// aggregated stats (`average_node_age`, `total_stake`).
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct CachedFamily {
     /// Unique family identifier assigned by the contract.
     pub(crate) id: NodeFamilyId,
@@ -111,7 +111,7 @@ pub(crate) struct CachedFamily {
 
 /// Full nym-api node-families cache snapshot — combined families-contract
 /// state plus mixnet-contract stake/bond information.
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub(crate) struct NodeFamiliesCacheData {
     /// Every family known to the contract, keyed by family id. `BTreeMap` so
     /// iteration order is deterministic across refreshes (stable list

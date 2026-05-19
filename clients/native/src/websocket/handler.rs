@@ -472,6 +472,7 @@ impl Handler {
 fn prepare_reconstructed_binary(
     reconstructed_messages: Vec<ReconstructedMessage>,
 ) -> Vec<Result<WsMessage, WsError>> {
+    #[allow(clippy::result_large_err)] // TODO : remove this once tungstenite is updated
     reconstructed_messages
         .into_iter()
         .map(ServerResponse::Received)
@@ -484,6 +485,7 @@ fn prepare_reconstructed_binary(
 fn prepare_reconstructed_text(
     reconstructed_messages: Vec<ReconstructedMessage>,
 ) -> Vec<Result<WsMessage, WsError>> {
+    #[allow(clippy::result_large_err)] // TODO : remove this once tungstenite is updated
     reconstructed_messages
         .into_iter()
         .map(ServerResponse::Received)

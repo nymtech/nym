@@ -18,9 +18,8 @@ use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
     new_track_migrate_delegation_event, new_track_migrate_mixnode_event,
-    new_track_mixnode_pledge_decrease_event,
-    new_track_mixnode_unbond_event, new_track_reward_event, new_track_undelegation_event,
-    new_vested_coins_withdraw_event,
+    new_track_mixnode_pledge_decrease_event, new_track_mixnode_unbond_event,
+    new_track_reward_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
 };
 use vesting_contract_common::{Account, PledgeCap, VestingContractError, VestingSpecification};
 

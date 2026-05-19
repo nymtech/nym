@@ -1313,8 +1313,6 @@ dependencies = [
 [[package]]
 name = "nym-network-defaults"
 version = "1.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d66cf484f36f42622a62b5e79d98f7aba49b8ace6ad82fe95a372f5d8bba5ec3"
 dependencies = [
  "cargo_metadata 0.19.2",
  "regex",

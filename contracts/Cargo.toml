@@ -102,6 +102,7 @@ unreachable = "deny"
 # nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 
 [patch.crates-io]
+nym-network-defaults = { path = "../common/network-defaults" }
 nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }

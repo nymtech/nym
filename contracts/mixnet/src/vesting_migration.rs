@@ -3,13 +3,14 @@
 
 use crate::delegations::storage as delegations_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage::ADMIN;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_no_pending_pledge_changes,
 };
-use cosmwasm_std::{wasm_execute, DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, Event, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{Delegation, NodeId};
 use vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
@@ -18,9 +19,26 @@ pub(crate) fn try_migrate_vested_mixnode(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    let mix_details = get_mixnode_details_by_owner(deps.storage, info.sender.clone())?.ok_or(
+    migrate_vested_mixnode_for_owner(deps, info.sender)
+}
+
+pub(crate) fn try_admin_migrate_vested_mixnode(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let owner = deps.api.addr_validate(&owner)?;
+    migrate_vested_mixnode_for_owner(deps, owner)
+}
+
+fn migrate_vested_mixnode_for_owner(
+    deps: DepsMut<'_>,
+    owner: Addr,
+) -> Result<Response, MixnetContractError> {
+    let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
         MixnetContractError::NoAssociatedMixNodeBond {
-            owner: info.sender.clone(),
+            owner: owner.clone(),
         },
     )?;
     let mix_id = mix_details.mix_id();
@@ -55,7 +73,7 @@ pub(crate) fn try_migrate_vested_mixnode(
         .add_message(wasm_execute(
             vesting_contract,
             &VestingExecuteMsg::TrackMigratedMixnode {
-                owner: info.sender.into_string(),
+                owner: owner.into_string(),
             },
             vec![],
         )?))
@@ -67,6 +85,27 @@ pub(crate) fn try_migrate_vested_delegation(
     info: MessageInfo,
     mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
+    migrate_vested_delegation_for_owner(deps, env, info.sender, mix_id)
+}
+
+pub(crate) fn try_admin_migrate_vested_delegation(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    mix_id: NodeId,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let owner = deps.api.addr_validate(&owner)?;
+    migrate_vested_delegation_for_owner(deps, env, owner, mix_id)
+}
+
+fn migrate_vested_delegation_for_owner(
+    deps: DepsMut<'_>,
+    env: Env,
+    owner: Addr,
+    mix_id: NodeId,
+) -> Result<Response, MixnetContractError> {
     let mut response = Response::new();
 
     ensure_epoch_in_progress_state(deps.storage)?;
@@ -74,7 +113,7 @@ pub(crate) fn try_migrate_vested_delegation(
     let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
 
     let storage_key =
-        Delegation::generate_storage_key(mix_id, &info.sender, Some(&vesting_contract));
+        Delegation::generate_storage_key(mix_id, &owner, Some(&vesting_contract));
     let Some(vested_delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     else {
@@ -88,7 +127,7 @@ pub(crate) fn try_migrate_vested_delegation(
     let mut updated_delegation = vested_delegation.clone();
     updated_delegation.proxy = None;
 
-    let new_storage_key = Delegation::generate_storage_key(mix_id, &info.sender, None);
+    let new_storage_key = Delegation::generate_storage_key(mix_id, &owner, None);
 
     // remove the old (vested) delegation
     delegations_storage::delegations().remove(deps.storage, storage_key)?;
@@ -205,7 +244,7 @@ pub(crate) fn try_migrate_vested_delegation(
     Ok(response.add_message(wasm_execute(
         vesting_contract,
         &VestingExecuteMsg::TrackMigratedDelegation {
-            owner: info.sender.into_string(),
+            owner: owner.into_string(),
             mix_id,
         },
         vec![],
@@ -564,6 +603,170 @@ mod tests {
                 - unclaimed_rewards_twin_vested;
 
             compare_decimals(rewards, new_rewards_twin, Some("0.01".parse().unwrap()))
+        }
+    }
+
+    #[cfg(test)]
+    mod admin_migrating_vested_mixnode {
+        use super::*;
+        use crate::mixnodes::helpers::get_mixnode_details_by_id;
+        use crate::support::tests::test_helpers::TestSetup;
+        use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::{from_json, CosmosMsg, WasmMsg};
+
+        #[test]
+        fn rejects_non_admin_caller() {
+            let mut test = TestSetup::new();
+            let owner = test.make_addr("owner");
+            let mix_id = test.add_legacy_mixnode_with_legal_proxy(&owner, None);
+
+            let intruder = message_info(&test.make_addr("not-admin"), &[]);
+            let owner_str = owner.to_string();
+            let res =
+                try_admin_migrate_vested_mixnode(test.deps_mut(), intruder, owner_str).unwrap_err();
+            assert!(matches!(res, MixnetContractError::Admin(_)));
+
+            // bond is untouched
+            let existing = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+            assert!(existing.bond_information.proxy.is_some());
+        }
+
+        #[test]
+        fn admin_can_migrate_someone_elses_vested_node() {
+            let mut test = TestSetup::new();
+            let owner = test.make_addr("owner");
+            let mix_id = test.add_legacy_mixnode_with_legal_proxy(&owner, None);
+            let admin = test.admin();
+
+            let info = message_info(&admin, &[]);
+            let owner_str = owner.to_string();
+            let res =
+                try_admin_migrate_vested_mixnode(test.deps_mut(), info, owner_str.clone()).unwrap();
+
+            let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = &res.messages[0].msg else {
+                panic!("no track message present")
+            };
+            assert_eq!(
+                from_json::<VestingExecuteMsg>(msg).unwrap(),
+                VestingExecuteMsg::TrackMigratedMixnode { owner: owner_str }
+            );
+
+            // proxy was cleared on the bond owned by `owner` (not by the admin)
+            let migrated = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+            assert!(migrated.bond_information.proxy.is_none());
+        }
+
+        #[test]
+        fn rejects_invalid_owner_address() {
+            let mut test = TestSetup::new();
+            let admin = test.admin();
+
+            let info = message_info(&admin, &[]);
+            let res =
+                try_admin_migrate_vested_mixnode(test.deps_mut(), info, "not a bech32".to_string())
+                    .unwrap_err();
+            assert!(matches!(res, MixnetContractError::StdErr { .. }));
+        }
+    }
+
+    #[cfg(test)]
+    mod admin_migrating_vested_delegation {
+        use super::*;
+        use crate::delegations::storage::delegations;
+        use crate::support::tests::test_helpers::TestSetup;
+        use cosmwasm_std::testing::message_info;
+        use cosmwasm_std::{from_json, CosmosMsg, Order, WasmMsg};
+
+        #[test]
+        fn rejects_non_admin_caller() {
+            let mut test = TestSetup::new_complex();
+            let env = test.env();
+
+            let vested = delegations()
+                .range(test.deps().storage, None, None, Order::Ascending)
+                .filter_map(|d| d.map(|(_, del)| del).ok())
+                .find(|d| d.proxy.is_some())
+                .unwrap();
+
+            let intruder = message_info(&test.make_addr("not-admin"), &[]);
+            let res = try_admin_migrate_vested_delegation(
+                test.deps_mut(),
+                env,
+                intruder,
+                vested.node_id,
+                vested.owner.to_string(),
+            )
+            .unwrap_err();
+            assert!(matches!(res, MixnetContractError::Admin(_)));
+
+            // delegation is untouched
+            assert!(delegations()
+                .may_load(test.deps().storage, vested.storage_key())
+                .unwrap()
+                .is_some());
+        }
+
+        #[test]
+        fn admin_can_migrate_someone_elses_vested_delegation() {
+            let mut test = TestSetup::new_complex();
+            let env = test.env();
+            let admin = test.admin();
+
+            let vested = delegations()
+                .range(test.deps().storage, None, None, Order::Ascending)
+                .filter_map(|d| d.map(|(_, del)| del).ok())
+                .find(|d| d.proxy.is_some())
+                .unwrap();
+
+            // pick an owner that has no liquid twin so we exercise the simple branch
+            let has_liquid_twin = delegations()
+                .range(test.deps().storage, None, None, Order::Ascending)
+                .filter_map(|d| d.map(|(_, del)| del).ok())
+                .any(|d| {
+                    d.proxy.is_none()
+                        && d.owner.as_str() == vested.owner.as_str()
+                        && d.node_id == vested.node_id
+                });
+            assert!(!has_liquid_twin);
+
+            let old_key = vested.storage_key();
+            let mut expected_liquid = vested.clone();
+            expected_liquid.proxy = None;
+            let new_key = expected_liquid.storage_key();
+
+            let info = message_info(&admin, &[]);
+            let res = try_admin_migrate_vested_delegation(
+                test.deps_mut(),
+                env,
+                info,
+                vested.node_id,
+                vested.owner.to_string(),
+            )
+            .unwrap();
+
+            let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = &res.messages[0].msg else {
+                panic!("no track message present")
+            };
+            assert_eq!(
+                from_json::<VestingExecuteMsg>(msg).unwrap(),
+                VestingExecuteMsg::TrackMigratedDelegation {
+                    owner: vested.owner.to_string(),
+                    mix_id: vested.node_id,
+                }
+            );
+
+            assert!(delegations()
+                .may_load(test.deps().storage, old_key)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                expected_liquid,
+                delegations().load(test.deps().storage, new_key).unwrap()
+            );
         }
     }
 }

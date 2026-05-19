@@ -306,6 +306,17 @@ pub enum ExecuteMsg {
     MigrateVestedDelegation {
         mix_id: NodeId,
     },
+    /// Admin-only: forcibly migrate the vested mixnode owned by `owner`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedMixNode {
+        owner: String,
+    },
+    /// Admin-only: forcibly migrate the vested delegation `(mix_id, owner)`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedDelegation {
+        mix_id: NodeId,
+        owner: String,
+    },
 
     // testing-only
     #[cfg(feature = "contract-testing")]
@@ -395,6 +406,12 @@ impl ExecuteMsg {
             }
             ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
             ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
+            ExecuteMsg::AdminMigrateVestedMixNode { owner } => {
+                format!("admin migrating vested mixnode of {owner}")
+            }
+            ExecuteMsg::AdminMigrateVestedDelegation { mix_id, owner } => {
+                format!("admin migrating vested delegation of {owner} on mixnode {mix_id}")
+            }
             ExecuteMsg::AssignRoles { .. } => "assigning epoch roles".into(),
             ExecuteMsg::MigrateMixnode { .. } => "migrating legacy mixnode".into(),
             ExecuteMsg::MigrateGateway { .. } => "migrating legacy gateway".into(),

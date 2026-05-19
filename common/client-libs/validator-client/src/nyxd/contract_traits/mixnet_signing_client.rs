@@ -867,6 +867,9 @@ mod tests {
             MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 client.testing_resolve_all_pending_events(None).ignore()
             }
+            // not expected to be exposed by the client
+            ExecuteMsg::AdminMigrateVestedMixNode { .. }
+            | ExecuteMsg::AdminMigrateVestedDelegation { .. } => ().ignore(),
         };
     }
 }

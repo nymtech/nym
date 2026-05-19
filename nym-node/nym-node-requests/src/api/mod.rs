@@ -15,6 +15,7 @@ use std::ops::Deref;
 pub mod client;
 pub mod helpers;
 pub mod v1;
+pub mod v2;
 
 #[cfg(feature = "client")]
 pub use client::Client;

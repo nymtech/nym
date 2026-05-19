@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::router::types::RequestError;
-use axum::extract::Query;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 
@@ -21,11 +22,11 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
     params(OutputParams)
 )]
 pub(crate) async fn description(
-    description: NodeDescription,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> Result<NodeDescriptionResponse, RequestError> {
     let output = output.output.unwrap_or_default();
-    Ok(output.to_response(description))
+    Ok(output.to_response(state.static_information.description.clone()))
 }
 
 pub type NodeDescriptionResponse = FormattedResponse<NodeDescription>;

@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use axum::extract::Query;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
@@ -20,11 +21,11 @@ use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
     params(OutputParams)
 )]
 pub(crate) async fn build_information(
-    build_information: BinaryBuildInformationOwned,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> BuildInformationResponse {
     let output = output.output.unwrap_or_default();
-    output.to_response(build_information)
+    output.to_response(state.static_information.build_information.clone())
 }
 
 pub type BuildInformationResponse = FormattedResponse<BinaryBuildInformationOwned>;

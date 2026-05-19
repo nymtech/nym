@@ -11582,6 +11582,7 @@ name = "smolmix"
 version = "1.21.0"
 dependencies = [
  "futures",
+ "hickory-proto",
  "hickory-resolver",
  "http-body-util",
  "hyper 1.6.0",

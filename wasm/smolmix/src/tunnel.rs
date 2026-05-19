@@ -79,9 +79,11 @@ pub struct WasmTunnel {
     conn_pool: Mutex<HashMap<(String, u16), PooledConn>>,
     /// Per-origin locks to avoid stampeding parallel TCP+TLS handshakes.
     origin_locks: Mutex<HashMap<(String, u16), Arc<futures::lock::Mutex<()>>>>,
-    // Dropping these shuts down the base client.
-    _request_sender: ReceivedBufferRequestSender,
-    _shutdown_handle: ShutdownTracker,
+    /// Dropping these shuts down the base client. Kept behind `Mutex<Option<_>>`
+    /// so `shutdown(&self)` can `take()` them while `WasmTunnel` lives forever
+    /// in a `OnceLock`.
+    request_sender: Mutex<Option<ReceivedBufferRequestSender>>,
+    shutdown_handle: Mutex<Option<ShutdownTracker>>,
 }
 
 /// Handles the Nym base client hands back after `start_base()`.
@@ -153,8 +155,8 @@ impl WasmTunnel {
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
             origin_locks: Mutex::new(HashMap::new()),
-            _request_sender: request_sender,
-            _shutdown_handle: shutdown_handle,
+            request_sender: Mutex::new(Some(request_sender)),
+            shutdown_handle: Mutex::new(Some(shutdown_handle)),
         })
     }
 
@@ -336,13 +338,21 @@ impl WasmTunnel {
 
     /// Gracefully disconnect from the Nym mixnet.
     ///
-    /// Signals the bridge and reactor to stop. The base client shuts down
-    /// when the `ShutdownTracker` is dropped.
+    /// Signals the bridge and reactor to stop, then drops the base-client
+    /// handles so the Nym client stops consuming cover/Poisson traffic and
+    /// closes its gateway WebSocket. `WasmTunnel` itself lives in a
+    /// `OnceLock` for the lifetime of the worker, so dropping `self` is not
+    /// an option; we drop the inner handles instead.
     pub async fn shutdown(&self) {
         self.shutdown.store(true, Ordering::Relaxed);
         // Wake the reactor immediately so teardown doesn't sit out the
         // current `poll_delay` sleep (up to `MAX_IDLE`).
         let _ = self.notify.unbounded_send(());
+        // Order matters: drop the request_sender first (so the received-buffer
+        // task observes the receiver going away cleanly), then the shutdown
+        // tracker (which signals the rest of the base client to stop).
+        drop(self.request_sender.lock().unwrap().take());
+        drop(self.shutdown_handle.lock().unwrap().take());
         nym_wasm_utils::console_log!("[smolmix] tunnel shut down");
     }
 

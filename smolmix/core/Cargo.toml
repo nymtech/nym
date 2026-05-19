@@ -37,6 +37,7 @@ rustls = { workspace = true, features = ["std", "ring"] }
 tokio-rustls = { workspace = true }
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
 hickory-resolver = { workspace = true, features = ["tokio", "system-config"] }
+hickory-proto = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1"] }
 hyper-util = { workspace = true, features = ["tokio"] }
 http-body-util = { workspace = true }

@@ -227,7 +227,6 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_cargo("wasm/mix-fetch");
     packages.register_cargo("wasm/client");
     packages.register_cargo("wasm/node-tester");
-    packages.register_cargo("nym-browser-extension/storage");
 
     // js packages that will have their package.json modified
     packages.register_json("nym-wallet");
@@ -235,8 +234,6 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_json("sdk/typescript/examples/chat-app/parcel");
     packages.register_json("sdk/typescript/examples/chat-app/plain-html");
     packages.register_json("sdk/typescript/examples/chat-app/react-webpack-with-theme-example");
-    packages.register_json("sdk/typescript/examples/chrome-extension");
-    packages.register_json("sdk/typescript/examples/firefox-extension");
     packages.register_json("sdk/typescript/examples/mix-fetch/browser");
     packages.register_json("sdk/typescript/examples/node-tester/parcel");
     packages.register_json("sdk/typescript/examples/node-tester/plain-html");

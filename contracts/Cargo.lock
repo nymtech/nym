@@ -1162,8 +1162,6 @@ dependencies = [
 [[package]]
 name = "nym-crypto"
 version = "1.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f13b6cadd4df3e4dfaa25ba94205ac1a7906df93dc1c9b97756b2172b288dc65"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -1336,8 +1334,6 @@ dependencies = [
 [[package]]
 name = "nym-pemstore"
 version = "1.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8a65feca879c8b0556a525cc0dc996bafcfe2c1bad78c5990f464629e85b26c"
 dependencies = [
  "pem",
  "tracing",

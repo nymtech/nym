@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PastFamilyMembersForNodePagedResponse",
+  "description": "Response to [`QueryMsg::GetPastMembersForNodePaged`](crate::QueryMsg::GetPastMembersForNodePaged).",
+  "type": "object",
+  "required": [
+    "members",
+    "node_id"
+  ],
+  "properties": {
+    "members": {
+      "description": "The archived membership records for this node on this page, in ascending `(family_id, counter)` order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PastFamilyMember"
+      }
+    },
+    "node_id": {
+      "description": "The node whose archived memberships were queried, echoed back so paginated callers can correlate.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "start_next_after": {
+      "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": [
+        {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      ],
+      "maxItems": 2,
+      "minItems": 2
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "PastFamilyMember": {
+      "description": "Historical record of a node that used to be part of a family but has since been removed (kicked, left voluntarily, or because the family was disbanded).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "node_id",
+        "removed_at"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family the node used to belong to.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "description": "The node that was removed.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "removed_at": {
+          "description": "Block timestamp (unix seconds) at which the membership was terminated.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

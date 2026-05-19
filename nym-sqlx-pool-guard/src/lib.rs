@@ -3,8 +3,9 @@
 
 use std::{
     io,
-    ops::{Deref, DerefMut},
+    ops::Deref,
     path::{Path, PathBuf},
+    sync::Arc,
     time::Duration,
 };
 
@@ -26,15 +27,25 @@ const CHECK_FILES_CLOSED_MAX_ATTEMPTS: u8 = 20;
 /// Delay between file checks
 const CHECK_FILES_CLOSED_RETRY_DELAY: Duration = Duration::from_millis(100);
 
-/// `sqlx::SqlitePool` wrapper providing a workaround for the [known bug](https://github.com/launchbadge/sqlx/issues/3217).
-/// In principle after requesting to close the sqlite pool, the wrapper monitors open file descriptor and polls periodically until all database files are closed.
-#[derive(Debug, Clone)]
-pub struct SqlitePoolGuard {
+#[derive(Debug)]
+struct SqlitePoolGuardInner {
     /// Path to sqlite database file.
     database_path: PathBuf,
 
     /// Inner connection pool.
     connection_pool: sqlx::SqlitePool,
+}
+
+/// `sqlx::SqlitePool` wrapper providing a workaround for the [known bug](https://github.com/launchbadge/sqlx/issues/3217).
+/// In principle after requesting to close the sqlite pool, the wrapper monitors open file descriptor and polls periodically until all database files are closed.
+///
+/// This type is cheaply [`Clone`]-able: all clones share the same underlying pool and the same
+/// reference count.  The `Drop` impl only emits a warning when the **last** reference is dropped
+/// without an explicit [`close`](Self::close) call, so it is safe to clone this guard temporarily
+/// (e.g. to pass into a spawned task) without triggering spurious warnings.
+#[derive(Debug, Clone)]
+pub struct SqlitePoolGuard {
+    inner: Arc<SqlitePoolGuardInner>,
 }
 
 impl SqlitePoolGuard {
@@ -46,14 +57,16 @@ impl SqlitePoolGuard {
             .to_path_buf();
 
         Self {
-            database_path,
-            connection_pool,
+            inner: Arc::new(SqlitePoolGuardInner {
+                database_path,
+                connection_pool,
+            }),
         }
     }
 
     /// Returns database path
     pub fn database_path(&self) -> &Path {
-        &self.database_path
+        &self.inner.database_path
     }
 
     /// Close the underlying sqlite pool and wait for OS file handles to be released.
@@ -63,14 +76,14 @@ impl SqlitePoolGuard {
     /// beforehand.
     pub async fn close(&self) {
         // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
-        if !self.connection_pool.is_closed() {
-            tracing::info!("Closing sqlite pool: {}", self.database_path.display());
+        if !self.inner.connection_pool.is_closed() {
+            tracing::info!("Closing sqlite pool: {}", self.inner.database_path.display());
             self.close_pool_inner().await.ok();
         }
     }
 
     async fn close_pool_inner(&self) -> std::io::Result<()> {
-        self.connection_pool.close().await;
+        self.inner.connection_pool.close().await;
 
         self.wait_for_db_files_close().await.inspect_err(|e| {
             tracing::error!("Failed to wait for file to close: {e}");
@@ -81,15 +94,16 @@ impl SqlitePoolGuard {
     fn all_database_files(&self) -> Vec<PathBuf> {
         let mut database_files = vec![];
         let canonical_path = self
+            .inner
             .database_path
             .canonicalize()
             .inspect_err(|e| {
                 tracing::error!(
                     "Failed to canonicalize path: {}. Cause: {e}",
-                    self.database_path.display()
+                    self.inner.database_path.display()
                 );
             })
-            .unwrap_or(self.database_path.clone());
+            .unwrap_or(self.inner.database_path.clone());
 
         if let Some(ext) = canonical_path.extension() {
             for added_ext in ["-shm", "-wal"] {
@@ -126,15 +140,9 @@ impl SqlitePoolGuard {
 
 impl Drop for SqlitePoolGuard {
     fn drop(&mut self) {
-        // Spawning async tasks from Drop is an anti-pattern: tasks may not execute during
-        // runtime shutdown, and there may be no runtime at all.  Callers are responsible
-        // for calling `close()` before dropping this guard.  Log a warning here so that
-        // missed explicit-close call sites are visible during development.
-        if !self.connection_pool.is_closed() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.connection_pool.is_closed() {
             tracing::warn!(
-                path = %self.database_path.display(),
-                "SqlitePoolGuard dropped without explicit close(); \
-                 OS file handles may not be released promptly"
+                "SqlitePoolGuard dropped without explicit close(); path={}", self.inner.database_path.display()
             );
         }
     }
@@ -144,15 +152,10 @@ impl Deref for SqlitePoolGuard {
     type Target = sqlx::SqlitePool;
 
     fn deref(&self) -> &Self::Target {
-        &self.connection_pool
+        &self.inner.connection_pool
     }
 }
 
-impl DerefMut for SqlitePoolGuard {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.connection_pool
-    }
-}
 #[cfg(test)]
 mod tests {
     use sqlx::{
@@ -195,6 +198,33 @@ mod tests {
         );
 
         assert!(guard.close_pool_inner().await.is_ok());
+        tokio::fs::remove_file(database_path).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_clone_drop_no_warning() {
+        // Cloning the guard and dropping the clone should not warn because the original is still alive.
+        let temp_dir = tempfile::tempdir().unwrap();
+        let database_path = temp_dir.path().join("storage2.db");
+
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
+            .filename(database_path.clone())
+            .create_if_missing(true)
+            .disable_statement_logging();
+        let connection_pool = sqlx::SqlitePool::connect_with(opts).await.unwrap();
+        let guard = SqlitePoolGuard::new(connection_pool);
+
+        {
+            let _clone = guard.clone();
+            assert_eq!(Arc::strong_count(&guard.inner), 2);
+            // _clone drops here - should NOT warn since guard still holds a reference
+        }
+        assert_eq!(Arc::strong_count(&guard.inner), 1);
+
+        guard.close().await;
         tokio::fs::remove_file(database_path).await.unwrap();
     }
 }

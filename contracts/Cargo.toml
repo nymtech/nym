@@ -4,11 +4,12 @@ members = [
     "coconut-dkg",
     "ecash",
     "mixnet",
-    "nym-pool",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
+    "node-families",
+    "nym-pool",
+    "performance",
     "vesting",
-    "performance", "node-families",
 ]
 
 [workspace.package]

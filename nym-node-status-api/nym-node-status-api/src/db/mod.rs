@@ -71,4 +71,21 @@ impl Storage {
     pub fn pool_owned(&self) -> DbPool {
         self.pool.clone()
     }
+
+    pub fn pool(&self) -> &DbPool {
+        &self.pool
+    }
+
+    /// Build a `Storage` view from an existing pool. The wrapped pool is
+    /// `Clone`-cheap (shares the same underlying connection set), so this is
+    /// effectively free.
+    pub(crate) fn from_pool(pool: DbPool) -> Self {
+        pool.into()
+    }
+}
+
+impl From<DbPool> for Storage {
+    fn from(pool: DbPool) -> Self {
+        Storage { pool }
+    }
 }

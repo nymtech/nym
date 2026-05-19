@@ -38,6 +38,7 @@ pub mod ecash {
 }
 
 pub const NYM_NODES_ROUTES: &str = "nym-nodes";
+pub const NODE_FAMILIES_ROUTES: &str = "node-families";
 
 pub use nym_nodes::*;
 pub mod nym_nodes {

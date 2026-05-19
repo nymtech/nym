@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_family_members (node_id, family_id, joined_at)\n             SELECT * FROM UNNEST($1::BIGINT[], $2::BIGINT[], $3::BIGINT[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8c94f3c3bf7b9c3b135dc4b12303419b43304c3c93389abfc4c1d53955b15dd0"
+}

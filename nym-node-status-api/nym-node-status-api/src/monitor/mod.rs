@@ -3,9 +3,10 @@
 use crate::db::models::{
     ASSIGNED_ENTRY_COUNT, ASSIGNED_EXIT_COUNT, ASSIGNED_MIXING_COUNT, GATEWAYS_BONDED_COUNT,
     GATEWAYS_HISTORICAL_COUNT, GatewayInsertRecord, MIXNODES_HISTORICAL_COUNT, NYMNODE_COUNT,
-    NYMNODES_DESCRIBED_COUNT, NetworkSummary, NymNodeInsertRecord, gateway, mixnode,
+    NYMNODES_DESCRIBED_COUNT, NetworkSummary, NodeFamilyInsertRecord, NodeFamilyMemberInsertRecord,
+    NymNodeInsertRecord, gateway, mixnode,
 };
-use crate::db::{DbPool, queries};
+use crate::db::{DbPool, Storage};
 use crate::utils::now_utc;
 use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
@@ -23,14 +24,14 @@ use tracing::instrument;
 pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
 
-mod geodata;
+pub(crate) mod geodata;
 mod node_delegations;
 
 const MONITOR_FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 pub(crate) type NodeGeoCache = Cache<NodeId, Location>;
 
 struct Monitor {
-    db_pool: DbPool,
+    storage: Storage,
     network_details: NymNetworkDetails,
     nym_api_client_timeout: Duration,
     nyxd_client: QueryHttpRpcNyxdClient,
@@ -54,7 +55,7 @@ pub(crate) async fn run_in_background(
     let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
 
     let mut monitor = Monitor {
-        db_pool,
+        storage: Storage::from_pool(db_pool),
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
         nym_api_client_timeout,
         nyxd_client,
@@ -94,7 +95,7 @@ pub(crate) async fn run_once(
     let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
 
     let mut monitor = Monitor {
-        db_pool,
+        storage: Storage::from_pool(db_pool),
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
         nym_api_client_timeout,
         nyxd_client,
@@ -170,10 +171,24 @@ impl Monitor {
 
         let nym_node_records =
             self.prepare_nym_node_data(nym_nodes.clone(), &bonded_nym_nodes, &described_nodes);
-        queries::update_nym_nodes(&self.db_pool, nym_node_records)
+        self.storage
+            .update_nym_nodes(nym_node_records)
             .await
             .map(|inserted| {
                 tracing::debug!("{} nym nodes written to DB!", inserted);
+            })?;
+
+        let node_families = nym_api
+            .get_all_node_families()
+            .await
+            .log_error("get_all_node_families")?;
+        tracing::info!("🟣 node families: {}", node_families.len());
+        let family_records = prepare_node_family_data(node_families);
+        self.storage
+            .update_node_families(family_records)
+            .await
+            .map(|inserted| {
+                tracing::debug!("{inserted} node families written to DB!");
             })?;
 
         // stop here if running once
@@ -209,9 +224,9 @@ impl Monitor {
             .prepare_gateway_data(&gateways, &nym_nodes, &bonded_nym_nodes)
             .await?;
 
-        let pool = self.db_pool.clone();
         let gateways_count = gateway_records.len();
-        queries::update_bonded_gateways(&pool, gateway_records)
+        self.storage
+            .update_bonded_gateways(gateway_records)
             .await
             .map(|_| {
                 tracing::debug!("{} gateway records written to DB!", gateways_count);
@@ -219,7 +234,7 @@ impl Monitor {
 
         self.refresh_node_delegations(&bonded_nym_nodes).await;
 
-        let (all_historical_gateways, all_historical_mixnodes) = historical_count(&pool).await?;
+        let (all_historical_gateways, all_historical_mixnodes) = self.historical_count().await?;
 
         //
         // write summary keys and values to table
@@ -267,7 +282,9 @@ impl Monitor {
             },
         };
 
-        queries::insert_summaries(&pool, &nodes_summary, &network_summary, last_updated).await?;
+        self.storage
+            .insert_summaries(&nodes_summary, &network_summary, last_updated)
+            .await?;
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {
@@ -402,22 +419,65 @@ impl Monitor {
         // update after refreshing all to avoid holding write lock for too long
         *self.node_delegations.write().await = delegations_per_node;
     }
+
+    async fn historical_count(&self) -> anyhow::Result<(usize, usize)> {
+        let mut conn = self.storage.pool().acquire().await?;
+
+        let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
+            .fetch_one(&mut *conn)
+            .await?
+            .unwrap_or(0)
+            .cast_checked()?;
+
+        let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
+            .fetch_one(&mut *conn)
+            .await?
+            .unwrap_or(0)
+            .cast_checked()?;
+
+        Ok((all_historical_gateways, all_historical_mixnodes))
+    }
 }
 
-async fn historical_count(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
-    let mut conn = pool.acquire().await?;
+/// Project a nym-api families snapshot into the shape stored in the
+/// `node_families` / `node_family_members` tables. Members with stake info
+/// missing on the nym-api side are still recorded — only the per-family
+/// stake total drops to `NULL`.
+fn prepare_node_family_data(
+    families: Vec<nym_api_requests::models::node_families::NodeFamily>,
+) -> Vec<NodeFamilyInsertRecord> {
+    let last_updated_utc = now_utc().unix_timestamp();
 
-    let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
-        .fetch_one(&mut *conn)
-        .await?
-        .unwrap_or(0)
-        .cast_checked()?;
+    families
+        .into_iter()
+        .map(|family| {
+            let family_stake_unym = family
+                .total_stake
+                .as_ref()
+                .and_then(|coin| i64::try_from(coin.amount.u128()).ok());
 
-    let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
-        .fetch_one(&mut *conn)
-        .await?
-        .unwrap_or(0)
-        .cast_checked()?;
+            let members_count = family.members.len() as i32;
 
-    Ok((all_historical_gateways, all_historical_mixnodes))
+            let members: Vec<_> = family
+                .members
+                .into_iter()
+                .map(|m| NodeFamilyMemberInsertRecord {
+                    node_id: m.node_id as i64,
+                    joined_at: m.joined_at.unix_timestamp(),
+                })
+                .collect();
+
+            NodeFamilyInsertRecord {
+                family_id: family.id as i64,
+                name: family.name,
+                description: family.description,
+                owner: family.owner,
+                family_stake_unym,
+                members_count,
+                created_at: family.created_at.unix_timestamp(),
+                last_updated_utc,
+                members,
+            }
+        })
+        .collect()
 }

@@ -5,6 +5,7 @@ use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
@@ -33,6 +34,8 @@ pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
 pub(crate) mod node_annotations_cache;
+#[cfg(test)]
+pub(crate) mod test_helpers;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
@@ -58,6 +61,9 @@ pub(crate) struct AppState {
 
     /// Holds cached state of the Nym Mixnet contract, e.g. bonded nym-nodes, rewarded set, current interval.
     pub(crate) mixnet_contract_cache: MixnetContractCacheState,
+
+    /// Hold cached state of node families, e.g. membership, invitations, age, etc.
+    pub(crate) node_families_cache: SharedCache<NodeFamiliesCacheData>,
 
     /// Holds processed information on network nodes, i.e. performance, config scores, etc.
     // TODO: also perhaps redundant?

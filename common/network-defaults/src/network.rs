@@ -176,6 +176,9 @@ impl NymNetworkDetails {
             ))
             .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
             .with_vesting_contract(get_optional_env(var_names::VESTING_CONTRACT_ADDRESS))
+            .with_node_families_contract(get_optional_env(
+                var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
+            ))
             .with_ecash_contract(get_optional_env(var_names::ECASH_CONTRACT_ADDRESS))
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
@@ -257,6 +260,7 @@ impl NymNetworkDetails {
 
             set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
             set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+            set_optional_var(var_names::NODE_FAMILIES_CONTRACT_ADDRESS, self.contracts.node_families_contract_address);
             set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
             set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
             set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
@@ -342,6 +346,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.vesting_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_node_families_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.node_families_contract_address = contract.map(Into::into);
         self
     }
 

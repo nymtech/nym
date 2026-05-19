@@ -1026,6 +1026,31 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`]. Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.",
+      "type": "object",
+      "required": [
+        "admin_batch_migrate_vested_delegations"
+      ],
+      "properties": {
+        "admin_batch_migrate_vested_delegations": {
+          "type": "object",
+          "required": [
+            "entries"
+          ],
+          "properties": {
+            "entries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/VestedDelegationMigrationEntry"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
@@ -1714,6 +1739,24 @@
         },
         "penalty_scaling": {
           "$ref": "#/definitions/Decimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "VestedDelegationMigrationEntry": {
+      "type": "object",
+      "required": [
+        "mix_id",
+        "owner"
+      ],
+      "properties": {
+        "mix_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "owner": {
+          "type": "string"
         }
       },
       "additionalProperties": false

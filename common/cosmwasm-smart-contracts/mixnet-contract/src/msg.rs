@@ -317,6 +317,11 @@ pub enum ExecuteMsg {
         mix_id: NodeId,
         owner: String,
     },
+    /// Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`].
+    /// Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.
+    AdminBatchMigrateVestedDelegations {
+        entries: Vec<VestedDelegationMigrationEntry>,
+    },
 
     // testing-only
     #[cfg(feature = "contract-testing")]
@@ -411,6 +416,9 @@ impl ExecuteMsg {
             }
             ExecuteMsg::AdminMigrateVestedDelegation { mix_id, owner } => {
                 format!("admin migrating vested delegation of {owner} on mixnode {mix_id}")
+            }
+            ExecuteMsg::AdminBatchMigrateVestedDelegations { entries } => {
+                format!("admin batch migrating {} vested delegations", entries.len())
             }
             ExecuteMsg::AssignRoles { .. } => "assigning epoch roles".into(),
             ExecuteMsg::MigrateMixnode { .. } => "migrating legacy mixnode".into(),
@@ -897,6 +905,12 @@ pub enum QueryMsg {
     /// Gets the current key rotation id
     #[cfg_attr(feature = "schema", returns(KeyRotationIdResponse))]
     GetKeyRotationId {},
+}
+
+#[cw_serde]
+pub struct VestedDelegationMigrationEntry {
+    pub mix_id: NodeId,
+    pub owner: String,
 }
 
 #[cw_serde]

@@ -869,7 +869,8 @@ mod tests {
             }
             // not expected to be exposed by the client
             ExecuteMsg::AdminMigrateVestedMixNode { .. }
-            | ExecuteMsg::AdminMigrateVestedDelegation { .. } => ().ignore(),
+            | ExecuteMsg::AdminMigrateVestedDelegation { .. }
+            | ExecuteMsg::AdminBatchMigrateVestedDelegations { .. } => ().ignore(),
         };
     }
 }

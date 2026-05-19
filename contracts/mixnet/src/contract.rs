@@ -315,6 +315,11 @@ pub fn execute(
                 deps, env, info, mix_id, owner,
             )
         }
+        ExecuteMsg::AdminBatchMigrateVestedDelegations { entries } => {
+            crate::vesting_migration::try_admin_batch_migrate_vested_delegations(
+                deps, env, info, entries,
+            )
+        }
 
         // legacy vesting
         ExecuteMsg::BondMixnodeOnBehalf { .. }

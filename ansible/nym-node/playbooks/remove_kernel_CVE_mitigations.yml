@@ -95,26 +95,9 @@
       loop:
         - esp4
         - esp6
+        - rxrpc
         - algif_aead
       ignore_errors: true
-
-    - name: Verify modules loaded
-      shell: lsmod | grep -E 'esp4|esp6|algif_aead'
-      register: lsmod_result
-      changed_when: false
-      failed_when: false
-
-    - name: Show loaded modules
-      debug:
-        msg: "{{ lsmod_result.stdout_lines }}"
-
-    - name: Warn if modules are not visible in lsmod
-      debug:
-        msg: >
-          NOTE: one or more modules (esp4, esp6, algif_aead) are not visible in lsmod.
-          This is expected if they are compiled directly into the kernel.
-          If this is unexpected, check: dmesg | grep -iE 'esp4|esp6|algif_aead'
-      when: lsmod_result.stdout == ""
 
     - name: Confirm nym-node service is still running
       systemd:

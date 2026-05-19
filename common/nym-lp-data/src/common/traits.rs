@@ -122,7 +122,7 @@ where
     NdId: Clone,
 {
     // IMPORTANT NOTE : This fn can be not constant to allow e.g. flexible MTU
-    // However, every possible value must be able to accomodate the different overhead.
+    // However, every possible value must be able to accommodate the different overhead.
     // If it doesn't, the pipeline becomes unusable
     fn packet_size(&self) -> usize;
 

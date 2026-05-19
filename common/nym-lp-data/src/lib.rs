@@ -22,7 +22,7 @@ use std::fmt::Debug;
 
 pub mod clients;
 pub mod common;
-pub mod mixnodes;
+pub mod nymnodes;
 
 /// Convenience alias for [`TimedData`] when the payload is a raw byte buffer.
 pub type TimedPayload<Ts> = TimedData<Ts, Vec<u8>>;
@@ -37,27 +37,10 @@ pub type PipelinePayload<Ts, Opts, NdId> = PipelineData<Ts, Vec<u8>, Opts, NdId>
 /// pipeline.  It is produced by [`clients::traits::Chunking`] and propagated
 /// unchanged (or with the timestamp transformed) through every subsequent
 /// pipeline stage until the packet is sent on the wire.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TimedData<Ts, D> {
     pub timestamp: Ts,
     pub data: D,
-}
-
-impl<Ts, D> Debug for TimedData<Ts, D>
-where
-    D: Debug,
-    Ts: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "TimedData {{")?;
-        writeln!(f, "    data:")?;
-        let data_debug = format!("{:#?}", &self.data);
-        for line in data_debug.lines() {
-            writeln!(f, "        {}", line)?;
-        }
-        writeln!(f, "    timestamp: {:#?},", &self.timestamp)?;
-        write!(f, "}}")
-    }
 }
 
 impl<Ts, D> TimedData<Ts, D> {
@@ -108,7 +91,7 @@ impl<Ts, D> TimedData<Ts, D> {
 /// [`Framing`]: crate::common::traits::Framing
 /// [`Transport`]: crate::common::traits::Transport
 /// [`InputOptions`]: crate::clients::InputOptions
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PipelineData<Ts, D, Opts, NdId> {
     pub data: TimedData<Ts, D>,
     pub options: Opts,
@@ -159,20 +142,6 @@ impl<Ts, D, Opts, NdId> PipelineData<Ts, D, Opts, NdId> {
             options: (),
             dst: self.dst,
         }
-    }
-}
-
-impl<Ts, D, Opts, NdId> Debug for PipelineData<Ts, D, Opts, NdId>
-where
-    D: Debug,
-    Ts: Debug,
-    NdId: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "PipelineData {{")?;
-        writeln!(f, "    dst: {:#?}", &self.dst)?;
-        writeln!(f, "    data: {:#?}", &self.data)?;
-        write!(f, "}}")
     }
 }
 

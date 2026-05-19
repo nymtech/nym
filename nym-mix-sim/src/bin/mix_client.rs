@@ -81,7 +81,7 @@ fn main() -> anyhow::Result<()> {
             break; // EOF
         }
 
-        let text = line.trim_end_matches('\n').trim_end_matches('\r');
+        let text = line.trim();
         let bytes = text.as_bytes();
 
         // Prepend the destination node ID.

@@ -62,13 +62,14 @@ impl SimplePacket {
     ///
     /// Layout: 16 bytes UUID (LE) + 48 bytes payload = 64 bytes total.
     const SIZE: usize = 64;
+    const UUID_SIZE: usize = 16;
 
     /// Create a new [`SimplePacket`] with a freshly generated UUID v4 and the
     /// provided 48-byte payload.
     ///
     /// The payload array is exactly `SIZE - 16 = 48` bytes so that the packet
     /// serialises to exactly [`SimplePacket::SIZE`] bytes.
-    pub fn new(data: [u8; Self::SIZE - 16]) -> Self {
+    pub fn new(data: [u8; Self::SIZE - Self::UUID_SIZE]) -> Self {
         Self {
             id: Uuid::new_v4(),
             data: data.to_vec(),
@@ -114,8 +115,8 @@ impl SimplePacket {
             ));
         }
         #[allow(clippy::unwrap_used)]
-        let uuid = Uuid::from_bytes_le(bytes[0..16].try_into().unwrap());
-        let data = bytes[16..Self::SIZE].to_vec();
+        let uuid = Uuid::from_bytes_le(bytes[0..Self::UUID_SIZE].try_into().unwrap());
+        let data = bytes[Self::UUID_SIZE..Self::SIZE].to_vec();
         Ok(SimplePacket { id: uuid, data })
     }
 }

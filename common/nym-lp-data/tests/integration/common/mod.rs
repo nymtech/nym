@@ -69,13 +69,13 @@ where
     }
 }
 
-pub struct KcpReliability;
+pub struct MockReliability;
 
-impl KcpReliability {
+impl MockReliability {
     const HEADER: &[u8; 5] = b"0KCP0";
 }
 
-impl<Ts> Reliability<Ts, BasicOptions, u8> for KcpReliability {
+impl<Ts> Reliability<Ts, BasicOptions, u8> for MockReliability {
     const OVERHEAD_SIZE: usize = Self::HEADER.len();
     fn reliable_encode(
         &mut self,
@@ -94,15 +94,15 @@ impl<Ts> Reliability<Ts, BasicOptions, u8> for KcpReliability {
     }
 }
 
-pub struct SphinxSecurity {
+pub struct MockSphinxSecurity {
     pub nb_frames: usize,
 }
 
-impl SphinxSecurity {
+impl MockSphinxSecurity {
     const HEADER: &[u8; 8] = b"0SPHINX0";
 }
 
-impl<Ts> RoutingSecurity<Ts, BasicOptions, u8> for SphinxSecurity {
+impl<Ts> RoutingSecurity<Ts, BasicOptions, u8> for MockSphinxSecurity {
     const OVERHEAD_SIZE: usize = Self::HEADER.len();
 
     fn nb_frames(&self) -> usize {
@@ -167,13 +167,13 @@ impl Obfuscation<u32, BasicOptions, u8> for ReallyOddObfuscation {
     }
 }
 
-pub struct LpFraming;
+pub struct MockLpFraming;
 
-impl LpFraming {
+impl MockLpFraming {
     const FRAME_ATTRIBUTES: &[u8; 14] = b"0LpFrameAttrs0";
 }
 
-impl<Ts> Framing<Ts, BasicOptions, u8> for LpFraming
+impl<Ts> Framing<Ts, BasicOptions, u8> for MockLpFraming
 where
     Ts: Clone,
 {
@@ -204,9 +204,9 @@ where
     }
 }
 
-pub struct LpTransport;
+pub struct MockLpTransport;
 
-impl<Ts> Transport<Ts, LpPacket, u8> for LpTransport {
+impl<Ts> Transport<Ts, LpPacket, u8> for MockLpTransport {
     type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpHeader::SIZE;
     fn to_transport_packet(

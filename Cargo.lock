@@ -7611,7 +7611,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-families-contract-common"
-version = "1.20.5"
+version = "1.21.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

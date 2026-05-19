@@ -58,26 +58,26 @@ schemars = "0.8.16"
 
 thiserror = "2.0.11"
 
-easy-addr = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/easy_addr" }
+easy-addr = { version = "1.21.0", path = "../common/cosmwasm-smart-contracts/easy_addr" }
 # For local development with modifications, add a [patch.crates-io] section (see bottom of file)
-nym-coconut-dkg-common = "1.20.4"
-nym-contracts-common = "1.20.4"
-nym-contracts-common-testing = "1.20.4"
-nym-crypto = { version = "1.20.4", default-features = false }
-nym-ecash-contract-common = "1.20.4"
-nym-group-contract-common = "1.20.4"
-nym-mixnet-contract-common = "1.20.4"
-nym-multisig-contract-common = "1.20.4"
-nym-network-defaults = { version = "1.20.4", default-features = false }
-nym-performance-contract-common = "1.20.4"
-nym-pool-contract-common = "1.20.4"
-nym-vesting-contract-common = "1.20.4"
+nym-coconut-dkg-common = "1.21.0"
+nym-contracts-common = "1.21.0"
+nym-contracts-common-testing = "1.21.0"
+nym-crypto = { version = "1.21.0", default-features = false }
+nym-ecash-contract-common = "1.21.0"
+nym-group-contract-common = "1.21.0"
+nym-mixnet-contract-common = "1.21.0"
+nym-multisig-contract-common = "1.21.0"
+nym-network-defaults = { version = "1.21.0", default-features = false }
+nym-performance-contract-common = "1.21.0"
+nym-pool-contract-common = "1.21.0"
+nym-vesting-contract-common = "1.21.0"
 
 # Aliases for crates that some contracts import under different names
-contracts-common = { version = "1.20.4", package = "nym-contracts-common" }
-mixnet-contract-common = { version = "1.20.4", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { version = "1.20.4", package = "nym-vesting-contract-common" }
-nym-node-families-contract-common = { version = "1.20.4", package = "nym-node-families-contract-common" }
+contracts-common = { version = "1.21.0", package = "nym-contracts-common" }
+mixnet-contract-common = { version = "1.21.0", package = "nym-mixnet-contract-common" }
+vesting-contract-common = { version = "1.21.0", package = "nym-vesting-contract-common" }
+nym-node-families-contract-common = { version = "1.21.0", package = "nym-node-families-contract-common" }
 
 # Internal contract workspace members (for cross-contract testing)
 cw3-flex-multisig = { version = "2.0.0", path = "multisig/cw3-flex-multisig" }

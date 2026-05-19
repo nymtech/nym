@@ -77,7 +77,10 @@ impl SqlitePoolGuard {
     pub async fn close(&self) {
         // Avoid waiting for db files once the pool is marked closed to ensure that we don't wait on some other sqlite pool to close the database.
         if !self.inner.connection_pool.is_closed() {
-            tracing::info!("Closing sqlite pool: {}", self.inner.database_path.display());
+            tracing::info!(
+                "Closing sqlite pool: {}",
+                self.inner.database_path.display()
+            );
             self.close_pool_inner().await.ok();
         }
     }
@@ -142,7 +145,8 @@ impl Drop for SqlitePoolGuard {
     fn drop(&mut self) {
         if Arc::strong_count(&self.inner) == 1 && !self.inner.connection_pool.is_closed() {
             tracing::warn!(
-                "SqlitePoolGuard dropped without explicit close(); path={}", self.inner.database_path.display()
+                "SqlitePoolGuard dropped without explicit close(); path={}",
+                self.inner.database_path.display()
             );
         }
     }

@@ -112,12 +112,16 @@ fn migrate_vested_delegation_for_owner(
 
     let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
 
-    let storage_key =
-        Delegation::generate_storage_key(mix_id, &owner, Some(&vesting_contract));
+    let storage_key = Delegation::generate_storage_key(mix_id, &owner, Some(&vesting_contract));
     let Some(vested_delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     else {
-        return Err(MixnetContractError::NotAVestingDelegation);
+        return Ok(Response::new().add_event(
+            Event::new("migrate-vested-delegation-noop")
+                .add_attribute("owner", owner.as_str())
+                .add_attribute("mix_id", mix_id.to_string())
+                .add_attribute("reason", "no_vested_delegation"),
+        ));
     };
 
     // sanity check that's meant to blow up the contract
@@ -346,9 +350,10 @@ mod tests {
 
             let sender = test.make_sender("owner-without-any-delegations");
 
-            // it simply fails for there is nothing to migrate
-            let res = try_migrate_vested_delegation(test.deps_mut(), env, sender, 42).unwrap_err();
-            assert_eq!(res, MixnetContractError::NotAVestingDelegation);
+            // nothing to migrate -> idempotent no-op (so admin batches don't fail on stale entries)
+            let res = try_migrate_vested_delegation(test.deps_mut(), env, sender, 42).unwrap();
+            assert!(res.messages.is_empty());
+            assert_eq!(res.events[0].ty, "migrate-vested-delegation-noop");
         }
 
         #[test]
@@ -372,10 +377,10 @@ mod tests {
             let sender = message_info(&delegation.owner, &[]);
             let mix_id = delegation.node_id;
 
-            // it also fails because the method is only allowed for vested delegations
-            let res =
-                try_migrate_vested_delegation(test.deps_mut(), env, sender, mix_id).unwrap_err();
-            assert_eq!(res, MixnetContractError::NotAVestingDelegation);
+            // liquid-only delegations are no-ops (nothing vested to migrate)
+            let res = try_migrate_vested_delegation(test.deps_mut(), env, sender, mix_id).unwrap();
+            assert!(res.messages.is_empty());
+            assert_eq!(res.events[0].ty, "migrate-vested-delegation-noop");
         }
 
         #[test]

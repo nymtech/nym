@@ -32,7 +32,7 @@
     "comlink": "^4.3.1",
     "fake-indexeddb": "^5.0.0",
     "node-fetch": "^3.3.2",
-    "ws": "^8.14.2"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^24.0.1",

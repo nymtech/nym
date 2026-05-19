@@ -621,7 +621,7 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nymproject/mix-fetch-wasm-node@>=1.2.4-rc.2 || ^1":
+"@nymproject/mix-fetch-wasm-node@>=1.4.2-rc.0 || ^1":
   version "1.2.3"
   resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm-node/-/mix-fetch-wasm-node-1.2.3.tgz#f600df714782e6eb691faa14683e44c2507a8e53"
   integrity sha512-J9mj52WSpsGpuCeW65zEj8RWJ3GvWG0VqVWIDD6w1RK4SesXiGb7ghD7F1rChRMlSbl9rP9reYkmAHz63Sb6Cw==
@@ -4390,10 +4390,10 @@ write-file-atomic@^4.0.2:
     imurmurhash "^0.1.4"
     signal-exit "^3.0.7"
 
-ws@^8.14.2:
-  version "8.14.2"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.14.2.tgz#6c249a806eb2db7a20d26d51e7709eab7b2e6c7f"
-  integrity sha512-wEBG1ftX4jcglPxgFCMJmZ2PLtSbJ2Peg6TmpJFTbe9GZYOQCDPdMYu/Tm0/bGZkw8paZnJY45J4K2PZrLYq8g==
+ws@^8.20.1:
+  version "8.20.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-8.20.1.tgz#91a9ae2b312ccf98e0a85ec499b48cef45ab0ddb"
+  integrity sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==
 
 ws@~8.11.0:
   version "8.11.0"

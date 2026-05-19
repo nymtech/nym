@@ -1,7 +1,6 @@
 packages:
   - 'ts-packages/*'
   - 'nym-wallet'
-  - 'explorer-nextjs'
   - 'explorer-v2'
   - 'types'
   - 'sdk/typescript/packages/mix-fetch/internal-dev'

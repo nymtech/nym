@@ -16,9 +16,7 @@ packages=(
 "chat-app/plain-html"
 "chat-app/react-webpack-with-theme-example"
 
-"node-tester/parcel"
-"node-tester/plain-html"
-"node-tester/react"
+
 
 "react/mui-theme"
 "react/sdk-react"

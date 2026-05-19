@@ -1023,6 +1023,16 @@ where
         let encryption_keys = init_res.client_keys.encryption_keypair();
         let identity_keys = init_res.client_keys.identity_keypair();
 
+        let credential_store_for_close = credential_store.clone();
+        let close_credential_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move {
+                close_credential_token.cancelled().await;
+                credential_store_for_close.close().await;
+            },
+            "CredentialStorage::close_on_shutdown",
+        );
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         let bandwidth_controller = self

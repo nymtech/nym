@@ -25,6 +25,8 @@ pub trait BandwidthTicketProvider: Send + Sync {
     ) -> Result<PreparedCredential, BandwidthControllerError>;
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError>;
+
+    async fn close(&self) {}
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -56,6 +58,10 @@ where
             .map_err(|_| BandwidthControllerError::MalformedUpgradeModeToken)?;
         Ok(Some(token))
     }
+
+    async fn close(&self) {
+        self.storage.close().await;
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -74,5 +80,9 @@ impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         (**self).get_upgrade_mode_token().await
+    }
+
+    async fn close(&self) {
+        (**self).close().await;
     }
 }

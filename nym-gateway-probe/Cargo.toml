@@ -60,6 +60,7 @@ nym-ip-packet-client = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
+nym-lp-data.workspace = true
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-registration-client = { path = "../nym-registration-client" }

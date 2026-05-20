@@ -31,7 +31,7 @@ use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,

@@ -25,10 +25,10 @@ nym-crypto = { workspace = true, features = ["hashing"] }
 nym-common.workspace = true
 nym-kkt = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
+nym-lp-data.workspace = true
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
 libcrux-psq = { workspace = true, features = ["test-utils"] }
-num_enum = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 
@@ -48,3 +48,6 @@ mock = ["nym-test-utils"]
 [[bench]]
 name = "replay_protection"
 harness = false
+
+[lints]
+workspace = true

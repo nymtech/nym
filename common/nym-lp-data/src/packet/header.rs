@@ -1,10 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::packet::error::MalformedLpPacketError;
 use crate::packet::version;
-use crate::{packet::error::MalformedLpPacketError, peer_config::LpReceiverIndex};
 use bytes::{BufMut, BytesMut};
 use tracing::warn;
+
+pub type LpReceiverIndex = u32;
 
 /// Outer header (12 bytes) - always cleartext, used for routing.
 ///

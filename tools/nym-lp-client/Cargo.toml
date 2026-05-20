@@ -33,6 +33,7 @@ nym-kkt-ciphersuite = { workspace = true }
 nym-http-api-client = { path = "../../common/http-api-client" }
 nym-kcp = { path = "../../common/nym-kcp" }
 nym-lp = { path = "../../common/nym-lp" }
+nym-lp-data.workspace = true
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-sphinx-framing = { path = "../../common/nymsphinx/framing", features = ["no-mix-acks"] }
 nym-sphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }

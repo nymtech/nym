@@ -57,6 +57,100 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.10-waterloo`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)
+- [`nym-node`](nodes/nym-node.mdx) version `1.32.0`
+
+```sh
+ADD OUTPUT ./nym-node --version
+```
+### Operators Updates & Tools
+
+<Callout type="error" emoji="🚨">
+[**Security steps required**](/operators/troubleshooting/vps-isp#security-patch-copyfail--dirtyfrag): Several critical [Linux kernel vulnerabilities](https://ubuntu.com/blog/copy-fail-vulnerability-fixes-available) had been disclosed. Check out your servers and if needed apply required mitigations!
+</Callout>
+
+- [**NIP-11: NTM updated**](https://github.com/nymtech/nym/pull/6807) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standart SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>    
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps> 
+    </MyTab>
+  </Tabs>
+</div>
+
+- [**New docs**](https://github.com/nymtech/nym/pull/6716): Max's leg work on [exit services documentation](/network/infrastructure/exit-services), [`Mixfetch`](/developers/mix-fetch) and [`smolmix`](/developers/smolmix)
+
+#### Operators UX Improvements
+
+- [NTM: Split IPv4 / IPv6 uplinks](https://github.com/nymtech/nym/pull/6640): Now NTM can work with different uplink interfaces for IPv4 and IPv4
+
+- [Nym Node CLI: Split IPv4 / IPv6 uplinks](https://github.com/nymtech/nym/pull/6743): `nym-node-cli.py` uplinks sync up with NTM
+
+- [NTM & Nym Node CLI: Alternative SSH port](https://github.com/nymtech/nym/pull/6633): Operators can use these tools with `HOST_SSH_PORT` allowing them to define any alternative port instead of only using hard-coded 22
+
+
+### Features
+
+<!-- ADD DEV POINTS --> 
+
+### Bugfix
+
+<!-- ADD DEV POINTS --> 
+
+### Features
+
+<!-- ADD DEV POINTS --> 
+
+### Refactors & Maintenance
+
+<!-- ADD DEV POINTS --> 
+
 ## `v2026.9-venaco`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.9-venaco)

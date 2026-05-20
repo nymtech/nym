@@ -180,6 +180,7 @@ mod tests {
         ConnectOptions, Executor,
         sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     };
+    use tracing_test::traced_test;
 
     use super::*;
 
@@ -219,6 +220,7 @@ mod tests {
         tokio::fs::remove_file(database_path).await.unwrap();
     }
 
+    #[traced_test]
     #[tokio::test]
     async fn test_clone_drop_no_warning() {
         // Cloning the guard and dropping the clone should not warn because the original is still alive.
@@ -238,9 +240,11 @@ mod tests {
         {
             let _clone = guard.clone();
             assert_eq!(Arc::strong_count(&guard.inner), 2);
-            // _clone drops here - should NOT warn since guard still holds a reference
         }
         assert_eq!(Arc::strong_count(&guard.inner), 1);
+        assert!(!logs_contain(
+            "SqlitePoolGuard dropped without explicit close"
+        ));
 
         guard.close().await;
         tokio::fs::remove_file(database_path).await.unwrap();

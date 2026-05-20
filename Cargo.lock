@@ -7807,7 +7807,6 @@ dependencies = [
  "ammonia",
  "anyhow",
  "axum",
- "axum-test",
  "bip39",
  "bs58",
  "celes",

@@ -29,8 +29,8 @@ use crate::common::traits::{WireUnwrappingPipeline, WireWrappingPipeline};
 ///   passes the result to [`mix`], and re-wraps each output payload via
 ///   [`WireWrappingPipeline::wire_wrap`].
 ///
-/// [`mix`]: MixnodeProcessingPipeline::mix
-pub trait MixnodeProcessingPipeline<Ts, Pkt, Opts, Mk, NdId>:
+/// [`mix`]: NymNodeProcessingPipeline::mix
+pub trait NymNodeProcessingPipeline<Ts, Pkt, Opts, Mk, NdId>:
     WireUnwrappingPipeline<Ts, Pkt, Mk> + WireWrappingPipeline<Ts, Pkt, Opts, NdId>
 where
     Ts: Clone,

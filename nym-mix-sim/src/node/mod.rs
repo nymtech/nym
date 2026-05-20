@@ -47,15 +47,15 @@ pub trait MixSimNode<Ts: Clone + PartialOrd + Debug + Send>: Send {
 /// Minimal pipeline interface used by [`BaseNode`].
 ///
 /// Hides the `Frame` and message-marker type parameters of
-/// [`MixnodeProcessingPipeline`] so that [`BaseNode`] only needs
+/// [`NymNodeProcessingPipeline`] so that [`BaseNode`] only needs
 /// `<Ts, Pkt, Pipeline>` rather than five generics.
 ///
-/// Implement [`MixnodeProcessingPipeline`] on your concrete type and then add
+/// Implement [`NymNodeProcessingPipeline`] on your concrete type and then add
 /// a trivial delegation impl of this trait; the two-line body just calls
-/// through to [`MixnodeProcessingPipeline::process`].
+/// through to [`NymNodeProcessingPipeline::process`].
 ///
-/// [`MixnodeProcessingPipeline`]: nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline
-/// [`MixnodeProcessingPipeline::process`]: nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline::process
+/// [`NymNodeProcessingPipeline`]: nym_lp_data::mixnodes::traits::NymNodeProcessingPipeline
+/// [`NymNodeProcessingPipeline::process`]: nym_lp_data::mixnodes::traits::NymNodeProcessingPipeline::process
 pub trait ProcessingNode<Ts, Pkt>: Send {
     fn process(
         &mut self,

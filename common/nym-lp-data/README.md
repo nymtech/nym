@@ -10,7 +10,7 @@ This crate is a *vocabulary* crate — it defines the traits that clients and mi
 |--------|---------|
 | [`common`](src/common)     | Wire-layer traits ([`Framing`], [`FramingUnwrap`], [`Transport`], [`TransportUnwrap`]) and their composed supertraits ([`WireWrappingPipeline`], [`WireUnwrappingPipeline`]) shared by both clients and mixnodes, plus [`NoOpWireWrapper`] / [`NoOpWireUnwrapper`] marker traits for opting into a pass-through wire layer |
 | [`clients`](src/clients)   | Client-side outbound/inbound pipeline traits: [`Chunking`], [`Reliability`], [`Obfuscation`], [`RoutingSecurity`], plus the supertraits [`ClientWrappingPipeline`] / [`ClientUnwrappingPipeline`], a `Pipeline` composition struct, no-op marker traits, and a tick-driven [`ClientWrappingPipelineDriver`] |
-| [`mixnodes`](src/mixnodes) | Mixnode processing trait [`MixnodeProcessingPipeline`] (unwrap → mix → re-wrap) and a `Pipeline` composition struct |
+| [`mixnodes`](src/mixnodes) | Mixnode processing trait [`NymNodeProcessingPipeline`] (unwrap → mix → re-wrap) and a `Pipeline` composition struct |
 
 [`Framing`]: src/common/traits.rs
 [`FramingUnwrap`]: src/common/traits.rs
@@ -27,7 +27,7 @@ This crate is a *vocabulary* crate — it defines the traits that clients and mi
 [`ClientWrappingPipeline`]: src/clients/traits.rs
 [`ClientUnwrappingPipeline`]: src/clients/traits.rs
 [`ClientWrappingPipelineDriver`]: src/clients/driver.rs
-[`MixnodeProcessingPipeline`]: src/mixnodes/traits.rs
+[`NymNodeProcessingPipeline`]: src/mixnodes/traits.rs
 
 ## Core data types
 
@@ -80,7 +80,7 @@ Pkt  ──▶  WireUnwrappingPipeline  ──▶  mix  ──▶  WireWrappingP
                                               schedules delays, etc.
 ```
 
-Implementors fill in `mix()`; everything else is provided by the [`MixnodeProcessingPipeline`] supertrait's default `process()`.
+Implementors fill in `mix()`; everything else is provided by the [`NymNodeProcessingPipeline`] supertrait's default `process()`.
 
 ## Helpers
 

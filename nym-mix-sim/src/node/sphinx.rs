@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_lp_data::{
     AddressedTimedData, AddressedTimedPayload, TimedPayload,
     common::helpers::{NoOpWireUnwrapper, NoOpWireWrapper},
-    nymnodes::traits::MixnodeProcessingPipeline,
+    nymnodes::traits::NymNodeProcessingPipeline,
 };
 use nym_sphinx::SphinxPacket;
 
@@ -60,7 +60,7 @@ where
         input: SimMixPacket,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimMixPacket, NodeId>>> {
-        Ok(MixnodeProcessingPipeline::<
+        Ok(NymNodeProcessingPipeline::<
             Ts,
             SimMixPacket,
             (),
@@ -72,7 +72,7 @@ where
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A [`MixnodeProcessingPipeline`] for [`SphinxPacket`].
+/// A [`NymNodeProcessingPipeline`] for [`SphinxPacket`].
 ///
 /// Uses no-op framing and transport wrappers because a Sphinx packet is already
 /// its own self-contained wire unit — no additional framing or transport header
@@ -95,7 +95,7 @@ impl SphinxProcessingNode {
     }
 }
 
-impl<Ts> MixnodeProcessingPipeline<Ts, SimMixPacket, (), SphinxMessage, NodeId>
+impl<Ts> NymNodeProcessingPipeline<Ts, SimMixPacket, (), SphinxMessage, NodeId>
     for SphinxProcessingNode
 where
     Ts: AddDelay + Clone,

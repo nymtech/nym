@@ -6,7 +6,7 @@
 //! The central abstraction is [`WirePacketFormat`]: a trait that any packet
 //! type must implement to participate in a simulation.  It covers only
 //! wire serialisation; mix logic is handled separately by
-//! [`nym_lp_data::mixnodes::traits::MixnodeProcessingPipeline`].
+//! [`nym_lp_data::mixnodes::traits::NymNodeProcessingPipeline`].
 //!
 
 pub mod simple;

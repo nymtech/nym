@@ -11,7 +11,7 @@ use nym_lp_data::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
-    nymnodes::traits::MixnodeProcessingPipeline,
+    nymnodes::traits::NymNodeProcessingPipeline,
 };
 
 use crate::{
@@ -57,7 +57,7 @@ impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
         input: SimplePacket,
         timestamp: Ts,
     ) -> anyhow::Result<Vec<AddressedTimedData<Ts, SimplePacket, NodeId>>> {
-        MixnodeProcessingPipeline::<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>::process(
+        NymNodeProcessingPipeline::<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>::process(
             self, input, timestamp,
         )
     }
@@ -65,11 +65,11 @@ impl<Ts: Clone> ProcessingNode<Ts, SimplePacket> for SimpleProcessingNode {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A simple [`MixnodeProcessingPipeline`] for [`SimplePacket`].
+/// A simple [`NymNodeProcessingPipeline`] for [`SimplePacket`].
 ///
 /// Demonstrates the full pipeline: unwraps the incoming packet through the
 /// wire layer (transport → frame → payload), applies a routing decision in
-/// [`MixnodeProcessingPipeline::mix`] (forwards to `self.id + 1`), then
+/// [`NymNodeProcessingPipeline::mix`] (forwards to `self.id + 1`), then
 /// re-wraps the outgoing payload (payload → frame → transport) before sending.
 pub struct SimpleProcessingNode {
     id: NodeId,
@@ -89,7 +89,7 @@ impl SimpleProcessingNode {
 }
 
 impl<Ts: Clone>
-    MixnodeProcessingPipeline<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>
+    NymNodeProcessingPipeline<Ts, SimplePacket, SimpleInputOptions, SimpleMessage, NodeId>
     for SimpleProcessingNode
 {
     /// Route the payload to the next node in the chain (`self.id + 1`).

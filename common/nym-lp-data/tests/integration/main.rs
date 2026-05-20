@@ -4,7 +4,8 @@
 use nym_lp_data::clients::{traits::ClientWrappingPipeline, types::Pipeline};
 
 use crate::common::{
-    KcpReliability, KekwObfuscation, LpFraming, LpTransport, MockChunking, SphinxSecurity,
+    KekwObfuscation, MockChunking, MockLpFraming, MockLpTransport, MockReliability,
+    MockSphinxSecurity,
 };
 
 mod common;
@@ -16,13 +17,13 @@ fn empty_input_yields_empty_output() {
 
     let mut mock_pipeline = Pipeline {
         chunking: MockChunking,
-        reliability: KcpReliability,
-        security: SphinxSecurity {
+        reliability: MockReliability,
+        security: MockSphinxSecurity {
             nb_frames: security_layer_nb_frames,
         },
         obfuscation: KekwObfuscation,
-        framing: LpFraming,
-        transport: LpTransport,
+        framing: MockLpFraming,
+        transport: MockLpTransport,
         packet_size,
     };
 

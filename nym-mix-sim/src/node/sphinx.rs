@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::x25519;
 use nym_lp_data::{
     AddressedTimedData, AddressedTimedPayload, TimedPayload,
     common::helpers::{NoOpWireUnwrapper, NoOpWireWrapper},
-    mixnodes::traits::MixnodeProcessingPipeline,
+    nymnodes::traits::MixnodeProcessingPipeline,
 };
 use nym_sphinx::SphinxPacket;
 

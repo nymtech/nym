@@ -11,7 +11,7 @@ use nym_lp_data::{
         Framing, FramingUnwrap, Transport, TransportUnwrap, WireUnwrappingPipeline,
         WireWrappingPipeline,
     },
-    mixnodes::traits::MixnodeProcessingPipeline,
+    nymnodes::traits::MixnodeProcessingPipeline,
 };
 
 use crate::{

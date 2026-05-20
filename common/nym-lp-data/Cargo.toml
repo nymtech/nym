@@ -1,5 +1,6 @@
 [package]
 name = "nym-lp-data"
+description = "Lewes Protocol data structure for the Nym network"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

@@ -33,8 +33,8 @@ use tracing::{debug, info, trace};
 
 use crate::topology::{GatewayInfo, SpeedtestTopology};
 use nym_ip_packet_requests::v8::request::IpPacketRequest;
-use nym_lp_data::packet::version;
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
+use nym_lp_data::packet::version;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 /// Conv ID for KCP - hash of source and destination addresses

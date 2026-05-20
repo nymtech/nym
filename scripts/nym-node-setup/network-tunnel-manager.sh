@@ -898,7 +898,7 @@ apply_port_allowlist() {
     ["PPTP"]="1723"
     ["RTSPAlt"]="1755"
     ["MSNP"]="1863"
-    ["Gemini"]"1965"
+    ["Gemini"]="1965"
     ["NFS"]="2049"
     ["DiscordVoiceChat2"]="2053"
     ["CPanel"]="2082-2083"

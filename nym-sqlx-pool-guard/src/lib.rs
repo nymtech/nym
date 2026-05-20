@@ -88,9 +88,23 @@ impl SqlitePoolGuard {
     async fn close_pool_inner(&self) -> std::io::Result<()> {
         self.inner.connection_pool.close().await;
 
-        self.wait_for_db_files_close().await.inspect_err(|e| {
-            tracing::error!("Failed to wait for file to close: {e}");
-        })
+        if let Err(e) = self.wait_for_db_files_close().await {
+            if e.kind() == std::io::ErrorKind::TimedOut {
+                tracing::warn!(
+                    "Timed out waiting for OS file handles for sqlite database to be released; \
+                     another connection to the same file may still be open. Path = {}",
+                    self.inner.database_path.display()
+                );
+            } else {
+                tracing::warn!(
+                    "Failed to wait for sqlite database file handles to be released: Path = {}.  Error = {}",
+                    self.inner.database_path.display(),
+                    e
+                );
+            }
+        }
+
+        Ok(())
     }
 
     /// Returns all database files, including shm and wal files.

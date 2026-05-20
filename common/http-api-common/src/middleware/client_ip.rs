@@ -6,6 +6,7 @@ use axum::http::request::Parts;
 use axum_client_ip::RightmostXForwardedFor;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use tracing::warn;
 
 /// Best-effort client IP extractor.
 ///
@@ -32,6 +33,7 @@ where
         {
             return Ok(ClientIpAddr(addr.ip()));
         }
+        warn!("ClientIpAddr: no X-Forwarded-For or ConnectInfo found; using 0.0.0.0 fallback");
         Ok(ClientIpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)))
     }
 }

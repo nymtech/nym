@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use nym_ip_packet_requests::SPHINX_STREAM_VERSION_THRESHOLD;
-use nym_lp::packet::frame::{
+use nym_lp_data::packet::frame::{
     LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::ReconstructedMessage;
@@ -65,7 +65,7 @@ pub fn encode_stream_frame(stream_id: u64, sequence_num: u32, payload: Vec<u8>) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_lp::packet::frame::SphinxStreamFrameAttributes;
+    use nym_lp_data::packet::frame::SphinxStreamFrameAttributes;
 
     #[test]
     fn stream_frame_roundtrip_unwraps_payload() {

@@ -7284,7 +7284,7 @@ dependencies = [
  "bytes",
  "futures",
  "nym-ip-packet-requests",
- "nym-lp",
+ "nym-lp-data",
  "nym-sdk",
  "thiserror 2.0.18",
  "tokio",

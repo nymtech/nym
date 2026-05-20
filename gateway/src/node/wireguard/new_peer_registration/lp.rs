@@ -7,7 +7,7 @@ use crate::node::wireguard::new_peer_registration::pending::{
 use crate::node::wireguard::{GatewayWireguardError, PeerRegistrator};
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::key::Key;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_wireguard::ip_pool::{allocated_ip_pair, IpPair};
 use nym_wireguard_types::PeerPublicKey;

@@ -6,9 +6,9 @@
 //! This module implements session lifecycle management functionality, handling
 //! creation, retrieval, and storage of sessions.
 
-use crate::packet::{EncryptedLpPacket, LpFrame};
-use crate::peer_config::LpReceiverIndex;
 use crate::{LpError, LpTransportSession};
+use nym_lp_data::packet::header::LpReceiverIndex;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use std::collections::HashMap;
 
 pub use crate::replay::validator::PacketCount;

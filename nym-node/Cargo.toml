@@ -117,6 +117,7 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies
 nym-lp = { workspace = true }
+nym-lp-data.workspace = true
 nym-registration-common = { path = "../common/registration" }
 bincode = { workspace = true }
 

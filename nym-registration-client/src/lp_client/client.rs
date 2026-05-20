@@ -13,13 +13,13 @@ use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_lp::Ciphersuite;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
-use nym_lp::peer_config::LpReceiverIndex;
 use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
-use nym_lp::{Ciphersuite, packet::EncryptedLpPacket, packet::version};
+use nym_lp_data::packet::{EncryptedLpPacket, header::LpReceiverIndex, version};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
     LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
@@ -708,7 +708,7 @@ where
 mod tests {
     use super::*;
     use nym_kkt::key_utils::generate_lp_keypair_x25519;
-    use nym_lp::packet::version;
+    use nym_lp_data::packet::version;
     use nym_test_utils::helpers::deterministic_rng_09;
 
     #[test]

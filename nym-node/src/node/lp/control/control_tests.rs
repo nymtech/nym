@@ -9,7 +9,7 @@ mod tests {
     use crate::node::lp::directory::LpNodeDetails;
     use crate::node::lp::state::SharedLpNodeControlState;
     use anyhow::Context;
-    use nym_lp::packet::version;
+    use nym_lp_data::packet::version;
     use nym_lp::peer::{LpLocalPeer, LpRemotePeer, mock_peers};
     use nym_test_utils::helpers::seeded_rng;
     use nym_test_utils::mocks::async_read_write::MockIOStream;

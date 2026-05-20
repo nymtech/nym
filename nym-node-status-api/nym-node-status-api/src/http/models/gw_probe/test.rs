@@ -170,7 +170,6 @@ fn conversion_from_gw_probe_latest() {
     let probe_latest = ProbeResultLatest {
         node: "test-node-identity-key".to_string(),
         used_entry: "test-entry-node".to_string(),
-        ports_check: None,
         outcome: ProbeOutcomeLatest {
             as_entry: EntryLatest::Tested(EntryTestResultLatest {
                 can_connect: true,

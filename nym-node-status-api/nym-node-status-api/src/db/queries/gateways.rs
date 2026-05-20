@@ -76,12 +76,6 @@ impl Storage {
         Ok(())
     }
 
-                gw.last_probe_log as "last_probe_log?",
-                gw.ports_check as "ports_check?",
-                
-                gw.last_testrun_utc as "last_testrun_utc?",
-        .await?;
-        .await?;
     pub(crate) async fn get_all_gateways(&self) -> anyhow::Result<Vec<Gateway>> {
         let items = sqlx::query_as!(
             GatewayDto,

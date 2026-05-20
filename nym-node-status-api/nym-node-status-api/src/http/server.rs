@@ -28,7 +28,7 @@ pub(crate) async fn start_http_api(
     shutdown_tracker: &ShutdownTracker,
 ) -> anyhow::Result<()> {
     let router_builder = RouterBuilder::with_default_routes();
-    let db_pool_for_scheduler = db_pool.clone();
+    let db_pool_for_scheduler = storage.pool().clone();
 
     let state = AppState::new(
         storage,

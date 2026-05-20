@@ -32,6 +32,7 @@ where
         {
             return Ok(ClientIpAddr(addr.ip()));
         }
+        warn!("ClientIpAddr: no X-Forwarded-For or ConnectInfo found; using 0.0.0.0 fallback");
         Ok(ClientIpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)))
     }
 }

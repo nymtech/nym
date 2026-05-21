@@ -74,6 +74,17 @@
               Optional. Larger pools raise inbound throughput; each outgoing Sphinx packet then carries more reply blocks.
             </div>
           </div>
+          <div style="margin-top: 4px">
+            <label>Primary DNS:
+              <input type="text" id="opt-primary-dns" placeholder="8.8.8.8:53" size="18" />
+            </label>
+            <label style="margin-left: 8px">Fallback DNS:
+              <input type="text" id="opt-fallback-dns" placeholder="1.1.1.1:53" size="18" />
+            </label>
+            <div style="font-size: 0.85em; color: #888; margin-top: 2px">
+              Optional. `host:port`. Leave blank to use the defaults shown.
+            </div>
+          </div>
         </div>
       </details>
       <div style="margin-top: 8px">

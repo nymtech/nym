@@ -123,6 +123,12 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     parseInt(document.getElementById("opt-data-surbs").value, 10) || 2,
   );
 
+  // `undefined` (omitted) means "use the Rust default" — see SetupOpts.
+  const primaryDns =
+    document.getElementById("opt-primary-dns").value.trim() || undefined;
+  const fallbackDns =
+    document.getElementById("opt-fallback-dns").value.trim() || undefined;
+
   display(
     `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(0, 30)}...)...`,
   );
@@ -137,6 +143,8 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
       disableCoverTraffic: disableCover,
       openReplySurbs,
       dataReplySurbs,
+      primaryDns,
+      fallbackDns,
     });
     display("setupMixTunnel OK: tunnel ready", "green");
     statusEl.textContent = "Connected";
@@ -311,6 +319,11 @@ document.getElementById("btn-ws-connect").addEventListener("click", () => {
   if (!url) {
     logTo("ws-log", "WebSocket URL is required", "red");
     return;
+  }
+
+  // Tear down any prior connection so a rapid double-click doesn't leak it.
+  if (activeWs && activeWs.readyState !== MixSocket.CLOSED) {
+    activeWs.close();
   }
 
   const statusEl = document.getElementById("ws-status");

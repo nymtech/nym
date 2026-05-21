@@ -36,14 +36,23 @@ const api = {
   },
 
   async mixFetch(url, init) {
+    if (!wasmReady) {
+      throw new Error("WASM not initialised; call setupMixTunnel first");
+    }
     return await wasmFetch(url, init || {});
   },
 
   async mixResolve(hostname) {
+    if (!wasmReady) {
+      throw new Error("WASM not initialised; call setupMixTunnel first");
+    }
     return await wasmResolve(hostname);
   },
 
   async disconnectMixTunnel() {
+    if (!wasmReady) {
+      throw new Error("WASM not initialised; call setupMixTunnel first");
+    }
     await wasmDisconnect();
   },
 };
@@ -96,7 +105,10 @@ self.addEventListener("message", async (event) => {
 
     case "ws-send": {
       const handleId = wsConnMap.get(msg.connId);
-      if (handleId == null) return;
+      if (handleId == null) {
+        console.warn(`[ws] send for connId ${msg.connId} before connection ready`);
+        return;
+      }
       try {
         wasmWsSend(handleId, msg.payload);
       } catch (e) {
@@ -112,7 +124,10 @@ self.addEventListener("message", async (event) => {
 
     case "ws-close": {
       const handleId = wsConnMap.get(msg.connId);
-      if (handleId == null) return;
+      if (handleId == null) {
+        console.warn(`[ws] close for connId ${msg.connId} before connection ready`);
+        return;
+      }
       try {
         wasmWsClose(handleId, msg.code || 1000, msg.reason || "");
       } catch (e) {

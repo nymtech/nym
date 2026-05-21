@@ -10,20 +10,20 @@ const IPR_ADDRESS = process.env.IPR_ADDRESS;
 
 function waitForConsole(page, predicate, timeoutMs = 120_000) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () =>
-        reject(
-          new Error(`Timed out waiting for console message (${timeoutMs}ms)`)
-        ),
-      timeoutMs
-    );
-    page.on("console", function handler(msg) {
+    function handler(msg) {
       if (predicate(msg.text())) {
         clearTimeout(timer);
         page.removeListener("console", handler);
         resolve(msg.text());
       }
-    });
+    }
+    const timer = setTimeout(() => {
+      page.removeListener("console", handler);
+      reject(
+        new Error(`Timed out waiting for console message (${timeoutMs}ms)`)
+      );
+    }, timeoutMs);
+    page.on("console", handler);
   });
 }
 

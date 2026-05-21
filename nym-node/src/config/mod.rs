@@ -594,21 +594,35 @@ impl Default for Nyx {
         // our hardcoded values should always be valid
         // is if there's anything set in the environment, otherwise fallback to mainnet
         #[allow(clippy::expect_used)]
-        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD) {
+        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD_QUERY_LITE) {
+            // 1. try the lite node if available
+            parse_urls(&env_value)
+        } else if let Ok(env_value) = env::var(var_names::NYXD) {
+            // 2. then fallback to the main rpc node
             parse_urls(&env_value)
         } else {
-            vec![mainnet::NYXD_URL.parse().expect("invalid default nyxd URL")]
+            // finally fallback to mainnet nodes
+            vec![
+                mainnet::NYXD_QUERY_LITE
+                    .parse()
+                    .expect("invalid default nyxd lite URL"),
+                mainnet::NYXD_URL.parse().expect("invalid default nyxd URL"),
+            ]
         };
 
         #[allow(clippy::expect_used)]
-        let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WEBSOCKET) {
+        let nyxd_websocket_url = if let Ok(env_value) = env::var(var_names::NYXD_WS_LITE) {
+            env_value
+                .parse()
+                .expect("malformed default nyxd lite websocket URL")
+        } else if let Ok(env_value) = env::var(var_names::NYXD_WEBSOCKET) {
             env_value
                 .parse()
                 .expect("malformed default nyxd websocket URL")
         } else {
-            mainnet::NYXD_WS
+            mainnet::NYXD_WS_LITE
                 .parse()
-                .expect("invalid default nyxd websocket URL")
+                .expect("invalid default mainnet nyxd websocket URL")
         };
         Nyx {
             nyxd_websocket_url,

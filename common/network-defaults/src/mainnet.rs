@@ -40,6 +40,10 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 
+// cluster of lite rpc nodes (not part of consensus, aggressive pruning, no archival state)
+pub const NYXD_QUERY_LITE: &str = "https://blockstream.nymtech.net";
+pub const NYXD_WS_LITE: &str = "wss://blockstream.nymtech.net/websocket";
+
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 #[cfg(feature = "network")]
 pub const NYM_APIS: &[ApiUrlConst] = &[
@@ -199,6 +203,8 @@ pub fn export_to_env() {
         var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
         UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
+    set_var_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
+    set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
@@ -250,4 +256,6 @@ pub fn export_to_env_if_not_set() {
         var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
         UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
+    set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
+    set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
 }

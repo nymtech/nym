@@ -244,7 +244,7 @@ impl NymNetworkDetails {
 
         fn set_optional_var(var_name: &str, value: Option<String>) {
             if let Some(value) = value {
-                unsafe {set_var(var_name, value)}
+                unsafe { set_var(var_name, value) }
             }
         }
         unsafe {

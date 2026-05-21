@@ -461,10 +461,8 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
             location: old_cfg.host.location,
         },
         // \/ ADDED
-        nyx: Nyx {
-            nyxd_websocket_url: Nyx::default().nyxd_websocket_url,
-            nyxd_urls: old_cfg.mixnet.nyxd_urls,
-        },
+        // use default to switch to the lite query node
+        nyx: Nyx::default(),
         // /\ ADDED
         mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,

@@ -1,8 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Blacklist types. **The blacklist surface is stubbed today** - the execute
+//! handlers always return `UnimplementedBlacklisting` and the storage map is
+//! never populated. These types are kept for the planned redesign.
+
 use cosmwasm_schema::cw_serde;
 
+/// Public-key + metadata pair surfaced by `GetBlacklistedAccount` /
+/// `GetBlacklistPaged`. Always empty on a freshly deployed contract.
 #[cw_serde]
 pub struct BlacklistedAccount {
     pub public_key: String,
@@ -15,6 +21,8 @@ impl From<(String, Blacklisting)> for BlacklistedAccount {
     }
 }
 
+/// Per-key blacklist record: the multisig proposal that approved it and the
+/// block height at which finalisation landed (None until finalised).
 #[cw_serde]
 pub struct Blacklisting {
     pub proposal_id: u64,
@@ -36,6 +44,8 @@ impl BlacklistedAccount {
     }
 }
 
+/// Page of blacklist entries returned by `GetBlacklistPaged`. Always empty on
+/// a freshly deployed contract.
 #[cw_serde]
 pub struct PagedBlacklistedAccountResponse {
     pub accounts: Vec<BlacklistedAccount>,
@@ -59,6 +69,8 @@ impl PagedBlacklistedAccountResponse {
     }
 }
 
+/// Response shape for `GetBlacklistedAccount`. `account` is `None` for any
+/// key not present in the (currently always-empty) blacklist.
 #[cw_serde]
 pub struct BlacklistedAccountResponse {
     pub account: Option<Blacklisting>,

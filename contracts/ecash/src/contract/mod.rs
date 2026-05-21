@@ -76,6 +76,9 @@ impl NymEcashContract {
         }
     }
 
+    /// One-shot contract setup. Persists the cross-contract pointers, snapshots
+    /// the ticketbook-size invariant, zero-initialises the pool counters and
+    /// default-tier stats, and records the cw2 version + build metadata.
     #[sv::msg(instantiate)]
     pub fn instantiate(
         &self,
@@ -144,6 +147,8 @@ impl NymEcashContract {
     /*==================
     ======QUERIES=======
     ==================*/
+    /// Paginated listing of blacklist entries. Always empty today - see the
+    /// stubbed blacklist requirement in the spec.
     #[sv::msg(query)]
     pub fn get_blacklist_paged(
         &self,
@@ -175,6 +180,8 @@ impl NymEcashContract {
         ))
     }
 
+    /// Single-key blacklist lookup. Always returns `None` on a freshly deployed
+    /// contract because the blacklist execute surface is stubbed.
     #[sv::msg(query)]
     pub fn get_blacklisted_account(
         &self,
@@ -185,6 +192,7 @@ impl NymEcashContract {
         Ok(BlacklistedAccountResponse::new(account))
     }
 
+    /// Default per-deposit price (`Config::deposit_amount`).
     #[sv::msg(query)]
     pub fn get_default_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         let deposit_amount = self.config.load(ctx.deps.storage)?.deposit_amount;
@@ -192,12 +200,16 @@ impl NymEcashContract {
         Ok(deposit_amount)
     }
 
+    /// Backwards-compatible alias for `get_default_deposit_amount`. Returns the
+    /// same value; clients picking either name see identical behaviour.
     // Poor man's alias for backwards compatibility as sv::attr didn't seem to work
     #[sv::msg(query)]
     pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> StdResult<Coin> {
         self.get_default_deposit_amount(ctx)
     }
 
+    /// Per-address reduced deposit price override. `None` for any
+    /// non-whitelisted sender.
     #[sv::msg(query)]
     pub fn get_reduced_deposit_amount(
         &self,
@@ -210,6 +222,8 @@ impl NymEcashContract {
         Ok(deposit_amount)
     }
 
+    /// Enumerate every reduced-deposit whitelist entry. Unpaginated - the
+    /// whitelist is expected to stay small.
     #[sv::msg(query)]
     pub fn get_all_whitelisted_accounts(
         &self,
@@ -229,6 +243,8 @@ impl NymEcashContract {
         })
     }
 
+    /// Look up a deposit by id. Returns `{ id, deposit: None }` when the id
+    /// has not yet been assigned.
     #[sv::msg(query)]
     pub fn get_deposit(
         &self,
@@ -241,6 +257,8 @@ impl NymEcashContract {
         })
     }
 
+    /// Most recently assigned deposit, or `{ deposit: None }` on a fresh
+    /// contract. See `DepositStorage::latest_deposit`.
     #[sv::msg(query)]
     pub fn get_latest_deposit(
         &self,
@@ -260,6 +278,8 @@ impl NymEcashContract {
         })
     }
 
+    /// Paginated listing of deposits in ascending id order. Defaults to a
+    /// limit of 50, clamped at 100.
     #[sv::msg(query)]
     pub fn get_deposits_paged(
         &self,
@@ -288,6 +308,8 @@ impl NymEcashContract {
         })
     }
 
+    /// Aggregate statistics - global totals plus per-account custom-price
+    /// breakdowns. Single read pass over `PoolCounters` and the stats storage.
     #[sv::msg(query)]
     pub fn get_deposits_statistics(
         &self,
@@ -326,6 +348,9 @@ impl NymEcashContract {
     ======EXECUTIONS=======
     =====================*/
 
+    /// Submit a deposit. Classifies the sent amount (default → reduced →
+    /// `WrongAmount`), bumps the relevant counters, persists the deposit, and
+    /// emits a `deposited-funds` event with the assigned id.
     #[sv::msg(exec)]
     pub fn deposit_ticket_book_funds(
         &self,
@@ -390,6 +415,10 @@ impl NymEcashContract {
             .set_data(deposit_id.to_be_bytes()))
     }
 
+    /// Dispatch a multisig `Propose` SubMsg for batch ticket redemption.
+    /// Validates `commitment_bs58` decodes to a 32-byte sha256 digest; the
+    /// actual transfer happens (via the embedded `RedeemTickets`) only after
+    /// the multisig approves.
     #[sv::msg(exec)]
     pub fn request_redemption(
         &self,
@@ -409,8 +438,10 @@ impl NymEcashContract {
         Ok(Response::new().add_submessage(msg))
     }
 
-    /// Old legacy method for requesting ticket redemption by moving them into the holding accounts
-    /// currently only executed by legacy gateways
+    /// **Dead code.** Legacy multisig-gated redemption that bumps a counter
+    /// and emits a `ticket_redemption` event with `moved_to_holding_account =
+    /// "false"`. No known consumer depends on the side effects; candidate for
+    /// removal in a follow-on breaking-schema change.
     #[sv::msg(exec)]
     pub fn redeem_tickets(
         &self,
@@ -438,6 +469,10 @@ impl NymEcashContract {
         ))
     }
 
+    /// Transfer the contract admin role. Dispatches via the cw_controllers
+    /// `execute_update_admin` handshake; the sender-equality check happens
+    /// inside that call. The handler always forwards `Some(new_admin)` -
+    /// admin renunciation is not exposed.
     #[sv::msg(exec)]
     pub fn update_admin(
         &self,
@@ -452,6 +487,10 @@ impl NymEcashContract {
             .execute_update_admin(ctx.deps, ctx.info, Some(new_admin))?)
     }
 
+    /// Overwrite `Config::deposit_amount`. Admin-gated; trips
+    /// `TicketBookSizeChanged` if the snapshotted invariant diverged from the
+    /// crate constant, and `DepositBelowTicketBookSize` if the new amount is
+    /// below `TICKETBOOK_SIZE`.
     #[sv::msg(exec)]
     pub fn update_default_deposit_value(
         &self,
@@ -479,6 +518,10 @@ impl NymEcashContract {
         Ok(Response::new().add_attribute("updated_deposit", deposit_str))
     }
 
+    /// Validate and persist a reduced-deposit entry. Shared between
+    /// `SetReducedDepositPrice` and migration whitelist seeding; enforces
+    /// matching denom, strictly-less-than-default amount, and amount at least
+    /// the snapshotted ticketbook size.
     pub(crate) fn add_reduced_deposit_address(
         &self,
         deps: DepsMut,
@@ -513,6 +556,8 @@ impl NymEcashContract {
         Ok(())
     }
 
+    /// Set or overwrite the reduced-deposit price for a single address.
+    /// Admin-gated; delegates validation to `add_reduced_deposit_address`.
     #[sv::msg(exec)]
     pub fn set_reduced_deposit_price(
         &self,
@@ -534,7 +579,7 @@ impl NymEcashContract {
 
     /// Removes the reduced deposit price for a given address, reverting them to
     /// the default deposit amount. This is safe to call even if the address has
-    /// already deposited at the reduced price — their next deposit will simply
+    /// already deposited at the reduced price - their next deposit will simply
     /// use the default price. Historical deposit statistics are not affected.
     #[sv::msg(exec)]
     pub fn remove_reduced_deposit_price(
@@ -558,6 +603,9 @@ impl NymEcashContract {
             .add_attribute("address", address))
     }
 
+    /// **Stubbed.** Always returns `UnimplementedBlacklisting`. The
+    /// commented-out body shows the intended group-gated propose flow for the
+    /// blacklist redesign.
     #[sv::msg(exec)]
     pub fn propose_to_blacklist(
         &self,
@@ -587,6 +635,9 @@ impl NymEcashContract {
         // }
     }
 
+    /// **Stubbed.** Always returns `UnimplementedBlacklisting`. The
+    /// commented-out body shows the intended multisig-gated finalisation for
+    /// the blacklist redesign.
     #[sv::msg(exec)]
     pub fn add_to_blacklist(
         &self,
@@ -611,6 +662,9 @@ impl NymEcashContract {
     /*=====================
     =========REPLY=========
     =====================*/
+    /// Dispatch reply messages by id. Surfaces `InvalidReplyId` for any id
+    /// not matching `BLACKLIST_PROPOSAL_REPLY_ID` or
+    /// `REDEMPTION_PROPOSAL_REPLY_ID`.
     #[sv::msg(reply)]
     #[allow(deprecated)]
     pub fn reply(
@@ -627,6 +681,9 @@ impl NymEcashContract {
         }
     }
 
+    /// Reply handler for the (currently dead) blacklist propose flow.
+    /// Reachable from the dispatcher in theory but no public ExecuteMsg path
+    /// dispatches a SubMsg with `BLACKLIST_PROPOSAL_REPLY_ID` today.
     #[allow(deprecated)]
     fn handle_blacklist_proposal_reply(
         &self,
@@ -647,6 +704,9 @@ impl NymEcashContract {
         Ok(Response::new().add_attribute(PROPOSAL_ID_ATTRIBUTE_NAME, proposal_id.to_string()))
     }
 
+    /// Reply handler for the redemption propose flow. Captures the multisig
+    /// `proposal_id` from the SubMsg result and re-exposes it as the response
+    /// `set_data` payload (big-endian `u64`).
     #[allow(deprecated)]
     fn handle_redemption_proposal_reply(
         &self,
@@ -664,6 +724,10 @@ impl NymEcashContract {
     /*=====================
     =======MIGRATION=======
     =====================*/
+    /// Migration entry point. Refreshes build metadata, gates against
+    /// downgrades via `cw2::ensure_from_older_version`, and runs
+    /// `add_tiered_pricing` to backfill the default-tier stats and seed the
+    /// whitelist atomically.
     #[sv::msg(migrate)]
     pub fn migrate(
         &self,

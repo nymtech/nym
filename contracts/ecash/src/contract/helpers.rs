@@ -11,12 +11,21 @@ use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::ctx::ExecCtx;
 
+/// Snapshot of network-defaults values that the contract considers immutable
+/// over its lifetime. Persisted at the `"expected_invariants"` storage key on
+/// instantiation; every priced operation cross-checks the snapshot against
+/// the current crate constant.
 #[cw_serde]
 pub(crate) struct Invariants {
+    /// `nym_network_defaults::TICKETBOOK_SIZE` at instantiation time. Mismatch
+    /// against the live constant trips `TicketBookSizeChanged`.
     pub(crate) ticket_book_size: u64,
 }
 
 impl NymEcashContract {
+    /// Return `nym_network_defaults::TICKETBOOK_SIZE` if it matches the value
+    /// snapshotted at instantiation; otherwise surface `TicketBookSizeChanged`
+    /// so the caller halts before any state mutation.
     pub(crate) fn get_ticketbook_size(
         &self,
         storage: &dyn Storage,

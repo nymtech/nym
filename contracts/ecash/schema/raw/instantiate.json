@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "InstantiateMsg",
+  "description": "Instantiation payload. The sender of the instantiate transaction becomes the contract admin; the three addresses are bech32-validated and persisted as immutable cross-contract pointers (see spec requirement \"Contract instantiation\").",
   "type": "object",
   "required": [
     "deposit_amount",
@@ -10,15 +11,23 @@
   ],
   "properties": {
     "deposit_amount": {
-      "$ref": "#/definitions/Coin"
+      "description": "Default per-deposit price. The denom of this coin is the contract's canonical denom for the rest of its lifetime.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Coin"
+        }
+      ]
     },
     "group_addr": {
+      "description": "cw4 group contract referenced by the (stubbed) blacklist proposal flow.",
       "type": "string"
     },
     "holding_account": {
+      "description": "Cosmos SDK address reserved for the future pool-contract transition. Stored in `Config` but never debited by the current contract.",
       "type": "string"
     },
     "multisig_addr": {
+      "description": "cw3 multisig contract that gates `RedeemTickets` and (in the redesign) blacklist proposals. Not updatable through any execute path.",
       "type": "string"
     }
   },

@@ -41,5 +41,4 @@ windows = { version = "0.61", features = [
 
 [dev-dependencies]
 tempfile.workspace = true
-tracing-subscriber.workspace = true
 tracing-test.workspace = true

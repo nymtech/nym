@@ -20,13 +20,17 @@ impl DepositStorage {
         }
     }
 
+    /// Returns the id of the most recently assigned deposit, or `None` if no deposit has ever been made.
+    ///
+    /// The counter stores the *next* available id, so the latest assigned id is `counter - 1`.
     pub fn latest_deposit(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<DepositId>, EcashContractError> {
-        self.deposit_id_counter
-            .may_load(storage)
-            .map_err(Into::into)
+        let Some(counter) = self.deposit_id_counter.may_load(storage)? else {
+            return Ok(None);
+        };
+        Ok(counter.checked_sub(1))
     }
 
     /// Returns the total number of deposits ever made.
@@ -138,14 +142,14 @@ mod tests {
 
         let _ = storage.next_id(deps.as_mut().storage)?;
 
-        // is correctly incremented for each subsequent id
+        // first deposit got id 0; latest_deposit returns Some(0)
         let second = storage.latest_deposit(deps.as_ref().storage)?;
-        assert_eq!(second, Some(1));
+        assert_eq!(second, Some(0));
 
         let _ = storage.next_id(deps.as_mut().storage)?;
 
         let third = storage.latest_deposit(deps.as_ref().storage)?;
-        assert_eq!(third, Some(2));
+        assert_eq!(third, Some(1));
 
         Ok(())
     }

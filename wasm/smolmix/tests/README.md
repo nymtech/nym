@@ -9,15 +9,15 @@ Automated browser tests for the smolmix-wasm mixnet tunnel. Runs smoke tests and
 ```bash
 # from repo root
 make build-debug
-cd wasm/smolmix/internal-dev && npm run build
+cd wasm/smolmix/internal-dev && pnpm run build
 ```
 
 2. Install test dependencies and browser engines (first time only):
 
 ```bash
 cd wasm/smolmix/tests
-npm install
-npx playwright install
+pnpm install
+pnpm exec playwright install
 ```
 
 ## Running Tests
@@ -34,10 +34,10 @@ export IPR_ADDRESS="6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4
 Pick any combination of projects to run:
 
 ```bash
-npx playwright test --project=smoke-chromium
-npx playwright test --project=suite-firefox
-npx playwright test --project=smoke-webkit --project=suite-webkit
-npx playwright test                          # all 6 projects
+pnpm exec playwright test --project=smoke-chromium
+pnpm exec playwright test --project=suite-firefox
+pnpm exec playwright test --project=smoke-webkit --project=suite-webkit
+pnpm exec playwright test                          # all 6 projects
 ```
 
 Available projects: `smoke-chromium`, `smoke-firefox`, `smoke-webkit`, `suite-chromium`, `suite-firefox`, `suite-webkit`.
@@ -72,7 +72,7 @@ Pass criteria:
 Run the headless test runner directly in a browser without Playwright:
 
 ```bash
-cd wasm/smolmix/internal-dev && npm start
+cd wasm/smolmix/internal-dev && pnpm start
 ```
 
 Then open:
@@ -116,7 +116,7 @@ binary must speak the Juggler protocol, which mainline Firefox does not.
 whose playwright Firefox binary is built for that platform.
 
 ```bash
-npx playwright test --project=smoke-chromium
+pnpm exec playwright test --project=smoke-chromium
 ```
 
 ### Playwright Webkit missing libraries on Arch/Manjaro

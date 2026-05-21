@@ -360,7 +360,7 @@ The contract SHALL expose two queries for tier-pricing state:
 The contract SHALL expose:
 
 - `QueryMsg::GetDeposit { deposit_id }` — returns `DepositResponse { id: deposit_id, deposit: Option<Deposit> }`. The `deposit` field is `Some` if a deposit was ever persisted under that id (deposits are not deletable). It is `None` if the id has not yet been issued (i.e. `id >= total_deposits_made`).
-- `QueryMsg::GetLatestDeposit {}` — returns `LatestDepositResponse { deposit: Option<DepositData> }`. The handler MUST consult `DepositStorage::latest_deposit` (the counter value, which is the *next* id) and then attempt to load that id; on a fresh contract or any state where the counter exists but no deposit has yet been written for the current latest id, the response is `LatestDepositResponse { deposit: None }`.
+- `QueryMsg::GetLatestDeposit {}` — returns `LatestDepositResponse { deposit: Option<DepositData> }`. The handler MUST consult `DepositStorage::latest_deposit`, which returns the id of the most recently assigned deposit (`counter - 1` when the counter has been incremented at least once, else `None`), and then load that id. On a fresh contract with no prior deposit, the response is `LatestDepositResponse { deposit: None }`; after any successful deposit, the response is `LatestDepositResponse { deposit: Some(DepositData { id, deposit }) }` where `id` is the most recent assignment.
 
 #### Scenario: Existing deposit is returned by id
 - **WHEN** a deposit was persisted at id `0` with `identity_key = K` and `GetDeposit { deposit_id: 0 }` is queried
@@ -373,6 +373,10 @@ The contract SHALL expose:
 #### Scenario: Fresh contract latest-deposit query returns None
 - **WHEN** `GetLatestDeposit {}` is queried on a contract with no deposits
 - **THEN** the response is `LatestDepositResponse { deposit: None }`
+
+#### Scenario: After deposits exist, latest-deposit query returns the most recent assignment
+- **WHEN** two deposits have been processed (ids `0` and `1`) and `GetLatestDeposit {}` is queried
+- **THEN** the response is `LatestDepositResponse { deposit: Some(DepositData { id: 1, deposit: <the deposit persisted at id 1> }) }`
 
 ### Requirement: Paginated deposits query
 

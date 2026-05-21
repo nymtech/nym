@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! `debug_log!` / `debug_error!` macros (gated on the `debug` feature) and

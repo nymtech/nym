@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! WASM mixnet tunnel. Manages a smoltcp TCP/IP stack connected to the Nym
@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use futures::channel::mpsc;
@@ -66,9 +66,6 @@ pub struct WasmTunnel {
     seq: Arc<AtomicU32>,
     notify: ReactorNotify,
     shutdown: Arc<AtomicBool>,
-    /// Ephemeral port counter; shared via `Arc` so socket-creation helpers
-    /// in `stream.rs` can allocate from the same range as the tunnel itself.
-    next_port: Arc<AtomicU16>,
     allocated_ips: IpPair,
     /// Plain per-session DNS cache. No TTL respect (cache lives until tunnel
     /// shutdown). See [`dns::resolve`] for usage.
@@ -149,7 +146,6 @@ impl WasmTunnel {
             seq,
             notify,
             shutdown,
-            next_port: stream::new_port_counter(),
             allocated_ips,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
@@ -322,18 +318,12 @@ impl WasmTunnel {
 
     /// Open a TCP connection through the tunnel (SYN -> established).
     pub async fn tcp_connect(&self, addr: SocketAddr) -> io::Result<WasmTcpStream> {
-        stream::tcp_connect(
-            self.stack.clone(),
-            self.notify.clone(),
-            &self.next_port,
-            addr,
-        )
-        .await
+        stream::tcp_connect(self.stack.clone(), self.notify.clone(), addr).await
     }
 
     /// Create a UDP socket bound to an ephemeral port.
     pub async fn udp_socket(&self) -> io::Result<WasmUdpSocket> {
-        stream::create_udp_socket(self.stack.clone(), self.notify.clone(), &self.next_port)
+        stream::create_udp_socket(self.stack.clone(), self.notify.clone())
     }
 
     /// Gracefully disconnect from the Nym mixnet.

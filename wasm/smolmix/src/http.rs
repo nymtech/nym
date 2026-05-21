@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! HTTP/1.1 client on hyper 1.x.
@@ -214,23 +214,6 @@ where
         "[http] body complete: {} bytes, reusable={reusable}",
         body_data.len()
     );
-
-    // Content preview: text for UTF-8-valid bodies, hex for binary
-    if !body_data.is_empty() {
-        let preview_len = body_data.len().min(200);
-        let chunk = &body_data[..preview_len];
-        let suffix = if body_data.len() > 200 { "..." } else { "" };
-
-        if let Ok(text) = std::str::from_utf8(chunk) {
-            crate::util::debug_log!("[http] body: {text}{suffix}");
-        } else {
-            crate::util::debug_log!(
-                "[http] body ({} bytes): {}",
-                body_data.len(),
-                crate::util::hex_preview(&body_data, 64)
-            );
-        }
-    }
 
     // Drop sender to signal the connection driver to complete
     drop(sender);

@@ -23,7 +23,9 @@ const IPR_ADDRESS =
 
 const ENABLE_COVER = params.get("cover") === "true";
 const ENABLE_POISSON = params.get("poisson") === "true";
-const STRESS_COUNT = parseInt(params.get("count") || "10", 10);
+// Clamp to [1, 500]: parseInt of garbage returns NaN, negative values would
+// underflow the test loop, very large values would exhaust browser memory.
+const STRESS_COUNT = Math.min(500, Math.max(1, parseInt(params.get("count") || "10", 10) || 10));
 
 const CONFIG_LABEL = `cover=${ENABLE_COVER ? "ON" : "OFF"}, poisson=${
   ENABLE_POISSON ? "ON" : "OFF"

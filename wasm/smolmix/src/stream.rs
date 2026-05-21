@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! `futures::io` socket adapters over the smoltcp stack.
@@ -231,24 +231,20 @@ impl Drop for WasmUdpSocket {
     }
 }
 
-/// Construct a fresh `Arc<AtomicU16>` ephemeral port counter, seeded at
-/// [`EPHEMERAL_PORT_START`]. Shared via `Arc` so any caller that needs to
-/// allocate a socket can draw from the same range as the tunnel itself.
-pub(crate) fn new_port_counter() -> Arc<AtomicU16> {
-    Arc::new(AtomicU16::new(EPHEMERAL_PORT_START))
-}
+/// Process-wide ephemeral port counter, seeded at [`EPHEMERAL_PORT_START`].
+static EPHEMERAL_PORT: AtomicU16 = AtomicU16::new(EPHEMERAL_PORT_START);
 
 /// Allocate the next ephemeral port (wraps at `u16::MAX` back to
 /// [`EPHEMERAL_PORT_START`]). Single-threaded wasm32 means a plain
 /// load/store is race-free; the atomic exists for `Sync`.
-pub(crate) fn allocate_port(next_port: &Arc<AtomicU16>) -> u16 {
-    let current = next_port.load(Ordering::Relaxed);
+pub(crate) fn allocate_port() -> u16 {
+    let current = EPHEMERAL_PORT.load(Ordering::Relaxed);
     let next = if current >= u16::MAX {
         EPHEMERAL_PORT_START
     } else {
         current + 1
     };
-    next_port.store(next, Ordering::Relaxed);
+    EPHEMERAL_PORT.store(next, Ordering::Relaxed);
     current
 }
 
@@ -280,18 +276,18 @@ impl Drop for InflightSocket {
 /// Open a TCP connection through the tunnel and wait for `Established`.
 ///
 /// Used by `WasmTunnel::tcp_connect` and by the DNS resolver provider; both
-/// share one `next_port` counter via `Arc<AtomicU16>` so allocations don't
-/// collide.
+/// draw from the process-wide [`EPHEMERAL_PORT`] counter so allocations
+/// don't collide.
 pub(crate) async fn tcp_connect(
     stack: Arc<Mutex<SmoltcpStack>>,
     notify: ReactorNotify,
-    next_port: &Arc<AtomicU16>,
     addr: SocketAddr,
 ) -> io::Result<WasmTcpStream> {
     let remote = to_smoltcp_endpoint(addr);
-    let local_port = allocate_port(next_port);
-    let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
-    let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65536]);
+    let local_port = allocate_port();
+    // 65535 = u16::MAX, matching the TCP advertised window field width.
+    let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65535]);
+    let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65535]);
     let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
     socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
 
@@ -364,9 +360,8 @@ pub(crate) async fn tcp_connect(
 pub(crate) fn create_udp_socket(
     stack: Arc<Mutex<SmoltcpStack>>,
     notify: ReactorNotify,
-    next_port: &Arc<AtomicU16>,
 ) -> io::Result<WasmUdpSocket> {
-    let local_port = allocate_port(next_port);
+    let local_port = allocate_port();
     let udp_rx = smoltcp_udp::PacketBuffer::new(
         vec![smoltcp_udp::PacketMetadata::EMPTY; 16],
         vec![0; 65535],

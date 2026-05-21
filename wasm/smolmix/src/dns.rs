@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! DNS A/AAAA resolution over the tunnel's UDP socket (8.8.8.8 with 1.1.1.1

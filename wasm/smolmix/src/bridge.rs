@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! Packet bridge between the smoltcp device and the Nym mixnet.
@@ -92,7 +92,7 @@ pub fn start_bridge(
             };
 
             if !packets.is_empty() {
-                crate::util::debug_log!("[bridge] ▲ tx");
+                crate::util::debug_log!("[bridge] ▲ tx ({} packets)", packets.len());
             }
             for packet in packets {
                 let current_seq = seq.fetch_add(1, Ordering::Relaxed);
@@ -139,7 +139,7 @@ fn process_incoming(
     }
 
     if pushed > 0 {
-        crate::util::debug_log!("[bridge] ▼ rx");
+        crate::util::debug_log!("[bridge] ▼ rx ({pushed} packets)");
         let _ = notify_reactor.unbounded_send(());
     }
 }

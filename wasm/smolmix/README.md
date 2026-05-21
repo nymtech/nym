@@ -15,7 +15,7 @@ Two WASM exports that mirror the browser's native networking surface:
 
 ## Arch
 
-```
+```text
                           WasmTunnel
               +---------- tunnel.rs -----------+
               |                                |
@@ -92,7 +92,7 @@ make dev                # build-debug then start internal-dev webpack
 
 ## Summary diagram
 
-```
+```text
               JS caller
                  |
        +---------+---------+--------------+

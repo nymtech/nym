@@ -1,4 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 //! Fetch orchestrator: DNS, TCP, TLS, HTTP plus the JS `RequestInit` shim.
@@ -127,56 +127,56 @@ pub async fn fetch(
             tunnel.return_to_pool(host, port, conn);
         }
 
-        // 4. Follow redirects (3xx with Location header)
-        if (300..400).contains(&response.status) {
-            if let Some(location) = response
-                .headers
-                .iter()
-                .find(|(k, _)| k.eq_ignore_ascii_case("location"))
-                .map(|(_, v)| v.clone())
-            {
-                crate::util::debug_log!("[fetch] {} → Location: {location}", response.status);
-
-                let prev_url = url.clone();
-                url = prev_url.join(&location).map_err(|e| {
-                    FetchError::Http(format!("invalid redirect URL '{location}': {e}"))
-                })?;
-
-                // Reject non-HTTP schemes (javascript:, file:, data:, …) and
-                // any HTTPS to HTTP downgrade; these are the classic redirect
-                // exfiltration shapes.
-                if !is_http_scheme(&url) {
-                    return Err(FetchError::Http(format!(
-                        "redirect to unsupported scheme '{}' rejected",
-                        url.scheme()
-                    )));
-                }
-                if prev_url.scheme() == "https" && url.scheme() == "http" {
-                    return Err(FetchError::Http(
-                        "redirect from https to http rejected (would leak credentials)".into(),
-                    ));
-                }
-
-                // Strip credential-bearing headers on cross-origin redirects so
-                // Authorization / Cookie / Proxy-Authorization never follow a
-                // hop to a different origin. Same-origin redirects keep them.
-                if prev_url.origin() != url.origin() {
-                    strip_sensitive_headers(&mut opts.headers);
-                }
-
-                // 301/302/303: switch to GET and drop body (RFC 7231)
-                // 307/308: preserve method and body
-                if matches!(response.status, 301 | 302 | 303) {
-                    method = "GET".into();
-                    body = None;
-                }
-
-                continue;
-            }
+        // 4. Follow redirects (3xx with Location header). Any other status,
+        //    or a 3xx without Location, returns directly.
+        if !(300..400).contains(&response.status) {
+            return serialise_response(&response);
         }
 
-        // 5. Non-redirect, serialise and return
-        return serialise_response(&response);
+        let location = response
+            .headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("location"))
+            .map(|(_, v)| v.clone());
+
+        let Some(location) = location else {
+            return serialise_response(&response);
+        };
+
+        crate::util::debug_log!("[fetch] {} → Location: {location}", response.status);
+
+        let prev_url = url.clone();
+        url = prev_url
+            .join(&location)
+            .map_err(|e| FetchError::Http(format!("invalid redirect URL '{location}': {e}")))?;
+
+        // Reject non-HTTP schemes (javascript:, file:, data:, …) and any
+        // HTTPS to HTTP downgrade; classic redirect exfiltration shapes.
+        if !is_http_scheme(&url) {
+            return Err(FetchError::Http(format!(
+                "redirect to unsupported scheme '{}' rejected",
+                url.scheme()
+            )));
+        }
+        if prev_url.scheme() == "https" && url.scheme() == "http" {
+            return Err(FetchError::Http(
+                "redirect from https to http rejected (would leak credentials)".into(),
+            ));
+        }
+
+        // Strip credential-bearing headers on cross-origin redirects so
+        // Authorization / Cookie / Proxy-Authorization never follow a hop
+        // to a different origin. Same-origin redirects keep them.
+        if prev_url.origin() != url.origin() {
+            strip_sensitive_headers(&mut opts.headers);
+        }
+
+        // 301/302/303: switch to GET and drop body (RFC 7231).
+        // 307/308: preserve method and body.
+        if matches!(response.status, 301 | 302 | 303) {
+            method = "GET".into();
+            body = None;
+        }
     }
 
     Err(FetchError::Http(format!(

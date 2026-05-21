@@ -94,6 +94,12 @@ pub struct SetupOpts {
     /// raise download throughput at the cost of outgoing-packet overhead.
     #[serde(default)]
     pub data_reply_surbs: Option<u32>,
+    /// Primary DNS resolver (e.g. `"1.1.1.1:53"`). Defaults to `8.8.8.8:53`.
+    #[serde(default)]
+    pub primary_dns: Option<String>,
+    /// Fallback DNS resolver used if the primary times out. Defaults to `1.1.1.1:53`.
+    #[serde(default)]
+    pub fallback_dns: Option<String>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -125,6 +131,14 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                 data: opts.data_reply_surbs.unwrap_or(defaults.data),
             };
 
+            let parse_dns = |raw: Option<String>| -> Result<Option<std::net::SocketAddr>, FetchError> {
+                raw.map(|s| {
+                    s.parse()
+                        .map_err(|e| FetchError::Tunnel(format!("invalid DNS resolver '{s}': {e}")))
+                })
+                .transpose()
+            };
+
             let tunnel_opts = tunnel::TunnelOpts {
                 ipr_address,
                 client_id: opts.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()),
@@ -132,6 +146,8 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                 disable_poisson_traffic: opts.disable_poisson_traffic,
                 disable_cover_traffic: opts.disable_cover_traffic,
                 surbs,
+                primary_dns: parse_dns(opts.primary_dns)?,
+                fallback_dns: parse_dns(opts.fallback_dns)?,
             };
 
             let tun = WasmTunnel::new(tunnel_opts).await?;

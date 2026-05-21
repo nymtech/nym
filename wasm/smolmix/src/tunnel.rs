@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 
 use futures::channel::mpsc;
 use smoltcp::iface::{Config, SocketSet};
-use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
+use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address, Ipv6Address};
 
 use nym_ip_packet_requests::IpPair;
 use nym_wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput};
@@ -54,6 +54,10 @@ pub struct TunnelOpts {
     /// Reply-SURB counts for the LP Open frame and each Data frame the
     /// bridge sends. See [`ipr::SurbsConfig`]. Defaults to open=5, data=2.
     pub surbs: ipr::SurbsConfig,
+    /// Primary DNS resolver. `None` falls back to [`dns::DEFAULT_PRIMARY_DNS`].
+    pub primary_dns: Option<SocketAddr>,
+    /// Fallback DNS resolver. `None` falls back to [`dns::DEFAULT_FALLBACK_DNS`].
+    pub fallback_dns: Option<SocketAddr>,
 }
 
 /// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
@@ -67,6 +71,10 @@ pub struct WasmTunnel {
     notify: ReactorNotify,
     shutdown: Arc<AtomicBool>,
     allocated_ips: IpPair,
+    /// Resolved per-tunnel DNS endpoints (primary, fallback). Either falls
+    /// back to the constants in [`dns`] when the caller didn't override.
+    dns_primary: SocketAddr,
+    dns_fallback: SocketAddr,
     /// Plain per-session DNS cache. No TTL respect (cache lives until tunnel
     /// shutdown). See [`dns::resolve`] for usage.
     dns_cache: Mutex<HashMap<String, IpAddr>>,
@@ -147,6 +155,8 @@ impl WasmTunnel {
             notify,
             shutdown,
             allocated_ips,
+            dns_primary: opts.primary_dns.unwrap_or(crate::dns::DEFAULT_PRIMARY_DNS),
+            dns_fallback: opts.fallback_dns.unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
@@ -278,10 +288,17 @@ impl WasmTunnel {
             addrs
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32))
                 .unwrap();
+            addrs
+                .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
+                .unwrap();
         });
         iface
             .routes_mut()
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
+            .unwrap();
+        iface
+            .routes_mut()
+            .add_default_ipv6_route(Ipv6Address::UNSPECIFIED)
             .unwrap();
 
         let stack = Arc::new(Mutex::new(SmoltcpStack {
@@ -359,6 +376,14 @@ impl WasmTunnel {
     /// Async lock that serialises DNS lookups for request coalescing.
     pub(crate) fn dns_lock(&self) -> &futures::lock::Mutex<()> {
         &self.dns_lock
+    }
+
+    /// Resolver endpoints used by `dns::resolve` (primary tried first).
+    pub(crate) fn dns_primary(&self) -> SocketAddr {
+        self.dns_primary
+    }
+    pub(crate) fn dns_fallback(&self) -> SocketAddr {
+        self.dns_fallback
     }
 
     /// Get (or create) the per-origin lock for serialising concurrent requests.

@@ -1,8 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! DNS A/AAAA resolution over the tunnel's UDP socket (8.8.8.8 with 1.1.1.1
-//! fallback). Wire format via `hickory-proto`; results cached per session.
+//! DNS A/AAAA resolution over the tunnel's UDP socket. Defaults are 8.8.8.8
+//! primary with 1.1.1.1 fallback, overridable via `TunnelOpts::primary_dns`
+//! / `fallback_dns`. Wire format via `hickory-proto`; results cached per session.
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -17,8 +18,10 @@ use crate::tunnel::WasmTunnel;
 /// Maximum number of CNAME hops before giving up.
 const MAX_CNAME_HOPS: usize = 8;
 
-const PRIMARY_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
-const FALLBACK_DNS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
+pub const DEFAULT_PRIMARY_DNS: SocketAddr =
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
+pub const DEFAULT_FALLBACK_DNS: SocketAddr =
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
 const DNS_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Resolve a hostname to an IP through the mixnet tunnel.
@@ -38,9 +41,9 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
     crate::util::debug_log!("[dns] resolving '{hostname}'...");
     let udp = tunnel.udp_socket().await.map_err(FetchError::Io)?;
 
-    let ip = match resolve_with(&udp, hostname, PRIMARY_DNS).await {
+    let ip = match resolve_with(&udp, hostname, tunnel.dns_primary()).await {
         Ok(ip) => ip,
-        Err(_) => resolve_with(&udp, hostname, FALLBACK_DNS).await?,
+        Err(_) => resolve_with(&udp, hostname, tunnel.dns_fallback()).await?,
     };
 
     crate::util::debug_log!("[dns] resolved '{hostname}' => {ip}");

@@ -47,13 +47,8 @@ nym-wasm-utils = { workspace = true }
 smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
 nym-wasm-client-core = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
-# Path-based (NOT `workspace = true`) because cargo silently ignores
-# `default-features = false` on `workspace = true` consumers when the
-# workspace declaration itself doesn't specify `default-features`.
-# The `full` feature stack (libcrux-psq, nym-kkt, tokio-net → mio) does
-# not compile to wasm32-unknown-unknown — we need this opt-out to bite.
-# See ~/dev/wiki/src/rust-wasm/nym-wasm-developer-playbook.md.
-nym-lp = { path = "../../common/nym-lp", default-features = false }
+# LP wire types (frame, header, codec)
+nym-lp-data = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
 nym-bin-common = { workspace = true }

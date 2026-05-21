@@ -4,7 +4,7 @@
 //! IPR (IP Packet Router) protocol layer for the WASM tunnel.
 //!
 //! Handles the v9 connect handshake and IP packet send/recv, using the
-//! upstream `nym_lp::packet::frame` wire format directly (no tokio deps).
+//! upstream `nym_lp_data::packet::frame` wire format directly (no tokio deps).
 //!
 //! Data flow:
 //! ```text
@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
 use nym_ip_packet_requests::IpPair;
-use nym_lp::packet::frame::{
+use nym_lp_data::packet::frame::{
     LpFrame, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_wasm_client_core::client::base_client::ClientInput;

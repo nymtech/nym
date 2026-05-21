@@ -11619,7 +11619,7 @@ dependencies = [
  "js-sys",
  "nym-bin-common",
  "nym-ip-packet-requests",
- "nym-lp",
+ "nym-lp-data",
  "nym-wasm-client-core",
  "nym-wasm-utils",
  "rand 0.8.6",

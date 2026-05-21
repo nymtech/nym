@@ -172,7 +172,7 @@ impl Decoder for MultiIpPacketCodec {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "codec"))]
 mod tests {
     use super::*;
 

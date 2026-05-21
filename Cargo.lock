@@ -8243,7 +8243,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
- "tracing-subscriber",
+ "tracing-test",
  "windows 0.61.3",
 ]
 

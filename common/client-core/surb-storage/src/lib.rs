@@ -48,6 +48,7 @@ where
         debug!("Started PersistentReplyStorage");
         if let Err(err) = self.backend.start_storage_session().await {
             error!("failed to start the storage session - {err}");
+            self.backend.stop_storage_session().await.ok();
             return;
         }
 
@@ -55,10 +56,11 @@ where
 
         info!("PersistentReplyStorage is flushing all reply-related data to underlying storage");
         if let Err(err) = self.backend.flush_surb_storage(&mem_state).await {
-            error!("failed to flush our reply-related data to the persistent storage: {err}")
-        } else {
-            info!("Data flush is complete")
+            error!("failed to flush our reply-related data to the persistent storage: {err}");
+            self.backend.stop_storage_session().await.ok();
+            return;
         }
+        info!("Data flush is complete");
 
         if let Err(err) = self.backend.stop_storage_session().await {
             error!("failed to properly stop the storage session - {err}. We might not be able to smoothly restore it")

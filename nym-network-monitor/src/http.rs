@@ -58,6 +58,21 @@ impl AppState {
     }
 }
 
+fn build_router(state: AppState) -> Router {
+    Router::new()
+        .route("/v1/send", post(send_handler).with_state(state))
+        .merge(SwaggerUi::new("/v1/ui").url("/v1/docs/openapi.json", ApiDoc::openapi()))
+        .route("/v1/accounting", get(accounting_handler))
+        .route("/v1/sent", get(sent_handler))
+        .route("/v1/dot/{mix_id}", get(mix_dot_handler))
+        .route("/v1/dot", get(graph_handler))
+        .route("/v1/mermaid", get(mermaid_handler))
+        .route("/v1/stats", get(stats_handler))
+        .route("/v1/node_stats/{mix_id}", get(node_stats_handler))
+        .route("/v1/node_stats", get(all_nodes_stats_handler))
+        .route("/v1/received", get(recv_handler))
+}
+
 impl HttpServer {
     pub fn new(listener: SocketAddr, cancel: CancellationToken) -> Self {
         HttpServer { listener, cancel }
@@ -66,18 +81,7 @@ impl HttpServer {
     pub async fn run(self, clients: ClientsWrapper) -> anyhow::Result<()> {
         let n_clients = clients.read().await.len();
         let state = AppState { clients };
-        let app = Router::new()
-            .route("/v1/send", post(send_handler).with_state(state))
-            .merge(SwaggerUi::new("/v1/ui").url("/v1/docs/openapi.json", ApiDoc::openapi()))
-            .route("/v1/accounting", get(accounting_handler))
-            .route("/v1/sent", get(sent_handler))
-            .route("/v1/dot/:mix_id", get(mix_dot_handler))
-            .route("/v1/dot", get(graph_handler))
-            .route("/v1/mermaid", get(mermaid_handler))
-            .route("/v1/stats", get(stats_handler))
-            .route("/v1/node_stats/:mix_id", get(node_stats_handler))
-            .route("/v1/node_stats", get(all_nodes_stats_handler))
-            .route("/v1/received", get(recv_handler));
+        let app = build_router(state);
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 
         let server_future =
@@ -96,5 +100,19 @@ impl HttpServer {
         server_future.await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    #[test]
+    fn router_constructs_without_panic() {
+        let clients: ClientsWrapper = Arc::new(RwLock::new(VecDeque::new()));
+        let _ = build_router(AppState { clients });
     }
 }

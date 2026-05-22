@@ -1,6 +1,6 @@
 use axum::{Json, Router, extract::State};
-use axum_client_ip::InsecureClientIp;
 use axum_extra::{TypedHeader, headers::UserAgent};
+use nym_http_api_common::middleware::client_ip::ClientIpAddr;
 use nym_statistics_common::report::vpn_client::{
     ActiveDeviceReport, StaticInformationReport, VpnClientStatsReport, VpnClientStatsReportV2,
 };
@@ -35,15 +35,12 @@ pub(crate) fn routes() -> Router<AppState> {
 async fn submit_stats_report(
     State(mut state): State<AppState>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
-    insecure_ip_addr: InsecureClientIp,
+    ClientIpAddr(client_ip): ClientIpAddr,
     Json(report): Json<VpnClientStatsReport>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
 
-    let gateway_record = state
-        .network_view()
-        .get_country_by_ip(&insecure_ip_addr.0)
-        .await;
+    let gateway_record = state.network_view().get_country_by_ip(&client_ip).await;
 
     let from_mixnet = gateway_record.is_some();
     let maybe_location = gateway_record.unwrap_or_default();
@@ -60,7 +57,7 @@ async fn submit_stats_report(
         &report,
         user_agent,
         from_mixnet,
-        insecure_ip_addr.0,
+        client_ip,
         maybe_location,
     );
 
@@ -93,15 +90,12 @@ async fn submit_stats_report(
 async fn submit_active_device(
     State(mut state): State<AppState>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
-    insecure_ip_addr: InsecureClientIp,
+    ClientIpAddr(client_ip): ClientIpAddr,
     Json(report): Json<ActiveDeviceReport>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
 
-    let gateway_record = state
-        .network_view()
-        .get_country_by_ip(&insecure_ip_addr.0)
-        .await;
+    let gateway_record = state.network_view().get_country_by_ip(&client_ip).await;
 
     let from_mixnet = gateway_record.is_some();
 
@@ -140,7 +134,7 @@ async fn submit_active_device(
 async fn submit_session_report(
     State(mut state): State<AppState>,
     TypedHeader(user_agent): TypedHeader<UserAgent>,
-    insecure_ip_addr: InsecureClientIp, // This is the reverse proxy IP for now, but maybe in the future?
+    ClientIpAddr(client_ip): ClientIpAddr,
     Json(report): Json<VpnClientStatsReportV2>,
 ) -> HttpResult<Json<()>> {
     let now = time::OffsetDateTime::now_utc();
@@ -164,7 +158,7 @@ async fn submit_session_report(
         &report,
         user_agent,
         from_mixnet,
-        insecure_ip_addr.0,
+        client_ip,
         maybe_location,
     );
 

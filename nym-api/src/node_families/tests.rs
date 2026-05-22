@@ -52,8 +52,7 @@ impl NodeFamiliesTestFixture {
             Router::new()
                 .nest("/v1/node-families", handlers::routes())
                 .with_state(app_state),
-        )
-        .unwrap();
+        );
 
         NodeFamiliesTestFixture {
             axum: server,

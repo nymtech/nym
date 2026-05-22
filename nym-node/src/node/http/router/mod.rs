@@ -22,6 +22,7 @@ use nym_node_requests::routes;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
+use tokio_util::sync::WaitForCancellationFutureOwned;
 use zeroize::Zeroizing;
 
 pub mod api;
@@ -176,7 +177,7 @@ impl NymNodeRouter {
                         Redirect::to(&routes::api::v1::metrics::prometheus_absolute())
                     }),
                 )
-                .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
+                .merge(landing_page::routes(config.landing))
                 .nest(routes::API, api::routes(config.api))
                 .layer(axum::middleware::from_fn(logging::log_request_info))
                 .with_state(state),
@@ -186,6 +187,7 @@ impl NymNodeRouter {
     pub async fn build_server(
         self,
         bind_address: &SocketAddr,
+        shutdown: WaitForCancellationFutureOwned,
     ) -> Result<NymNodeHttpServer, NymNodeHttpError> {
         let listener = tokio::net::TcpListener::bind(bind_address)
             .await
@@ -198,6 +200,28 @@ impl NymNodeRouter {
             listener,
             self.inner
                 .into_make_service_with_connect_info::<SocketAddr>(),
-        ))
+        )
+        .with_graceful_shutdown(shutdown))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_crypto::asymmetric::{ed25519, x25519};
+    use nym_node_requests::api::SignedData;
+    use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
+    use nym_test_utils::helpers::deterministic_rng;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn router_constructs_without_panic() {
+        let mut rng = deterministic_rng();
+        let signing = ed25519::KeyPair::new(&mut rng);
+        let x25519_pub: x25519::DHPublicKey = x25519::PrivateKey::new(&mut rng).public_key().into();
+        let lp = LewesProtocol::new(false, 0, 0, x25519_pub, BTreeMap::new());
+        let signed = SignedData::new(lp, signing.private_key()).unwrap();
+        let config = HttpServerConfig::new(signed);
+        let _ = NymNodeRouter::new(config, AppState::dummy());
     }
 }

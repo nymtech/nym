@@ -45,10 +45,10 @@ jobs:
       
       - name: Install project dependencies
         shell: bash
-        run: cd .. && yarn --network-timeout 100000
+        run: cd .. && pnpm i
       
       - name: Install app dependencies
-        run: yarn
+        run: pnpm
       
       - name: Create env file
         uses: timheuer/base64-to-file@v1.2
@@ -57,7 +57,7 @@ jobs:
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
       
       - name: Build app
-        run: yarn build
+        run: pnpm build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}

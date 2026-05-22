@@ -8,14 +8,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5.0.0
+        with:
+          version: 11.1.2
+
       - name: Install Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
-
-      - name: Setup yarn
-        run: npm install -g yarn
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -40,10 +42,10 @@ jobs:
         run: ./wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh
 
       - name: Install dependencies
-        run: yarn
+        run: pnpm i
 
       - name: Build WASM and Typescript SDK
-        run: yarn sdk:build
+        run: pnpm sdk:build
 
       - name: Publish to NPM
         env:

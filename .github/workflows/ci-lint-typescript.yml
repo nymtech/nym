@@ -46,16 +46,16 @@ jobs:
           go-version: "1.24.6"
 
       - name: Install
-        run: yarn
+        run: pnpm i
 
       - name: Build packages
-        run: yarn build:ci
+        run: pnpm build:ci
 
       - name: Install again
-        run: yarn
+        run: pnpm
 
       - name: Lint
-        run: yarn lint
+        run: pnpm lint
 
       - name: Typecheck with tsc
-        run: yarn tsc
+        run: pnpm tsc

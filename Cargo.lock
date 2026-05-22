@@ -2911,22 +2911,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "extension-storage"
-version = "1.4.1"
-dependencies = [
- "bip39",
- "console_error_panic_hook",
- "js-sys",
- "nym-wasm-storage",
- "nym-wasm-utils",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.12",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "zeroize",
-]
-
-[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -6,7 +6,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/src-tauri/icons/app-icon-source.png"
-yarn --cwd "$ROOT" tauri icon "$SRC" -o "$ROOT/src-tauri/icons"
+pnpm --dir "$ROOT" exec tauri icon "$SRC" -o "$ROOT/src-tauri/icons"
 rm -rf "$ROOT/src-tauri/icons/android" "$ROOT/src-tauri/icons/ios"
 rm -f "$ROOT/src-tauri/icons"/Square*.png "$ROOT/src-tauri/icons/StoreLogo.png"
 python3 - <<PY

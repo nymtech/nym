@@ -16,12 +16,7 @@ packages=(
 "chat-app/plain-html"
 "chat-app/react-webpack-with-theme-example"
 
-"chrome-extension"
-"firefox-extension"
 
-"node-tester/parcel"
-"node-tester/plain-html"
-"node-tester/react"
 
 "react/mui-theme"
 "react/sdk-react"

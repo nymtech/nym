@@ -11,7 +11,7 @@
     "test:prod": "TEST_ENV=prod jest --forceExit --detectOpenHandles --passWithNoTests",
     "build": "tsc",
     "lint": "eslint --fix --ext .js,.ts,.tsx .",
-    "cleanup": "rm -rf node_modules; rm -rf dist; yarn install"
+    "cleanup": "rm -rf node_modules; rm -rf dist; pnpm install"
   },
   "author": "Nymtech",
   "license": "MIT",

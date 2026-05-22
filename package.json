@@ -25,7 +25,7 @@
     "lint:fix": "lerna run lint:fix --stream",
     "nuke": "npx rimraf **/node_modules node_modules dist pkg",
     "postbuild:ci": "pnpm dev:off",
-    "prebuild:ci": "pnpm dev:on && pnpm install --no-frozen-lockfile",
+    "prebuild:ci": "pnpm dev:on && pnpm install --frozen-lockfile false",
     "scrub": "npx rimraf **/dist dist",
     "sdk:build": "./sdk/typescript/scripts/build-prod-sdk.sh",
     "sdk:publish": "./sdk/typescript/scripts/publish.sh",

@@ -181,7 +181,7 @@
     "file-loader": "catalog:",
     "fork-ts-checker-webpack-plugin": "catalog:",
     "html-webpack-plugin": "catalog:",
-    "jest": "^30.3.0",
+    "jest": "^29.7.0",
     "mini-css-extract-plugin": "catalog:",
     "npm-run-all": "catalog:",
     "prettier": "catalog:",

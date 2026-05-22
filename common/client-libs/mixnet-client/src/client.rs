@@ -178,7 +178,7 @@ impl ManagedConnection {
             Ok(stream) => stream,
             Err(_) => {
                 let connect_ms = connect_start.elapsed().as_millis() as u64;
-                warn!(
+                debug!(
                     event = "connection.failed.timeout",
                     peer = %address,
                     timeout_ms = self.connection_timeout.as_millis() as u64,
@@ -198,7 +198,7 @@ impl ManagedConnection {
             Ok(stream) => stream,
             Err(err) => {
                 let connect_ms = connect_start.elapsed().as_millis() as u64;
-                warn!(
+                debug!(
                     event = "connection.failed.connect",
                     peer = %address,
                     error = %err,
@@ -224,7 +224,7 @@ impl ManagedConnection {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 let noise_handshake_ms = noise_start.elapsed().as_millis() as u64;
-                warn!(
+                debug!(
                     event = "connection.failed.noise",
                     peer = %address,
                     error = %err,
@@ -278,7 +278,7 @@ async fn run_io_loop<T>(
                         break;
                     }
                     Some(Err(err)) => {
-                        warn!(
+                        debug!(
                             event = "connection.read_error",
                             peer = %address,
                             error = %err,
@@ -307,7 +307,7 @@ async fn run_io_loop<T>(
                     }
                     Some(packet) => {
                         if let Err(err) = sink.send(packet).await {
-                            warn!(
+                            debug!(
                                 event = "connection.forward_error",
                                 peer = %address,
                                 error = %err,

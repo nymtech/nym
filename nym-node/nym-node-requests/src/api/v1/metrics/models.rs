@@ -43,6 +43,9 @@ pub mod packets {
         // packets that were already received and processed before
         pub replayed_packets_received: usize,
 
+        // packets that were received from a globally known network monitor agent
+        pub test_packets_received: usize,
+
         // (forward) packets that had invalid, i.e. too large, delays
         pub excessive_delay_packets: usize,
 

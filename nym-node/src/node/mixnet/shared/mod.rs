@@ -6,6 +6,7 @@ use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::handler::ConnectionHandler;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
+use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
 use nym_node_metrics::NymNodeMetrics;
@@ -66,7 +67,9 @@ impl ProcessingConfig {
 // explicitly do NOT derive clone as we want the childs to use CHILD shutdown tokens
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
+
     pub(super) sphinx_keys: ActiveSphinxKeys,
+
     pub(super) replay_protection_filter: ReplayProtectionBloomfilters,
 
     // used for FORWARD mix packets and FINAL ack packets
@@ -79,6 +82,10 @@ pub(crate) struct SharedData {
     pub(super) noise_config: NoiseConfig,
 
     pub(super) metrics: NymNodeMetrics,
+
+    // list of all known network monitor agents that are permitted
+    // to forward packets even if they replay them
+    pub(super) authorised_network_monitor_agents: RoutableNetworkMonitors,
 
     pub(super) shutdown_token: ShutdownToken,
 }
@@ -100,6 +107,7 @@ impl SharedData {
         final_hop: SharedFinalHopData,
         noise_config: NoiseConfig,
         metrics: NymNodeMetrics,
+        authorised_network_monitor_agents: RoutableNetworkMonitors,
         shutdown_token: ShutdownToken,
     ) -> Self {
         SharedData {
@@ -110,6 +118,7 @@ impl SharedData {
             final_hop,
             noise_config,
             metrics,
+            authorised_network_monitor_agents,
             shutdown_token,
         }
     }
@@ -136,10 +145,22 @@ impl SharedData {
         processing_result: &Result<MixProcessingResult, PacketProcessingError>,
         source: IpAddr,
     ) {
-        let Ok(processing_result) = processing_result else {
-            self.metrics.mixnet.ingress_malformed_packet(source);
-            return;
+        let processing_result = match processing_result {
+            Ok(processing_result) => processing_result,
+            Err(err) => {
+                if err.is_replay() {
+                    self.metrics.mixnet.ingress_replayed_packet(source);
+                } else {
+                    self.metrics.mixnet.ingress_malformed_packet(source);
+                }
+
+                return;
+            }
         };
+
+        if self.authorised_network_monitor_agents.is_known(&source) {
+            self.metrics.mixnet.ingress_network_monitor_packet();
+        }
 
         let packet_version = convert_to_metrics_version(processing_result.packet_version);
 
@@ -184,11 +205,20 @@ impl SharedData {
         }
     }
 
-    pub(super) fn forward_mix_packet(&self, packet: MixPacket, delay_until: Option<Instant>) {
+    pub(super) fn forward_mix_packet(
+        &self,
+        packet: MixPacket,
+        delay_until: Option<Instant>,
+        network_monitor_packet: bool,
+    ) {
         let has_delay = delay_until.is_some();
         if self
             .mixnet_forwarder
-            .forward_packet(PacketToForward::new(packet, delay_until))
+            .forward_packet(PacketToForward::new(
+                packet,
+                delay_until,
+                network_monitor_packet,
+            ))
             .is_err()
             && !self.shutdown_token.is_cancelled()
         {
@@ -203,7 +233,7 @@ impl SharedData {
 
     pub(super) fn forward_ack_packet(&self, forward_ack: Option<MixPacket>) {
         if let Some(forward_ack) = forward_ack {
-            self.forward_mix_packet(forward_ack, None);
+            self.forward_mix_packet(forward_ack, None, false);
             self.metrics.mixnet.egress_sent_ack();
         }
     }

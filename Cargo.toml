@@ -44,6 +44,7 @@ members = [
     "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/cosmwasm-smart-contracts/network-monitors-contract",
     "common/credential-proxy",
     "common/credential-storage",
     "common/credential-utils",
@@ -176,6 +177,8 @@ members = [
     "integration-tests",
     "common/nym-kkt-ciphersuite",
     "common/nym-kkt-context",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent", "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
 ]
 
 default-members = [
@@ -192,6 +195,8 @@ default-members = [
     "service-providers/network-requester",
     "tools/nymvisor",
     "nym-registration-client",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
     "tools/internal/localnet-orchestrator"
 ]
 
@@ -402,6 +407,10 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
+# recreating lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = "*"
+arrayref = "*"
 
 # libcrux
 libcrux-kem = "0.0.7"
@@ -507,6 +516,7 @@ nym-types = { version = "1.20.4", path = "common/types" }
 nym-upgrade-mode-check = { version = "1.20.4", path = "common/upgrade-mode-check" }
 nym-validator-client = { version = "1.20.4", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/vesting-contract" }
+nym-network-monitors-contract-common = { version = "1.20.4", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-verloc = { version = "1.20.4", path = "common/verloc" }
 nym-wireguard = { version = "1.20.4", path = "common/wireguard" }
 nym-wireguard-types = { version = "1.20.4", path = "common/wireguard-types" }

@@ -68,7 +68,9 @@ impl RouterBuilder {
     }
 
     fn v3_routes() -> Router<AppState> {
-        Router::new().nest("/unstable", unstable_routes_v3())
+        Router::new()
+            .nest("/nym-nodes", nym_nodes::handlers::v3::routes())
+            .nest("/unstable", unstable_routes_v3())
     }
 
     /// All routes should be, if possible, added here. Exceptions are e.g.

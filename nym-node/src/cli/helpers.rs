@@ -181,6 +181,44 @@ impl HttpArgs {
 }
 
 #[derive(clap::Args, Debug)]
+pub(crate) struct NyxArgs {
+    /// Addresses to nyxd chain endpoint which the node will use for chain interactions.
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = NYMNODE_NYXD_URLS_ARG
+    )]
+    pub(crate) nyxd_urls: Option<Vec<Url>>,
+
+    #[clap(
+        long,
+        env = NYMNODE_NYXD_WEBSOCKET_URL_ARG
+    )]
+    /// Url to the websocket endpoint of a nyx validator, for example `wss://rpc.nymtech.net/websocket`.
+    /// It is used for subscribing to new block events.
+    pub(crate) nyxd_websocket_url: Option<Url>,
+}
+
+impl NyxArgs {
+    // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
+    pub(crate) fn build_config_section(self) -> config::Nyx {
+        self.override_config_section(config::Nyx::default())
+    }
+
+    pub(crate) fn override_config_section(self, mut section: config::Nyx) -> config::Nyx {
+        if let Some(nyxd_urls) = self.nyxd_urls {
+            section.nyxd_urls = nyxd_urls
+        }
+
+        if let Some(websocket) = self.nyxd_websocket_url {
+            section.nyxd_websocket_url = websocket
+        }
+
+        section
+    }
+}
+
+#[derive(clap::Args, Debug)]
 pub(crate) struct MixnetArgs {
     /// Address this node will bind to for listening for mixnet packets
     /// default: `[::]:1789`
@@ -206,14 +244,6 @@ pub(crate) struct MixnetArgs {
         env = NYMNODE_NYM_APIS_ARG
     )]
     pub(crate) nym_api_urls: Option<Vec<Url>>,
-
-    /// Addresses to nyxd chain endpoint which the node will use for chain interactions.
-    #[clap(
-        long,
-        value_delimiter = ',',
-        env = NYMNODE_NYXD_URLS_ARG
-    )]
-    pub(crate) nyxd_urls: Option<Vec<Url>>,
 
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     #[clap(
@@ -247,9 +277,6 @@ impl MixnetArgs {
         }
         if let Some(nym_api_urls) = self.nym_api_urls {
             section.nym_api_urls = nym_api_urls
-        }
-        if let Some(nyxd_urls) = self.nyxd_urls {
-            section.nyxd_urls = nyxd_urls
         }
         if self.unsafe_disable_noise {
             section.debug.unsafe_disable_noise = true

@@ -60,10 +60,7 @@ nym_api_urls = [
 {{#each mixnet.nym_api_urls }}'{{this}}',{{/each}}
 ]
 
-# Addresses to nyxd which the node uses to interact with the nyx chain.
-nyxd_urls = [
-    {{#each mixnet.nyxd_urls }}'{{this}}',{{/each}}
-]
+
 
 [mixnet.replay_protection]
 
@@ -76,6 +73,18 @@ current_bloomfilters_directory = '{{ mixnet.replay_protection.storage_paths.curr
 
 # Path to a file containing basic node description: human-readable name, website, details, etc.
 description = '{{ storage_paths.description }}' 
+
+[nyx]
+
+# Url to the websocket endpoint of a nyx validator, for example `wss://rpc.nymtech.net/websocket`.
+# It is used for subscribing to new block events.
+nyxd_websocket_url = '{{ nyx.nyxd_websocket_url }}'
+
+# Addresses to nyxd which the node uses to interact with the nyx chain.
+nyxd_urls = [
+    {{#each nyx.nyxd_urls }}'{{this}}',{{/each}}
+]
+
 
 [storage_paths.keys]
 # Path to file containing ed25519 identity private key.

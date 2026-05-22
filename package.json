@@ -23,7 +23,7 @@
     "docs:prod:build:ws": "lerna run docs:prod:build --stream",
     "lint": "lerna run lint --stream",
     "lint:fix": "lerna run lint:fix --stream",
-    "nuke": "npx rimraf **/node_modules node_modules",
+    "nuke": "npx rimraf **/node_modules node_modules dist pkg",
     "postbuild:ci": "pnpm dev:off",
     "prebuild:ci": "pnpm dev:on && pnpm install",
     "scrub": "npx rimraf **/dist dist",

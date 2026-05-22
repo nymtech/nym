@@ -324,6 +324,9 @@ mod tests {
     }
 
     #[tokio::test]
+    // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH LIVE NETWORK AND EXPECTS
+    // SPECIFIC BEHAVIOR. Keeping in case logic changes and needs tested locally.
+    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
     async fn fallback_on_failure() {
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
@@ -366,7 +369,6 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        tracing::debug!("{result:?}");
 
         // Check that the host configuration updated the front on error.
         assert_eq!(

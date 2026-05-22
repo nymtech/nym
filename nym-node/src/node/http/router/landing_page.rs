@@ -27,7 +27,7 @@ pub(super) async fn default() -> Html<&'static str> {
         <div>
             <p> default page of the nym node - you can customize it by setting the 'assets' path under '[http]' section of your config. </p>
 
-            You can explore the REST API at <a href = "/api/v1/swagger/">/api/v1/swagger/</a>
+            You can explore the REST API at <a href = "/api/swagger/">/api/swagger/</a>
         </div>
     "#,
     )

@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
     get,
     path = "/roles",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (NodeRoles = "application/json"),

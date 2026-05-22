@@ -12,7 +12,7 @@ use nym_node_requests::api::{SignedLewesProtocol, SignedLewesProtocolInfo};
     get,
     path = "/lewes-protocol",
     context_path = "/api/v1",
-    tag = "Lewes Protocol",
+    tag = "v1 / Lewes Protocol",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

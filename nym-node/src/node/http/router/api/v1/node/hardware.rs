@@ -13,7 +13,7 @@ use nym_node_requests::api::v1::node::models::HostSystem;
     get,
     path = "/system-info",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (HostSystem = "application/json"),

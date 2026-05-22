@@ -24,8 +24,12 @@ pub mod routes {
         pub const V1: &str = "/v1";
         pub const V2: &str = "/v2";
 
+        // canonical, version-neutral Swagger UI mount
+        pub const SWAGGER: &str = "/swagger";
+
         absolute_route!(v1_absolute, super::API, V1);
         absolute_route!(v2_absolute, super::API, V2);
+        absolute_route!(swagger_absolute, super::API, SWAGGER);
 
         pub mod v1 {
             use super::*;

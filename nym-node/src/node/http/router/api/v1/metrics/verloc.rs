@@ -15,7 +15,7 @@ use crate::node::http::state::metrics::MetricsAppState;
     get,
     path = "/verloc",
     context_path = "/api/v1/metrics",
-    tag = "Metrics",
+    tag = "v1 / Metrics",
     responses(
         (status = 200, content(
             (VerlocStats = "application/json"),

@@ -151,6 +151,10 @@ impl NymNodeRouter {
                 )
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(routes::API, api::routes(config.api))
+                // openapi must be merged at the outer router level (not nested) —
+                // SwaggerUi emits internal redirects that use absolute paths
+                // unaware of any `.nest()` prefix
+                .merge(api::openapi::route())
                 .layer(axum::middleware::from_fn(logging::log_request_info))
                 .with_state(state),
         }

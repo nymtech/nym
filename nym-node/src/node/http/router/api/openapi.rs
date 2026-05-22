@@ -3,7 +3,7 @@
 
 use axum::Router;
 use nym_node_requests::api as api_requests;
-use nym_node_requests::routes::api::{v1, v1_absolute};
+use nym_node_requests::routes;
 use utoipa::openapi::security::{Http, HttpAuthScheme};
 use utoipa::{Modify, OpenApi, openapi::security::SecurityScheme};
 use utoipa_swagger_ui::SwaggerUi;
@@ -37,12 +37,14 @@ use utoipa_swagger_ui::SwaggerUi;
         crate::node::http::router::api::v1::gateway::client_interfaces::wireguard_details,
         crate::node::http::router::api::v1::gateway::root::root_gateway,
         crate::node::http::router::api::v1::lewes_protocol::root::root_lewes_protocol,
-
+        crate::node::http::router::api::v2::node::auxiliary::auxiliary,
     ),
     components(
         schemas(
             nym_http_api_common::Output,
             nym_http_api_common::OutputParams,
+            nym_http_api_common::OutputV2,
+            nym_http_api_common::OutputParamsV2,
             api_requests::v1::health::models::NodeHealth,
             api_requests::v1::health::models::NodeStatus,
             api_requests::v1::node_load::models::NodeLoad,
@@ -77,6 +79,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy,
             api_requests::v1::ip_packet_router::models::IpPacketRouter,
             api_requests::v1::lewes_protocol::models::LewesProtocol,
+            api_requests::v2::node::models::AuxiliaryDetailsV2,
         ),
     ),
     modifiers(&SecurityAddon),
@@ -97,11 +100,14 @@ impl Modify for SecurityAddon {
 }
 
 pub(crate) fn route<S: Send + Sync + 'static + Clone>() -> Router<S> {
-    // provide absolute path to the openapi.json
-    let config =
-        utoipa_swagger_ui::Config::from(format!("{}/api-docs/openapi.json", v1_absolute()));
-    SwaggerUi::new(v1::SWAGGER)
-        .url("/api-docs/openapi.json", ApiDoc::openapi())
+    // SwaggerUi must be mounted with its absolute path: it emits internal redirects
+    // (e.g. `/swagger` → `/swagger/`) whose `Location` header uses this string
+    // literally and is not aware of any `.nest()` prefix above it. For the same
+    // reason, this router must be merged at the outer router level — not nested.
+    let openapi_json = format!("{}/api-docs/openapi.json", routes::API);
+    let config = utoipa_swagger_ui::Config::from(openapi_json.clone());
+    SwaggerUi::new(routes::api::swagger_absolute())
+        .url(openapi_json, ApiDoc::openapi())
         .config(config)
         .into()
 }

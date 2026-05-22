@@ -12,7 +12,7 @@ use nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1;
     get,
     path = "/auxiliary-details",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (AuxiliaryDetailsV1 = "application/json"),

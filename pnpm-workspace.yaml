@@ -7,6 +7,20 @@ packages:
   - 'sdk/typescript/packages/react-components'
   - 'sdk/typescript/packages/mui-theme'
 
+allowBuilds:
+  '@biomejs/biome': true
+  '@parcel/watcher': true
+  core-js: true
+  core-js-pure: true
+  esbuild: true
+  fsevents: true
+  lefthook: true
+  nx: true
+  protobufjs: true
+  sharp: true
+  tiny-secp256k1: true
+  unrs-resolver: true
+
 catalog:
   # babel
   "@babel/core": "^7.22.10"

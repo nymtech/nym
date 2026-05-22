@@ -51,23 +51,9 @@ export const LoadEndpointInfo = () => (
 );
 
 
-# Changelog
+## Operators Tools
 
-This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
-
-**Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
-
-<VarInfo />
-
-## `v2026.10-waterloo`
-
-- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)
-- [`nym-node`](nodes/nym-node.mdx) version `1.32.0`
-
-```sh
-ADD OUTPUT ./nym-node --version
-```
-### Operators Updates & Tools
+As the upcoming platform release has been posponed, we prepared this indenpendent release of tools and updates important for node operators. 
 
 <Callout type="error" emoji="🚨">
 [**Security steps required**](/operators/troubleshooting/vps-isp#security-patch-copyfail--dirtyfrag): Several critical [Linux kernel vulnerabilities](https://ubuntu.com/blog/copy-fail-vulnerability-fixes-available) had been disclosed. Check out your servers and if needed apply required mitigations!
@@ -128,26 +114,13 @@ ansible-playbook deploy.yml -t ntm
 
 - [**New docs**](https://github.com/nymtech/nym/pull/6716): Max's leg work on [exit services documentation](/network/infrastructure/exit-services), [`Mixfetch`](/developers/mix-fetch) and [`smolmix`](/developers/smolmix)
 
-#### Operators UX Improvements
+### Operators UX Improvements
 
 - [NTM: Split IPv4 / IPv6 uplinks](https://github.com/nymtech/nym/pull/6640): Now NTM can work with different uplink interfaces for IPv4 and IPv6
 
 - [Nym Node CLI: Split IPv4 / IPv6 uplinks](https://github.com/nymtech/nym/pull/6743): `nym-node-cli.py` uplinks sync up with NTM
 
 - [NTM & Nym Node CLI: Alternative SSH port](https://github.com/nymtech/nym/pull/6633): Operators can use these tools with `HOST_SSH_PORT` allowing them to define any alternative port instead of only using hard-coded 22
-
-
-### Features
-
-{/* ADD DEV POINTS */} 
-
-### Bugfix
-
-{/* ADD DEV POINTS */} 
-
-### Refactors & Maintenance
-
-{/* ADD DEV POINTS */} 
 
 ## `v2026.9-venaco`
 

@@ -585,6 +585,7 @@ importers:
   dist/wasm/mix-fetch: {}
 
 
+
   explorer-v2:
     dependencies:
       '@chain-registry/types':
@@ -1686,6 +1687,7 @@ importers:
         version: 5.10.0
 
 
+
   sdk/typescript/examples/mix-fetch/browser:
     dependencies:
       '@nymproject/mix-fetch':
@@ -1700,6 +1702,7 @@ importers:
       '@nymproject/mix-fetch-node-commonjs':
         specifier: ^1.2.1-rc.2
         version: 1.4.4
+
 
 
   sdk/typescript/examples/react/mui-theme:
@@ -2424,6 +2427,7 @@ importers:
       typescript:
         specifier: ^4.6.2
         version: 4.9.5
+
 
 
   sdk/typescript/packages/nodejs-client:
@@ -5869,6 +5873,15 @@ packages:
 
   '@nymproject/nym-client-wasm@1.4.1':
     resolution: {integrity: sha512-7GQD9wSHEZXgBWSNNyJ6l6ur7VIgkX4CzQ08dYfX4P35yiHeR8DasPoryVy+Ed7X5fpoqK5CPxXu89OdXG4JAg==}
+
+  '@nymproject/nym-client-wasm-node@1.4.1':
+    resolution: {integrity: sha512-+bUIIiZGcv9GPOpKl6Pas2UochIac9EWxT24vmhx+x/Y4B6y4PpFtaVj+TtNwFtCu+/6w2GH0tb7UAJIzpJSQw==}
+
+  '@nymproject/nym-client-wasm@1.4.1':
+    resolution: {integrity: sha512-7GQD9wSHEZXgBWSNNyJ6l6ur7VIgkX4CzQ08dYfX4P35yiHeR8DasPoryVy+Ed7X5fpoqK5CPxXu89OdXG4JAg==}
+
+  '@nymproject/nym-node-tester-wasm@1.3.1':
+    resolution: {integrity: sha512-XdJ8oTczxFZZhmmfO2mOJhxFhyFzRy2r0VstMBKUZdO6Ke+2ovS4e2hXGNb2PB7M2XL6W7+WrOgC4CZRZuZ/rg==}
 
   '@nymproject/nym-client-wasm-node@1.4.1':
     resolution: {integrity: sha512-+bUIIiZGcv9GPOpKl6Pas2UochIac9EWxT24vmhx+x/Y4B6y4PpFtaVj+TtNwFtCu+/6w2GH0tb7UAJIzpJSQw==}
@@ -21217,6 +21230,12 @@ snapshots:
   '@nymproject/nym-client-wasm-node@1.4.1': {}
 
   '@nymproject/nym-client-wasm@1.4.1': {}
+
+  '@nymproject/nym-client-wasm-node@1.4.1': {}
+
+  '@nymproject/nym-client-wasm@1.4.1': {}
+
+  '@nymproject/nym-node-tester-wasm@1.3.1': {}
 
   '@nymproject/nym-client-wasm-node@1.4.1': {}
 

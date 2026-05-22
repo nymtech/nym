@@ -1,7 +1,7 @@
 {
   "name": "@nymproject/nymsphere",
   "version": "1.0.1",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.1.2",
   "license": "Apache 2.0",
   "scripts": {
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",

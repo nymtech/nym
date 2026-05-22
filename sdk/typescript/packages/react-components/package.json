@@ -48,6 +48,7 @@
     "@babel/core": "catalog:",
     "@nymproject/eslint-config-react-typescript": "workspace:*",
     "@storybook/addon-actions": "catalog:",
+    "@storybook/addon-docs": "catalog:",
     "@storybook/addon-essentials": "catalog:",
     "@storybook/addon-interactions": "catalog:",
     "@storybook/addon-links": "catalog:",

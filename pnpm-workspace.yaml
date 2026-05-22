@@ -93,6 +93,7 @@ catalog:
   "tiny-invariant": "^1.3.3"
 
   # storybook
+  "@storybook/addon-docs": "^6.5.8"
   "@storybook/addon-actions": "^6.5.8"
   "@storybook/addon-essentials": "^6.5.8"
   "@storybook/addon-interactions": "^6.5.8"

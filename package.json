@@ -25,7 +25,7 @@
     "lint:fix": "lerna run lint:fix --stream",
     "nuke": "npx rimraf **/node_modules node_modules dist pkg",
     "postbuild:ci": "pnpm dev:off",
-    "prebuild:ci": "pnpm dev:on && pnpm install",
+    "prebuild:ci": "pnpm dev:on && pnpm install --no-frozen-lockfile",
     "scrub": "npx rimraf **/dist dist",
     "sdk:build": "./sdk/typescript/scripts/build-prod-sdk.sh",
     "sdk:publish": "./sdk/typescript/scripts/publish.sh",
@@ -47,40 +47,38 @@
     "tslog": "3.3.3"
   },
   "private": true,
-  "pnpm": {
-    "packageExtensions": {
-      "@cosmos-kit/core@*": {
-        "dependencies": {
-          "axios": "*"
-        }
-      },
-      "@cosmos-kit/keplr-extension@*": {
-        "dependencies": {
-          "long": "*"
-        }
-      },
-      "@nivo/line@*": {
-        "dependencies": {
-          "lodash": "*"
-        }
+  "packageExtensions": {
+    "@cosmos-kit/core@*": {
+      "dependencies": {
+        "axios": "*"
       }
     },
-    "overrides": {
-      "eslint": "8.57.1",
-      "@cosmjs/amino": "^0.32.4",
-      "@cosmjs/cosmwasm-stargate": "^0.32.4",
-      "@cosmjs/proto-signing": "^0.32.4",
-      "@cosmjs/stargate": "^0.32.4",
-      "@tauri-apps/api": "2.10.1",
-      "@types/minimatch": "5.1.2",
-      "@typescript-eslint/eslint-plugin": "5.62.0",
-      "@typescript-eslint/parser": "5.62.0",
-      "@typescript-eslint/scope-manager": "5.62.0",
-      "@typescript-eslint/type-utils": "5.62.0",
-      "@typescript-eslint/types": "5.62.0",
-      "@typescript-eslint/typescript-estree": "5.62.0",
-      "@typescript-eslint/utils": "5.62.0",
-      "cosmjs-types": "^0.9.0"
+    "@cosmos-kit/keplr-extension@*": {
+      "dependencies": {
+        "long": "*"
+      }
+    },
+    "@nivo/line@*": {
+      "dependencies": {
+        "lodash": "*"
+      }
     }
+  },
+  "overrides": {
+    "eslint": "8.57.1",
+    "@cosmjs/amino": "^0.32.4",
+    "@cosmjs/cosmwasm-stargate": "^0.32.4",
+    "@cosmjs/proto-signing": "^0.32.4",
+    "@cosmjs/stargate": "^0.32.4",
+    "@tauri-apps/api": "2.10.1",
+    "@types/minimatch": "5.1.2",
+    "@typescript-eslint/eslint-plugin": "5.62.0",
+    "@typescript-eslint/parser": "5.62.0",
+    "@typescript-eslint/scope-manager": "5.62.0",
+    "@typescript-eslint/type-utils": "5.62.0",
+    "@typescript-eslint/types": "5.62.0",
+    "@typescript-eslint/typescript-estree": "5.62.0",
+    "@typescript-eslint/utils": "5.62.0",
+    "cosmjs-types": "^0.9.0"
   }
 }

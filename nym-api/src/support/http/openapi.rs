@@ -41,7 +41,7 @@ use utoipauto::utoipauto;
         nym_config::defaults::NymContracts,
         ContractVersionSchemaResponse,
         nym_bin_common::build_information::BinaryBuildInformationOwned,
-        nym_node_requests::api::v1::node::models::AuxiliaryDetails,
+        nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1,
         nym_contracts_common::ContractBuildInformation
     ))
 )]

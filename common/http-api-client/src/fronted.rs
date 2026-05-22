@@ -328,8 +328,8 @@ mod tests {
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
             Some(vec![
-                "https://fake-front-1.nymtech.net",
-                "https://fake-front-2.nymtech.net",
+                "https://wrong.host.badssl.com/",
+                "https://untrusted-root.badssl.com/",
             ]),
         )
         .unwrap();
@@ -341,6 +341,8 @@ mod tests {
 
         let client = ClientBuilder::new_with_urls(vec![url1, url2])
             .expect("bad url")
+            .non_shared()
+            .no_hickory_dns()
             .with_fronting(Some(FrontPolicy::Always))
             .build()
             .expect("failed to build client");
@@ -352,7 +354,7 @@ mod tests {
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-1.nymtech.net"),
+            Some("wrong.host.badssl.com"),
         );
 
         let result = client
@@ -364,6 +366,7 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
+        tracing::debug!("{result:?}");
 
         // Check that the host configuration updated the front on error.
         assert_eq!(
@@ -372,7 +375,7 @@ mod tests {
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-2.nymtech.net"),
+            Some("untrusted-root.badssl.com"),
         );
 
         let result = client

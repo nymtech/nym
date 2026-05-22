@@ -58,7 +58,21 @@ async fn request_testrun(
         return Err(HttpError::no_testruns_available());
     }
 
-    match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
+    let assignment_result = if let Some((region, centroid)) =
+        state.agent_region_and_centroid(&request.payload.agent_public_key)
+    {
+        tracing::debug!(
+            "Resolved agent region '{region}' (lat={}, lon={}), assigning nearest testrun",
+            centroid.lat,
+            centroid.lon
+        );
+        db::queries::testruns::assign_nearest_testrun(&mut conn, centroid.lat, centroid.lon).await
+    } else {
+        tracing::debug!("Agent region not configured, falling back to FIFO assignment");
+        db::queries::testruns::assign_oldest_testrun(&mut conn).await
+    };
+
+    match assignment_result {
         Ok(res) => {
             let Some(assignment) = res else {
                 tracing::debug!("No testruns available");

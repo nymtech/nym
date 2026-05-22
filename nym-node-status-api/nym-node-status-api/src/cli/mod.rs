@@ -90,6 +90,12 @@ pub(crate) struct Cli {
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
 
+    #[clap(long, env = "NODE_STATUS_API_AGENT_REGION_MAP")]
+    pub(crate) agent_region_map: Option<String>,
+
+    #[clap(long, env = "NODE_STATUS_API_REGION_CENTROIDS")]
+    pub(crate) region_centroids: Option<String>,
+
     #[clap(long, default_value = "120s", env = "AGENT_REQUEST_FRESHNESS")]
     #[arg(value_parser = parse_duration_humantime)]
     pub(crate) agent_request_freshness: time::Duration,

@@ -342,6 +342,8 @@ mod tests {
         )
         .unwrap(); // fastly
 
+        // use non-shared client and no-hickory so that we aren't reliant on a shared http client
+        // that could be impacted by independent interleaved tests.
         let client = ClientBuilder::new_with_urls(vec![url1, url2])
             .expect("bad url")
             .non_shared()
@@ -370,7 +372,7 @@ mod tests {
             .await;
         assert!(result.is_err());
 
-        // Check that the host configuration updated the front on error.
+        // Check that the host configuration updated the front on error (tls error wring host)
         assert_eq!(
             client.current_url().as_str(),
             "https://fake-domain.nymtech.net/",
@@ -390,7 +392,8 @@ mod tests {
             .await;
         assert!(result.is_err());
 
-        // Check that the host configuration updated the domain and front on error.
+        // Check that the host configuration updated the domain and front on error (tls error
+        // untrusted root)
         assert_eq!(
             client.current_url().as_str(),
             "https://validator.global.ssl.fastly.net/",

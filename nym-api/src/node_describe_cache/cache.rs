@@ -1,7 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::{DescribedNodeTypeV2, NymNodeDataV2, NymNodeDescriptionV2};
+use nym_api_requests::models::described::v2::{
+    DescribedNodeTypeV2, NymNodeDataV2, NymNodeDescriptionV2,
+};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

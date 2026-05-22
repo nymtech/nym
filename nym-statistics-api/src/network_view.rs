@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
-use nym_task::ShutdownToken;
-
 use celes::Country;
-use nym_validator_client::models::NymNodeDescriptionV1;
+use nym_http_api_client::Client;
+use nym_task::ShutdownToken;
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::models::described::v1::NymNodeDescriptionV1;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::{net::IpAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::time::interval;
-use url::Url;
-
-use nym_http_api_client::Client;
-use nym_validator_client::client::NymApiClientExt;
 use tracing::{error, info, trace, warn};
+use url::Url;
 
 const NETWORK_CACHE_TTL: Duration = Duration::from_secs(600);
 

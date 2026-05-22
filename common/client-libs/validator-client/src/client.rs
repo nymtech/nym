@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub use crate::nym_api::NymApiClientExt;
 use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
@@ -18,9 +19,11 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
+use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::{
     ApiHealthResponse, GatewayCoreStatusResponse, HistoricalPerformanceResponse,
-    MixnodeCoreStatusResponse, NymNodeDescriptionV1, NymNodeDescriptionV2,
+    MixnodeCoreStatusResponse,
 };
 use nym_api_requests::nym_nodes::{
     NodesByAddressesResponse, SemiSkimmedNodesWithMetadata, SkimmedNodeV1, SkimmedNodesWithMetadata,
@@ -28,15 +31,13 @@ use nym_api_requests::nym_nodes::{
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
 use nym_mixnet_contract_common::EpochRewardedSet;
+pub use nym_mixnet_contract_common::{
+    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
+};
 use nym_network_defaults::NymNetworkDetails;
 use std::net::IpAddr;
 use time::Date;
 use url::Url;
-
-pub use crate::nym_api::NymApiClientExt;
-pub use nym_mixnet_contract_common::{
-    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
-};
 // re-export the type to not break existing imports
 pub use crate::coconut::EcashApiClient;
 

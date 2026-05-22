@@ -6,8 +6,9 @@ use crate::support::http::state::AppState;
 use crate::unstable_routes::helpers::refreshed_at;
 use crate::unstable_routes::v2::nym_nodes::helpers::NodesParamsWithRole;
 use axum::extract::{Query, State};
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::{
-    NodeAnnotationV1, NodeAnnotationV2, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
+    NodeAnnotationV1, NodeAnnotationV2, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1};
 use nym_api_requests::pagination::PaginatedResponse;

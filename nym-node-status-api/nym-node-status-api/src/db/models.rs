@@ -336,9 +336,9 @@ use mixnode::MixnodeSummary;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::models::{
-    AuthenticatorDetailsV2, AuxiliaryDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2,
-    HostInformationV2, HostKeysV2, IpPacketRouterDetailsV2, LewesProtocolDetailsV1,
-    NetworkRequesterDetailsV2, NymNodeDataV2, NymNodeDescriptionV2,
+    AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2, HostKeysV2,
+    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV2,
+    NymNodeAuxiliaryDetailsV2, NymNodeDataV2, NymNodeDescriptionV2,
     OffsetDateTimeJsonSchemaWrapper, SphinxKeyV1, VersionedNoiseKeyV1, WebSocketsV1,
     WireguardDetailsV2,
 };
@@ -743,7 +743,7 @@ pub struct NymNodeDataDeHelper {
     pub declared_role: DeclaredRolesV2,
 
     #[serde(default)]
-    pub auxiliary_details: AuxiliaryDetailsV2,
+    pub auxiliary_details: NymNodeAuxiliaryDetailsV2,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,

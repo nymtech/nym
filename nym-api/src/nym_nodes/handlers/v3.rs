@@ -7,8 +7,9 @@ use crate::support::storage::models::NymNodeStressTestingResult;
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use nym_api_requests::models::network_monitor::KnownNetworkMonitorResponse;
-use nym_api_requests::models::{StressTestBatchSubmission, StressTestBatchSubmissionResponse};
+use nym_api_requests::models::v3::{
+    KnownNetworkMonitorResponse, StressTestBatchSubmission, StressTestBatchSubmissionResponse,
+};
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;

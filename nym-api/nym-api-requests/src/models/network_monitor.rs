@@ -75,8 +75,6 @@ pub struct GatewayCoreStatusResponse {
     pub count: i64,
 }
 
-pub use v3::*;
-
 /// Request/response types for the v3 network-monitor flow, in which an orchestrator submits
 /// stress testing results to nym-api via signed batches.
 pub mod v3 {

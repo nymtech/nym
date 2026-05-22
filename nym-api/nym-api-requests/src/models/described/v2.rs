@@ -1,12 +1,13 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{
-    AuthenticatorDetailsV1, AuxiliaryDetailsV1, BinaryBuildInformationOwned, DeclaredRolesV1,
-    DescribedNodeTypeV1, HostInformationV1, HostKeysV1, IpPacketRouterDetailsV1,
-    LewesProtocolDetailsV1, NetworkRequesterDetailsV1, NymNodeDataV1, NymNodeDescriptionV1,
-    OffsetDateTimeJsonSchemaWrapper, SphinxKeyV1, WebSocketsV1, WireguardDetailsV1,
+use crate::models::described::type_translation::{
+    AnnouncePortsV1, AuthenticatorDetailsV1, DeclaredRolesV1, HostInformationV1, HostKeysV1,
+    IpPacketRouterDetailsV1, LewesProtocolDetailsV1, NetworkRequesterDetailsV1,
+    NymNodeAuxiliaryDetailsV1, SphinxKeyV1, WebSocketsV1, WireguardDetailsV1,
 };
+use crate::models::described::v1::{DescribedNodeTypeV1, NymNodeDataV1, NymNodeDescriptionV1};
+use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
 use crate::nym_nodes::{
     BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SemiSkimmedNodeV3, SkimmedNodeV1,
 };
@@ -22,7 +23,8 @@ use utoipa::ToSchema;
 // no changes for the following types
 pub type HostInformationV2 = HostInformationV1;
 pub type DeclaredRolesV2 = DeclaredRolesV1;
-pub type AuxiliaryDetailsV2 = AuxiliaryDetailsV1;
+pub type AnnouncePortsV2 = AnnouncePortsV1;
+pub type NymNodeAuxiliaryDetailsV2 = NymNodeAuxiliaryDetailsV1;
 pub type NetworkRequesterDetailsV2 = NetworkRequesterDetailsV1;
 pub type IpPacketRouterDetailsV2 = IpPacketRouterDetailsV1;
 pub type AuthenticatorDetailsV2 = AuthenticatorDetailsV1;
@@ -172,7 +174,7 @@ pub struct NymNodeDataV2 {
     pub declared_role: DeclaredRolesV2,
 
     #[serde(default)]
-    pub auxiliary_details: AuxiliaryDetailsV2,
+    pub auxiliary_details: NymNodeAuxiliaryDetailsV2,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
@@ -339,7 +341,7 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
                 exit_nr: true,
                 exit_ipr: true,
             },
-            auxiliary_details: AuxiliaryDetailsV2 {
+            auxiliary_details: NymNodeAuxiliaryDetailsV2 {
                 location: Some(celes::Country::switzerland()),
                 announce_ports: Default::default(),
                 accepted_operator_terms_and_conditions: true,

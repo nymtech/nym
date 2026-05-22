@@ -3,7 +3,7 @@
 
 use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use nym_api_requests::models::{DescribedNodeTypeV2, NymNodeDescriptionV2};
+use nym_api_requests::models::described::v2::{DescribedNodeTypeV2, NymNodeDescriptionV2};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};

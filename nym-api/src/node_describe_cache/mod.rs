@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::UninitialisedCache;
-use nym_api_requests::models::{NymNodeDescriptionV1, NymNodeDescriptionV2};
+use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::NymNodeApiClientError;
 use nym_topology::node::RoutingNodeError;

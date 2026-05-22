@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.1.2",
   "license": "Apache 2.0",
   "scripts": {
-    "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
+    "audit:fix": "pnpm audit --fix",
     "build": "run-s build:types build:packages",
     "build:ci": "run-s build:types build:packages build:wasm build:ci:sdk",
     "build:ci:sdk": "lerna run --scope '{@nymproject/sdk,@nymproject/sdk-react,@nymproject/mix-fetch,@nymproject/nodejs-client,@nymproject/mix-fetch-node}' build --stream",

@@ -112,7 +112,7 @@ sdk-wasm-build:
 sdk-typescript-build:
 	npx lerna run --scope @nymproject/sdk build --stream
 	npx lerna run --scope @nymproject/mix-fetch build --stream
-	yarn --cwd sdk/typescript/codegen/contract-clients build
+	pnpm --pwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
 
@@ -219,7 +219,7 @@ build-nym-cli:
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
-	yarn types:lint:fix
+	pnpm types:lint:fix
 
 # Run the integration tests for public nym-api endpoints
 run-api-tests:

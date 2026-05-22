@@ -7,15 +7,15 @@ You can use this example as a seed for a new project.
 Remember to build the dependency packages from the root of this repo by running:
 
 ```
-yarn
-yarn build
+pnpm i
+pnpm build
 ```
 
 If you need to make changes to the dependency packages, you can run `yarn watch` in that package to watch for chagnes and build them. This project will pick up the changes in the built package and hot-reload / recompile.
 
 ## Features
 
-### Yarn workspaces
+### pnpm workspaces
 
 Packages from `ts-packages` are shared using Yarn workspaces. Make sure you add you new project to [package.json](../../package.json) to use the shared packages.
 

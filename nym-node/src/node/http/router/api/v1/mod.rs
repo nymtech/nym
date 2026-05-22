@@ -3,7 +3,9 @@
 
 use crate::node::http::state::AppState;
 use axum::Router;
+use axum::response::Redirect;
 use axum::routing::get;
+use nym_node_requests::routes;
 use nym_node_requests::routes::api::v1;
 
 pub mod authenticator;
@@ -18,7 +20,6 @@ pub mod mixnode;
 pub mod network;
 pub mod network_requester;
 pub mod node;
-pub mod openapi;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -34,7 +35,12 @@ pub struct Config {
 }
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
+    // legacy redirects: the Swagger UI moved to a version-neutral /api/swagger
+    let swagger_redirect = get(|| async { Redirect::temporary(&routes::api::swagger_absolute()) });
+
     Router::new()
+        .route(v1::SWAGGER, swagger_redirect.clone())
+        .route(&format!("{}/", v1::SWAGGER), swagger_redirect)
         .route(v1::HEALTH, get(health::root_health))
         .route(v1::LOAD, get(load::root_load))
         .nest(v1::NETWORK, network::routes())
@@ -59,5 +65,4 @@ pub(super) fn routes(config: Config) -> Router<AppState> {
             lewes_protocol::routes(config.lewes_protocol),
         )
         .merge(node::routes(config.node))
-        .merge(openapi::route())
 }

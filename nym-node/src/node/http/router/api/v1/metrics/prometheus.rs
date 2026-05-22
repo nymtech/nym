@@ -8,7 +8,7 @@ use nym_metrics::metrics;
     get,
     path = "/prometheus",
     context_path = "/api/v1/metrics",
-    tag = "Metrics",
+    tag = "v1 / Metrics",
     responses(
         (status = 200, body = String),
         (status = 400, description = "`Authorization` header was missing"),

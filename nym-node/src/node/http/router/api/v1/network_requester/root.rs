@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
     get,
     path = "",
     context_path = "/api/v1/network-requester",
-    tag = "Network Requester",
+    tag = "v1 / Network Requester",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

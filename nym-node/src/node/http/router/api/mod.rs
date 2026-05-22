@@ -5,6 +5,7 @@ use crate::node::http::state::AppState;
 use axum::Router;
 use nym_node_requests::routes;
 
+pub mod openapi;
 pub mod v1;
 pub mod v2;
 

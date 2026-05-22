@@ -12,7 +12,10 @@ use nym_node_requests::api::v2::node::models::AuxiliaryDetailsV2;
     get,
     path = "/auxiliary-details",
     context_path = "/api/v2",
-    tag = "Node",
+    tag = "v2 / Node",
+    // distinct from v1's `auxiliary`: OpenAPI requires operationId to be unique
+    // across the whole document, and Swagger UI routes "Try it out" by operationId
+    operation_id = "v2_auxiliary",
     responses(
         (status = 200, content(
             (AuxiliaryDetailsV2 = "application/json"),

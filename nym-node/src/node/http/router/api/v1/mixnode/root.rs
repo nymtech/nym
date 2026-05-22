@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
     get,
     path = "",
     context_path = "/api/v1/mixnode",
-    tag = "Mixnode",
+    tag = "v1 / Mixnode",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

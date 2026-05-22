@@ -41,7 +41,7 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
     get,
     path = "/client-interfaces",
     context_path = "/api/v1/gateway",
-    tag = "Gateway",
+    tag = "v1 / Gateway",
     responses(
     (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
@@ -67,7 +67,7 @@ pub type ClientInterfacesResponse = FormattedResponse<ClientInterfaces>;
     get,
     path = "/mixnet-websockets",
     context_path = "/api/v1/gateway/client-interfaces",
-    tag = "Gateway",
+    tag = "v1 / Gateway",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
@@ -93,7 +93,7 @@ pub type MixnetWebSocketsResponse = FormattedResponse<WebSockets>;
     get,
     path = "/wireguard",
     context_path = "/api/v1/gateway/client-interfaces",
-    tag = "Gateway",
+    tag = "v1 / Gateway",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

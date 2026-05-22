@@ -7444,7 +7444,6 @@ dependencies = [
  "bytes",
  "criterion",
  "libcrux-psq",
- "num_enum",
  "nym-common",
  "nym-crypto",
  "nym-kkt",

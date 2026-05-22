@@ -120,7 +120,7 @@ async fn query_record(
             .ok_or(FetchError::Timeout)?;
 
         let mut buf = [0u8; 512];
-        let (len, _) = wasmtimer::tokio::timeout(remaining, udp.recv_from(&mut buf))
+        let (len, src) = wasmtimer::tokio::timeout(remaining, udp.recv_from(&mut buf))
             .await
             .map_err(|_| {
                 crate::util::debug_error!("[dns] recv_from TIMED OUT after {DNS_TIMEOUT:?}");
@@ -128,15 +128,32 @@ async fn query_record(
             })?
             .map_err(FetchError::Io)?;
 
-        let response = Message::from_vec(&buf[..len])
-            .map_err(|e| FetchError::Dns(format!("failed to parse DNS response: {e}")))?;
+        // Anti-spoof layer 1: source address must match the server we queried.
+        // The UDP socket is reused across CNAME hops and primary/fallback
+        // retries, so a late reply from an earlier `server` is a real case,
+        // not just hypothetical.
+        if src != server {
+            crate::util::debug_log!(
+                "[dns] dropped datagram from unexpected source {src} (expected {server})"
+            );
+            continue;
+        }
 
-        // Anti-spoof: drop responses whose transaction ID doesn't match the
-        // query we sent. Without this an attacker who guesses our open queries
-        // can inject forged A records. With socket reuse across hops we must
-        // *drop and keep reading* rather than error out, otherwise a late
-        // reply from an earlier query (or a buffered timeout victim) turns
-        // the current lookup into a false failure.
+        // Anti-spoof layer 2: parse failures and ID mismatches are also
+        // "keep reading," not "abort the lookup." A single malformed packet
+        // from `server` (or an attacker who can spoof the source) shouldn't
+        // turn a live query into a hard failure.
+        let response = match Message::from_vec(&buf[..len]) {
+            Ok(r) => r,
+            Err(e) => {
+                crate::util::debug_log!("[dns] dropped malformed datagram from {src}: {e}");
+                continue;
+            }
+        };
+
+        // Anti-spoof layer 3: transaction ID must match. The id was filled
+        // from `rand::random()` (CSPRNG via `getrandom`/js), so the guess
+        // rate for an off-path attacker is the theoretical 1/65536 per try.
         if response.id != query_id {
             crate::util::debug_log!(
                 "[dns] dropped stale datagram (id={:#06x}, expected {query_id:#06x})",

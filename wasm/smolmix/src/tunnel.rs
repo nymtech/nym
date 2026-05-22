@@ -63,11 +63,6 @@ pub struct TunnelOpts {
 /// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
 pub struct WasmTunnel {
     stack: Arc<Mutex<SmoltcpStack>>,
-    client_input: Arc<ClientInput>,
-    ipr_address: Recipient,
-    stream_id: u64,
-    /// LP frame sequence counter (shared with bridge for outgoing data).
-    seq: Arc<AtomicU32>,
     notify: ReactorNotify,
     shutdown: Arc<AtomicBool>,
     allocated_ips: IpPair,
@@ -102,7 +97,6 @@ struct ClientHandles {
 /// smoltcp handles returned by `init_network_stack` (reactor + bridge already spawned).
 struct NetworkStack {
     stack: Arc<Mutex<SmoltcpStack>>,
-    seq: Arc<AtomicU32>,
     shutdown: Arc<AtomicBool>,
     notify: ReactorNotify,
 }
@@ -132,7 +126,6 @@ impl WasmTunnel {
 
         let NetworkStack {
             stack,
-            seq,
             shutdown,
             notify,
         } = Self::init_network_stack(
@@ -148,10 +141,6 @@ impl WasmTunnel {
 
         Ok(Self {
             stack,
-            client_input,
-            ipr_address,
-            stream_id,
-            seq,
             notify,
             shutdown,
             allocated_ips,
@@ -327,7 +316,6 @@ impl WasmTunnel {
 
         NetworkStack {
             stack,
-            seq,
             shutdown,
             notify: notify_tx,
         }

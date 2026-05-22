@@ -52,17 +52,6 @@ impl ClientConfig {
             base: new_base_client_config(id, version, opts.nym_api, opts.nyxd, opts.debug)?,
         })
     }
-
-    #[cfg(feature = "node-tester")]
-    #[allow(dead_code)]
-    pub(crate) fn new_tester_config<S: Into<String>>(id: S) -> Self {
-        ClientConfig {
-            base: BaseClientConfig::new(id.into(), env!("CARGO_PKG_VERSION").to_string())
-                .with_disabled_credentials(true)
-                .with_disabled_cover_traffic(true)
-                .with_disabled_topology_refresh(true),
-        }
-    }
 }
 
 impl ClientConfig {

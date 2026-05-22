@@ -41,7 +41,7 @@ jobs:
         uses: microsoft/setup-msbuild@v3
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
+        uses: pnpm/action-setup@v6.0.8
         with:
           version: 11.1.2
       - uses: actions/setup-node@v4

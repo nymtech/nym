@@ -52,7 +52,7 @@ jobs:
         run: pnpm build:ci
 
       - name: Install again
-        run: pnpm
+        run: pnpm i
 
       - name: Lint
         run: pnpm lint

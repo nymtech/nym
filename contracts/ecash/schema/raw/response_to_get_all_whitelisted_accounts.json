@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "WhitelistedAccountsResponse",
+  "description": "Response shape for `GetAllWhitelistedAccounts`. Unpaginated - the whitelist is expected to stay small.",
   "type": "object",
   "required": [
     "whitelisted_accounts"
@@ -40,6 +41,7 @@
       "type": "string"
     },
     "WhitelistedAccount": {
+      "description": "Whitelist entry: an address and the reduced deposit price it may pay. Persisted in the `\"reduced_deposits\"` storage map.",
       "type": "object",
       "required": [
         "address",

@@ -7,6 +7,10 @@ use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_contract_common::{deposit::Deposit, EcashContractError};
 use std::ops::Deref;
 
+/// Sequential-id-keyed deposit store. Deposits live under the `"deposit"`
+/// raw-bytes namespace (32-byte ed25519 pubkeys, not a `Map`); the
+/// `"deposit_ids"` `Item<u32>` holds the **next** free id, which after `N`
+/// deposits equals `N`.
 pub(crate) struct DepositStorage {
     pub(crate) deposit_id_counter: Item<DepositId>,
     pub(crate) deposits: StoredDeposits,
@@ -20,13 +24,17 @@ impl DepositStorage {
         }
     }
 
+    /// Returns the id of the most recently assigned deposit, or `None` if no deposit has ever been made.
+    ///
+    /// The counter stores the *next* available id, so the latest assigned id is `counter - 1`.
     pub fn latest_deposit(
         &self,
         storage: &dyn Storage,
     ) -> Result<Option<DepositId>, EcashContractError> {
-        self.deposit_id_counter
-            .may_load(storage)
-            .map_err(Into::into)
+        let Some(counter) = self.deposit_id_counter.may_load(storage)? else {
+            return Ok(None);
+        };
+        Ok(counter.checked_sub(1))
     }
 
     /// Returns the total number of deposits ever made.
@@ -44,6 +52,10 @@ impl DepositStorage {
         Ok(id)
     }
 
+    /// Assign the next sequential id, persist the deposit's 32-byte raw ed25519
+    /// pubkey under the `"deposit"` namespace, and return the new id. Surfaces
+    /// `MalformedEd25519Identity` when the supplied bs58 string does not
+    /// decode to exactly 32 bytes.
     pub fn save_deposit(
         &self,
         storage: &mut dyn Storage,
@@ -61,6 +73,8 @@ impl DepositStorage {
         Ok(id)
     }
 
+    /// Load the deposit at `id`. Returns `None` when the id has not yet been
+    /// assigned.
     pub fn try_load_by_id(
         &self,
         storage: &dyn Storage,
@@ -94,7 +108,9 @@ impl DepositStorage {
     }
 }
 
-// a helper structure for storing deposits to bypass json serialisation and use more efficient and compact representation
+/// Raw-bytes reader/writer for the `"deposit"` storage namespace. Bypasses
+/// `cw_storage_plus::Map` to store deposits as exactly 32 raw bytes per
+/// entry (vs. ~44 bytes for the JSON-serialised bs58 representation).
 pub(crate) struct StoredDeposits;
 
 impl StoredDeposits {
@@ -138,14 +154,14 @@ mod tests {
 
         let _ = storage.next_id(deps.as_mut().storage)?;
 
-        // is correctly incremented for each subsequent id
+        // first deposit got id 0; latest_deposit returns Some(0)
         let second = storage.latest_deposit(deps.as_ref().storage)?;
-        assert_eq!(second, Some(1));
+        assert_eq!(second, Some(0));
 
         let _ = storage.next_id(deps.as_mut().storage)?;
 
         let third = storage.latest_deposit(deps.as_ref().storage)?;
-        assert_eq!(third, Some(2));
+        assert_eq!(third, Some(1));
 
         Ok(())
     }

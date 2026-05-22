@@ -14,8 +14,6 @@ cd dist
 #chat-app/parcel
 #chat-app/plain-html
 #chat-app/react-webpack-with-theme-example
-#chrome-extension
-#firefox-extension
 #node-tester/parcel
 #node-tester/plain-html
 #node-tester/react
@@ -26,7 +24,6 @@ packages=(
 # "wasm/client"
 "wasm/mix-fetch"
 # "wasm/node-tester"
-# "wasm/extension-storage"
 
 # "node/wasm/client"
 #"node/wasm/mix-fetch"

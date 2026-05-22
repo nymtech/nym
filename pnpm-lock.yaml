@@ -1689,44 +1689,6 @@ importers:
         specifier: 'catalog:'
         version: 5.10.0
 
-  sdk/typescript/examples/chrome-extension:
-    dependencies:
-      '@nymproject/sdk':
-        specifier: '>=1.4.1-rc1 || ^1'
-        version: 1.4.1
-    devDependencies:
-      clean-webpack-plugin:
-        specifier: 'catalog:'
-        version: 4.0.0(webpack@5.106.2)
-      copy-webpack-plugin:
-        specifier: ^11.0.0
-        version: 11.0.0(webpack@5.106.2)
-      webpack:
-        specifier: 'catalog:'
-        version: 5.106.2(@swc/core@1.15.33(@swc/helpers@0.5.21))(webpack-cli@5.1.4)
-      webpack-cli:
-        specifier: ^5.1.4
-        version: 5.1.4(webpack@5.106.2)
-
-  sdk/typescript/examples/firefox-extension:
-    dependencies:
-      '@nymproject/sdk':
-        specifier: '>=1.4.1-rc1 || ^1'
-        version: 1.4.1
-    devDependencies:
-      copy-webpack-plugin:
-        specifier: ^11.0.0
-        version: 11.0.0(webpack@5.106.2)
-      webpack:
-        specifier: 'catalog:'
-        version: 5.106.2(@swc/core@1.15.33(@swc/helpers@0.5.21))(webpack-cli@5.1.4)
-      webpack-cli:
-        specifier: ^5.1.4
-        version: 5.1.4(webpack@5.106.2)
-      worker-loader:
-        specifier: ^3.0.8
-        version: 3.0.8(webpack@5.106.2)
-
   sdk/typescript/examples/mix-fetch/browser:
     dependencies:
       '@nymproject/mix-fetch':

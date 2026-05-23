@@ -11,7 +11,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use time::UtcDateTime;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, MutexGuard, RwLock};
 use tracing::{error, instrument, trace, warn};
 use utoipa::ToSchema;
 
@@ -42,6 +42,7 @@ pub(crate) struct AppState {
     node_delegations: Arc<RwLock<DelegationsCache>>,
     bin_info: BinaryInfo,
     ticketbook_manager_state: TicketbookManagerState,
+    testrun_assignment_guard: Arc<Mutex<()>>,
 }
 
 impl AppState {
@@ -66,6 +67,7 @@ impl AppState {
             node_delegations,
             bin_info: BinaryInfo::new(),
             ticketbook_manager_state,
+            testrun_assignment_guard: Arc::new(Default::default()),
         }
     }
 
@@ -79,6 +81,10 @@ impl AppState {
 
     pub(crate) fn is_registered(&self, agent_pubkey: &PublicKey) -> bool {
         self.agent_key_list.contains(agent_pubkey)
+    }
+
+    pub(crate) async fn lock_testrun_assignment(&self) -> MutexGuard<'_, ()> {
+        self.testrun_assignment_guard.lock().await
     }
 
     pub(crate) fn agent_max_count(&self) -> i64 {

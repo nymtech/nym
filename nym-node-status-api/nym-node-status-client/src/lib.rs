@@ -2,7 +2,7 @@ use crate::models::{TestrunAssignmentWithTickets, get_testrun, submit_results, s
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
-use tracing::{instrument, warn};
+use tracing::{error, instrument, warn};
 
 mod api;
 pub mod auth;
@@ -101,7 +101,13 @@ impl NsApiClient {
             .json(&submit_results)
             .send()
             .await
-            .and_then(|response| response.error_for_status())?;
+            .inspect_err(|err| error!("result submission failure: {err}"))
+            .and_then(|response| {
+                if response.status().is_client_error() {
+                    error!("result submission failure: {response:?}")
+                }
+                response.error_for_status()
+            })?;
 
         tracing::debug!("Submitted results: {})", res.status());
         Ok(())

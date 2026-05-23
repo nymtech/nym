@@ -28,7 +28,7 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/", axum::routing::get(request_testrun))
         .route("/:testrun_id", axum::routing::post(submit_testrun))
         .route("/:testrun_id/v2", axum::routing::post(submit_testrun_v2))
-        .layer(DefaultBodyLimit::max(1024 * 1024 * 5))
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 512))
 }
 
 #[tracing::instrument(level = "debug", skip_all)]

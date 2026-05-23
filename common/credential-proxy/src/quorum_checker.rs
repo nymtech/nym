@@ -57,6 +57,7 @@ impl QuorumStateChecker {
     }
 
     async fn check_quorum_state(&self) -> Result<bool, CredentialProxyError> {
+        info!("checking the current quorum state");
         let client_guard = self.client.query_chain().await;
 
         // split the operation as we only need to hold the reference to chain client for the first part
@@ -65,6 +66,7 @@ impl QuorumStateChecker {
         drop(client_guard);
 
         let res = check_known_dealers(dkg_details).await?;
+        info!("there are {} known DKG dealers", res.results.len());
 
         let Some(signing_threshold) = res.threshold else {
             warn!(
@@ -76,12 +78,33 @@ impl QuorumStateChecker {
         let mut working_issuer = 0;
 
         for result in res.results {
+            let dealer = &result.information;
+            let info = format!("[id: {}] @ {}", dealer.node_index, dealer.announce_address);
             if result.chain_available() && result.signing_available() {
+                info!("✅ {info} is fully available");
                 working_issuer += 1;
+            } else if !result.chain_available() && !result.signing_available() {
+                warn!("❌ {info} is not available for both chain and signing");
+            } else if !result.chain_available() {
+                warn!("❌ {info} is not available for chain");
+            } else {
+                warn!("❌ {info} is not available for signing");
             }
         }
 
-        Ok((working_issuer as u64) >= signing_threshold)
+        let available = (working_issuer as u64) >= signing_threshold;
+
+        if available {
+            info!(
+                "✅ Quorum state is available with {working_issuer} out of {signing_threshold} issuers"
+            )
+        } else {
+            error!(
+                "❌ Quorum state is not available with {working_issuer} out of {signing_threshold} issuers"
+            )
+        }
+
+        Ok(available)
     }
 
     pub async fn run_forever(self) {

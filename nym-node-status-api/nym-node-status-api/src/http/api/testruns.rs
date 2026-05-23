@@ -19,7 +19,7 @@ use nym_node_status_client::models::{
     TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2,
 };
 use reqwest::StatusCode;
-use tracing::error;
+use tracing::{debug, error};
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
 
@@ -123,6 +123,7 @@ async fn submit_testrun(
     Json(submitted_result): Json<submit_results::SubmitResults>,
 ) -> HttpResult<StatusCode> {
     state.authenticate_agent_submission(&submitted_result)?;
+    debug!("attempting to submit testrun {submitted_testrun_id} from an authenticated agent");
 
     let db = state.db_pool();
     let mut conn = db

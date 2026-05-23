@@ -2,7 +2,7 @@ use crate::models::{TestrunAssignmentWithTickets, get_testrun, submit_results, s
 use anyhow::bail;
 use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
-use tracing::{error, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 mod api;
 pub mod auth;
@@ -81,10 +81,15 @@ impl NsApiClient {
         &self,
         testrun_id: i64,
         probe_result: nym_gateway_probe::ProbeResult,
-        probe_log: String,
+        mut probe_log: String,
         assigned_at_utc: i64,
     ) -> anyhow::Result<()> {
         let target_url = self.api.submit_results(testrun_id);
+
+        debug!("the log is {} long", probe_log.len());
+        if probe_log.len() > 1024 {
+            probe_log.truncate(1024)
+        }
 
         let payload = submit_results::Payload {
             probe_result,

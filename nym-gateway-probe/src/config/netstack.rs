@@ -42,7 +42,7 @@ pub struct NetstackArgs {
 impl Default for NetstackArgs {
     fn default() -> Self {
         Self {
-            netstack_download_timeout_sec: 180,
+            netstack_download_timeout_sec: 30,
             metadata_timeout_sec: 30,
             netstack_v4_dns: String::from("1.1.1.1"),
             netstack_v6_dns: String::from("2606:4700:4700::1111"),
@@ -72,7 +72,7 @@ mod tests {
 
         // Create a default instance to test the values
         let args = NetstackArgs {
-            netstack_download_timeout_sec: 180,
+            netstack_download_timeout_sec: 30,
             metadata_timeout_sec: 30,
             netstack_v4_dns: "1.1.1.1".to_string(),
             netstack_v6_dns: "2606:4700:4700::1111".to_string(),
@@ -107,7 +107,7 @@ mod tests {
         assert_eq!(args.netstack_v6_dns, "2606:4700:4700::1111");
 
         // Test other defaults
-        assert_eq!(args.netstack_download_timeout_sec, 180);
+        assert_eq!(args.netstack_download_timeout_sec, 30);
         assert_eq!(args.netstack_num_ping, 5);
         assert_eq!(args.netstack_send_timeout_sec, 3);
         assert_eq!(args.netstack_recv_timeout_sec, 3);
@@ -146,7 +146,7 @@ mod tests {
     fn test_netstack_args_multiple_values() {
         // Test that multiple hosts and IPs can be stored
         let args = NetstackArgs {
-            netstack_download_timeout_sec: 180,
+            netstack_download_timeout_sec: 30,
             metadata_timeout_sec: 30,
             netstack_v4_dns: "1.1.1.1".to_string(),
             netstack_v6_dns: "2606:4700:4700::1111".to_string(),
@@ -208,7 +208,7 @@ mod tests {
     fn test_netstack_args_domain_validation() {
         // Test that our domain choices are reasonable
         let args = NetstackArgs {
-            netstack_download_timeout_sec: 180,
+            netstack_download_timeout_sec: 30,
             metadata_timeout_sec: 30,
             netstack_v4_dns: "1.1.1.1".to_string(),
             netstack_v6_dns: "2606:4700:4700::1111".to_string(),

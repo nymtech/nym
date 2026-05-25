@@ -43,7 +43,7 @@ impl Default for NetstackArgs {
     fn default() -> Self {
         Self {
             netstack_download_timeout_sec: 30,
-            metadata_timeout_sec: 30,
+            metadata_timeout_sec: 10,
             netstack_v4_dns: String::from("1.1.1.1"),
             netstack_v6_dns: String::from("2606:4700:4700::1111"),
             netstack_num_ping: 5,

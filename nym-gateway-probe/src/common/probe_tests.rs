@@ -26,7 +26,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::LpRegistrationClient;
+use nym_registration_client::{LpClientError, LpRegistrationClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
@@ -186,7 +186,11 @@ pub async fn lp_registration_probe(
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {lp_address}...");
-    match client.perform_handshake().await {
+    let handshake_result =
+        tokio::time::timeout(Duration::from_secs(15), client.perform_handshake())
+            .await
+            .unwrap_or_else(|_| Err(LpClientError::HandshakeTimeout));
+    match handshake_result {
         Ok(_) => {
             info!("LP handshake completed successfully");
             lp_outcome.can_connect = true; // Connection succeeded if handshake succeeded
@@ -209,16 +213,23 @@ pub async fn lp_registration_probe(
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
-    let gateway_data = match client
-        .register_dvpn(
+    let register_result = tokio::time::timeout(
+        Duration::from_secs(15),
+        client.register_dvpn(
             &mut rng09,
             &wg_keypair,
             &gateway_identity,
             bandwidth_controller,
             ticket_type,
-        )
-        .await
-    {
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(LpClientError::Other(
+            "LP registration timed out after 15s".to_string(),
+        ))
+    });
+    let gateway_data = match register_result {
         Ok(data) => data,
         Err(e) => {
             let error_msg = format!("LP registration failed: {}", e);

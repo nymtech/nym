@@ -11,6 +11,7 @@ use crate::{
 };
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
+use axum::extract::rejection::JsonRejection;
 use axum::{
     Router,
     extract::{Path, State},
@@ -120,8 +121,16 @@ async fn request_testrun(
 async fn submit_testrun(
     Path(submitted_testrun_id): Path<i32>,
     State(state): State<AppState>,
-    Json(submitted_result): Json<submit_results::SubmitResults>,
+    submitted_result: Result<Json<submit_results::SubmitResults>, JsonRejection>,
 ) -> HttpResult<StatusCode> {
+    let submitted_result = match submitted_result {
+        Ok(json) => json.0,
+        Err(err) => {
+            tracing::error!("json got rejected: {err}");
+            return Err(HttpError::invalid_input(err));
+        }
+    };
+
     state.authenticate_agent_submission(&submitted_result)?;
     debug!("attempting to submit testrun {submitted_testrun_id} from an authenticated agent");
 

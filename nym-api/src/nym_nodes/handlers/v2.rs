@@ -10,7 +10,7 @@ use axum::Router;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_api_requests::models::AnnotationResponseV2;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
-use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_http_api_common::{FormattedResponse, OutputParamsV2};
 use tower_http::compression::CompressionLayer;
 
 pub(crate) fn routes() -> Router<AppState> {
@@ -43,7 +43,11 @@ async fn get_described_nodes(
     let output = pagination.output.unwrap_or_default();
 
     let cache = state.described_nodes_cache.get().await?;
-    let descriptions = cache.all_nodes().cloned().collect::<Vec<_>>();
+    // convert description to V2
+    let descriptions = cache
+        .all_nodes()
+        .map(|d| d.clone().into())
+        .collect::<Vec<_>>();
 
     Ok(output.to_response(PaginatedResponse {
         pagination: Pagination {
@@ -64,14 +68,13 @@ async fn get_described_nodes(
         (status = 200, content(
             (AnnotationResponseV2 = "application/json"),
             (AnnotationResponseV2 = "application/yaml"),
-            (AnnotationResponseV2 = "application/bincode")
         ))
     ),
-    params(NodeIdParam, OutputParams),
+    params(NodeIdParam, OutputParamsV2),
 )]
 async fn get_node_annotation(
     Path(NodeIdParam { node_id }): Path<NodeIdParam>,
-    Query(output): Query<OutputParams>,
+    Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<AnnotationResponseV2>> {
     let annotations = state.node_status_cache().node_annotations().await?;

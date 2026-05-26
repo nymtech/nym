@@ -103,4 +103,16 @@ impl NodeStatusCache {
     ) -> Result<RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotationV2>>, UninitialisedCache> {
         self.get(|c| &c.node_annotations).await
     }
+
+    async fn node_balances(
+        &self,
+    ) -> Result<HashMap<NodeId, Option<cosmwasm_std::Coin>>, NodeStatusCacheError> {
+        Ok(self
+            .cache()
+            .await?
+            .node_annotations
+            .iter()
+            .map(|(node_id, annotation)| (*node_id, annotation.on_chain_balance.clone()))
+            .collect::<HashMap<_, _>>())
+    }
 }

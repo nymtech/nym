@@ -8,9 +8,7 @@ use crate::models::described::type_translation::{
 };
 use crate::models::described::v1::{DescribedNodeTypeV1, NymNodeDataV1, NymNodeDescriptionV1};
 use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
-use crate::nym_nodes::{
-    BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SemiSkimmedNodeV3, SkimmedNodeV1,
-};
+use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNodeV1};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
@@ -117,44 +115,6 @@ impl NymNodeDescriptionV2 {
             supported_roles: self.description.declared_role,
             entry,
             performance,
-        }
-    }
-
-    pub fn to_semi_skimmed_node(
-        &self,
-        current_rotation_id: u32,
-        role: NodeRole,
-        performance: Performance,
-    ) -> SemiSkimmedNodeV1 {
-        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
-
-        SemiSkimmedNodeV1 {
-            basic: skimmed_node,
-            x25519_noise_versioned_key: self
-                .description
-                .host_information
-                .keys
-                .x25519_versioned_noise,
-        }
-    }
-
-    pub fn to_semi_skimmed_node_v3(
-        &self,
-        current_rotation_id: u32,
-        role: NodeRole,
-        performance: Performance,
-    ) -> SemiSkimmedNodeV3 {
-        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
-
-        SemiSkimmedNodeV3 {
-            basic: skimmed_node,
-            noise_key: self
-                .description
-                .host_information
-                .keys
-                .x25519_versioned_noise,
-            build_version: self.description.build_information.build_version.clone(),
-            lp: self.description.lewes_protocol.clone(),
         }
     }
 }
@@ -276,10 +236,10 @@ pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
 
     let mut rng = u64_seeded_rng(seed);
 
-    let ed25519 = ed25519::KeyPair::new(&mut rng);
+    let ed25519 = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
 
     // just reuse the same x25519 key for everything - this is just a data mock
-    let x25519 = x25519::KeyPair::new(&mut rng);
+    let x25519 = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
 
     let mut dummy_kems = std::collections::BTreeMap::new();
     for kem in [LPKEM::McEliece, LPKEM::McEliece] {

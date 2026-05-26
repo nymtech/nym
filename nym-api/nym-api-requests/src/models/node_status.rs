@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::PlaceholderJsonSchemaImpl;
-use crate::models::DisplayRole;
+use crate::models::{CoinSchema, DisplayRole};
 use crate::pagination::PaginatedResponse;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Coin, Decimal};
 use nym_contracts_common::{IdentityKey, NaiveFloat};
 use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
@@ -419,17 +419,12 @@ pub struct NodeAnnotationV1 {
     pub detailed_performance: DetailedNodePerformanceV1,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(
-        export,
-        export_to = "ts-packages/types/src/types/rust/NodeAnnotationV2.ts"
-    )
-)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NodeAnnotationV2 {
     pub current_role: Option<DisplayRole>,
+
+    #[schema(value_type = Option<CoinSchema>)]
+    pub on_chain_balance: Option<Coin>,
 
     pub detailed_performance: DetailedNodePerformanceV2,
 }
@@ -449,7 +444,7 @@ impl From<NodeAnnotationV2> for NodeAnnotationV1 {
             detailed_performance: DetailedNodePerformanceV1 {
                 performance_score: value.detailed_performance.performance_score,
                 routing_score: value.detailed_performance.routing_score,
-                config_score: value.detailed_performance.config_score,
+                config_score: value.detailed_performance.config_score.into(),
             },
         }
     }
@@ -470,14 +465,14 @@ pub struct DetailedNodePerformanceV1 {
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
-    pub config_score: ConfigScore,
+    pub config_score: ConfigScoreV1,
 }
 
 impl DetailedNodePerformanceV1 {
     pub fn new(
         performance_score: f64,
         routing_score: RoutingScore,
-        config_score: ConfigScore,
+        config_score: ConfigScoreV1,
     ) -> DetailedNodePerformanceV1 {
         Self {
             performance_score,
@@ -508,7 +503,7 @@ pub struct DetailedNodePerformanceV2 {
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
-    pub config_score: ConfigScore,
+    pub config_score: ConfigScoreV2,
     pub stress_testing_score: StressTestingScore,
 }
 
@@ -516,7 +511,7 @@ impl DetailedNodePerformanceV2 {
     pub fn new(
         performance_score: f64,
         routing_score: RoutingScore,
-        config_score: ConfigScore,
+        config_score: ConfigScoreV2,
         stress_testing_score: StressTestingScore,
     ) -> DetailedNodePerformanceV2 {
         Self {
@@ -588,10 +583,13 @@ impl StressTestingScore {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export, export_to = "ts-packages/types/src/types/rust/ConfigScore.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ConfigScoreV2.ts"
+    )
 )]
 #[non_exhaustive]
-pub struct ConfigScore {
+pub struct ConfigScoreV2 {
     /// Total score after taking all the criteria into consideration
     pub score: f64,
 
@@ -599,43 +597,109 @@ pub struct ConfigScore {
     pub self_described_api_available: bool,
     pub accepted_terms_and_conditions: bool,
     pub runs_nym_node_binary: bool,
+
+    /// Describes the node is capable of sending chain/contract transactions
+    pub chain_interaction_capabilities: ChainInteractionCapabilities,
 }
 
-impl ConfigScore {
+impl ConfigScoreV2 {
     pub fn new(
         score: f64,
         versions_behind: u32,
         accepted_terms_and_conditions: bool,
         runs_nym_node_binary: bool,
-    ) -> ConfigScore {
+        chain_interaction_capabilities: ChainInteractionCapabilities,
+    ) -> ConfigScoreV2 {
         Self {
             score,
             versions_behind: Some(versions_behind),
             self_described_api_available: true,
             accepted_terms_and_conditions,
             runs_nym_node_binary,
+            chain_interaction_capabilities,
         }
     }
 
-    pub fn bad_semver() -> ConfigScore {
-        ConfigScore {
+    pub fn bad_semver() -> ConfigScoreV2 {
+        ConfigScoreV2 {
             score: 0.0,
             versions_behind: None,
             self_described_api_available: true,
             accepted_terms_and_conditions: false,
             runs_nym_node_binary: false,
+            chain_interaction_capabilities: Default::default(),
         }
     }
 
-    pub fn unavailable() -> ConfigScore {
-        ConfigScore {
+    pub fn unavailable() -> ConfigScoreV2 {
+        ConfigScoreV2 {
             score: 0.0,
             versions_behind: None,
             self_described_api_available: false,
             accepted_terms_and_conditions: false,
             runs_nym_node_binary: false,
+            chain_interaction_capabilities: Default::default(),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ChainInteractionCapabilities.ts"
+    )
+)]
+pub struct ChainInteractionCapabilities {
+    pub has_sufficient_tokens: bool,
+    pub is_fee_grant_grantee: bool,
+}
+
+impl ChainInteractionCapabilities {
+    pub fn new(has_sufficient_tokens: bool, is_fee_grant_grantee: bool) -> Self {
+        Self {
+            has_sufficient_tokens,
+            is_fee_grant_grantee,
+        }
+    }
+
+    pub fn can_send_transactions(&self) -> bool {
+        self.has_sufficient_tokens || self.is_fee_grant_grantee
+    }
+}
+
+impl From<ConfigScoreV2> for ConfigScoreV1 {
+    fn from(score_v2: ConfigScoreV2) -> ConfigScoreV1 {
+        ConfigScoreV1 {
+            score: score_v2.score,
+            versions_behind: score_v2.versions_behind,
+            self_described_api_available: score_v2.self_described_api_available,
+            accepted_terms_and_conditions: score_v2.accepted_terms_and_conditions,
+            runs_nym_node_binary: score_v2.runs_nym_node_binary,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ConfigScoreV1.ts"
+    )
+)]
+#[non_exhaustive]
+pub struct ConfigScoreV1 {
+    /// Total score after taking all the criteria into consideration
+    pub score: f64,
+
+    pub versions_behind: Option<u32>,
+    pub self_described_api_available: bool,
+    pub accepted_terms_and_conditions: bool,
+    pub runs_nym_node_binary: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -653,15 +717,7 @@ pub struct AnnotationResponseV1 {
     pub annotation: Option<NodeAnnotationV1>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(
-        export,
-        export_to = "ts-packages/types/src/types/rust/AnnotationResponseV2.ts"
-    )
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct AnnotationResponseV2 {
     #[schema(value_type = u32)]
     pub node_id: NodeId,

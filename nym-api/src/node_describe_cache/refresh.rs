@@ -3,7 +3,7 @@
 
 use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::node_describe_cache::NodeDescribeCacheError;
-use nym_api_requests::models::described::v2::{DescribedNodeTypeV2, NymNodeDescriptionV2};
+use nym_api_requests::models::described::v3::{DescribedNodeTypeV3, NymNodeDescriptionV3};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
@@ -15,7 +15,7 @@ pub(crate) struct RefreshData {
     host: String,
     node_id: NodeId,
     expected_identity: ed25519::PublicKey,
-    node_type: DescribedNodeTypeV2,
+    node_type: DescribedNodeTypeV3,
 
     port: Option<u16>,
 }
@@ -27,7 +27,7 @@ impl<'a> TryFrom<&'a NymNodeDetails> for RefreshData {
         Ok(RefreshData::new(
             &node.bond_information.node.host,
             node.bond_information.identity().parse()?,
-            DescribedNodeTypeV2::NymNode,
+            DescribedNodeTypeV3::NymNode,
             node.node_id(),
             node.bond_information.node.custom_http_port,
         ))
@@ -38,7 +38,7 @@ impl RefreshData {
     pub fn new(
         host: impl Into<String>,
         expected_identity: ed25519::PublicKey,
-        node_type: DescribedNodeTypeV2,
+        node_type: DescribedNodeTypeV3,
         node_id: NodeId,
         port: Option<u16>,
     ) -> Self {
@@ -55,7 +55,7 @@ impl RefreshData {
         self.node_id
     }
 
-    pub(crate) async fn try_refresh(self, allow_all_ips: bool) -> Option<NymNodeDescriptionV2> {
+    pub(crate) async fn try_refresh(self, allow_all_ips: bool) -> Option<NymNodeDescriptionV3> {
         match try_get_description(self, allow_all_ips).await {
             Ok(description) => Some(description),
             Err(err) => {
@@ -69,7 +69,7 @@ impl RefreshData {
 async fn try_get_description(
     data: RefreshData,
     allow_all_ips: bool,
-) -> Result<NymNodeDescriptionV2, NodeDescribeCacheError> {
+) -> Result<NymNodeDescriptionV3, NodeDescribeCacheError> {
     let client = NymNodeApiClientRetriever::new(bin_info!())
         .with_expected_identity(Some(data.expected_identity.to_base58_string()))
         .with_verify_host_information()
@@ -101,7 +101,7 @@ async fn try_get_description(
     let node_info = query_for_described_data(&client.client, data.node_id).await?;
     let description = node_info.into_node_description(host_info.data);
 
-    Ok(NymNodeDescriptionV2 {
+    Ok(NymNodeDescriptionV3 {
         node_id: data.node_id,
         contract_node_type: data.node_type,
         description,

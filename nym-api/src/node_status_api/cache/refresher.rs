@@ -11,45 +11,66 @@ use crate::node_status_api::cache::config_score::calculate_config_score;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::RefreshRequester;
 use crate::support::caching::CacheNotificationWatcher;
+use crate::support::nyxd::Client;
 use crate::{
     mixnet_contract_cache::cache::MixnetContractCache,
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
-use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2, NymNodeDescriptionV2};
+use cosmwasm_std::Coin;
+use futures::StreamExt;
+use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
+use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2};
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 use tokio::time;
+use tokio::time::Instant;
 use tracing::{error, info, trace, warn};
 
 pub(crate) struct NodeStatusCacheConfig {
+    pub(crate) minimum_on_chain_balance: Coin,
+    pub(crate) balance_retrieval_concurrency: usize,
+
+    /// Indicates how often should the chain balances of known nodes be refreshed.
+    /// (it is an overkill to do it every single iteration)
+    pub(crate) chain_balances_refresh_interval: Duration,
+
     pub(crate) fallback_caching_interval: Duration,
 
     /// Specify whether external stress testing data should be used for calculating node performance
     /// score used for rewarding and active set selection
     /// note: this can only be enabled if use_performance_contract_data is set to false!
-    pub use_stress_testing_data: bool,
+    pub(crate) use_stress_testing_data: bool,
 
     /// If `use_stress_testing_data` is set to true, this specifies the minimum % of nodes,
     /// that must have their stress data available in the `stress_testing_data_period`,
     /// in order to include that metric in performance calculation.
     /// This is done to protect against Network Monitor failures and not receiving any data.
-    pub minimum_available_stress_testing_results: f32,
+    pub(crate) minimum_available_stress_testing_results: f32,
 
     /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
-    pub stress_testing_score_weight: f64,
+    pub(crate) stress_testing_score_weight: f64,
 }
 
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
     config: NodeStatusCacheConfig,
 
+    /// Indicates the last time chain balances of known nodes were refreshed.
+    last_refreshed_chain_balances: Option<Instant>,
+
     // Main stored data
     cache: NodeStatusCache,
+
+    /// Query client for retrieving blockchain data
+    query_client: QueryHttpRpcNyxdClient,
 
     // Sources for when refreshing data
     mixnet_contract_cache: MixnetContractCache,
@@ -75,9 +96,10 @@ pub struct NodeStatusCacheRefresher {
 
 impl NodeStatusCacheRefresher {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub(crate) async fn new(
         cache: NodeStatusCache,
         config: NodeStatusCacheConfig,
+        chain_client: &Client,
         contract_cache: MixnetContractCache,
         described_cache: SharedCache<DescribedNodes>,
         contract_cache_listener: CacheNotificationWatcher,
@@ -85,9 +107,14 @@ impl NodeStatusCacheRefresher {
         performance_provider: Box<dyn NodePerformanceProvider + Send + Sync>,
         on_disk_file: PathBuf,
     ) -> Self {
+        // due to the number of queries required, create an explicit query instance
+        // of our nyxd client to avoid potentially blocking tasks requiring signing access
+        let query_client = chain_client.query_client().await;
+
         Self {
             cache,
             config,
+            last_refreshed_chain_balances: None,
             mixnet_contract_cache: contract_cache,
             described_cache,
             mixnet_contract_cache_listener: contract_cache_listener,
@@ -95,6 +122,7 @@ impl NodeStatusCacheRefresher {
             refresh_requester: Default::default(),
             on_disk_file,
             performance_provider,
+            query_client,
         }
     }
 
@@ -182,7 +210,7 @@ impl NodeStatusCacheRefresher {
     }
 
     async fn maybe_refresh(
-        &self,
+        &mut self,
         fallback_interval: &mut time::Interval,
         last_updated: &mut OffsetDateTime,
     ) {
@@ -202,6 +230,63 @@ impl NodeStatusCacheRefresher {
         fallback_interval.reset();
     }
 
+    // SAFETY: unwrap is fine as if the mutex got poisoned we'd be experiencing some UB anyway
+    #[allow(clippy::unwrap_used)]
+    async fn retrieve_balances(
+        &self,
+        nodes: &DescribedNodes,
+    ) -> Result<HashMap<NodeId, Option<Coin>>, NodeStatusCacheError> {
+        let denom = self.config.minimum_on_chain_balance.denom.clone();
+
+        // create an iterator of node ids with valid associated account addresses
+        let to_check = nodes.nodes.values().filter_map(|n| {
+            n.description
+                .auxiliary_details
+                .address
+                .as_ref()
+                .and_then(|addr| {
+                    AccountId::from_str(addr)
+                        .inspect_err(|_| {
+                            warn!("node {} has provided an invalid account address", n.node_id)
+                        })
+                        .ok()
+                        .map(|account_id| (n.node_id, account_id))
+                })
+        });
+
+        // note: we use `for_each_concurrent` rather than `stream::iter(..).buffer_unordered(..)`.
+        // The latter yields a `Stream` whose `Send` bound gets over-generalised once chained into
+        // `collect()`, tripping "implementation of `Send` is not general enough" (rust-lang/rust#102211)
+        let concurrency = self.config.balance_retrieval_concurrency.max(1);
+
+        // std Mutex is fine because we don't hold it across await points
+        let balances = std::sync::Mutex::new(HashMap::<NodeId, Option<Coin>>::new());
+        futures::stream::iter(to_check)
+            .for_each_concurrent(concurrency, |(node_id, account_id)| {
+                let denom = denom.clone();
+                let query_client = &self.query_client;
+                let balances = &balances;
+                async move {
+                    match query_client.get_balance(&account_id, denom).await {
+                        Ok(balance) => {
+                            balances
+                                .lock()
+                                .unwrap()
+                                .insert(node_id, balance.map(Into::into));
+                        }
+                        Err(err) => {
+                            warn!(node_id, %err, "failed to retrieve node balance");
+                        }
+                    }
+                }
+            })
+            .await;
+        let balances = balances.into_inner().unwrap();
+
+        Ok(balances)
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn produce_node_annotations(
         &self,
         config_score_data: &ConfigScoreData,
@@ -210,12 +295,14 @@ impl NodeStatusCacheRefresher {
         nym_nodes: &[NymNodeDetails],
         rewarded_set: &CachedEpochRewardedSet,
         described_nodes: &DescribedNodes,
+        balances: HashMap<NodeId, Option<Coin>>,
     ) -> HashMap<NodeId, NodeAnnotationV2> {
         let mut annotations = HashMap::new();
         if nym_nodes.is_empty() {
             return annotations;
         }
 
+        let minimum_balance = &self.config.minimum_on_chain_balance;
         let use_stress_testing_scores = self.config.use_stress_testing_data;
         let threshold = self.config.minimum_available_stress_testing_results;
 
@@ -248,8 +335,15 @@ impl NodeStatusCacheRefresher {
             let node_id = nym_node.node_id();
             let described = described_nodes.get_node(&node_id);
             let routing_score = routing_scores.get_or_log(node_id);
-            let config_score = calculate_config_score(config_score_data, described);
             let stress_testing_score = stress_testing_scores.get_or_log(node_id);
+            let on_chain_balance = balances.get(&node_id).unwrap_or(&None).clone();
+
+            let config_score = calculate_config_score(
+                minimum_balance,
+                config_score_data,
+                described,
+                &on_chain_balance,
+            );
 
             // a node only takes the stress-testing component if it is actually stress-tested (i.e.
             // it is a mixnode); gateways have no stress data and must not be penalised for it.
@@ -266,6 +360,7 @@ impl NodeStatusCacheRefresher {
                 node_id,
                 NodeAnnotationV2 {
                     current_role: rewarded_set.role(node_id).map(|r| r.into()),
+                    on_chain_balance,
                     detailed_performance: DetailedNodePerformanceV2::new(
                         performance,
                         routing_score,
@@ -279,9 +374,16 @@ impl NodeStatusCacheRefresher {
         annotations
     }
 
+    fn should_refresh_balances(&self) -> bool {
+        let Some(last_refresh) = self.last_refreshed_chain_balances else {
+            return true;
+        };
+        last_refresh.elapsed() > self.config.chain_balances_refresh_interval
+    }
+
     /// Refreshes the node status cache by fetching the latest data from the contract cache
     #[allow(deprecated)]
-    async fn refresh(&self) -> Result<(), NodeStatusCacheError> {
+    async fn refresh(&mut self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
         // Fetch contract cache data to work with
@@ -313,6 +415,17 @@ impl NodeStatusCacheRefresher {
             )
             .await?;
 
+        // decide whether to refresh cache of node balances
+
+        let balances = if self.should_refresh_balances() {
+            let balances = self.retrieve_balances(&described).await?;
+            self.last_refreshed_chain_balances = Some(Instant::now());
+            balances
+        } else {
+            // use the currently cached values instead
+            self.cache.node_balances().await?
+        };
+
         // Create annotated data
         let node_annotations = self
             .produce_node_annotations(
@@ -322,6 +435,7 @@ impl NodeStatusCacheRefresher {
                 &nym_nodes,
                 &rewarded_set,
                 &described,
+                balances,
             )
             .await;
 
@@ -354,7 +468,7 @@ impl NodeStatusCacheRefresher {
 /// Today only mixnodes are stress-tested; when gateway stress testing lands, widen this predicate
 /// (e.g. to also accept `entry`/`exit` capable nodes) and nothing else in the scoring path needs
 /// to change.
-fn stress_test_eligible(described: Option<&NymNodeDescriptionV2>) -> bool {
+fn stress_test_eligible(described: Option<&NymNodeDescriptionV3>) -> bool {
     described
         .map(|n| n.description.declared_role.mixnode)
         .unwrap_or(false)

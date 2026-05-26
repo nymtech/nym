@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
-use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
-use nym_api_requests::models::ConfigScore;
+use cosmwasm_std::Coin;
+use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
+use nym_api_requests::models::{ChainInteractionCapabilities, ConfigScoreV2};
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::VersionScoreFormulaParams;
+use tracing::warn;
 
 fn versions_behind_factor_to_config_score(
     versions_behind: u32,
@@ -18,17 +20,29 @@ fn versions_behind_factor_to_config_score(
     penalty.powf((versions_behind as f64).powf(scaling))
 }
 
+fn has_sufficient_tokens(minimum_balance: &Coin, chain_balance: &Option<Coin>) -> bool {
+    let Some(chain_balance) = chain_balance else {
+        return false;
+    };
+    if chain_balance.denom != minimum_balance.denom {
+        return false;
+    }
+    chain_balance.amount >= minimum_balance.amount
+}
+
 pub(crate) fn calculate_config_score(
+    minimum_balance: &Coin,
     config_score_data: &ConfigScoreData,
-    described_data: Option<&NymNodeDescriptionV2>,
-) -> ConfigScore {
+    described_data: Option<&NymNodeDescriptionV3>,
+    chain_balance: &Option<Coin>,
+) -> ConfigScoreV2 {
     let Some(described) = described_data else {
-        return ConfigScore::unavailable();
+        return ConfigScoreV2::unavailable();
     };
 
     let node_version = &described.description.build_information.build_version;
     let Ok(reported_semver) = node_version.parse::<semver::Version>() else {
-        return ConfigScore::bad_semver();
+        return ConfigScoreV2::bad_semver();
     };
     let versions_behind = config_score_data
         .config_score_params
@@ -55,10 +69,20 @@ pub(crate) fn calculate_config_score(
         )
     };
 
-    ConfigScore::new(
+    let TODO = "";
+    warn!("unimplemented check for feegrant");
+
+    let chain_interaction = ChainInteractionCapabilities {
+        has_sufficient_tokens: has_sufficient_tokens(minimum_balance, chain_balance),
+        // TODO: implement this
+        is_fee_grant_grantee: false,
+    };
+
+    ConfigScoreV2::new(
         version_score,
         versions_behind,
         accepted_terms_and_conditions,
         runs_nym_node,
+        chain_interaction,
     )
 }

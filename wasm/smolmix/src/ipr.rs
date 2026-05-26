@@ -229,3 +229,66 @@ async fn send_to_ipr(
         .await
         .map_err(|_| FetchError::Tunnel("mixnet input channel closed".into()))
 }
+
+// IPR auto-discovery
+
+/// Performance-weighted random pick from v9-capable IPRs. Mirrors
+/// `nym_sdk::ip_packet_client::discovery::get_best_ipr`, ported to
+/// avoid pulling the SDK dep graph into wasm.
+pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient, FetchError> {
+    use nym_validator_client::nym_api::NymApiClientExt;
+    use rand::seq::SliceRandom;
+    use std::collections::HashMap;
+
+    let url = nym_api_urls
+        .first()
+        .ok_or_else(|| FetchError::Tunnel("no nym-api URLs for IPR discovery".into()))?;
+    let client = nym_wasm_client_core::ApiClient::builder(url.clone())
+        .map_err(|e| FetchError::Tunnel(format!("nym-api builder failed: {e}")))?
+        .build()
+        .map_err(|e| FetchError::Tunnel(format!("nym-api build failed: {e}")))?;
+
+    let all_nodes: HashMap<_, _> = client
+        .get_all_described_nodes_v2()
+        .await
+        .map_err(|e| FetchError::Tunnel(format!("describe nodes failed: {e}")))?
+        .into_iter()
+        .map(|d| (d.ed25519_identity_key(), d))
+        .collect();
+
+    let exits = client
+        .get_all_basic_nodes_with_metadata()
+        .await
+        .map_err(|e| FetchError::Tunnel(format!("list nodes failed: {e}")))?
+        .nodes;
+
+    let mut candidates: Vec<(Recipient, u8)> = Vec::new();
+    for exit in exits {
+        let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
+            continue;
+        };
+        let Ok(version) = semver::Version::parse(node.version()) else {
+            continue;
+        };
+        if version < nym_ip_packet_requests::v9::MIN_RELEASE_VERSION {
+            continue;
+        }
+        let Some(ipr_info) = node.description.ip_packet_router.clone() else {
+            continue;
+        };
+        let Ok(addr) = ipr_info.address.parse::<Recipient>() else {
+            continue;
+        };
+        candidates.push((addr, exit.performance.round_to_integer()));
+    }
+
+    let picked = candidates
+        .choose_weighted(&mut rand::thread_rng(), |c| c.1 as f64)
+        .map_err(|_| FetchError::Tunnel("no v9-capable IPRs available".into()))?;
+    nym_wasm_utils::console_log!(
+        "[smolmix] auto-discovered IPR (perf={}): {}",
+        picked.1,
+        picked.0
+    );
+    Ok(picked.0)
+}

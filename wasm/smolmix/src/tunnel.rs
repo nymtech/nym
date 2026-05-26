@@ -42,7 +42,9 @@ use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
 /// Configuration for `setupMixTunnel(opts)`.
 pub struct TunnelOpts {
-    pub ipr_address: Recipient,
+    /// Pinned IPR. `None` triggers performance-weighted auto-discovery via
+    /// `ipr::discover_ipr` using the base client's resolved `nym_api_urls`.
+    pub ipr_address: Option<Recipient>,
     /// Client storage ID. Randomise per session to get a clean client.
     pub client_id: String,
     /// Use `wss://` for gateway connections (default: `true`).
@@ -92,6 +94,10 @@ struct ClientHandles {
     reconstructed_receiver: ipr::ReconstructedReceiver,
     request_sender: ReceivedBufferRequestSender,
     shutdown_handle: ShutdownTracker,
+    /// Resolved Nym API URLs from the base client config. Lifted out so
+    /// auto-discovery (`ipr::discover_ipr`) can reuse the same URLs the
+    /// base client itself will use.
+    nym_api_urls: Vec<url::Url>,
 }
 
 /// smoltcp handles returned by `init_network_stack` (reactor + bridge already spawned).
@@ -104,7 +110,6 @@ struct NetworkStack {
 impl WasmTunnel {
     /// Connect to the mixnet and establish an IPR tunnel.
     pub async fn new(opts: TunnelOpts) -> Result<Self, FetchError> {
-        let ipr_address = opts.ipr_address;
         nym_wasm_utils::console_log!("[smolmix] starting tunnel...");
 
         let ClientHandles {
@@ -112,7 +117,16 @@ impl WasmTunnel {
             mut reconstructed_receiver,
             request_sender,
             shutdown_handle,
+            nym_api_urls,
         } = Self::start_nym_client(&opts).await?;
+
+        let ipr_address = match opts.ipr_address {
+            Some(addr) => addr,
+            None => {
+                nym_wasm_utils::console_log!("[smolmix] no IPR specified, auto-discovering...");
+                ipr::discover_ipr(&nym_api_urls).await?
+            }
+        };
 
         let stream_id: u64 = rand::random();
         let allocated_ips = Self::ipr_handshake(
@@ -145,7 +159,9 @@ impl WasmTunnel {
             shutdown,
             allocated_ips,
             dns_primary: opts.primary_dns.unwrap_or(crate::dns::DEFAULT_PRIMARY_DNS),
-            dns_fallback: opts.fallback_dns.unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
+            dns_fallback: opts
+                .fallback_dns
+                .unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
@@ -212,7 +228,7 @@ impl WasmTunnel {
 
         let storage = FullWasmClientStorage::new(&config, client_store);
         let base_builder =
-            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(config, storage, None);
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(config.clone(), storage, None);
 
         let mut started_client = base_builder
             .start_base()
@@ -235,6 +251,7 @@ impl WasmTunnel {
             reconstructed_receiver,
             request_sender: client_output.received_buffer_request_sender,
             shutdown_handle: started_client.shutdown_handle,
+            nym_api_urls: config.client.nym_api_urls.clone(),
         })
     }
 

@@ -85,10 +85,18 @@ function setTunnelButtonsEnabled(enabled) {
   }
 }
 
+// Grey out the IPR text input when "Use random IPR" is checked.
+document.getElementById("opt-random-ipr").addEventListener("change", (e) => {
+  document.getElementById("ipr-address").disabled = e.target.checked;
+});
+
 document.getElementById("btn-setup").addEventListener("click", async () => {
-  const iprAddress = document.getElementById("ipr-address").value.trim();
-  if (!iprAddress) {
-    display("IPR address is required", "red");
+  const useRandomIpr = document.getElementById("opt-random-ipr").checked;
+  const iprAddress = useRandomIpr
+    ? undefined
+    : document.getElementById("ipr-address").value.trim();
+  if (!useRandomIpr && !iprAddress) {
+    display("IPR address is required (or check 'Use random IPR')", "red");
     return;
   }
 
@@ -130,13 +138,17 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     document.getElementById("opt-fallback-dns").value.trim() || undefined;
 
   display(
-    `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(0, 30)}...)...`,
+    useRandomIpr
+      ? `setupMixTunnel (clientId=${clientId}, IPR: auto-discover)...`
+      : `setupMixTunnel (clientId=${clientId}, IPR: ${iprAddress.slice(0, 30)}...)...`,
   );
   statusEl.textContent = "Connecting to mixnet...";
 
   try {
     await api.setupMixTunnel({
-      preferredIpr: iprAddress,
+      // Omit preferredIpr entirely when auto-discovery is requested — the
+      // Rust SetupOpts treats `null`/undefined as "discover one yourself".
+      ...(iprAddress ? { preferredIpr: iprAddress } : {}),
       clientId,
       forceTls,
       disablePoissonTraffic: disablePoisson,

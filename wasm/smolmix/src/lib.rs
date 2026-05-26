@@ -72,8 +72,11 @@ pub(crate) static TUNNEL: OnceLock<WasmTunnel> = OnceLock::new();
 #[serde(rename_all = "camelCase")]
 #[cfg(target_arch = "wasm32")]
 pub struct SetupOpts {
-    /// Nym address of the IPR exit node (required).
-    pub preferred_ipr: String,
+    /// Nym address of the IPR exit node. Omit (or pass `null`) to let
+    /// smolmix auto-discover a performance-weighted random IPR via the
+    /// Nym API directory.
+    #[serde(default)]
+    pub preferred_ipr: Option<String>,
     /// Client storage namespace; randomise per session for clean state.
     #[serde(default)]
     pub client_id: Option<String>,
@@ -120,10 +123,13 @@ pub fn main() {
 pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
     future_to_promise(async move {
         let result: Result<JsValue, FetchError> = async move {
-            let ipr_address: nym_wasm_client_core::Recipient = opts
+            let ipr_address: Option<nym_wasm_client_core::Recipient> = opts
                 .preferred_ipr
-                .parse()
-                .map_err(|e| FetchError::Tunnel(format!("invalid IPR address: {e}")))?;
+                .map(|s| {
+                    s.parse::<nym_wasm_client_core::Recipient>()
+                        .map_err(|e| FetchError::Tunnel(format!("invalid IPR address: {e}")))
+                })
+                .transpose()?;
 
             let defaults = ipr::SurbsConfig::default();
             let surbs = ipr::SurbsConfig {
@@ -131,13 +137,15 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                 data: opts.data_reply_surbs.unwrap_or(defaults.data),
             };
 
-            let parse_dns = |raw: Option<String>| -> Result<Option<std::net::SocketAddr>, FetchError> {
-                raw.map(|s| {
-                    s.parse()
-                        .map_err(|e| FetchError::Tunnel(format!("invalid DNS resolver '{s}': {e}")))
-                })
-                .transpose()
-            };
+            let parse_dns =
+                |raw: Option<String>| -> Result<Option<std::net::SocketAddr>, FetchError> {
+                    raw.map(|s| {
+                        s.parse().map_err(|e| {
+                            FetchError::Tunnel(format!("invalid DNS resolver '{s}': {e}"))
+                        })
+                    })
+                    .transpose()
+                };
 
             let tunnel_opts = tunnel::TunnelOpts {
                 ipr_address,

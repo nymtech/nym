@@ -52,6 +52,9 @@ nym-lp-data = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
 nym-bin-common = { workspace = true }
+# IPR auto-discovery (`NymApiClientExt` + `semver` gate for v9-capable IPRs).
+nym-validator-client = { workspace = true }
+semver = { workspace = true }
 
 # JS interop: typed `SetupOpts` deserialisation.
 serde = { workspace = true, features = ["derive"] }

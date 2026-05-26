@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use nym_lp::replay::ReceivingKeyCounterValidator;
 use nym_test_utils::helpers::deterministic_rng_09;

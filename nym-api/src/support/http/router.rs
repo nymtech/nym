@@ -5,6 +5,7 @@ use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::mixnet_contract_cache::handlers::{epoch_routes, legacy_nodes_routes};
 use crate::network::handlers::nym_network_routes;
+use crate::node_families::handlers as node_families_handlers;
 use crate::node_status_api::handlers::status_routes;
 use crate::support::http::openapi::ApiDoc;
 use crate::support::http::state::AppState;
@@ -49,6 +50,7 @@ impl RouterBuilder {
             .nest("/network", nym_network_routes())
             .nest("/api-status", status::handlers::api_status_routes())
             .nest("/nym-nodes", nym_nodes::handlers::v1::routes())
+            .nest("/node-families", node_families_handlers::routes())
             .nest("/ecash", ecash_routes())
             .nest("/unstable", unstable_routes_v1())
             .nest("/legacy", legacy_nodes_routes()); // CORS layer needs to be "outside" of routes

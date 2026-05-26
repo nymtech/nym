@@ -11,10 +11,17 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
+/// Handle for on-demand cache refreshes driven by external triggers (e.g. an HTTP endpoint).
+///
+/// Wraps a [`RefreshRequester`] alongside the timestamp of the most recent refresh request so
+/// callers can rate-limit or expose "last refreshed" information without reaching into the
+/// underlying cache.
 #[derive(Clone)]
 pub(crate) struct Refreshing {
     handle: RefreshRequester,
-    last_requested: Arc<AtomicI64>, // unix timestamp
+    /// Unix timestamp of the last refresh request; stored atomically so multiple request handlers
+    /// can update it concurrently without taking a lock.
+    last_requested: Arc<AtomicI64>,
 }
 
 impl Refreshing {

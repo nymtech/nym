@@ -2,9 +2,9 @@ import { Steps } from 'nextra/components';
 
 # Diagnostic Tool
 
-The Diagnostic Tool is a standalone binary designed to perform various network tests, including DNS, HTTP, and gateway connectivity tests. This tool helps diagnose connectivity issues and provides insights into network performance.
+The Diagnostic Tool is a standalone binary that runs network tests (DNS, HTTP, gateway connectivity) to diagnose connectivity issues and report on network performance.
 
-It’s also possible to run it within the daemon with the same CLI interface.
+It can also be run from within the daemon with the same CLI interface.
 
 ## Download Binary
 
@@ -36,7 +36,7 @@ chmod +x ./*
 
 ## CLI Usage
 
-The Diagnostic Tool can be executed from the command line interface (CLI). Below are the usage instructions and options available. Read in the chapter [*Tests Performed*](#tests-performed) about the purpose and outcome of these commands. 
+The Diagnostic Tool runs from the command line. The usage instructions and options follow. See [Tests Performed](#tests-performed) for the purpose and outcome of each command.
 
 ### Command Syntax
 
@@ -99,36 +99,36 @@ The Diagnostic Tool runs the following tests:
 
 ### 1. DNS Test
 
-- **Purpose**: To check the resolution DNS availability.
-- **Process**: We try to resolve all the domain names present in a given nym network environment with different DNS configurations
-- **Output**: Displays the resolved IP address and the time taken for the resolution.
+- **Purpose**: Check DNS resolution availability.
+- **Process**: Resolve all domain names present in the given Nym network environment with different DNS configurations.
+- **Output**: Resolved IP address and time taken for resolution.
 
 
 ### 2. HTTP Test
 
-- **Purpose**: To verify the accessibility of the NymVPN API.
-- **Process**: The tool query the `health` endpoint as well as the `nodes/described` endpoint.
-- **Output**: Displays the response of the `health` endpoint, the time skew and the number of nodes in the network (sanity check)
+- **Purpose**: Verify accessibility of the NymVPN API.
+- **Process**: Query the `health` and `nodes/described` endpoints.
+- **Output**: Response from the `health` endpoint, time skew, and number of nodes in the network (sanity check).
 
 ### 3. Gateway Test
 
-- **Purpose**: To check the connectivity to a given gateway.
-- **Process**: The tool fetches information about the gateway, then establishes a TCP connection, upgrades it to WS and sends a request
-- **Output**: Display the gateway reported information, the status of the connections and the WS response.
+- **Purpose**: Check connectivity to a given gateway.
+- **Process**: Fetch information about the gateway, establish a TCP connection, upgrade it to WS, and send a request.
+- **Output**: Gateway-reported information, connection status, and WS response.
 
 ### 4. Registration Test
 
-- **Purpose:** To check the correctness of the registration process.
-- **Process:** The tool tries to build a mixnet client to the provided gateway and then tries to register to the entry authenticator
-- **Output:** Display the status of the different steps
-- **Caveat:** This test requires a credential to be spent, which is why it is available as a separate command only
+- **Purpose:** Check the registration process.
+- **Process:** Build a mixnet client to the provided gateway and register with the entry authenticator.
+- **Output:** Status of each step.
+- **Caveat:** This test spends a credential, which is why it lives in a separate command.
 
 ### 5. Wireguard Test
 
-- **Purpose:** To check the soundness of a wireguard connection
-- **Process:** The tool uses the registration data from the previous step to establish a wireguard connection and ping an IP.
-- **Output:** Display the ping RTTs and any error that might have happened
+- **Purpose:** Check the soundness of a wireguard connection.
+- **Process:** Use the registration data from the previous step to establish a wireguard connection and ping an IP.
+- **Output:** Ping RTTs and any errors.
 
 ## Reports
 
-Reports are logged in a JSON format and also returned by the commands for a future use
+Reports are logged in JSON format and also returned by the commands for later use.

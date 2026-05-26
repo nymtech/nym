@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Mixnet Mode
 
-import { Callout } from 'nextra/components'
+import { LewesPending } from '../../components/lewes-pending'
 
 Mixnet mode routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
 
@@ -32,9 +32,7 @@ Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encrypt
 
 The three mixing layers add additional latency. This is acceptable for messaging, file transfers, and most API calls, but unsuitable for real-time applications like video calling. For those, [dVPN mode](/network/dvpn-mode) is more appropriate.
 
-<Callout type="info">
-Updated latency measurements will be published after the Lewes Protocol release.
-</Callout>
+<LewesPending variant="latency" />
 
 ## Further reading
 

@@ -30,19 +30,22 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/noise", get(nodes_noise))
         .route("/bonded", get(get_bonded_nodes))
         .route("/described", get(get_described_nodes))
-        .route("/annotation/:node_id", get(get_node_annotation))
-        .route("/performance/:node_id", get(get_current_node_performance))
-        .route("/stake-saturation/:node_id", get(get_node_stake_saturation))
+        .route("/annotation/{node_id}", get(get_node_annotation))
+        .route("/performance/{node_id}", get(get_current_node_performance))
         .route(
-            "/historical-performance/:node_id",
+            "/stake-saturation/{node_id}",
+            get(get_node_stake_saturation),
+        )
+        .route(
+            "/historical-performance/{node_id}",
             get(get_historical_performance),
         )
         .route(
-            "/performance-history/:node_id",
+            "/performance-history/{node_id}",
             get(get_node_performance_history),
         )
         // to make it compatible with all the explorers that were used to using 0-100 values
-        .route("/uptime-history/:node_id", get(get_node_uptime_history))
+        .route("/uptime-history/{node_id}", get(get_node_uptime_history))
         .route("/rewarded-set", get(rewarded_set))
         .layer(CompressionLayer::new())
 }

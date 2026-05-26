@@ -30,7 +30,7 @@ class NodeSetupCLI:
         self.is_gwx = self.mode == "exit-gateway"
         if self.is_gwx:
             self.landing_page_html = self.fetch_script("landing-page.html")
-            self.nginx_proxy_wss_sh = self.fetch_script("nginx_proxy_wss_sh")
+            self.nginx_proxy_wss_sh = self.fetch_script("setup-nginx-proxy-wss.sh")
             self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
             self.quic_bridge_deployment_sh = self.fetch_script("quic_bridge_deployment.sh")
         else:
@@ -81,7 +81,7 @@ class NodeSetupCLI:
             raise SystemExit(1)
         return str(port)
 
-    def _resolve_field(args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
+    def _resolve_field(self, args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
         cli_val = getattr(args, arg_name, None)
 
         if cli_val is not None:
@@ -227,7 +227,7 @@ class NodeSetupCLI:
                 "nym-node-install.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/nym-node-install.sh",
                 "setup-systemd-service-file.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-systemd-service-file.sh",
                 "start-node-systemd-service.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/start-node-systemd-service.sh",
-                "nginx_proxy_wss_sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
+                "setup-nginx-proxy-wss.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/setup-nginx-proxy-wss.sh",
                 "landing-page.html": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/landing-page.html",
                 "network_tunnel_manager.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/network-tunnel-manager.sh",
                 "quic_bridge_deployment.sh": f"{github_raw_nymtech_nym_scripts_url}nym-node-setup/quic_bridge_deployment.sh"
@@ -317,8 +317,8 @@ class NodeSetupCLI:
         val = None
 
         # CLI argument
-        if args and getattr(args, "wireguard", None) is not None:
-            val = norm(getattr(args, "wireguard"))
+        if args and getattr(args, "wireguard_enabled", None) is not None:
+            val = norm(getattr(args, "wireguard_enabled"))
             print(f"[INFO] WireGuard mode provided via CLI: {val}")
 
         # Environment variable
@@ -610,9 +610,17 @@ class NodeSetupCLI:
         """Main function called by argparser command install running full node install flow"""
         self.ensure_env_values(args)
         # Pass uplink override to all helper scripts if provided
+        # NETWORK_DEVICE remains the backward-compatible override for both families
+        uplink_updates = {}
         if getattr(args, "uplink_dev", None):
-            os.environ["UPLINK_DEV"] = args.uplink_dev
-            os.environ["NETWORK_DEVICE"] = args.uplink_dev
+            uplink_updates["NETWORK_DEVICE"] = args.uplink_dev
+        if getattr(args, "uplink_dev_v4", None):
+            uplink_updates["NETWORK_DEVICE_V4"] = args.uplink_dev_v4
+        if getattr(args, "uplink_dev_v6", None):
+            uplink_updates["NETWORK_DEVICE_V6"] = args.uplink_dev_v6
+        if uplink_updates:
+            os.environ.update(uplink_updates)
+            self._upsert_env_vars(uplink_updates)
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
@@ -621,7 +629,7 @@ class NodeSetupCLI:
         self.run_bonding_prompt()
         if self._check_gwx_mode():
             self.run_tunnel_manager_setup()
-            if self.check_wg_enabled():
+            if self.check_wg_enabled(args):
                 self.setup_test_wg_ip_tables()
                 self.quic_bridge_deploy()
 
@@ -684,7 +692,20 @@ class ArgParser:
         )
 
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
-        install_parser.add_argument("--uplink-dev", help="Override uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
+        install_parser.add_argument(
+            "--uplink-dev",
+            help="Backward-compatible override for both IPv4 and IPv6 uplinks, e.g. 'eth0'",
+        )
+
+        install_parser.add_argument(
+            "--uplink-dev-v4",
+            help="Override IPv4 uplink interface used for NAT/FORWARD, e.g. 'eth0'",
+        )
+
+        install_parser.add_argument(
+            "--uplink-dev-v6",
+            help="Override IPv6 uplink interface used for NAT/FORWARD, e.g. 'eth1'",
+        )
         
         # generic fallback
         install_parser.add_argument(

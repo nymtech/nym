@@ -56,6 +56,7 @@ async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError>
     let ecash = query_guard!(client_guard, ecash_contract_address());
     let performance = query_guard!(client_guard, performance_contract_address());
     let network_monitors = query_guard!(client_guard, network_monitors_contract_address());
+    let node_families = query_guard!(client_guard, node_families_contract_address());
 
     for (address, name) in [
         (mixnet, "nym-mixnet-contract"),
@@ -66,6 +67,7 @@ async fn refresh(nyxd_client: &Client) -> Result<CachedContractsInfo, NyxdError>
         (ecash, "nym-ecash-contract"),
         (performance, "nym-performance-contract"),
         (network_monitors, "nym-network-monitors-contract"),
+        (node_families, "nym-node-families-contract"),
     ] {
         let (cw2, build_info) = if let Some(address) = address {
             let cw2 = query_guard!(client_guard, try_get_cw2_contract_version(address).await);

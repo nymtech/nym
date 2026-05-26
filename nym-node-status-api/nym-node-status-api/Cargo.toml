@@ -40,6 +40,7 @@ nym-http-api-common = { workspace = true, features = ["middleware"] }
 nym-network-defaults = { workspace = true }
 nym-serde-helpers = { workspace = true }
 nym-statistics-common = { workspace = true }
+nym-api-requests = { workspace = true }
 nym-validator-client = { workspace = true }
 nym-task = { workspace = true }
 nym-node-requests = { workspace = true, features = ["openapi", "client"] }
@@ -83,6 +84,5 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-axum-test = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 nym-gateway-probe = { workspace = true, features = ["test-utils"] }

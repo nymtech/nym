@@ -1,34 +1,67 @@
 # Publishing workspace dependencies
+
 ## Rationale re: versioning
+
 We publish the majority of our workspace dependencies (essentially everything in the repo aside from binaries, smart contracts, and some internal tooling) to [crates.io](https://crates.io).
 
-In order to make this easy to maintain, the versions of these workspace dependencies and the `nym-sdk` crate are kept in sync.
+In order to make this easy to maintain, the versions of these workspace dependencies and the `nym-sdk` crate are kept in sync. The same is done to newer crates such as `smolmix`.
 
 This version is defined in the `[workspace.package]` section of the root monorepo `Cargo.toml` file. Each of the workspace dependencies have their paths and versions (this has to be individually defined at the moment per-dependency, **this version needs to stay the same as the `workspace.package` version**) defined in the `[workspace.dependencies]` section of the root monorepo `Cargo.toml` file.
 
+The `contracts/` directory has its own separate `[workspace]`. Those crates are CosmWasm smart contracts deployed as WASM to chain, not published to crates.io. The shared types between the two workspaces (e.g. `nym-contracts-common`) live in `common/cosmwasm-smart-contracts/` within the root workspace and are published. The contracts workspace depends on them from crates.io.
+
 ## When Developing
+
 If you add a workspace dependency to the SDK when developing, make sure to add this to the workspace dependencies in the root monorepo `Cargo.toml`.
 
+Crates that should not be published to crates.io must have `publish = false` in their `Cargo.toml`. The preflight check (`tools/internal/check_publish_preflight.py`) will flag publishable crates with missing metadata.
+
 ## Check local publication
+
 ```
 # List crates to publish
 cargo workspaces list
+
+# Check publishability (metadata, deps, non-publishable chains)
+python3 tools/internal/check_publish_preflight.py
 
 # Dry run locally - check for compilation or other problems
 cargo workspaces publish --no-git-commit --dry-run
 ```
 
 ## CI
-There are several workflows that should be run in the following order:
-- `ci-crates-publish-dry-run`: **run this first!** This is a remote dry-run on a runner. This greps for any errors that would be a problem when we're not dry-running. It doesn't catch all errors, as `dry-run` has a known issue where, assuming that 2 new crates are being uploaded, and crate B relies on crate A, if crate A isn't on crates.io (which it won't be, since you're dry-running publication), then since `cargo workspaces publish` only checks for available versions on crates.io, it will error. We don't want the CI to fail in that case.
-- `ci-crates-version-bump`: this bumps the versions of the workspace + dependencies to the passed version, and then commits the change. This is its own CI job so that we don't get into sticky situations whereby the version bump + commit happens, but the publication step fails.
-- `ci-crates-publish`: this publishes the crates. So long as you're not uploading more than 5 new crates, pass `60` as the `publish_interval`. This is to get around [crates.io rate limiting](https://github.com/rust-lang/crates.io/blob/ad7e58e1afd65b9137e58a7bca3e1fb7f5546682/src/rate_limiter.rs#L24). Pass the Github handle of whoever should be the backup author of the crate for security redundency (see the section below) as the second arg.
 
-> There is also `ci-crates-publish-resume` which is there in case a publication run fails and needs to be restarted part way through the list of unbumped/unpublished crates. Pass the previously bumped/published crate in the list output of `cargo workspaces list`
+There are several workflows that should be run in the following order:
+
+1. **`ci-crates-publish-dry-run`**: Run this first. This is a remote dry-run on a runner that greps for real packaging errors (manifest issues, missing metadata). It ignores cascading dependency errors, which are expected in dry-run mode because upstream crates aren't actually uploaded to crates.io.
+
+2. **`ci-crates-version-bump`**: Bumps the versions of the workspace + dependencies to the passed version. This is a separate job so that if the version bump succeeds but publication fails, the versions aren't left in a bad state. **This creates a PR that must be merged into the branch you're publishing from before running publish.**
+
+3. **`ci-crates-publish`**: Publishes the crates using `cargo workspaces publish --publish-as-is`. The `--publish-as-is` flag tells cargo-workspaces to publish with the current versions in the repo (already bumped by step 2) without doing any version changes itself.
+
+   - `publish_interval`: seconds to wait between publishes for crates.io indexing. Use `600` for first-time publication of many new crates, `60` after that. This is to get around [crates.io rate limiting](https://github.com/rust-lang/crates.io/blob/ad7e58e1afd65b9137e58a7bca3e1fb7f5546682/src/rate_limiter.rs#L24).
+   - `backup_author`: Github handle of who should be added as backup crate owner (defaults to `jstuczyn`).
+
+> There is also `ci-crates-publish-resume` which is there in case a publication run fails and needs to be restarted part way through the list of unpublished crates.
+
+### Important: workflow sequencing
+
+The version-bump workflow creates a PR due to branch protection rules. **You must merge that PR before running the publish workflow**, otherwise publish will run against the unbumped branch and fail with "already exists" errors for the old version.
+
+## How cargo-workspaces publish works
+
+`cargo workspaces publish` handles several things that raw `cargo publish` does not:
+
+- **Topological ordering**: publishes crates in dependency order.
+- **Dev-dep removal**: by default, dev-dependencies are stripped from each crate's `Cargo.toml` before publishing. This avoids packaging failures where a dev-dep on a workspace sibling hasn't been uploaded yet.
+- **Cargo.toml rewriting**: replaces `workspace = true` references with concrete values before calling `cargo publish`.
+
+Do not replace this with a manual `cargo publish -p` loop -- it will fail during packaging because `cargo publish` tries to resolve all deps (including dev-deps) against the crates.io index, and workspace siblings at the new version won't exist yet.
 
 ## Crates.io Authors
-Since Github teams have [limited ownership / mod rights](https://doc.rust-lang.org/cargo/reference/publishing.html#cargo-owner) of crates, and we cannot create a `CARGO_REGISTRY_TOKEN` on behalf of the Nym Github org. As such, we are currently using personal cargo tokens generated by team members (currently Max), and adding the Nym Github org as an owner in the CI job.
 
-However, since the Github org cannot add or modify owners, are also adding a second user author as a redundency, on the offchance that Max loses access to his Crates.io / Github account, gets struck by lightning, etc. This is the author passed as the second argument to the `ci-crates-publish` CI, and if none is passed, defaults to [https://github.com/jstuczyn](https://github.com/jstuczyn) since he is the Github org owner.
+Since Github teams have [limited ownership / mod rights](https://doc.rust-lang.org/cargo/reference/publishing.html#cargo-owner) of crates, and we cannot create a `CARGO_REGISTRY_TOKEN` on behalf of the Nym Github org, we are currently using personal cargo tokens generated by team members (currently Max), and adding the Nym Github org as an owner in the CI job.
+
+However, since the Github org cannot add or modify owners, we are also adding a second user as a redundancy, on the offchance that Max loses access to his Crates.io / Github account, gets struck by lightning, etc. This is the author passed as the second argument to the `ci-crates-publish` CI, and if none is passed, defaults to [jstuczyn](https://github.com/jstuczyn) since he is the Github org owner.
 
 Authors can also be changed by running `scripts/add-crates-owners.sh`.

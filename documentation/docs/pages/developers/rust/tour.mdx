@@ -5,7 +5,7 @@ import { Callout } from 'nextra/components'
 A quick walkthrough of the most important things you can do with `nym-sdk`. Each section shows working code and links to the module that covers it in depth.
 
 <Callout type="warning">
-**The Mixnet is not like regular internet networking** — there are no persistent connections, no guaranteed message ordering, and no TCP underneath. At its core, the Mixnet is a message-based anonymity network: you send individual payloads that are Sphinx-encrypted, mixed through multiple nodes, and independently reconstructed at the destination.
+The Mixnet is not like regular internet networking. There are no persistent connections, no guaranteed message ordering, and no TCP underneath. At its core, the Mixnet is a message-based anonymity network: you send individual payloads that are Sphinx-encrypted, mixed through multiple nodes, and independently reconstructed at the destination.
 
 The raw [message API](./mixnet) therefore works differently from what most developers expect. The [Stream module](./stream) bridges this gap by providing `AsyncRead + AsyncWrite` byte streams on top of the Mixnet. If you are coming from socket-based networking, start with streams.
 </Callout>
@@ -80,7 +80,7 @@ async fn main() {
     // Receiver accepts it
     let mut inc = listener.accept().await.unwrap();
 
-    // Standard tokio I/O — write, flush, read
+    // Standard tokio I/O: write, flush, read
     out.write_all(b"hello stream").await.unwrap();
     out.flush().await.unwrap();
 

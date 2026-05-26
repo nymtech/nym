@@ -4,6 +4,9 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
 
+/// Pool-level deposit accounting. Updated by every successful
+/// `DepositTicketBookFunds` and (for the unredeemed-tickets counter) by every
+/// successful legacy `RedeemTickets`.
 #[cw_serde]
 pub struct PoolCounters {
     /// Represents the total amount of funds deposited into the contract.

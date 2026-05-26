@@ -1,0 +1,620 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "description": "Query messages accepted by the contract.",
+  "oneOf": [
+    {
+      "description": "Look up a single family by its id.",
+      "type": "object",
+      "required": [
+        "get_family_by_id"
+      ],
+      "properties": {
+        "get_family_by_id": {
+          "type": "object",
+          "required": [
+            "family_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Look up the (at most one) family owned by a given address.",
+      "type": "object",
+      "required": [
+        "get_family_by_owner"
+      ],
+      "properties": {
+        "get_family_by_owner": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Look up a single family by its name. The lookup is normalised contract-side (lowercased, non-alphanumerics stripped), so equivalent inputs resolve to the same family.",
+      "type": "object",
+      "required": [
+        "get_family_by_name"
+      ],
+      "properties": {
+        "get_family_by_name": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_families_paged"
+      ],
+      "properties": {
+        "get_families_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Look up which family — if any — a node currently belongs to.",
+      "type": "object",
+      "required": [
+        "get_family_membership"
+      ],
+      "properties": {
+        "get_family_membership": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every node currently in a given family.",
+      "type": "object",
+      "required": [
+        "get_family_members_paged"
+      ],
+      "properties": {
+        "get_family_members_paged": {
+          "type": "object",
+          "required": [
+            "family_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every current family member across all families, in ascending [`NodeId`] order. Each entry carries the membership record (which in turn names the family the node belongs to).",
+      "type": "object",
+      "required": [
+        "get_all_family_members_paged"
+      ],
+      "properties": {
+        "get_all_family_members_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Look up the pending invitation for a specific `(family_id, node_id)` pair.",
+      "type": "object",
+      "required": [
+        "get_pending_invitation"
+      ],
+      "properties": {
+        "get_pending_invitation": {
+          "type": "object",
+          "required": [
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every pending invitation issued by a given family.",
+      "type": "object",
+      "required": [
+        "get_pending_invitations_for_family_paged"
+      ],
+      "properties": {
+        "get_pending_invitations_for_family_paged": {
+          "type": "object",
+          "required": [
+            "family_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every pending invitation issued for a given node.",
+      "type": "object",
+      "required": [
+        "get_pending_invitations_for_node_paged"
+      ],
+      "properties": {
+        "get_pending_invitations_for_node_paged": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every pending invitation across all families.",
+      "type": "object",
+      "required": [
+        "get_all_pending_invitations_paged"
+      ],
+      "properties": {
+        "get_all_pending_invitations_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every archived (terminal-state) invitation issued by a given family.",
+      "type": "object",
+      "required": [
+        "get_past_invitations_for_family_paged"
+      ],
+      "properties": {
+        "get_past_invitations_for_family_paged": {
+          "type": "object",
+          "required": [
+            "family_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every archived (terminal-state) invitation issued to a given node.",
+      "type": "object",
+      "required": [
+        "get_past_invitations_for_node_paged"
+      ],
+      "properties": {
+        "get_past_invitations_for_node_paged": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every archived (terminal-state) invitation across all families.",
+      "type": "object",
+      "required": [
+        "get_all_past_invitations_paged"
+      ],
+      "properties": {
+        "get_all_past_invitations_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    },
+                    {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every archived membership record for a given family (nodes that used to belong to it but have since been removed).",
+      "type": "object",
+      "required": [
+        "get_past_members_for_family_paged"
+      ],
+      "properties": {
+        "get_past_members_for_family_paged": {
+          "type": "object",
+          "required": [
+            "family_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Page through every archived membership record for a given node (every family the node used to belong to but has since been removed from), across all families.",
+      "type": "object",
+      "required": [
+        "get_past_members_for_node_paged"
+      ],
+      "properties": {
+        "get_past_members_for_node_paged": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

@@ -411,7 +411,7 @@ impl SocksClient {
 
         let recipient = self.service_provider;
         let packet_type = self.packet_type;
-        let (stream, _) = ProxyRunner::new(
+        let proxy_result = ProxyRunner::new(
             stream,
             local_stream_remote,
             remote_proxy_target,
@@ -449,8 +449,15 @@ impl SocksClient {
                 )
             }
         })
-        .await
-        .into_inner();
+        .await;
+
+        let (stream, _) = match proxy_result {
+            Ok(runner) => runner.into_inner(),
+            Err(err) => {
+                log::error!("proxy runner for connection {connection_id} failed: {err}");
+                return;
+            }
+        };
         // recover stream from the proxy
         self.stream.finish_proxy(stream)
     }

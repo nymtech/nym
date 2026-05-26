@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PagedBlacklistedAccountResponse",
+  "description": "Page of blacklist entries returned by `GetBlacklistPaged`. Always empty on a freshly deployed contract.",
   "type": "object",
   "required": [
     "accounts",
@@ -29,6 +30,7 @@
   "additionalProperties": false,
   "definitions": {
     "BlacklistedAccount": {
+      "description": "Public-key + metadata pair surfaced by `GetBlacklistedAccount` / `GetBlacklistPaged`. Always empty on a freshly deployed contract.",
       "type": "object",
       "required": [
         "info",
@@ -45,6 +47,7 @@
       "additionalProperties": false
     },
     "Blacklisting": {
+      "description": "Per-key blacklist record: the multisig proposal that approved it and the block height at which finalisation landed (None until finalised).",
       "type": "object",
       "required": [
         "proposal_id"

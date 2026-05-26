@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::LpClientError;
-use nym_lp::packet::LpFrame;
+use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
-use nym_lp::{LpTransportSession, packet::EncryptedLpPacket};
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 
 /// Attempt to prepare the provided data for sending by wrapping it in appropriate `LpAction`,
 /// and attempting to extract `EncryptedLpPacket` from the provided state machine.

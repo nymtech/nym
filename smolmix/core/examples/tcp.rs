@@ -1,13 +1,24 @@
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
 //! HTTPS request through the Nym mixnet.
 //!
-//! Fetches Cloudflare's `/cdn-cgi/trace` diagnostic endpoint over clearnet
-//! (reqwest) and through the mixnet (hyper over tokio-rustls over smolmix),
-//! then compares the responses. The exit IP should differ — the mixnet path
-//! exits through an IPR gateway.
+//! Fetches Cloudflare's `/cdn-cgi/trace` twice: once over clearnet via
+//! `reqwest`, once via `hyper` over `tokio-rustls` over `smolmix`. The
+//! response includes the IP that Cloudflare saw, so the two runs make the
+//! mixnet's exit-IP substitution visible.
 //!
-//! Run with:
-//!   cargo run -p smolmix --example tcp
-//!   cargo run -p smolmix --example tcp -- --ipr <IPR_ADDRESS>
+//! ```text
+//! hyper (HTTP/1.1 client)
+//!   └─ tokio-rustls (TLS encryption)
+//!        └─ smolmix::TcpStream (TCP over mixnet)
+//!             └─ smoltcp (userspace TCP/IP)
+//!                  └─ Nym mixnet → IPR exit gateway → internet
+//! ```
+//!
+//! ```sh
+//! cargo run -p smolmix --example tcp
+//! cargo run -p smolmix --example tcp -- --ipr <IPR_ADDRESS>
+//! ```
 
 use std::sync::Arc;
 
@@ -41,7 +52,6 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Clearnet baseline via reqwest
     info!("Fetching via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
     let clearnet_resp = reqwest::get(format!("https://{HOST}{PATH}")).await?;
@@ -50,7 +60,8 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // Mixnet: smolmix TCP -> tokio-rustls -> hyper
+    // TCP source is smolmix::TcpStream; everything above is the same as the
+    // clearnet path.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -63,7 +74,8 @@ async fn main() -> Result<(), BoxError> {
     }
     let tunnel = builder.build().await?;
 
-    // Phase 1: Setup (TCP + TLS + HTTP handshakes)
+    // tokio-rustls takes the TcpStream as-is; TokioIo only bridges hyper's
+    // I/O traits to tokio's.
     let setup_start = tokio::time::Instant::now();
 
     info!("TCP connecting to 1.1.1.1:443 via mixnet...");
@@ -83,7 +95,6 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Phase 2: Request/response
     let request_start = tokio::time::Instant::now();
 
     info!("Sending GET {PATH}...");
@@ -103,20 +114,19 @@ async fn main() -> Result<(), BoxError> {
         request_duration
     );
 
-    // Results
     let clearnet_ip = clearnet_body.lines().find(|l| l.starts_with("ip="));
     let mixnet_ip = mixnet_body.lines().find(|l| l.starts_with("ip="));
 
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
     info!(
-        "Mixnet:   {} (setup {:?} + request {:?} = {:?})",
+        "Mixnet: {} (setup {:?} + request {:?} = {:?})",
         mixnet_status,
         setup_duration,
         request_duration,
         setup_duration + request_duration
     );
     info!("Clearnet IP: {}", clearnet_ip.unwrap_or("?"));
-    info!("Mixnet IP:   {}", mixnet_ip.unwrap_or("?"));
+    info!("Mixnet IP: {}", mixnet_ip.unwrap_or("?"));
 
     let total = setup_duration + request_duration;
     let slowdown = total.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;

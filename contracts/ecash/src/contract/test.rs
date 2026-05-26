@@ -475,7 +475,7 @@ mod tests {
             "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
         )?;
 
-        // alice deposits at the default price — should be treated as a normal deposit
+        // alice deposits at the default price - should be treated as a normal deposit
         let alice_info = message_info(&alice, &[coin(75_000_000, TEST_DENOM)]);
         CONTRACT.deposit_ticket_book_funds(
             test.exec_ctx(alice_info),

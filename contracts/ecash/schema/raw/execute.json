@@ -3,7 +3,7 @@
   "title": "ExecuteMsg",
   "oneOf": [
     {
-      "description": "Used by clients to request ticket books from the signers",
+      "description": "Submitted by clients to escrow funds and register a claimed ed25519 identity key. Mints a sequential `deposit_id`. The contract does not verify control of the identity key - that proof is checked off-chain by nym-api signers at blind-sign time.",
       "type": "object",
       "required": [
         "deposit_ticket_book_funds"
@@ -25,7 +25,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Used by gateways to batch redeem tokens from the spent tickets",
+      "description": "Submitted by gateways to request batch redemption of spent tickets. Dispatches a `Propose` SubMsg to the multisig contract; the actual transfer effect is gated behind multisig approval.",
       "type": "object",
       "required": [
         "request_redemption"
@@ -53,7 +53,7 @@
       "additionalProperties": false
     },
     {
-      "description": "The actual message that gets executed, after multisig votes, that transfers the ticket tokens into gateway's (and the holding) account",
+      "description": "**Legacy / dead code.** Only callable by the multisig; bumps the unredeemed-tickets counter and emits a `ticket_redemption` event with `moved_to_holding_account = \"false\"`. No known consumer depends on the side effects; candidate for removal in a follow-on breaking-schema change.",
       "type": "object",
       "required": [
         "redeem_tickets"
@@ -81,6 +81,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Transfer the contract admin role. Only the current admin may sign. Dispatches via the cw_controllers `execute_update_admin` handshake.",
       "type": "object",
       "required": [
         "update_admin"
@@ -102,6 +103,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Overwrite `Config::deposit_amount`. Only callable by the contract admin. Rejects values below `nym_network_defaults::TICKETBOOK_SIZE` and trips `TicketBookSizeChanged` if the snapshotted invariant has diverged from the current crate constant.",
       "type": "object",
       "required": [
         "update_default_deposit_value"
@@ -171,6 +173,7 @@
       "additionalProperties": false
     },
     {
+      "description": "**Stubbed**: always returns `EcashContractError::UnimplementedBlacklisting`. Storage, reply handler, and helper paths exist but are unreachable from the public ExecuteMsg surface. Preserved for the redesign.",
       "type": "object",
       "required": [
         "propose_to_blacklist"
@@ -192,6 +195,7 @@
       "additionalProperties": false
     },
     {
+      "description": "*Stubbed**: always returns `EcashContractError::UnimplementedBlacklisting`.",
       "type": "object",
       "required": [
         "add_to_blacklist"

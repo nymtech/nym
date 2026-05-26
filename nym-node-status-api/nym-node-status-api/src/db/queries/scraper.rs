@@ -18,7 +18,8 @@ pub(crate) async fn get_nodes_for_scraping(pool: &DbPool) -> Result<Vec<ScraperN
     let gateway_keys = queries::get_bonded_gateway_id_keys(pool).await?;
 
     let mut entry_exit_nodes = 0;
-    let skimmed_nodes = queries::get_described_bonded_nym_nodes(pool)
+    let skimmed_nodes = crate::db::Storage::from_pool(pool.clone())
+        .get_described_bonded_nym_nodes()
         .await
         .map(|nodes_dto| {
             nodes_dto.into_iter().filter_map(|node_dto| {

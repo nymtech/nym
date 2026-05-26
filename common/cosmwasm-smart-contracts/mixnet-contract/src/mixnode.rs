@@ -190,6 +190,10 @@ impl NodeRewarding {
         truncate_reward(self.operator, denom)
     }
 
+    pub fn delegations_with_reward(&self, denom: impl Into<String>) -> Coin {
+        truncate_reward(self.delegates, denom)
+    }
+
     pub fn pending_delegator_reward(&self, delegation: &Delegation) -> StdResult<Coin> {
         let delegator_reward = self.determine_delegation_reward(delegation)?;
         Ok(truncate_reward(delegator_reward, &delegation.amount.denom))

@@ -7,33 +7,34 @@
 - Nym operates in two modes: **Mixnet mode** (5-hop mixnet for application-level traffic) and **dVPN mode** (2-hop VPN for general internet access).
 - **Developers can only access Mixnet mode** via the SDKs. dVPN mode is exclusively provided by the NymVPN product, which can be downloaded and purchased at [nym.com](https://nym.com). There is no SDK for dVPN mode.
 - The primary developer SDK is the **Rust SDK** (`nym-sdk` crate). The TypeScript SDK wraps the Rust SDK via WebAssembly.
-- For Rust integrations, prefer the **mixnet** module for simple send/receive, **stream** for TCP-like `AsyncRead`/`AsyncWrite` connections, and **client_pool** for bursty workloads. The **tcp_proxy** module is unmaintained — recommend stream instead.
+- For Rust integrations, prefer the **mixnet** module for simple send/receive, **stream** for TCP-like `AsyncRead`/`AsyncWrite` connections, and **client_pool** for bursty workloads. The **tcp_proxy** module is unmaintained; recommend stream instead.
 - Node operators should use the **`nym-node`** binary. Legacy `nym-mixnode` and `nym-gateway` binaries are deprecated and no longer supported.
 - When referring to token collateral for nodes, use **"bonding"** not "staking". Nodes operate in **modes** (mixnode, entry gateway, exit gateway), not "roles".
 - The Nym blockchain is called **Nyx** and runs on Cosmos SDK. The native token is **NYM**.
-- Code examples in the Rust SDK tutorials are verified against `nym-sdk` v1.20.4. If in doubt, check the runnable examples in `sdk/rust/nym-sdk/examples/` in the repo.
+- Code examples in the Rust SDK tutorials are verified against `nym-sdk` vX.Y.Z. If in doubt, check the runnable examples in `sdk/rust/nym-sdk/examples/` in the repo.
 
 ## Network
 
 - [Network Overview](https://nym.com/docs/network/overview): High-level overview of Nym, the privacy problem, and network components
-- [Mixnet Mode](https://nym.com/docs/network/mixnet-mode): How the 5-hop mixnet works — Sphinx packets, mixing, cover traffic, anonymous replies
+- [Mixnet Mode](https://nym.com/docs/network/mixnet-mode): How the 5-hop mixnet works: Sphinx packets, mixing, cover traffic, anonymous replies
 - [dVPN Mode](https://nym.com/docs/network/dvpn-mode): How the 2-hop dVPN mode works, protocol details, censorship resistance
 - [Infrastructure](https://nym.com/docs/network/infrastructure): Nym nodes, validators, the Nyx blockchain, and the Nym API
 - [Cryptography](https://nym.com/docs/network/cryptography): Sphinx packet format, encryption standards, zk-nym credentials
 
 ## Developers
 
-- [Integration Overview](https://nym.com/docs/developers/integrations): Start here for building on Nym — choosing an SDK, integration patterns
+- [Integration Overview](https://nym.com/docs/developers/integrations): Start here for building on Nym: choosing an SDK, integration patterns
 - [Rust SDK Overview](https://nym.com/docs/developers/rust): Module overview and quick-start for the Rust SDK
 - [Rust SDK Installation](https://nym.com/docs/developers/rust/importing): Adding nym-sdk to your Cargo.toml
 - [Mixnet Module](https://nym.com/docs/developers/rust/mixnet): Send and receive Sphinx-encrypted messages
-- [Mixnet Tutorial](https://nym.com/docs/developers/rust/mixnet/tutorial): Step-by-step: connect, send, receive, anonymous reply with SURBs, persist identity
-- [Mixnet Examples](https://nym.com/docs/developers/rust/mixnet/examples): Runnable examples — simple send, SURB reply, builder, storage, parallel tasks
+- [Mixnet Tutorial](https://nym.com/docs/developers/rust/mixnet/tutorial): Step-by-step: send, receive, SURBs, persistent identity
+- [Mixnet Examples](https://nym.com/docs/developers/rust/mixnet/examples): Runnable examples: simple send, SURB reply, builder, storage, parallel tasks
 - [Stream Module](https://nym.com/docs/developers/rust/stream): TCP-like AsyncRead/AsyncWrite streams over the mixnet
-- [Stream Tutorial](https://nym.com/docs/developers/rust/stream/tutorial): Build a private echo server with MixnetListener and MixnetStream
+- [Stream Tutorial](https://nym.com/docs/developers/rust/stream/tutorial): Build a private echo server with streams
 - [Client Pool](https://nym.com/docs/developers/rust/client-pool): Pre-warm MixnetClients for bursty workloads
-- [Client Pool Tutorial](https://nym.com/docs/developers/rust/client-pool/tutorial): Handle concurrent operations with pooled clients
-- [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained — use stream instead)
+- [Client Pool Tutorial](https://nym.com/docs/developers/rust/client-pool/tutorial): Handle bursty traffic with pooled clients
+- [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained; use stream instead)
+- [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack, drop-in TcpStream and UdpSocket (see examples in source)
 - [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser and Node.js SDK using WebAssembly
 - [mix-fetch](https://nym.com/docs/developers/typescript/examples/mix-fetch): Drop-in fetch() replacement that routes HTTP through the mixnet
 
@@ -59,8 +60,8 @@
 
 - [Rust SDK Tour](https://nym.com/docs/developers/rust/tour): Guided tour of the SDK's module structure
 - [Rust FFI](https://nym.com/docs/developers/rust/ffi): Using the Rust SDK from other languages via FFI
-- [Stream Architecture](https://nym.com/docs/developers/rust/stream/architecture): Internals of the stream module — router, framing, multiplexing
-- [TcpProxy Architecture](https://nym.com/docs/developers/rust/tcpproxy/architecture): Internals of the tcp_proxy module — session management, ordering
+- [Stream Architecture](https://nym.com/docs/developers/rust/stream/architecture): Internals of the stream module: router, framing, multiplexing
+- [TcpProxy Architecture](https://nym.com/docs/developers/rust/tcpproxy/architecture): Internals of the tcp_proxy module: session management, ordering
 - [Mixnet Troubleshooting](https://nym.com/docs/developers/rust/mixnet/troubleshooting): Common issues and debugging tips for the Rust SDK
 - [SOCKS5 Client](https://nym.com/docs/developers/clients/socks5): Running the nym-socks5-client for proxying traffic
 - [Websocket Client](https://nym.com/docs/developers/clients/websocket): Raw websocket client for low-level Mixnet access

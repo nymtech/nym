@@ -4,13 +4,13 @@ members = [
     "coconut-dkg",
     "ecash",
     "mixnet",
-    "mixnet-vesting-integration-tests",
-    "nym-pool",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
-    "vesting",
+    "node-families",
+    "nym-pool",
     "performance",
     "network-monitors",
+    "vesting",
 ]
 
 [workspace.package]
@@ -51,7 +51,7 @@ cw3-fixed-multisig = "=2.0.0"
 cw4 = "=2.0.0"
 cw20 = "=2.0.0"
 cw20-base = "2.0.0"
-rand = "0.8.5"
+rand = "0.8.6"
 rand_chacha = "0.3.1"
 semver = "1.0.21"
 serde = "1.0.196"
@@ -60,32 +60,34 @@ schemars = "0.8.16"
 
 thiserror = "2.0.11"
 
-easy-addr = { version = "1.20.1", path = "../common/cosmwasm-smart-contracts/easy_addr" }
+easy-addr = { version = "1.21.0", path = "../common/cosmwasm-smart-contracts/easy_addr" }
 # For local development with modifications, add a [patch.crates-io] section (see bottom of file)
-nym-coconut-dkg-common = "1.20.4"
-nym-contracts-common = "1.20.4"
-nym-contracts-common-testing = "1.20.4"
-nym-crypto = { version = "1.20.4", default-features = false }
-nym-ecash-contract-common = "1.20.4"
-nym-group-contract-common = "1.20.4"
-nym-mixnet-contract-common = "1.20.4"
-nym-multisig-contract-common = "1.20.4"
-nym-network-monitors-contract-common = "1.20.4"
-nym-network-defaults = { version = "1.20.4", default-features = false }
-nym-performance-contract-common = "1.20.4"
-nym-pool-contract-common = "1.20.4"
-nym-vesting-contract-common = "1.20.4"
+nym-coconut-dkg-common = "1.21.0"
+nym-contracts-common = "1.21.0"
+nym-contracts-common-testing = "1.21.0"
+nym-crypto = { version = "1.21.0", default-features = false }
+nym-ecash-contract-common = "1.21.0"
+nym-group-contract-common = "1.21.0"
+nym-mixnet-contract-common = "1.21.0"
+nym-multisig-contract-common = "1.21.0"
+nym-network-monitors-contract-common = "1.21.0"
+nym-network-defaults = { version = "1.21.0", default-features = false }
+nym-performance-contract-common = "1.21.0"
+nym-pool-contract-common = "1.21.0"
+nym-vesting-contract-common = "1.21.0"
 
 # Aliases for crates that some contracts import under different names
-contracts-common = { version = "1.20.4", package = "nym-contracts-common" }
-mixnet-contract-common = { version = "1.20.4", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { version = "1.20.4", package = "nym-vesting-contract-common" }
+contracts-common = { version = "1.21.0", package = "nym-contracts-common" }
+mixnet-contract-common = { version = "1.21.0", package = "nym-mixnet-contract-common" }
+vesting-contract-common = { version = "1.21.0", package = "nym-vesting-contract-common" }
+nym-node-families-contract-common = { version = "1.21.0", package = "nym-node-families-contract-common" }
 
 # Internal contract workspace members (for cross-contract testing)
 cw3-flex-multisig = { version = "2.0.0", path = "multisig/cw3-flex-multisig" }
 cw4-group = { version = "2.0.0", path = "multisig/cw4-group" }
 nym-mixnet-contract = { version = "1.5.1", path = "mixnet" }
 nym-vesting-contract = { version = "1.4.1", path = "vesting" }
+node-families = { version = "0.1.0", path = "node-families" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"
@@ -100,4 +102,10 @@ unreachable = "deny"
 # For local development, import via path instead of crates.io, e.g.
 [patch.crates-io]
 nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-crypto = { path = "../common/crypto" }
+nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }

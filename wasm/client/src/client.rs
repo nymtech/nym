@@ -28,8 +28,8 @@ use nym_wasm_client_core::nym_task::ShutdownTracker;
 use nym_wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use nym_wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 use nym_wasm_client_core::storage::ClientStorage;
-use nym_wasm_client_core::topology::{SerializableTopologyExt, WasmFriendlyNymTopology};
-use nym_wasm_client_core::{IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient};
+use nym_wasm_client_core::topology::WasmFriendlyNymTopology;
+use nym_wasm_client_core::{IdentityKey, PacketType, QueryReqwestRpcNyxdClient};
 use nym_wasm_utils::error::PromisableResult;
 use nym_wasm_utils::{check_promise_result, console_error, console_log};
 use serde::{Deserialize, Serialize};
@@ -39,16 +39,6 @@ use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
-#[cfg(feature = "node-tester")]
-use crate::helpers::{NymClientTestRequest, WasmTopologyTestExt};
-
-#[cfg(feature = "node-tester")]
-use rand::{rngs::OsRng, RngCore};
-
-#[cfg(feature = "node-tester")]
-#[allow(dead_code)]
-pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
-
 pub type ClientRequestSender = mpsc::Sender<ClientRequest>;
 
 #[wasm_bindgen]
@@ -56,10 +46,6 @@ pub struct NymClient {
     self_address: String,
     client_input: Arc<ClientInput>,
     client_state: Arc<ClientState>,
-
-    // keep track of the "old" topology for the purposes of node tester
-    // so that it could be restored after the check is done
-    _full_topology: Option<NymTopology>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
@@ -100,37 +86,6 @@ impl NymClientBuilder {
             preferred_gateway,
             latency_based_selection: None,
         }
-    }
-
-    // no cover traffic
-    // no poisson delay
-    // hardcoded topology
-    // NOTE: you most likely want to use `[NymNodeTester]` instead.
-    #[cfg(feature = "node-tester")]
-    pub fn new_tester(
-        topology: WasmFriendlyNymTopology,
-        on_message: js_sys::Function,
-        gateway: Option<IdentityKey>,
-    ) -> Result<NymClientBuilder, WasmClientError> {
-        if let Some(gateway_id) = &gateway {
-            if !topology.ensure_contains_gateway_id(gateway_id) {
-                panic!("the specified topology does not contain the gateway used by the client")
-            }
-        }
-
-        let _ = on_message;
-        // let full_config = ClientConfig::new_tester_config(NODE_TESTER_CLIENT_ID);
-        // Ok(NymClientBuilder {
-        //     config: full_config,
-        //     force_tls: false,
-        //     custom_topology: Some(topology.try_into()?),
-        //     on_message,
-        //     storage_passphrase: None,
-        //     preferred_gateway: gateway,
-        //     latency_based_selection: None,
-        // })
-
-        Err(WasmClientError::DisabledTester)
     }
 
     fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
@@ -255,7 +210,6 @@ impl NymClientBuilder {
             self_address,
             client_input: Arc::new(client_input),
             client_state: Arc::new(started_client.client_state),
-            _full_topology: None,
             _task_manager: started_client.shutdown_handle,
             packet_type,
         })
@@ -394,32 +348,9 @@ impl NymClient {
         })
     }
 
-    // no cover traffic
-    // no poisson delay
-    // hardcoded topology
-    // NOTE: you most likely want to use `[NymNodeTester]` instead.
-    #[cfg(feature = "node-tester")]
-    #[wasm_bindgen(js_name = "newTester")]
-    pub fn new_tester() -> Promise {
-        todo!()
-    }
-
     #[wasm_bindgen(js_name = "selfAddress")]
     pub fn self_address(&self) -> String {
         self.self_address.clone()
-    }
-
-    #[cfg(feature = "node-tester")]
-    pub fn try_construct_test_packet_request(
-        &self,
-        mixnode_identity: String,
-        num_test_packets: Option<u32>,
-    ) -> Promise {
-        // TODO: improve the source of rng (i.e. don't make it ephemeral...)
-        let mut ephemeral_rng = OsRng;
-        let test_id = ephemeral_rng.next_u32();
-        self.client_state
-            .mix_test_request(test_id, mixnode_identity, num_test_packets)
     }
 
     pub fn change_hardcoded_topology(&self, topology: WasmFriendlyNymTopology) -> Promise {
@@ -428,30 +359,6 @@ impl NymClient {
 
     pub fn current_network_topology(&self) -> Promise {
         self.client_state.current_topology()
-    }
-
-    /// Sends a test packet through the current network topology.
-    /// It's the responsibility of the caller to ensure the correct topology has been injected and
-    /// correct onmessage handlers have been setup.
-    #[cfg(feature = "node-tester")]
-    pub fn try_send_test_packets(&mut self, request: NymClientTestRequest) -> Promise {
-        // TOOD: use the premade packets instead
-        console_log!(
-            "Attempting to send {} test packets",
-            request.test_msgs.len()
-        );
-
-        // our address MUST BE valid
-        let recipient = parse_recipient(&self.self_address()).unwrap();
-
-        let lane = TransmissionLane::General;
-        let input_msgs = request
-            .test_msgs
-            .into_iter()
-            .map(|p| InputMessage::new_regular(recipient, p, lane, None))
-            .collect();
-
-        self.client_input.send_messages(input_msgs)
     }
 
     /// The simplest message variant where no additional information is attached.

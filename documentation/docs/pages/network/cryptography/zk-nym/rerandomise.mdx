@@ -9,9 +9,9 @@ Each ticket will not be valid for the entire amount of data that the ticketbook 
 </Callout>
 
 ## Why a 'ticketbook', not individual 'tickets', and why not spend them all at once?
-This is to account for the need for a client to change their ingress Gateway, either because the Gateway itself has gone down / is not offering the required bandwidth, or because a user might simply want to split their traffic across multiple Gateways for extra privacy.
+This is to account for the need for a client to change their ingress Gateway, either because the Gateway itself has gone down or is not offering the required bandwidth, or because a user might want to split their traffic across multiple Gateways for extra privacy.
 
-Clients are therefore not tied to a particular Gateway they have spent their entire subscription with. If an ingress Gateway goes down, or the client simply wants to use a different one, remaining tickets can be spent with any other Gateway.
+Clients are therefore not tied to a particular Gateway they have spent their entire subscription with. If an ingress Gateway goes down, or the client wants to use a different one, remaining tickets can be spent with any other Gateway.
 
 Going back to the `nym-cli` tool to illustrate this; we can generate multiple unlinkable tickets from a single ticketbook aggregated from PSCs:
 

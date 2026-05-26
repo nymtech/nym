@@ -12,7 +12,7 @@ Sign a transaction using [CosmosKit](https://cosmoskit.com/) wallet adapters. Th
 
 <CosmosKit />
 
-<Callout type="info" emoji="ℹ️">
+<Callout type="info">
   No transactions will be broadcast. You will only be signing a transaction.
 </Callout>
 
@@ -27,6 +27,6 @@ If you are using a Ledger hardware wallet:
 
 ## How this works
 
-The component uses CosmosKit to manage wallet connections across different wallet providers (Keplr, Ledger). When you click Sign, it constructs a message, requests your wallet to sign it, and displays the signature hash. This demonstrates how to integrate Cosmos-compatible wallets into a web application that interacts with the Nyx blockchain.
+The component uses CosmosKit to manage wallet connections across different wallet providers (Keplr, Ledger). When you click Sign, it constructs a message, requests your wallet to sign it, and displays the signature hash. The same pattern works for any web application that interacts with the Nyx blockchain.
 
 <FormattedCosmoskitExampleCode />

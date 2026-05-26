@@ -719,6 +719,10 @@ impl Payment {
             return Err(CompactEcashError::SpendSignaturesValidity);
         }
 
+        if verification_key.beta_g2.len() < 4 {
+            return Err(CompactEcashError::VerificationKeyTooShort);
+        }
+
         let kappa_type = self.kappa + verification_key.beta_g2[3] * type_scalar(self.t_type);
         if !check_bilinear_pairing(
             &self.sig.h.to_affine(),

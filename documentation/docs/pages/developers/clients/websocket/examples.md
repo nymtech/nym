@@ -10,8 +10,4 @@ All of these code examples will do the following:
 * wait for confirmation that the message hit the native client
 * wait to receive messages from other Nym apps
 
-By varying the message content, you can easily build sophisticated service provider apps. For example, instead of printing the response received from the mixnet, your service provider might take some action on behalf of the user - perhaps initiating a network request, a blockchain transaction, or writing to a local data store.
-
-<!-- THIS PAGE IS NOT WORKING AT THE MOMENT:
-> You can find an example of building both frontend and service provider code with the websocket client in the [Simple Service Provider Tutorial](https://nym.com/developers/tutorials/simple-service-provider/simple-service-provider.html) in the Developer Portal.
--->
+By varying the message content, you can build service provider apps. For example, instead of printing the response received from the mixnet, your service provider might take some action on behalf of the user (initiating a network request, a blockchain transaction, or writing to a local data store).

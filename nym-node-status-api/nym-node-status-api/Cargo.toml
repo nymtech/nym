@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.6.1"
+version = "4.6.2-rc5"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -84,6 +84,5 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-axum-test = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 nym-gateway-probe = { workspace = true, features = ["test-utils"] }

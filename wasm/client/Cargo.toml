@@ -38,10 +38,6 @@ nym-wasm-client-core = { workspace = true }
 nym-wasm-utils = { workspace = true }
 nym-gateway-requests = { workspace = true }
 
-nym-node-tester-utils = { workspace = true, optional = true }
-
-nym-node-tester-wasm = { path = "../node-tester", optional = true }
-
 tokio_with_wasm = { workspace = true, features = ["full"] }
 
 
@@ -49,8 +45,7 @@ tokio_with_wasm = { workspace = true, features = ["full"] }
 wasm-bindgen-test = { workspace = true }
 
 [features]
-default = ["node-tester"]
-node-tester = ["nym-node-tester-wasm", "nym-node-tester-utils"]
+default = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

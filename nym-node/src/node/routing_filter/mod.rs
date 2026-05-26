@@ -6,14 +6,14 @@ use std::net::IpAddr;
 pub(crate) mod network_filter;
 
 pub(crate) trait RoutingFilter {
-    fn should_route(&self, ip: IpAddr) -> bool;
+    fn should_route(&self, ip: IpAddr, is_network_monitor_packet: bool) -> bool;
 }
 
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct OpenFilter;
 
 impl RoutingFilter for OpenFilter {
-    fn should_route(&self, _: IpAddr) -> bool {
+    fn should_route(&self, _: IpAddr, _: bool) -> bool {
         true
     }
 }

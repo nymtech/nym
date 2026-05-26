@@ -330,7 +330,7 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 	// Ping hosts (DNS resolution test)
 	for _, host := range req.PingHosts {
 		consecutiveFailures := 0
-		maxConsecutiveFailures := 3
+		maxConsecutiveFailures := 2
 
 		for i := uint8(0); i < req.NumPing; i++ {
 			log.Printf("Pinging %s seq=%d (via two-hop)", host, i)
@@ -355,7 +355,7 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 	// Ping IPs (direct connectivity test)
 	for _, ip := range req.PingIps {
 		consecutiveFailures := 0
-		maxConsecutiveFailures := 3
+		maxConsecutiveFailures := 2
 
 		for i := uint8(0); i < req.NumPing; i++ {
 			log.Printf("Pinging %s seq=%d (via two-hop)", ip, i)
@@ -375,7 +375,7 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 			}
 
 			if i < req.NumPing-1 {
-				time.Sleep(5 * time.Second)
+				time.Sleep(1 * time.Second)
 			}
 		}
 	}
@@ -481,7 +481,7 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 
 	for _, host := range req.PingHosts {
 		consecutiveFailures := 0
-		maxConsecutiveFailures := 3
+		maxConsecutiveFailures := 2
 
 		for i := uint8(0); i < req.NumPing; i++ {
 			log.Printf("Pinging %s seq=%d", host, i)
@@ -509,7 +509,7 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 
 	for _, ip := range req.PingIps {
 		consecutiveFailures := 0
-		maxConsecutiveFailures := 3
+		maxConsecutiveFailures := 2
 
 		for i := uint8(0); i < req.NumPing; i++ {
 			log.Printf("Pinging %s seq=%d", ip, i)
@@ -533,7 +533,7 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 
 			// Sleep between ping attempts (except for the last one)
 			if i < req.NumPing-1 {
-				time.Sleep(5 * time.Second)
+				time.Sleep(1 * time.Second)
 			}
 		}
 	}
@@ -689,7 +689,7 @@ func downloadFileWithRetry(urls []string, timeoutSecs uint64, tnet *netstack.Net
 	maxRetries := 3
 	baseDelay := 1 * time.Second
 	consecutiveFailures := 0
-	maxConsecutiveFailures := 3
+	maxConsecutiveFailures := 2
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Shuffle URLs for each attempt to try different ones

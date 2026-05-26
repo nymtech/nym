@@ -47,7 +47,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
 
     // 1. attempt to retrieve current rotation id
     let current_rotation_id =
-        get_current_rotation_id(&config.mixnet.nym_api_urls, &config.mixnet.nyxd_urls).await?;
+        get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
 
     // 2. remove all bloomfilters
     info!("clearing old replay protection bloomfilters...");

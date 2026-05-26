@@ -7,9 +7,6 @@ use nym_wasm_client_core::ClientCoreError;
 use nym_wasm_utils::wasm_error;
 use thiserror::Error;
 
-#[cfg(feature = "node-tester")]
-use nym_node_tester_utils::error::NetworkTestingError;
-
 #[derive(Debug, Error)]
 pub enum WasmClientError {
     #[error(transparent)]
@@ -29,16 +26,6 @@ pub enum WasmClientError {
         #[from]
         source: WasmTopologyError,
     },
-
-    #[cfg(feature = "node-tester")]
-    #[error("failed to test the node: {source}")]
-    NodeTestingFailure {
-        #[from]
-        source: NetworkTestingError,
-    },
-
-    #[error("the node testing features are currently disabled")]
-    DisabledTester,
 }
 
 // I dislike this so much - there must be a better way.

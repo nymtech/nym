@@ -53,6 +53,26 @@ impl TicketbookManagerState {
         }
     }
 
+    pub async fn has_enough_ticketbooks(&self) -> anyhow::Result<bool> {
+        let mut required = HashMap::new();
+        for typ in &self.buffered_ticket_types {
+            let count = required.entry(*typ).or_insert(0);
+            *count += 1;
+        }
+
+        for (typ, required_count) in required {
+            let available = self.storage.available_tickets_of_type(typ).await?;
+            if available < required_count {
+                warn!(
+                    "not enough tickets of type {typ} available in storage, required {required_count}, available {available}"
+                );
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     pub async fn attempt_assign_ticket_materials(
         &self,
         testrun_id: i32,

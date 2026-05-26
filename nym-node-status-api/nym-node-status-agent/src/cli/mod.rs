@@ -3,6 +3,8 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use std::{env, sync::OnceLock};
+use tokio::time::Instant;
+use tracing::info;
 
 pub(crate) mod generate_keypair;
 pub(crate) mod run_probe;
@@ -81,17 +83,21 @@ impl Args {
                     match parse_server_config(s) {
                         Ok(config) => servers.push(config),
                         Err(e) => {
-                            tracing::error!("Invalid server config '{}': {}", s, e);
-                            anyhow::bail!("Invalid server config '{}': {}", s, e);
+                            tracing::error!("Invalid server config '{s}': {e}");
+                            anyhow::bail!("Invalid server config '{s}': {e}");
                         }
                     }
                 }
 
-                run_probe::run_probe(&servers, args.probe_config, log_capture)
+                let start = Instant::now();
+                let res = run_probe::run_probe(&servers, args.probe_config, log_capture)
                     .await
                     .inspect_err(|err| {
                         tracing::error!("{err}");
-                    })?
+                    });
+                info!("Probe completed in {:.2}s", start.elapsed().as_secs_f32());
+
+                res?;
             }
             Command::GenerateKeypair { path } => {
                 let path = path

@@ -135,7 +135,20 @@ impl Probe {
 
         // Mixnet client start
         let mixnet_client = if self.config.test_mode.needs_mixnet() {
-            Some(disconnected_mixnet_client.connect_to_mixnet().await)
+            Some(
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    disconnected_mixnet_client.connect_to_mixnet(),
+                )
+                .await
+                .unwrap_or_else(|_| {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        "mixnet connect timed out after 30s",
+                    )
+                    .into())
+                }),
+            )
         } else {
             // Make sure keys are generated, in case we don't start the mixnet client
             let key_store = storage.key_store();

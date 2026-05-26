@@ -121,7 +121,7 @@ impl UpgradeModeWatcher {
 
     async fn handle_check_request(&mut self, polled_request: CheckRequest) {
         let mut requests = vec![polled_request];
-        while let Ok(Some(queued_up)) = self.check_request_receiver.try_next() {
+        while let Ok(queued_up) = self.check_request_receiver.try_recv() {
             requests.push(queued_up);
         }
 

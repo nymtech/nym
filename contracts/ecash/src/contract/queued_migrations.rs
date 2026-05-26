@@ -6,6 +6,11 @@ use cosmwasm_std::DepsMut;
 use nym_ecash_contract_common::msg::WhitelistedDeposit;
 use nym_ecash_contract_common::EcashContractError;
 
+/// One-way migration that introduces tiered pricing. Backfills the
+/// default-tier stats accumulators from the pre-migration totals (since every
+/// pre-migration deposit was at the single default price) and seeds the
+/// whitelist. Re-running on already-migrated state would clobber the default
+/// counters with figures that include custom-price deposits.
 pub fn add_tiered_pricing(
     mut deps: DepsMut,
     initial_whitelist: Vec<WhitelistedDeposit>,
@@ -101,7 +106,7 @@ mod tests {
     fn migration_with_no_prior_deposits_initialises_stats_to_zero() {
         let mut deps = mock_dependencies();
 
-        // No deposit_id_counter saved — contract never had a deposit.
+        // No deposit_id_counter saved - contract never had a deposit.
         save_pool_counters(deps.as_mut().storage, 0);
 
         add_tiered_pricing(deps.as_mut(), vec![]).unwrap();
@@ -249,7 +254,7 @@ mod tests {
         save_pool_counters(deps.as_mut().storage, 0);
         save_config_and_invariants(&mut deps);
 
-        // Equal to default — should fail
+        // Equal to default - should fail
         let whitelist = vec![WhitelistedDeposit {
             address: deps.api.addr_make("alice").to_string(),
             deposit: coin(DEFAULT_DEPOSIT, DENOM),
@@ -264,7 +269,7 @@ mod tests {
             }
         );
 
-        // Greater than default — should also fail
+        // Greater than default - should also fail
         let whitelist = vec![WhitelistedDeposit {
             address: deps.api.addr_make("alice").to_string(),
             deposit: coin(DEFAULT_DEPOSIT + 1, DENOM),

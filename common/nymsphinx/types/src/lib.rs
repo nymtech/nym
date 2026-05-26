@@ -29,7 +29,7 @@ pub use sphinx_packet::{
     packet::builder::DEFAULT_PAYLOAD_SIZE,
     payload::{
         PAYLOAD_OVERHEAD_SIZE, Payload,
-        key::{PayloadKey, PayloadKeySeed},
+        key::{PayloadKey, PayloadKeySeed, derive_payload_key},
     },
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURB, SURBMaterial},

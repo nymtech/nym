@@ -9,6 +9,7 @@ members = [
     "node-families",
     "nym-pool",
     "performance",
+    "network-monitors",
     "vesting",
 ]
 
@@ -69,6 +70,7 @@ nym-ecash-contract-common = "1.21.0"
 nym-group-contract-common = "1.21.0"
 nym-mixnet-contract-common = "1.21.0"
 nym-multisig-contract-common = "1.21.0"
+nym-network-monitors-contract-common = "1.21.0"
 nym-network-defaults = { version = "1.21.0", default-features = false }
 nym-performance-contract-common = "1.21.0"
 nym-pool-contract-common = "1.21.0"
@@ -98,10 +100,8 @@ unimplemented = "deny"
 unreachable = "deny"
 
 # For local development, import via path instead of crates.io, e.g.
-# [patch.crates-io]
-# nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-
 [patch.crates-io]
+nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-crypto = { path = "../common/crypto" }
 nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }

@@ -79,3 +79,13 @@ fn setup_cors() -> CorsLayer {
         .allow_headers(tower_http::cors::Any)
         .allow_credentials(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn router_constructs_without_panic() {
+        let _ = RouterBuilder::with_default_routes().finalize_routes();
+    }
+}

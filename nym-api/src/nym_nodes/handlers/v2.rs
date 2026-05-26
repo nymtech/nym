@@ -15,7 +15,7 @@ use tower_http::compression::CompressionLayer;
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/described", get(get_described_nodes))
-        .route("/annotation/:node_id", get(get_node_annotation))
+        .route("/annotation/{node_id}", get(get_node_annotation))
         .layer(CompressionLayer::new())
 }
 

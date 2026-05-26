@@ -27,3 +27,20 @@ pub(crate) fn routes(
                 .route_layer(metrics_and_results_auth),
         )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use zeroize::Zeroizing;
+
+    /// Axum 0.8 panics inside `.route(...)` when given the legacy `:param`
+    /// path syntax. That panic never fires at `cargo check` time, so a regression
+    /// only surfaces when the orchestrator boots. This test exercises the whole
+    /// v1 route tree to catch such regressions in CI.
+    #[test]
+    fn v1_router_builds_without_panic() {
+        let dummy_auth = || AuthLayer::new(Arc::new(Zeroizing::new(String::new())));
+        let _ = routes(dummy_auth(), dummy_auth());
+    }
+}

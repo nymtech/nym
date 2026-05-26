@@ -14,15 +14,16 @@ use tracing::info;
 use url::Url;
 
 pub struct WatcherConfig {
-    /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
+    /// Url to the websocket endpoint of a validator, for example, `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
 
-    /// Url to the rpc endpoint of a validator, for example `https://rpc.nymtech.net/`
+    /// Url to the rpc endpoint of a validator, for example, `https://rpc.nymtech.net/`
     pub rpc_url: Url,
 }
 
 pub struct NyxdWatcherBuilder {
     config: WatcherConfig,
+    custom_shutdown: CancellationToken,
 
     block_modules: Vec<Box<dyn BlockModule + Send>>,
     tx_modules: Vec<Box<dyn TxModule + Send>>,
@@ -33,10 +34,17 @@ impl NyxdWatcherBuilder {
     pub fn new(config: WatcherConfig) -> Self {
         NyxdWatcherBuilder {
             config,
+            custom_shutdown: CancellationToken::new(),
             block_modules: vec![],
             tx_modules: vec![],
             msg_modules: vec![],
         }
+    }
+
+    #[must_use]
+    pub fn with_custom_shutdown(mut self, token: CancellationToken) -> Self {
+        self.custom_shutdown = token;
+        self
     }
 
     #[must_use]

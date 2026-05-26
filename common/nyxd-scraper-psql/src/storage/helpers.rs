@@ -9,7 +9,7 @@ use std::str::FromStr;
 // replicate behaviour of `CosmosMessageAddressesParser` from juno
 pub(crate) fn parse_addresses_from_events(tx: &ParsedTransactionResponse) -> Vec<String> {
     let mut addresses: Vec<String> = Vec::new();
-    for event in &tx.tx_result.events {
+    for event in &tx.tx_details.tx_result.events {
         for attribute in &event.attributes {
             let Ok(value) = attribute.value_str() else {
                 continue;

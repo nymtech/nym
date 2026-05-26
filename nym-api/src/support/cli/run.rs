@@ -28,6 +28,7 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
 use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
@@ -311,6 +312,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         Box::new(LegacyStoragePerformanceProvider::new(
             storage.clone(),
             mixnet_contract_cache_state.clone(),
+            config.performance_provider.debug.stress_testing_data_period,
         ))
     };
 
@@ -319,7 +321,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config.node_status_api,
+        &config,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
@@ -410,7 +412,11 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             config.address_cache.capacity,
         ),
         forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+        network_monitor_submissions: LastNMSubmissions::new(),
         mixnet_contract_cache,
+        network_monitors_cache: NetworkMonitorsCache::new(
+            config.network_monitors_cache.time_to_live,
+        ),
         node_families_cache,
         node_annotations_cache,
         storage,

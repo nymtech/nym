@@ -40,6 +40,8 @@ pub struct NymContracts {
     #[serde(default)]
     pub performance_contract_address: Option<String>,
     #[serde(default)]
+    pub network_monitors_contract_address: Option<String>,
+    #[serde(default)]
     pub node_families_contract_address: Option<String>,
     pub ecash_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
@@ -72,6 +74,15 @@ pub struct ApiUrl {
     ///
     /// see https://docs.rs/url/latest/url/enum.Host.html
     pub front_hosts: Option<Vec<String>>,
+}
+
+impl From<Url> for ApiUrl {
+    fn from(value: Url) -> Self {
+        ApiUrl {
+            url: value.to_string(),
+            front_hosts: None,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Serialize)]
@@ -183,6 +194,10 @@ impl NymNetworkDetails {
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
+            .with_performance_contract(get_optional_env(var_names::PERFORMANCE_CONTRACT_ADDRESS))
+            .with_network_monitors_contract(get_optional_env(
+                var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
+            ))
             .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
             .with_nym_vpn_api_urls(nym_vpn_api_urls)
             .with_nym_api_urls(nym_api_urls)
@@ -203,6 +218,9 @@ impl NymNetworkDetails {
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
                 performance_contract_address: parse_optional_str(
                     mainnet::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
+                network_monitors_contract_address: parse_optional_str(
+                    mainnet::NETWORK_MONITORS_CONTRACT_ADDRESS,
                 ),
                 node_families_contract_address: parse_optional_str(
                     mainnet::NODE_FAMILIES_CONTRACT_ADDRESS,
@@ -234,7 +252,7 @@ impl NymNetworkDetails {
 
         fn set_optional_var(var_name: &str, value: Option<String>) {
             if let Some(value) = value {
-                unsafe {set_var(var_name, value)}
+                unsafe { set_var(var_name, value) }
             }
         }
         unsafe {
@@ -260,6 +278,7 @@ impl NymNetworkDetails {
 
             set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
             set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+            set_optional_var(var_names::NETWORK_MONITORS_CONTRACT_ADDRESS, self.contracts.network_monitors_contract_address);
             set_optional_var(var_names::NODE_FAMILIES_CONTRACT_ADDRESS, self.contracts.node_families_contract_address);
             set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
             set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
@@ -380,14 +399,30 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_performance_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.performance_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_network_monitors_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.network_monitors_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
     pub fn with_nym_vpn_api_url<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
         self.nym_vpn_api_url = endpoint.map(Into::into);
         self
     }
 
+    pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
+        self.nym_api_urls = Some(urls.into_iter().map(Into::into).collect());
+    }
+
     #[must_use]
-    pub fn with_nym_api_urls(mut self, urls: Vec<ApiUrl>) -> Self {
-        self.nym_api_urls = Some(urls);
+    pub fn with_nym_api_urls<U: Into<ApiUrl>>(mut self, urls: Vec<U>) -> Self {
+        self.set_nym_api_urls(urls);
         self
     }
 

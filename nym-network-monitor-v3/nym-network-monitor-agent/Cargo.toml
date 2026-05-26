@@ -1,0 +1,56 @@
+[package]
+name = "nym-network-monitor-agent"
+description = "Agent used for stress testing Nym mixnodes"
+version = "1.0.2"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "env"] }
+futures = { workspace = true }
+humantime = { workspace = true }
+rand = { workspace = true }
+nym-sphinx-types = { workspace = true }
+nym-sphinx-params = { workspace = true }
+nym-sphinx-framing = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-noise = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+# methods to recreate lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = { workspace = true }
+arrayref = { workspace = true }
+sha2 = { workspace = true }
+hkdf = { workspace = true }
+x25519-dalek = { workspace = true }
+
+
+nym-bin-common = { workspace = true, features = [
+    "basic_tracing",
+    "output_format",
+] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand", "hashing"] }
+nym-pemstore = { workspace = true }
+nym-task = { workspace = true }
+
+nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["client"] }
+
+[dev-dependencies]
+nym-test-utils = { workspace = true }
+
+[lints]
+workspace = true

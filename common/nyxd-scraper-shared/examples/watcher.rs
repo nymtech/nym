@@ -33,9 +33,9 @@ impl TxModule for FancyTxModule {
     async fn handle_tx(&mut self, tx: &ParsedTransactionResponse) -> Result<(), ScraperError> {
         println!(
             "✨ got new tx for height {}: {} ({} msgs)",
-            tx.block.header.height,
-            tx.hash,
-            tx.parsed_messages.len()
+            tx.tx_details.height(),
+            tx.tx_details.hash,
+            tx.tx_details.tx.body.messages.len()
         );
 
         Ok(())

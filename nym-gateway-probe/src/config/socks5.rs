@@ -38,9 +38,9 @@ impl Default for Socks5Args {
                 "https://cloudflare-eth.com".to_string(),
                 "https://ethereum-rpc.publicnode.com".to_string(),
             ],
-            mixnet_client_timeout_sec: 30,
+            mixnet_client_timeout_sec: 20,
             test_count: 10,
-            failure_count_cutoff: 3,
+            failure_count_cutoff: 2,
         }
     }
 }

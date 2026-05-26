@@ -22,6 +22,8 @@ pub const VESTING_CONTRACT_ADDRESS: &str =
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
+pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
+    "n1m3a2ltkjqud8mkmrpqvgllrtv2p4r6js6qwl7p8cqkzrq8jg6e2qwqgl8z";
 // \/ TODO: this has to be updated once the contract is deployed
 pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
@@ -39,6 +41,10 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772
 
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
+
+// cluster of lite rpc nodes (not part of consensus, aggressive pruning, no archival state)
+pub const NYXD_QUERY_LITE: &str = "https://blockstream.nymtech.net";
+pub const NYXD_WS_LITE: &str = "wss://blockstream.nymtech.net/websocket";
 
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 #[cfg(feature = "network")]
@@ -137,6 +143,11 @@ pub fn read_parsed_var_if_not_default<T: std::str::FromStr>(
         .map(std::str::FromStr::from_str)
 }
 
+#[cfg(feature = "env")]
+pub fn read_parsed_var<T: std::str::FromStr>(var: &str) -> Result<T, T::Err> {
+    std::env::var(var).unwrap_or_default().parse()
+}
+
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
     use crate::var_names;
@@ -168,6 +179,14 @@ pub fn export_to_env() {
         COCONUT_DKG_CONTRACT_ADDRESS,
     );
     set_var_to_default(
+        var_names::PERFORMANCE_CONTRACT_ADDRESS,
+        PERFORMANCE_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
+        var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
+        NETWORK_MONITORS_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
@@ -186,6 +205,8 @@ pub fn export_to_env() {
         var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
         UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
+    set_var_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
+    set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
@@ -237,4 +258,6 @@ pub fn export_to_env_if_not_set() {
         var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
         UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
     );
+    set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
+    set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
 }

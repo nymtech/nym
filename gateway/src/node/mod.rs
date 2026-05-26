@@ -77,6 +77,8 @@ pub struct LocalAuthenticatorOpts {
 pub struct GatewayTasksBuilder {
     config: Config,
 
+    network: NymNetworkDetails,
+
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
@@ -120,6 +122,7 @@ impl GatewayTasksBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
+        network: NymNetworkDetails,
         identity: Arc<ed25519::KeyPair>,
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
@@ -133,6 +136,7 @@ impl GatewayTasksBuilder {
     ) -> GatewayTasksBuilder {
         GatewayTasksBuilder {
             config,
+            network,
             network_requester_opts: None,
             ip_packet_router_opts: None,
             authenticator_opts: None,
@@ -184,8 +188,7 @@ impl GatewayTasksBuilder {
             .choose(&mut thread_rng())
             .ok_or(GatewayError::NoNyxdAvailable)?;
 
-        let network_details = NymNetworkDetails::new_from_env();
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
+        let client_config = nyxd::Config::try_from_nym_network_details(&self.network)?;
 
         let nyxd_client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,

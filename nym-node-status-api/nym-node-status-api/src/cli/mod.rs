@@ -76,7 +76,7 @@ pub(crate) struct Cli {
 
     #[clap(
         long,
-        default_value = "300",
+        default_value = "450",
         env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
     )]
     #[arg(value_parser = parse_duration_std)]

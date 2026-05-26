@@ -5808,7 +5808,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.79"
+version = "1.1.80"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6054,7 +6054,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.76"
+version = "1.1.77"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6137,7 +6137,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.76"
+version = "1.1.77"
 dependencies = [
  "bs58",
  "clap",
@@ -7513,7 +7513,6 @@ version = "1.21.0"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
- "log",
  "regex",
  "schemars 0.8.22",
  "serde",
@@ -7559,8 +7558,102 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitor-agent"
+version = "1.0.2"
+dependencies = [
+ "anyhow",
+ "arrayref",
+ "clap",
+ "futures",
+ "hkdf",
+ "humantime",
+ "lioness",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-network-monitor-orchestrator-requests",
+ "nym-noise",
+ "nym-pemstore",
+ "nym-sphinx-addressing",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "nym-task",
+ "nym-test-utils",
+ "rand 0.8.6",
+ "sha2 0.10.9",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator"
+version = "1.0.2"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "futures",
+ "humantime",
+ "nym-api-requests",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-http-api-common",
+ "nym-metrics",
+ "nym-network-defaults",
+ "nym-network-monitor-orchestrator-requests",
+ "nym-node-requests",
+ "nym-task",
+ "nym-test-utils",
+ "nym-validator-client",
+ "rand 0.8.6",
+ "sqlx",
+ "strum 0.28.0",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitor-orchestrator-requests"
+version = "1.21.0"
+dependencies = [
+ "anyhow",
+ "humantime-serde",
+ "nym-crypto",
+ "nym-http-api-client",
+ "serde",
+ "time",
+ "tracing",
+ "utoipa",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-network-monitors-contract-common"
+version = "1.21.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-network-requester"
-version = "1.1.77"
+version = "1.1.78"
 dependencies = [
  "addr",
  "anyhow",
@@ -7610,7 +7703,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.31.0"
+version = "1.32.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7680,6 +7773,7 @@ dependencies = [
  "nym-verloc",
  "nym-wireguard",
  "nym-wireguard-types",
+ "nyxd-scraper-shared",
  "opentelemetry",
  "opentelemetry_sdk",
  "rand 0.8.6",
@@ -7745,6 +7839,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-kkt-ciphersuite",
+ "nym-network-defaults",
  "nym-noise-keys",
  "nym-test-utils",
  "nym-upgrade-mode-check",
@@ -7763,7 +7858,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "2.0.0"
+version = "2.0.1-rc3"
 dependencies = [
  "anyhow",
  "clap",
@@ -7784,7 +7879,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.6.1"
+version = "4.6.2-rc5"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -8159,7 +8254,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.76"
+version = "1.1.77"
 dependencies = [
  "bs58",
  "clap",
@@ -8664,6 +8759,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
+ "nym-network-monitors-contract-common",
  "nym-node-families-contract-common",
  "nym-performance-contract-common",
  "nym-serde-helpers",
@@ -8958,7 +9054,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "anyhow",
  "bytes",
@@ -9729,9 +9825,9 @@ checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 
 [[package]]
 name = "prefix-trie"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90f561214012d3fc240a1f9c817cc4d57f5310910d066069c1b093f766bb5966"
+checksum = "4cf6e3177f0684016a5c209b00882e15f8bdd3f3bb48f0491df10cd102d0c6e7"
 dependencies = [
  "either",
  "ipnet",

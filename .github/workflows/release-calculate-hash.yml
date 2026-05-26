@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - uses: nymtech/nym/.github/actions/nym-hash-releases@develop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

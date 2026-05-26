@@ -25,7 +25,7 @@ use utoipa::IntoParams;
 pub(super) fn network_monitor_routes() -> Router<AppState> {
     Router::new()
         .nest(
-            "/gateway/:identity",
+            "/gateway/{identity}",
             Router::new()
                 .route("/history", axum::routing::get(gateway_uptime_history))
                 .route(
@@ -34,7 +34,7 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
                 ),
         )
         .nest(
-            "/mixnode/:mix_id",
+            "/mixnode/{mix_id}",
             Router::new()
                 .route("/history", axum::routing::get(mixnode_uptime_history))
                 .route(
@@ -45,14 +45,14 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
         .nest(
             "/mixnodes",
             Router::new().route(
-                "/unstable/:mix_id/test-results",
+                "/unstable/{mix_id}/test-results",
                 axum::routing::get(unstable::mixnode_test_results),
             ),
         )
         .nest(
             "/gateways",
             Router::new().route(
-                "/unstable/:gateway_identity/test-results",
+                "/unstable/{gateway_identity}/test-results",
                 axum::routing::get(unstable::gateway_test_results),
             ),
         )
@@ -60,7 +60,7 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
             "/network-monitor/unstable",
             Router::new()
                 .route(
-                    "/run/:monitor_run_id/details",
+                    "/run/{monitor_run_id}/details",
                     axum::routing::get(monitor_run_report),
                 )
                 .route(

@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::AxumResult;
-use crate::support::http::helpers::PaginationRequest;
+use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::Router;
-use nym_api_requests::models::NymNodeDescriptionV2;
+use nym_api_requests::models::{AnnotationResponseV2, NymNodeDescriptionV2};
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
-use nym_http_api_common::FormattedResponse;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use tower_http::compression::CompressionLayer;
 
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/described", get(get_described_nodes))
+        .route("/annotation/:node_id", get(get_node_annotation))
         .layer(CompressionLayer::new())
 }
 
@@ -50,5 +51,32 @@ async fn get_described_nodes(
             size: descriptions.len(),
         },
         data: descriptions,
+    }))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/annotation/{node_id}",
+    context_path = "/v2/nym-nodes",
+    responses(
+        (status = 200, content(
+            (AnnotationResponseV2 = "application/json"),
+            (AnnotationResponseV2 = "application/yaml"),
+            (AnnotationResponseV2 = "application/bincode")
+        ))
+    ),
+    params(NodeIdParam, OutputParams),
+)]
+async fn get_node_annotation(
+    Path(NodeIdParam { node_id }): Path<NodeIdParam>,
+    Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<AnnotationResponseV2>> {
+    let annotations = state.node_status_cache().node_annotations().await?;
+
+    Ok(output.get_output().to_response(AnnotationResponseV2 {
+        node_id,
+        annotation: annotations.get(&node_id).cloned(),
     }))
 }

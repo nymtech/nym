@@ -240,7 +240,7 @@ mod nonwasm_sealed {
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
             self.packet_forwarder
-                .forward_packet(packet)
+                .forward_client_packet_without_delay(packet)
                 .map_err(erase_err)
         }
     }

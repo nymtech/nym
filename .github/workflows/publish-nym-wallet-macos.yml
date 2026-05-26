@@ -23,10 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Node
-        uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5.0.0
         with:
-          node-version: 22.13.0
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
           
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -68,17 +71,17 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
-      - name: Yarn cache clean
+      - name: pnpm cache clean
         shell: bash
-        run: cd .. && yarn cache clean
+        run: cd .. && pnpm cache delete
 
       - name: Install project dependencies
         shell: bash
-        run: cd .. && yarn --network-timeout 100000
+        run: cd .. && pnpm i
 
-      - name: Yarn build
+      - name: Build
         shell: bash
-        run: cd .. && yarn build
+        run: cd .. && pnpm build
 
       - name: Install dependencies and build it
         env:
@@ -97,7 +100,7 @@ jobs:
           TAURI_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          yarn build-macx86 
+          pnpm build-macx86 
 
       - name: Create app tarball
         run: |

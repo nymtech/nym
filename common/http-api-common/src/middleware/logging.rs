@@ -1,12 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::middleware::client_ip::ClientIpAddr;
 use axum::extract::Request;
 use axum::http::HeaderValue;
 use axum::http::header::{HOST, USER_AGENT};
 use axum::middleware::Next;
 use axum::response::IntoResponse;
-use axum_client_ip::InsecureClientIp;
 use colored::Colorize;
 use std::time::Instant;
 use tracing::{debug, info};
@@ -17,24 +17,24 @@ enum LogLevel {
 }
 
 pub async fn log_request_info(
-    insecure_client_ip: InsecureClientIp,
+    client_ip: ClientIpAddr,
     request: Request,
     next: Next,
 ) -> impl IntoResponse {
-    log_request(insecure_client_ip, request, next, LogLevel::Info).await
+    log_request(client_ip, request, next, LogLevel::Info).await
 }
 
 pub async fn log_request_debug(
-    insecure_client_ip: InsecureClientIp,
+    client_ip: ClientIpAddr,
     request: Request,
     next: Next,
 ) -> impl IntoResponse {
-    log_request(insecure_client_ip, request, next, LogLevel::Debug).await
+    log_request(client_ip, request, next, LogLevel::Debug).await
 }
 
 /// Simple logger for requests
 async fn log_request(
-    InsecureClientIp(addr): InsecureClientIp,
+    ClientIpAddr(addr): ClientIpAddr,
     request: Request,
     next: Next,
     level: LogLevel,

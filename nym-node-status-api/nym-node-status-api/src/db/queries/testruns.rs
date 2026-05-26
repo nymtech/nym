@@ -97,12 +97,15 @@ pub(crate) async fn assign_oldest_testrun(
     let returning = sqlx::query!(
         r#"
         WITH oldest_queued AS (
-            SELECT id
+            SELECT testruns.id
             FROM testruns
-            WHERE status = $1
-            ORDER BY created_utc asc
+            JOIN gateways ON gateways.id = testruns.gateway_id
+            WHERE testruns.status = $1
+              AND gateways.bonded = true
+              AND gateways.performance > 0
+            ORDER BY testruns.created_utc asc
             LIMIT 1
-            FOR UPDATE SKIP LOCKED
+            FOR UPDATE OF testruns SKIP LOCKED
         )
         UPDATE testruns
             SET

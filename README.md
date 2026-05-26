@@ -74,9 +74,9 @@ Nym Node Operators and Validators Terms and Conditions can be found [here](https
 ## Getting Started
 
 ```bash
-yarn install
+pnpm install
 ```
 
 ```bash
-yarn build
+pnpm build
 ```

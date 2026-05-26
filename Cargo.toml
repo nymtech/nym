@@ -44,6 +44,7 @@ members = [
     "common/cosmwasm-smart-contracts/nym-performance-contract",
     "common/cosmwasm-smart-contracts/nym-pool-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/cosmwasm-smart-contracts/network-monitors-contract",
     "common/credential-proxy",
     "common/credential-storage",
     "common/credential-utils",
@@ -130,7 +131,6 @@ members = [
     "nym-api",
     "nym-api/nym-api-requests",
     "nym-authenticator-client",
-    "nym-browser-extension/storage",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
     "nym-data-observatory",
@@ -174,11 +174,12 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-    # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/smolmix",
-    "wasm/node-tester",
     "wasm/zknym-lib",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
 ]
 
 default-members = [
@@ -196,6 +197,8 @@ default-members = [
     "service-providers/network-requester",
     "tools/internal/localnet-orchestrator",
     "tools/nymvisor",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator",
+    "nym-network-monitor-v3/nym-network-monitor-agent",
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]
@@ -252,7 +255,7 @@ clap_complete_fig = "4.5"
 colored = "2.2"
 comfy-table = "7.1.4"
 console = "0.16.0"
-console-subscriber = "0.4.1"
+console-subscriber = "0.5.0"
 console_error_panic_hook = "0.1"
 const-str = "0.5.6"
 const_format = "0.2.34"
@@ -400,7 +403,7 @@ uniffi = "0.29.2"
 uniffi_build = "0.29.0"
 url = "2.5"
 utoipa = "5.2"
-utoipa-swagger-ui = "8.1"
+utoipa-swagger-ui = "9.0.2"
 utoipauto = "0.2"
 uuid = "1.19.0"
 vergen = { version = "=8.3.1", default-features = false }
@@ -411,6 +414,10 @@ zeroize = "1.7.0"
 
 prometheus = { version = "0.14.0" }
 
+# recreating lioness
+# we don't care about particular versions - just pull whatever is used by sphinx
+lioness = "*"
+arrayref = "*"
 
 # libcrux
 libcrux-kem = "0.0.7"
@@ -518,6 +525,7 @@ nym-types = { version = "1.21.0", path = "common/types" }
 nym-upgrade-mode-check = { version = "1.21.0", path = "common/upgrade-mode-check" }
 nym-validator-client = { version = "1.21.0", path = "common/client-libs/validator-client", default-features = false }
 nym-vesting-contract-common = { version = "1.21.0", path = "common/cosmwasm-smart-contracts/vesting-contract" }
+nym-network-monitors-contract-common = { version = "1.21.0", path = "common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-verloc = { version = "1.21.0", path = "common/verloc" }
 nym-wireguard = { version = "1.21.0", path = "common/wireguard" }
 nym-wireguard-types = { version = "1.21.0", path = "common/wireguard-types" }
@@ -597,16 +605,7 @@ opt-level = 3
 # lto = true
 opt-level = 'z'
 
-[profile.release.package.nym-node-tester-wasm]
-# lto = true
-opt-level = 'z'
 
-# Commented out since the crate is also commented out from the inclusion in the
-# workspace above. We should uncomment this if we re-include it in the
-# workspace
-#[profile.release.package.nym-wasm-sdk]
-## lto = true
-#opt-level = 'z'
 
 [profile.release.package.mix-fetch-wasm]
 # lto = true

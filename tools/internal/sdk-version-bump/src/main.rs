@@ -226,9 +226,6 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     // cargo packages that will have their Cargo.toml modified
     packages.register_cargo("wasm/mix-fetch");
     packages.register_cargo("wasm/client");
-    packages.register_cargo("wasm/node-tester");
-    // packages.register_cargo("wasm/full-nym-wasm");
-    packages.register_cargo("nym-browser-extension/storage");
 
     // js packages that will have their package.json modified
     packages.register_json("nym-wallet");
@@ -236,17 +233,11 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_json("sdk/typescript/examples/chat-app/parcel");
     packages.register_json("sdk/typescript/examples/chat-app/plain-html");
     packages.register_json("sdk/typescript/examples/chat-app/react-webpack-with-theme-example");
-    packages.register_json("sdk/typescript/examples/chrome-extension");
-    packages.register_json("sdk/typescript/examples/firefox-extension");
     packages.register_json("sdk/typescript/examples/mix-fetch/browser");
-    packages.register_json("sdk/typescript/examples/node-tester/parcel");
-    packages.register_json("sdk/typescript/examples/node-tester/plain-html");
-    packages.register_json("sdk/typescript/examples/node-tester/react");
     packages.register_json("sdk/typescript/packages/mix-fetch");
     packages.register_json("sdk/typescript/packages/mix-fetch-node");
     packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev");
     packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev/parcel");
-    packages.register_json("sdk/typescript/packages/node-tester");
     packages.register_json("sdk/typescript/packages/nodejs-client");
     packages.register_json("sdk/typescript/packages/sdk");
     packages.register_json("sdk/typescript/packages/sdk-react");
@@ -259,14 +250,12 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_known_js_dependency("@nymproject/mix-fetch-wasm-node");
 
     // WASM
-    packages.register_known_js_dependency("@nymproject/nym-node-tester-wasm");
     packages.register_known_js_dependency("@nymproject/nym-client-wasm");
     packages.register_known_js_dependency("@nymproject/mix-fetch-wasm");
 
     packages.register_known_js_dependency("@nymproject/mix-fetch");
     packages.register_known_js_dependency("@nymproject/mix-fetch-full-fat");
     packages.register_known_js_dependency("@nymproject/mui-theme");
-    packages.register_known_js_dependency("@nymproject/node-tester");
     packages.register_known_js_dependency("@nymproject/react-components");
     packages.register_known_js_dependency("@nymproject/sdk");
     packages.register_known_js_dependency("@nymproject/sdk-full-fat");

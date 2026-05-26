@@ -95,9 +95,9 @@ impl Args {
                     .inspect_err(|err| {
                         tracing::error!("{err}");
                     });
-                info!("Probe completed in {:.2}ms", start.elapsed().as_secs_f32());
+                info!("Probe completed in {:.2}s", start.elapsed().as_secs_f32());
 
-                let _ = res?;
+                res?;
             }
             Command::GenerateKeypair { path } => {
                 let path = path

@@ -428,6 +428,7 @@ impl Default for MixnetContractCacheDebug {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
 pub struct PerformanceProvider {
     /// Specifies whether this nym-api should attempt to retrieve node performance
     /// information from the performance contract.
@@ -448,6 +449,7 @@ impl Default for PerformanceProvider {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
 pub struct PerformanceProviderDebug {
     /// Specifies interval of polling the performance contract. Note it is only applicable
     /// if the contract data is being used.

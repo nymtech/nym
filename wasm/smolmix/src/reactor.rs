@@ -15,7 +15,8 @@ use std::time::Duration;
 use futures::channel::mpsc;
 use futures::{FutureExt, StreamExt};
 use nym_wasm_client_core::nym_task::ShutdownTracker;
-use smoltcp::iface::{Interface, SocketSet};
+use smoltcp::iface::{Interface, SocketHandle, SocketSet};
+use smoltcp::socket::tcp as smoltcp_tcp;
 use smoltcp::time::Instant;
 
 use crate::device::WasmDevice;
@@ -35,6 +36,10 @@ pub struct SmoltcpStack {
     pub iface: Interface,
     pub sockets: SocketSet<'static>,
     pub device: WasmDevice,
+    /// TCP handles awaiting clean removal: their `Drop` queued a FIN via
+    /// `socket.close()` but smoltcp hasn't transitioned to `State::Closed`
+    /// yet. Swept after each `iface.poll()`.
+    pub pending_removal: Vec<SocketHandle>,
 }
 
 /// Get the current smoltcp timestamp from `Date.now()`.
@@ -78,8 +83,22 @@ pub fn start_reactor(
                         ref mut iface,
                         ref mut sockets,
                         ref mut device,
+                        ref mut pending_removal,
                     } = *s;
                     iface.poll(now, device, sockets);
+
+                    // Sweep handles whose FIN/ACK exchange just completed.
+                    pending_removal.retain(|&handle| {
+                        if sockets.get::<smoltcp_tcp::Socket>(handle).state()
+                            == smoltcp_tcp::State::Closed
+                        {
+                            sockets.remove(handle);
+                            false
+                        } else {
+                            true
+                        }
+                    });
+
                     iface.poll_delay(now, sockets)
                 };
 

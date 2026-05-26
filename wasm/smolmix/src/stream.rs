@@ -33,6 +33,9 @@ pub struct WasmTcpStream {
     pub(crate) stack: Arc<Mutex<SmoltcpStack>>,
     pub(crate) handle: SocketHandle,
     pub(crate) notify: ReactorNotify,
+    /// Set once `socket.close()` has been called (via `poll_close` or
+    /// `Drop`). Makes the close path idempotent.
+    closed: bool,
 }
 
 /// UDP socket over the WASM tunnel. Used for DNS queries.
@@ -111,12 +114,22 @@ impl AsyncWrite for WasmTcpStream {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
-        socket.close();
-        let _ = self.notify.unbounded_send(());
-        Poll::Ready(Ok(()))
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = self.get_mut();
+        let mut s = this.stack.lock().unwrap();
+        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(this.handle);
+        if !this.closed {
+            socket.close();
+            this.closed = true;
+            let _ = this.notify.unbounded_send(());
+        }
+        if socket.state() == smoltcp_tcp::State::Closed {
+            Poll::Ready(Ok(()))
+        } else {
+            // Wake on state-change progress through the FIN/ACK exchange.
+            socket.register_send_waker(cx.waker());
+            Poll::Pending
+        }
     }
 }
 
@@ -124,11 +137,15 @@ impl Unpin for WasmTcpStream {}
 
 impl Drop for WasmTcpStream {
     fn drop(&mut self) {
+        // Queue a FIN (vs `abort()` which sends RST). The
+        // reactor's pending_removal sweep removes the handle once smoltcp
+        // transitions through the FIN/ACK exchange to State::Closed.
         let mut s = self.stack.lock().unwrap();
         s.sockets
             .get_mut::<smoltcp_tcp::Socket>(self.handle)
-            .abort();
-        s.sockets.remove(self.handle);
+            .close();
+        s.pending_removal.push(self.handle);
+        let _ = self.notify.unbounded_send(());
     }
 }
 
@@ -353,6 +370,7 @@ pub(crate) async fn tcp_connect(
         stack,
         handle: guard.defuse(),
         notify,
+        closed: false,
     })
 }
 

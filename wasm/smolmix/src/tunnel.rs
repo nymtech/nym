@@ -310,6 +310,7 @@ impl WasmTunnel {
             iface,
             sockets: SocketSet::new(Vec::new()),
             device,
+            pending_removal: Vec::new(),
         }));
 
         // Bridge starts at seq=1 (ConnectRequest was Data seq=0).

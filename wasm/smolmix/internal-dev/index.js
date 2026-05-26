@@ -26,6 +26,9 @@ let api = null;
 const outputEl = document.getElementById("output");
 
 // Global timeline. Per-section feedback goes through logTo() instead.
+// Red-coloured entries (the in-page convention for errors) are also
+// mirrored to console.error so they show up in the browser dev tools
+// alongside the Rust-side `[smolmix] ...` logs.
 function display(msg, colour) {
   const ts = new Date().toISOString().slice(11, 23);
   const line = document.createElement("div");
@@ -33,6 +36,7 @@ function display(msg, colour) {
   line.textContent = `[${ts}] ${msg}`;
   outputEl.appendChild(line);
   outputEl.scrollTop = outputEl.scrollHeight;
+  if (colour === "red") console.error("[smolmix-dev]", msg);
 }
 
 function logTo(targetId, msg, colour) {
@@ -44,6 +48,7 @@ function logTo(targetId, msg, colour) {
   line.textContent = `[${ts}] ${msg}`;
   target.appendChild(line);
   target.scrollTop = target.scrollHeight;
+  if (colour === "red") console.error(`[smolmix-dev:${targetId}]`, msg);
 }
 
 function hexPreview(data, maxBytes = 64) {
@@ -131,7 +136,7 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     parseInt(document.getElementById("opt-data-surbs").value, 10) || 2,
   );
 
-  // `undefined` (omitted) means "use the Rust default" — see SetupOpts.
+  // `undefined` (omitted) means "use the Rust default"; see SetupOpts.
   const primaryDns =
     document.getElementById("opt-primary-dns").value.trim() || undefined;
   const fallbackDns =
@@ -146,7 +151,7 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
 
   try {
     await api.setupMixTunnel({
-      // Omit preferredIpr entirely when auto-discovery is requested — the
+      // Omit preferredIpr entirely when auto-discovery is requested.
       // Rust SetupOpts treats `null`/undefined as "discover one yourself".
       ...(iprAddress ? { preferredIpr: iprAddress } : {}),
       clientId,
@@ -164,9 +169,11 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     setTunnelButtonsEnabled(true);
     document.getElementById("btn-disconnect").disabled = false;
   } catch (e) {
-    display(`setupMixTunnel failed: ${e}`, "red");
-    statusEl.textContent = "Failed";
+    const msg = String(e);
+    display(`setupMixTunnel failed: ${msg}`, "red");
+    statusEl.textContent = `Failed: ${msg}`;
     statusEl.style.color = "red";
+    statusEl.title = msg;
     document.getElementById("btn-setup").disabled = false;
   }
 });

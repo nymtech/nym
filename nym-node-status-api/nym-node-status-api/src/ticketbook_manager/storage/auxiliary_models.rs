@@ -17,14 +17,15 @@ pub(crate) struct RetrievedTicketbook {
 
 impl RetrievedTicketbook {
     pub fn new(ticketbook: IssuedTicketBook) -> anyhow::Result<Self> {
-        let usable_index = ticketbook.spent_tickets() as u32 - 1;
         // spent_tickets is the post-increment number from the DB: the ticket we're
         // handing out has already been counted as "used" in the DB, but has NOT YET
         // been spent yet by the recipient. To get its 0-based index in the ticketbook,
         // subtract 1 (e.g. spent_tickets=1, the ticket at index 0).
-        if usable_index < 1 {
+        let spent = ticketbook.spent_tickets();
+        if spent == 0 {
             bail!("Malformed ticket: cannot convert from ticket with spent_tickets=0");
         }
+        let usable_index = (spent as u32) - 1;
         Ok(Self {
             usable_index,
             ticketbook,

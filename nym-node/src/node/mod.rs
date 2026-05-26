@@ -46,11 +46,8 @@ use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherC
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
 use nym_bin_common::{bin_info, bin_info_owned};
 use nym_config::defaults::NymNetworkDetails;
-use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-pub use nym_gateway::node::ActiveClientsStore;
-pub use nym_gateway::node::GatewayStorage;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -97,6 +94,9 @@ use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
+
+pub use nym_gateway::node::ActiveClientsStore;
+pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;

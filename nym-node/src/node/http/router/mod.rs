@@ -185,20 +185,10 @@ impl NymNodeRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::{ed25519, x25519};
-    use nym_node_requests::api::SignedData;
-    use nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol;
-    use nym_test_utils::helpers::deterministic_rng;
-    use std::collections::BTreeMap;
 
     #[test]
     fn router_constructs_without_panic() {
-        let mut rng = deterministic_rng();
-        let signing = ed25519::KeyPair::new(&mut rng);
-        let x25519_pub: x25519::DHPublicKey = x25519::PrivateKey::new(&mut rng).public_key().into();
-        let lp = LewesProtocol::new(false, 0, 0, x25519_pub, BTreeMap::new());
-        let signed = SignedData::new(lp, signing.private_key()).unwrap();
-        let config = HttpServerConfig::new(signed);
+        let config = HttpServerConfig::new();
         let _ = NymNodeRouter::new(config, AppState::dummy());
     }
 }

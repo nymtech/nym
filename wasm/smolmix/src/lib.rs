@@ -36,6 +36,8 @@ mod mixsocket;
 #[cfg(target_arch = "wasm32")]
 mod reactor;
 #[cfg(target_arch = "wasm32")]
+mod state;
+#[cfg(target_arch = "wasm32")]
 mod stream;
 #[cfg(target_arch = "wasm32")]
 mod tls;
@@ -63,6 +65,19 @@ use wasm_bindgen_futures::future_to_promise;
 /// Global tunnel singleton, set once by `setupMixTunnel`, stays in the OnceLock after shutdown.
 #[cfg(target_arch = "wasm32")]
 pub(crate) static TUNNEL: OnceLock<WasmTunnel> = OnceLock::new();
+
+/// Resolve the tunnel and gate on readiness. Used by every JS entry point.
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn ready_tunnel() -> Result<&'static WasmTunnel, FetchError> {
+    let tunnel = TUNNEL.get().ok_or(FetchError::NotConnected)?;
+    if !tunnel.is_ready() {
+        return Err(FetchError::Tunnel(format!(
+            "tunnel not ready: {:?}",
+            tunnel.tunnel_state()
+        )));
+    }
+    Ok(tunnel)
+}
 
 /// Options accepted by `setupMixTunnel`. Deserialised from the JS object via
 /// `serde-wasm-bindgen` + `tsify`, which gives us typed access without manual
@@ -110,11 +125,12 @@ fn default_force_tls() -> bool {
     true
 }
 
-/// WASM entry point. Installs the panic hook for readable stack traces.
+/// WASM entry point. Installs the panic hook + state-machine recorder.
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn main() {
     nym_wasm_utils::set_panic_hook();
+    state::install_panic_recorder();
 }
 
 /// Initialise the mixnet tunnel. See [`SetupOpts`] for the JS-side shape.
@@ -181,4 +197,16 @@ pub fn disconnect_mix_tunnel() -> js_sys::Promise {
         }
         Ok(JsValue::UNDEFINED)
     })
+}
+
+/// Returns `{state, reason?}`. See [`state::TunnelState`] serde tags
+/// for the exact shape. Pre-`setupMixTunnel` reads as `connecting`.
+#[wasm_bindgen(js_name = "getTunnelState")]
+#[cfg(target_arch = "wasm32")]
+pub fn get_tunnel_state() -> JsValue {
+    let s = match TUNNEL.get() {
+        Some(tunnel) => tunnel.tunnel_state(),
+        None => state::TunnelState::Connecting,
+    };
+    serde_wasm_bindgen::to_value(&s).unwrap_or(JsValue::NULL)
 }

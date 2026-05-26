@@ -11,17 +11,18 @@
 //! **Incoming** (mixnet → smoltcp): receive `ReconstructedMessage` batches,
 //! LP-decode, parse IPR responses, unbundle IP packets, push to device rx.
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::{FutureExt, StreamExt};
 use nym_wasm_client_core::client::base_client::ClientInput;
+use nym_wasm_client_core::nym_task::ShutdownTracker;
 use nym_wasm_client_core::Recipient;
-use wasm_bindgen_futures::spawn_local;
 
 use crate::ipr::{self, ReconstructedReceiver};
 use crate::reactor::{ReactorNotify, SmoltcpStack};
+use crate::state::{State, TaskName};
 
 /// Maximum outgoing packets sent per bridge tick.
 ///
@@ -48,69 +49,73 @@ pub fn start_bridge(
     stream_id: u64,
     seq: Arc<AtomicU32>,
     notify_reactor: ReactorNotify,
-    shutdown: Arc<AtomicBool>,
+    tracker: &ShutdownTracker,
+    state: State,
     data_surbs: u32,
 ) {
-    spawn_local(async move {
-        let mut tx_interval = wasmtimer::tokio::interval(Duration::from_millis(5));
+    // Cloned so finalise_task can check is_cancelled() on the way out.
+    let token = tracker.clone_shutdown_token();
+    tracker.try_spawn_named_with_shutdown(
+        async move {
+            let mut tx_interval = wasmtimer::tokio::interval(Duration::from_millis(5));
 
-        loop {
-            if shutdown.load(Ordering::Relaxed) {
-                break;
-            }
-
-            // Block until something happens (incoming message or timer tick).
-            // `futures::select!` polls pseudo-randomly when both branches are
-            // ready, so textual order is not a priority guarantee.
-            // TODO: consider `futures::select_biased!` if a sustained timer
-            // burst ever shows up as incoming-side latency.
-            futures::select! {
-                batch = msg_receiver.next().fuse() => {
-                    let Some(messages) = batch else {
-                        crate::util::debug_error!(
-                            "[bridge] message channel closed"
+            loop {
+                // Block until something happens (incoming message or timer tick).
+                // `futures::select!` polls pseudo-randomly when both branches are
+                // ready, so textual order is not a priority guarantee.
+                // TODO: consider `futures::select_biased!` if a sustained timer
+                // burst ever shows up as incoming-side latency.
+                futures::select! {
+                    batch = msg_receiver.next().fuse() => {
+                        let Some(messages) = batch else {
+                            crate::util::debug_error!(
+                                "[bridge] message channel closed"
+                            );
+                            break;
+                        };
+                        process_incoming(
+                            &stack, &messages, stream_id, &notify_reactor,
                         );
-                        break;
-                    };
-                    process_incoming(
-                        &stack, &messages, stream_id, &notify_reactor,
-                    );
+                    }
+                    _ = tx_interval.tick().fuse() => {}
                 }
-                _ = tx_interval.tick().fuse() => {}
-            }
 
-            // Non-blockingly drain any remaining incoming messages so we
-            // never let them queue up while we're sending outgoing packets.
-            while let Some(Some(messages)) = msg_receiver.next().now_or_never() {
-                process_incoming(&stack, &messages, stream_id, &notify_reactor);
-            }
+                // Non-blockingly drain any remaining incoming messages so we
+                // never let them queue up while we're sending outgoing packets.
+                while let Some(Some(messages)) = msg_receiver.next().now_or_never() {
+                    process_incoming(&stack, &messages, stream_id, &notify_reactor);
+                }
 
-            // Drain outgoing packets (capped to avoid starving incoming).
-            let packets: Vec<Vec<u8>> = {
-                let mut s = stack.lock().unwrap();
-                s.device.drain_tx().take(MAX_OUTGOING_PER_TICK).collect()
-            };
+                // Drain outgoing packets (capped to avoid starving incoming).
+                let packets: Vec<Vec<u8>> = {
+                    let mut s = stack.lock().unwrap();
+                    s.device.drain_tx().take(MAX_OUTGOING_PER_TICK).collect()
+                };
 
-            if !packets.is_empty() {
-                crate::util::debug_log!("[bridge] ▲ tx ({} packets)", packets.len());
-            }
-            for packet in packets {
-                let current_seq = seq.fetch_add(1, Ordering::Relaxed);
-                if let Err(e) = ipr::send_ip_packet(
-                    &client_input,
-                    &ipr_address,
-                    stream_id,
-                    current_seq,
-                    &packet,
-                    data_surbs,
-                )
-                .await
-                {
-                    crate::util::debug_error!("[bridge] send error: {e}");
+                if !packets.is_empty() {
+                    crate::util::debug_log!("[bridge] ▲ tx ({} packets)", packets.len());
+                }
+                for packet in packets {
+                    let current_seq = seq.fetch_add(1, Ordering::Relaxed);
+                    if let Err(e) = ipr::send_ip_packet(
+                        &client_input,
+                        &ipr_address,
+                        stream_id,
+                        current_seq,
+                        &packet,
+                        data_surbs,
+                    )
+                    .await
+                    {
+                        crate::util::debug_error!("[bridge] send error: {e}");
+                    }
                 }
             }
-        }
-    });
+
+            state.finalise_task(TaskName::Bridge, &token);
+        },
+        "smolmix-bridge",
+    );
 }
 
 /// Process a batch of incoming mixnet messages: LP-decode, parse IPR

@@ -6,14 +6,13 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
-use crate::error::FetchError;
-use crate::{fetch, TUNNEL};
+use crate::fetch;
 
 /// Execute an HTTP request through the mixnet tunnel.
 #[wasm_bindgen(js_name = "mixFetch")]
 pub fn mix_fetch(url: String, init: JsValue) -> js_sys::Promise {
     future_to_promise(async move {
-        let tunnel = TUNNEL.get().ok_or(FetchError::NotConnected)?;
+        let tunnel = crate::ready_tunnel()?;
         fetch::fetch(tunnel, &url, &init).await.map_err(Into::into)
     })
 }

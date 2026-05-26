@@ -9,17 +9,17 @@
 //! arrives. smoltcp's per-socket `register_recv_waker`/`register_send_waker`
 //! fire automatically on every state change.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::channel::mpsc;
 use futures::{FutureExt, StreamExt};
+use nym_wasm_client_core::nym_task::ShutdownTracker;
 use smoltcp::iface::{Interface, SocketSet};
 use smoltcp::time::Instant;
-use wasm_bindgen_futures::spawn_local;
 
 use crate::device::WasmDevice;
+use crate::state::{State, TaskName};
 
 /// Maximum idle sleep when smoltcp has no pending work. Bounds the latency of
 /// TCP retransmit and keepalive timers if `poll_delay` ever returns `None`; on
@@ -62,45 +62,59 @@ pub type ReactorNotify = mpsc::UnboundedSender<()>;
 pub fn start_reactor(
     stack: Arc<Mutex<SmoltcpStack>>,
     mut notify: mpsc::UnboundedReceiver<()>,
-    shutdown: Arc<AtomicBool>,
+    tracker: &ShutdownTracker,
+    state: State,
 ) {
-    spawn_local(async move {
-        loop {
-            if shutdown.load(Ordering::Relaxed) {
-                break;
+    // Cloned so finalise_task can check is_cancelled() on the way out.
+    let token = tracker.clone_shutdown_token();
+    tracker.try_spawn_named_with_shutdown(
+        async move {
+            loop {
+                // Poll smoltcp; built-in socket wakers fire on any state change.
+                let delay = {
+                    let mut s = stack.lock().unwrap();
+                    let now = smoltcp_now();
+                    let SmoltcpStack {
+                        ref mut iface,
+                        ref mut sockets,
+                        ref mut device,
+                    } = *s;
+                    iface.poll(now, device, sockets);
+                    iface.poll_delay(now, sockets)
+                };
+
+                // Translate smoltcp's deadline into a sleep duration. A zero delay
+                // means "poll again immediately"; treat it as 1 ms so the task
+                // yields back to the JS event loop before re-entering the loop.
+                let sleep_for = match delay {
+                    Some(d) if d.total_micros() == 0 => Duration::from_millis(1),
+                    Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
+                    None => MAX_IDLE,
+                };
+
+                futures::select! {
+                    _ = wasmtimer::tokio::sleep(sleep_for).fuse() => {},
+                    msg = notify.next().fuse() => {
+                        if msg.is_none() {
+                            // All wake sources gone. If cancellation is
+                            // already in flight, finalise_task no-ops;
+                            // otherwise it marks Failed { TaskExited }.
+                            crate::util::debug_error!(
+                                "[reactor] notify channel closed"
+                            );
+                            break;
+                        }
+                    }
+                }
+
+                // Drain queued notifications so one poll() handles all
+                // state changes. Without this, rapid-fire notifications from TLS
+                // writes monopolise the single-threaded WASM event loop.
+                while notify.next().now_or_never().flatten().is_some() {}
             }
 
-            // Poll smoltcp; built-in socket wakers fire on any state change.
-            let delay = {
-                let mut s = stack.lock().unwrap();
-                let now = smoltcp_now();
-                let SmoltcpStack {
-                    ref mut iface,
-                    ref mut sockets,
-                    ref mut device,
-                } = *s;
-                iface.poll(now, device, sockets);
-                iface.poll_delay(now, sockets)
-            };
-
-            // Translate smoltcp's deadline into a sleep duration. A zero delay
-            // means "poll again immediately"; treat it as 1 ms so the task
-            // yields back to the JS event loop before re-entering the loop.
-            let sleep_for = match delay {
-                Some(d) if d.total_micros() == 0 => Duration::from_millis(1),
-                Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
-                None => MAX_IDLE,
-            };
-
-            futures::select! {
-                _ = wasmtimer::tokio::sleep(sleep_for).fuse() => {},
-                _ = notify.next().fuse() => {},
-            }
-
-            // Coalesce: drain queued notifications so one poll() handles all
-            // state changes. Without this, rapid-fire notifications from TLS
-            // writes monopolise the single-threaded WASM event loop.
-            while notify.next().now_or_never().flatten().is_some() {}
-        }
-    });
+            state.finalise_task(TaskName::Reactor, &token);
+        },
+        "smolmix-reactor",
+    );
 }

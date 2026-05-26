@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
 
 use futures::channel::mpsc;
@@ -22,9 +22,7 @@ use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address, Ipv6Address
 
 use nym_ip_packet_requests::IpPair;
 use nym_wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput};
-use nym_wasm_client_core::client::received_buffer::{
-    ReceivedBufferMessage, ReceivedBufferRequestSender,
-};
+use nym_wasm_client_core::client::received_buffer::ReceivedBufferMessage;
 use nym_wasm_client_core::config::new_base_client_config;
 use nym_wasm_client_core::helpers::{add_gateway, generate_new_client_keys};
 use nym_wasm_client_core::nym_task::ShutdownTracker;
@@ -38,12 +36,12 @@ use crate::device::WasmDevice;
 use crate::error::FetchError;
 use crate::ipr;
 use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack};
+use crate::state;
 use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
 /// Configuration for `setupMixTunnel(opts)`.
 pub struct TunnelOpts {
-    /// Pinned IPR. `None` triggers performance-weighted auto-discovery via
-    /// `ipr::discover_ipr` using the base client's resolved `nym_api_urls`.
+    /// `None` triggers performance-weighted auto-discovery via `ipr::discover_ipr`.
     pub ipr_address: Option<Recipient>,
     /// Client storage ID. Randomise per session to get a clean client.
     pub client_id: String,
@@ -66,7 +64,6 @@ pub struct TunnelOpts {
 pub struct WasmTunnel {
     stack: Arc<Mutex<SmoltcpStack>>,
     notify: ReactorNotify,
-    shutdown: Arc<AtomicBool>,
     allocated_ips: IpPair,
     /// Resolved per-tunnel DNS endpoints (primary, fallback). Either falls
     /// back to the constants in [`dns`] when the caller didn't override.
@@ -81,29 +78,26 @@ pub struct WasmTunnel {
     conn_pool: Mutex<HashMap<(String, u16), PooledConn>>,
     /// Per-origin locks to avoid stampeding parallel TCP+TLS handshakes.
     origin_locks: Mutex<HashMap<(String, u16), Arc<futures::lock::Mutex<()>>>>,
-    /// Dropping these shuts down the base client. Kept behind `Mutex<Option<_>>`
-    /// so `shutdown(&self)` can `take()` them while `WasmTunnel` lives forever
-    /// in a `OnceLock`.
-    request_sender: Mutex<Option<ReceivedBufferRequestSender>>,
-    shutdown_handle: Mutex<Option<ShutdownTracker>>,
+    /// `Mutex<Option<_>>` because `ShutdownTracker::shutdown(self).await`
+    /// takes ownership, but `WasmTunnel` lives in a `OnceLock`.
+    base_tracker: Mutex<Option<ShutdownTracker>>,
+    /// Child of `base_tracker`; bridge + reactor spawn through it.
+    smolmix_tracker: Mutex<Option<ShutdownTracker>>,
+    state: state::State,
 }
 
 /// Handles the Nym base client hands back after `start_base()`.
 struct ClientHandles {
     client_input: Arc<ClientInput>,
     reconstructed_receiver: ipr::ReconstructedReceiver,
-    request_sender: ReceivedBufferRequestSender,
     shutdown_handle: ShutdownTracker,
-    /// Resolved Nym API URLs from the base client config. Lifted out so
-    /// auto-discovery (`ipr::discover_ipr`) can reuse the same URLs the
-    /// base client itself will use.
+    /// Lifted out so `ipr::discover_ipr` reuses the same URLs the base client did.
     nym_api_urls: Vec<url::Url>,
 }
 
 /// smoltcp handles returned by `init_network_stack` (reactor + bridge already spawned).
 struct NetworkStack {
     stack: Arc<Mutex<SmoltcpStack>>,
-    shutdown: Arc<AtomicBool>,
     notify: ReactorNotify,
 }
 
@@ -115,10 +109,14 @@ impl WasmTunnel {
         let ClientHandles {
             client_input,
             mut reconstructed_receiver,
-            request_sender,
             shutdown_handle,
             nym_api_urls,
         } = Self::start_nym_client(&opts).await?;
+
+        // Cascade points at smolmix_tracker so state.fail() only kills
+        // smolmix tasks; shutdown() handles the base client.
+        let smolmix_tracker = shutdown_handle.child_tracker();
+        let state = state::State::new(smolmix_tracker.clone_shutdown_token());
 
         let ipr_address = match opts.ipr_address {
             Some(addr) => addr,
@@ -138,25 +136,23 @@ impl WasmTunnel {
         )
         .await?;
 
-        let NetworkStack {
-            stack,
-            shutdown,
-            notify,
-        } = Self::init_network_stack(
+        let NetworkStack { stack, notify } = Self::init_network_stack(
             allocated_ips,
             client_input.clone(),
             reconstructed_receiver,
             ipr_address,
             stream_id,
+            &smolmix_tracker,
+            &state,
             opts.surbs.data,
         );
 
-        nym_wasm_utils::console_log!("[smolmix-wasm] tunnel ready");
+        state.set(state::TunnelState::Ready);
+        nym_wasm_utils::console_log!("[smolmix] tunnel ready");
 
         Ok(Self {
             stack,
             notify,
-            shutdown,
             allocated_ips,
             dns_primary: opts.primary_dns.unwrap_or(crate::dns::DEFAULT_PRIMARY_DNS),
             dns_fallback: opts
@@ -166,8 +162,9 @@ impl WasmTunnel {
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
             origin_locks: Mutex::new(HashMap::new()),
-            request_sender: Mutex::new(Some(request_sender)),
-            shutdown_handle: Mutex::new(Some(shutdown_handle)),
+            base_tracker: Mutex::new(Some(shutdown_handle)),
+            smolmix_tracker: Mutex::new(Some(smolmix_tracker)),
+            state,
         })
     }
 
@@ -249,7 +246,6 @@ impl WasmTunnel {
         Ok(ClientHandles {
             client_input,
             reconstructed_receiver,
-            request_sender: client_output.received_buffer_request_sender,
             shutdown_handle: started_client.shutdown_handle,
             nym_api_urls: config.client.nym_api_urls.clone(),
         })
@@ -278,12 +274,15 @@ impl WasmTunnel {
 
     /// Build the smoltcp interface, spawn the reactor + bridge, and return
     /// the shared handles the tunnel keeps to drive the stack.
+    #[allow(clippy::too_many_arguments)]
     fn init_network_stack(
         allocated_ips: IpPair,
         client_input: Arc<ClientInput>,
         reconstructed_receiver: ipr::ReconstructedReceiver,
         ipr_address: Recipient,
         stream_id: u64,
+        tracker: &ShutdownTracker,
+        state: &state::State,
         data_surbs: u32,
     ) -> NetworkStack {
         let mut device = WasmDevice::new();
@@ -315,10 +314,9 @@ impl WasmTunnel {
 
         // Bridge starts at seq=1 (ConnectRequest was Data seq=0).
         let seq = Arc::new(AtomicU32::new(1));
-        let shutdown = Arc::new(AtomicBool::new(false));
         let (notify_tx, notify_rx) = mpsc::unbounded();
 
-        reactor::start_reactor(stack.clone(), notify_rx, shutdown.clone());
+        reactor::start_reactor(stack.clone(), notify_rx, tracker, state.clone());
         bridge::start_bridge(
             stack.clone(),
             client_input,
@@ -327,13 +325,13 @@ impl WasmTunnel {
             stream_id,
             seq.clone(),
             notify_tx.clone(),
-            shutdown.clone(),
+            tracker,
+            state.clone(),
             data_surbs,
         );
 
         NetworkStack {
             stack,
-            shutdown,
             notify: notify_tx,
         }
     }
@@ -356,21 +354,44 @@ impl WasmTunnel {
     /// `OnceLock` for the lifetime of the worker, so dropping `self` is not
     /// an option; we drop the inner handles instead.
     pub async fn shutdown(&self) {
-        self.shutdown.store(true, Ordering::Relaxed);
-        // Wake the reactor immediately so teardown doesn't sit out the
-        // current `poll_delay` sleep (up to `MAX_IDLE`).
-        let _ = self.notify.unbounded_send(());
-        // Order matters: drop the request_sender first (so the received-buffer
-        // task observes the receiver going away cleanly), then the shutdown
-        // tracker (which signals the rest of the base client to stop).
-        drop(self.request_sender.lock().unwrap().take());
-        drop(self.shutdown_handle.lock().unwrap().take());
+        use state::TunnelState;
+        if matches!(
+            self.state.get(),
+            TunnelState::ShuttingDown | TunnelState::Shutdown
+        ) {
+            return;
+        }
+        self.state.set(TunnelState::ShuttingDown);
+
+        // Cancel + wait, child first. The base token cancels the whole
+        // subtree, but each level's TaskTracker only waits on its own
+        // tasks, so both need an explicit `.shutdown().await`.
+        if let Some(tracker) = self.smolmix_tracker.lock().unwrap().take() {
+            tracker.shutdown().await;
+        }
+        if let Some(tracker) = self.base_tracker.lock().unwrap().take() {
+            tracker.shutdown().await;
+        }
+
+        // Don't overwrite a Failed state that was set during teardown.
+        if !matches!(self.state.get(), TunnelState::Failed { .. }) {
+            self.state.set(TunnelState::Shutdown);
+        }
         nym_wasm_utils::console_log!("[smolmix] tunnel shut down");
     }
 
     /// The IP addresses allocated to this tunnel by the IPR.
     pub fn allocated_ips(&self) -> IpPair {
         self.allocated_ips
+    }
+
+    /// Panic-aware via `State::get`'s short-circuit.
+    pub(crate) fn is_ready(&self) -> bool {
+        self.state.is_ready()
+    }
+
+    pub(crate) fn tunnel_state(&self) -> state::TunnelState {
+        self.state.get()
     }
 
     /// DNS resolution cache, checked by `dns::resolve` before querying.

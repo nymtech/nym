@@ -230,11 +230,9 @@ async fn send_to_ipr(
         .map_err(|_| FetchError::Tunnel("mixnet input channel closed".into()))
 }
 
-// IPR auto-discovery
-
-/// Performance-weighted random pick from v9-capable IPRs. Mirrors
-/// `nym_sdk::ip_packet_client::discovery::get_best_ipr`, ported to
-/// avoid pulling the SDK dep graph into wasm.
+/// Performance-weighted random pick from v9-capable IPRs. Ported from
+/// `nym_sdk::ip_packet_client::discovery::get_best_ipr` to keep the
+/// SDK out of the wasm dep graph.
 pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient, FetchError> {
     use nym_validator_client::nym_api::NymApiClientExt;
     use rand::seq::SliceRandom;

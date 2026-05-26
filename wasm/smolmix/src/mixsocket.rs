@@ -15,7 +15,6 @@ use crate::error::FetchError;
 use crate::fetch;
 use crate::stream::PooledConn;
 use crate::util;
-use crate::TUNNEL;
 
 /// Active WebSocket handles: sender half of each connection's command channel.
 static WS_HANDLES: OnceLock<Mutex<HashMap<u32, WsHandle>>> = OnceLock::new();
@@ -39,7 +38,7 @@ pub fn mix_socket(url: String, protocols: JsValue, on_event: js_sys::Function) -
         let result: Result<JsValue, FetchError> = async {
             use async_tungstenite::tungstenite::client::IntoClientRequest;
 
-            let tunnel = TUNNEL.get().ok_or(FetchError::NotConnected)?;
+            let tunnel = crate::ready_tunnel()?;
 
             let parsed = url::Url::parse(&url)
                 .map_err(|e| FetchError::Http(format!("invalid WebSocket URL: {e}")))?;

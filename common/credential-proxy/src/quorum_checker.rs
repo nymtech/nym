@@ -65,7 +65,7 @@ impl QuorumStateChecker {
         let dkg_details = dkg_details_with_client(client_guard.deref()).await?;
         drop(client_guard);
 
-        let res = check_known_dealers(dkg_details).await?;
+        let res = check_known_dealers(dkg_details, 4).await?;
         info!("there are {} known DKG dealers", res.results.len());
 
         let Some(signing_threshold) = res.threshold else {

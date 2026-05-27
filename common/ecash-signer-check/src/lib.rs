@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client_check::check_client;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream;
+use futures::stream::StreamExt;
 use nym_ecash_signer_check_types::status::{SignerResult, Status};
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -65,7 +66,7 @@ where
     C: DkgQueryClient + Sync,
 {
     let dkg_details = dkg_details_with_client(client).await?;
-    check_known_dealers(dkg_details).await
+    check_known_dealers(dkg_details, None).await
 }
 
 pub async fn dkg_details_with_client<C>(client: &C) -> Result<DkgDetails, SignerCheckError>
@@ -109,18 +110,21 @@ where
 
 pub async fn check_known_dealers(
     dkg_details: DkgDetails,
+    concurrency: impl Into<Option<usize>>,
 ) -> Result<SignersTestResult, SignerCheckError> {
     // 6. for each dealer attempt to perform the checks
-    let results = dkg_details
-        .network_dealers
-        .into_iter()
-        .map(|d| {
-            let share = dkg_details.submitted_shared.get(&d.assigned_index);
-            check_client(d, dkg_details.dkg_epoch.epoch_id, share)
-        })
-        .collect::<FuturesUnordered<_>>()
-        .collect::<Vec<_>>()
-        .await;
+    let epoch_id = dkg_details.dkg_epoch.epoch_id;
+    let submitted = dkg_details.submitted_shared;
+    let dealers = dkg_details.network_dealers.len();
+
+    let tasks = dkg_details.network_dealers.into_iter().map(move |d| {
+        let share = submitted.get(&d.assigned_index).cloned();
+        check_client(d, epoch_id, share)
+    });
+
+    let limit = concurrency.into().filter(|&n| n > 0).unwrap_or(dealers);
+
+    let results = stream::iter(tasks).buffer_unordered(limit).collect().await;
 
     Ok(SignersTestResult {
         threshold: dkg_details.threshold,

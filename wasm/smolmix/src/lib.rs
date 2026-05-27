@@ -132,6 +132,17 @@ pub struct SetupOpts {
     /// Defaults to 30000.
     #[serde(default)]
     pub dns_timeout_ms: Option<u32>,
+    /// TCP keepalive interval in milliseconds. Defaults to 10000.
+    #[serde(default)]
+    pub tcp_keepalive_ms: Option<u32>,
+    /// Per-TCP-stream RX/TX buffer size in bytes (capped at 65535).
+    /// Defaults to 65535.
+    #[serde(default)]
+    pub tcp_buffer_size: Option<u32>,
+    /// Maximum HTTP redirect chain depth before `mixFetch` gives up.
+    /// Defaults to 5.
+    #[serde(default)]
+    pub max_redirects: Option<u8>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -211,6 +222,16 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
             }
             if let Some(ms) = opts.dns_timeout_ms {
                 builder = builder.dns_timeout(std::time::Duration::from_millis(ms as u64));
+            }
+            if let Some(ms) = opts.tcp_keepalive_ms {
+                builder =
+                    builder.tcp_keepalive_interval(std::time::Duration::from_millis(ms as u64));
+            }
+            if let Some(n) = opts.tcp_buffer_size {
+                builder = builder.tcp_buffer_size(n as usize);
+            }
+            if let Some(n) = opts.max_redirects {
+                builder = builder.max_redirects(n);
             }
 
             let tunnel_opts = builder.build();

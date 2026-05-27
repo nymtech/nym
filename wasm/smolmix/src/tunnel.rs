@@ -40,14 +40,10 @@ use crate::reactor::{self, ReactorNotify, SmoltcpStack, smoltcp_now};
 use crate::state;
 use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
-/// Default IPR connect handshake timeout.
-pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
-/// Default DNS query timeout (per attempt, primary or fallback).
-pub const DEFAULT_DNS_TIMEOUT: Duration = Duration::from_secs(30);
-
 /// Configuration for `setupMixTunnel(opts)`.
 ///
 /// Construct directly or via [`TunnelOpts::builder`] for chainable configuration.
+/// Performance/timeout tuning lives in [`TuningOpts`] under the `tuning` field.
 pub struct TunnelOpts {
     /// `None` triggers performance-weighted auto-discovery via `ipr::discover_ipr`.
     pub ipr_address: Option<Recipient>,
@@ -70,10 +66,38 @@ pub struct TunnelOpts {
     /// keys, gateway details, etc). `None` means plaintext storage. The same
     /// passphrase must be supplied on subsequent loads to read the same keys.
     pub storage_passphrase: Option<String>,
-    /// IPR connect handshake timeout. Defaults to [`DEFAULT_CONNECT_TIMEOUT`].
+    /// Timeouts + buffer sizes + redirect limits. See [`TuningOpts`].
+    pub tuning: TuningOpts,
+}
+
+/// Performance + protocol-limit tuning knobs.
+///
+/// All fields have sensible defaults via [`TuningOpts::default`]; consumers
+/// override via the chainable builder methods on [`TunnelOptsBuilder`].
+pub struct TuningOpts {
+    /// IPR connect handshake timeout.
     pub connect_timeout: Duration,
-    /// DNS query timeout. Defaults to [`DEFAULT_DNS_TIMEOUT`].
+    /// DNS query timeout (per attempt, primary or fallback).
     pub dns_timeout: Duration,
+    /// TCP keepalive interval; smoltcp probes the peer at this cadence.
+    pub tcp_keepalive_interval: Duration,
+    /// Per-TCP-stream RX/TX buffer size in bytes. Trades memory for throughput.
+    /// Capped to `u16::MAX` (65535) to fit the TCP window field width.
+    pub tcp_buffer_size: usize,
+    /// Maximum HTTP redirect chain depth before `mixFetch` gives up.
+    pub max_redirects: u8,
+}
+
+impl Default for TuningOpts {
+    fn default() -> Self {
+        Self {
+            connect_timeout: Duration::from_secs(60),
+            dns_timeout: Duration::from_secs(30),
+            tcp_keepalive_interval: Duration::from_secs(10),
+            tcp_buffer_size: 65535,
+            max_redirects: 5,
+        }
+    }
 }
 
 impl TunnelOpts {
@@ -83,7 +107,8 @@ impl TunnelOpts {
     }
 }
 
-/// Chainable builder for [`TunnelOpts`].
+/// Chainable builder for [`TunnelOpts`]. Setters for tuning fields delegate
+/// into the nested [`TuningOpts`] at `build()` time, so callers see a flat API.
 #[derive(Default)]
 pub struct TunnelOptsBuilder {
     ipr_address: Option<Recipient>,
@@ -97,6 +122,9 @@ pub struct TunnelOptsBuilder {
     storage_passphrase: Option<String>,
     connect_timeout: Option<Duration>,
     dns_timeout: Option<Duration>,
+    tcp_keepalive_interval: Option<Duration>,
+    tcp_buffer_size: Option<usize>,
+    max_redirects: Option<u8>,
 }
 
 impl TunnelOptsBuilder {
@@ -144,8 +172,21 @@ impl TunnelOptsBuilder {
         self.dns_timeout = Some(v);
         self
     }
+    pub fn tcp_keepalive_interval(mut self, v: Duration) -> Self {
+        self.tcp_keepalive_interval = Some(v);
+        self
+    }
+    pub fn tcp_buffer_size(mut self, v: usize) -> Self {
+        self.tcp_buffer_size = Some(v);
+        self
+    }
+    pub fn max_redirects(mut self, v: u8) -> Self {
+        self.max_redirects = Some(v);
+        self
+    }
 
     pub fn build(self) -> TunnelOpts {
+        let defaults = TuningOpts::default();
         TunnelOpts {
             ipr_address: self.ipr_address,
             client_id: self.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()),
@@ -156,8 +197,15 @@ impl TunnelOptsBuilder {
             primary_dns: self.primary_dns,
             fallback_dns: self.fallback_dns,
             storage_passphrase: self.storage_passphrase,
-            connect_timeout: self.connect_timeout.unwrap_or(DEFAULT_CONNECT_TIMEOUT),
-            dns_timeout: self.dns_timeout.unwrap_or(DEFAULT_DNS_TIMEOUT),
+            tuning: TuningOpts {
+                connect_timeout: self.connect_timeout.unwrap_or(defaults.connect_timeout),
+                dns_timeout: self.dns_timeout.unwrap_or(defaults.dns_timeout),
+                tcp_keepalive_interval: self
+                    .tcp_keepalive_interval
+                    .unwrap_or(defaults.tcp_keepalive_interval),
+                tcp_buffer_size: self.tcp_buffer_size.unwrap_or(defaults.tcp_buffer_size),
+                max_redirects: self.max_redirects.unwrap_or(defaults.max_redirects),
+            },
         }
     }
 }
@@ -171,7 +219,9 @@ pub struct WasmTunnel {
     /// back to the constants in [`dns`] when the caller didn't override.
     dns_primary: SocketAddr,
     dns_fallback: SocketAddr,
-    dns_timeout: Duration,
+    /// All timeouts + buffer sizes + redirect limits; populated from
+    /// [`TunnelOpts::tuning`] at construction.
+    tuning: TuningOpts,
     /// Plain per-session DNS cache. No TTL respect (cache lives until tunnel
     /// shutdown). See [`dns::resolve`] for usage.
     dns_cache: Mutex<HashMap<String, IpAddr>>,
@@ -236,7 +286,7 @@ impl WasmTunnel {
             &ipr_address,
             stream_id,
             opts.surbs,
-            opts.connect_timeout,
+            opts.tuning.connect_timeout,
         )
         .await?;
 
@@ -262,7 +312,7 @@ impl WasmTunnel {
             dns_fallback: opts
                 .fallback_dns
                 .unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
-            dns_timeout: opts.dns_timeout,
+            tuning: opts.tuning,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
@@ -446,7 +496,14 @@ impl WasmTunnel {
 
     /// Open a TCP connection through the tunnel (SYN -> established).
     pub async fn tcp_connect(&self, addr: SocketAddr) -> io::Result<WasmTcpStream> {
-        stream::tcp_connect(self.stack.clone(), self.notify.clone(), addr).await
+        stream::tcp_connect(
+            self.stack.clone(),
+            self.notify.clone(),
+            addr,
+            self.tuning.tcp_keepalive_interval,
+            self.tuning.tcp_buffer_size,
+        )
+        .await
     }
 
     /// Create a UDP socket bound to an ephemeral port.
@@ -521,7 +578,19 @@ impl WasmTunnel {
     }
     /// Per-query DNS timeout (used in `dns::resolve_with`).
     pub(crate) fn dns_timeout(&self) -> Duration {
-        self.dns_timeout
+        self.tuning.dns_timeout
+    }
+    /// TCP keepalive interval applied to every new `WasmTcpStream`.
+    pub(crate) fn tcp_keepalive_interval(&self) -> Duration {
+        self.tuning.tcp_keepalive_interval
+    }
+    /// TCP RX/TX buffer size in bytes applied to every new `WasmTcpStream`.
+    pub(crate) fn tcp_buffer_size(&self) -> usize {
+        self.tuning.tcp_buffer_size
+    }
+    /// Maximum HTTP redirect chain depth before `mixFetch` gives up.
+    pub(crate) fn max_redirects(&self) -> u8 {
+        self.tuning.max_redirects
     }
 
     /// Get (or create) the per-origin lock for serialising concurrent requests.

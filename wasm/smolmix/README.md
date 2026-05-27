@@ -62,6 +62,24 @@ Three WASM exports that mirror the browser's native networking surface:
 - WasmTcpStream / WasmUdpSocket / PooledConn (`stream.rs`) - `futures::io::AsyncRead + AsyncWrite` adapters over smoltcp sockets
 - WASM exports (`lib.rs`, `mixfetch.rs`, `mixsocket.rs`) - the surface JS calls into
 
+### Tuning
+
+The JS `setupMixTunnel(opts)` shape accepts the following optional fields for
+timeouts, buffer sizes, and protocol limits. All have sensible defaults; only
+override when you have a concrete reason.
+
+| Field             | Default | Notes                                                          |
+|-------------------|---------|----------------------------------------------------------------|
+| `connectTimeoutMs`| `60000` | IPR connect handshake timeout                                  |
+| `dnsTimeoutMs`    | `30000` | DNS query timeout (per primary/fallback attempt)               |
+| `tcpKeepaliveMs`  | `10000` | TCP keepalive probe interval                                   |
+| `tcpBufferSize`   | `65535` | Per-TCP-stream RX/TX buffer; capped at `u16::MAX`              |
+| `maxRedirects`    | `5`     | `mixFetch` redirect chain depth before bail                    |
+
+On the Rust side these live in `TunnelOpts::tuning: TuningOpts`. The builder
+exposes them flat (`.connect_timeout(d)`, `.tcp_buffer_size(n)`, etc.) so
+callers don't see the grouping.
+
 ### Feature flags
 
 The crate is split into three user-facing cargo features matching the JS entry

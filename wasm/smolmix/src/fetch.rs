@@ -32,10 +32,6 @@ struct FetchInit {
     body: Option<Vec<u8>>,
 }
 
-/// Maximum number of HTTP redirects to follow before giving up.
-#[cfg(feature = "fetch")]
-const MAX_REDIRECTS: u8 = 5;
-
 /// Execute a fetch request through the mixnet tunnel.
 #[cfg(feature = "fetch")]
 pub async fn fetch(
@@ -53,8 +49,9 @@ pub async fn fetch(
     }
     let mut method = opts.method.clone();
     let mut body = opts.body.clone();
+    let max_redirects = tunnel.max_redirects();
 
-    for redirect_count in 0..=MAX_REDIRECTS {
+    for redirect_count in 0..=max_redirects {
         let host = url
             .host_str()
             .ok_or_else(|| FetchError::Http("URL has no host".into()))?
@@ -190,7 +187,7 @@ pub async fn fetch(
     }
 
     Err(FetchError::Http(format!(
-        "too many redirects (>{MAX_REDIRECTS})"
+        "too many redirects (>{max_redirects})"
     )))
 }
 

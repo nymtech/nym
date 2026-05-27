@@ -16,7 +16,7 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 
 **Node operator flows (NYM-1216–1219)**
 - View incoming **invites per node** (multi-node aware): family name, inviting owner, expiry/TTL; expired invites shown as non-actionable.
-- **Accept** an invite (`AcceptFamilyInvitation`) → node moves to Joined; **delegate control to the family key** on acceptance.
+- **Accept** an invite (`AcceptFamilyInvitation`) → node moves to Joined. V1 acceptance is a pure membership record; owner-acts-for-node behaviour (where the family owner could perform actions on member nodes) is V2 per NYM-1217 and out of scope here.
 - **Reject** an invite (`RejectFamilyInvitation`, confirmation) → no longer shown, node reflected as Rejected.
 - **Leave** a family (`LeaveFamily`, confirmation) → removed from member list; can subsequently receive/accept new invites.
 
@@ -26,9 +26,8 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 - **Tests**: Storybook interaction tests, Playwright end-to-end flows, and hook/integration tests against the mocks.
 - UI implemented from **Figma** (designs supplied via Figma MCP during apply).
 
-**Contract dependencies — NOT covered by the current `node-families-contract` spec** (see Impact; flagged for resolution):
-- **Family key (standalone) / delegation of node control** (NYM-1210, NYM-1217): the contract spec models ownership as `info.sender` and acceptance as a membership record only — there is no key-generation or control-delegation mechanism. The family key is a **standalone** key.
-- **Edit name/description after creation** (NYM-1211): the contract spec has `CreateFamily` (carries name/description) and `UpdateConfig` (admin) but **no `UpdateFamily` edit handler**.
+**Contract dependencies** (landing in a separate contract change; this branch rebases onto it before merge):
+- **Edit name/description after creation** (NYM-1211): the contract spec has `CreateFamily` (carries name/description) and `UpdateConfig` (admin) but no `UpdateFamily` edit handler yet. The contract team will add it; the wallet builds against an assumed message shape and verifies it on rebase (see design.md Open Questions).
 
 ## Capabilities
 
@@ -47,5 +46,5 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 - **Mocks**: a faithful `node-families-contract` mock under `src/context/mocks` (provider + `families.fixtures.ts`) derived from `openspec/specs/node-families-contract/spec.md`, covering its full surface — Config, all data types, every execute msg and query (with pagination), enforced invariants, the typed error set, and emitted events. Follows the existing `mocks/bonding.tsx` convention.
 - **Storybook**: new stories tree for components → pages → flows.
 - **Tests**: Playwright e2e specs; Jest/RTL hook + integration tests against mocks; Storybook interaction tests.
-- **Dependencies / blockers**: family-key/delegation and `UpdateFamily` edit are not in the current contract spec — UI will be built against mocked behavior and these must be added contract-side (root `node-families-contract`) before real wiring. Creation fee is configurable on-chain (not a hardcoded 100 NYM); UI must read it from config.
+- **Dependencies / blockers**: `UpdateFamily` edit lands in a separate contract change; this wallet branch will rebase onto that change before merge, and the edit path swaps from the mock to the real IPC binding at rebase time (verified per task 9.5). Creation fee is configurable on-chain (not a hardcoded 100 NYM); UI must read it from config.
 - **External**: Figma designs (via Figma MCP) required during implementation.

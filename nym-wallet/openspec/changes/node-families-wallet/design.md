@@ -14,9 +14,8 @@ This design covers the wallet UI, the hooks/mocks layer, Storybook structure, an
 - UI built from Figma designs.
 
 **Non-Goals:**
-- Implementing the smart-contract changes themselves (family key/delegation, `UpdateFamily`) — those are contract-side dependencies tracked separately.
-- Reward/redemption flows tied to delegation (explicitly V2 per NYM-1217).
-- Real on-chain wiring of the family-key and edit paths before the contract supports them (mock-backed until then).
+- Implementing the contract-side `UpdateFamily` handler - it lands in a separate contract change that this branch rebases onto before merge.
+- Owner-acts-for-node behaviour (V2 per NYM-1217): the future capability for the family owner to perform actions on member nodes, plus any reward/redemption flows tied to it. V1 acceptance is a pure membership record.
 
 ## Decisions
 
@@ -39,11 +38,11 @@ The mock lives in `src/context/mocks/families.tsx` with fixtures in a co-located
 - **Errors**: a typed error set mirroring the contract (`InvalidFamilyCreationFee`, `FamilyNameAlreadyTaken`, `FamilyNameTooLong`, `EmptyFamilyName`, `SenderAlreadyOwnsAFamily`, `NodeAlreadyInFamily`, `NodeDoesntExist`, `PendingInvitationAlreadyExists`, `ZeroInvitationValidity`, `InvitationExpired`, `InvitationNotFound`, `FamilyNotEmpty`, `SenderDoesntControlNode`, `NodeNotMemberOfFamily`, etc.) so warning/error states are reachable from mocked calls.
 - **Events**: mock execute returns carry the spec's event names/attributes (`family_creation`, `family_disband`, `family_invitation`, `family_invitation_revoked/accepted/rejected`, `family_member_left/kicked`, `family_node_unbond_cleanup`) so any UI/indexer assertions can verify them.
 
-### D4: Member-status derivation
-The four UI statuses map to contract reads: **Pending** = `GetPendingInvitationsForFamilyPaged` (carry the `expired` flag), **Joined** = `GetFamilyMembersPaged`, **Rejected** = `GetPastInvitationsForFamilyPaged` filtered to `Rejected` status, **Removed** = `GetPastMembersForFamilyPaged` (left/kicked) plus `Revoked` past invitations where relevant. The derivation lives in a selector hook so both UI and tests share one definition.
+### D4: Member-list sections map 1:1 to contract queries (one row per record)
+The four UI sections each correspond to a distinct contract query, paginating independently via its `start_after` cursor. **Pending**: rows from `GetPendingInvitationsForFamilyPaged`, each carrying the `expired` flag. **Joined**: rows from `GetFamilyMembersPaged`. **Rejected**: rows from `GetPastInvitationsForFamilyPaged` filtered to `Rejected` status. **Removed**: rows from `GetPastMembersForFamilyPaged` (covers both left and kicked). `Revoked` past invitations are owner-side actions and are NOT shown in the member list. Because the contract stores per-`(family, node)` archive records that accumulate (a node may be invited, kicked, re-invited, etc. arbitrarily many times), a single node MAY legitimately appear in more than one section - each row represents a record, not a node. The aggregator hook is therefore a thin pass-through (queries → named sections), not a priority-cascade derivation; UI clarity comes from per-section headings + record timestamps, not from collapsing history.
 
-### D5: Family tab is always visible; family key is standalone
-The Family tab renders for **every** wallet account (not gated on owning a family or controlling a node), so any account can start a family: it shows the create entry point when the account owns no family and the management surface when it does. The family key produced on creation is a **standalone** key, modelled as an opaque value isolated behind the `createFamily`/`acceptFamilyInvitation` request boundary.
+### D5: Family tab is always visible; UI identifies families by name only
+The Family tab renders for **every** wallet account (not gated on owning a family or controlling a node), so any account can start a family: it shows the create entry point when the account owns no family and the management surface when it does. `family_id` is internal only - the UI identifies families by name (globally unique among live families after normalisation) and shows the owner address as supplementary trust context wherever invites are displayed. Names are released for reuse when a family is disbanded, so a past archived record's name may not match the family currently holding that name.
 
 ### D6: Large lists are paginated via the contract's exclusive `start_after` cursor
 Member lists and invitation archives use the contract's cursor pagination: each page passes `start_after` (exclusive) and reads `start_next_after` from the response to fetch the next page, with the contract's default limit of 50 (max 100). The TanStack Query read hooks expose this as incremental/infinite pagination; the mock honours the same cursor semantics so paging is exercised without a chain.
@@ -61,19 +60,17 @@ The UI reads `create_family_fee`, `family_name_length_limit`, and `family_descri
 
 ## Risks / Trade-offs
 
-- **[Family key / delegation not in contract spec]** → Model the standalone family key as an opaque value in types/mocks and isolate it behind the `createFamily`/`acceptFamilyInvitation` boundary, so a later contract decision changes only the request layer, not the UI.
-- **[No `UpdateFamily` edit handler in contract spec]** → Build the edit UI + mock path now; gate real submission behind a feature check so it is dark until the contract adds the handler.
-- **[Status derivation from archives is subtle]** (Rejected vs Revoked vs Removed) → Centralize in one selector hook with unit tests covering each archive→status mapping.
+- **[`UpdateFamily` lands in a separate contract change]** → Build the edit UI + mock against the decided shape (see Resolved); verify on rebase per task 9.5 and reconcile any drift in the request binding, mock execute, and TS types. No feature flag needed since the wallet branch only merges after the contract change lands.
+- **[Same node may appear in multiple sections]** (e.g., currently Joined and previously Removed) → record timestamps and clear section headings must make the overlap read as history rather than as a duplicate row; aggregator hook is a pass-through, so the risk is purely UX, not data correctness.
 - **[Playwright-vs-Tauri divergence]** → Storybook flows test UI logic against mocks, not the real IPC bridge; a thin set of manual/native smoke checks should still cover Tauri wiring before release.
 - **[Fresh Storybook conventions]** → Establish the `withFamiliesMock` decorator and naming once, up front, to avoid per-story drift.
 
 ## Migration Plan
 
-Additive only — new tab, context, requests, types, stories, tests. No existing wallet behavior changes. The Family tab is always visible, so rollout is gated only by a feature flag for the contract-dependent edit/key paths (which ship dark until the contract dependencies land). Rollback is removal of the tab entry point.
+Additive only — new tab, context, requests, types, stories, tests. No existing wallet behavior changes. This branch rebases onto the `UpdateFamily` contract change before merging, so the edit path is real (not feature-flagged) at ship time. Rollback is removal of the tab entry point.
 
 ## Open Questions
 
-- Will the contract add an `UpdateFamily` handler for NYM-1211 edits, and what is its message shape / auth?
 - Figma file/frame URLs for each component and page (to be supplied at apply time via Figma MCP).
 
-_Resolved:_ family key is **standalone**; the Family tab is **always visible**; large lists are **paginated via the contract's `start_after` cursor** (default 50, max 100).
+_Resolved:_ no family key concept in V1 (acceptance is a pure membership record; owner-acts-for-node is V2 per NYM-1217); `family_id` is **internal**, the UI identifies families by **name**; names are unique among **live** families only (released for reuse on disband); the Family tab is **always visible**; large lists are **paginated via the contract's `start_after` cursor** (default 50, max 100); the **`UpdateFamily` message shape** is `ExecuteMsg::UpdateFamily { updated_name: Option<String>, updated_description: Option<String> }` with `None` meaning "field unchanged" and `Some(_)` meaning "set to this value", sender must be the family owner; this lands in a separate contract change and is verified on rebase per task 9.5.

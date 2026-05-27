@@ -28,17 +28,9 @@ The wallet SHALL allow an eligible user to create a family by submitting a name 
 - **WHEN** creation fails with `InvalidFamilyCreationFee` or `InvalidDeposit`
 - **THEN** the wallet shows a clear fee error and the family is not created
 
-### Requirement: A standalone family key is generated on creation
-
-On successful family creation the wallet SHALL generate a **standalone** family key and present it to the owner. The exact key mechanism depends on the `node-families-contract` adding key/delegation support; until then the wallet SHALL treat the family key as an opaque value backed by mocked behavior.
-
-#### Scenario: Standalone family key presented on creation
-- **WHEN** a family is created successfully
-- **THEN** the wallet generates and displays the associated standalone family key to the owner
-
 ### Requirement: Family owner can add and edit the family name and description
 
-The wallet SHALL let the owner set a name and description on creation and edit either after creation. Inputs MUST be validated against the contract byte-length limits (`Config::family_name_length_limit`, `Config::family_description_length_limit`) measured in bytes, and MUST be sanitised so that scripts, control characters, and injection attempts are neutralised before submission. Over-limit input MUST be surfaced with an inline error and MUST NOT be submitted. Editing depends on a contract `UpdateFamily` handler (a flagged contract dependency); until available the edit path SHALL operate against mocked behavior.
+The wallet SHALL let the owner set a name and description on creation and edit either after creation. Inputs MUST be validated against the contract byte-length limits (`Config::family_name_length_limit`, `Config::family_description_length_limit`) measured in bytes, and MUST be sanitised so that scripts, control characters, and injection attempts are neutralised before submission. Over-limit input MUST be surfaced with an inline error and MUST NOT be submitted. Editing uses the contract's `UpdateFamily` handler.
 
 #### Scenario: Valid name and description are accepted
 - **WHEN** the owner enters a name and description within the byte limits
@@ -94,23 +86,31 @@ The wallet SHALL list the family's pending invitations with their expiry state (
 
 ### Requirement: Family owner can view the member list grouped by status
 
-The wallet SHALL display all nodes associated with the family grouped into four statuses: **Pending** (active pending invitations), **Joined** (current members), **Rejected** (invitations the node declined), and **Removed** (members that left or were kicked). The list SHALL refresh to reflect current contract state and SHALL render a per-status empty state when a group has no entries. Statuses are derived from the contract queries: pending invitations, current members, and the past-invitation / past-member archives. Large lists SHALL be paginated using the contract's exclusive `start_after` cursor (default page size 50, max 100), fetching subsequent pages via the returned `start_next_after`.
+The wallet SHALL display the family's records grouped into four sections: **Pending** (active pending invitations), **Joined** (current members), **Rejected** (invitations the node declined), and **Removed** (members that left or were kicked). Each section is sourced from a distinct contract query and paginates independently using the contract's exclusive `start_after` cursor (default page size 50, max 100), fetching subsequent pages via the returned `start_next_after`. Because the contract stores per-`(family, node)` archive records that accumulate over time, a single node MAY appear in more than one section when its history justifies it (e.g., currently Joined and previously Removed); each row represents a record, not a node. `Revoked` past invitations are owner-side actions and SHALL NOT be shown in the member list. The list SHALL refresh to reflect current contract state and SHALL render an empty state for any section with no entries.
 
-#### Scenario: Large member list is paginated by cursor
-- **WHEN** a status group has more entries than one page
-- **THEN** the wallet fetches additional pages using `start_after`/`start_next_after` rather than loading the whole list at once
+#### Scenario: Large section is paginated by cursor
+- **WHEN** a section has more entries than one page
+- **THEN** the wallet fetches additional pages using `start_after`/`start_next_after` rather than loading the whole section at once
 
-#### Scenario: Members are grouped by status
+#### Scenario: Records are grouped into sections
 - **WHEN** the owner opens the member list
-- **THEN** nodes appear under Pending, Joined, Rejected, and Removed according to their current contract state
+- **THEN** records appear under Pending, Joined, Rejected, and Removed according to which contract query produced them
 
-#### Scenario: Empty status shows an empty state
-- **WHEN** a status group has no entries (e.g. no pending invites)
-- **THEN** the wallet renders a per-status empty state for that group
+#### Scenario: Node appears in multiple sections when history justifies it
+- **WHEN** a node is currently a member of the family AND has been kicked or has left at some earlier point
+- **THEN** it appears as a row in Joined for the current membership AND as a separate row in Removed for the past kick/leave
+
+#### Scenario: Revoked invitations are not shown in the member list
+- **WHEN** a node has only past `Revoked` invitations from this family (no current membership, no pending invite, no past membership, no past Rejected invitation)
+- **THEN** the node does not appear in the member list
+
+#### Scenario: Empty section shows an empty state
+- **WHEN** a section has no entries (e.g. no pending invites)
+- **THEN** the wallet renders an empty state for that section
 
 #### Scenario: List reflects state after an action
 - **WHEN** the underlying contract state changes (invite accepted, member kicked, etc.) and the list refreshes
-- **THEN** the affected node appears under its new status
+- **THEN** the new record appears in its corresponding section, while any pre-existing records for the same node remain in their own sections
 
 ### Requirement: Family owner can remove a node from the family
 

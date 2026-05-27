@@ -16,17 +16,13 @@ The wallet SHALL display, in the Family tab, the pending family invitations addr
 - **WHEN** the operator controls more than one node, each with different invitations
 - **THEN** the wallet groups invitations under their respective node and shows each node's distinct invite state
 
-### Requirement: Node operator can accept an invite and delegate control to the family key
+### Requirement: Node operator can accept an invite
 
-The wallet SHALL let the operator accept a pending, not-yet-expired invitation from the invite view, triggering `AcceptFamilyInvitation { family_id, node_id }`. On success the wallet MUST show a confirmation and the node MUST appear as **Joined** in the family member list. Acceptance SHALL delegate control of the node to the family key; the delegation mechanism depends on the `node-families-contract` adding key/delegation support (a flagged dependency) and SHALL operate against mocked behavior until then. Accepting an expired invitation MUST be prevented (`InvitationExpired`).
+The wallet SHALL let the operator accept a pending, not-yet-expired invitation from the invite view, triggering `AcceptFamilyInvitation { family_id, node_id }`. On success the wallet MUST show a confirmation and the node MUST appear as **Joined** in the family member list. In V1 acceptance records membership only; the family owner gains no control over the node itself (owner-acts-for-node is V2 per NYM-1217). Accepting an expired invitation MUST be prevented (`InvitationExpired`).
 
 #### Scenario: Successful acceptance
 - **WHEN** the operator accepts a not-yet-expired invitation for a node they control
 - **THEN** `AcceptFamilyInvitation` is triggered, a confirmation is shown, and the node is reflected as Joined
-
-#### Scenario: Acceptance delegates node control to the family key
-- **WHEN** an invitation is accepted successfully
-- **THEN** control of the node is delegated to the family key
 
 #### Scenario: Expired invitation cannot be accepted
 - **WHEN** the operator attempts to accept an invitation whose `expired` flag is true

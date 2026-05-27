@@ -1,7 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use axum::async_trait;
 use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::request::Parts;
 use axum_client_ip::RightmostXForwardedFor;
@@ -17,7 +16,6 @@ use tracing::warn;
 #[derive(Debug, Clone, Copy)]
 pub struct ClientIpAddr(pub IpAddr);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ClientIpAddr
 where
     S: Send + Sync,

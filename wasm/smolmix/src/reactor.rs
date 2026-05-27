@@ -108,7 +108,7 @@ pub fn start_reactor(
             loop {
                 // Poll smoltcp; built-in socket wakers fire on any state change.
                 let delay = {
-                    let mut s = stack.lock().unwrap();
+                    let mut s = stack.lock().unwrap_or_else(|p| p.into_inner());
                     let now = smoltcp_now();
                     let SmoltcpStack {
                         ref mut iface,

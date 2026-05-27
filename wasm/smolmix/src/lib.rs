@@ -153,10 +153,12 @@ pub fn main() {
 pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
     future_to_promise(async move {
         let result: Result<JsValue, FetchError> = async move {
+            // One-shot: `TUNNEL` is a `OnceLock` so consumers can hold
+            // `&'static WasmTunnel` refs without lifetime gymnastics.
             if TUNNEL.get().is_some() {
                 return Err(FetchError::Tunnel(
-                    "tunnel already initialised; setupMixTunnel is one-shot per page load \
-                     (reload the page to re-initialise after disconnect)"
+                    "tunnel already initialised; setupMixTunnel can only be called \
+                     once per WASM module instance"
                         .into(),
                 ));
             }

@@ -403,22 +403,26 @@ impl WasmTunnel {
         let iface_config = Config::new(HardwareAddress::Ip);
         let mut iface = smoltcp::iface::Interface::new(iface_config, &mut device, smoltcp_now());
 
+        // smoltcp's address + route tables are heapless vecs with capacity
+        // IFACE_MAX_ADDR_COUNT / IFACE_MAX_ROUTE_COUNT (default 8 each).
+        // We add 2 of each on a fresh interface; capacity is the only failure
+        // mode, so an .expect is fine here.
         iface.update_ip_addrs(|addrs| {
             addrs
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32))
-                .unwrap();
+                .expect("smoltcp address vec full");
             addrs
                 .push(IpCidr::new(IpAddress::from(allocated_ips.ipv6), 128))
-                .unwrap();
+                .expect("smoltcp address vec full");
         });
         iface
             .routes_mut()
             .add_default_ipv4_route(Ipv4Address::UNSPECIFIED)
-            .unwrap();
+            .expect("smoltcp routes table full");
         iface
             .routes_mut()
             .add_default_ipv6_route(Ipv6Address::UNSPECIFIED)
-            .unwrap();
+            .expect("smoltcp routes table full");
 
         let stack = Arc::new(Mutex::new(SmoltcpStack {
             iface,

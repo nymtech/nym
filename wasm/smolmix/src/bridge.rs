@@ -56,8 +56,8 @@ pub fn start_bridge(
     tracker.try_spawn_named_with_shutdown(
         async move {
             let mut tx_interval = wasmtimer::tokio::interval(Duration::from_millis(5));
-            // Outbound seq starts at 1; seq=0 was spent on the IPR
-            // ConnectRequest during the handshake.
+            // Outbound seq starts at 1; seq=0 is reserved for handshake
+            // frames (see `ipr::open_and_connect`).
             let mut seq: u32 = 1;
 
             loop {

@@ -96,7 +96,10 @@ where
         .parse()
         .map_err(|e| FetchError::Http(format!("URI conversion: {e}")))?;
     let path = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
-    let host = uri.authority().map(|a| a.as_str()).unwrap_or_default();
+    let host = uri
+        .authority()
+        .ok_or_else(|| FetchError::Http("URL has no authority for Host header".into()))?
+        .as_str();
 
     let body_bytes = body.map(Bytes::copy_from_slice).unwrap_or_default();
     let mut builder = http::Request::builder()

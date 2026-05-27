@@ -50,9 +50,10 @@ static EPOCH: OnceLock<MonotonicInstant> = OnceLock::new();
 ///
 /// smoltcp's `Instant` is an `i64` of microseconds relative to some epoch.
 /// We anchor to the first call and report offsets from that. `wasmtimer::std::Instant`
-/// is backed by `performance.now()` on wasm32, which is monotonic per the W3C
-/// HR-Time spec — unlike `Date::now()`, which can step backwards on NTP correction
-/// or user clock changes and would corrupt smoltcp's retransmit/timeout maths.
+/// is backed by `performance.now()` on wasm32, which is monotonic within the
+/// current Worker agent per the W3C HR-Time spec — unlike `Date::now()`, which
+/// can step backwards on NTP correction or user clock changes and would corrupt
+/// smoltcp's retransmit/timeout maths.
 pub fn smoltcp_now() -> Instant {
     let epoch = *EPOCH.get_or_init(MonotonicInstant::now);
     let elapsed_us = MonotonicInstant::now().duration_since(epoch).as_micros() as i64;
@@ -115,7 +116,8 @@ pub fn start_reactor(
                 // "poll again immediately"; yield to the JS event loop via
                 // `yield_now()` rather than a 1ms `wasmtimer::sleep`, which
                 // schedules a `setTimeout` and is hit by browsers' ~4ms minimum
-                // clamp. Any notify messages remain queued for the next select!.
+                // clamp. Notify messages arriving during the yield stay queued
+                // for the next iteration's `iface.poll()` + select!.
                 match delay {
                     Some(d) if d.total_micros() == 0 => {
                         wasm_bindgen_futures::yield_now().await;

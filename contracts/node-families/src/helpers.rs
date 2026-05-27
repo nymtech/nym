@@ -4,7 +4,7 @@
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{Addr, Deps};
 use nym_mixnet_contract_common::{MixnetContractQuerier, NodeId};
-use nym_node_families_contract_common::NodeFamiliesContractError;
+use nym_node_families_contract_common::{Config, NodeFamiliesContractError, NodeFamilyId};
 
 /// Normalise a family name into the canonical form used as the unique-index key.
 ///
@@ -16,6 +16,80 @@ pub fn normalise_family_name(name: &str) -> String {
         .filter(|c| c.is_ascii_alphanumeric())
         .map(|c| c.to_ascii_lowercase())
         .collect()
+}
+
+/// A new `(display, normalised)` family name pair that has passed
+/// length and non-empty-after-normalisation validation. Constructed by
+/// [`validate_family_name`]; consumed by storage write paths that update
+/// the family's `name` + `normalised_name` columns together.
+pub(crate) struct NewFamilyName {
+    pub(crate) name: String,
+    pub(crate) normalised_name: String,
+}
+
+/// Validate a candidate family name against [`Config::family_name_length_limit`]
+/// and the non-empty-after-normalisation rule, returning the paired display +
+/// normalised forms. The caller is responsible for the uniqueness check
+/// against existing families (see [`ensure_normalised_name_unique`]).
+pub(crate) fn validate_family_name(
+    name: String,
+    config: &Config,
+) -> Result<NewFamilyName, NodeFamiliesContractError> {
+    if name.len() > config.family_name_length_limit {
+        return Err(NodeFamiliesContractError::FamilyNameTooLong {
+            length: name.len(),
+            limit: config.family_name_length_limit,
+        });
+    }
+    let normalised_name = normalise_family_name(&name);
+    if normalised_name.is_empty() {
+        return Err(NodeFamiliesContractError::EmptyFamilyName);
+    }
+    Ok(NewFamilyName {
+        name,
+        normalised_name,
+    })
+}
+
+/// Validate a candidate family description against
+/// [`Config::family_description_length_limit`].
+pub(crate) fn validate_family_description(
+    description: &str,
+    config: &Config,
+) -> Result<(), NodeFamiliesContractError> {
+    if description.len() > config.family_description_length_limit {
+        return Err(NodeFamiliesContractError::FamilyDescriptionTooLong {
+            length: description.len(),
+            limit: config.family_description_length_limit,
+        });
+    }
+    Ok(())
+}
+
+/// Ensure no family other than `excluded_id` has `normalised_name` as its
+/// normalised name. `excluded_id = None` is used on the create path (any
+/// match is a collision); `excluded_id = Some(family.id)` on the update
+/// path lets a family keep its current normalised key.
+pub(crate) fn ensure_normalised_name_unique(
+    storage: &NodeFamiliesStorage,
+    deps: Deps,
+    normalised_name: &str,
+    excluded_id: Option<NodeFamilyId>,
+) -> Result<(), NodeFamiliesContractError> {
+    if let Some((_, existing)) = storage
+        .families
+        .idx
+        .normalised_name
+        .item(deps.storage, normalised_name.to_owned())?
+    {
+        if Some(existing.id) != excluded_id {
+            return Err(NodeFamiliesContractError::FamilyNameAlreadyTaken {
+                name: normalised_name.to_owned(),
+                family_id: existing.id,
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Ensure no node controlled by `address` is currently a member of any family.

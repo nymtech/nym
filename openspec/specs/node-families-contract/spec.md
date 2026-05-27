@@ -113,6 +113,52 @@ A given owner address SHALL own at most one family at any time, enforced by the 
 - **WHEN** `CreateFamily` is sent with a `description` whose byte length exceeds `Config::family_description_length_limit`
 - **THEN** the call fails with `FamilyDescriptionTooLong { length, limit }`
 
+### Requirement: A family's name and/or description can be updated by its owner
+
+`ExecuteMsg::UpdateFamily { updated_name: Option<String>, updated_description: Option<String> }` SHALL allow the owner of an existing family to replace either or both fields independently. Each argument follows `None = keep` / `Some(_) = replace` semantics; a call carrying `None` for both fields SHALL be a silent no-op (empty `Response`, no event, no state change) and SHALL short-circuit BEFORE the owner-ownership check (so a sender that owns no family can also no-op without error). Otherwise the handler MUST look up the sender's family via the `owner` unique index and fail with `SenderDoesntOwnAFamily { address }` if none exists. Updated values MUST be validated against the same rules as `CreateFamily`: a `Some(name)` MUST satisfy `Config::family_name_length_limit` (else `FamilyNameTooLong { length, limit }`) and MUST normalise to a non-empty string (else `EmptyFamilyName`); a `Some(description)` MUST satisfy `Config::family_description_length_limit` (else `FamilyDescriptionTooLong { length, limit }`). The new normalised name MUST be globally unique against OTHER families (else `FamilyNameAlreadyTaken { name, family_id }`); a name change whose normalised form matches the family's own existing `normalised_name` (a case-only or punctuation-only rename) MUST be allowed. The handler MUST preserve `id`, `owner`, `paid_fee`, `members`, and `created_at`. On a state-changing success the response SHALL include a `family_update` event with `family_id` and `owner_address` attributes plus conditional `updated_name` / `updated_description` attributes for each field actually changed by the call.
+
+#### Scenario: Owner updates the family name only
+- **WHEN** the family owner sends `UpdateFamily { updated_name: Some(n), updated_description: None }` with a valid `n`
+- **THEN** the persisted family's `name` and `normalised_name` are replaced with `n` and its normalised form, while `description`, `id`, `owner`, `paid_fee`, `members`, and `created_at` are unchanged
+- **AND** the response carries a `family_update` event with `family_id`, `owner_address`, and `updated_name = n` (no `updated_description` attribute)
+
+#### Scenario: Owner updates the description only
+- **WHEN** the family owner sends `UpdateFamily { updated_name: None, updated_description: Some(d) }` with a valid `d`
+- **THEN** the persisted family's `description` is replaced with `d` and every other field is unchanged
+- **AND** the response carries a `family_update` event with `family_id`, `owner_address`, and `updated_description = d` (no `updated_name` attribute)
+
+#### Scenario: Owner updates both fields
+- **WHEN** the family owner sends `UpdateFamily { updated_name: Some(n), updated_description: Some(d) }` with both values valid
+- **THEN** both `name`/`normalised_name` and `description` are replaced, and the event carries both `updated_name` and `updated_description` attributes
+
+#### Scenario: A fully-empty call is a silent no-op for any sender
+- **WHEN** any sender (whether or not they own a family) sends `UpdateFamily { updated_name: None, updated_description: None }`
+- **THEN** the response is `Response::default()` (no events, no messages) and storage is unchanged
+
+#### Scenario: Sender that owns no family is rejected when at least one field is set
+- **WHEN** an address that does not own any family sends `UpdateFamily` with at least one `Some(_)` field
+- **THEN** the call fails with `SenderDoesntOwnAFamily { address }`
+
+#### Scenario: Overlong name is rejected
+- **WHEN** `UpdateFamily { updated_name: Some(n), .. }` is sent with `n.len() > Config::family_name_length_limit`
+- **THEN** the call fails with `FamilyNameTooLong { length, limit }` and storage is unchanged
+
+#### Scenario: Name normalising to empty is rejected
+- **WHEN** `UpdateFamily { updated_name: Some(n), .. }` is sent with an `n` whose normalisation yields the empty string
+- **THEN** the call fails with `EmptyFamilyName` and storage is unchanged
+
+#### Scenario: Renaming to another family's normalised name is rejected
+- **WHEN** family `A`'s owner sends `UpdateFamily { updated_name: Some(n), .. }` whose normalisation equals a different family `B`'s `normalised_name`
+- **THEN** the call fails with `FamilyNameAlreadyTaken { name, family_id: B.id }` and storage is unchanged
+
+#### Scenario: Case-only or punctuation-only rename is allowed
+- **WHEN** the owner sends `UpdateFamily { updated_name: Some(n), .. }` whose normalisation equals the family's own existing `normalised_name`
+- **THEN** the display `name` is replaced with `n`, the `normalised_name` is unchanged, and the call succeeds
+
+#### Scenario: Overlong description is rejected
+- **WHEN** `UpdateFamily { updated_description: Some(d), .. }` is sent with `d.len() > Config::family_description_length_limit`
+- **THEN** the call fails with `FamilyDescriptionTooLong { length, limit }` and storage is unchanged
+
 ### Requirement: Family ids are monotonic, never recycled, and start at 1
 
 The contract SHALL assign family ids sequentially starting at `1`. The id counter SHALL be persisted as an `Item<NodeFamilyId>` and incremented on each successful family creation. Disbanding a family MUST NOT free or recycle its id. `0` SHALL be reserved as a "no family" sentinel and never assigned.
@@ -406,11 +452,12 @@ Every constant exported under `nym_node_families_contract_common::constants::sto
 
 ### Requirement: Emitted events form a stable public surface
 
-Every event name and attribute key exported under `nym_node_families_contract_common::constants::events` SHALL be treated as part of the public contract surface. Each successful **state-mutating user-facing execute path** (every variant of `ExecuteMsg` except `UpdateConfig`, which is an admin handler that returns `Response::default()` without an event) SHALL emit exactly one event whose name and attribute keys come from these constants. Renaming an event name constant, renaming an attribute-key constant, or changing the set of attributes a given event carries SHALL be treated as breaking changes. Adding new constants for new events / attributes is non-breaking.
+Every event name and attribute key exported under `nym_node_families_contract_common::constants::events` SHALL be treated as part of the public contract surface. Each successful **state-mutating user-facing execute path** (every variant of `ExecuteMsg` except `UpdateConfig`, which is an admin handler that returns `Response::default()` without an event, and the no-op `UpdateFamily { updated_name: None, updated_description: None }` short-circuit, which also returns `Response::default()` because nothing changed) SHALL emit exactly one event whose name and attribute keys come from these constants. Renaming an event name constant, renaming an attribute-key constant, or changing the set of attributes a given event always carries SHALL be treated as breaking changes. Adding new constants for new events / attributes is non-breaking, as is making a previously-always-emitted attribute conditional only by extending the variant set that triggers it (see `family_update` below).
 
 At the time of this spec the constant surface comprises (refer to `constants.rs` for the authoritative list):
 
 - `family_creation` — attributes: `family_name`, `owner_address`, `family_id`, `paid_fee`
+- `family_update` — required attributes: `family_id`, `owner_address`. Conditional attributes: `updated_name` (emitted only when the call carried `updated_name = Some(_)`), `updated_description` (emitted only when the call carried `updated_description = Some(_)`). At least one of the two conditional attributes is always present, because the no-op no-name-no-description case short-circuits to `Response::default()` without emitting any event at all.
 - `family_disband` — attributes: `family_id`, `owner_address`, `refunded_fee`
 - `family_invitation` — attributes: `family_id`, `node_id`, `expires_at`
 - `family_invitation_revoked` — attributes: `family_id`, `node_id`
@@ -429,4 +476,8 @@ At the time of this spec the constant surface comprises (refer to `constants.rs`
 #### Scenario: UpdateConfig is the exception — no event is emitted
 - **WHEN** the admin sends `ExecuteMsg::UpdateConfig` and the call succeeds
 - **THEN** the response is `Response::default()` and carries no event (this is intentional — `UpdateConfig` is administrative metadata, not a tracked state transition)
+
+#### Scenario: No-op UpdateFamily is the second exception — no event is emitted
+- **WHEN** any sender sends `ExecuteMsg::UpdateFamily { updated_name: None, updated_description: None }` and the call succeeds (the no-op short-circuit)
+- **THEN** the response is `Response::default()` and carries no event — because nothing in storage changed, there is nothing for indexers to observe
 

@@ -6,7 +6,7 @@
 #![allow(clippy::expect_used)]
 
 use crate::contract::{execute, instantiate, migrate, query};
-use crate::helpers::normalise_family_name;
+use crate::helpers::{normalise_family_name, NewFamilyName};
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{coin, Addr, Coin, Storage};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
@@ -126,7 +126,7 @@ pub trait NodeFamiliesContractTesterExt:
     }
 
     fn make_named_family(&mut self, owner: &Addr, name: &str) -> NodeFamily {
-        let normalised = normalise_family_name(name);
+        let normalised_name = normalise_family_name(name);
         let env = self.env();
         let fee = self.family_fee();
         NodeFamiliesStorage::new()
@@ -135,8 +135,10 @@ pub trait NodeFamiliesContractTesterExt:
                 &env,
                 fee,
                 owner.clone(),
-                name.to_string(),
-                normalised,
+                NewFamilyName {
+                    name: name.to_string(),
+                    normalised_name,
+                },
                 "dummy".to_string(),
             )
             .unwrap()

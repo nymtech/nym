@@ -5,7 +5,8 @@
 
 use crate::helpers::{
     ensure_address_holds_no_family_membership, ensure_has_bonded_node, ensure_node_is_bonded,
-    ensure_node_not_in_family, normalise_family_name,
+    ensure_node_not_in_family, ensure_normalised_name_unique, validate_family_description,
+    validate_family_name,
 };
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{BankMsg, DepsMut, Env, Event, MessageInfo, Response};
@@ -60,25 +61,9 @@ pub(crate) fn try_create_family(
         });
     }
 
-    // validate family name
-    if name.len() > config.family_name_length_limit {
-        return Err(NodeFamiliesContractError::FamilyNameTooLong {
-            length: name.len(),
-            limit: config.family_name_length_limit,
-        });
-    }
-    let normalised = normalise_family_name(&name);
-    if normalised.is_empty() {
-        return Err(NodeFamiliesContractError::EmptyFamilyName);
-    }
-
-    // validate family description
-    if description.len() > config.family_description_length_limit {
-        return Err(NodeFamiliesContractError::FamilyDescriptionTooLong {
-            length: description.len(),
-            limit: config.family_description_length_limit,
-        });
-    }
+    // validate name + description (shared with try_update_family)
+    let validated_name = validate_family_name(name, &config)?;
+    validate_family_description(&description, &config)?;
 
     // check if the sender already owns a family
     if let Some(existing) = storage.may_get_owned_family(deps.storage, &info.sender)? {
@@ -89,17 +74,12 @@ pub(crate) fn try_create_family(
     }
 
     // explicitly verify duplicate family name for a better error message
-    if let Some((_, existing)) = storage
-        .families
-        .idx
-        .normalised_name
-        .item(deps.storage, normalised.clone())?
-    {
-        return Err(NodeFamiliesContractError::FamilyNameAlreadyTaken {
-            name: normalised,
-            family_id: existing.id,
-        });
-    }
+    ensure_normalised_name_unique(
+        &storage,
+        deps.as_ref(),
+        &validated_name.normalised_name,
+        None,
+    )?;
 
     // check whether this owner has a bonded node which belongs to a family
     ensure_address_holds_no_family_membership(&storage, deps.as_ref(), &info.sender)?;
@@ -109,8 +89,7 @@ pub(crate) fn try_create_family(
         &env,
         config.create_family_fee,
         info.sender,
-        name,
-        normalised,
+        validated_name,
         description,
     )?;
 
@@ -127,6 +106,75 @@ pub(crate) fn try_create_family(
                 family.paid_fee.to_string(),
             ),
     ))
+}
+
+/// Update the name and/or description of the family owned by `info.sender`.
+/// Each field is independently optional: `None` keeps the existing value,
+/// `Some(_)` replaces it. Updated values are validated against the same
+/// length / normalisation / global-uniqueness rules as [`try_create_family`].
+/// A fully-empty call (both arguments `None`) is silently accepted as a
+/// no-op — no state change, no event.
+pub(crate) fn try_update_family(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    updated_name: Option<String>,
+    updated_description: Option<String>,
+) -> Result<Response, NodeFamiliesContractError> {
+    // Short-circuit on the no-op case so we don't load config / storage.
+    if updated_name.is_none() && updated_description.is_none() {
+        return Ok(Response::default());
+    }
+
+    let storage = NodeFamiliesStorage::new();
+    let config = storage.config.load(deps.storage)?;
+
+    // Owner gate — same unique-index lookup used by disband / invite / kick.
+    let family = storage.must_get_owned_family(deps.storage, &info.sender)?;
+
+    // Validate name + description (shared with try_create_family).
+    let validated_name = updated_name
+        .map(|name| validate_family_name(name, &config))
+        .transpose()?;
+    if let Some(ref new) = validated_name {
+        ensure_normalised_name_unique(
+            &storage,
+            deps.as_ref(),
+            &new.normalised_name,
+            Some(family.id),
+        )?;
+    }
+    if let Some(ref description) = updated_description {
+        validate_family_description(description, &config)?;
+    }
+
+    let name_was_updated = validated_name.is_some();
+    let description_was_updated = updated_description.is_some();
+
+    let updated = storage.update_family_details(
+        deps.storage,
+        family.id,
+        validated_name,
+        updated_description,
+    )?;
+
+    let mut event = Event::new(events::FAMILY_UPDATE_EVENT_NAME)
+        .add_attribute(
+            events::FAMILY_UPDATE_EVENT_FAMILY_ID,
+            updated.id.to_string(),
+        )
+        .add_attribute(events::FAMILY_UPDATE_EVENT_OWNER_ADDRESS, &updated.owner);
+    if name_was_updated {
+        event = event.add_attribute(events::FAMILY_UPDATE_EVENT_UPDATED_NAME, &updated.name);
+    }
+    if description_was_updated {
+        event = event.add_attribute(
+            events::FAMILY_UPDATE_EVENT_UPDATED_DESCRIPTION,
+            &updated.description,
+        );
+    }
+
+    Ok(Response::new().add_event(event))
 }
 
 /// Disband the family owned by `info.sender` and refund the original
@@ -839,6 +887,329 @@ mod tests {
                 "My Family!".to_string(),
                 "description".to_string(),
             )?;
+
+            Ok(())
+        }
+    }
+
+    mod update_family {
+        use super::*;
+        use crate::testing::NodeFamiliesContractTesterExt;
+        use nym_node_families_contract_common::constants::events;
+
+        #[test]
+        fn happy_path_updates_name_only() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let original = tester.make_named_family(&alice, "Original");
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+
+            try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("Renamed".to_string()),
+                None,
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            let updated = storage.families.load(tester.deps().storage, original.id)?;
+
+            assert_eq!(updated.name, "Renamed");
+            assert_eq!(updated.normalised_name, "renamed");
+            // every other field is preserved
+            assert_eq!(updated.description, original.description);
+            assert_eq!(updated.id, original.id);
+            assert_eq!(updated.owner, original.owner);
+            assert_eq!(updated.paid_fee, original.paid_fee);
+            assert_eq!(updated.members, original.members);
+            assert_eq!(updated.created_at, original.created_at);
+
+            Ok(())
+        }
+
+        #[test]
+        fn happy_path_updates_description_only() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let original = tester.make_named_family(&alice, "Family");
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+
+            try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                None,
+                Some("new description".to_string()),
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            let updated = storage.families.load(tester.deps().storage, original.id)?;
+
+            assert_eq!(updated.name, original.name);
+            assert_eq!(updated.normalised_name, original.normalised_name);
+            assert_eq!(updated.description, "new description");
+
+            Ok(())
+        }
+
+        #[test]
+        fn happy_path_updates_both_fields() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let original = tester.make_named_family(&alice, "Original");
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+
+            try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("Renamed".to_string()),
+                Some("new description".to_string()),
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            let updated = storage.families.load(tester.deps().storage, original.id)?;
+
+            assert_eq!(updated.name, "Renamed");
+            assert_eq!(updated.normalised_name, "renamed");
+            assert_eq!(updated.description, "new description");
+
+            Ok(())
+        }
+
+        #[test]
+        fn noop_when_both_fields_are_none() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let original = tester.make_named_family(&alice, "Original");
+            let env = tester.env();
+            let info = message_info(&alice, &[]);
+
+            let res = try_update_family(tester.deps_mut(), env, info, None, None)?;
+
+            // no event, no messages
+            assert!(res.events.is_empty());
+            assert!(res.messages.is_empty());
+
+            // family record untouched
+            let storage = NodeFamiliesStorage::new();
+            let unchanged = storage.families.load(tester.deps().storage, original.id)?;
+            assert_eq!(unchanged, original);
+
+            Ok(())
+        }
+
+        #[test]
+        fn noop_short_circuits_before_the_owner_lookup() -> anyhow::Result<()> {
+            // sender owns no family at all; the no-op short-circuit must run
+            // before the ownership check or this would error with
+            // SenderDoesntOwnAFamily.
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let res = try_update_family(tester.deps_mut(), env, info, None, None)?;
+            assert!(res.events.is_empty());
+            assert!(res.messages.is_empty());
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_when_sender_owns_no_family() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let err = try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("Newname".to_string()),
+                None,
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+            );
+        }
+
+        #[test]
+        fn rejects_name_too_long() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_named_family(&alice, "Original");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let limit = NodeFamiliesStorage::new()
+                .config
+                .load(tester.deps().storage)
+                .unwrap()
+                .family_name_length_limit;
+            let too_long = "x".repeat(limit + 1);
+
+            let err = try_update_family(tester.deps_mut(), env, info, Some(too_long.clone()), None)
+                .unwrap_err();
+
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::FamilyNameTooLong {
+                    length: too_long.len(),
+                    limit,
+                }
+            );
+        }
+
+        #[test]
+        fn rejects_name_normalising_to_empty() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_named_family(&alice, "Original");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let err = try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("!!!---".to_string()),
+                None,
+            )
+            .unwrap_err();
+
+            assert_eq!(err, NodeFamiliesContractError::EmptyFamilyName);
+        }
+
+        #[test]
+        fn rejects_name_already_taken_by_another_family() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let bob = tester.addr_make("bob");
+            tester.make_named_family(&alice, "Alice family");
+            let bobs_family = tester.make_named_family(&bob, "Bob family");
+
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+            let err = try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("Bob Family".to_string()),
+                None,
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::FamilyNameAlreadyTaken {
+                    name: "bobfamily".to_string(),
+                    family_id: bobs_family.id,
+                }
+            );
+        }
+
+        #[test]
+        fn case_only_rename_keeping_normalised_form_is_allowed() -> anyhow::Result<()> {
+            // a rename whose normalised form matches the family's current
+            // normalised key must succeed - it's a no-collision change against
+            // the family's own row, which the uniqueness pre-check skips.
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let original = tester.make_named_family(&alice, "MyFamily");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                Some("MYFAMILY".to_string()),
+                None,
+            )?;
+
+            let updated = NodeFamiliesStorage::new()
+                .families
+                .load(tester.deps().storage, original.id)?;
+            assert_eq!(updated.name, "MYFAMILY");
+            assert_eq!(updated.normalised_name, "myfamily");
+
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_description_too_long() {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_named_family(&alice, "Original");
+            let info = message_info(&alice, &[]);
+            let env = tester.env();
+
+            let limit = NodeFamiliesStorage::new()
+                .config
+                .load(tester.deps().storage)
+                .unwrap()
+                .family_description_length_limit;
+            let too_long = "x".repeat(limit + 1);
+
+            let err = try_update_family(tester.deps_mut(), env, info, None, Some(too_long.clone()))
+                .unwrap_err();
+
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::FamilyDescriptionTooLong {
+                    length: too_long.len(),
+                    limit,
+                }
+            );
+        }
+
+        #[test]
+        fn event_only_carries_attributes_for_changed_fields() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            tester.make_named_family(&alice, "Original");
+            let env = tester.env();
+
+            // name-only update: no `updated_description` attribute
+            let info = message_info(&alice, &[]);
+            let res = try_update_family(
+                tester.deps_mut(),
+                env.clone(),
+                info,
+                Some("Renamed".to_string()),
+                None,
+            )?;
+            assert_eq!(res.events.len(), 1);
+            let event = &res.events[0];
+            assert_eq!(event.ty, events::FAMILY_UPDATE_EVENT_NAME);
+            let keys: Vec<&str> = event.attributes.iter().map(|a| a.key.as_str()).collect();
+            assert!(keys.contains(&events::FAMILY_UPDATE_EVENT_FAMILY_ID));
+            assert!(keys.contains(&events::FAMILY_UPDATE_EVENT_OWNER_ADDRESS));
+            assert!(keys.contains(&events::FAMILY_UPDATE_EVENT_UPDATED_NAME));
+            assert!(!keys.contains(&events::FAMILY_UPDATE_EVENT_UPDATED_DESCRIPTION));
+
+            // description-only update: no `updated_name` attribute
+            let info = message_info(&alice, &[]);
+            let res = try_update_family(
+                tester.deps_mut(),
+                env,
+                info,
+                None,
+                Some("new desc".to_string()),
+            )?;
+            let event = &res.events[0];
+            let keys: Vec<&str> = event.attributes.iter().map(|a| a.key.as_str()).collect();
+            assert!(!keys.contains(&events::FAMILY_UPDATE_EVENT_UPDATED_NAME));
+            assert!(keys.contains(&events::FAMILY_UPDATE_EVENT_UPDATED_DESCRIPTION));
 
             Ok(())
         }

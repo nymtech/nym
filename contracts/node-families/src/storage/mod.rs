@@ -4,6 +4,7 @@
 // storage will be used in subsequent PRs/tickets
 #![allow(dead_code)]
 
+use crate::helpers::NewFamilyName;
 use crate::storage::storage_indexes::{
     FamilyMembersIndex, NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
     PastFamilyMembersIndex,
@@ -221,22 +222,20 @@ impl NodeFamiliesStorage<'_> {
     /// invariants via unique indexes on `owner` and `normalised_name` as a
     /// defence-in-depth check, so this call will fail if either is already
     /// taken — but the caller must not rely on it for the membership check.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn register_new_family(
         &self,
         store: &mut dyn Storage,
         env: &Env,
         fee: Coin,
         owner: Addr,
-        name: String,
-        normalised_name: String,
+        name: NewFamilyName,
         description: String,
     ) -> Result<NodeFamily, NodeFamiliesContractError> {
         let id = self.next_family_id(store)?;
         let family = NodeFamily {
             id,
-            name,
-            normalised_name,
+            name: name.name,
+            normalised_name: name.normalised_name,
             description,
             owner,
             paid_fee: fee,
@@ -244,6 +243,38 @@ impl NodeFamiliesStorage<'_> {
             created_at: env.block.time.seconds(),
         };
         self.families.save(store, id, &family)?;
+        Ok(family)
+    }
+
+    /// Apply name and/or description updates to an existing family, leaving
+    /// every other field (id, owner, members, paid_fee, created_at)
+    /// untouched. Each argument follows `None = keep` / `Some = replace`
+    /// semantics.
+    ///
+    /// No validation is performed here — the caller (transaction handler)
+    /// owns the length / non-empty / global-uniqueness checks before invoking.
+    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
+    ///
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn update_family_details(
+        &self,
+        store: &mut dyn Storage,
+        family_id: NodeFamilyId,
+        updated_name: Option<NewFamilyName>,
+        updated_description: Option<String>,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        if let Some(new_name) = updated_name {
+            family.name = new_name.name;
+            family.normalised_name = new_name.normalised_name;
+        }
+        if let Some(description) = updated_description {
+            family.description = description;
+        }
+        self.families.save(store, family.id, &family)?;
         Ok(family)
     }
 
@@ -703,6 +734,7 @@ impl NodeFamiliesStorage<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::helpers::NewFamilyName;
     use crate::testing::{init_contract_tester, NodeFamiliesContractTesterExt};
     use nym_contracts_common_testing::ContractOpts;
 
@@ -780,8 +812,10 @@ mod tests {
                 &env,
                 fee,
                 owner.clone(),
-                "Fam!".into(),
-                "fam".into(),
+                NewFamilyName {
+                    name: "Fam!".into(),
+                    normalised_name: "fam".into(),
+                },
                 "desc".into(),
             )
             .unwrap();
@@ -823,8 +857,10 @@ mod tests {
             &env,
             fee.clone(),
             alice,
-            "Shared".into(),
-            "shared".into(),
+            NewFamilyName {
+                name: "Shared".into(),
+                normalised_name: "shared".into(),
+            },
             "".into(),
         )
         .unwrap();
@@ -836,8 +872,10 @@ mod tests {
             &env,
             fee,
             bob,
-            "$$shared$$".into(),
-            "shared".into(),
+            NewFamilyName {
+                name: "$$shared$$".into(),
+                normalised_name: "shared".into(),
+            },
             "".into(),
         );
         assert!(res.is_err());
@@ -859,8 +897,10 @@ mod tests {
             &env,
             fee,
             alice,
-            "second".into(),
-            "second".into(),
+            NewFamilyName {
+                name: "second".into(),
+                normalised_name: "second".into(),
+            },
             "".into(),
         );
         assert!(res.is_err());
@@ -1272,8 +1312,10 @@ mod tests {
                 &env,
                 fee,
                 alice,
-                "2".into(),
-                "2".into(),
+                NewFamilyName {
+                    name: "2".into(),
+                    normalised_name: "2".into(),
+                },
                 "".into(),
             )
             .unwrap();

@@ -11,7 +11,7 @@ options:
   --no_routing_history  Display node stats without routing history
   --no_verloc_metrics   Display node stats without verloc metrics
   -m, --markdown        Display results in markdown format
-  -o [OUTPUT], --output [OUTPUT]
+  -o, --output [OUTPUT]
                         Save results to file (in current dir or supply with
                         path without filename)
 ```

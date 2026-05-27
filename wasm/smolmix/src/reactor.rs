@@ -9,7 +9,7 @@
 //! arrives. smoltcp's per-socket `register_recv_waker`/`register_send_waker`
 //! fire automatically on every state change.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use futures::channel::mpsc;
@@ -18,6 +18,7 @@ use nym_wasm_client_core::nym_task::ShutdownTracker;
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
 use smoltcp::socket::tcp as smoltcp_tcp;
 use smoltcp::time::Instant;
+use wasmtimer::std::Instant as MonotonicInstant;
 
 use crate::device::WasmDevice;
 use crate::state::{State, TaskName};
@@ -42,12 +43,20 @@ pub struct SmoltcpStack {
     pub pending_removal: Vec<SocketHandle>,
 }
 
-/// Get the current smoltcp timestamp from `Date.now()`.
+/// Monotonic epoch anchor for `smoltcp_now`. Lazily initialised on first call.
+static EPOCH: OnceLock<MonotonicInstant> = OnceLock::new();
+
+/// Get the current smoltcp timestamp from a monotonic clock.
 ///
-/// smoltcp's `Instant` is just `i64` microseconds, not `std::time::Instant`.
-/// We convert JS milliseconds (f64) to microseconds (i64).
+/// smoltcp's `Instant` is an `i64` of microseconds relative to some epoch.
+/// We anchor to the first call and report offsets from that. `wasmtimer::std::Instant`
+/// is backed by `performance.now()` on wasm32, which is monotonic per the W3C
+/// HR-Time spec — unlike `Date::now()`, which can step backwards on NTP correction
+/// or user clock changes and would corrupt smoltcp's retransmit/timeout maths.
 pub fn smoltcp_now() -> Instant {
-    Instant::from_micros((js_sys::Date::now() * 1000.0) as i64)
+    let epoch = *EPOCH.get_or_init(MonotonicInstant::now);
+    let elapsed_us = MonotonicInstant::now().duration_since(epoch).as_micros() as i64;
+    Instant::from_micros(elapsed_us)
 }
 
 /// Type alias for the channel that notifies the reactor to re-poll.
@@ -102,26 +111,33 @@ pub fn start_reactor(
                     iface.poll_delay(now, sockets)
                 };
 
-                // Translate smoltcp's deadline into a sleep duration. A zero delay
-                // means "poll again immediately"; treat it as 1 ms so the task
-                // yields back to the JS event loop before re-entering the loop.
-                let sleep_for = match delay {
-                    Some(d) if d.total_micros() == 0 => Duration::from_millis(1),
-                    Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
-                    None => MAX_IDLE,
-                };
-
-                futures::select! {
-                    _ = wasmtimer::tokio::sleep(sleep_for).fuse() => {},
-                    msg = notify.next().fuse() => {
-                        if msg.is_none() {
-                            // All wake sources gone. If cancellation is
-                            // already in flight, finalise_task no-ops;
-                            // otherwise it marks Failed { TaskExited }.
-                            crate::util::debug_error!(
-                                "[reactor] notify channel closed"
-                            );
-                            break;
+                // Translate smoltcp's deadline into a wait. A zero delay means
+                // "poll again immediately"; yield to the JS event loop via
+                // `yield_now()` rather than a 1ms `wasmtimer::sleep`, which
+                // schedules a `setTimeout` and is hit by browsers' ~4ms minimum
+                // clamp. Any notify messages remain queued for the next select!.
+                match delay {
+                    Some(d) if d.total_micros() == 0 => {
+                        wasm_bindgen_futures::yield_now().await;
+                    }
+                    other => {
+                        let sleep_for = match other {
+                            Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
+                            None => MAX_IDLE,
+                        };
+                        futures::select! {
+                            _ = wasmtimer::tokio::sleep(sleep_for).fuse() => {},
+                            msg = notify.next().fuse() => {
+                                if msg.is_none() {
+                                    // All wake sources gone. If cancellation is
+                                    // already in flight, finalise_task no-ops;
+                                    // otherwise it marks Failed { TaskExited }.
+                                    crate::util::debug_error!(
+                                        "[reactor] notify channel closed"
+                                    );
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

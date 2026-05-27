@@ -13,7 +13,6 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
 
 use futures::channel::mpsc;
@@ -204,8 +203,9 @@ impl WasmTunnel {
         let has_gateway = client_store
             .get_active_gateway_id()
             .await
-            .map(|r| r.active_gateway_id_bs58.is_some())
-            .unwrap_or(false);
+            .map_err(|e| FetchError::Tunnel(format!("gateway-storage error: {e}")))?
+            .active_gateway_id_bs58
+            .is_some();
 
         if !has_gateway {
             let user_agent = nym_bin_common::bin_info!().into();
@@ -313,8 +313,6 @@ impl WasmTunnel {
             pending_removal: Vec::new(),
         }));
 
-        // Bridge starts at seq=1 (ConnectRequest was Data seq=0).
-        let seq = Arc::new(AtomicU32::new(1));
         let (notify_tx, notify_rx) = mpsc::unbounded();
 
         reactor::start_reactor(stack.clone(), notify_rx, tracker, state.clone());
@@ -324,7 +322,6 @@ impl WasmTunnel {
             reconstructed_receiver,
             ipr_address,
             stream_id,
-            seq.clone(),
             notify_tx.clone(),
             tracker,
             state.clone(),

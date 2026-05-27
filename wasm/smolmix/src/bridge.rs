@@ -11,7 +11,6 @@
 //! **Incoming** (mixnet → smoltcp): receive `ReconstructedMessage` batches,
 //! LP-decode, parse IPR responses, unbundle IP packets, push to device rx.
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -47,7 +46,6 @@ pub fn start_bridge(
     mut msg_receiver: ReconstructedReceiver,
     ipr_address: Recipient,
     stream_id: u64,
-    seq: Arc<AtomicU32>,
     notify_reactor: ReactorNotify,
     tracker: &ShutdownTracker,
     state: State,
@@ -58,6 +56,9 @@ pub fn start_bridge(
     tracker.try_spawn_named_with_shutdown(
         async move {
             let mut tx_interval = wasmtimer::tokio::interval(Duration::from_millis(5));
+            // Outbound seq starts at 1; seq=0 was spent on the IPR
+            // ConnectRequest during the handshake.
+            let mut seq: u32 = 1;
 
             loop {
                 // Block until something happens (incoming message or timer tick).
@@ -96,7 +97,8 @@ pub fn start_bridge(
                     crate::util::debug_log!("[bridge] ▲ tx ({} packets)", packets.len());
                 }
                 for packet in packets {
-                    let current_seq = seq.fetch_add(1, Ordering::Relaxed);
+                    let current_seq = seq;
+                    seq = seq.wrapping_add(1);
                     if let Err(e) = ipr::send_ip_packet(
                         &client_input,
                         &ipr_address,

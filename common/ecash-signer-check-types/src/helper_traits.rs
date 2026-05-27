@@ -6,7 +6,7 @@ use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::{debug, warn};
+use tracing::warn;
 
 pub trait Verifiable {
     fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool;
@@ -36,6 +36,7 @@ pub trait ChainResponse: Verifiable + TimestampedResponse {
 
         // we rely on information provided from the api itself AS LONG AS it's not too outdated
         if self.timestamp() + stale_response_threshold < now {
+            warn!("chain status response is stale");
             return false;
         }
         self.chain_synced()
@@ -96,26 +97,27 @@ pub trait SignerResponse: Verifiable + TimestampedResponse {
 
         // we rely on information provided from the api itself AS LONG AS it's not too outdated
         if self.timestamp() + stale_response_threshold < now {
+            warn!("stale signer response");
             return false;
         }
 
         if !self.has_signing_keys() {
-            debug!("missing signing keys");
+            warn!("missing signing keys");
             return false;
         }
 
         if self.signer_disabled() {
-            debug!("signer functionalities explicitly disabled");
+            warn!("signer functionalities are explicitly disabled");
             return false;
         }
 
         if !self.is_ecash_signer() {
-            debug!("signer doesn't recognise it's a signer for this epoch");
+            warn!("signer doesn't recognise it's a signer for this epoch");
             return false;
         }
 
         if dkg_epoch_id != self.dkg_ecash_epoch_id() {
-            debug!(
+            warn!(
                 "mismatched dkg epoch id. current: {dkg_epoch_id}, signer's: {}",
                 self.dkg_ecash_epoch_id()
             );

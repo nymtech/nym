@@ -6,7 +6,7 @@ use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::{debug, warn};
+use tracing::warn;
 
 pub trait Verifiable {
     fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool;

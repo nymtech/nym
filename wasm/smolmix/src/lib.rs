@@ -1,6 +1,12 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// `debug_log!` / `debug_error!` macros elide their argument expressions when
+// the `debug` feature is off, leaving bindings that look unused to clippy.
+// Silence the lint only in the feature-off configuration so real unused-var
+// bugs still get caught in debug builds.
+#![cfg_attr(not(feature = "debug"), allow(unused_variables))]
+
 //! smolmix-wasm: drop-in browser networking over the Nym mixnet.
 //!
 //! Exposes three APIs that mirror the browser's native networking surface:

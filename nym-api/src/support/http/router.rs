@@ -167,3 +167,17 @@ impl ApiHttpServer {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Axum 0.8 panics inside `.route(...)` when given the legacy `:param`
+    /// path syntax. That panic never fires at `cargo check` time, so a regression
+    /// only surfaces when nym-api boots. This test exercises the whole route tree
+    /// to catch such regressions in CI.
+    #[test]
+    fn default_router_builds_without_panic() {
+        let _ = RouterBuilder::with_default_routes(false, None);
+    }
+}

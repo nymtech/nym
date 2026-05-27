@@ -169,7 +169,7 @@ async fn known_network_monitor(
 fn stress_testing_routes() -> Router<AppState> {
     Router::new()
         .route("/batch-submit", post(batch_submit_stress_testing_results))
-        .route("/known-monitors/:identity_key", get(known_network_monitor))
+        .route("/known-monitors/{identity_key}", get(known_network_monitor))
 }
 
 /// Build the `/v3/nym-nodes` subtree hosting the v3 network-monitor endpoints.

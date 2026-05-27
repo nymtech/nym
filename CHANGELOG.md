@@ -4,6 +4,52 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.10-waterloo] (2026-05-27)
+
+- Re-order default API urls for network details - Waterloo release ([#6799])
+- [bugfix] IPR v8<->v9 mismatch on Waterloo ([#6772])
+- Migrate to hickory 0.26.1 ([#6751])
+- add workflows for NM3 ([#6729])
+- credential proxy pool ([#6726])
+- chore: made sphinx version threshold assertion a compile time check ([#6718])
+- Feat/nmv3 updated performance calculation ([#6714])
+- feat: NMv3: submission of stress testing result into nym-api ([#6709])
+- feat: NMv3: Prometheus metrics for network monitor ([#6693])
+- feat: NMv3: add read-only results API to orchestrator ([#6689])
+- feat: NMv3: Eviction of stale testrun data ([#6685])
+- feat: NMv3: Wire up testrun assignment and result submission flow ([#6680])
+- feat: NMv3: Support multiple network monitor agents per host ([#6679])
+- Feat/nmv3 agent announcement ([#6673])
+- add node refresher for periodic scraping of bonded nym-node details ([#6626])
+- Feat/nmv3 orchestrator queue ([#6597])
+- feat: network monitor agent - standalone node stress-testing ([#6582])
+- [feat] propagate NM agent noise keys to nym-node routing ([#6577])
+- start mix stress testing topic branch ([#6575])
+- Feat/nmv3 agents subscription ([#6567])
+- Feat/nmv3 agents contract ([#6555])
+
+[#6799]: https://github.com/nymtech/nym/pull/6799
+[#6772]: https://github.com/nymtech/nym/pull/6772
+[#6751]: https://github.com/nymtech/nym/pull/6751
+[#6729]: https://github.com/nymtech/nym/pull/6729
+[#6726]: https://github.com/nymtech/nym/pull/6726
+[#6718]: https://github.com/nymtech/nym/pull/6718
+[#6714]: https://github.com/nymtech/nym/pull/6714
+[#6709]: https://github.com/nymtech/nym/pull/6709
+[#6693]: https://github.com/nymtech/nym/pull/6693
+[#6689]: https://github.com/nymtech/nym/pull/6689
+[#6685]: https://github.com/nymtech/nym/pull/6685
+[#6680]: https://github.com/nymtech/nym/pull/6680
+[#6679]: https://github.com/nymtech/nym/pull/6679
+[#6673]: https://github.com/nymtech/nym/pull/6673
+[#6626]: https://github.com/nymtech/nym/pull/6626
+[#6597]: https://github.com/nymtech/nym/pull/6597
+[#6582]: https://github.com/nymtech/nym/pull/6582
+[#6577]: https://github.com/nymtech/nym/pull/6577
+[#6575]: https://github.com/nymtech/nym/pull/6575
+[#6567]: https://github.com/nymtech/nym/pull/6567
+[#6555]: https://github.com/nymtech/nym/pull/6555
+
 ## [2026.9-venaco] (2026-05-06)
 
 - Fix for v9 IPR  ([#6710])

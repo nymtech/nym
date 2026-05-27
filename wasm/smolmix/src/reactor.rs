@@ -12,12 +12,12 @@
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use futures::channel::mpsc;
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use nym_wasm_client_core::nym_task::ShutdownTracker;
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
 use smoltcp::socket::tcp as smoltcp_tcp;
 use smoltcp::time::Instant;
+use tokio::sync::Notify;
 use wasmtimer::std::Instant as MonotonicInstant;
 
 use crate::device::WasmDevice;
@@ -81,8 +81,10 @@ pub fn smoltcp_now() -> Instant {
     Instant::from_micros(elapsed_us)
 }
 
-/// Type alias for the channel that notifies the reactor to re-poll.
-pub type ReactorNotify = mpsc::UnboundedSender<()>;
+/// Wake source for the reactor. Multiple holders call `notify_one()` to ask
+/// the reactor to re-poll smoltcp; coalescing is intrinsic to `tokio::sync::Notify`
+/// (10 calls before the next iteration are equivalent to 1).
+pub type ReactorNotify = Arc<Notify>;
 
 /// Start the smoltcp reactor as a `spawn_local` background task.
 ///
@@ -90,14 +92,13 @@ pub type ReactorNotify = mpsc::UnboundedSender<()>;
 /// 1. Lock the stack, call `iface.poll()` (which fires socket wakers internally).
 /// 2. Ask smoltcp how long it can wait before the next poll (`poll_delay`).
 /// 3. Sleep for that duration (capped at [`MAX_IDLE`]) or until a notification.
-/// 4. Coalesce any further notifications that arrived during the sleep.
 ///
 /// Notifications come from the bridge (new rx packets in the device, needing
 /// `iface.poll()` to ingest them) and from socket writes (data queued in
 /// smoltcp's tx buffer, needing `iface.poll()` to dispatch it to the device).
 pub fn start_reactor(
     stack: Arc<Mutex<SmoltcpStack>>,
-    mut notify: mpsc::UnboundedReceiver<()>,
+    notify: Arc<Notify>,
     tracker: &ShutdownTracker,
     state: State,
 ) {
@@ -137,8 +138,7 @@ pub fn start_reactor(
                 // "poll again immediately"; yield to the JS event loop via
                 // `yield_now()` rather than a 1ms `wasmtimer::sleep`, which
                 // schedules a `setTimeout` and is hit by browsers' ~4ms minimum
-                // clamp. Notify messages arriving during the yield stay queued
-                // for the next iteration's `iface.poll()` + select!.
+                // clamp.
                 match delay {
                     Some(d) if d.total_micros() == 0 => {
                         yield_now().await;
@@ -148,27 +148,18 @@ pub fn start_reactor(
                             Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
                             None => MAX_IDLE,
                         };
+                        // `Notify` coalesces multiple `notify_one()` calls into
+                        // one pending wake, so no drain loop needed. The
+                        // explicit `token.cancelled()` arm lets us exit the
+                        // loop cleanly into `finalise_task` on shutdown rather
+                        // than being aborted mid-select by the supervisor wrapper.
                         futures::select! {
                             _ = wasmtimer::tokio::sleep(sleep_for).fuse() => {},
-                            msg = notify.next().fuse() => {
-                                if msg.is_none() {
-                                    // All wake sources gone. If cancellation is
-                                    // already in flight, finalise_task no-ops;
-                                    // otherwise it marks Failed { TaskExited }.
-                                    crate::util::debug_error!(
-                                        "[reactor] notify channel closed"
-                                    );
-                                    break;
-                                }
-                            }
+                            _ = notify.notified().fuse() => {},
+                            _ = token.cancelled().fuse() => break,
                         }
                     }
                 }
-
-                // Drain queued notifications so one poll() handles all
-                // state changes. Without this, rapid-fire notifications from TLS
-                // writes monopolise the single-threaded WASM event loop.
-                while notify.next().now_or_never().flatten().is_some() {}
             }
 
             state.finalise_task(TaskName::Reactor, &token);

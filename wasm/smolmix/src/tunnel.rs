@@ -26,16 +26,16 @@ use nym_wasm_client_core::client::received_buffer::ReceivedBufferMessage;
 use nym_wasm_client_core::config::new_base_client_config;
 use nym_wasm_client_core::helpers::{add_gateway, generate_new_client_keys};
 use nym_wasm_client_core::nym_task::ShutdownTracker;
+use nym_wasm_client_core::storage::ClientStorage;
 use nym_wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use nym_wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
-use nym_wasm_client_core::storage::ClientStorage;
 use nym_wasm_client_core::{QueryReqwestRpcNyxdClient, Recipient};
 
 use crate::bridge;
 use crate::device::WasmDevice;
 use crate::error::FetchError;
 use crate::ipr;
-use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack};
+use crate::reactor::{self, ReactorNotify, SmoltcpStack, smoltcp_now};
 use crate::state;
 use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
@@ -431,25 +431,22 @@ impl WasmTunnel {
             pending_removal: Vec::new(),
         }));
 
-        let (notify_tx, notify_rx) = mpsc::unbounded();
+        let notify = Arc::new(tokio::sync::Notify::new());
 
-        reactor::start_reactor(stack.clone(), notify_rx, tracker, state.clone());
+        reactor::start_reactor(stack.clone(), notify.clone(), tracker, state.clone());
         bridge::start_bridge(
             stack.clone(),
             client_input,
             reconstructed_receiver,
             ipr_address,
             stream_id,
-            notify_tx.clone(),
+            notify.clone(),
             tracker,
             state.clone(),
             data_surbs,
         );
 
-        NetworkStack {
-            stack,
-            notify: notify_tx,
-        }
+        NetworkStack { stack, notify }
     }
 
     /// Open a TCP connection through the tunnel (SYN -> established).

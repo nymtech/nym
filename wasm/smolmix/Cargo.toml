@@ -1,8 +1,8 @@
 [package]
 name = "smolmix-wasm"
-version = "1.20.0"
+version = "1.21.0"
 authors = { workspace = true }
-edition = "2021"
+edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 rust-version = { workspace = true }

@@ -15,9 +15,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::{FutureExt, StreamExt};
+use nym_wasm_client_core::Recipient;
 use nym_wasm_client_core::client::base_client::ClientInput;
 use nym_wasm_client_core::nym_task::ShutdownTracker;
-use nym_wasm_client_core::Recipient;
 
 use crate::ipr::{self, ReconstructedReceiver};
 use crate::reactor::{ReactorNotify, SmoltcpStack};
@@ -147,6 +147,6 @@ fn process_incoming(
 
     if pushed > 0 {
         crate::util::debug_log!("[bridge] ▼ rx ({pushed} packets)");
-        let _ = notify_reactor.unbounded_send(());
+        notify_reactor.notify_one();
     }
 }

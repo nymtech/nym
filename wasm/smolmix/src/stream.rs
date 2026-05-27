@@ -65,7 +65,7 @@ impl AsyncRead for WasmTcpStream {
             crate::util::debug_log!("[tcp:read] Ready({n})");
             // Notify reactor: recv_slice() frees rx buffer, needs a
             // prompt window update ACK to keep the sender flowing.
-            let _ = self.notify.unbounded_send(());
+            self.notify.notify_one();
             Poll::Ready(Ok(n))
         } else if !socket.may_recv() {
             // Remote sent FIN (EOF). `may_recv()` is false for CloseWait,
@@ -98,7 +98,7 @@ impl AsyncWrite for WasmTcpStream {
             let n = socket
                 .send_slice(buf)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-            let _ = self.notify.unbounded_send(());
+            self.notify.notify_one();
             Poll::Ready(Ok(n))
         } else if !socket.is_open() {
             Poll::Ready(Err(io::Error::new(
@@ -114,7 +114,7 @@ impl AsyncWrite for WasmTcpStream {
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         // Nudge the reactor so any queued tx data dispatches promptly rather
         // than waiting for the next `poll_delay` deadline.
-        let _ = self.notify.unbounded_send(());
+        self.notify.notify_one();
         Poll::Ready(Ok(()))
     }
 
@@ -125,7 +125,7 @@ impl AsyncWrite for WasmTcpStream {
         if !this.closed {
             socket.close();
             this.closed = true;
-            let _ = this.notify.unbounded_send(());
+            this.notify.notify_one();
         }
         if socket.state() == smoltcp_tcp::State::Closed {
             Poll::Ready(Ok(()))
@@ -149,7 +149,7 @@ impl Drop for WasmTcpStream {
             .get_mut::<smoltcp_tcp::Socket>(self.handle)
             .close();
         s.pending_removal.push(self.handle);
-        let _ = self.notify.unbounded_send(());
+        self.notify.notify_one();
     }
 }
 
@@ -215,7 +215,7 @@ impl WasmUdpSocket {
                 socket
                     .send_slice(buf, endpoint)
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-                let _ = notify.unbounded_send(());
+                notify.notify_one();
                 Poll::Ready(Ok(buf.len()))
             } else {
                 socket.register_send_waker(cx.waker());
@@ -340,7 +340,7 @@ pub(crate) async fn tcp_connect(
         handle
     };
 
-    let _ = notify.unbounded_send(());
+    notify.notify_one();
 
     // Async phase: any error past this point must remove the socket. The
     // guard removes it on drop; we defuse it once the stream is constructed.

@@ -605,8 +605,6 @@ opt-level = 3
 # lto = true
 opt-level = 'z'
 
-
-
 [profile.release.package.mix-fetch-wasm]
 # lto = true
 opt-level = 'z'
@@ -632,4 +630,3 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
-

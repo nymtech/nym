@@ -68,11 +68,11 @@ It is intended to be used during development and for troubleshooting.
 You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
 
 ```
-yarn dev
+pnpm run dev
 ```
-This will produce a binary in - `nym-wallet/target/debug/` named `nym-wallet`
+This will produce a binary in - `nym-wallet/target/debug/` named `NymWallet`
 
-To launch the wallet, navigate to the directory and run the following command: `./nym-wallet`
+To launch the wallet, navigate to the directory and run the following command: `./NymWallet`
 
 ## Production mode
 

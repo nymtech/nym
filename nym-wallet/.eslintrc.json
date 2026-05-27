@@ -1,14 +1,20 @@
 {
   "extends": [
-    "@nymproject/eslint-config-react-typescript"
+    "@nymproject/eslint-config-react-typescript",
+    "plugin:storybook/recommended"
   ],
   "parserOptions": {
     "project": "./tsconfig.eslint.json"
   },
   "overrides": [
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx"],
-      "env": { "jest": true }
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "env": {
+        "jest": true
+      }
     }
   ],
   "rules": {

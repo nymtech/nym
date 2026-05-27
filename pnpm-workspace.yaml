@@ -9,6 +9,7 @@ packages:
 
 allowBuilds:
   '@biomejs/biome': true
+  '@fission-ai/openspec': false
   '@parcel/watcher': true
   '@swc/core': true
   core-js: true

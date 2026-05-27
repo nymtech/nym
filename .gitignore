@@ -83,3 +83,5 @@ test-tutorials/
 # pnpm
 .pnpm-store/
 
+
+*storybook.log

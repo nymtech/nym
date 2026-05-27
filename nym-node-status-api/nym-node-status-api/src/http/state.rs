@@ -291,137 +291,131 @@ impl HttpCache {
         db: &DbPool,
         min_node_version: &Version,
     ) -> Vec<DVpnGateway> {
-        match self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
-            Some(guard) => {
-                tracing::trace!("Fetching from cache...");
-                let read_lock = guard.read().await;
-                read_lock.clone()
-            }
-            None => {
-                tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
+        if let Some(guard) = self.dvpn_gateways.get(DVPN_GATEWAYS_LIST_KEY).await {
+            tracing::trace!("Fetching from cache...");
+            let read_lock = guard.read().await;
+            return read_lock.clone();
+        };
 
-                let gateways = self.get_gateway_list(db).await;
-                tracing::info!("Found {} gateways in database", gateways.len());
+        tracing::info!("No gateways (dVPN) in cache, refreshing from DB...");
 
-                let started_with = gateways.len();
-                let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db)
-                    .await
-                {
-                    Ok(records) => {
-                        let mut nodes = HashMap::new();
-                        for dto in records {
-                            match SkimmedNodeV1::try_from(dto) {
-                                Ok(skimmed_node) => {
-                                    let key =
-                                        skimmed_node.ed25519_identity_pubkey.to_base58_string();
-                                    nodes.insert(key, skimmed_node);
-                                }
-                                Err(err) => {
-                                    error!(
-                                        "CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}"
-                                    );
-                                    panic!(
-                                        "Cannot convert database record to SkimmedNode - this should never happen! Error: {err}"
-                                    );
-                                }
-                            }
+        let gateways = self.get_gateway_list(db).await;
+        tracing::info!("Found {} gateways in database", gateways.len());
+
+        let started_with = gateways.len();
+        let skimmed_nodes = match crate::db::queries::get_described_bonded_nym_nodes(db).await {
+            Ok(records) => {
+                let mut nodes = HashMap::new();
+                for dto in records {
+                    match SkimmedNodeV1::try_from(dto) {
+                        Ok(skimmed_node) => {
+                            let key = skimmed_node.ed25519_identity_pubkey.to_base58_string();
+                            nodes.insert(key, skimmed_node);
                         }
-                        nodes
-                    }
-                    Err(err) => {
-                        error!("CRITICAL: Failed to query nym_nodes from database: {err}");
-                        panic!(
-                            "Cannot read nym_nodes table - database connection issue? Error: {err}"
-                        );
-                    }
-                };
-
-                let socks5_scores = calculate_socks5_percentiles(&gateways);
-
-                let res_gws = gateways
-                    .iter()
-                    .filter(|gw| gw.bonded)
-                    .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
-                        Some(skimmed_node) => Some((gw, skimmed_node)),
-                        None => {
-                            error!(
-                                "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
-                                gw.gateway_identity_key
+                        Err(err) => {
+                            error!("CRITICAL: Failed to convert NymNodeDto to SkimmedNode: {err}");
+                            panic!(
+                                "Cannot convert database record to SkimmedNode - this should never happen! Error: {err}"
                             );
-                            None
                         }
-                    })
-                    .filter_map(
-                        |(gw, skimmed_node)| match DVpnGateway::new(gw.clone(), skimmed_node, socks5_scores.get(&gw.gateway_identity_key)) {
-                            Ok(gw) => Some(gw),
-                            Err(err) => {
-                                error!(
-                                    "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
-                                    skimmed_node.node_id,
-                                    skimmed_node.ed25519_identity_pubkey.to_base58_string(),
-                                    err
-                                );
-                                // Don't panic here as this might be due to missing fields, but log it loudly
-                                None
-                            }
-                        },
-                    )
-                    .filter(|gw| {
-                        let gw_version = &gw.build_information.build_version;
-                        if let Ok(gw_version) = Version::parse(gw_version) {
-                            &gw_version >= min_node_version
-                        } else {
-                            warn!("Failed to parse GW version {}", gw_version);
-                            false
-                        }
-                    })
-                    .filter(|gw| {
-                        // gateways must have a country
-                        if gw.location.two_letter_iso_country_code.len() == 2 {
-                            true
-                        } else {
-                            warn!(
-                                "Invalid country code: {}",
-                                gw.location.two_letter_iso_country_code
-                            );
-                            false
-                        }
-                    })
-                    // sort by country, then by identity key
-                    .sorted_by_key(|item| {
-                        (
-                            item.location.two_letter_iso_country_code.clone(),
-                            item.identity_key.clone(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-
-                let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
-                tracing::info!(
-                    "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
-                    started_with,
-                    bonded_count,
-                    skimmed_nodes.len(),
-                    res_gws.len()
-                );
-
-                if res_gws.is_empty() && started_with > 0 {
-                    tracing::error!(
-                        "CRITICAL: Started with {} gateways but got 0 DVpn gateways! Min version: {}",
-                        started_with,
-                        min_node_version
-                    );
-                } else {
-                    tracing::info!(
-                        "Successfully loaded {} DVpn gateways into cache",
-                        res_gws.len()
-                    );
-                    self.upsert_dvpn_gateway_list(res_gws.clone()).await;
+                    }
                 }
-
-                res_gws
+                nodes
             }
+            Err(err) => {
+                error!("CRITICAL: Failed to query nym_nodes from database: {err}");
+                panic!("Cannot read nym_nodes table - database connection issue? Error: {err}");
+            }
+        };
+
+        let socks5_scores = calculate_socks5_percentiles(&gateways);
+
+        let mut dvpd_gateways = Vec::new();
+        let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
+
+        for gw in gateways {
+            let id = gw.gateway_identity_key.clone();
+            // 1. reject all gateways that are not bonded
+            if !gw.bonded {
+                continue;
+            }
+
+            // 2. reject all gateways with zero performance
+            if gw.performance == 0 {
+                continue;
+            }
+
+            // 3. get corresponding directory details
+            let Some(skimmed_node) = skimmed_nodes.get(&id) else {
+                error!(
+                    "CRITICAL: Gateway {id} exists in gateways table but not in nym_nodes table! This should not happen",
+                );
+                continue;
+            };
+            let node_id = skimmed_node.node_id;
+
+            // 4. construct the DVpnGateway model
+            let dvpn_gw = match DVpnGateway::new(gw, skimmed_node, socks5_scores.get(&id)) {
+                Ok(gw) => gw,
+                Err(err) => {
+                    error!(
+                        "CRITICAL: Failed to create DVpnGateway for node_id={node_id}, identity_key={id}: {err}",
+                    );
+                    // Don't panic here as this might be due to missing fields, but log it loudly
+                    continue;
+                }
+            };
+
+            // 5. filter out outdated nodes
+            let gw_version = &dvpn_gw.build_information.build_version;
+            if let Ok(gw_version) = Version::parse(gw_version) {
+                if &gw_version < min_node_version {
+                    continue;
+                }
+            } else {
+                warn!("Failed to parse GW version {gw_version}");
+                continue;
+            }
+
+            // 6. filter out nodes without valid country codes
+            if dvpn_gw.location.two_letter_iso_country_code.len() != 2 {
+                warn!(
+                    "Invalid country code: {}",
+                    dvpn_gw.location.two_letter_iso_country_code
+                );
+                continue;
+            }
+
+            dvpd_gateways.push(dvpn_gw);
         }
+
+        // 7. finally, sort the nodes by country, then by identity key
+        dvpd_gateways.sort_by_key(|item| {
+            (
+                item.location.two_letter_iso_country_code.clone(),
+                item.identity_key.clone(),
+            )
+        });
+
+        tracing::info!(
+            "DVpn gateway filtering: {started_with} total gateways, {bonded_count} bonded, {} nym_nodes, {} final DVpn gateways",
+            skimmed_nodes.len(),
+            dvpd_gateways.len()
+        );
+
+        if dvpd_gateways.is_empty() && started_with > 0 {
+            tracing::error!(
+                "CRITICAL: Started with {started_with} gateways but got 0 DVpn gateways! Min version: {min_node_version}",
+            );
+        } else {
+            tracing::info!(
+                "Successfully loaded {} DVpn gateways into cache",
+                dvpd_gateways.len()
+            );
+            self.upsert_dvpn_gateway_list(dvpd_gateways.clone()).await;
+        }
+
+        dvpd_gateways
     }
 
     pub async fn get_entry_dvpn_gateways(

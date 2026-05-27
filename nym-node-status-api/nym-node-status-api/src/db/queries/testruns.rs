@@ -117,6 +117,7 @@ async fn assign_oldest_testrun_by_kind(
             FROM testruns
             JOIN gateways ON gateways.id = testruns.gateway_id
             WHERE testruns.status = $1
+              AND testruns.kind = $4
               AND gateways.bonded = true
               AND gateways.performance > 0
             ORDER BY testruns.created_utc asc

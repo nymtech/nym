@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH oldest_queued AS (\n            SELECT testruns.id\n            FROM testruns\n            JOIN gateways ON gateways.id = testruns.gateway_id\n            WHERE testruns.status = $1\n              AND testruns.kind = $4\n              AND gateways.bonded = true\n              AND gateways.performance > 0\n            ORDER BY testruns.created_utc asc\n            LIMIT 1\n            FOR UPDATE OF testruns SKIP LOCKED\n        )\n        UPDATE testruns\n            SET\n                status = $3,\n                last_assigned_utc = $2\n            FROM oldest_queued\n            WHERE testruns.id = oldest_queued.id\n        RETURNING\n            testruns.id,\n            testruns.gateway_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "gateway_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int4",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2e825cb61d34ed7b41d622743b4528594a84f560130a6956507ef8c4500e4bb9"
+}

@@ -32,10 +32,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/ports-check",
             axum::routing::get(request_ports_check_testrun),
         )
-        .route("/:testrun_id", axum::routing::post(submit_testrun))
-        .route("/:testrun_id/v2", axum::routing::post(submit_testrun_v2))
+        .route("/{testrun_id}", axum::routing::post(submit_testrun))
+        .route("/{testrun_id}/v2", axum::routing::post(submit_testrun_v2))
         .route(
-            "/:testrun_id/ports-check/v2",
+            "/{testrun_id}/ports-check/v2",
             axum::routing::post(submit_ports_check_testrun_v2),
         )
         .layer(DefaultBodyLimit::max(1024 * 1024 * 5))

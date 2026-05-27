@@ -13,6 +13,7 @@ pub mod ecash_query_client;
 pub mod group_query_client;
 pub mod mixnet_query_client;
 pub mod multisig_query_client;
+pub mod network_monitors_query_client;
 pub mod performance_query_client;
 pub mod vesting_query_client;
 
@@ -22,6 +23,7 @@ pub mod ecash_signing_client;
 pub mod group_signing_client;
 pub mod mixnet_signing_client;
 pub mod multisig_signing_client;
+pub mod network_monitors_signing_client;
 pub mod performance_signing_client;
 pub mod vesting_signing_client;
 
@@ -31,6 +33,9 @@ pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
+pub use network_monitors_query_client::{
+    NetworkMonitorsQueryClient, PagedNetworkMonitorsQueryClient,
+};
 pub use performance_query_client::{PagedPerformanceQueryClient, PerformanceQueryClient};
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
@@ -40,6 +45,7 @@ pub use ecash_signing_client::EcashSigningClient;
 pub use group_signing_client::GroupSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;
+pub use network_monitors_signing_client::NetworkMonitorsSigningClient;
 pub use performance_signing_client::PerformanceSigningClient;
 pub use vesting_signing_client::VestingSigningClient;
 
@@ -49,6 +55,7 @@ pub trait NymContractsProvider {
     fn mixnet_contract_address(&self) -> Option<&AccountId>;
     fn vesting_contract_address(&self) -> Option<&AccountId>;
     fn performance_contract_address(&self) -> Option<&AccountId>;
+    fn network_monitors_contract_address(&self) -> Option<&AccountId>;
 
     // coconut-related
     fn ecash_contract_address(&self) -> Option<&AccountId>;
@@ -62,6 +69,7 @@ pub struct TypedNymContracts {
     pub mixnet_contract_address: Option<AccountId>,
     pub vesting_contract_address: Option<AccountId>,
     pub performance_contract_address: Option<AccountId>,
+    pub network_monitors_contract_address: Option<AccountId>,
 
     pub ecash_contract_address: Option<AccountId>,
     pub group_contract_address: Option<AccountId>,
@@ -84,6 +92,10 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .transpose()?,
             performance_contract_address: value
                 .performance_contract_address
+                .map(|addr| addr.parse())
+                .transpose()?,
+            network_monitors_contract_address: value
+                .network_monitors_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
             ecash_contract_address: value

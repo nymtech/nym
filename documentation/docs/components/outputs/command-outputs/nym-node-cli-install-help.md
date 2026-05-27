@@ -6,13 +6,15 @@ usage: nym-node-cli install [-h] [-V] [-d BRANCH] [-v]
                             [--email EMAIL] [--moniker MONIKER]
                             [--description DESCRIPTION]
                             [--public-ip PUBLIC_IP]
+                            [--host-ssh-port HOST_SSH_PORT]
                             [--nym-node-binary NYM_NODE_BINARY]
                             [--uplink-dev UPLINK_DEV] [--env KEY=VALUE]
 
 options:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
-  -d, --dev BRANCH      Define github branch (default: develop)
+  -d BRANCH, --dev BRANCH
+                        Define github branch (default: develop)
   -v, --verbose         Show full error tracebacks
   --mode {mixnode,entry-gateway,exit-gateway}
                         Node mode: 'mixnode', 'entry-gateway', or 'exit-
@@ -27,6 +29,8 @@ options:
                         Short public description of the node
   --public-ip PUBLIC_IP
                         External IPv4 address (autodetected if omitted)
+  --host-ssh-port HOST_SSH_PORT
+                        Host SSH port to allow in the firewall (default: 22)
   --nym-node-binary NYM_NODE_BINARY
                         URL for nym-node binary (autodetected if omitted)
   --uplink-dev UPLINK_DEV

@@ -1,6 +1,18 @@
 const path = require('path');
+const webpack = require('webpack');
 const { mergeWithRules } = require('webpack-merge');
 const { webpackCommon } = require('@nymproject/webpack');
+
+const resolveFromWallet = (request) => require.resolve(request, { paths: [__dirname] });
+
+/** Package root (folder), not main entry - required so `@mui/material/Button` style subpath imports resolve. */
+const resolveMuiPackageRoot = (pkg) =>
+  path.dirname(require.resolve(`${pkg}/package.json`, { paths: [__dirname, path.resolve(__dirname, '..')] }));
+
+const muiSystemDir = path.dirname(
+  require.resolve('@mui/system/package.json', { paths: [__dirname, path.resolve(__dirname, '..')] }),
+);
+const muiStyledEngineV5 = path.dirname(require.resolve('@mui/styled-engine/package.json', { paths: [muiSystemDir] }));
 
 const entry = {
   auth: path.resolve(__dirname, 'src/auth.tsx'), // JS bundle for sign up/sign in
@@ -23,6 +35,30 @@ module.exports = mergeWithRules({
   ]),
   {
     entry,
+    resolve: {
+      // Yarn workspaces hoist deps to ../node_modules; resolve Tauri packages from there too.
+      modules: [path.resolve(__dirname, 'node_modules'), path.resolve(__dirname, '../node_modules')],
+      alias: {
+        // Single Emotion instance so CacheProvider matches MUI's styled engine (workspaces can duplicate).
+        '@emotion/react': resolveFromWallet('@emotion/react'),
+        '@emotion/styled': resolveFromWallet('@emotion/styled'),
+        '@emotion/cache': resolveFromWallet('@emotion/cache'),
+        '@mui/styled-engine': muiStyledEngineV5,
+        '@mui/material': resolveMuiPackageRoot('@mui/material'),
+        '@mui/system': resolveMuiPackageRoot('@mui/system'),
+        '@mui/private-theming': resolveMuiPackageRoot('@mui/private-theming'),
+        '@mui/utils': resolveMuiPackageRoot('@mui/utils'),
+        '@mui/base': resolveMuiPackageRoot('@mui/base'),
+        '@mui/styles': resolveMuiPackageRoot('@mui/styles'),
+        '@mui/icons-material': resolveMuiPackageRoot('@mui/icons-material'),
+        '@mui/lab': resolveMuiPackageRoot('@mui/lab'),
+        react$: resolveFromWallet('react'),
+        'react-dom$': resolveFromWallet('react-dom'),
+        'react-dom/client': resolveFromWallet('react-dom/client'),
+        'react/jsx-runtime': resolveFromWallet('react/jsx-runtime'),
+        'react/jsx-dev-runtime': resolveFromWallet('react/jsx-dev-runtime'),
+      },
+    },
     output: {
       clean: true,
       path: path.resolve(__dirname, 'dist'),
@@ -32,5 +68,10 @@ module.exports = mergeWithRules({
     experiments: {
       asyncWebAssembly: true,
     },
+    plugins: [
+      new webpack.EnvironmentPlugin({
+        NYM_WALLET_INTERNAL_DOCS: '',
+      }),
+    ],
   },
 );

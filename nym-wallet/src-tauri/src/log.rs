@@ -1,9 +1,14 @@
 use std::str::FromStr;
 
+// Log webview emit chain: keep `cfg(not(windows))` here aligned with
+// `platform_constants::SECONDARY_LOG_WEBVIEW_SUPPORTED` (compile-time strip on Windows).
 use fern::colors::{Color, ColoredLevelConfig};
+#[cfg(not(target_os = "windows"))]
 use serde::Serialize;
+#[cfg(not(target_os = "windows"))]
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use tauri::Emitter;
+#[cfg(not(target_os = "windows"))]
+use tauri::{Emitter, Manager};
 use time::{format_description, OffsetDateTime};
 
 fn formatted_time() -> String {
@@ -23,7 +28,10 @@ fn formatted_time() -> String {
     _now.format(&format).unwrap()
 }
 
+#[cfg_attr(target_os = "windows", allow(unused_variables))]
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
+    #[cfg(not(target_os = "windows"))]
+    let log_window_app = app_handle.clone();
     let colors = ColoredLevelConfig::new()
         .trace(Color::Magenta)
         .debug(Color::Blue)
@@ -47,6 +55,7 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
         })
         .chain(std::io::stdout());
 
+    #[cfg(not(target_os = "windows"))]
     let tauri_event_config = fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
@@ -61,13 +70,26 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 message: record.args().to_string(),
                 level: record.level().into(),
             };
-            app_handle.emit("log://log", msg).unwrap();
+            let app = log_window_app.clone();
+            let app_for_emit = app.clone();
+            if let Err(e) = app.run_on_main_thread(move || {
+                if let Some(log_win) = app_for_emit.get_webview_window("log") {
+                    if let Err(err) = log_win.emit("log://log", msg) {
+                        // Avoid log:: macros here: this runs inside fern's sink and can recurse.
+                        eprintln!("nym-wallet: failed to emit log line to log webview: {err}");
+                    }
+                }
+            }) {
+                eprintln!("nym-wallet: failed to schedule log line for log webview: {e}");
+            }
         }));
 
-    base_config
-        .chain(stdout_config)
-        .chain(tauri_event_config)
-        .apply()
+    #[cfg(not(target_os = "windows"))]
+    let dispatch = base_config.chain(stdout_config).chain(tauri_event_config);
+    #[cfg(target_os = "windows")]
+    let dispatch = base_config.chain(stdout_config);
+
+    dispatch.apply()
 }
 
 trait FernExt {
@@ -106,13 +128,14 @@ fn global_level() -> log::LevelFilter {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 #[derive(Debug, Serialize, Clone)]
 struct LogMessage {
     message: String,
     level: LogLevel,
 }
 
-// Serialize to u16 instead of strings.
+#[cfg(not(target_os = "windows"))]
 #[derive(Debug, Clone, Deserialize_repr, Serialize_repr)]
 #[repr(u16)]
 enum LogLevel {
@@ -123,6 +146,7 @@ enum LogLevel {
     Error,
 }
 
+#[cfg(not(target_os = "windows"))]
 impl From<log::Level> for LogLevel {
     fn from(level: log::Level) -> Self {
         match level {

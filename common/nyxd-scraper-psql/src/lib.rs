@@ -7,8 +7,9 @@ use nyxd_scraper_shared::NyxdScraper;
 pub use nyxd_scraper_shared::constants;
 pub use nyxd_scraper_shared::error::ScraperError;
 pub use nyxd_scraper_shared::{
-    BlockModule, MsgModule, NyxdScraperTransaction, ParsedTransactionResponse, PruningOptions,
-    PruningStrategy, StartingBlockOpts, TxModule,
+    BlockModule, DecodedMessage, MsgModule, NyxdScraperTransaction, ParsedTransactionDetails,
+    ParsedTransactionResponse, PruningOptions, PruningStrategy, StartingBlockOpts, TxModule,
+    parse_msg,
 };
 pub use storage::models;
 

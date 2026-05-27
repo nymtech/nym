@@ -7,7 +7,7 @@ import {
   FeeDetails,
   TransactionExecuteResult,
 } from '@nymproject/types';
-import { DelegationContext, TDelegationTransaction } from '../delegations';
+import { DelegationContext } from '../delegations';
 
 import { mockSleep } from './utils';
 import { TPoolOption } from '../../components';
@@ -71,6 +71,9 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const [error, setError] = useState<string>();
   const [delegations, setDelegations] = useState<undefined | DelegationWithEverything[]>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
+  const [totalRewards, setTotalRewards] = useState<undefined | string>();
+  const [totalDelegationsAndRewards, setTotalDelegationsAndRewards] = useState<undefined | string>();
+  const [lastUpdatedAtMs, setLastUpdatedAtMs] = useState(0);
   const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
 
   const triggerStateUpdate = () => setTrigger(new Date());
@@ -81,8 +84,16 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const recalculate = async () => {
     const newDelegations = await getDelegations();
     const newTotalDelegations = `${newDelegations.length * 100} NYM`;
+    const rewardsSum = newDelegations.reduce((acc, d) => {
+      const n = parseFloat(d.unclaimed_rewards?.amount ?? '0');
+      return acc + (Number.isFinite(n) ? n : 0);
+    }, 0);
+    const newTotalRewards = `${rewardsSum} nym`;
     setDelegations(newDelegations);
     setTotalDelegations(newTotalDelegations);
+    setTotalRewards(newTotalRewards);
+    setTotalDelegationsAndRewards(`${newTotalDelegations} + ${newTotalRewards}`);
+    setLastUpdatedAtMs(Date.now());
   };
 
   const addDelegation = async (
@@ -91,7 +102,6 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     _fee?: FeeDetails,
   ): Promise<TransactionExecuteResult> => {
     await mockSleep(SLEEP_MS);
-    // mockDelegations.push({ ...newDelegation });
     await recalculate();
     triggerStateUpdate();
 
@@ -115,52 +125,6 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
       },
       transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
       fee: { amount: '1', denom: 'nym' },
-    };
-  };
-
-  const updateDelegation = async (
-    newDelegation: DelegationWithEverything,
-    ignorePendingForStorybook?: boolean,
-  ): Promise<TDelegationTransaction> => {
-    if (ignorePendingForStorybook) {
-      mockDelegations = mockDelegations.map((d) => {
-        if (d.node_identity === newDelegation.node_identity) {
-          return { ...newDelegation };
-        }
-        return d;
-      });
-      await recalculate();
-      triggerStateUpdate();
-      return {
-        transactionUrl:
-          'https://sandbox-blocks.nymtech.net/transactions/55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-      };
-    }
-
-    await mockSleep(SLEEP_MS);
-    mockDelegations = mockDelegations.map((d) => {
-      if (d.node_identity === newDelegation.node_identity) {
-        return { ...newDelegation, isPending: { blockHeight: 1234, actionType: 'delegate' } };
-      }
-      return d;
-    });
-    await recalculate();
-    triggerStateUpdate();
-
-    setTimeout(async () => {
-      mockDelegations = mockDelegations.map((d) => {
-        if (d.node_identity === newDelegation.node_identity) {
-          return { ...d, isPending: undefined };
-        }
-        return d;
-      });
-      await recalculate();
-      triggerStateUpdate();
-    }, 3000);
-
-    return {
-      transactionUrl:
-        'https://sandbox-blocks.nymtech.net/transactions/55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
     };
   };
 
@@ -193,10 +157,8 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => ({
+  const undelegateVesting = async (_mix_id: number): Promise<TransactionExecuteResult> => ({
     msg_responses_json: '',
-    data_json: '',
     logs_json: '',
     transaction_hash: '',
     gas_info: {
@@ -210,6 +172,9 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     setIsLoading(true);
     setError(undefined);
     setTotalDelegations(undefined);
+    setTotalRewards(undefined);
+    setTotalDelegationsAndRewards(undefined);
+    setLastUpdatedAtMs(0);
     setDelegations([]);
   };
 
@@ -227,7 +192,6 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // reset state and refresh
     resetState();
     refresh();
   }, []);
@@ -237,17 +201,34 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
       delegationItemErrors,
       setDelegationItemErrors,
       isLoading,
-      error,
+      isFetching: isLoading,
+      isError: Boolean(error),
+      lastUpdatedAtMs,
       delegations,
+      pendingDelegations: [],
       totalDelegations,
+      totalRewards,
+      totalDelegationsAndRewards,
       refresh,
-      getDelegations,
       addDelegation,
-      updateDelegation,
       undelegate,
       undelegateVesting,
     }),
-    [isLoading, error, delegations, totalDelegations, trigger],
+    [
+      isLoading,
+      error,
+      delegations,
+      totalDelegations,
+      totalRewards,
+      totalDelegationsAndRewards,
+      lastUpdatedAtMs,
+      refresh,
+      addDelegation,
+      undelegate,
+      undelegateVesting,
+      delegationItemErrors,
+      trigger,
+    ],
   );
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;

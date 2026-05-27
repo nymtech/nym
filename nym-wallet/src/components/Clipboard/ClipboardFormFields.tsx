@@ -6,6 +6,11 @@ import { UseFormRegister, UseFormSetValue, FieldValues, Path, FieldErrors } from
 import { writeText, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { PasteFromClipboard } from './ClipboardActions';
 
+/**
+ * Keyboard clipboard helpers for fields that opt in via this module.
+ * App-wide Tauri paste/copy for normal inputs lives in `useTauriTextEditingClipboard` (see
+ * `data-nym-paste-replace`, `data-nym-currency-field`, `data-nym-auth-paste-field` exclusions).
+ */
 export const useCopyAllSupport = (
   inputRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>,
   onPasteValue?: (value: string) => void,
@@ -15,6 +20,7 @@ export const useCopyAllSupport = (
 
     const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
+      if (keyEvent.defaultPrevented) return;
 
       if (document.activeElement !== inputRef.current) return;
 
@@ -71,46 +77,47 @@ export const useCopyAllSupport = (
   }, [inputRef.current, onPasteValue]);
 };
 
-export const TextFieldWithPaste = React.forwardRef<
-  HTMLDivElement,
-  TextFieldProps & {
-    onPasteValue?: (value: string) => void;
-  }
->(({ onPasteValue, ...props }, ref) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+export type TextFieldWithPasteProps = TextFieldProps & {
+  // eslint-disable-next-line react/require-default-props -- optional on `forwardRef` + intersection props; see `onPasteValue = undefined` in render
+  onPasteValue?: (value: string) => void;
+};
 
-  useCopyAllSupport(inputRef, onPasteValue);
+export const TextFieldWithPaste = React.forwardRef<HTMLDivElement, TextFieldWithPasteProps>(
+  ({ onPasteValue = undefined, inputProps: userInputProps, InputProps: userInputPropsMui, ...props }, ref) => {
+    const inputRef = useRef<HTMLInputElement>(null);
 
-  const handlePaste = (pastedText: string) => {
-    onPasteValue?.(pastedText);
+    useCopyAllSupport(inputRef, onPasteValue);
 
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
+    const handlePaste = (pastedText: string) => {
+      onPasteValue?.(pastedText);
 
-  return (
-    <TextField
-      {...props}
-      ref={ref}
-      inputRef={inputRef}
-      InputProps={{
-        ...props.InputProps,
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    };
+
+    const fieldProps = {
+      ...props,
+      ref,
+      inputRef,
+      inputProps: {
+        ...userInputProps,
+        'data-nym-paste-replace': 'true',
+      },
+      InputProps: {
+        ...userInputPropsMui,
         endAdornment: (
           <InputAdornment position="end">
             {onPasteValue && <PasteFromClipboard onPaste={handlePaste} fieldRef={inputRef} />}
-            {props.InputProps?.endAdornment}
+            {userInputPropsMui?.endAdornment}
           </InputAdornment>
         ),
-      }}
-    />
-  );
-});
+      },
+    };
 
-// Add defaultProps to fix the "require-default-props" warning
-TextFieldWithPaste.defaultProps = {
-  onPasteValue: undefined,
-};
+    return <TextField {...(fieldProps as TextFieldProps)} />;
+  },
+);
 
 export const CurrencyFormFieldWithPaste = ({
   label,
@@ -167,6 +174,7 @@ export const CurrencyFormFieldWithPaste = ({
 
     const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
+      if (keyEvent.defaultPrevented) return;
       if (document.activeElement !== inputRef.current) return;
 
       // Handle Cmd+A (Select All)
@@ -236,7 +244,7 @@ export const CurrencyFormFieldWithPaste = ({
   }, []);
 
   return (
-    <Box position="relative" width="100%" ref={fieldRef}>
+    <Box position="relative" width="100%" ref={fieldRef} data-nym-currency-field>
       <CurrencyFormField
         label={label}
         fullWidth={fullWidth}
@@ -274,6 +282,8 @@ export const HookFormTextFieldWithPaste = <TFieldValues extends FieldValues>({
   register,
   setValue,
   errors,
+  inputProps: userInputProps,
+  InputProps: userInputPropsMui,
   ...props
 }: {
   name: Path<TFieldValues>;
@@ -295,25 +305,29 @@ export const HookFormTextFieldWithPaste = <TFieldValues extends FieldValues>({
   // Pass handlePaste to useCopyAllSupport for Cmd+V handling
   useCopyAllSupport(inputRef, handlePaste);
 
-  return (
-    <TextField
-      {...register(name)}
-      name={name}
-      label={label}
-      error={Boolean(errors[name])}
-      helperText={errors[name]?.message?.toString()}
-      inputRef={inputRef}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <PasteFromClipboard onPaste={handlePaste} fieldRef={inputRef} />
-          </InputAdornment>
-        ),
-        ...props.InputProps,
-      }}
-      {...props}
-    />
-  );
+  const fieldProps = {
+    ...register(name),
+    ...props,
+    label,
+    error: Boolean(errors[name]),
+    helperText: errors[name]?.message?.toString(),
+    inputRef,
+    inputProps: {
+      ...userInputProps,
+      'data-nym-paste-replace': 'true',
+    },
+    InputProps: {
+      ...userInputPropsMui,
+      endAdornment: (
+        <InputAdornment position="end">
+          <PasteFromClipboard onPaste={handlePaste} fieldRef={inputRef} />
+          {userInputPropsMui?.endAdornment}
+        </InputAdornment>
+      ),
+    },
+  };
+
+  return <TextField {...(fieldProps as TextFieldProps)} />;
 };
 
 export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>({
@@ -361,6 +375,7 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
 
     const handleKeyDown = async (e: Event) => {
       const keyEvent = e as KeyboardEvent;
+      if (keyEvent.defaultPrevented) return;
       if (document.activeElement !== inputRef.current) return;
 
       // Handle Cmd+A (Select All)
@@ -435,7 +450,7 @@ export const HookFormCurrencyFieldWithPaste = <TFieldValues extends FieldValues>
   };
 
   return (
-    <Box position="relative" width="100%" ref={fieldRef}>
+    <Box position="relative" width="100%" ref={fieldRef} data-nym-currency-field>
       <CurrencyFormField
         label={label}
         fullWidth

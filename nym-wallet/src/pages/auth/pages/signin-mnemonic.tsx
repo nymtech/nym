@@ -28,7 +28,7 @@ export const SignInMnemonic = () => {
   }, []);
 
   return (
-    <Stack spacing={2} alignItems="center" minWidth="50%">
+    <Stack spacing={2} alignItems="stretch" sx={{ width: '100%' }}>
       <Subtitle subtitle="Enter a mnemonic to sign in" />
       <FormControl fullWidth>
         <form

@@ -11,22 +11,45 @@ export const ModalListItem: FCWithChildren<{
   light?: boolean;
   value?: React.ReactNode;
   sxValue?: SxProps;
-}> = ({ label, value, hidden, fontWeight, fontSize, divider, sxValue }) => (
+  /** row: label and value on one line; stack: label above value (better for long strings) */
+  layout?: 'row' | 'stack';
+}> = ({ label, value, hidden, fontWeight, fontSize, divider, sxValue, layout = 'row' }) => (
   <Box sx={{ display: hidden ? 'none' : 'block' }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary', fontSize: 14 }}>
-        {label}
-      </Typography>
-      {value && (
+    {layout === 'stack' ? (
+      <Stack spacing={0.5} alignItems="flex-start">
         <Typography
           fontSize="smaller"
-          fontWeight={fontWeight}
-          sx={{ color: 'text.primary', fontSize: fontSize || 14, ...sxValue }}
+          fontWeight={fontWeight ?? 600}
+          sx={{ color: 'text.secondary', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}
         >
-          {value}
+          {label}
         </Typography>
-      )}
-    </Stack>
+        {value ? (
+          <Typography
+            fontSize="smaller"
+            fontWeight={fontWeight}
+            sx={{ color: 'text.primary', fontSize: fontSize || 14, width: '100%', wordBreak: 'break-word', ...sxValue }}
+          >
+            {value}
+          </Typography>
+        ) : null}
+      </Stack>
+    ) : (
+      <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
+        <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary', fontSize: 14 }}>
+          {label}
+        </Typography>
+        {value ? (
+          <Typography
+            fontSize="smaller"
+            fontWeight={fontWeight}
+            sx={{ color: 'text.primary', fontSize: fontSize || 14, textAlign: 'right', ...sxValue }}
+          >
+            {value}
+          </Typography>
+        ) : null}
+      </Stack>
+    )}
     {divider && <ModalDivider />}
   </Box>
 );

@@ -68,23 +68,60 @@ class NodeSetupCLI:
             print("Without confirming the points above, we cannot continue.")
             exit(1)
     
+    def _coerce_ssh_port(self, value) -> str:
+        sval = str(value).strip() if value is not None else ""
+        if not sval:
+            sval = "22"
+        if not sval.isdigit():
+            print(f"Invalid SSH port: {sval!r}. Expected integer 1..65535.")
+            raise SystemExit(1)
+        port = int(sval, 10)
+        if not 1 <= port <= 65535:
+            print(f"Invalid SSH port: {port}. Expected integer 1..65535.")
+            raise SystemExit(1)
+        return str(port)
+
+    def _resolve_field(args, existing, arg_name, env_key, prompt, *, default=None, validator=None):
+        cli_val = getattr(args, arg_name, None)
+
+        if cli_val is not None:
+            value = str(cli_val).strip()
+        elif existing.get(env_key):
+            value = str(existing[env_key]).strip()
+        else:
+            entered = input(prompt).strip()
+            value = entered if entered else (default if default is not None else "")
+
+        if validator:
+            value = validator(value)
+
+        return value
+
     def ensure_env_values(self, args):
         """Collect env vars from args or prompt interactively, then save to env.sh."""
         env_file = Path("env.sh")
         fields = [
-            ("hostname", "HOSTNAME", "Enter hostname (if you don't use a DNS, press enter): "),
-            ("location", "LOCATION", "Enter node location (country code or name): "),
-            ("email", "EMAIL", "Enter your email: "),
-            ("moniker", "MONIKER", "Enter node public moniker (visible in explorer & NymVPN app): "),
-            ("description", "DESCRIPTION", "Enter short node public description: "),
+            ("hostname", "HOSTNAME", "Enter hostname (if you don't use a DNS, press enter): ", None, None),
+            ("location", "LOCATION", "Enter node location (country code or name): ", None, None),
+            ("email", "EMAIL", "Enter your email: ", None, None),
+            ("moniker", "MONIKER", "Enter node public moniker (visible in explorer & NymVPN app): ", None, None),
+            ("description", "DESCRIPTION", "Enter short node public description: ", None, None),
+            ("host_ssh_port", "HOST_SSH_PORT", "Enter host SSH port (press enter for default port 22): ", "22", self._coerce_ssh_port),
         ]
 
         existing = self._read_env_file(env_file)
         updated = {}
 
-        for arg_name, key, prompt in fields:
-            cli_val = getattr(args, arg_name, None)
-            value = cli_val.strip() if cli_val else existing.get(key) or input(prompt).strip()
+        for arg_name, key, prompt, default, validator in fields:
+            value = self._resolve_field(
+                args,
+                existing,
+                arg_name,
+                key,
+                prompt,
+                default=default,
+                validator=validator,
+            )
             updated[key] = value
             os.environ[key] = value
 
@@ -639,6 +676,13 @@ class ArgParser:
         install_parser.add_argument("--moniker", help="Public moniker displayed in explorer & NymVPN app")
         install_parser.add_argument("--description", help="Short public description of the node")
         install_parser.add_argument("--public-ip", help="External IPv4 address (autodetected if omitted)")
+
+        install_parser.add_argument(
+            "--host-ssh-port",
+            type=int,
+            help="Host SSH port to allow in the firewall (default: 22)",
+        )
+
         install_parser.add_argument("--nym-node-binary", help="URL for nym-node binary (autodetected if omitted)")
         install_parser.add_argument("--uplink-dev", help="Override uplink interface used for NAT/FORWARD (e.g., 'eth0'; autodetected if omitted)")
         

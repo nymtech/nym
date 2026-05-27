@@ -141,9 +141,7 @@
 
 use http::header::USER_AGENT;
 pub use inventory;
-pub use reqwest;
-pub use reqwest::ClientBuilder as ReqwestClientBuilder;
-pub use reqwest::StatusCode;
+pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
 
 pub mod registry;
@@ -152,19 +150,21 @@ use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
 use cfg_if::cfg_if;
-use http::HeaderMap;
-use http::header::{ACCEPT, CONTENT_TYPE};
+use http::{
+    HeaderMap,
+    header::{ACCEPT, CONTENT_TYPE},
+};
 use itertools::Itertools;
 use mime::Mime;
-use reqwest::header::HeaderValue;
-use reqwest::{RequestBuilder, Response};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use reqwest::{RequestBuilder, Response, header::HeaderValue};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::ErrorKind;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::{
+    fmt::Display,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 use thiserror::Error;
 use tracing::{debug, instrument, warn};
 
@@ -1274,7 +1274,7 @@ pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
             } else if let Some(_tls_err) = e.downcast_ref::<rustls::Error>() {
                 // try downcast to TLS error
                 return true;
-            } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::ResolveError>() {
+            } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::net::NetError>() {
                 // try downcast to DNS error
                 return resolve_err.is_nx_domain();
             } else {

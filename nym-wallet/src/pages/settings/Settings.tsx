@@ -21,9 +21,21 @@ const Settings = () => {
 
   return (
     <PageLayout>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: 1.2 }}>
+          Preferences
+        </Typography>
+        <Typography variant="h4" sx={{ mt: 0.5 }}>
+          Wallet settings
+        </Typography>
+      </Box>
       <NymCard
         borderless
         noPadding
+        sx={{
+          borderRadius: 4,
+          backgroundColor: 'background.paper',
+        }}
         title={
           <Stack gap={2} sx={{ py: 0 }}>
             <Box
@@ -50,17 +62,23 @@ const Settings = () => {
                   borderBottom: 'none',
                   borderTop: 'none',
                   '& button': {
-                    p: 0,
-                    mr: 4,
+                    px: 2,
+                    py: 1,
+                    mr: 1.5,
                     minWidth: 'none',
-                    fontSize: 16,
+                    fontSize: 15,
+                    borderRadius: '999px',
                   },
                   '& button:hover': {
                     color: theme.palette.nym.highlight,
                     opacity: 1,
                   },
                 }}
-                tabIndicatorStyles={{ height: 4, bottom: '6px', borderRadius: '2px' }}
+                tabIndicatorStyles={{
+                  height: 3,
+                  borderRadius: 3,
+                  backgroundColor: theme.palette.primary.main,
+                }}
               />
             </Box>
           </Stack>

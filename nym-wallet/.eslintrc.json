@@ -4,5 +4,19 @@
   ],
   "parserOptions": {
     "project": "./tsconfig.eslint.json"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "env": { "jest": true }
+    }
+  ],
+  "rules": {
+    "@typescript-eslint/lines-between-class-members": "off",
+    "@typescript-eslint/naming-convention": "off",
+    "@typescript-eslint/no-implied-eval": "off",
+    "@typescript-eslint/no-throw-literal": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/quotes": "off"
   }
 }

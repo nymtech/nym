@@ -8,7 +8,8 @@ use cosmrs::proto::cosmwasm::wasm::v1::MsgExecuteContract;
 use cosmrs::proto::prost::Message;
 use nym_validator_client::nyxd::{Any, Name};
 use nyxd_scraper_psql::models::DbCoin;
-use nyxd_scraper_psql::{MsgModule, ParsedTransactionResponse, ScraperError};
+use nyxd_scraper_psql::{MsgModule, ScraperError};
+use nyxd_scraper_shared::{DecodedMessage, ParsedTransactionDetails};
 use serde_json::Value;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use tracing::{error, trace};
@@ -34,9 +35,10 @@ impl MsgModule for WasmModule {
         &mut self,
         index: usize,
         msg: &Any,
-        tx: &ParsedTransactionResponse,
+        decoded_msg: &DecodedMessage,
+        tx: &ParsedTransactionDetails,
     ) -> Result<(), ScraperError> {
-        let message = serde_json::to_value(tx.parsed_messages.get(&index)).unwrap_or_default();
+        let message = serde_json::to_value(&decoded_msg.decoded_content).unwrap_or_default();
         let value = serde_json::to_value(message.clone()).unwrap_or_default();
         let wasm_message_type = get_wasm_message_type(&value);
         let fee: Vec<DbCoin> = tx
@@ -55,7 +57,7 @@ impl MsgModule for WasmModule {
         let offset_datetime: OffsetDateTime = tx.block.header.time.into();
         let executed_at = PrimitiveDateTime::new(offset_datetime.date(), offset_datetime.time());
 
-        let height = tx.height.value() as i64;
+        let height = tx.height().value() as i64;
         let hash = tx.hash.to_string();
         let memo = tx.tx.body.memo.clone();
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
@@ -11,8 +11,21 @@ import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedNymNodeActions, TBondedNymNodeActions } from './BondedNymNodeActions';
+import { NodeOperatorInsights, type NodeStatusMetadata } from './NodeOperatorInsights';
 
 const textWhenNotName = 'This node has not yet set a name';
+
+/** Wallet default name vs legacy copy in BondedNymNode. */
+function isUnsetNodeName(name: string | undefined): boolean {
+  if (!name) {
+    return true;
+  }
+  return (
+    name.includes('Name has not been set') ||
+    name.includes(textWhenNotName) ||
+    name.toLowerCase().includes('not been set')
+  );
+}
 
 const headers: Header[] = [
   {
@@ -66,6 +79,7 @@ export const BondedNymNode = ({
   onActionSelect: (action: TBondedNymNodeActions) => void;
 }) => {
   const [nextEpoch, setNextEpoch] = useState<string | Error>();
+  const [statusMeta, setStatusMeta] = useState<NodeStatusMetadata | null>(null);
   const navigate = useNavigate();
   const {
     name,
@@ -79,7 +93,12 @@ export const BondedNymNode = ({
     delegators,
     identityKey,
     host,
+    uptime,
   } = nymnode;
+
+  const handleStatusLoaded = useCallback((meta: NodeStatusMetadata) => {
+    setStatusMeta(meta);
+  }, []);
 
   const getNextInterval = async () => {
     try {
@@ -136,22 +155,41 @@ export const BondedNymNode = ({
     getNextInterval();
   }, []);
 
+  useEffect(() => {
+    setStatusMeta(null);
+  }, [identityKey]);
+
+  const showWalletName = !isUnsetNodeName(name);
+  const apiMoniker = statusMeta?.displayMoniker?.trim();
+  const showApiMoniker = !showWalletName && Boolean(apiMoniker);
+  const locationChip = statusMeta?.locationLabel;
+
   return (
     <Stack gap={2}>
       <NymCard
         borderless
         title={
-          <Stack gap={3}>
-            <Box display="flex" alignItems="center" gap={2}>
+          <Stack gap={2}>
+            <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
               <Typography variant="h5" fontWeight={600}>
                 Nym node
               </Typography>
+              {locationChip ? (
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {locationChip}
+                </Typography>
+              ) : null}
             </Box>
-            {name?.includes(textWhenNotName) ? null : (
+            {showWalletName ? (
               <Typography fontWeight="regular" variant="h6" width="fit-content">
                 {name}
               </Typography>
-            )}
+            ) : null}
+            {showApiMoniker ? (
+              <Typography fontWeight="regular" variant="h6" width="fit-content" color="text.primary">
+                {apiMoniker}
+              </Typography>
+            ) : null}
             <Tooltip title={host} placement="top" arrow>
               <Box width="fit-content">
                 <IdentityKey identityKey={identityKey} />
@@ -190,17 +228,26 @@ export const BondedNymNode = ({
           </Box>
         }
       >
-        <NodeTable headers={headers} cells={cells} />
-        {network && (
-          <Typography sx={{ mt: 2, fontSize: 'small' }}>
-            Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/nodes/${nodeId}`} target="_blank">
-              explorer
-            </Link>
-          </Typography>
-        )}
+        <Stack spacing={3} sx={{ width: '100%', minWidth: 0 }}>
+          <Box sx={{ width: '100%', minWidth: 0 }}>
+            <NodeTable headers={headers} cells={cells} />
+            {network ? (
+              <Typography sx={{ mt: 2, fontSize: 'small' }}>
+                Check more stats of your node on the{' '}
+                <Link href={`${urls(network).networkExplorer}/nodes/${nodeId}`} target="_blank">
+                  explorer
+                </Link>
+              </Typography>
+            ) : null}
+          </Box>
+          <NodeOperatorInsights
+            network={network}
+            identityKey={identityKey}
+            walletUptime={uptime}
+            onStatusLoaded={handleStatusLoaded}
+          />
+        </Stack>
       </NymCard>
-      {/* <NodeStats bondedNode={nymnode} /> */}
     </Stack>
   );
 };

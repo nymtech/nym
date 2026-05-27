@@ -4,6 +4,7 @@ import { ApplicationLayout } from '../layouts';
 import { Terminal } from '../pages/terminal';
 import { Send } from '../components/Send';
 import { Receive } from '../components/Receive';
+import { config } from '../config';
 import {
   Balance,
   InternalDocs,
@@ -27,7 +28,7 @@ export const AppRoutes = () => (
       <Route path="/bonding" element={<BondingPage />} />
       <Route path="/bonding/node-settings" element={<NodeSettingsPage />} />
       <Route path="/delegation" element={<DelegationPage />} />
-      <Route path="/docs" element={<InternalDocs />} />
+      {config.INTERNAL_DOCS_ENABLED && <Route path="/docs" element={<InternalDocs />} />}
       <Route path="/admin" element={<Admin />} />
       <Route path="/buy" element={<BuyPage />} />
     </Routes>

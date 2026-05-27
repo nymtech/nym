@@ -11,13 +11,8 @@ type TRewardsContext = {
   claimRewards: (mixId: number, fee?: FeeDetails) => Promise<TransactionExecuteResult[]>;
 };
 
-export type TRewardsTransaction = {
-  transactionUrl: string;
-  transactionHash: string;
-};
-
 export const RewardsContext = createContext<TRewardsContext>({
-  isLoading: true,
+  isLoading: false,
   refresh: async () => undefined,
   claimRewards: async () => {
     throw new Error('Not implemented');
@@ -43,11 +38,8 @@ export const RewardsContextProvider: FCWithChildren = ({ children }) => {
       totalRewards,
       refresh,
       claimRewards: claimDelegatorRewards,
-      redeemAllRewards: async () => {
-        throw new Error('Not implemented');
-      },
     }),
-    [isLoading, error, totalRewards],
+    [isLoading, error, totalRewards, refresh],
   );
 
   return <RewardsContext.Provider value={memoizedValue}>{children}</RewardsContext.Provider>;

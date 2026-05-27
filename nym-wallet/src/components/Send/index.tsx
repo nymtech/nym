@@ -2,10 +2,10 @@ import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
 import { SendModal } from './SendModal';
 
-export const Send = ({ hasStorybookStyles }: { hasStorybookStyles?: {} }) => {
-  const { showSendModal, handleShowSendModal } = useContext(AppContext);
+export const Send = () => {
+  const { showSendModal, handleCloseSendModal } = useContext(AppContext);
 
-  if (showSendModal) return <SendModal onClose={handleShowSendModal} hasStorybookStyles={hasStorybookStyles} />;
+  if (showSendModal) return <SendModal onClose={handleCloseSendModal} />;
 
   return null;
 };

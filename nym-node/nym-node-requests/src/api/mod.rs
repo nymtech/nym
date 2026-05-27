@@ -13,6 +13,7 @@ use std::ops::Deref;
 
 #[cfg(feature = "client")]
 pub mod client;
+pub mod helpers;
 pub mod v1;
 
 #[cfg(feature = "client")]

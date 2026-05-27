@@ -4,6 +4,7 @@ export * from './Clipboard';
 export * from './ErrorFallback';
 export * from './InfoToolTip';
 export * from './LoadingPage';
+export * from './AppSessionLoadingOverlay';
 export * from './Mnemonic';
 export * from './Nav';
 export * from './NetworkSelector';

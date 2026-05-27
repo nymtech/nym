@@ -13,10 +13,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum BackendError {
     #[error(transparent)]
-    TypesError {
-        #[from]
-        source: TypesError,
-    },
+    TypesError { source: TypesError },
     #[error(transparent)]
     Bip39Error {
         #[from]
@@ -115,6 +112,8 @@ pub enum BackendError {
     WalletUnexpectedMnemonicAccount,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
+    #[error("Built-in HD derivation path constant failed to parse (internal error)")]
+    InvalidInternalDerivationPath,
     #[error(transparent)]
     ValueParseError(#[from] ParseIntError),
     #[error("The provided coin has an unknown denomination - {0}")]
@@ -156,6 +155,10 @@ pub enum BackendError {
     #[error("there aren't any vesting delegations to migrate")]
     NoVestingDelegations,
 
+    /// Vesting contract [`nym_vesting_contract_common::VestingContractError::NoAccountForAddress`].
+    #[error("Vesting contract has no account for this address")]
+    VestingContractAccountNotFound,
+
     #[error("this command has been temporarily disabled")]
     Disabled,
     //
@@ -172,8 +175,52 @@ impl Serialize for BackendError {
     }
 }
 
+/// Cosmwasm returns vesting [`nym_vesting_contract_common::VestingContractError::NoAccountForAddress`]
+/// as `VESTING (...): Account does not exist - ...` in the ABCI log.
+///
+/// This is **string-based** on RPC/log text: upstream wording changes can break detection or cause
+/// false positives. Prefer tightening if structured codes become available from the client stack.
+/// Regression coverage: `vesting_no_account_tests` in this file.
+fn nyxd_error_is_vesting_contract_no_account(err: &NyxdError) -> bool {
+    fn text_matches_strict(text: &str) -> bool {
+        text.contains("VESTING") && text.contains("Account does not exist")
+    }
+    // Prefer strict match; fall back for ABCI text that omits the `VESTING` prefix. Exclude Nyxd
+    // `NonExistentAccountError` (`... does not exist on the chain`).
+    fn abci_query_vesting_no_account(text: &str) -> bool {
+        text_matches_strict(text)
+            || (text.contains("Account does not exist")
+                && !text.contains("does not exist on the chain"))
+    }
+    match err {
+        NyxdError::AbciError {
+            log, pretty_log, ..
+        } => {
+            pretty_log
+                .as_ref()
+                .is_some_and(|s| abci_query_vesting_no_account(s))
+                || abci_query_vesting_no_account(log)
+        }
+        _ => text_matches_strict(&err.to_string()),
+    }
+}
+
+impl From<TypesError> for BackendError {
+    fn from(e: TypesError) -> Self {
+        if let TypesError::NyxdError { ref source } = e {
+            if nyxd_error_is_vesting_contract_no_account(source) {
+                return Self::VestingContractAccountNotFound;
+            }
+        }
+        Self::TypesError { source: e }
+    }
+}
+
 impl From<NyxdError> for BackendError {
     fn from(source: NyxdError) -> Self {
+        if nyxd_error_is_vesting_contract_no_account(&source) {
+            return Self::VestingContractAccountNotFound;
+        }
         match source {
             NyxdError::AbciError {
                 code: _,
@@ -211,5 +258,68 @@ impl From<NymNodeApiClientError> for BackendError {
         BackendError::NymNodeApiError {
             source: Box::new(e),
         }
+    }
+}
+
+#[cfg(test)]
+mod vesting_no_account_tests {
+    use super::nyxd_error_is_vesting_contract_no_account;
+    use super::BackendError;
+    use nym_types::error::TypesError;
+    use nym_validator_client::nyxd::error::NyxdError;
+
+    fn abci(log: impl Into<String>, pretty_log: Option<String>) -> NyxdError {
+        NyxdError::AbciError {
+            code: 1,
+            log: log.into(),
+            pretty_log,
+        }
+    }
+
+    #[test]
+    fn strict_vesting_prefix_in_log() {
+        let e = abci("VESTING (99): Account does not exist - nym1test", None);
+        assert!(nyxd_error_is_vesting_contract_no_account(&e));
+        assert!(matches!(
+            BackendError::from(e),
+            BackendError::VestingContractAccountNotFound
+        ));
+    }
+
+    #[test]
+    fn strict_match_in_pretty_log() {
+        let e = abci(
+            "raw abci",
+            Some("VESTING: Account does not exist - addr".to_string()),
+        );
+        assert!(nyxd_error_is_vesting_contract_no_account(&e));
+    }
+
+    #[test]
+    fn fallback_when_vesting_prefix_missing_in_log() {
+        let e = abci("Account does not exist - nym1abc", None);
+        assert!(nyxd_error_is_vesting_contract_no_account(&e));
+    }
+
+    #[test]
+    fn excludes_chain_account_not_found_wording() {
+        let e = abci("Account nym1abc does not exist on the chain", None);
+        assert!(!nyxd_error_is_vesting_contract_no_account(&e));
+    }
+
+    #[test]
+    fn non_abci_error_not_matched_loosely() {
+        let e = NyxdError::MalformedGasPrice;
+        assert!(!nyxd_error_is_vesting_contract_no_account(&e));
+    }
+
+    #[test]
+    fn types_error_nyxd_wrapper_maps() {
+        let inner = abci("VESTING (1): Account does not exist - x", None);
+        let wrapped = TypesError::NyxdError { source: inner };
+        assert!(matches!(
+            BackendError::from(wrapped),
+            BackendError::VestingContractAccountNotFound
+        ));
     }
 }

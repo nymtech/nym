@@ -19,6 +19,8 @@ while true; do
   read -rp "Enter your email: " EMAIL
   read -rp "Enter node public moniker (visible in the explorer and NymVPN app): " MONIKER
   read -rp "Enter node public description: " DESCRIPTION
+  read -rp "Enter host SSH port (press enter for default port 22): " HOST_SSH_PORT
+  HOST_SSH_PORT="${HOST_SSH_PORT:-22}"
 
   # show summary table
   echo -e "\nPlease confirm the values you entered:"
@@ -28,6 +30,7 @@ while true; do
   printf "%-20s %s\n" "EMAIL:"       "$EMAIL"
   printf "%-20s %s\n" "MONIKER:"     "$MONIKER"
   printf "%-20s %s\n" "DESCRIPTION:" "$DESCRIPTION"
+  printf "%-20s %s\n" "HOST_SSH_PORT:" "$HOST_SSH_PORT"
   echo "---------------------------------------"
 
   read -rp "Are these correct? (y/n): " CONFIRM
@@ -52,6 +55,7 @@ PUBLIC_IP=${PUBLIC_IP:-""}
   echo "export MONIKER=\"${MONIKER}\""
   echo "export DESCRIPTION=\"${DESCRIPTION}\""
   echo "export PUBLIC_IP=\"${PUBLIC_IP}\""
+  echo "export HOST_SSH_PORT=\"${HOST_SSH_PORT}\""
 } > env.sh
 
 echo -e "\nVariables saved to ./env.sh"

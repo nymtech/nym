@@ -46,6 +46,7 @@ export const EnhancedMnemonicInput: React.FC<EnhancedMnemonicInputProps> = ({
       // Fix the event type issue by casting Event to KeyboardEvent
       const handleKeyDown = async (e: Event) => {
         const keyEvent = e as KeyboardEvent;
+        if (keyEvent.defaultPrevented) return;
         if (document.activeElement !== input) return;
 
         if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key === 'a') {
@@ -108,7 +109,7 @@ export const EnhancedMnemonicInput: React.FC<EnhancedMnemonicInputProps> = ({
   };
 
   return (
-    <Box position="relative" ref={inputRef}>
+    <Box position="relative" ref={inputRef} data-nym-auth-paste-field>
       <OriginalMnemonicInput mnemonic={mnemonic} onUpdateMnemonic={onUpdateMnemonic} {...otherProps} />
       <Box
         sx={{

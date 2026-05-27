@@ -8,7 +8,7 @@ export const ActionsMenu: FCWithChildren<{
   onOpen: () => void;
   onClose: () => void;
 }> = ({ children, open, onOpen, onClose }) => {
-  const anchorEl: any = useRef<HTMLElement>();
+  const anchorEl = useRef<HTMLButtonElement | null>(null);
 
   return (
     <>

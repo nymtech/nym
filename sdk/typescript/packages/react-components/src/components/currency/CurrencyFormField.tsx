@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ChangeEvent } from 'react';
-import { TextField } from '@mui/material';
+import { TextField, TextFieldProps } from '@mui/material';
 import { SxProps } from '@mui/system';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
 
@@ -21,6 +21,8 @@ export const CurrencyFormField: FCWithChildren<{
   onChanged?: (newValue: DecCoin) => void;
   onValidate?: (newValue: string | undefined, isValid: boolean, error?: string) => void;
   sx?: SxProps;
+  /** Merged after built-in InputProps (e.g. `endAdornment`). */
+  mergedInputProps?: TextFieldProps['InputProps'];
 }> = ({
   autoFocus,
   required,
@@ -34,6 +36,7 @@ export const CurrencyFormField: FCWithChildren<{
   onValidate,
   sx,
   denom = 'nym',
+  mergedInputProps,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>(validationErrorProp);
@@ -131,6 +134,7 @@ export const CurrencyFormField: FCWithChildren<{
           min: MIN_VALUE,
           max: MAX_VALUE,
         },
+        ...mergedInputProps,
       }}
       aria-readonly={readOnly}
       error={validationError !== undefined}

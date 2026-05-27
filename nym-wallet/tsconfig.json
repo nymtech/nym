@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "ES2022"],
     "allowJs": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -16,7 +16,8 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@assets/*": ["../assets/*"]
+      "@assets/*": ["../assets/*"],
+      "@tauri-apps/plugin-process": ["../node_modules/@tauri-apps/plugin-process"]
     }
   },
 

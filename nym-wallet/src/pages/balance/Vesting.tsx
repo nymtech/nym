@@ -21,7 +21,7 @@ export const VestingCard = ({
   unlockedRewards?: string;
   unlockedTransferable?: string;
   originalVesting?: OriginalVestingResponse;
-  fetchTokenAllocation: () => Promise<void>;
+  fetchTokenAllocation: (isBackgroundPoll?: boolean) => Promise<void>;
   fetchBalance: () => Promise<void>;
   onTransfer: () => Promise<void>;
   isLoading?: boolean;
@@ -50,6 +50,9 @@ export const VestingCard = ({
       }
       borderless
       data-testid="check-unvested-tokens"
+      sx={{
+        backgroundColor: 'background.paper',
+      }}
       Action={
         <IconButton
           onClick={async () => {

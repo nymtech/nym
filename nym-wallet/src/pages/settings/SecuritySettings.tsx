@@ -44,12 +44,12 @@ const SecuritySettings = () => {
             )}
 
             {passwordExists ? (
-              <Typography variant="caption" sx={{ color: 'nym.text.muted', maxWidth: '220px' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 480, lineHeight: 1.5 }}>
                 Change your existing password. A strong password should have at least 8 characters, one capital letter,
                 a number and a special character
               </Typography>
             ) : (
-              <Typography variant="caption" sx={{ color: 'nym.text.muted', maxWidth: '220px' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 480, lineHeight: 1.5 }}>
                 Create a strong password for your wallet. A strong password should have at least 8 characters, one
                 capital letter, a number and a special character
               </Typography>

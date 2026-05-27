@@ -15,6 +15,22 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.56`
 
+## Linux: WebKit and EGL troubleshooting
+
+Some rolling distributions (for example Arch-based) or Wayland compositors can hit WebKitGTK / EGL errors at startup (for example `EGL_BAD_PARAMETER`, `EGL_BAD_ALLOC`, or `Could not create default EGL display`).
+
+**Wayland (all Linux bundles, including AppImage):** On startup, when `WAYLAND_DISPLAY` is set, the wallet sets `GDK_BACKEND`, `GDK_SCALE`, `GDK_DPI_SCALE`, and defaults `WEBKIT_DISABLE_DMABUF_RENDERER=1` before the webview initializes. Override if needed: `WEBKIT_DISABLE_DMABUF_RENDERER=0`, or set your own `GDK_*` / `LD_PRELOAD` before launching. (Tauri’s AppImage bundler only copies paths under `/usr/` into the image, so an `apprun-hooks/` file in config would not be included; defaults live in `main()` instead.)
+
+**`.deb`, installed binary, or `target/release` binary:** You can also set the same variables in a wrapper script or `.desktop` file, for example:
+
+`Exec=env WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=wayland GDK_SCALE=1 GDK_DPI_SCALE=0.8 /path/to/NymWallet`
+
+If problems persist on Wayland, try preloading the system client library (path may vary by distro):
+
+`LD_PRELOAD=/usr/lib/libwayland-client.so` (or `/usr/lib64/...`).
+
+**Diagnostic (slow):** `LIBGL_ALWAYS_SOFTWARE=1` forces software GL to confirm a GPU / EGL stack mismatch.
+
 ## Installation prerequisites - Windows
 
 - When running on Windows you will need to install c++ build tools

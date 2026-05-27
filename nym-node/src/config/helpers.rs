@@ -18,7 +18,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
             enforce_zk_nyms: config.gateway_tasks.enforce_zk_nyms,
             websocket_bind_address: config.gateway_tasks.ws_bind_address,
             nym_api_urls: config.mixnet.nym_api_urls.clone(),
-            nyxd_urls: config.mixnet.nyxd_urls.clone(),
+            nyxd_urls: config.nyx.nyxd_urls.clone(),
         },
         nym_gateway::config::NetworkRequester {
             enabled: config.service_providers.ip_packet_router.debug.enabled,
@@ -79,7 +79,7 @@ pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Clie
         id: config.id.clone(),
         // irrelevant field - no need for credentials in embedded mode
         disabled_credentials_mode: true,
-        nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        nyxd_urls: config.nyx.nyxd_urls.clone(),
         nym_api_urls: config.mixnet.nym_api_urls.clone(),
     }
 }

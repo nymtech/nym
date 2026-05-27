@@ -1,10 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
+import Big from 'big.js';
 import { DecCoin } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { send } from 'src/requests';
 import { Console } from 'src/utils/console';
 import { simulateSend } from 'src/requests/simulate';
+import { validateNymAddress } from 'src/utils/validateNymAddress';
 import { LoadingModal } from '../Modals/LoadingModal';
 import { SendDetailsModal } from './SendDetailsModal';
 import { SendErrorModal } from './SendErrorModal';
@@ -12,7 +14,11 @@ import { SendInputModal } from './SendInputModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { TTransactionDetails } from './types';
 
-export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: {} }) => {
+/** Extra NYM left in the account after Max to absorb minor gas / rounding drift. */
+const MAX_SEND_FEE_RESERVE = '0.01';
+const MIN_SEND_AMOUNT = '0.000001';
+
+export const SendModal = ({ onClose }: { onClose: () => void }) => {
   const [toAddress, setToAddress] = useState<string>('');
   const [amount, setAmount] = useState<DecCoin>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');
@@ -24,6 +30,8 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [memo, setMemo] = useState<string>('');
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [amountFieldKey, setAmountFieldKey] = useState(0);
+  const [maxAmountLoading, setMaxAmountLoading] = useState(false);
 
   const { clientDetails, userBalance, network } = useContext(AppContext);
   const { fee, getFee, feeError, setFeeManually } = useGetFee();
@@ -43,6 +51,88 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
 
   // removes any zero-width spaces and trailing white space
   const sanitizeAddress = (address: string) => address.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+
+  const handleMaxAmount = async () => {
+    setError(undefined);
+    if (!userBalance.balance?.amount) {
+      setError('Balance unavailable.');
+      return;
+    }
+    if (!validateNymAddress(toAddress)) {
+      setError('Enter a valid recipient address to estimate network fees for Max.');
+      return;
+    }
+
+    const balDec = userBalance.balance.amount;
+    setMaxAmountLoading(true);
+    try {
+      let feeDisplay: string;
+
+      if (showMoreOptions && userFees?.amount && String(userFees.amount).trim() !== '') {
+        if (!Number(userFees.amount)) {
+          setError('Set a valid custom fee or turn off More options.');
+          return;
+        }
+        feeDisplay = userFees.amount;
+      } else {
+        const probe = await simulateSend({
+          address: toAddress,
+          amount: balDec,
+          memo: memo || '',
+        });
+        if (!probe.amount?.amount) {
+          setError('Could not estimate network fee. Try again or set a custom fee under More options.');
+          return;
+        }
+        feeDisplay = probe.amount.amount;
+      }
+
+      const balanceBig = new Big(balDec.amount);
+      const feeBig = new Big(feeDisplay);
+      const reserveBig = new Big(MAX_SEND_FEE_RESERVE);
+      let maxBig = balanceBig.minus(feeBig).minus(reserveBig);
+
+      if (maxBig.lte(0)) {
+        setError(
+          'Balance is too low to send after fees and reserve. Add funds, lower the custom fee, or try again later.',
+        );
+        return;
+      }
+
+      if (!(showMoreOptions && userFees?.amount && String(userFees.amount).trim() !== '')) {
+        const refined = await simulateSend({
+          address: toAddress,
+          amount: { amount: maxBig.toString(), denom: balDec.denom },
+          memo: memo || '',
+        });
+        if (refined.amount?.amount) {
+          maxBig = balanceBig.minus(new Big(refined.amount.amount)).minus(reserveBig);
+        }
+      }
+
+      if (maxBig.lte(0) || maxBig.lt(new Big(MIN_SEND_AMOUNT))) {
+        setError(
+          `Max sendable amount is below the minimum (${MIN_SEND_AMOUNT} ${(
+            clientDetails?.display_mix_denom || 'nym'
+          ).toUpperCase()}).`,
+        );
+        return;
+      }
+
+      const rounded = maxBig.round(6, 0);
+      let amountStr = rounded.toFixed(6).replace(/\.?0+$/, '');
+      if (amountStr === '' || amountStr === '.') {
+        amountStr = MIN_SEND_AMOUNT;
+      }
+
+      setAmount({ amount: amountStr, denom: balDec.denom });
+      setAmountFieldKey((k) => k + 1);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setMaxAmountLoading(false);
+    }
+  };
 
   const handleOnNext = async () => {
     if (amount) {
@@ -108,7 +198,6 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
         onSend={handleSend}
         denom={clientDetails?.display_mix_denom || 'nym'}
         memo={memo}
-        {...hasStorybookStyles}
       />
     );
 
@@ -130,7 +219,9 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       onUserFeesChange={(value) => setUserFees(value)}
       onMemoChange={(value) => setMemo(value)}
       setShowMore={setShowMoreOptions}
-      {...hasStorybookStyles}
+      amountFieldKey={amountFieldKey}
+      onMaxAmount={handleMaxAmount}
+      maxAmountLoading={maxAmountLoading}
     />
   );
 };

@@ -13,8 +13,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 pub use helpers::{BufferedDeposit, PerformedDeposits, make_deposits_request, split_deposits};
@@ -146,9 +147,14 @@ impl DepositsBuffer {
 
     // if we're here, we know we're below the threshold
     fn maybe_refill_deposits(&self) {
-        if let Some(mut guard) = self.inner.deposits_refill_task.try_get_new_task_guard() {
+        if let Some((mut guard, completion_guard)) =
+            self.inner.deposits_refill_task.try_get_new_task_guard()
+        {
             let this = self.clone();
-            *guard = Some(tokio::spawn(async move { this.refill_deposits().await }));
+            *guard = Some(tokio::spawn(async move {
+                let _completion_guard = completion_guard;
+                this.refill_deposits().await
+            }));
         }
     }
 
@@ -179,6 +185,8 @@ impl DepositsBuffer {
         requested_on: OffsetDateTime,
         client_pubkey: PublicKeyUser,
     ) -> Result<BufferedDeposit, CredentialProxyError> {
+        let wait_start = Instant::now();
+        let mut i = 0;
         loop {
             tokio::time::sleep(Duration::from_millis(500)).await;
             if let Some(buffered_deposit) = self.inner.unused_deposits.lock().await.pop() {
@@ -194,6 +202,15 @@ impl DepositsBuffer {
             } else {
                 // make sure there's always a task working in the background in case deposits get used up too quickly
                 self.maybe_refill_deposits()
+            }
+            i += 1;
+            let elapsed = wait_start.elapsed();
+            if elapsed > Duration::from_secs(5) && i % 10 == 0 {
+                warn!("we've been waiting for over 5s to make a deposit - something is wrong!")
+            } else if elapsed > Duration::from_secs(10) && i % 5 == 0 {
+                error!(
+                    "we've been waiting for over 10s to make a deposit - something is SERIOUSLY wrong!"
+                )
             }
         }
     }

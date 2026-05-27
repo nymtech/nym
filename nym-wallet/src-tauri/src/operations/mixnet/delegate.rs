@@ -24,11 +24,14 @@ use nym_validator_client::nyxd::Fee;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use tap::TapFallible;
 
+/// Pending mixnet epoch events for the wallet, narrowed to delegation-related kinds and this account.
+/// Uses the same contract query as [`crate::operations::mixnet::interval::get_pending_epoch_events`];
+/// response shape uses legacy DTOs in `nym_types::deprecated` for the delegation page.
 #[tauri::command]
 pub async fn get_pending_delegation_events(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<WrappedDelegationEvent>, BackendError> {
-    log::info!(">>> [DEPRECATED] Get all pending delegation events");
+    log::info!(">>> Get pending delegation events for account");
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;

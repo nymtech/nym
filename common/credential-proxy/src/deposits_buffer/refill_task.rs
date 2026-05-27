@@ -3,11 +3,21 @@
 
 use crate::error::CredentialProxyError;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex as StdMutex, MutexGuard};
+use std::sync::{Arc, Mutex as StdMutex, MutexGuard};
 use tokio::task::JoinHandle;
 use tracing::{debug, error};
 
 pub(super) type RefillTaskResult = Result<(), CredentialProxyError>;
+
+pub(super) struct InProgressGuard {
+    in_progress: Arc<AtomicBool>,
+}
+
+impl Drop for InProgressGuard {
+    fn drop(&mut self) {
+        self.in_progress.store(false, Ordering::SeqCst);
+    }
+}
 
 #[derive(Default)]
 pub(super) struct RefillTask {
@@ -16,7 +26,7 @@ pub(super) struct RefillTask {
     // we'll have to increase the number of deposits per transaction
     join_handle: StdMutex<Option<JoinHandle<RefillTaskResult>>>,
 
-    in_progress: AtomicBool,
+    in_progress: Arc<AtomicBool>,
 }
 
 impl RefillTask {
@@ -28,9 +38,15 @@ impl RefillTask {
             .is_ok()
     }
 
+    /// Returns `None` if a refill is already in progress. On success, returns the
+    /// join-handle guard (to store the new `JoinHandle` into) and an [`InProgressGuard`]
+    /// that **must be moved into the spawned task** — it resets the flag when dropped.
     pub(super) fn try_get_new_task_guard(
         &self,
-    ) -> Option<MutexGuard<'_, Option<JoinHandle<RefillTaskResult>>>> {
+    ) -> Option<(
+        MutexGuard<'_, Option<JoinHandle<RefillTaskResult>>>,
+        InProgressGuard,
+    )> {
         // sanity check for concurrent request
         if !self.try_set_in_progress() {
             debug!("another task has already started deposit refill request");
@@ -48,11 +64,46 @@ impl RefillTask {
             }
         }
 
-        Some(guard)
+        let completion_guard = InProgressGuard {
+            in_progress: Arc::clone(&self.in_progress),
+        };
+
+        Some((guard, completion_guard))
     }
 
     pub(super) fn take_task_join_handle(&self) -> Option<JoinHandle<RefillTaskResult>> {
         #[allow(clippy::expect_used)]
         self.join_handle.lock().expect("mutex got poisoned").take()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn in_progress_resets_after_guard_drop() {
+        let task = RefillTask::default();
+
+        let (guard, completion_guard) = task.try_get_new_task_guard().unwrap();
+        drop(guard);
+        assert!(task.try_get_new_task_guard().is_none());
+
+        drop(completion_guard);
+        assert!(task.try_get_new_task_guard().is_some());
+    }
+
+    #[test]
+    fn in_progress_resets_on_panic() {
+        let task = RefillTask::default();
+
+        let (guard, completion_guard) = task.try_get_new_task_guard().unwrap();
+        drop(guard);
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = completion_guard;
+            panic!("simulated refill task panic");
+        }));
+        assert!(task.try_get_new_task_guard().is_some());
     }
 }

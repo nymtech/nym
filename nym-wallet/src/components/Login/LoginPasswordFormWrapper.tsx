@@ -43,7 +43,12 @@ export const EnhancedPasswordInput: React.FC<EnhancedPasswordInputProps> = ({
       const input = inputRef.current.querySelector('input');
       if (!input) return undefined;
 
+      input.setAttribute('autocomplete', 'new-password');
+      input.setAttribute('data-lpignore', 'true');
+      input.setAttribute('data-1p-ignore', 'true');
+
       const handleKeyDown = async (e: KeyboardEvent) => {
+        if (e.defaultPrevented) return;
         if (document.activeElement !== input) return;
 
         if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
@@ -101,7 +106,7 @@ export const EnhancedPasswordInput: React.FC<EnhancedPasswordInputProps> = ({
   };
 
   return (
-    <Box position="relative" ref={inputRef}>
+    <Box position="relative" ref={inputRef} data-nym-auth-paste-field>
       <PasswordInput password={password} onUpdatePassword={onUpdatePassword} {...otherProps} />
       <Box
         sx={{

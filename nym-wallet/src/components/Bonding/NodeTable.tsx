@@ -22,7 +22,7 @@ export interface TableProps {
 }
 
 export const NodeTable = ({ headers, cells }: TableProps) => (
-  <TableContainer>
+  <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
     <Table aria-label="node-table">
       <TableHead>
         <TableRow>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DelegationWithEverything, TransactionExecuteResult } from '@nymproject/types';
-import { RewardsContext, TRewardsTransaction } from '../rewards';
+import { RewardsContext } from '../rewards';
 import { useDelegationContext } from '../delegations';
 import { mockSleep } from './utils';
 
@@ -45,69 +45,51 @@ export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
     refresh();
   }, []);
 
-  const claimRewards = async (mixId: number): Promise<TransactionExecuteResult[]> => {
-    if (!delegations) {
-      throw new Error('No delegations');
-    }
+  const claimRewards = useCallback(
+    async (mixId: number): Promise<TransactionExecuteResult[]> => {
+      if (!delegations) {
+        throw new Error('No delegations');
+      }
 
-    const d = delegations.find((d1) => (d1 as DelegationWithEverything).mix_id === mixId);
+      const d = delegations.find((d1) => (d1 as DelegationWithEverything).mix_id === mixId);
 
-    if (!d) {
-      throw new Error(`Unable to find delegation for id = ${mixId}`);
-    }
+      if (!d) {
+        throw new Error(`Unable to find delegation for id = ${mixId}`);
+      }
 
-    await mockSleep(1000);
+      await mockSleep(1000);
 
-    return [
-      {
-        transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        fee: {
-          amount: '1',
-          denom: 'nym',
+      return [
+        {
+          transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
+          fee: {
+            amount: '1',
+            denom: 'nym',
+          },
+          logs_json: '[]',
+          msg_responses_json: '[]',
+          gas_info: {
+            gas_wanted: { gas_units: BigInt(1) },
+            gas_used: { gas_units: BigInt(1) },
+          },
         },
-        logs_json: '[]',
-        msg_responses_json: '[]',
-        gas_info: {
-          gas_wanted: { gas_units: BigInt(1) },
-          gas_used: { gas_units: BigInt(1) },
+        {
+          transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
+          fee: {
+            amount: '1',
+            denom: 'nym',
+          },
+          msg_responses_json: '[]',
+          logs_json: '[]',
+          gas_info: {
+            gas_wanted: { gas_units: BigInt(1) },
+            gas_used: { gas_units: BigInt(1) },
+          },
         },
-      },
-      {
-        transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        fee: {
-          amount: '1',
-          denom: 'nym',
-        },
-        msg_responses_json: '[]',
-        logs_json: '[]',
-        gas_info: {
-          gas_wanted: { gas_units: BigInt(1) },
-          gas_used: { gas_units: BigInt(1) },
-        },
-      },
-    ];
-  };
-
-  const redeemAllRewards = async (): Promise<TRewardsTransaction[]> => {
-    if (!delegations) {
-      throw new Error('No delegations');
-    }
-
-    await mockSleep(1000);
-
-    return [
-      {
-        transactionUrl:
-          'https://sandbox-blocks.nymtech.net/transactions/55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        transactionHash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-      },
-      {
-        transactionUrl:
-          'https://sandbox-blocks.nymtech.net/transactions/55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-        transactionHash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
-      },
-    ];
-  };
+      ];
+    },
+    [delegations],
+  );
 
   const memoizedValue = useMemo(
     () => ({
@@ -116,9 +98,8 @@ export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
       totalRewards,
       refresh,
       claimRewards,
-      redeemAllRewards,
     }),
-    [isLoading, error, totalRewards],
+    [isLoading, error, totalRewards, refresh, claimRewards],
   );
 
   return <RewardsContext.Provider value={memoizedValue}>{children}</RewardsContext.Provider>;

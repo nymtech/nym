@@ -11,6 +11,7 @@ use crate::{
 };
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
+use axum::extract::rejection::JsonRejection;
 use axum::{
     Router,
     extract::{Path, State},
@@ -19,7 +20,7 @@ use nym_node_status_client::models::{
     TestrunAssignmentWithTickets, get_testrun, submit_results, submit_results_v2,
 };
 use reqwest::StatusCode;
-use tracing::error;
+use tracing::{debug, error};
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs
 
@@ -28,7 +29,7 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/", axum::routing::get(request_testrun))
         .route("/:testrun_id", axum::routing::post(submit_testrun))
         .route("/:testrun_id/v2", axum::routing::post(submit_testrun_v2))
-        .layer(DefaultBodyLimit::max(1024 * 1024 * 5))
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 512))
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
@@ -58,6 +59,31 @@ async fn request_testrun(
         return Err(HttpError::no_testruns_available());
     }
 
+    // 1. guard against other agents attempting to get testruns so that we would be able to check
+    // for ticketbook count without cross-interaction
+    let _guard = state.lock_testrun_assignment().await;
+
+    // 2. check if we have enough ticketbooks of ALL types before assigning the run
+    match state
+        .ticketbook_manager_state()
+        .has_enough_ticketbooks()
+        .await
+    {
+        Err(err) => {
+            return Err(HttpError::internal_with_logging(format!(
+                "failed to check ticketbook storage: {err}"
+            )));
+        }
+        Ok(false) => {
+            tracing::warn!("not enough ticketbooks available, rejecting testrun assignment");
+            return Err(HttpError::internal_with_logging(
+                "not enough ticketbooks available to assign a testrun",
+            ));
+        }
+        Ok(true) => (),
+    }
+
+    // 3. attempt to assign the testrun itself
     match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
         Ok(res) => {
             let Some(assignment) = res else {
@@ -71,6 +97,7 @@ async fn request_testrun(
                 assignment.gateway_identity_key,
             );
 
+            // 4. retrieve required ticketbooks (we should always have sufficient number as we hold an exclusive lock)
             let materials = state
                 .ticketbook_manager_state()
                 .attempt_assign_ticket_materials(assignment.testrun_id)
@@ -94,9 +121,18 @@ async fn request_testrun(
 async fn submit_testrun(
     Path(submitted_testrun_id): Path<i32>,
     State(state): State<AppState>,
-    Json(submitted_result): Json<submit_results::SubmitResults>,
+    submitted_result: Result<Json<submit_results::SubmitResults>, JsonRejection>,
 ) -> HttpResult<StatusCode> {
+    let submitted_result = match submitted_result {
+        Ok(json) => json.0,
+        Err(err) => {
+            tracing::error!("json got rejected: {err}");
+            return Err(HttpError::invalid_input(err));
+        }
+    };
+
     state.authenticate_agent_submission(&submitted_result)?;
+    debug!("attempting to submit testrun {submitted_testrun_id} from an authenticated agent");
 
     let db = state.db_pool();
     let mut conn = db

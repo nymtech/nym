@@ -19,6 +19,7 @@ jobs:
       RUSTUP_PERMIT_COPY_RENAME: 1
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -66,11 +67,20 @@ jobs:
             --no-git-commit \
             --yes
 
-      - name: Commit and push version bump
-        run: |
-          git add -A
-          git commit -m "crates release: bump version to ${{ inputs.version }}"
-          git push
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "chore/bump-version-${{ inputs.version }}"
+          base: ${{ github.ref_name }}
+          commit-message: "crates release: bump version to ${{ inputs.version }}"
+          title: "chore: bump crate versions to ${{ inputs.version }}"
+          body: |
+            Automated version bump from `${{ steps.current_version.outputs.version }}` → `${{ inputs.version }}`.
+
+            Triggered by @${{ github.actor }} via workflow dispatch.
+          labels: "automated, crates-version-bump"
+          delete-branch: true
 
       - name: Show package versions
         run: cargo workspaces list --long

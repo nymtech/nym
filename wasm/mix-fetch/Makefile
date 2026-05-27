@@ -1,3 +1,10 @@
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	TASKSET := taskset -c 0-11
+else
+	TASKSET :=
+endif
+
 build: build-go-opt build-rust build-package-json
 
 check-fmt: check-fmt-go check-fmt-rust
@@ -9,9 +16,9 @@ build-go-opt:
 	$(MAKE) -C go-mix-conn build-go-opt
 
 build-rust:
-	taskset -c 0-11 wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/mix-fetch
-	# taskset -c 0-11 wasm-pack build --scope nymproject --target no-modules --out-dir ../../dist/wasm/mix-fetch
-	taskset -c 0-11 wasm-opt -Oz -o ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
+	$(TASKSET) wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/mix-fetch
+	# $(TASKSET) wasm-pack build --scope nymproject --target no-modules --out-dir ../../dist/wasm/mix-fetch
+	$(TASKSET) wasm-opt -Oz -o ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
 
 build-rust-debug:
 	wasm-pack build --debug --scope nymproject --target no-modules

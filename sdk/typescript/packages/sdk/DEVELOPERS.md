@@ -14,17 +14,17 @@ The SDK depends on WASM packages that must be built from Rust first.
 From the **root of the monorepo**:
 
 ```bash
-yarn dev:on          # add dev workspaces to root package.json
-yarn                 # install dependencies
-yarn build:wasm      # build Rust -> WASM packages
+pnpm dev:on          # add dev workspaces to root package.json
+pnpm i               # install dependencies
+pnpm build:wasm      # build Rust -> WASM packages
 ```
 
 Then from `sdk/typescript/packages/sdk`:
 
 ```bash
-yarn build:dev       # full dev build -> dist/
-yarn build:dev:esm   # ESM-only (faster iteration)
-yarn start:dev       # watch mode, rebuilds ESM on changes
+pnpm build:dev       # full dev build -> dist/
+pnpm build:dev:esm   # ESM-only (faster iteration)
+pnpm start:dev       # watch mode, rebuilds ESM on changes
 ```
 
 ## Local mixFetch development
@@ -45,14 +45,14 @@ The `publish-sdk-npm` GitHub Actions workflow (`.github/workflows/publish-sdk-np
 
 1. Bump versions, commit, and push:
    ```bash
-   yarn sdk:versions:bump
+   pnpm sdk:versions:bump
    git add -A && git commit -m "chore: bump sdk versions"
    git push
    ```
 2. Trigger the `publish-sdk-npm` workflow from GitHub Actions.
 3. After the workflow succeeds, add the RC suffix, commit, and push:
    ```bash
-   yarn sdk:versions:add-rc
+   pnpm sdk:versions:add-rc
    git add -A && git commit -m "chore: add rc suffix"
    git push
    ```
@@ -65,7 +65,7 @@ The `publish-sdk-npm` GitHub Actions workflow (`.github/workflows/publish-sdk-np
    ```
 2. Bump version numbers:
    ```bash
-   yarn sdk:versions:bump
+   pnpm sdk:versions:bump
    ```
 3. Build and publish:
    ```bash
@@ -73,5 +73,5 @@ The `publish-sdk-npm` GitHub Actions workflow (`.github/workflows/publish-sdk-np
    ```
 4. Add RC suffix and commit:
    ```bash
-   yarn sdk:versions:add-rc
+   pnpm sdk:versions:add-rc
    ```

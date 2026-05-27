@@ -5,7 +5,7 @@ use js_sys::Promise;
 use nym_wasm_client_core::client::base_client::{ClientInput, ClientState};
 use nym_wasm_client_core::client::inbound_messages::InputMessage;
 use nym_wasm_client_core::error::WasmCoreError;
-use nym_wasm_client_core::topology::{Role, WasmFriendlyNymTopology};
+use nym_wasm_client_core::topology::WasmFriendlyNymTopology;
 use nym_wasm_client_core::NymTopology;
 use nym_wasm_utils::error::simple_js_error;
 use nym_wasm_utils::{check_promise_result, console_log};
@@ -13,38 +13,11 @@ use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 
-#[cfg(feature = "node-tester")]
-use nym_node_tester_wasm::types::{NodeTestMessage, WasmTestMessageExt};
-
-#[cfg(feature = "node-tester")]
-use wasm_bindgen::prelude::wasm_bindgen;
-
-#[cfg(feature = "node-tester")]
-pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
-
-#[cfg(feature = "node-tester")]
-#[wasm_bindgen]
-pub struct NymClientTestRequest {
-    // serialized NodeTestMessage
-    pub(crate) test_msgs: Vec<Vec<u8>>,
-
-    // specially constructed network topology that only contains the target
-    // node on the tested layer
-    pub(crate) testable_topology: NymTopology,
-}
-
-#[cfg(feature = "node-tester")]
-#[wasm_bindgen]
-impl NymClientTestRequest {
-    pub fn injectable_topology(&self) -> WasmFriendlyNymTopology {
-        self.testable_topology.clone().into()
-    }
-}
-
 // defining helper trait as we could directly call the method on the wrapper
 pub(crate) trait InputSender {
     fn send_message(&self, message: InputMessage) -> Promise;
 
+    #[allow(dead_code)]
     fn send_messages(&self, messages: Vec<InputMessage>) -> Promise;
 }
 
@@ -84,17 +57,6 @@ pub(crate) trait WasmTopologyExt {
     fn current_topology(&self) -> Promise;
 }
 
-#[cfg(feature = "node-tester")]
-pub(crate) trait WasmTopologyTestExt {
-    /// Creates a `NymClientTestRequest` with a variant of `this` topology where the target node is the only one on its layer.
-    fn mix_test_request(
-        &self,
-        test_id: u32,
-        mixnode_identity: String,
-        num_test_packets: Option<u32>,
-    ) -> Promise;
-}
-
 impl WasmTopologyExt for Arc<ClientState> {
     fn change_hardcoded_topology(&self, topology: WasmFriendlyNymTopology) -> Promise {
         let nym_topology: NymTopology = check_promise_result!(topology.try_into());
@@ -119,46 +81,6 @@ impl WasmTopologyExt for Arc<ClientState> {
                 .expect("WasmFriendlyNymTopology failed serialization")),
                 None => Err(WasmCoreError::UnavailableNetworkTopology.into()),
             }
-        })
-    }
-}
-
-#[cfg(feature = "node-tester")]
-impl WasmTopologyTestExt for Arc<ClientState> {
-    fn mix_test_request(
-        &self,
-        test_id: u32,
-        mixnode_identity: String,
-        num_test_packets: Option<u32>,
-    ) -> Promise {
-        let num_test_packets = num_test_packets.unwrap_or(DEFAULT_TEST_PACKETS);
-
-        let this = Arc::clone(self);
-        future_to_promise(async move {
-            let Some(current_topology) = this.topology_accessor.current_route_provider().await
-            else {
-                return Err(WasmCoreError::UnavailableNetworkTopology.into());
-            };
-
-            let Ok(node_identity) = mixnode_identity.parse() else {
-                return Err(WasmCoreError::NonExistentMixnode { mixnode_identity }.into());
-            };
-
-            let Some(mix) = current_topology.node_by_identity(node_identity) else {
-                return Err(WasmCoreError::NonExistentMixnode { mixnode_identity }.into());
-            };
-
-            let mut updated = current_topology.topology.clone();
-            updated.set_testable_node(Role::Layer2, mix.clone());
-
-            let ext = WasmTestMessageExt::new(test_id);
-            let test_msgs = NodeTestMessage::mix_plaintexts(mix, num_test_packets, ext)
-                .map_err(crate::error::WasmClientError::from)?;
-
-            Ok(JsValue::from(NymClientTestRequest {
-                test_msgs,
-                testable_topology: updated,
-            }))
         })
     }
 }

@@ -1,13 +1,23 @@
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
 //! DNS lookup through the Nym mixnet.
 //!
-//! Resolves `example.com` via clearnet (hickory-resolver) and via the mixnet
-//! (hickory-proto UDP query to Cloudflare 1.1.1.1), then compares resolved
-//! IPs and timing.
+//! Resolves `example.com` twice: once via the system path with
+//! `hickory-resolver`, and once by sending a raw DNS query to Cloudflare's
+//! 1.1.1.1 over a `smolmix::UdpSocket`. The resolved IPs and timings are
+//! printed for comparison.
 //!
+//! ```text
+//! DNS query / response (application-layer UDP)
+//!   └─ smolmix::UdpSocket (UDP over mixnet)
+//!        └─ smoltcp (userspace IP stack)
+//!             └─ Nym mixnet → IPR exit gateway → internet
+//! ```
 //!
-//! Run with:
-//!   cargo run -p smolmix --example udp
-//!   cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>
+//! ```sh
+//! cargo run -p smolmix --example udp
+//! cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>
+//! ```
 
 use std::net::Ipv4Addr;
 
@@ -27,7 +37,6 @@ async fn main() -> Result<(), BoxError> {
 
     let domain = "example.com";
 
-    // Clearnet baseline via hickory-resolver
     info!("Clearnet DNS lookup for '{domain}'...");
     let resolver = TokioResolver::builder_tokio()?.build()?;
     let clearnet_start = tokio::time::Instant::now();
@@ -42,7 +51,9 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {:?} in {:?}", clearnet_ips, clearnet_duration);
 
-    // Mixnet: hickory-proto query over smolmix UDP
+    // hickory-proto (not hickory-resolver) so the raw UDP query goes through
+    // the tunnel directly, instead of routing back to the system resolver
+    // and out over clearnet.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -62,7 +73,7 @@ async fn main() -> Result<(), BoxError> {
     query.add_query(Query::query(Name::from_ascii(domain)?, RecordType::A));
     let query_bytes = query.to_vec()?;
 
-    // UDP is connectionless — no setup phase, just send/recv
+    // UDP has no handshake; just send_to + recv_from.
     info!("Sending DNS query via mixnet...");
     let mixnet_start = tokio::time::Instant::now();
     udp.send_to(&query_bytes, "1.1.1.1:53".parse()?).await?;
@@ -83,9 +94,8 @@ async fn main() -> Result<(), BoxError> {
         })
         .collect();
 
-    // Results
     info!("Clearnet: {:?} ({:?})", clearnet_ips, clearnet_duration);
-    info!("Mixnet:   {:?} ({:?})", mixnet_ips, mixnet_duration);
+    info!("Mixnet: {:?} ({:?})", mixnet_ips, mixnet_duration);
 
     let ips_match = !mixnet_ips.is_empty() && mixnet_ips.iter().all(|ip| clearnet_ips.contains(ip));
     info!("IPs match: {ips_match}");

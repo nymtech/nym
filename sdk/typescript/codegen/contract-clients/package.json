@@ -15,12 +15,12 @@
     "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/contract-clients/",
     "docs:prod:build": "scripts/build-prod-docs-collect.sh",
     "docs:serve": "reload -b -d ./docs -p 3000",
-    "docs:watch": "nodemon --ext ts --watch './src/**/*' --watch './typedoc.json' --exec \"yarn docs:generate\""
+    "docs:watch": "nodemon --ext ts --watch './src/**/*' --watch './typedoc.json' --exec \"pnpm docs:generate\""
   },
   "devDependencies": {
     "@cosmwasm/ts-codegen": "^1.13.3",
     "nodemon": "3.0.1",
-    "npm-run-all": "^4.1.5",
+    "npm-run-all": "catalog:",
     "reload": "^3.2.1",
     "typedoc": "^0.24.8",
     "typescript": "^4.6.2"

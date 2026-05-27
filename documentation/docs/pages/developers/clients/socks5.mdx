@@ -1,6 +1,6 @@
 # Socks5 Client (Standalone)
 
-> This client can also be utilised via the [Rust SDK](../rust).
+> This client can also be utilised via the [Rust SDK](/developers/rust).
 
 Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
 
@@ -47,4 +47,4 @@ The `nym-socks5-client` allows you to do the following from your local machine:
 * Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
 * Send the Sphinx packets through the Nym Network. Packets are shuffled and mixed as they transit the mixnet.
 
-The `nym-node` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
+The `nym-node` then reassembles the original TCP stream using the packets' sequence numbers, and makes the intended request. It chops up the response into Sphinx packets and sends them back through the mixnet to your `nym-socks5-client`. The application receives its data without noticing that it wasn't talking to a "normal" SOCKS5 proxy.

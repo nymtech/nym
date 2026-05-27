@@ -2,9 +2,9 @@
 
 The zk-nym scheme enables the creation and use of unlinkable, rerandomisable anonymous access credentials that are 'spent' with Gateways in order to anonymously prove that someone has paid for Mixnet access. This implementation incorporates elements of both the [Coconut Credential](https://arxiv.org/pdf/1802.07344) and [Offline Ecash](https://arxiv.org/pdf/2303.08221) schemes.
 
-As outlined in the [overview](./zk-nym/zk-nym-overview) on the next page, zk-nyms allow for users to pay for Mixnet access in a manner that is **unlinkable to their payment account**; even with pseudonymous cryptocurrencies or fiat. This solves one of the fundamental privacy problems with the majority of VPNs and dVPNs in production today: the linkability of a user's session with their payment information, which can in the majority of cases be easily used to deanonymise them, either at the behest of an authority or by the service operators themselves.
+As outlined in the [overview](./zk-nym/zk-nym-overview) on the next page, zk-nyms allow users to pay for Mixnet access in a way that is **unlinkable to their payment account**, even with pseudonymous cryptocurrencies or fiat. This solves one of the fundamental privacy problems with most VPNs and dVPNs in production today: the linkability of a user's session with their payment information, which can in most cases be used to deanonymise them, either at the behest of an authority or by the service operators themselves.
 
-> The current zk-nym scheme is non-generic in that it is only used for gating Mixnet access. A generic scheme based on zk-nyms is being actively researched in order to facilitate more generic and customisable anonymous credentials for other applications and services.
+> The current zk-nym scheme is non-generic in that it is only used for gating Mixnet access. A generic scheme based on zk-nyms is being actively researched, to support more generic and customisable anonymous credentials for other applications and services.
 
 ## Motivations
 Most of the time, when we build system security, we think of _who_ questions:
@@ -25,7 +25,7 @@ The zk-nym scheme allows for this move to take place. Credentials are generated 
 ### Re-randomisation vs pseudonymity
 We stand on the shoulders of giants. Ten years ago, Bitcoin showed the way forward by allowing people to control resource access without recourse to _who_ questions. Rather, in Bitcoin and succeeding blockchains, a private key proves a _right to use_.
 
-But as we can now see, private keys in blockchain systems act only as a minor barrier to finding out _who_ is accessing resources. A Bitcoin or Ethereum private key is effectively a long-lived pseudonym which is easily traceable through successive transactions.
+But as we can now see, private keys in blockchain systems act only as a minor barrier to finding out _who_ is accessing resources. A Bitcoin or Ethereum private key is a long-lived pseudonym that is easily traceable through successive transactions.
 
 **zk-nyms allows us to build truly private systems rather than pseudonymous ones.**
 
@@ -38,8 +38,8 @@ Let's say you have a `message` with the content `This credential controls X` in 
 
 2. _Re-randomizable signatures_ - take a signature, and generate a brand new signature that is valid for the same underlying message `This credential controls X`. The new bitstring in the re-randomized signature is equivalent to the original signature but not linkable to it. So a user can generate multiple zk-nyms from a single credential source, unlinkable to any previous "shown" zk-nym. But the underlying content of the re-randomized credential is the same (including for things like double-spend protection). This once again protects the user against the signer, because the signer can't trace the signed message that they gave back to the user when it is presented. It also protects the user against the relying party that accepts the signed credential. The user can generate multiple re-randomized credentials repeatedly, and although the underlying message is the same in all cases, there's no way of tracking them by watching the user present the same credential multiple times.
 
-3. _Selective disclosure of attributes_ - allows someone with the public key to verify some, but not all, parts of a message. So you could for instance selectively reveal parts of a signed message to some people, but not to others. This is a very powerful property of the scheme which is to be explored more in future work, potentially leading to diverse applications: voting systems, anonymous currency, privacy-friendly KYC systems, etc.
+3. _Selective disclosure of attributes_ - allows someone with the public key to verify some, but not all, parts of a message. So you could for instance selectively reveal parts of a signed message to some people, but not to others. This property of the scheme is to be explored more in future work, with potential applications including voting systems, anonymous currency, and privacy-friendly KYC systems.
 
-4. _[Threshold issuance](https://en.wikipedia.org/wiki/Threshold_cryptosystem)_ - allows signature generation to be split up across multiple nodes and decentralized, so that either all signers need to sign (_n of n_ where _n_ is the number of signers) or only a threshold number of signers need to sign a message (_t of n_ where _t_ is the threshold value).
+4. _[Threshold issuance](https://en.wikipedia.org/wiki/Threshold_cryptosystem)_ - allows signature generation to be split up across multiple nodes and decentralised, so that either all signers need to sign (_n of n_ where _n_ is the number of signers) or only a threshold number of signers need to sign a message (_t of n_ where _t_ is the threshold value).
 
-Taken together, these properties provide privacy for applications when it comes to generating and using signatures for cryptographic claims. If you compare it to existing tech, the closest analogy in conventional systems is a decentralized, privacy-preserving [JWT](https://jwt.io/).
+Taken together, these properties provide privacy for applications when generating and using signatures for cryptographic claims. The closest analogy in conventional systems is a decentralised, privacy-preserving [JWT](https://jwt.io/).

@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PagedDepositsResponse",
+  "description": "Page of deposits returned by `GetDepositsPaged`. `start_next_after` is the id of the last returned entry; pass it as the next call's `start_after`.",
   "type": "object",
   "required": [
     "deposits"
@@ -25,6 +26,7 @@
   "additionalProperties": false,
   "definitions": {
     "Deposit": {
+      "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
       "type": "object",
       "required": [
         "bs58_encoded_ed25519_pubkey"
@@ -37,6 +39,7 @@
       "additionalProperties": false
     },
     "DepositData": {
+      "description": "`(deposit_id, deposit)` pair surfaced by the latest-deposit and paginated deposit queries.",
       "type": "object",
       "required": [
         "deposit",

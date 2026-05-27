@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT node_id, family_id\n             FROM node_family_members",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "family_id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "33e2ca569a31fd03fdc0b2cbf7840572c15063457bac682e938bee632bd0260f"
+}

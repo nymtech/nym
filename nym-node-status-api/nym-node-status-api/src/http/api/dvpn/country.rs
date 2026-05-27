@@ -13,7 +13,7 @@ use crate::http::{error::HttpResult, state::AppState};
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route(
-            "/country/:two_letter_country_code",
+            "/country/{two_letter_country_code}",
             axum::routing::get(get_gateways_by_country),
         )
         .route("/countries", axum::routing::get(get_gateway_countries))
@@ -51,7 +51,7 @@ pub async fn get_gateways_by_country(
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_dvpn_gateway_list(state.storage(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
             .filter(|gw| gw.location.two_letter_iso_country_code.to_uppercase() == country.alpha2)
@@ -75,7 +75,7 @@ pub async fn get_gateway_countries(state: State<AppState>) -> HttpResult<Json<Ve
     Ok(Json(
         state
             .cache()
-            .get_dvpn_gateway_list(state.db_pool(), &MIN_SUPPORTED_VERSION)
+            .get_dvpn_gateway_list(state.storage(), &MIN_SUPPORTED_VERSION)
             .await
             .into_iter()
             .map(|gw| gw.location.two_letter_iso_country_code.to_string())

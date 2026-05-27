@@ -1,6 +1,6 @@
 # Ledger Live Support
 
-Use the following instructions to interact with the Nyx blockchain - either with deployed smart contracts, or just to send tokens - using your Ledger device to sign transactions.
+Use the following instructions to interact with the Nyx blockchain (either with deployed smart contracts, or to send tokens) using your Ledger device to sign transactions.
 
 ## Prerequisites
 * Download and install [Ledger Live](https://www.ledger.com/ledger-live).
@@ -8,7 +8,7 @@ Use the following instructions to interact with the Nyx blockchain - either with
 
 ## Prepare your Ledger App
 * Plug in your Ledger device
-* Install the `Cosmos (ATOM)` app by following the instructions [here](https://hub.cosmos.network/main/resources/ledger.html). This app allows you to interact with **any** Cosmos SDK chain - you can manage your ATOM, OSMOSIS, NYM tokens, etc.
+* Install the `Cosmos (ATOM)` app by following the instructions [here](https://hub.cosmos.network/main/resources/ledger.html). This app works with any Cosmos SDK chain, so you can manage your ATOM, OSMOSIS, NYM tokens, etc.
 * On the device, navigate to the Cosmos app and open it
 
 ## Create a keypair

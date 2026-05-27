@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # Loopix Design
 
-The Nym mixnet is based on the [Loopix](https://arxiv.org/pdf/1703.00536) design, with modifications for decentralized operation and economic incentives.
+The Nym mixnet is based on the [Loopix](https://arxiv.org/pdf/1703.00536) design, with modifications for decentralised operation and economic incentives.
 
 ## The insight
 
@@ -38,7 +38,7 @@ Loop traffic ensures minimum anonymity even when few users are active, hides whe
 
 ## Nym's modifications
 
-The Nym implementation extends Loopix in several ways: replacing the trusted directory server with the Nyx blockchain for decentralized topology management, incentivising node operation with NYM token rewards rather than relying on volunteers, and adding zk-nyms for privacy-preserving payment, which the original academic design did not address.
+The Nym implementation extends Loopix in several ways: replacing the trusted directory server with the Nyx blockchain for decentralised topology management, incentivising node operation with NYM token rewards rather than relying on volunteers, and adding zk-nyms for privacy-preserving payment, which the original academic design did not address.
 
 ## Security guarantees
 

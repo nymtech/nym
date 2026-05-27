@@ -39,7 +39,7 @@ nym-credentials-interface = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-credential-utils = { workspace = true }
 nym-network-defaults = { workspace = true }
-nym-lp = { workspace = true }
+nym-lp-data = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-task = { workspace = true }

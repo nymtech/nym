@@ -28,7 +28,7 @@ Both modes run on the same Nym infrastructure but defend against different threa
 
 - Latency matters: browsing, streaming, downloads, video calls
 - Your concern is ISPs, advertisers, and websites tracking you, not nation-state surveillance
-- You want decentralized trust and payment privacy without the overhead of mixing
+- You want decentralised trust and payment privacy without the overhead of mixing
 
 ## Use Mixnet mode when
 

@@ -28,6 +28,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mixnet-contract-common = { workspace = true }
 vesting-contract-common = { workspace = true }
+nym-node-families-contract-common = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-contracts-common-testing = { workspace = true, optional = true }
 
@@ -40,6 +41,8 @@ cw-storage-plus = { workspace = true }
 bs58 = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 semver = { workspace = true }
+
+nym-crypto = { workspace = true, optional = true }
 
 
 [dev-dependencies]
@@ -56,7 +59,7 @@ nym-contracts-common-testing = { workspace = true }
 [features]
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
-testable-mixnet-contract = ["nym-contracts-common-testing"]
+testable-mixnet-contract = ["nym-contracts-common-testing", "nym-crypto", "nym-crypto/asymmetric", "nym-crypto/rand"]
 schema-gen = ["mixnet-contract-common/schema", "cosmwasm-schema"]
 
 [lints]

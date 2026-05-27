@@ -6,9 +6,7 @@
 //! This module implements session management functionality, including replay protection
 
 use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
-use crate::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
-use crate::peer_config::LpReceiverIndex;
 use crate::psq::initiator::HandshakeMode;
 use crate::psq::{
     InitiatorData, PSQHandshakeState, PSQHandshakeStateInitiator, PSQHandshakeStateResponder,
@@ -21,6 +19,8 @@ use libcrux_psq::handshake::types::{Authenticator, DHPublicKey};
 use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
+use nym_lp_data::packet::header::LpReceiverIndex;
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
@@ -355,7 +355,7 @@ impl LpTransportSession {
                 self.receiving_counter_mark(ctr)?;
 
                 // 4. deliver the message
-                Ok(LpAction::DeliverFrame(packet.frame))
+                Ok(LpAction::DeliverFrame(packet.into_frame()))
             }
             LpInput::SendFrame(data) => {
                 // Encrypt and send application data

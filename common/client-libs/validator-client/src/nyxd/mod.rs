@@ -304,6 +304,10 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.multisig_contract_address = Some(address);
     }
 
+    pub fn set_node_families_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.node_families_contract_address = Some(address);
+    }
+
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
@@ -329,6 +333,13 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
         self.config
             .contracts
             .network_monitors_contract_address
+            .as_ref()
+    }
+
+    fn node_families_contract_address(&self) -> Option<&AccountId> {
+        self.config
+            .contracts
+            .node_families_contract_address
             .as_ref()
     }
 

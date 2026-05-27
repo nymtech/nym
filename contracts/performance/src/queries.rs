@@ -316,6 +316,7 @@ pub fn query_last_submission(deps: Deps) -> Result<LastSubmission, NymPerformanc
 mod tests {
     use super::*;
     use crate::testing::{init_contract_tester, PerformanceContractTesterExt};
+    use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
     use nym_contracts_common_testing::{ChainOpts, ContractOpts, RandExt};
     use nym_performance_contract_common::LastSubmittedData;
 

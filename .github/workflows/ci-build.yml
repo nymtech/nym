@@ -23,7 +23,6 @@ on:
       - 'sdk/ffi/**'
       - 'sdk/rust/**'
       - 'service-providers/**'
-      - 'nym-browser-extension/storage/**'
       - 'tools/**'
       - 'wasm/**'
       - 'Cargo.toml'

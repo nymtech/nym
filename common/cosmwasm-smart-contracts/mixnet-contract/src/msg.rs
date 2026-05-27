@@ -63,6 +63,7 @@ use nym_contracts_common::{ContractBuildInformation, signing::Nonce};
 pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub vesting_contract_address: String,
+    pub node_families_contract_address: String,
 
     pub rewarding_denom: String,
     pub epochs_in_interval: u32,
@@ -305,6 +306,22 @@ pub enum ExecuteMsg {
     MigrateVestedDelegation {
         mix_id: NodeId,
     },
+    /// Admin-only: forcibly migrate the vested mixnode owned by `owner`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedMixNode {
+        owner: String,
+    },
+    /// Admin-only: forcibly migrate the vested delegation `(mix_id, owner)`.
+    /// Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.
+    AdminMigrateVestedDelegation {
+        mix_id: NodeId,
+        owner: String,
+    },
+    /// Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`].
+    /// Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.
+    AdminBatchMigrateVestedDelegations {
+        entries: Vec<VestedDelegationMigrationEntry>,
+    },
 
     // testing-only
     #[cfg(feature = "contract-testing")]
@@ -394,6 +411,15 @@ impl ExecuteMsg {
             }
             ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
             ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
+            ExecuteMsg::AdminMigrateVestedMixNode { owner } => {
+                format!("admin migrating vested mixnode of {owner}")
+            }
+            ExecuteMsg::AdminMigrateVestedDelegation { mix_id, owner } => {
+                format!("admin migrating vested delegation of {owner} on mixnode {mix_id}")
+            }
+            ExecuteMsg::AdminBatchMigrateVestedDelegations { entries } => {
+                format!("admin batch migrating {} vested delegations", entries.len())
+            }
             ExecuteMsg::AssignRoles { .. } => "assigning epoch roles".into(),
             ExecuteMsg::MigrateMixnode { .. } => "migrating legacy mixnode".into(),
             ExecuteMsg::MigrateGateway { .. } => "migrating legacy gateway".into(),
@@ -882,7 +908,14 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+pub struct VestedDelegationMigrationEntry {
+    pub mix_id: NodeId,
+    pub owner: String,
+}
+
+#[cw_serde]
 pub struct MigrateMsg {
     pub unsafe_skip_state_updates: Option<bool>,
     pub vesting_contract_address: Option<String>,
+    pub node_families_contract_address: String,
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NodeFamilyMembershipResponse",
+  "description": "Response to [`QueryMsg::GetFamilyMembership`](crate::QueryMsg::GetFamilyMembership).",
+  "type": "object",
+  "required": [
+    "node_id"
+  ],
+  "properties": {
+    "family_id": {
+      "description": "The id of the family the node currently belongs to, or `None` if the node is not currently a member of any family.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "node_id": {
+      "description": "The node that was queried.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

@@ -19,21 +19,21 @@
     "eslint-plugin-react": ">= 7",
     "eslint-plugin-react-hooks": ">= 4",
     "eslint-plugin-storybook": "*",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "eslint": "^9.26.0",
-    "eslint-config-airbnb": "^19.0.4",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-import-resolver-root-import": "^1.0.4",
-    "eslint-plugin-import": "^2.25.4",
-    "eslint-plugin-jest": "^26.1.1",
-    "eslint-plugin-jsx-a11y": "^6.5.1",
-    "eslint-plugin-prettier": "^4.0.0",
-    "eslint-plugin-react": "^7.29.2",
-    "eslint-plugin-react-hooks": "^4.3.0",
-    "prettier": "^2.8.7"
+    "eslint": "catalog:",
+    "eslint-config-airbnb": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-import-resolver-root-import": "catalog:",
+    "eslint-plugin-import": "catalog:",
+    "eslint-plugin-jest": "catalog:",
+    "eslint-plugin-jsx-a11y": "catalog:",
+    "eslint-plugin-prettier": "catalog:",
+    "eslint-plugin-react": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "prettier": "catalog:"
   },
   "eslintConfig": {
     "plugins": [

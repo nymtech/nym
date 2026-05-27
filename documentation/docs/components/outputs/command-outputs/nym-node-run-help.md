@@ -72,6 +72,12 @@ Options:
       --upstream-exit-policy-url <UPSTREAM_EXIT_POLICY_URL>                  Specifies the url for an upstream source of the exit policy used by this node [env: NYMNODE_UPSTREAM_EXIT_POLICY=]
       --open-proxy <OPEN_PROXY>                                              Specifies whether this exit node should run in 'open-proxy' mode and thus would attempt to resolve **ANY** request it receives [env:
                                                                              NYMNODE_OPEN_PROXY=] [possible values: true, false]
+      --nr-allow-local-ips <NR_ALLOW_LOCAL_IPS>                              Allow the network requester to forward traffic to non-globally-routable addresses. Intended for local development, private-network
+                                                                             deployments, and testnet scenarios. Not recommended on production exit gateway unless you know what you're doing [env:
+                                                                             NYMNODE_NR_ALLOW_LOCAL_IPS=] [possible values: true, false]
+      --ipr-allow-local-ips <IPR_ALLOW_LOCAL_IPS>                            Allow the IP packet router to forward traffic to non-globally-routable addresses. Intended for local development, private-network
+                                                                             deployments, and testnet scenarios. Not recommended on production exit gateway unless you know what you're doing [env:
+                                                                             NYMNODE_IPR_ALLOW_LOCAL_IPS=] [possible values: true, false]
       --lp-control-bind-address <LP_CONTROL_BIND_ADDRESS>                    Bind address for the TCP LP control traffic. default: `[::]:41264` [env: NYMNODE_LP_CONTROL_BIND_ADDRESS=]
       --lp-control-announce-port <LP_CONTROL_ANNOUNCE_PORT>                  Custom announced port for listening for the TCP LP control traffic. If unspecified, the value from the `lp_control_bind_address` will
                                                                              be used instead [env: NYMNODE_LP_CONTROL_ANNOUNCE_PORT=]

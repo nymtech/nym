@@ -1,6 +1,6 @@
 ---
 title: "dVPN Mode"
-description: "How Nym's decentralized VPN mode routes traffic through two independent gateways, splitting trust so no single operator sees both your identity and destination."
+description: "How Nym's decentralised VPN mode routes traffic through two independent gateways, splitting trust so no single operator sees both your identity and destination."
 schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-03-15"
@@ -8,7 +8,7 @@ lastUpdated: "2026-03-15"
 
 # dVPN Mode
 
-dVPN mode is a 2-hop decentralized VPN available through [NymVPN](https://nymvpn.com). Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
+dVPN mode is a 2-hop decentralised VPN available through [NymVPN](https://nymvpn.com). Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
 
 ## How it works
 

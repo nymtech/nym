@@ -61,9 +61,9 @@ pub mod routes {
         pub mod results {
             use super::*;
 
-            pub const TESTRUN_BY_ID: &str = "/testrun/:id";
-            pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/:node_id";
-            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/:node_id/testruns";
+            pub const TESTRUN_BY_ID: &str = "/testrun/{id}";
+            pub const NYM_NODE_BY_NODE_ID: &str = "/nym-node/{node_id}";
+            pub const NYM_NODE_TESTRUNS: &str = "/nym-node/{node_id}/testruns";
             pub const TESTRUNS_IN_PROGRESS: &str = "/testruns-in-progress";
             pub const TESTRUNS: &str = "/testruns";
             pub const NYM_NODES: &str = "/nym-nodes";

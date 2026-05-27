@@ -40,7 +40,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_task::connections::TransmissionLane;
 
-use nym_lp::packet::frame::SphinxStreamMsgType;
+use nym_lp_data::packet::frame::SphinxStreamMsgType;
 use protocol::{decode_stream_message, encode_stream_message};
 
 use crate::mixnet::native_client::MixnetClient;

@@ -26,6 +26,14 @@ pub trait ContractOpts {
 
     fn addr_make(&self, input: &str) -> Addr;
 
+    fn make_sender_with_funds(&self, input: &str, funds: &[Coin]) -> MessageInfo {
+        message_info(&self.addr_make(input), funds)
+    }
+
+    fn make_sender(&self, input: &str) -> MessageInfo {
+        self.make_sender_with_funds(input, &[])
+    }
+
     fn deps_mut_env(&mut self) -> (DepsMut<'_>, Env) {
         let env = self.env().clone();
         (self.deps_mut(), env)

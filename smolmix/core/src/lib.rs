@@ -1,5 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
 #![doc = include_str!("ARCHITECTURE.md")]
 
@@ -19,8 +18,9 @@ pub use tunnel::Recipient;
 
 /// A TCP stream routed through the mixnet. Implements `AsyncRead + AsyncWrite`.
 ///
-/// Obtained via [`Tunnel::tcp_connect`]. Works as a drop-in replacement for
-/// `tokio::net::TcpStream` with tokio-rustls, hyper, tokio-tungstenite, etc.
+/// Obtained via [`Tunnel::tcp_connect`]. Use it anywhere a
+/// `tokio::net::TcpStream` is accepted: tokio-rustls, hyper, tokio-tungstenite,
+/// and the rest of the async ecosystem.
 ///
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {

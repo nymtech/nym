@@ -18,28 +18,43 @@ use serde::{Deserialize, Serialize};
 pub(crate) const CONTRACT_NAME: &str = "crate:nym-ecash";
 pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Runtime configuration persisted at the `"config"` storage key. Set on
+/// instantiation; the only field mutable through an execute path is
+/// `deposit_amount` (via `UpdateDefaultDepositValue`).
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
+    /// cw4 group contract referenced by the (stubbed) blacklist proposal flow.
     pub group_addr: Cw4Contract,
+
+    /// Cosmos SDK address reserved for the future pool-contract transition.
+    /// Currently never debited.
     pub holding_account: Addr,
 
-    /// Specifies the expected default deposit amount if the sender is not in the whitelisted set.
+    /// Default per-deposit price. Whitelisted senders may pay this *or* their
+    /// per-account reduced amount; everyone else must pay this exact value.
     #[serde(alias = "default_deposit_amount")]
     pub deposit_amount: Coin,
 }
 
-//type aliases for easier reasoning
+/// Blacklist storage key - a bs58-encoded ed25519 public key.
 pub(crate) type BlacklistKey = String;
+
+/// Multisig-issued `proposal_id` returned via the reply pipeline.
 pub(crate) type ProposalId = u64;
 
-// paged retrieval limits for all blacklist queries and transactions
+/// Hard upper bound on the `limit` accepted by paginated blacklist queries.
 pub(crate) const BLACKLIST_PAGE_MAX_LIMIT: u32 = 75;
+/// Default `limit` for paginated blacklist queries when the caller passes None.
 pub(crate) const BLACKLIST_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-// paged retrieval limits for all deposit queries and transactions
+/// Hard upper bound on the `limit` accepted by paginated deposit queries.
 pub(crate) const DEPOSITS_PAGE_MAX_LIMIT: u32 = 100;
+/// Default `limit` for paginated deposit queries when the caller passes None.
 pub(crate) const DEPOSITS_PAGE_DEFAULT_LIMIT: u32 = 50;
 
+/// Build the cw3 `Propose` SubMsg dispatched by `RequestRedemption`. The
+/// embedded message is a self-targeted `RedeemTickets` call that the multisig
+/// will execute once the proposal passes.
 pub(crate) fn create_batch_redemption_proposal(
     tickets_digest: String,
     gw: String,
@@ -70,6 +85,8 @@ pub(crate) fn create_batch_redemption_proposal(
     Ok(submsg)
 }
 
+/// Build the cw3 `Propose` SubMsg for the blacklist flow. **Dead path**: not
+/// reachable from any public ExecuteMsg today; preserved for the redesign.
 pub(crate) fn create_blacklist_proposal(
     public_key: String,
     ecash_bandwidth_address: String,
@@ -100,6 +117,9 @@ pub(crate) fn create_blacklist_proposal(
     Ok(submsg)
 }
 
+/// Extract the multisig-issued `proposal_id` from a cw3 `Propose` reply.
+/// Surfaces `MissingProposalId` / `MalformedProposalId` for the typed-failure
+/// cases the reply handler distinguishes.
 pub(crate) trait MultisigReply {
     fn multisig_proposal_id(&self) -> Result<u64, EcashContractError>;
 }

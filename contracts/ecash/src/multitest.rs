@@ -211,7 +211,7 @@ fn reduced_price_deposit_end_to_end() {
         .call(&whitelisted)
         .unwrap();
 
-    // whitelisted address can also deposit at the default price —
+    // whitelisted address can also deposit at the default price -
     // treated as a normal (non-reduced) deposit for statistics purposes
     contract
         .deposit_ticket_book_funds(vk.to_string())

@@ -73,4 +73,30 @@ impl AppState {
             },
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn dummy() -> Self {
+        use crate::node::key_rotation::key::SphinxPrivateKey;
+        use rand::rngs::OsRng;
+
+        let ed25519_keys = ed25519::KeyPair::new(&mut OsRng);
+        let attester_pk = *ed25519_keys.public_key();
+        let static_information = StaticNodeInformation {
+            ed25519_identity_keys: Arc::new(ed25519_keys),
+            x25519_versioned_noise_key: None,
+            ip_addresses: vec![],
+            hostname: None,
+        };
+        let active_sphinx = ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut OsRng, 0));
+
+        AppState::new(
+            static_information,
+            active_sphinx,
+            NymNodeMetrics::new(),
+            SharedVerlocStats::default(),
+            Url::parse("https://attestation.test").unwrap(),
+            UpgradeModeState::new(attester_pk),
+            Duration::from_secs(60),
+        )
+    }
 }

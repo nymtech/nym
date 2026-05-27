@@ -3,6 +3,7 @@
   "title": "QueryMsg",
   "oneOf": [
     {
+      "description": "Look up a blacklist entry by its bs58-encoded ed25519 public key. Always returns `None` on a freshly deployed contract because the blacklist execute paths are stubbed.",
       "type": "object",
       "required": [
         "get_blacklisted_account"
@@ -24,6 +25,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Paginated listing of blacklist entries. Always empty today (see stubbed blacklist surface). Defaults: limit 50, max 75.",
       "type": "object",
       "required": [
         "get_blacklist_paged"
@@ -53,6 +55,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Default per-deposit price (`Config::deposit_amount`). The `GetRequiredDepositAmount` aliases are kept for backwards compatibility.",
       "type": "object",
       "required": [
         "get_default_deposit_amount"
@@ -66,6 +69,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Per-address reduced deposit price override, if any. `None` for any non-whitelisted address.",
       "type": "object",
       "required": [
         "get_reduced_deposit_amount"
@@ -87,6 +91,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Enumerate every reduced-deposit whitelist entry in ascending address order. Unpaginated by design (the whitelist is expected to stay small).",
       "type": "object",
       "required": [
         "get_all_whitelisted_accounts"
@@ -100,6 +105,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Look up a deposit by id. Returns `{ id, deposit: None }` when the id has not yet been assigned.",
       "type": "object",
       "required": [
         "get_deposit"
@@ -123,6 +129,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Most recently assigned deposit (or `{ deposit: None }` on a fresh contract). See `DepositStorage::latest_deposit`.",
       "type": "object",
       "required": [
         "get_latest_deposit"
@@ -136,6 +143,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Paginated listing of deposits in ascending id order. Defaults: limit 50, max 100.",
       "type": "object",
       "required": [
         "get_deposits_paged"
@@ -167,6 +175,7 @@
       "additionalProperties": false
     },
     {
+      "description": "Aggregate statistics: global totals + per-account custom-price breakdowns. Reassembled in a single read pass from `PoolCounters` and `DepositStatsStorage`.",
       "type": "object",
       "required": [
         "get_deposits_statistics"

@@ -1,0 +1,42 @@
+# Mitigation playbook for CopyFail (CVE-2026-31431) and DirtyFrag (CVE-2026-43284 / CVE-2026-43500)
+# This playbook applies interim module blacklists only
+# Kernel patches are not yet available (May 2026)
+# Once patched kernels ship, use remove_kernel_CVE_mitigations.yml to reverse everything
+# This playbook is idempotent - safe to re-run if mitigations were already applied
+
+- name: Mitigate Copy Fail + Dirty Frag
+  hosts: all
+  become: true
+  tasks:
+    - name: Blacklist algif_aead (Copy Fail)
+      copy:
+        dest: /etc/modprobe.d/disable-algif_aead.conf
+        content: "install algif_aead /bin/false\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Blacklist esp4, esp6, rxrpc (Dirty Frag)
+      copy:
+        dest: /etc/modprobe.d/dirtyfrag.conf
+        content: |
+          install esp4 /bin/false
+          install esp6 /bin/false
+          install rxrpc /bin/false
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Unload all affected modules
+      modprobe:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - algif_aead
+        - esp4
+        - esp6
+        - rxrpc
+      ignore_errors: true
+
+    - name: Drop page cache to clear any contamination
+      shell: echo 3 > /proc/sys/vm/drop_caches

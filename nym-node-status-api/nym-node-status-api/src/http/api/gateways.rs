@@ -16,7 +16,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(gateways))
         .route("/skinny", axum::routing::get(gateways_skinny))
-        .route("/:identity_key", axum::routing::get(get_gateway))
+        .route("/{identity_key}", axum::routing::get(get_gateway))
 }
 
 #[utoipa::path(
@@ -34,8 +34,8 @@ async fn gateways(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<Gateway>>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
 
     Ok(Json(PagedResult::paginate(pagination, res)))
 }
@@ -55,8 +55,8 @@ async fn gateways_skinny(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<GatewaySkinny>>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
     let res: Vec<GatewaySkinny> = filter_bonded_gateways_to_skinny(res);
 
     Ok(Json(PagedResult::paginate(pagination, res)))
@@ -83,8 +83,8 @@ async fn get_gateway(
     Path(IdentityKeyParam { identity_key }): Path<IdentityKeyParam>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<Gateway>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
 
     match res
         .iter()

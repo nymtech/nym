@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LatestDepositResponse",
+  "description": "Response shape for `GetLatestDeposit`. `deposit` is `None` on a freshly deployed contract.",
   "type": "object",
   "properties": {
     "deposit": {
@@ -17,6 +18,7 @@
   "additionalProperties": false,
   "definitions": {
     "Deposit": {
+      "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
       "type": "object",
       "required": [
         "bs58_encoded_ed25519_pubkey"
@@ -29,6 +31,7 @@
       "additionalProperties": false
     },
     "DepositData": {
+      "description": "`(deposit_id, deposit)` pair surfaced by the latest-deposit and paginated deposit queries.",
       "type": "object",
       "required": [
         "deposit",

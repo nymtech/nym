@@ -153,115 +153,116 @@ export const MixFetch = () => {
     error: `Error: ${errorMsg}`,
   };
   const statusColor: Record<typeof status, string> = {
-    idle: "gray",
+    idle: "#9e9e9e",
     starting: "orange",
-    ready: "green",
-    error: "red",
+    ready: "#85E89D",
+    error: "#ff6b6b",
   };
 
   return (
-    <div style={{ marginTop: "1rem" }}>
-      {/* --- Start MixFetch Section --- */}
-      <Paper sx={{ p: 2, mb: 2 }} variant="outlined">
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Button
-            variant="contained"
-            disabled={status === "starting" || status === "ready"}
-            onClick={handleStart}
+    <Box sx={{ mt: 2 }}>
+      <Paper sx={{ p: 3 }}>
+        <Stack spacing={3}>
+          {/* --- Start MixFetch Section --- */}
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Button
+              variant="contained"
+              disabled={status === "starting" || status === "ready"}
+              onClick={handleStart}
+            >
+              Start MixFetch
+            </Button>
+            {status === "starting" && <CircularProgress size={20} />}
+            <Typography
+              fontFamily="monospace"
+              fontSize="small"
+              sx={{ color: statusColor[status] }}
+            >
+              {statusText[status]}
+            </Typography>
+          </Stack>
+
+          {/* --- Fetch Controls (disabled until ready) --- */}
+          <Box
+            sx={{
+              opacity: isReady ? 1 : 0.5,
+              pointerEvents: isReady ? "auto" : "none",
+            }}
           >
-            Start MixFetch
-          </Button>
-          {status === "starting" && <CircularProgress size={20} />}
-          <Typography
-            fontFamily="monospace"
-            fontSize="small"
-            sx={{ color: statusColor[status] }}
-          >
-            {statusText[status]}
-          </Typography>
+            {/* Single fetch */}
+            <Stack direction="row" spacing={2}>
+              <TextField
+                disabled={busy}
+                fullWidth
+                label="URL"
+                type="text"
+                variant="outlined"
+                defaultValue={defaultUrl}
+                onChange={(e) => setUrl(e.target.value)}
+                size="small"
+              />
+              <Button
+                variant="outlined"
+                disabled={busy}
+                onClick={handleFetch}
+              >
+                Fetch
+              </Button>
+            </Stack>
+            {busy && (
+              <Box mt={2}>
+                <CircularProgress />
+              </Box>
+            )}
+            {html && (
+              <>
+                <Box mt={2}>
+                  <strong>Response</strong>
+                </Box>
+                <Paper sx={{ p: 2, mt: 1 }} elevation={4}>
+                  <Typography fontFamily="monospace" fontSize="small">
+                    {html}
+                  </Typography>
+                </Paper>
+              </>
+            )}
+
+            {/* Concurrent fetch demo */}
+            <Box mt={3}>
+              <strong>Concurrent Requests</strong>
+              <Box mt={1}>
+                <Button
+                  variant="outlined"
+                  disabled={concurrentBusy}
+                  onClick={handleConcurrentFetch}
+                >
+                  Send 5 Concurrent Requests (posts/1-5)
+                </Button>
+              </Box>
+            </Box>
+            {concurrentBusy && (
+              <Box mt={2}>
+                <CircularProgress />
+              </Box>
+            )}
+            {concurrentResults.length > 0 && (
+              <Paper sx={{ p: 2, mt: 2 }} elevation={4}>
+                {concurrentResults.map((result, i) => (
+                  <Typography key={i} fontFamily="monospace" fontSize="small">
+                    {result}
+                  </Typography>
+                ))}
+              </Paper>
+            )}
+          </Box>
         </Stack>
       </Paper>
-
-      {/* --- Fetch Controls (disabled until ready) --- */}
-      <Box
-        sx={{
-          opacity: isReady ? 1 : 0.5,
-          pointerEvents: isReady ? "auto" : "none",
-        }}
-      >
-        {/* Single fetch */}
-        <Stack direction="row">
-          <TextField
-            disabled={busy}
-            fullWidth
-            label="URL"
-            type="text"
-            variant="outlined"
-            defaultValue={defaultUrl}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <Button
-            variant="outlined"
-            disabled={busy}
-            sx={{ marginLeft: "1rem" }}
-            onClick={handleFetch}
-          >
-            Fetch
-          </Button>
-        </Stack>
-        {busy && (
-          <Box mt={2}>
-            <CircularProgress />
-          </Box>
-        )}
-        {html && (
-          <>
-            <Box mt={2}>
-              <strong>Response</strong>
-            </Box>
-            <Paper sx={{ p: 2, mt: 1 }} elevation={4}>
-              <Typography fontFamily="monospace" fontSize="small">
-                {html}
-              </Typography>
-            </Paper>
-          </>
-        )}
-
-        {/* Concurrent fetch demo */}
-        <Box mt={3}>
-          <strong>Concurrent Requests</strong>
-          <Box mt={1}>
-            <Button
-              variant="outlined"
-              disabled={concurrentBusy}
-              onClick={handleConcurrentFetch}
-            >
-              Send 5 Concurrent Requests (posts/1-5)
-            </Button>
-          </Box>
-        </Box>
-        {concurrentBusy && (
-          <Box mt={2}>
-            <CircularProgress />
-          </Box>
-        )}
-        {concurrentResults.length > 0 && (
-          <Paper sx={{ p: 2, mt: 2 }} elevation={4}>
-            {concurrentResults.map((result, i) => (
-              <Typography key={i} fontFamily="monospace" fontSize="small">
-                {result}
-              </Typography>
-            ))}
-          </Paper>
-        )}
-      </Box>
 
       {/* --- Log Panel --- */}
       {logs.length > 0 && (
         <Paper
           ref={logContainerRef}
-          sx={{ p: 2, mt: 3, maxHeight: 200, overflow: "auto" }}
-          variant="outlined"
+          sx={{ p: 2, mt: 2, maxHeight: 200, overflow: "auto" }}
         >
           <strong>Log</strong>
           {logs.map((entry, i) => (
@@ -276,6 +277,6 @@ export const MixFetch = () => {
           ))}
         </Paper>
       )}
-    </div>
+    </Box>
   );
 };

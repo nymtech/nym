@@ -17,7 +17,7 @@
 use std::fmt;
 
 use bytes::BytesMut;
-use nym_lp::packet::frame::{
+use nym_lp_data::packet::frame::{
     LpFrame, LpFrameHeader, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 

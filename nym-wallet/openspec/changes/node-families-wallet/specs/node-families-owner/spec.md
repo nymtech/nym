@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
-### Requirement: Family Tab is visible to eligible users and exposes a create entry point
+### Requirement: Family Tab is always visible and exposes create or management based on ownership
 
-The wallet SHALL display a **Family** tab to eligible users (an account whose connected address either owns a family or controls a bonded node). The tab SHALL present a create-family entry point when the connected address does not already own a family. When the address already owns a family, the tab SHALL show the family management surface instead of the create entry point.
+The wallet SHALL display the **Family** tab for every connected wallet account, regardless of whether the account owns a family or controls a bonded node, so that any account can start a new family. When the connected address does not own a family, the tab SHALL present a create-family entry point. When the address already owns a family, the tab SHALL show the family management surface instead of the create entry point.
 
-#### Scenario: Eligible user without a family sees the create entry point
-- **WHEN** an eligible user opens the Family tab and their address owns no family
-- **THEN** the tab renders a "Create family" entry point
+#### Scenario: Account without a family sees the create entry point
+- **WHEN** any connected account opens the Family tab and its address owns no family
+- **THEN** the tab is shown and renders a "Create family" entry point
 
 #### Scenario: Owner sees management surface instead of create
 - **WHEN** the connected address already owns a family
@@ -28,13 +28,13 @@ The wallet SHALL allow an eligible user to create a family by submitting a name 
 - **WHEN** creation fails with `InvalidFamilyCreationFee` or `InvalidDeposit`
 - **THEN** the wallet shows a clear fee error and the family is not created
 
-### Requirement: Family key is generated on creation
+### Requirement: A standalone family key is generated on creation
 
-On successful family creation the wallet SHALL generate a family key (multisig or standalone, per the Discovery decision) and present it to the owner. The exact key mechanism depends on the `node-families-contract` adding key/delegation support; until then the wallet SHALL treat the family key as an opaque value backed by mocked behavior.
+On successful family creation the wallet SHALL generate a **standalone** family key and present it to the owner. The exact key mechanism depends on the `node-families-contract` adding key/delegation support; until then the wallet SHALL treat the family key as an opaque value backed by mocked behavior.
 
-#### Scenario: Family key presented on creation
+#### Scenario: Standalone family key presented on creation
 - **WHEN** a family is created successfully
-- **THEN** the wallet generates and displays the associated family key to the owner
+- **THEN** the wallet generates and displays the associated standalone family key to the owner
 
 ### Requirement: Family owner can add and edit the family name and description
 
@@ -94,7 +94,11 @@ The wallet SHALL list the family's pending invitations with their expiry state (
 
 ### Requirement: Family owner can view the member list grouped by status
 
-The wallet SHALL display all nodes associated with the family grouped into four statuses: **Pending** (active pending invitations), **Joined** (current members), **Rejected** (invitations the node declined), and **Removed** (members that left or were kicked). The list SHALL refresh to reflect current contract state and SHALL render a per-status empty state when a group has no entries. Statuses are derived from the contract queries: pending invitations, current members, and the past-invitation / past-member archives.
+The wallet SHALL display all nodes associated with the family grouped into four statuses: **Pending** (active pending invitations), **Joined** (current members), **Rejected** (invitations the node declined), and **Removed** (members that left or were kicked). The list SHALL refresh to reflect current contract state and SHALL render a per-status empty state when a group has no entries. Statuses are derived from the contract queries: pending invitations, current members, and the past-invitation / past-member archives. Large lists SHALL be paginated using the contract's exclusive `start_after` cursor (default page size 50, max 100), fetching subsequent pages via the returned `start_next_after`.
+
+#### Scenario: Large member list is paginated by cursor
+- **WHEN** a status group has more entries than one page
+- **THEN** the wallet fetches additional pages using `start_after`/`start_next_after` rather than loading the whole list at once
 
 #### Scenario: Members are grouped by status
 - **WHEN** the owner opens the member list

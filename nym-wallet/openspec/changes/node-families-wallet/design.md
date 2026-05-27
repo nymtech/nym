@@ -42,20 +42,26 @@ The mock lives in `src/context/mocks/families.tsx` with fixtures in a co-located
 ### D4: Member-status derivation
 The four UI statuses map to contract reads: **Pending** = `GetPendingInvitationsForFamilyPaged` (carry the `expired` flag), **Joined** = `GetFamilyMembersPaged`, **Rejected** = `GetPastInvitationsForFamilyPaged` filtered to `Rejected` status, **Removed** = `GetPastMembersForFamilyPaged` (left/kicked) plus `Revoked` past invitations where relevant. The derivation lives in a selector hook so both UI and tests share one definition.
 
-### D5: Storybook three-level structure
+### D5: Family tab is always visible; family key is standalone
+The Family tab renders for **every** wallet account (not gated on owning a family or controlling a node), so any account can start a family: it shows the create entry point when the account owns no family and the management surface when it does. The family key produced on creation is a **standalone** key, modelled as an opaque value isolated behind the `createFamily`/`acceptFamilyInvitation` request boundary.
+
+### D6: Large lists are paginated via the contract's exclusive `start_after` cursor
+Member lists and invitation archives use the contract's cursor pagination: each page passes `start_after` (exclusive) and reads `start_next_after` from the response to fetch the next page, with the contract's default limit of 50 (max 100). The TanStack Query read hooks expose this as incremental/infinite pagination; the mock honours the same cursor semantics so paging is exercised without a chain.
+
+### D7: Storybook three-level structure
 - **Components** (`src/components/families/*.stories.tsx`): each component with explicit state args (empty, loading, error, expired, over-limit, success).
 - **Pages** (`src/pages/families/*.stories.tsx`): composed surfaces (owner management page, operator invites page) backed by the mock provider.
 - **Flows** (`*.flow.stories.tsx`): play functions (`@storybook/test`) that perform the user actions end to end (create → invite → accept → kick → disband; operator: receive → accept/reject → leave).
 
-### D6: Playwright runs against the static Storybook build
+### D8: Playwright runs against the static Storybook build
 Because the production app is Tauri (not a plain web target), Playwright e2e specs run against `build-storybook` served statically, exercising the flow stories as real browser sessions. This gives deterministic, chain-free e2e without packaging Tauri. *Alternative considered:* `tauri-driver`/WebDriver against the native app — heavier, flaky in CI, and unnecessary since the contract layer is mocked anyway.
 
-### D7: Creation fee and limits are read from chain config
+### D9: Creation fee and limits are read from chain config
 The UI reads `create_family_fee`, `family_name_length_limit`, and `family_description_length_limit` from contract `Config` (mocked in fixtures), never hardcoding 100 NYM or character counts. Validation is byte-length based to match the contract.
 
 ## Risks / Trade-offs
 
-- **[Family key / delegation not in contract spec]** → Model the family key as an opaque value in types/mocks and isolate it behind the `createFamily`/`acceptFamilyInvitation` boundary so a later contract decision (multisig vs standalone) changes only the request layer, not the UI.
+- **[Family key / delegation not in contract spec]** → Model the standalone family key as an opaque value in types/mocks and isolate it behind the `createFamily`/`acceptFamilyInvitation` boundary, so a later contract decision changes only the request layer, not the UI.
 - **[No `UpdateFamily` edit handler in contract spec]** → Build the edit UI + mock path now; gate real submission behind a feature check so it is dark until the contract adds the handler.
 - **[Status derivation from archives is subtle]** (Rejected vs Revoked vs Removed) → Centralize in one selector hook with unit tests covering each archive→status mapping.
 - **[Playwright-vs-Tauri divergence]** → Storybook flows test UI logic against mocks, not the real IPC bridge; a thin set of manual/native smoke checks should still cover Tauri wiring before release.
@@ -63,12 +69,11 @@ The UI reads `create_family_fee`, `family_name_length_limit`, and `family_descri
 
 ## Migration Plan
 
-Additive only — new tab, context, requests, types, stories, tests. No existing wallet behavior changes. Rollout can be gated by the Family-tab eligibility check (and a feature flag for the contract-dependent edit/key paths) so the surface ships dark until the contract dependencies land. Rollback is removal of the tab entry point.
+Additive only — new tab, context, requests, types, stories, tests. No existing wallet behavior changes. The Family tab is always visible, so rollout is gated only by a feature flag for the contract-dependent edit/key paths (which ship dark until the contract dependencies land). Rollback is removal of the tab entry point.
 
 ## Open Questions
 
-- Family key: multisig or standalone? (NYM-1210 "per Discovery decision".) Determines the create/accept request shape.
 - Will the contract add an `UpdateFamily` handler for NYM-1211 edits, and what is its message shape / auth?
-- Exact eligibility rule for showing the Family tab (owns a family OR controls a bonded node — confirm).
 - Figma file/frame URLs for each component and page (to be supplied at apply time via Figma MCP).
-- Pagination/refresh strategy for large member lists and invitation archives (cursor-based per the contract's `start_after`).
+
+_Resolved:_ family key is **standalone**; the Family tab is **always visible**; large lists are **paginated via the contract's `start_after` cursor** (default 50, max 100).

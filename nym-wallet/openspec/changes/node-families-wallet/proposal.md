@@ -5,7 +5,7 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 ## What Changes
 
 **Family owner flows (NYM-1210–1215)**
-- New **Family Tab** visible to eligible users, with create-family entry point.
+- New **Family Tab**, always visible to any wallet account: shows a create-family entry point when the account owns no family, and the family management surface when it does.
 - Create a family: attach the configured creation fee (`Config::create_family_fee`), set name + description, surface insufficient-balance and fee errors.
 - Add/edit family **name** and **description**, with byte-length limits and input sanitisation, inline over-limit errors.
 - Invite a node by **node ID**: triggers the contract invite (nonce/TTL via `validity_secs`), with confirmation; warns and does not send if the node is already in a family, does not exist, or already has a pending invite from this family.
@@ -27,7 +27,7 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 - UI implemented from **Figma** (designs supplied via Figma MCP during apply).
 
 **Contract dependencies — NOT covered by the current `node-families-contract` spec** (see Impact; flagged for resolution):
-- **Family key / multisig / delegation of node control** (NYM-1210, NYM-1217): the contract spec models ownership as `info.sender` and acceptance as a membership record only — there is no key-generation or control-delegation mechanism. NYM-1210 marks this "per Discovery decision."
+- **Family key (standalone) / delegation of node control** (NYM-1210, NYM-1217): the contract spec models ownership as `info.sender` and acceptance as a membership record only — there is no key-generation or control-delegation mechanism. The family key is a **standalone** key.
 - **Edit name/description after creation** (NYM-1211): the contract spec has `CreateFamily` (carries name/description) and `UpdateConfig` (admin) but **no `UpdateFamily` edit handler**.
 
 ## Capabilities

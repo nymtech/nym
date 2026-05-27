@@ -1,7 +1,7 @@
 ## 1. Types & request bindings
 
 - [ ] 1.1 Add TS types in `src/types` for `NodeFamily`, `FamilyMembership`, `FamilyInvitation`, `PendingFamilyInvitationDetails`, `PastFamilyInvitation` (with status), `PastFamilyMember`, and contract `Config` (fee + limits)
-- [ ] 1.2 Add an opaque `FamilyKey` type and create/accept request args that carry it (isolated so the multisig-vs-standalone decision changes only this layer)
+- [ ] 1.2 Add a standalone `FamilyKey` type (opaque value) and create/accept request args that carry it, isolated behind the request layer
 - [ ] 1.3 Add `src/requests/families.ts` Tauri IPC bindings for execute msgs: createFamily, updateFamily (edit, dark/gated), disbandFamily, inviteToFamily, revokeFamilyInvitation, kickFromFamily, acceptFamilyInvitation, rejectFamilyInvitation, leaveFamily
 - [ ] 1.4 Add query bindings: getFamilyByOwner, getFamilyMembership, family members paged, pending invitations for family/node paged, past invitations for family paged, past members for family paged, config
 - [ ] 1.5 Export new requests from `src/requests/index.ts`
@@ -45,7 +45,7 @@
 
 ## 6. Family Tab & pages
 
-- [ ] 6.1 Add the Family tab entry point with eligibility gating (owns a family OR controls a bonded node)
+- [ ] 6.1 Add the Family tab, always visible for every wallet account (no eligibility gating)
 - [ ] 6.2 Owner management page composing components from section 4
 - [ ] 6.3 Operator invites page composing components from section 5
 - [ ] 6.4 Route between create entry point and management surface based on ownership

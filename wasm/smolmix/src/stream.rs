@@ -7,7 +7,6 @@ use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU16, Ordering};
-use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use futures::io::{AsyncRead, AsyncWrite};
@@ -28,13 +27,13 @@ pub(crate) const EPHEMERAL_PORT_START: u16 = 49152;
 /// need a TLS stack at all.
 pub(crate) enum PooledConn {
     #[cfg(any(feature = "fetch", feature = "socket"))]
-    Tls(futures_rustls::client::TlsStream<WasmTcpStream>),
+    Tls(crate::tls::MaybeCloseNotify<futures_rustls::client::TlsStream<WasmTcpStream>>),
     Plain(WasmTcpStream),
 }
 
 /// TCP stream over the WASM tunnel. Implements `futures::io::{AsyncRead, AsyncWrite}`.
 pub struct WasmTcpStream {
-    pub(crate) stack: Arc<Mutex<SmoltcpStack>>,
+    pub(crate) stack: SmoltcpStack,
     pub(crate) handle: SocketHandle,
     pub(crate) notify: ReactorNotify,
     /// Set once `socket.close()` has been called (via `poll_close` or
@@ -44,7 +43,7 @@ pub struct WasmTcpStream {
 
 /// UDP socket over the WASM tunnel. Used for DNS queries.
 pub struct WasmUdpSocket {
-    pub(crate) stack: Arc<Mutex<SmoltcpStack>>,
+    pub(crate) stack: SmoltcpStack,
     pub(crate) handle: SocketHandle,
     pub(crate) notify: ReactorNotify,
 }
@@ -55,33 +54,36 @@ impl AsyncRead for WasmTcpStream {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
+        let handle = self.handle;
+        let notify = &self.notify;
+        self.stack.with(|s| {
+            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
 
-        if socket.can_recv() {
-            let n = socket
-                .recv_slice(buf)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-            crate::util::debug_log!("[tcp:read] Ready({n})");
-            // Notify reactor: recv_slice() frees rx buffer, needs a
-            // prompt window update ACK to keep the sender flowing.
-            self.notify.notify_one();
-            Poll::Ready(Ok(n))
-        } else if !socket.may_recv() {
-            // Remote sent FIN (EOF). `may_recv()` is false for CloseWait,
-            // LastAck, Closed, TimeWait (unlike `is_open()` which misses CloseWait).
-            Poll::Ready(Ok(0))
-        } else {
-            crate::util::debug_log!(
-                "[tcp:read] Pending (state={:?}, buf={})",
-                socket.state(),
-                buf.len(),
-            );
-            // smoltcp wakes this waker on any state change affecting `recv`,
-            // including FIN/CloseWait transitions that produce EOF.
-            socket.register_recv_waker(cx.waker());
-            Poll::Pending
-        }
+            if socket.can_recv() {
+                let n = socket
+                    .recv_slice(buf)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                crate::util::debug_log!("[tcp:read] Ready({n})");
+                // Notify reactor: recv_slice() frees rx buffer, needs a
+                // prompt window update ACK to keep the sender flowing.
+                notify.notify_one();
+                Poll::Ready(Ok(n))
+            } else if !socket.may_recv() {
+                // Remote sent FIN (EOF). `may_recv()` is false for CloseWait,
+                // LastAck, Closed, TimeWait (unlike `is_open()` which misses CloseWait).
+                Poll::Ready(Ok(0))
+            } else {
+                crate::util::debug_log!(
+                    "[tcp:read] Pending (state={:?}, buf={})",
+                    socket.state(),
+                    buf.len(),
+                );
+                // smoltcp wakes this waker on any state change affecting `recv`,
+                // including FIN/CloseWait transitions that produce EOF.
+                socket.register_recv_waker(cx.waker());
+                Poll::Pending
+            }
+        })
     }
 }
 
@@ -91,24 +93,27 @@ impl AsyncWrite for WasmTcpStream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        let mut s = self.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(self.handle);
+        let handle = self.handle;
+        let notify = &self.notify;
+        self.stack.with(|s| {
+            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
 
-        if socket.can_send() {
-            let n = socket
-                .send_slice(buf)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-            self.notify.notify_one();
-            Poll::Ready(Ok(n))
-        } else if !socket.is_open() {
-            Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::BrokenPipe,
-                "socket closed",
-            )))
-        } else {
-            socket.register_send_waker(cx.waker());
-            Poll::Pending
-        }
+            if socket.can_send() {
+                let n = socket
+                    .send_slice(buf)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                notify.notify_one();
+                Poll::Ready(Ok(n))
+            } else if !socket.is_open() {
+                Poll::Ready(Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "socket closed",
+                )))
+            } else {
+                socket.register_send_waker(cx.waker());
+                Poll::Pending
+            }
+        })
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -120,20 +125,24 @@ impl AsyncWrite for WasmTcpStream {
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
-        let mut s = this.stack.lock().unwrap();
-        let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(this.handle);
-        if !this.closed {
-            socket.close();
-            this.closed = true;
-            this.notify.notify_one();
-        }
-        if socket.state() == smoltcp_tcp::State::Closed {
-            Poll::Ready(Ok(()))
-        } else {
-            // Wake on state-change progress through the FIN/ACK exchange.
-            socket.register_send_waker(cx.waker());
-            Poll::Pending
-        }
+        let handle = this.handle;
+        let notify = &this.notify;
+        let closed = &mut this.closed;
+        this.stack.with(|s| {
+            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
+            if !*closed {
+                socket.close();
+                *closed = true;
+                notify.notify_one();
+            }
+            if socket.state() == smoltcp_tcp::State::Closed {
+                Poll::Ready(Ok(()))
+            } else {
+                // Wake on state-change progress through the FIN/ACK exchange.
+                socket.register_send_waker(cx.waker());
+                Poll::Pending
+            }
+        })
     }
 }
 
@@ -144,11 +153,11 @@ impl Drop for WasmTcpStream {
         // Queue a FIN (vs `abort()` which sends RST). The
         // reactor's pending_removal sweep removes the handle once smoltcp
         // transitions through the FIN/ACK exchange to State::Closed.
-        let mut s = self.stack.lock().unwrap();
-        s.sockets
-            .get_mut::<smoltcp_tcp::Socket>(self.handle)
-            .close();
-        s.pending_removal.push(self.handle);
+        let handle = self.handle;
+        self.stack.with(|s| {
+            s.sockets.get_mut::<smoltcp_tcp::Socket>(handle).close();
+            s.pending_removal.push(handle);
+        });
         self.notify.notify_one();
     }
 }
@@ -208,19 +217,20 @@ impl WasmUdpSocket {
         let notify = self.notify.clone();
 
         futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
+            stack.with(|s| {
+                let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
 
-            if socket.can_send() {
-                socket
-                    .send_slice(buf, endpoint)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-                notify.notify_one();
-                Poll::Ready(Ok(buf.len()))
-            } else {
-                socket.register_send_waker(cx.waker());
-                Poll::Pending
-            }
+                if socket.can_send() {
+                    socket
+                        .send_slice(buf, endpoint)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                    notify.notify_one();
+                    Poll::Ready(Ok(buf.len()))
+                } else {
+                    socket.register_send_waker(cx.waker());
+                    Poll::Pending
+                }
+            })
         })
         .await
     }
@@ -231,19 +241,20 @@ impl WasmUdpSocket {
         let handle = self.handle;
 
         futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
+            stack.with(|s| {
+                let socket = s.sockets.get_mut::<smoltcp_udp::Socket>(handle);
 
-            if socket.can_recv() {
-                let (n, meta) = socket
-                    .recv_slice(buf)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
-                let src = from_smoltcp_endpoint(meta.endpoint);
-                Poll::Ready(Ok((n, src)))
-            } else {
-                socket.register_recv_waker(cx.waker());
-                Poll::Pending
-            }
+                if socket.can_recv() {
+                    let (n, meta) = socket
+                        .recv_slice(buf)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                    let src = from_smoltcp_endpoint(meta.endpoint);
+                    Poll::Ready(Ok((n, src)))
+                } else {
+                    socket.register_recv_waker(cx.waker());
+                    Poll::Pending
+                }
+            })
         })
         .await
     }
@@ -251,8 +262,10 @@ impl WasmUdpSocket {
 
 impl Drop for WasmUdpSocket {
     fn drop(&mut self) {
-        let mut s = self.stack.lock().unwrap();
-        s.sockets.remove(self.handle);
+        let handle = self.handle;
+        self.stack.with(|s| {
+            s.sockets.remove(handle);
+        });
     }
 }
 
@@ -278,7 +291,7 @@ pub(crate) fn allocate_port() -> u16 {
 /// from the `SocketSet`. On success, `defuse()` disarms the guard and hands
 /// back the handle for ownership transfer into `WasmTcpStream`.
 struct InflightSocket {
-    stack: Option<Arc<Mutex<SmoltcpStack>>>,
+    stack: Option<SmoltcpStack>,
     handle: SocketHandle,
 }
 
@@ -292,8 +305,10 @@ impl InflightSocket {
 impl Drop for InflightSocket {
     fn drop(&mut self) {
         if let Some(stack) = self.stack.take() {
-            let mut s = stack.lock().unwrap();
-            s.sockets.remove(self.handle);
+            let handle = self.handle;
+            stack.with(|s| {
+                s.sockets.remove(handle);
+            });
         }
     }
 }
@@ -304,7 +319,7 @@ impl Drop for InflightSocket {
 /// draw from the process-wide [`EPHEMERAL_PORT`] counter so allocations
 /// don't collide.
 pub(crate) async fn tcp_connect(
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     notify: ReactorNotify,
     addr: SocketAddr,
 ) -> io::Result<WasmTcpStream> {
@@ -318,14 +333,9 @@ pub(crate) async fn tcp_connect(
 
     // Synchronous phase: add + connect under one lock. If `connect()` errors,
     // clean up immediately while we still hold the lock.
-    let handle = {
-        let mut s = stack.lock().unwrap();
+    let handle = stack.with(|s| -> io::Result<SocketHandle> {
         let handle = s.sockets.add(socket);
-        let SmoltcpStack {
-            ref mut iface,
-            ref mut sockets,
-            ..
-        } = *s;
+        let crate::reactor::SmoltcpStackInner { iface, sockets, .. } = s;
         if let Err(e) = sockets.get_mut::<smoltcp_tcp::Socket>(handle).connect(
             iface.context(),
             remote,
@@ -337,8 +347,8 @@ pub(crate) async fn tcp_connect(
                 format!("{e:?}"),
             ));
         }
-        handle
-    };
+        Ok(handle)
+    })?;
 
     notify.notify_one();
 
@@ -352,24 +362,25 @@ pub(crate) async fn tcp_connect(
     {
         let stack = stack.clone();
         futures::future::poll_fn(move |cx| {
-            let mut s = stack.lock().unwrap();
-            let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
-            match socket.state() {
-                smoltcp_tcp::State::Established | smoltcp_tcp::State::CloseWait => {
-                    Poll::Ready(Ok(()))
+            stack.with(|s| {
+                let socket = s.sockets.get_mut::<smoltcp_tcp::Socket>(handle);
+                match socket.state() {
+                    smoltcp_tcp::State::Established | smoltcp_tcp::State::CloseWait => {
+                        Poll::Ready(Ok(()))
+                    }
+                    smoltcp_tcp::State::Closed => {
+                        crate::util::debug_error!("[stream] TCP state: Closed, connection failed");
+                        Poll::Ready(Err(io::Error::new(
+                            io::ErrorKind::ConnectionRefused,
+                            "TCP connection failed",
+                        )))
+                    }
+                    _ => {
+                        socket.register_recv_waker(cx.waker());
+                        Poll::Pending
+                    }
                 }
-                smoltcp_tcp::State::Closed => {
-                    crate::util::debug_error!("[stream] TCP state: Closed, connection failed");
-                    Poll::Ready(Err(io::Error::new(
-                        io::ErrorKind::ConnectionRefused,
-                        "TCP connection failed",
-                    )))
-                }
-                _ => {
-                    socket.register_recv_waker(cx.waker());
-                    Poll::Pending
-                }
-            }
+            })
         })
         .await?;
     }
@@ -384,7 +395,7 @@ pub(crate) async fn tcp_connect(
 
 /// Create a UDP socket bound to a fresh ephemeral port.
 pub(crate) fn create_udp_socket(
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     notify: ReactorNotify,
 ) -> io::Result<WasmUdpSocket> {
     let local_port = allocate_port();
@@ -401,10 +412,7 @@ pub(crate) fn create_udp_socket(
         .bind(local_port)
         .map_err(|_| io::Error::new(io::ErrorKind::AddrInUse, "UDP bind failed"))?;
 
-    let handle = {
-        let mut s = stack.lock().unwrap();
-        s.sockets.add(socket)
-    };
+    let handle = stack.with(|s| s.sockets.add(socket));
 
     Ok(WasmUdpSocket {
         stack,

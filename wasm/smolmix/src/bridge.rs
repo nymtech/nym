@@ -11,7 +11,7 @@
 //! **Incoming** (mixnet → smoltcp): receive `ReconstructedMessage` batches,
 //! LP-decode, parse IPR responses, unbundle IP packets, push to device rx.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures::{FutureExt, StreamExt};
@@ -41,7 +41,7 @@ const MAX_OUTGOING_PER_TICK: usize = 8;
 /// dominate `select!` if always ready.
 #[allow(clippy::too_many_arguments)]
 pub fn start_bridge(
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     client_input: Arc<ClientInput>,
     mut msg_receiver: ReconstructedReceiver,
     ipr_address: Recipient,
@@ -88,10 +88,8 @@ pub fn start_bridge(
                 }
 
                 // Drain outgoing packets (capped to avoid starving incoming).
-                let packets: Vec<Vec<u8>> = {
-                    let mut s = stack.lock().unwrap();
-                    s.device.drain_tx().take(MAX_OUTGOING_PER_TICK).collect()
-                };
+                let packets: Vec<Vec<u8>> =
+                    stack.with(|s| s.device.drain_tx().take(MAX_OUTGOING_PER_TICK).collect());
 
                 if !packets.is_empty() {
                     crate::util::debug_log!("[bridge] ▲ tx ({} packets)", packets.len());
@@ -123,7 +121,7 @@ pub fn start_bridge(
 /// Process a batch of incoming mixnet messages: LP-decode, parse IPR
 /// responses, push IP packets to the device rx queue, notify reactor.
 fn process_incoming(
-    stack: &Arc<Mutex<SmoltcpStack>>,
+    stack: &SmoltcpStack,
     messages: &[nym_wasm_client_core::ReconstructedMessage],
     stream_id: u64,
     notify_reactor: &ReactorNotify,
@@ -132,11 +130,12 @@ fn process_incoming(
     for msg in messages {
         match ipr::parse_incoming(msg, stream_id) {
             Ok(Some(packets)) => {
-                let mut s = stack.lock().unwrap();
-                for packet in &packets {
-                    s.device.push_rx(packet.clone());
-                    pushed += 1;
-                }
+                stack.with(|s| {
+                    for packet in &packets {
+                        s.device.push_rx(packet.clone());
+                        pushed += 1;
+                    }
+                });
             }
             Ok(None) => {}
             Err(e) => {

@@ -16,6 +16,9 @@ crate-type = ["cdylib", "rlib"]
 futures = { workspace = true }
 js-sys = { workspace = true }
 thiserror = { workspace = true }
+# `sync` feature only: gives us `tokio::sync::Notify` (the reactor wake source)
+# without pulling in tokio's runtime (wasm32-incompatible).
+tokio = { workspace = true, features = ["sync"] }
 url = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }

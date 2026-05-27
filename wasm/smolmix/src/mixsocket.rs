@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
 
 use crate::error::FetchError;
@@ -169,7 +169,7 @@ async fn ws_task(
     on_event: js_sys::Function,
 ) {
     use async_tungstenite::tungstenite::Message;
-    use futures::{select, SinkExt, StreamExt};
+    use futures::{SinkExt, StreamExt, select};
 
     util::debug_log!("[ws:{handle_id}] background task started");
 

@@ -13,21 +13,21 @@
 //! ```
 
 use bytes::{Bytes, BytesMut};
-use futures::channel::mpsc;
 use futures::StreamExt;
+use futures::channel::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
 use nym_ip_packet_requests::IpPair;
+use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
 use nym_lp_data::packet::frame::{
     LpFrame, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
+use nym_wasm_client_core::Recipient;
+use nym_wasm_client_core::ReconstructedMessage;
 use nym_wasm_client_core::client::base_client::ClientInput;
 use nym_wasm_client_core::client::inbound_messages::InputMessage;
 use nym_wasm_client_core::nym_task::connections::TransmissionLane;
-use nym_wasm_client_core::Recipient;
-use nym_wasm_client_core::ReconstructedMessage;
 
 use crate::error::FetchError;
 
@@ -84,17 +84,35 @@ pub async fn open_and_connect(
                 .ok_or_else(|| FetchError::Tunnel("message channel closed".into()))?;
 
             for msg in batch {
+                // nym-client-core's received_buffer filters cover traffic
+                // before delivery, so an outer LP-decode failure here is a
+                // "shouldn't happen" signal: either a non-LP straggler or
+                // garbage. We log and continue rather than bail (bailing
+                // would open a single-spoofed-message DoS on the handshake);
+                // tightening to fail-fast belongs with the IPR-auth design.
                 let Some((attrs, content)) = decode_lp_stream(&msg.message) else {
+                    crate::util::debug_error!(
+                        "[ipr] non-LP-stream message received during handshake (dropped)"
+                    );
                     continue;
                 };
 
                 if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
+                    // Late straggler from a different stream/session — expected.
                     continue;
                 }
 
                 let response = match IpPacketResponse::from_bytes(&content) {
                     Ok(r) => r,
-                    Err(_) => continue,
+                    Err(e) => {
+                        // Decoded as LP for our stream + msg_type, but content
+                        // didn't parse as an IPR response. Logged for the same
+                        // reason as the outer decode failure above.
+                        crate::util::debug_error!(
+                            "[ipr] malformed IpPacketResponse on our stream (dropped): {e}"
+                        );
+                        continue;
+                    }
                 };
 
                 if response.id() != Some(request_id) {

@@ -17,8 +17,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures::channel::mpsc;
-use smoltcp::iface::{Config, SocketSet};
+use smoltcp::iface::Config;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address, Ipv6Address};
+use tokio::sync::Notify;
 
 use nym_ip_packet_requests::IpPair;
 use nym_wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput};
@@ -163,7 +164,7 @@ impl TunnelOptsBuilder {
 
 /// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
 pub struct WasmTunnel {
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     notify: ReactorNotify,
     allocated_ips: IpPair,
     /// Resolved per-tunnel DNS endpoints (primary, fallback). Either falls
@@ -199,7 +200,7 @@ struct ClientHandles {
 
 /// smoltcp handles returned by `init_network_stack` (reactor + bridge already spawned).
 struct NetworkStack {
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     notify: ReactorNotify,
 }
 
@@ -424,14 +425,8 @@ impl WasmTunnel {
             .add_default_ipv6_route(Ipv6Address::UNSPECIFIED)
             .expect("smoltcp routes table full");
 
-        let stack = Arc::new(Mutex::new(SmoltcpStack {
-            iface,
-            sockets: SocketSet::new(Vec::new()),
-            device,
-            pending_removal: Vec::new(),
-        }));
-
-        let notify = Arc::new(tokio::sync::Notify::new());
+        let stack = SmoltcpStack::new(iface, device);
+        let notify = Arc::new(Notify::new());
 
         reactor::start_reactor(stack.clone(), notify.clone(), tracker, state.clone());
         bridge::start_bridge(

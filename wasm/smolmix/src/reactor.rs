@@ -30,17 +30,51 @@ const MAX_IDLE: Duration = Duration::from_secs(60);
 
 /// Shared smoltcp network stack, accessed by the reactor, bridge, and sockets.
 ///
-/// Wrapped in `Arc<Mutex<>>` (not `Rc<RefCell<>>`) so that `WasmTunnel` can
-/// live in a `OnceLock` which requires `Send + Sync`. On wasm32 (single-threaded),
+/// Inner is reached only via [`SmoltcpStack::with`], which scopes lock
+/// acquisition to a single closure and prevents callers from holding the
+/// guard across `.await` points.
+///
+/// `Arc<Mutex<>>` so that `WasmTunnel` can live in a
+/// `OnceLock` which requires `Send + Sync`. On wasm32 (single-threaded),
 /// `Mutex` is essentially a no-op lock, zero overhead vs `RefCell`.
+#[derive(Clone)]
 pub struct SmoltcpStack {
-    pub iface: Interface,
-    pub sockets: SocketSet<'static>,
-    pub device: WasmDevice,
+    inner: Arc<Mutex<SmoltcpStackInner>>,
+}
+
+/// Inner state of the smoltcp stack. Only reachable inside a `with` closure.
+pub(crate) struct SmoltcpStackInner {
+    pub(crate) iface: Interface,
+    pub(crate) sockets: SocketSet<'static>,
+    pub(crate) device: WasmDevice,
     /// TCP handles awaiting clean removal: their `Drop` queued a FIN via
     /// `socket.close()` but smoltcp hasn't transitioned to `State::Closed`
     /// yet. Swept after each `iface.poll()`.
-    pub pending_removal: Vec<SocketHandle>,
+    pub(crate) pending_removal: Vec<SocketHandle>,
+}
+
+impl SmoltcpStack {
+    /// Construct a fresh stack around the given interface + device.
+    pub fn new(iface: Interface, device: WasmDevice) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(SmoltcpStackInner {
+                iface,
+                sockets: SocketSet::new(Vec::new()),
+                device,
+                pending_removal: Vec::new(),
+            })),
+        }
+    }
+
+    /// Acquire the lock for a single bounded scope of work.
+    ///
+    /// The lock is held for the duration of the closure only; callers
+    /// physically cannot hold it across `.await` because the closure is
+    /// synchronous.
+    pub(crate) fn with<R>(&self, f: impl FnOnce(&mut SmoltcpStackInner) -> R) -> R {
+        let mut g = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+        f(&mut g)
+    }
 }
 
 /// Monotonic epoch anchor for `smoltcp_now`. Lazily initialised on first call.
@@ -97,7 +131,7 @@ pub type ReactorNotify = Arc<Notify>;
 /// `iface.poll()` to ingest them) and from socket writes (data queued in
 /// smoltcp's tx buffer, needing `iface.poll()` to dispatch it to the device).
 pub fn start_reactor(
-    stack: Arc<Mutex<SmoltcpStack>>,
+    stack: SmoltcpStack,
     notify: Arc<Notify>,
     tracker: &ShutdownTracker,
     state: State,
@@ -108,15 +142,14 @@ pub fn start_reactor(
         async move {
             loop {
                 // Poll smoltcp; built-in socket wakers fire on any state change.
-                let delay = {
-                    let mut s = stack.lock().unwrap_or_else(|p| p.into_inner());
+                let delay = stack.with(|s| {
                     let now = smoltcp_now();
-                    let SmoltcpStack {
-                        ref mut iface,
-                        ref mut sockets,
-                        ref mut device,
-                        ref mut pending_removal,
-                    } = *s;
+                    let SmoltcpStackInner {
+                        iface,
+                        sockets,
+                        device,
+                        pending_removal,
+                    } = s;
                     iface.poll(now, device, sockets);
 
                     // Sweep handles whose FIN/ACK exchange just completed.
@@ -132,7 +165,7 @@ pub fn start_reactor(
                     });
 
                     iface.poll_delay(now, sockets)
-                };
+                });
 
                 // Translate smoltcp's deadline into a wait. A zero delay means
                 // "poll again immediately"; yield to the JS event loop via

@@ -173,9 +173,7 @@ async fn query_record(
 fn build_query(hostname: &str, record_type: RecordType) -> Result<(Vec<u8>, u16), FetchError> {
     let mut msg = Message::query();
     msg.metadata.recursion_desired = true;
-    // Override the auto-generated ID with a CSPRNG value (getrandom/js).
-    let id: u16 = rand::random();
-    msg.metadata.id = id;
+    let id = msg.metadata.id;
 
     let name = Name::from_ascii(hostname)
         .map_err(|e| FetchError::Dns(format!("invalid hostname '{hostname}': {e}")))?;

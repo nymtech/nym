@@ -8,6 +8,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use futures::io::{AsyncRead, AsyncWrite};
 use smoltcp::iface::SocketHandle;
@@ -322,14 +323,19 @@ pub(crate) async fn tcp_connect(
     stack: SmoltcpStack,
     notify: ReactorNotify,
     addr: SocketAddr,
+    keepalive: Duration,
+    buffer_size: usize,
 ) -> io::Result<WasmTcpStream> {
     let remote = to_smoltcp_endpoint(addr);
     let local_port = allocate_port();
-    // 65535 = u16::MAX, matching the TCP advertised window field width.
-    let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; 65535]);
-    let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; 65535]);
+    // Caller-supplied buffer size, capped at u16::MAX (TCP window field width).
+    let buf_size = buffer_size.min(u16::MAX as usize);
+    let tcp_rx = smoltcp_tcp::SocketBuffer::new(vec![0; buf_size]);
+    let tcp_tx = smoltcp_tcp::SocketBuffer::new(vec![0; buf_size]);
     let mut socket = smoltcp_tcp::Socket::new(tcp_rx, tcp_tx);
-    socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(10_000)));
+    socket.set_keep_alive(Some(smoltcp::time::Duration::from_millis(
+        keepalive.as_millis() as u64,
+    )));
 
     // Synchronous phase: add + connect under one lock. If `connect()` errors,
     // clean up immediately while we still hold the lock.

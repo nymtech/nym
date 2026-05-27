@@ -10,4 +10,7 @@
 
 pub(crate) use nym_wasm_utils::debug_error;
 pub(crate) use nym_wasm_utils::debug_log;
+// Only referenced from inside `debug_log!(...)` macros, which compile to `()`
+// when the `debug` feature is off — so the import is unused in release builds.
+#[cfg(feature = "debug")]
 pub(crate) use nym_wasm_utils::hex_preview;

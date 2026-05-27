@@ -23,7 +23,7 @@ tracing = { workspace = true }
 time = { workspace = true }
 
 
-nym-validator-client = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-network-defaults = { workspace = true }
 nym-http-api-client = { workspace = true }

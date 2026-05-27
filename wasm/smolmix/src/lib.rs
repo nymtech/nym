@@ -13,6 +13,8 @@
 //! via `setupMixTunnel(opts)` and torn down with `disconnectMixTunnel()`.
 
 // All modules gated on wasm32 so `cargo check` on the host triple sees an empty crate.
+// Cargo features (`dns` / `fetch` / `socket`) further gate the entry-point modules
+// and their heavy deps; see [features] in Cargo.toml.
 #[cfg(target_arch = "wasm32")]
 mod bridge;
 #[cfg(target_arch = "wasm32")]
@@ -21,17 +23,17 @@ mod device;
 mod dns;
 #[cfg(target_arch = "wasm32")]
 mod error;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "socket")))]
 mod fetch;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "fetch"))]
 mod http;
 #[cfg(target_arch = "wasm32")]
 mod ipr;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "dns"))]
 mod mixdns;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "fetch"))]
 mod mixfetch;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "socket"))]
 mod mixsocket;
 #[cfg(target_arch = "wasm32")]
 mod reactor;
@@ -39,7 +41,7 @@ mod reactor;
 mod state;
 #[cfg(target_arch = "wasm32")]
 mod stream;
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "socket")))]
 mod tls;
 #[cfg(target_arch = "wasm32")]
 mod tunnel;
@@ -118,6 +120,18 @@ pub struct SetupOpts {
     /// Fallback DNS resolver used if the primary times out. Defaults to `1.1.1.1:53`.
     #[serde(default)]
     pub fallback_dns: Option<String>,
+    /// Passphrase used to encrypt persistent client storage (identity keys,
+    /// gateway details). Omit for plaintext storage. The same passphrase
+    /// must be supplied on subsequent page loads to read the same keys.
+    #[serde(default)]
+    pub storage_passphrase: Option<String>,
+    /// IPR connect handshake timeout in milliseconds. Defaults to 60000.
+    #[serde(default)]
+    pub connect_timeout_ms: Option<u32>,
+    /// DNS query timeout in milliseconds (per primary/fallback attempt).
+    /// Defaults to 30000.
+    #[serde(default)]
+    pub dns_timeout_ms: Option<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -171,16 +185,33 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
                     .transpose()
                 };
 
-            let tunnel_opts = tunnel::TunnelOpts {
-                ipr_address,
-                client_id: opts.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()),
-                force_tls: opts.force_tls,
-                disable_poisson_traffic: opts.disable_poisson_traffic,
-                disable_cover_traffic: opts.disable_cover_traffic,
-                surbs,
-                primary_dns: parse_dns(opts.primary_dns)?,
-                fallback_dns: parse_dns(opts.fallback_dns)?,
-            };
+            let mut builder = tunnel::TunnelOpts::builder()
+                .client_id(opts.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()))
+                .force_tls(opts.force_tls)
+                .disable_poisson_traffic(opts.disable_poisson_traffic)
+                .disable_cover_traffic(opts.disable_cover_traffic)
+                .surbs(surbs);
+
+            if let Some(ipr) = ipr_address {
+                builder = builder.ipr_address(ipr);
+            }
+            if let Some(addr) = parse_dns(opts.primary_dns)? {
+                builder = builder.primary_dns(addr);
+            }
+            if let Some(addr) = parse_dns(opts.fallback_dns)? {
+                builder = builder.fallback_dns(addr);
+            }
+            if let Some(p) = opts.storage_passphrase {
+                builder = builder.storage_passphrase(p);
+            }
+            if let Some(ms) = opts.connect_timeout_ms {
+                builder = builder.connect_timeout(std::time::Duration::from_millis(ms as u64));
+            }
+            if let Some(ms) = opts.dns_timeout_ms {
+                builder = builder.dns_timeout(std::time::Duration::from_millis(ms as u64));
+            }
+
+            let tunnel_opts = builder.build();
 
             let tun = WasmTunnel::new(tunnel_opts).await?;
 

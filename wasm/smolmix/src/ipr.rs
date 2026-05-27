@@ -44,9 +44,6 @@ impl Default for SurbsConfig {
     }
 }
 
-/// Timeout for the IPR connect handshake.
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
-
 /// Type alias for the channel receiving batches of reconstructed messages.
 pub type ReconstructedReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
@@ -60,6 +57,7 @@ pub async fn open_and_connect(
     ipr_address: &Recipient,
     stream_id: u64,
     surbs: SurbsConfig,
+    connect_timeout: Duration,
 ) -> Result<IpPair, FetchError> {
     nym_wasm_utils::console_log!("[ipr] sending connect handshake...");
     crate::util::debug_log!("[ipr] stream={stream_id:#018x}");
@@ -78,7 +76,7 @@ pub async fn open_and_connect(
     send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
 
     // 3. Wait for ConnectSuccess response
-    let ip_pair = wasmtimer::tokio::timeout(CONNECT_TIMEOUT, async {
+    let ip_pair = wasmtimer::tokio::timeout(connect_timeout, async {
         loop {
             let batch = receiver
                 .next()

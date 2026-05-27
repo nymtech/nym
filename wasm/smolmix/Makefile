@@ -5,7 +5,7 @@
 TASKSET ?= taskset -c 0-11
 
 .PHONY: build build-rust build-debug build-release-opt check-fmt dev dev-build \
-        test test\:smoke test\:suite
+        internal-dev-install test test\:smoke test\:suite
 
 build: build-rust
 
@@ -24,11 +24,16 @@ check-fmt:
 	cargo clippy --target wasm32-unknown-unknown -- -Dwarnings
 
 dev: build-debug
-	cd internal-dev && pnpm start
+	cd internal-dev && ./node_modules/.bin/webpack serve --open
 
 # Build the internal-dev webpack bundle for Playwright.
 dev-build: build-debug
-	cd internal-dev && pnpm install && pnpm run build
+	cd internal-dev && ./node_modules/.bin/webpack --mode production
+
+# One-time setup for internal-dev. Run this after fresh clone or when
+# internal-dev/package.json changes. Standalone install (no workspace walk).
+internal-dev-install:
+	cd internal-dev && pnpm install --ignore-workspace
 
 # Playwright tests (headless browser).
 # Prereqs: make dev-build && cd tests && pnpm install && pnpm exec playwright install

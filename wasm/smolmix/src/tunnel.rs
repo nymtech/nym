@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use futures::channel::mpsc;
 use smoltcp::iface::{Config, SocketSet};
@@ -38,7 +39,14 @@ use crate::reactor::{self, smoltcp_now, ReactorNotify, SmoltcpStack};
 use crate::state;
 use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 
+/// Default IPR connect handshake timeout.
+pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+/// Default DNS query timeout (per attempt, primary or fallback).
+pub const DEFAULT_DNS_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Configuration for `setupMixTunnel(opts)`.
+///
+/// Construct directly or via [`TunnelOpts::builder`] for chainable configuration.
 pub struct TunnelOpts {
     /// `None` triggers performance-weighted auto-discovery via `ipr::discover_ipr`.
     pub ipr_address: Option<Recipient>,
@@ -57,6 +65,100 @@ pub struct TunnelOpts {
     pub primary_dns: Option<SocketAddr>,
     /// Fallback DNS resolver. `None` falls back to [`dns::DEFAULT_FALLBACK_DNS`].
     pub fallback_dns: Option<SocketAddr>,
+    /// Passphrase used to encrypt the client's persistent storage (identity
+    /// keys, gateway details, etc). `None` means plaintext storage. The same
+    /// passphrase must be supplied on subsequent loads to read the same keys.
+    pub storage_passphrase: Option<String>,
+    /// IPR connect handshake timeout. Defaults to [`DEFAULT_CONNECT_TIMEOUT`].
+    pub connect_timeout: Duration,
+    /// DNS query timeout. Defaults to [`DEFAULT_DNS_TIMEOUT`].
+    pub dns_timeout: Duration,
+}
+
+impl TunnelOpts {
+    /// Start a chainable builder.
+    pub fn builder() -> TunnelOptsBuilder {
+        TunnelOptsBuilder::default()
+    }
+}
+
+/// Chainable builder for [`TunnelOpts`].
+#[derive(Default)]
+pub struct TunnelOptsBuilder {
+    ipr_address: Option<Recipient>,
+    client_id: Option<String>,
+    force_tls: Option<bool>,
+    disable_poisson_traffic: Option<bool>,
+    disable_cover_traffic: Option<bool>,
+    surbs: Option<ipr::SurbsConfig>,
+    primary_dns: Option<SocketAddr>,
+    fallback_dns: Option<SocketAddr>,
+    storage_passphrase: Option<String>,
+    connect_timeout: Option<Duration>,
+    dns_timeout: Option<Duration>,
+}
+
+impl TunnelOptsBuilder {
+    pub fn ipr_address(mut self, v: Recipient) -> Self {
+        self.ipr_address = Some(v);
+        self
+    }
+    pub fn client_id(mut self, v: impl Into<String>) -> Self {
+        self.client_id = Some(v.into());
+        self
+    }
+    pub fn force_tls(mut self, v: bool) -> Self {
+        self.force_tls = Some(v);
+        self
+    }
+    pub fn disable_poisson_traffic(mut self, v: bool) -> Self {
+        self.disable_poisson_traffic = Some(v);
+        self
+    }
+    pub fn disable_cover_traffic(mut self, v: bool) -> Self {
+        self.disable_cover_traffic = Some(v);
+        self
+    }
+    pub fn surbs(mut self, v: ipr::SurbsConfig) -> Self {
+        self.surbs = Some(v);
+        self
+    }
+    pub fn primary_dns(mut self, v: SocketAddr) -> Self {
+        self.primary_dns = Some(v);
+        self
+    }
+    pub fn fallback_dns(mut self, v: SocketAddr) -> Self {
+        self.fallback_dns = Some(v);
+        self
+    }
+    pub fn storage_passphrase(mut self, v: impl Into<String>) -> Self {
+        self.storage_passphrase = Some(v.into());
+        self
+    }
+    pub fn connect_timeout(mut self, v: Duration) -> Self {
+        self.connect_timeout = Some(v);
+        self
+    }
+    pub fn dns_timeout(mut self, v: Duration) -> Self {
+        self.dns_timeout = Some(v);
+        self
+    }
+
+    pub fn build(self) -> TunnelOpts {
+        TunnelOpts {
+            ipr_address: self.ipr_address,
+            client_id: self.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()),
+            force_tls: self.force_tls.unwrap_or(true),
+            disable_poisson_traffic: self.disable_poisson_traffic.unwrap_or(false),
+            disable_cover_traffic: self.disable_cover_traffic.unwrap_or(false),
+            surbs: self.surbs.unwrap_or_default(),
+            primary_dns: self.primary_dns,
+            fallback_dns: self.fallback_dns,
+            storage_passphrase: self.storage_passphrase,
+            connect_timeout: self.connect_timeout.unwrap_or(DEFAULT_CONNECT_TIMEOUT),
+            dns_timeout: self.dns_timeout.unwrap_or(DEFAULT_DNS_TIMEOUT),
+        }
+    }
 }
 
 /// The mixnet tunnel. Owns the smoltcp stack, base client, and connection pool.
@@ -68,6 +170,7 @@ pub struct WasmTunnel {
     /// back to the constants in [`dns`] when the caller didn't override.
     dns_primary: SocketAddr,
     dns_fallback: SocketAddr,
+    dns_timeout: Duration,
     /// Plain per-session DNS cache. No TTL respect (cache lives until tunnel
     /// shutdown). See [`dns::resolve`] for usage.
     dns_cache: Mutex<HashMap<String, IpAddr>>,
@@ -132,6 +235,7 @@ impl WasmTunnel {
             &ipr_address,
             stream_id,
             opts.surbs,
+            opts.connect_timeout,
         )
         .await?;
 
@@ -157,6 +261,7 @@ impl WasmTunnel {
             dns_fallback: opts
                 .fallback_dns
                 .unwrap_or(crate::dns::DEFAULT_FALLBACK_DNS),
+            dns_timeout: opts.dns_timeout,
             dns_cache: Mutex::new(HashMap::new()),
             dns_lock: futures::lock::Mutex::new(()),
             conn_pool: Mutex::new(HashMap::new()),
@@ -186,9 +291,10 @@ impl WasmTunnel {
             .disable_main_poisson_packet_distribution = opts.disable_poisson_traffic;
         config.debug.cover_traffic.disable_loop_cover_traffic_stream = opts.disable_cover_traffic;
 
-        let client_store = ClientStorage::new_async(&opts.client_id, None)
-            .await
-            .map_err(|e| FetchError::Tunnel(format!("storage error: {e}")))?;
+        let client_store =
+            ClientStorage::new_async(&opts.client_id, opts.storage_passphrase.clone())
+                .await
+                .map_err(|e| FetchError::Tunnel(format!("storage error: {e}")))?;
 
         if !client_store
             .has_identity_key()
@@ -259,10 +365,18 @@ impl WasmTunnel {
         ipr_address: &Recipient,
         stream_id: u64,
         surbs: ipr::SurbsConfig,
+        connect_timeout: Duration,
     ) -> Result<IpPair, FetchError> {
         nym_wasm_utils::console_log!("[smolmix] connecting to IPR...");
-        let allocated_ips =
-            ipr::open_and_connect(client_input, receiver, ipr_address, stream_id, surbs).await?;
+        let allocated_ips = ipr::open_and_connect(
+            client_input,
+            receiver,
+            ipr_address,
+            stream_id,
+            surbs,
+            connect_timeout,
+        )
+        .await?;
         nym_wasm_utils::console_log!("[smolmix] IPR connected");
         crate::util::debug_log!(
             "[smolmix] allocated IPv4: {}, IPv6: {}",
@@ -408,6 +522,10 @@ impl WasmTunnel {
     }
     pub(crate) fn dns_fallback(&self) -> SocketAddr {
         self.dns_fallback
+    }
+    /// Per-query DNS timeout (used in `dns::resolve_with`).
+    pub(crate) fn dns_timeout(&self) -> Duration {
+        self.dns_timeout
     }
 
     /// Get (or create) the per-origin lock for serialising concurrent requests.

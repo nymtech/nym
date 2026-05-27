@@ -6,12 +6,13 @@ privacy without changing application code.
 
 ## Public API
 
-Two WASM exports that mirror the browser's native networking surface:
+Three WASM exports that mirror the browser's native networking surface:
 
 | Browser API | smolmix export | Description |
 |-------------|---------------|-------------|
 | `fetch()` | `mixFetch(url, init)` | HTTP/HTTPS request-response |
 | `new WebSocket()` | `mixSocket(url, protocols, onEvent)` | WebSocket (WS/WSS) |
+| (no direct browser equivalent) | `mixResolve(hostname)` | DNS-only hostname lookup over UDP/IPR (no TCP/TLS) |
 
 ## Arch
 
@@ -60,6 +61,35 @@ Two WASM exports that mirror the browser's native networking surface:
 - IPR (`ipr.rs`) - IP Packet Router protocol layer
 - WasmTcpStream / WasmUdpSocket / PooledConn (`stream.rs`) - `futures::io::AsyncRead + AsyncWrite` adapters over smoltcp sockets
 - WASM exports (`lib.rs`, `mixfetch.rs`, `mixsocket.rs`) - the surface JS calls into
+
+### Feature flags
+
+The crate is split into three user-facing cargo features matching the JS entry
+points. Default builds enable all three; downstream TS SDK packages can opt
+into a subset to drop the corresponding implementation + native deps from the
+wasm binary.
+
+| Feature | JS export       | Pulls                                              |
+|---------|-----------------|----------------------------------------------------|
+| `dns`   | `mixResolve`    | (nothing extra; DNS resolver is always compiled)   |
+| `fetch` | `mixFetch`      | rustls TLS stack + hyper HTTP/1.1 client           |
+| `socket`| `mixSocket`     | rustls TLS stack + async-tungstenite               |
+
+Build a `dns`-only client:
+
+```sh
+cargo build --target wasm32-unknown-unknown --no-default-features --features dns
+```
+
+Build a `fetch`-only client (no WebSocket, no `mixResolve` JS export):
+
+```sh
+cargo build --target wasm32-unknown-unknown --no-default-features --features fetch
+```
+
+`fetch` and `socket` share the TLS stack (rustls + rustls-rustcrypto + webpki-roots);
+enabling both is roughly the same wasm size as either alone plus the hyper +
+async-tungstenite specifics.
 
 ### Debug logging
 

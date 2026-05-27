@@ -1,23 +1,31 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Fetch orchestrator: DNS, TCP, TLS, HTTP plus the JS `RequestInit` shim.
+//! TCP/TLS connection construction shared by `mixFetch` and `mixSocket`,
+//! plus (under the `fetch` feature) the HTTP orchestration + JS `RequestInit` shim.
 
 use std::net::SocketAddr;
 
-use js_sys::{Array, Object, Reflect, Uint8Array};
-use url::Url;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
-
 use crate::dns;
 use crate::error::FetchError;
-use crate::http::{self, HttpResponse};
 use crate::stream::PooledConn;
 use crate::tls;
 use crate::tunnel::WasmTunnel;
 
+// HTTP-orchestration imports: only needed when the `fetch` feature is on.
+#[cfg(feature = "fetch")]
+use crate::http::{self, HttpResponse};
+#[cfg(feature = "fetch")]
+use js_sys::{Array, Object, Reflect, Uint8Array};
+#[cfg(feature = "fetch")]
+use url::Url;
+#[cfg(feature = "fetch")]
+use wasm_bindgen::JsCast;
+#[cfg(feature = "fetch")]
+use wasm_bindgen::JsValue;
+
 /// Options extracted from a JS `RequestInit` object.
+#[cfg(feature = "fetch")]
 struct FetchInit {
     method: String,
     headers: Vec<(String, String)>,
@@ -25,9 +33,11 @@ struct FetchInit {
 }
 
 /// Maximum number of HTTP redirects to follow before giving up.
+#[cfg(feature = "fetch")]
 const MAX_REDIRECTS: u8 = 5;
 
 /// Execute a fetch request through the mixnet tunnel.
+#[cfg(feature = "fetch")]
 pub async fn fetch(
     tunnel: &WasmTunnel,
     url_str: &str,
@@ -208,9 +218,10 @@ pub(crate) async fn new_connection(
     }
 }
 
-// RequestInit extraction (via js_sys::Reflect, no serde)
+// RequestInit extraction (via js_sys::Reflect, no serde): `fetch` feature only.
 
 /// Extract method, headers, and body from a JS `RequestInit` object.
+#[cfg(feature = "fetch")]
 fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
     // Handle undefined/null init (bare GET request)
     if init.is_undefined() || init.is_null() {
@@ -237,6 +248,7 @@ fn parse_init(init: &JsValue) -> Result<FetchInit, FetchError> {
 }
 
 /// Extract headers from a plain JS object `{ "Header-Name": "value" }`.
+#[cfg(feature = "fetch")]
 fn extract_headers(init: &JsValue) -> Result<Vec<(String, String)>, FetchError> {
     let headers_val = match Reflect::get(init, &JsValue::from_str("headers")) {
         Ok(v) if !v.is_undefined() && !v.is_null() => v,
@@ -263,6 +275,7 @@ fn extract_headers(init: &JsValue) -> Result<Vec<(String, String)>, FetchError> 
 }
 
 /// Extract the request body. Supports string, Uint8Array, and ArrayBuffer.
+#[cfg(feature = "fetch")]
 fn extract_body(init: &JsValue) -> Result<Option<Vec<u8>>, FetchError> {
     let body_val = match Reflect::get(init, &JsValue::from_str("body")) {
         Ok(v) if !v.is_undefined() && !v.is_null() => v,
@@ -309,6 +322,7 @@ fn extract_body(init: &JsValue) -> Result<Option<Vec<u8>>, FetchError> {
 ///   headers: new Headers(raw.headers),
 /// })
 /// ```
+#[cfg(feature = "fetch")]
 fn serialise_response(resp: &HttpResponse) -> Result<JsValue, FetchError> {
     let obj = Object::new();
     let body = Uint8Array::from(resp.body.as_slice());
@@ -330,6 +344,7 @@ fn serialise_response(resp: &HttpResponse) -> Result<JsValue, FetchError> {
 }
 
 /// Helper: set a property on a JS object via `Reflect.set`.
+#[cfg(feature = "fetch")]
 fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
     Reflect::set(obj, &JsValue::from_str(key), val)
         .map(|_| ())
@@ -337,12 +352,14 @@ fn set_prop(obj: &Object, key: &str, val: &JsValue) -> Result<(), FetchError> {
 }
 
 /// Whether the URL scheme is one we'll forward to.
+#[cfg(feature = "fetch")]
 fn is_http_scheme(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https")
 }
 
 /// HTTP methods we're willing to retry without operator-visible side-effects.
 /// Matches RFC 9110's idempotent set minus TRACE (which we'd never send).
+#[cfg(feature = "fetch")]
 fn is_idempotent(method: &str) -> bool {
     matches!(
         method.to_ascii_uppercase().as_str(),
@@ -351,6 +368,7 @@ fn is_idempotent(method: &str) -> bool {
 }
 
 /// Drop credential-bearing headers when a redirect crosses origins.
+#[cfg(feature = "fetch")]
 fn strip_sensitive_headers(headers: &mut Vec<(String, String)>) {
     const SENSITIVE: &[&str] = &["authorization", "cookie", "proxy-authorization"];
     headers.retain(|(k, _)| !SENSITIVE.iter().any(|name| k.eq_ignore_ascii_case(name)));

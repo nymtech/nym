@@ -22,7 +22,6 @@ pub const DEFAULT_PRIMARY_DNS: SocketAddr =
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
 pub const DEFAULT_FALLBACK_DNS: SocketAddr =
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
-const DNS_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Resolve a hostname to an IP through the mixnet tunnel.
 pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, FetchError> {
@@ -41,9 +40,10 @@ pub async fn resolve(tunnel: &WasmTunnel, hostname: &str) -> Result<IpAddr, Fetc
     crate::util::debug_log!("[dns] resolving '{hostname}'...");
     let udp = tunnel.udp_socket().await.map_err(FetchError::Io)?;
 
-    let ip = match resolve_with(&udp, hostname, tunnel.dns_primary()).await {
+    let timeout = tunnel.dns_timeout();
+    let ip = match resolve_with(&udp, hostname, tunnel.dns_primary(), timeout).await {
         Ok(ip) => ip,
-        Err(_) => resolve_with(&udp, hostname, tunnel.dns_fallback()).await?,
+        Err(_) => resolve_with(&udp, hostname, tunnel.dns_fallback(), timeout).await?,
     };
 
     crate::util::debug_log!("[dns] resolved '{hostname}' => {ip}");
@@ -60,10 +60,11 @@ async fn resolve_with(
     udp: &WasmUdpSocket,
     hostname: &str,
     server: SocketAddr,
+    timeout: Duration,
 ) -> Result<IpAddr, FetchError> {
-    match query_following_cnames(udp, hostname, RecordType::A, server).await {
+    match query_following_cnames(udp, hostname, RecordType::A, server, timeout).await {
         Ok(ip) => Ok(ip),
-        Err(_) => query_following_cnames(udp, hostname, RecordType::AAAA, server).await,
+        Err(_) => query_following_cnames(udp, hostname, RecordType::AAAA, server, timeout).await,
     }
 }
 
@@ -73,11 +74,12 @@ async fn query_following_cnames(
     hostname: &str,
     record_type: RecordType,
     server: SocketAddr,
+    timeout: Duration,
 ) -> Result<IpAddr, FetchError> {
     let mut current_name = hostname.to_string();
 
     for _ in 0..MAX_CNAME_HOPS {
-        match query_record(udp, &current_name, record_type, server).await? {
+        match query_record(udp, &current_name, record_type, server, timeout).await? {
             DnsResult::Ip(ip) => return Ok(ip),
             DnsResult::Cname(target) => current_name = target,
         }
@@ -99,12 +101,13 @@ enum DnsResult {
 /// every CNAME hop in one resolve, so leftover datagrams from a prior query
 /// can be sitting in the receive buffer. We loop on `recv_from`, dropping
 /// any datagram whose transaction ID doesn't match the query we just sent,
-/// until either a match arrives or [`DNS_TIMEOUT`] elapses.
+/// until either a match arrives or `timeout` elapses.
 async fn query_record(
     udp: &WasmUdpSocket,
     hostname: &str,
     record_type: RecordType,
     server: SocketAddr,
+    timeout: Duration,
 ) -> Result<DnsResult, FetchError> {
     let (query_bytes, query_id) = build_query(hostname, record_type)?;
     udp.send_to(&query_bytes, server)
@@ -115,7 +118,7 @@ async fn query_record(
     let start = wasmtimer::std::Instant::now();
 
     loop {
-        let remaining = DNS_TIMEOUT
+        let remaining = timeout
             .checked_sub(start.elapsed())
             .ok_or(FetchError::Timeout)?;
 
@@ -123,7 +126,7 @@ async fn query_record(
         let (len, src) = wasmtimer::tokio::timeout(remaining, udp.recv_from(&mut buf))
             .await
             .map_err(|_| {
-                crate::util::debug_error!("[dns] recv_from TIMED OUT after {DNS_TIMEOUT:?}");
+                crate::util::debug_error!("[dns] recv_from TIMED OUT after {timeout:?}");
                 FetchError::Timeout
             })?
             .map_err(FetchError::Io)?;

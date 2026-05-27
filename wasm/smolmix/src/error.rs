@@ -15,12 +15,14 @@ pub enum FetchError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[cfg(feature = "fetch")]
     #[error("hyper error: {0}")]
     Hyper(#[from] hyper::Error),
 
     #[error("HTTP error: {0}")]
     Http(String),
 
+    #[cfg(feature = "socket")]
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] async_tungstenite::tungstenite::Error),
 

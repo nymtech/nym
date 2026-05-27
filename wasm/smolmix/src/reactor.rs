@@ -46,6 +46,27 @@ pub struct SmoltcpStack {
 /// Monotonic epoch anchor for `smoltcp_now`. Lazily initialised on first call.
 static EPOCH: OnceLock<MonotonicInstant> = OnceLock::new();
 
+/// Yield once to the JS microtask queue, then resume.
+///
+/// `wasm_bindgen_futures` doesn't expose a `yield_now` directly, so we wake the
+/// current task from `poll_fn` to give the executor a chance to process other
+/// ready tasks (notify channel, socket wakers) before we re-poll smoltcp.
+/// Cheaper than `wasmtimer::sleep(1ms)`, which goes through `setTimeout`
+/// (browsers clamp to a ~4ms minimum).
+async fn yield_now() {
+    let mut yielded = false;
+    futures::future::poll_fn(|cx| {
+        if yielded {
+            std::task::Poll::Ready(())
+        } else {
+            yielded = true;
+            cx.waker().wake_by_ref();
+            std::task::Poll::Pending
+        }
+    })
+    .await
+}
+
 /// Get the current smoltcp timestamp from a monotonic clock.
 ///
 /// smoltcp's `Instant` is an `i64` of microseconds relative to some epoch.
@@ -120,7 +141,7 @@ pub fn start_reactor(
                 // for the next iteration's `iface.poll()` + select!.
                 match delay {
                     Some(d) if d.total_micros() == 0 => {
-                        wasm_bindgen_futures::yield_now().await;
+                        yield_now().await;
                     }
                     other => {
                         let sleep_for = match other {

@@ -91,22 +91,18 @@ where
 {
     crate::util::debug_log!("[http] sending {method} request via hyper...");
 
-    // Build the HTTP request
-    let path = match url.query() {
-        Some(q) => format!("{}?{q}", url.path()),
-        None => url.path().to_string(),
-    };
-
-    let host = match url.port() {
-        Some(port) => format!("{}:{port}", url.host_str().unwrap_or("")),
-        None => url.host_str().unwrap_or("").to_string(),
-    };
+    let uri: http::Uri = url
+        .as_str()
+        .parse()
+        .map_err(|e| FetchError::Http(format!("URI conversion: {e}")))?;
+    let path = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
+    let host = uri.authority().map(|a| a.as_str()).unwrap_or_default();
 
     let body_bytes = body.map(Bytes::copy_from_slice).unwrap_or_default();
     let mut builder = http::Request::builder()
         .method(method)
-        .uri(&path)
-        .header("Host", &host)
+        .uri(path)
+        .header("Host", host)
         .header("Connection", "keep-alive");
 
     let mut has_content_length = false;

@@ -139,6 +139,14 @@ pub fn main() {
 pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
     future_to_promise(async move {
         let result: Result<JsValue, FetchError> = async move {
+            if TUNNEL.get().is_some() {
+                return Err(FetchError::Tunnel(
+                    "tunnel already initialised; setupMixTunnel is one-shot per page load \
+                     (reload the page to re-initialise after disconnect)"
+                        .into(),
+                ));
+            }
+
             let ipr_address: Option<nym_wasm_client_core::Recipient> = opts
                 .preferred_ipr
                 .map(|s| {
@@ -176,9 +184,11 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
 
             let tun = WasmTunnel::new(tunnel_opts).await?;
 
-            TUNNEL
-                .set(tun)
-                .map_err(|_| FetchError::Tunnel("tunnel already initialised".into()))?;
+            TUNNEL.set(tun).map_err(|_| {
+                FetchError::Tunnel(
+                    "tunnel already initialised by a concurrent setupMixTunnel call".into(),
+                )
+            })?;
 
             Ok(JsValue::UNDEFINED)
         }

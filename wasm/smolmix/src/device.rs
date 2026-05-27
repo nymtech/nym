@@ -28,7 +28,31 @@ impl WasmDevice {
     pub fn new() -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        capabilities.max_transmission_unit = 1500;
+        // Sized so one IP packet fits in one sphinx packet payload, no LP
+        // fragmentation.
+        //
+        // ┌─────────────────────────────────────────────────────────────────────┐
+        // │ Sphinx packet (2352 B total)                                        │
+        // │ ┌─────────────────────────────────────────────────────────────────┐ │
+        // │ │ Sphinx payload (2048 B usable)                                  │ │
+        // │ │ ┌──────────────────────┬──────────────────────────────────────┐ │ │
+        // │ │ │ LP OuterHeader (12B) │ Encrypted LP blob (2036 B)           │ │ │
+        // │ │ │                      │ ┌──────────────────────────────────┐ │ │ │
+        // │ │ │                      │ │ InnerHeader (4B)                 │ │ │ │
+        // │ │ │                      │ ├──────────────────────────────────┤ │ │ │
+        // │ │ │                      │ │ LpFrameHeader (16B)              │ │ │ │
+        // │ │ │                      │ ├──────────────────────────────────┤ │ │ │
+        // │ │ │                      │ │ IPR overhead (~4-6B)             │ │ │ │
+        // │ │ │                      │ ├──────────────────────────────────┤ │ │ │
+        // │ │ │                      │ │ IP packet ← THIS is smolmix MTU  │ │ │ │
+        // │ │ │                      │ ├──────────────────────────────────┤ │ │ │
+        // │ │ │                      │ │ AEAD tag (16B)                   │ │ │ │
+        // │ │ │                      │ └──────────────────────────────────┘ │ │ │
+        // │ │ └──────────────────────┴──────────────────────────────────────┘ │ │
+        // │ └─────────────────────────────────────────────────────────────────┘ │
+        // └─────────────────────────────────────────────────────────────────────┘
+        //
+        capabilities.max_transmission_unit = 1980;
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM

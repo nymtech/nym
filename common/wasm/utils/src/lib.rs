@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "websocket")]
@@ -10,6 +11,28 @@ pub mod websocket;
 pub mod crypto;
 
 pub mod error;
+
+#[doc(hidden)]
+pub static DEBUG_LOGGING_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Enable or disable `debug_log!` / `debug_error!` output at runtime.
+///
+/// Consumers call this from their own init path when their own `debug`
+/// (or equivalent) feature is on. The default is `false`, so the macros
+/// compile to a single relaxed-load + branch and otherwise no-op.
+///
+/// Also exposed to JS as `setDebugLogging(enabled: boolean)` for ad-hoc
+/// toggling without rebuilding.
+#[wasm_bindgen(js_name = "setDebugLogging")]
+pub fn set_debug_logging(enabled: bool) {
+    DEBUG_LOGGING_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+/// Read the current debug-logging state. Used by the macros below.
+#[inline]
+pub fn debug_logging_enabled() -> bool {
+    DEBUG_LOGGING_ENABLED.load(Ordering::Relaxed)
+}
 
 // will cause messages to be written as if console.log("...") was called
 #[macro_export]
@@ -39,6 +62,48 @@ macro_rules! console_warn {
 #[macro_export]
 macro_rules! console_error {
     ($($t:tt)*) => ($crate::error(&format_args!($($t)*).to_string()))
+}
+
+/// `console.log` gated behind the runtime [`DEBUG_LOGGING_ENABLED`] flag.
+///
+/// Format-args evaluation stays inside the `if` arm, so it's skipped at
+/// runtime when logging is off. Consumers turn this on via
+/// [`set_debug_logging`] from their own init path (typically when their
+/// own `debug` feature is enabled).
+#[macro_export]
+macro_rules! debug_log {
+    ($($t:tt)*) => {{
+        if $crate::debug_logging_enabled() {
+            $crate::console_log!($($t)*);
+        }
+    }};
+}
+
+/// `console.error` gated behind the runtime [`DEBUG_LOGGING_ENABLED`] flag.
+/// See [`debug_log!`] for semantics.
+#[macro_export]
+macro_rules! debug_error {
+    ($($t:tt)*) => {{
+        if $crate::debug_logging_enabled() {
+            $crate::console_error!($($t)*);
+        }
+    }};
+}
+
+/// Hex preview of a buffer, truncated with ` ...` when over `max_bytes`.
+/// Useful for `console.log`-style binary debug output.
+pub fn hex_preview(buf: &[u8], max_bytes: usize) -> String {
+    let len = buf.len().min(max_bytes);
+    let hex: String = buf[..len]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if buf.len() > max_bytes {
+        format!("{hex} ...")
+    } else {
+        hex
+    }
 }
 
 #[wasm_bindgen]

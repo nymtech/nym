@@ -106,6 +106,7 @@ sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 sdk-wasm-build:
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/mix-fetch
+	$(MAKE) -C wasm/smolmix
 # 	$(MAKE) -C wasm/zknym-lib
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
@@ -124,6 +125,7 @@ sdk-wasm-test:
 sdk-wasm-lint:
 	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 	$(MAKE) -C wasm/mix-fetch check-fmt
+	$(MAKE) -C wasm/smolmix check-fmt
 
 # Add to top-level targets
 build: sdk-wasm-build

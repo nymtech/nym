@@ -63,6 +63,9 @@ pub enum Error {
 
     #[error("failed to create a secp256k1 signature")]
     Secp256k1SignFailure,
+
+    #[error("failed to obtain a valid credential share")]
+    CredentialShareObtainFailed,
 }
 
 impl From<NymAPIError> for Error {

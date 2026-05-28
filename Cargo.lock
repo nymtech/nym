@@ -6563,6 +6563,8 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "time",
+ "tokio",
+ "wasmtimer",
  "zeroize",
 ]
 
@@ -7768,7 +7770,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.6.2-rc9"
+version = "4.6.2-rc10"
 dependencies = [
  "ammonia",
  "anyhow",

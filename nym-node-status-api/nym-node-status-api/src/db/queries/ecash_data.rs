@@ -30,17 +30,21 @@ impl Storage {
         deposit_id: i32,
         data: &[u8],
         expiration_date: Date,
+        epoch_id: i32,
+        failure_message: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 INSERT INTO pending_issuance
-                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date)
-                VALUES ($1, $2, $3, $4)
+                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date, epoch_id, failure_message)
+                VALUES ($1, $2, $3, $4, $5, $6)
             "#,
             deposit_id,
             serialisation_revision,
             data,
             expiration_date,
+            epoch_id,
+            failure_message,
         )
         .execute(&self.pool)
         .await?;

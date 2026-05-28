@@ -137,6 +137,8 @@ pub async fn obtain_aggregate_wallet(
     ecash_api_clients: &[EcashApiClient],
     threshold: u64,
 ) -> Result<WalletSignatures, Error> {
+    const MAX_ATTEMPTS: usize = 2;
+
     if ecash_api_clients.len() < threshold as usize {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -154,11 +156,12 @@ pub async fn obtain_aggregate_wallet(
         );
 
         match voucher
-            .obtain_partial_ticketbook_credential(
+            .obtain_partial_ticketbook_credential_with_retries(
                 &ecash_api_client.api_client,
                 ecash_api_client.node_id,
                 &ecash_api_client.verification_key,
                 request.clone(),
+                MAX_ATTEMPTS,
             )
             .await
         {
@@ -167,6 +170,11 @@ pub async fn obtain_aggregate_wallet(
                 warn!("failed to obtain partial credential from API {ecash_api_client}: {err}",);
             }
         };
+
+        // we got sufficient number of shares
+        if wallets.len() >= threshold as usize {
+            break;
+        }
     }
     if wallets.len() < threshold as usize {
         return Err(Error::NotEnoughShares);

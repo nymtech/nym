@@ -96,7 +96,9 @@ pub fn start_bridge(
                 }
                 for packet in packets {
                     let current_seq = seq;
-                    seq = seq.wrapping_add(1);
+                    // Skip 0 on wrap: it's reserved for handshake frames
+                    // (see `ipr::open_and_connect`).
+                    seq = if seq == u32::MAX { 1 } else { seq + 1 };
                     if let Err(e) = ipr::send_ip_packet(
                         &client_input,
                         &ipr_address,

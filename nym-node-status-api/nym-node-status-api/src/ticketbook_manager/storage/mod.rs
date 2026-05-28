@@ -43,6 +43,8 @@ impl TicketbookManagerStorage {
     pub(crate) async fn insert_pending_ticketbook(
         &self,
         ticketbook: &IssuanceTicketBook,
+        epoch_id: EpochId,
+        failure_message: &str,
     ) -> anyhow::Result<()> {
         let ser = ticketbook.pack();
         let data = Zeroizing::new(ser.data);
@@ -54,6 +56,8 @@ impl TicketbookManagerStorage {
                 ticketbook.deposit_id() as i32,
                 &data,
                 ticketbook.expiration_date(),
+                epoch_id as i32,
+                failure_message,
             )
             .await?;
 

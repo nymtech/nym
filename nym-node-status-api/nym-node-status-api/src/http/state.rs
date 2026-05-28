@@ -384,87 +384,87 @@ impl HttpCache {
 
         let socks5_scores = calculate_socks5_percentiles(&gateways);
 
-        let res_gws = gateways
-            .iter()
-            .filter(|gw| gw.bonded)
-            .filter_map(|gw| match skimmed_nodes.get(&gw.gateway_identity_key) {
-                Some(skimmed_node) => Some((gw, skimmed_node)),
-                None => {
-                    error!(
-                        "CRITICAL: Gateway {} exists in gateways table but not in nym_nodes table! This should not happen.",
-                        gw.gateway_identity_key
-                    );
-                    None
-                }
-            })
-            .filter_map(|(gw, skimmed_node)| {
-                let family = family_lookup.family_for_node(skimmed_node.node_id).cloned();
-                let staking = bond_info
-                    .get(&skimmed_node.node_id)
-                    .map(|details| NodeStakeInformation::from(&details.rewarding_details));
-                match DVpnGateway::new(
-                    gw.clone(),
-                    skimmed_node,
-                    socks5_scores.get(&gw.gateway_identity_key),
-                    family,
-                    staking,
-                ) {
-                    Ok(gw) => Some(gw),
-                    Err(err) => {
-                        error!(
-                            "CRITICAL: Failed to create DVpnGateway for node_id={}, identity_key={}: {}",
-                            skimmed_node.node_id,
-                            skimmed_node.ed25519_identity_pubkey.to_base58_string(),
-                            err
-                        );
-                        // Don't panic here as this might be due to missing fields, but log it loudly
-                        None
-                    }
-                }
-            })
-            .filter(|gw| {
-                // gateways must have a country
-                if gw.location.two_letter_iso_country_code.len() == 2 {
-                    true
-                } else {
-                    warn!(
-                        "Invalid country code: {}",
-                        gw.location.two_letter_iso_country_code
-                    );
-                    false
-                }
-            })
-            // sort by country, then by identity key
-            .sorted_by_key(|item| {
-                (
-                    item.location.two_letter_iso_country_code.clone(),
-                    item.identity_key.clone(),
-                )
-            })
-            .collect::<Vec<_>>();
-
+        let mut dvpd_gateways = Vec::new();
         let bonded_count = gateways.iter().filter(|gw| gw.bonded).count();
+
+        for gw in gateways {
+            let id = gw.gateway_identity_key.clone();
+            // 1. reject all gateways that are not bonded
+            if !gw.bonded {
+                continue;
+            }
+
+            // 2. reject all gateways with zero performance
+            if gw.performance == 0 {
+                continue;
+            }
+
+            // 3. get corresponding directory details
+            let Some(skimmed_node) = skimmed_nodes.get(&id) else {
+                error!(
+                    "CRITICAL: Gateway {id} exists in gateways table but not in nym_nodes table! This should not happen",
+                );
+                continue;
+            };
+            let node_id = skimmed_node.node_id;
+
+            // 4. get corresponding auxiliary details
+            let family = family_lookup.family_for_node(skimmed_node.node_id).cloned();
+            let staking = bond_info
+                .get(&skimmed_node.node_id)
+                .map(|details| NodeStakeInformation::from(&details.rewarding_details));
+            let socks5_score = socks5_scores.get(&id);
+
+            // 5. construct the DVpnGateway model
+            let dvpn_gw = match DVpnGateway::new(gw, skimmed_node, socks5_score, family, staking) {
+                Ok(gw) => gw,
+                Err(err) => {
+                    error!(
+                        "CRITICAL: Failed to create DVpnGateway for node_id={node_id}, identity_key={id}: {err}",
+                    );
+                    // Don't panic here as this might be due to missing fields, but log it loudly
+                    continue;
+                }
+            };
+
+            // 6. filter out nodes without valid country codes
+            if dvpn_gw.location.two_letter_iso_country_code.len() != 2 {
+                warn!(
+                    "Invalid country code: {}",
+                    dvpn_gw.location.two_letter_iso_country_code
+                );
+                continue;
+            }
+
+            dvpd_gateways.push(dvpn_gw);
+        }
+
+        // 7. finally, sort the nodes by country, then by identity key
+        dvpd_gateways.sort_by_key(|item| {
+            (
+                item.location.two_letter_iso_country_code.clone(),
+                item.identity_key.clone(),
+            )
+        });
+
         tracing::info!(
-            "DVpn gateway filtering: {} total gateways, {} bonded, {} nym_nodes, {} final DVpn gateways",
-            started_with,
-            bonded_count,
+            "DVpn gateway filtering: {started_with} total gateways, {bonded_count} bonded, {} nym_nodes, {} final DVpn gateways",
             skimmed_nodes.len(),
-            res_gws.len()
+            dvpd_gateways.len()
         );
 
-        if res_gws.is_empty() && started_with > 0 {
+        if dvpd_gateways.is_empty() && started_with > 0 {
             tracing::error!(
-                "CRITICAL: Started with {} gateways but got 0 DVpn gateways!",
-                started_with
+                "CRITICAL: Started with {started_with} gateways but got 0 DVpn gateways!"
             );
         } else {
             tracing::info!(
                 "Successfully loaded {} DVpn gateways into cache",
-                res_gws.len()
+                dvpd_gateways.len()
             );
         }
 
-        res_gws
+        dvpd_gateways
     }
 
     pub async fn get_entry_dvpn_gateways(

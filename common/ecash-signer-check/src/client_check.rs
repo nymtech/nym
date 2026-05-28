@@ -195,9 +195,9 @@ impl ClientUnderTest {
 pub(crate) async fn check_client(
     dealer_details: DealerDetails,
     dkg_epoch: u64,
-    contract_share: Option<&ContractVKShare>,
+    contract_share: Option<ContractVKShare>,
 ) -> TypedSignerResult {
-    let dealer_information = RawDealerInformation::new(&dealer_details, contract_share);
+    let dealer_information = RawDealerInformation::new(&dealer_details, contract_share.as_ref());
 
     // 7. attempt to construct client instances out of them
     let Ok(parsed_information) = dealer_information.parse() else {

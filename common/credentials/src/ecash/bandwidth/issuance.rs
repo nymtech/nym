@@ -6,6 +6,7 @@ use crate::ecash::bandwidth::serialiser::VersionedSerialise;
 use crate::ecash::bandwidth::CredentialSigningData;
 use crate::ecash::utils::cred_exp_date;
 use crate::error::Error;
+use log::{debug, warn};
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_credentials_interface::{
     aggregate_wallets, generate_keypair_user_from_seed, issue_verify, withdrawal_request,
@@ -17,7 +18,14 @@ use nym_ecash_contract_common::deposit::DepositId;
 use nym_ecash_time::{ecash_default_expiration_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use time::Date;
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 pub use nym_validator_client::nyxd::{Coin, Hash};
 
@@ -190,6 +198,49 @@ impl IssuanceTicketBook {
         )?;
 
         Ok(unblinded_signature)
+    }
+
+    // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers
+    pub async fn obtain_partial_ticketbook_credential_with_retries(
+        &self,
+        client: &nym_http_api_client::Client,
+        signer_index: u64,
+        validator_vk: &VerificationKeyAuth,
+        signing_data: CredentialSigningData,
+        max_attempts: usize,
+    ) -> Result<PartialWallet, Error> {
+        let Some(client_url) = client.base_urls().first() else {
+            return Err(Error::CredentialShareObtainFailed);
+        };
+        let mut last_err = None;
+        for attempt in 0..max_attempts {
+            if attempt > 0 {
+                sleep(Duration::from_millis(500 * attempt as u64)).await;
+            }
+            debug!(
+                "attempt {} / {max_attempts} to obtain partial ticketbook credential from {client_url}",
+                attempt + 1,
+            );
+            match self
+                .obtain_partial_ticketbook_credential(
+                    client,
+                    signer_index,
+                    validator_vk,
+                    signing_data.clone(),
+                )
+                .await
+            {
+                Ok(partial_wallet) => return Ok(partial_wallet),
+                Err(err) => {
+                    warn!(
+                        "attempt {} / {max_attempts} to obtain partial ticketbook credential from {client_url} failed: {err}",
+                        attempt + 1,
+                    );
+                    last_err = Some(err);
+                }
+            }
+        }
+        Err(last_err.unwrap_or(Error::CredentialShareObtainFailed))
     }
 
     // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers

@@ -121,11 +121,12 @@ impl TicketbookManager {
             {
                 Err(err) => {
                     error!("failed to obtain aggregated wallet: {err}");
+                    let failure_message = err.to_string();
                     self.state
                         .storage()
-                        .insert_pending_ticketbook(&issuance_data).await.inspect_err(|err| {
+                        .insert_pending_ticketbook(&issuance_data, epoch_id, &failure_message).await.inspect_err(|store_err| {
                             let deposit = issuance_data.deposit_id();
-                            error!("could not save the recovery data for deposit {deposit}: {err}. the data will unfortunately get lost")
+                            error!("could not save the recovery data for deposit {deposit}: {store_err}. the data will unfortunately get lost")
                         })?;
                     return Err(err.into());
                 }

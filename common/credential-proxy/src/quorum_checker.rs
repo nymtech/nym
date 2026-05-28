@@ -27,6 +27,9 @@ pub struct QuorumStateChecker {
     cancellation_token: CancellationToken,
     check_interval: Duration,
     quorum_state: QuorumState,
+
+    /// indicates whether the last check has been a failure
+    last_failed: bool,
 }
 
 impl QuorumStateChecker {
@@ -42,6 +45,7 @@ impl QuorumStateChecker {
             quorum_state: QuorumState {
                 available: Arc::new(Default::default()),
             },
+            last_failed: false,
         };
 
         // first check MUST succeed, otherwise we shouldn't start
@@ -107,7 +111,7 @@ impl QuorumStateChecker {
         Ok(available)
     }
 
-    pub async fn run_forever(self) {
+    pub async fn run_forever(mut self) {
         info!("starting quorum state checker");
         loop {
             tokio::select! {
@@ -117,7 +121,23 @@ impl QuorumStateChecker {
                 }
                 _ = tokio::time::sleep(self.check_interval) => {
                     match self.check_quorum_state().await {
-                        Ok(available) => self.quorum_state.available.store(available, Ordering::SeqCst),
+                        Ok(available) => {
+                            let previous = self.quorum_state.available.load(Ordering::SeqCst);
+                            // only update the quorum state to a failed state if we've had two consecutive failures
+                            if available {
+                                if !previous {
+                                    info!("quorum recovered");
+                                }
+                                self.quorum_state.available.store(true, Ordering::SeqCst);
+                            } else if self.last_failed {
+                                if previous {
+                                    warn!("quorum became unavailable after 2 consecutive failed checks");
+                                }
+                                self.quorum_state.available.store(false, Ordering::SeqCst);
+                            }
+
+                            self.last_failed = !available;
+                        },
                         Err(err) => error!("failed to check current quorum state: {err}"),
                     }
                 }

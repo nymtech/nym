@@ -54,6 +54,27 @@ pub trait NodeFamiliesSigningClient {
         .await
     }
 
+    /// Update the name and/or description of the caller's family. Each
+    /// argument follows `None = keep` / `Some(_) = replace` semantics; a
+    /// call with both `None` is a server-side no-op.
+    async fn update_family(
+        &self,
+        updated_name: Option<String>,
+        updated_description: Option<String>,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_node_families_contract(
+            fee,
+            NodeFamiliesExecuteMsg::UpdateFamily {
+                updated_name,
+                updated_description,
+            },
+            "NodeFamiliesContract::UpdateFamily".to_string(),
+            vec![],
+        )
+        .await
+    }
+
     async fn disband_family(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_node_families_contract(
             fee,
@@ -223,6 +244,12 @@ mod tests {
             }
             NodeFamiliesExecuteMsg::CreateFamily { name, description } => client
                 .create_family(name, description, None, vec![])
+                .ignore(),
+            NodeFamiliesExecuteMsg::UpdateFamily {
+                updated_name,
+                updated_description,
+            } => client
+                .update_family(updated_name, updated_description, None)
                 .ignore(),
             NodeFamiliesExecuteMsg::DisbandFamily {} => client.disband_family(None).ignore(),
             NodeFamiliesExecuteMsg::InviteToFamily {

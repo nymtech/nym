@@ -38,6 +38,16 @@ pub enum ExecuteMsg {
     /// `create_family_fee` must be attached as funds.
     CreateFamily { name: String, description: String },
 
+    /// Update the name and/or description of the family owned by the message
+    /// sender. Each field is independently optional: `None` leaves the
+    /// existing value unchanged, `Some(_)` replaces it. Updated values are
+    /// validated against the same length / normalisation / global-uniqueness
+    /// rules as [`Self::CreateFamily`].
+    UpdateFamily {
+        updated_name: Option<String>,
+        updated_description: Option<String>,
+    },
+
     /// Disband the family owned by the message sender. The family must have
     /// no current members; any still-pending invitations are revoked.
     DisbandFamily {},

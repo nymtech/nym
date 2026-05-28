@@ -136,6 +136,34 @@
         "additionalProperties": false
       },
       {
+        "description": "Update the name and/or description of the family owned by the message sender. Each field is independently optional: `None` leaves the existing value unchanged, `Some(_)` replaces it. Updated values are validated against the same length / normalisation / global-uniqueness rules as [`Self::CreateFamily`].",
+        "type": "object",
+        "required": [
+          "update_family"
+        ],
+        "properties": {
+          "update_family": {
+            "type": "object",
+            "properties": {
+              "updated_description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updated_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Disband the family owned by the message sender. The family must have no current members; any still-pending invitations are revoked.",
         "type": "object",
         "required": [

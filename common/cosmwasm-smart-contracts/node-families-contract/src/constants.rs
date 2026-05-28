@@ -101,4 +101,14 @@ pub mod events {
 
     pub const NODE_UNBOND_CLEANUP_EVENT_NAME: &str = "family_node_unbond_cleanup";
     pub const NODE_UNBOND_CLEANUP_EVENT_NODE_ID: &str = "node_id";
+
+    pub const FAMILY_UPDATE_EVENT_NAME: &str = "family_update";
+    pub const FAMILY_UPDATE_EVENT_FAMILY_ID: &str = "family_id";
+    pub const FAMILY_UPDATE_EVENT_OWNER_ADDRESS: &str = "owner_address";
+    /// Attribute carrying the new family name. Only emitted when the
+    /// `UpdateFamily` message carried `updated_name = Some(_)`.
+    pub const FAMILY_UPDATE_EVENT_UPDATED_NAME: &str = "updated_name";
+    /// Attribute carrying the new family description. Only emitted when the
+    /// `UpdateFamily` message carried `updated_description = Some(_)`.
+    pub const FAMILY_UPDATE_EVENT_UPDATED_DESCRIPTION: &str = "updated_description";
 }

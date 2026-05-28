@@ -26,7 +26,7 @@ wasmtimer = { workspace = true }
 
 # DNS wire-format types (always present; internal DNS resolution is needed
 # even when only `fetch` or `socket` is enabled, for hostname → IP).
-hickory-proto = { workspace = true, default-features = false, features = ["std"] }
+hickory-proto = { workspace = true, features = ["std"] }
 
 # TLS stack: gated by the `_tls` private feature (pulled by `fetch` or `socket`).
 # rustls-rustcrypto is the only viable provider on wasm32-unknown-unknown:

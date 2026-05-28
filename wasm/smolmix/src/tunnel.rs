@@ -230,6 +230,7 @@ pub struct WasmTunnel {
     /// One idle connection per (host, port).
     conn_pool: Mutex<HashMap<(String, u16), PooledConn>>,
     /// Per-origin locks to avoid stampeding parallel TCP+TLS handshakes.
+    #[allow(clippy::type_complexity)]
     origin_locks: Mutex<HashMap<(String, u16), Arc<futures::lock::Mutex<()>>>>,
     /// `Mutex<Option<_>>` because `ShutdownTracker::shutdown(self).await`
     /// takes ownership, but `WasmTunnel` lives in a `OnceLock`.
@@ -500,8 +501,8 @@ impl WasmTunnel {
             self.stack.clone(),
             self.notify.clone(),
             addr,
-            self.tuning.tcp_keepalive_interval,
-            self.tuning.tcp_buffer_size,
+            self.tcp_keepalive_interval(),
+            self.tcp_buffer_size(),
         )
         .await
     }
@@ -531,10 +532,14 @@ impl WasmTunnel {
         // Cancel + wait, child first. The base token cancels the whole
         // subtree, but each level's TaskTracker only waits on its own
         // tasks, so both need an explicit `.shutdown().await`.
-        if let Some(tracker) = self.smolmix_tracker.lock().unwrap().take() {
+        // Take the trackers out of their Mutexes first so the sync guards drop
+        // before the async `.shutdown().await` (clippy::await_holding_lock).
+        let smolmix_tracker = self.smolmix_tracker.lock().unwrap().take();
+        let base_tracker = self.base_tracker.lock().unwrap().take();
+        if let Some(tracker) = smolmix_tracker {
             tracker.shutdown().await;
         }
-        if let Some(tracker) = self.base_tracker.lock().unwrap().take() {
+        if let Some(tracker) = base_tracker {
             tracker.shutdown().await;
         }
 

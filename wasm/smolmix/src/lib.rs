@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // `debug_log!` / `debug_error!` macros elide their argument expressions when
-// the `debug` feature is off, leaving bindings that look unused to clippy.
-// Silence the lint only in the feature-off configuration so real unused-var
-// bugs still get caught in debug builds.
-#![cfg_attr(not(feature = "debug"), allow(unused_variables))]
+// the `debug` feature is off, which trips several clippy lints with false
+// positives: variables look unused, match/if arms look identical (both expand
+// to `()`), etc. Silence these only in the feature-off configuration so the
+// real lint signal stays active in debug builds.
+#![cfg_attr(
+    not(feature = "debug"),
+    allow(unused_variables, clippy::if_same_then_else, clippy::single_match,)
+)]
 
 //! smolmix-wasm: drop-in browser networking over the Nym mixnet.
 //!

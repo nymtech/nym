@@ -178,7 +178,7 @@ pub fn start_reactor(
                     }
                     other => {
                         let sleep_for = match other {
-                            Some(d) => Duration::from_micros(d.total_micros() as u64).min(MAX_IDLE),
+                            Some(d) => Duration::from_micros(d.total_micros()).min(MAX_IDLE),
                             None => MAX_IDLE,
                         };
                         // `Notify` coalesces multiple `notify_one()` calls into

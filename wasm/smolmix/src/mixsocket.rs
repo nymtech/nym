@@ -110,7 +110,7 @@ pub fn ws_send(handle_id: u32, data: JsValue) -> Result<(), JsValue> {
         let preview = if s.len() <= 120 {
             &s
         } else {
-            &s[..s.floor_char_boundary(120)]
+            &s[..util::floor_char_boundary(&s, 120)]
         };
         util::debug_log!("[ws:{handle_id}] send text ({} bytes): {preview}", s.len());
         Message::Text(s)
@@ -181,7 +181,7 @@ async fn ws_task(
         select! {
             msg = stream.next() => match msg {
                 Some(Ok(Message::Text(s))) => {
-                    let preview = if s.len() <= 120 { &s } else { &s[..s.floor_char_boundary(120)] };
+                    let preview = if s.len() <= 120 { &s } else { &s[..util::floor_char_boundary(&s, 120)] };
                     util::debug_log!("[ws:{handle_id}] recv text ({} bytes): {preview}", s.len());
                     fire_ws_event(&on_event, handle_id, "text", &JsValue::from_str(&s));
                 }

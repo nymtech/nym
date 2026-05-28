@@ -180,7 +180,7 @@ pub async fn fetch(
 
         // 301/302/303: switch to GET and drop body (RFC 7231).
         // 307/308: preserve method and body.
-        if matches!(response.status, 301 | 302 | 303) {
+        if matches!(response.status, 301..=303) {
             method = "GET".into();
             body = None;
         }

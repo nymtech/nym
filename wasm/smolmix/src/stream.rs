@@ -26,6 +26,12 @@ pub(crate) const EPHEMERAL_PORT_START: u16 = 49152;
 /// The `Tls` variant compiles in only when `fetch` or `socket` features are
 /// enabled, since plaintext-only builds (the `dns`-only TS SDK package) don't
 /// need a TLS stack at all.
+///
+/// `Tls` is intentionally inlined (~744 B) rather than boxed: the pool holds
+/// at most one entry per (host, port), so total memory is bounded by distinct
+/// origins visited over the tunnel's lifetime. Boxing would force every match
+/// arm into a `Box`-deref dance for no real benefit at typical usage.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum PooledConn {
     #[cfg(any(feature = "fetch", feature = "socket"))]
     Tls(crate::tls::MaybeCloseNotify<futures_rustls::client::TlsStream<WasmTcpStream>>),
@@ -63,7 +69,7 @@ impl AsyncRead for WasmTcpStream {
             if socket.can_recv() {
                 let n = socket
                     .recv_slice(buf)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                    .map_err(|e| io::Error::other(format!("{e}")))?;
                 crate::util::debug_log!("[tcp:read] Ready({n})");
                 // Notify reactor: recv_slice() frees rx buffer, needs a
                 // prompt window update ACK to keep the sender flowing.
@@ -102,7 +108,7 @@ impl AsyncWrite for WasmTcpStream {
             if socket.can_send() {
                 let n = socket
                     .send_slice(buf)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                    .map_err(|e| io::Error::other(format!("{e}")))?;
                 notify.notify_one();
                 Poll::Ready(Ok(n))
             } else if !socket.is_open() {
@@ -224,7 +230,7 @@ impl WasmUdpSocket {
                 if socket.can_send() {
                     socket
                         .send_slice(buf, endpoint)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                        .map_err(|e| io::Error::other(format!("{e}")))?;
                     notify.notify_one();
                     Poll::Ready(Ok(buf.len()))
                 } else {
@@ -248,7 +254,7 @@ impl WasmUdpSocket {
                 if socket.can_recv() {
                     let (n, meta) = socket
                         .recv_slice(buf)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("{e}")))?;
+                        .map_err(|e| io::Error::other(format!("{e}")))?;
                     let src = from_smoltcp_endpoint(meta.endpoint);
                     Poll::Ready(Ok((n, src)))
                 } else {
@@ -278,7 +284,7 @@ static EPHEMERAL_PORT: AtomicU16 = AtomicU16::new(EPHEMERAL_PORT_START);
 /// load/store is race-free; the atomic exists for `Sync`.
 pub(crate) fn allocate_port() -> u16 {
     let current = EPHEMERAL_PORT.load(Ordering::Relaxed);
-    let next = if current >= u16::MAX {
+    let next = if current == u16::MAX {
         EPHEMERAL_PORT_START
     } else {
         current + 1

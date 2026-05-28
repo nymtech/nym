@@ -193,10 +193,8 @@ fn parse_response(msg: &Message, hostname: &str) -> Result<DnsResult, FetchError
         match &record.data {
             RData::A(a) => return Ok(DnsResult::Ip(IpAddr::V4(a.0))),
             RData::AAAA(aaaa) => return Ok(DnsResult::Ip(IpAddr::V6(aaaa.0))),
-            RData::CNAME(cname) => {
-                if cname_target.is_none() {
-                    cname_target = Some(cname.0.to_string());
-                }
+            RData::CNAME(cname) if cname_target.is_none() => {
+                cname_target = Some(cname.0.to_string());
             }
             _ => {}
         }

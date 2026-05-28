@@ -76,16 +76,6 @@ impl WasmDevice {
     pub fn drain_tx(&mut self) -> impl Iterator<Item = Vec<u8>> + '_ {
         self.tx_queue.drain(..)
     }
-
-    /// Whether there are outgoing packets waiting to be sent.
-    pub fn has_tx(&self) -> bool {
-        !self.tx_queue.is_empty()
-    }
-
-    /// Number of incoming packets waiting to be processed by smoltcp.
-    pub fn rx_pending(&self) -> usize {
-        self.rx_queue.len()
-    }
 }
 
 impl Device for WasmDevice {

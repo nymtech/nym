@@ -115,6 +115,12 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
     api = result.api;
     MixSocket._initWorker(result.worker);
     display("Worker started");
+
+    // Sync the debug-logging checkbox into WASM so the UI default applies
+    // from setup time — without this, the checkbox could read `checked`
+    // while the WASM static stays false until the user re-toggles.
+    const debugOn = document.getElementById("opt-debug-logging").checked;
+    await api.setDebugLogging(debugOn);
   } catch (e) {
     display(`Worker creation failed: ${e}`, "red");
     document.getElementById("btn-setup").disabled = false;
@@ -128,12 +134,15 @@ document.getElementById("btn-setup").addEventListener("click", async () => {
   const disablePoisson = document.getElementById("opt-disable-poisson").checked;
   const disableCover = document.getElementById("opt-disable-cover").checked;
 
-  const clampSurbs = (n) => Math.min(50, Math.max(1, n));
+  // Allow 0 for the data slot — the default is "lean entirely on
+  // nym-client-core's pre-emptive SURB topup" (see SurbsConfig::default
+  // in wasm/smolmix/src/ipr.rs).
+  const clampSurbs = (n) => Math.min(50, Math.max(0, n));
   const openReplySurbs = clampSurbs(
-    parseInt(document.getElementById("opt-open-surbs").value, 10) || 5,
+    parseInt(document.getElementById("opt-open-surbs").value, 10) || 10,
   );
   const dataReplySurbs = clampSurbs(
-    parseInt(document.getElementById("opt-data-surbs").value, 10) || 2,
+    parseInt(document.getElementById("opt-data-surbs").value, 10) || 0,
   );
 
   // `undefined` (omitted) means "use the Rust default"; see SetupOpts.
@@ -192,6 +201,27 @@ document
       document.getElementById("btn-setup").disabled = true; // OnceLock: can't reinit
     } catch (e) {
       display(`Disconnect failed: ${e}`, "red");
+    }
+  });
+
+document
+  .getElementById("opt-debug-logging")
+  .addEventListener("change", async (e) => {
+    const enabled = e.target.checked;
+    // Pre-setup clicks: WASM isn't loaded yet. The checkbox state is read
+    // again right after the worker boots, so the toggle still takes effect.
+    if (!api) {
+      display(`Debug logging queued ${enabled ? "ON" : "OFF"} (applies on setup)`);
+      return;
+    }
+    try {
+      await api.setDebugLogging(enabled);
+      display(
+        `Debug logging ${enabled ? "ON" : "OFF"} (logs in browser console)`,
+        enabled ? "green" : "gray",
+      );
+    } catch (err) {
+      display(`setDebugLogging failed: ${err}`, "red");
     }
   });
 

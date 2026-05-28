@@ -1,16 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// `debug_log!` / `debug_error!` macros elide their argument expressions when
-// the `debug` feature is off, which trips several clippy lints with false
-// positives: variables look unused, match/if arms look identical (both expand
-// to `()`), etc. Silence these only in the feature-off configuration so the
-// real lint signal stays active in debug builds.
-#![cfg_attr(
-    not(feature = "debug"),
-    allow(unused_variables, clippy::if_same_then_else, clippy::single_match,)
-)]
-
 //! smolmix-wasm: drop-in browser networking over the Nym mixnet.
 //!
 //! Exposes three APIs that mirror the browser's native networking surface:
@@ -160,11 +150,15 @@ fn default_force_tls() -> bool {
     true
 }
 
-/// WASM entry point. Installs the panic hook + state-machine recorder.
+/// WASM entry point. Installs the panic hook + state-machine recorder,
+/// and flips the runtime debug-log switch on when smolmix's `debug`
+/// feature is enabled.
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn main() {
     nym_wasm_utils::set_panic_hook();
+    #[cfg(feature = "debug")]
+    nym_wasm_utils::set_debug_logging(true);
     state::install_panic_recorder();
 }
 

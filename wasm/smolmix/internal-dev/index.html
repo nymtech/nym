@@ -43,11 +43,11 @@
       <legend>Connection</legend>
       <div>
         <label>IPR address: </label>
-        <input type="text" size="80" id="ipr-address"
+        <input type="text" size="80" id="ipr-address" disabled
           value="6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1"
           placeholder="<nym-address of IPR exit node>" />
         <label style="margin-left: 8px">
-          <input type="checkbox" id="opt-random-ipr" /> Use random IPR
+          <input type="checkbox" id="opt-random-ipr" checked /> Use random IPR
         </label>
       </div>
       <details style="margin-top: 8px" open>
@@ -61,17 +61,17 @@
             <span style="font-size: 0.85em; color: #888">(randomised on load for clean state)</span>
           </div>
           <div style="margin-top: 4px">
-            <label><input type="checkbox" id="opt-disable-poisson" checked /> Disable Poisson traffic</label>
+            <label><input type="checkbox" id="opt-disable-poisson" /> Disable Poisson traffic</label>
           </div>
           <div style="margin-top: 4px">
-            <label><input type="checkbox" id="opt-disable-cover" checked /> Disable cover traffic</label>
+            <label><input type="checkbox" id="opt-disable-cover" /> Disable cover traffic</label>
           </div>
           <div style="margin-top: 4px">
             <label>Open reply SURBs:
-              <input type="number" id="opt-open-surbs" value="5" min="1" max="50" style="width: 60px" />
+              <input type="number" id="opt-open-surbs" value="10" min="1" max="50" style="width: 60px" />
             </label>
             <label style="margin-left: 8px">Data reply SURBs:
-              <input type="number" id="opt-data-surbs" value="2" min="1" max="50" style="width: 60px" />
+              <input type="number" id="opt-data-surbs" value="0" min="0" max="50" style="width: 60px" />
             </label>
             <div style="font-size: 0.85em; color: #888; margin-top: 2px">
               Optional. Larger pools raise inbound throughput; each outgoing Sphinx packet then carries more reply blocks.
@@ -93,6 +93,9 @@
       <div style="margin-top: 8px">
         <button id="btn-setup">setupMixTunnel</button>
         <button id="btn-disconnect" disabled>disconnectMixTunnel</button>
+        <label style="margin-left: 16px">
+          <input type="checkbox" id="opt-debug-logging" checked /> Debug logging
+        </label>
         <span id="tunnel-status" style="margin-left: 10px; color: gray">Not started</span>
       </div>
     </fieldset>

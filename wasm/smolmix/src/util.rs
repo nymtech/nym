@@ -3,16 +3,13 @@
 
 //! Re-exports of the shared debug-logging helpers from `nym-wasm-utils`.
 //!
-//! Both macros gate on the calling crate's `debug` feature, so smolmix
-//! controls verbose tracing via its own feature flag without affecting other
-//! consumers of `nym-wasm-utils`. See `nym_wasm_utils::hex_preview` for the
-//! binary-buffer formatter.
+//! Both macros gate on a runtime flag in `nym-wasm-utils`, which smolmix
+//! flips on in `lib.rs::main()` when its own `debug` feature is enabled
+//! (see `nym_wasm_utils::set_debug_logging`). `hex_preview` is the
+//! binary-buffer formatter used inside those macros.
 
 pub(crate) use nym_wasm_utils::debug_error;
 pub(crate) use nym_wasm_utils::debug_log;
-// Only referenced from inside `debug_log!(...)` macros, which compile to `()`
-// when the `debug` feature is off — so the import is unused in release builds.
-#[cfg(feature = "debug")]
 pub(crate) use nym_wasm_utils::hex_preview;
 
 /// MSRV-safe equivalent of `str::floor_char_boundary` (stable in 1.91; workspace

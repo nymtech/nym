@@ -8,17 +8,22 @@ packages:
   - 'sdk/typescript/packages/mui-theme'
 
 allowBuilds:
-  '@biomejs/biome': set this to true or false
-  '@parcel/watcher': set this to true or false
-  core-js: set this to true or false
-  core-js-pure: set this to true or false
-  esbuild: set this to true or false
-  lefthook: set this to true or false
-  nx: set this to true or false
-  protobufjs: set this to true or false
-  sharp: set this to true or false
-  tiny-secp256k1: set this to true or false
-  unrs-resolver: set this to true or false
+  '@biomejs/biome': true
+  '@parcel/watcher': true
+  '@swc/core': true
+  core-js: true
+  core-js-pure: true
+  es5-ext: true
+  esbuild: true
+  fsevents: true
+  lefthook: true
+  lmdb: true
+  msgpackr-extract: true
+  nx: true
+  protobufjs: true
+  sharp: true
+  tiny-secp256k1: true
+  unrs-resolver: true
 
 catalog:
   # babel

@@ -31,7 +31,13 @@ use nym_wasm_client_core::nym_task::connections::TransmissionLane;
 
 use crate::error::FetchError;
 
-/// Reply-SURB counts for Open and Data frames. Defaults: open=5, data=2.
+/// Reply-SURB counts for Open and Data frames. Defaults: `open=10, data=0`.
+///
+/// The Open frame seeds the IPR's SURB bucket; from there, the reply
+/// controller's pre-emptive topup refills it when the bucket dips below
+/// the `min_surbs_threshold` (10, per nym-client-core), so per-data-packet
+/// SURBs are unnecessary in steady state. Override `data` upwards for
+/// workloads that burst faster than topup round-trip can keep up.
 #[derive(Clone, Copy)]
 pub struct SurbsConfig {
     pub open: u32,
@@ -40,7 +46,7 @@ pub struct SurbsConfig {
 
 impl Default for SurbsConfig {
     fn default() -> Self {
-        Self { open: 5, data: 2 }
+        Self { open: 10, data: 0 }
     }
 }
 

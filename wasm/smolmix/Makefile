@@ -22,6 +22,7 @@ build-release-opt:
 check-fmt:
 	cargo fmt --check
 	cargo clippy --target wasm32-unknown-unknown -- -Dwarnings
+	cargo clippy --target wasm32-unknown-unknown --features debug -- -Dwarnings
 
 dev: build-debug
 	cd internal-dev && ./node_modules/.bin/webpack serve --open

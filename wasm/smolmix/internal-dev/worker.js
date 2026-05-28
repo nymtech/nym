@@ -19,6 +19,7 @@ import initWasm, {
   mixSocket as wasmMixSocket,
   wsSend as wasmWsSend,
   wsClose as wasmWsClose,
+  setDebugLogging as wasmSetDebugLogging,
 } from "smolmix-wasm";
 import * as Comlink from "comlink";
 
@@ -54,6 +55,14 @@ const api = {
       throw new Error("WASM not initialised; call setupMixTunnel first");
     }
     await wasmDisconnect();
+  },
+
+  async setDebugLogging(enabled) {
+    if (!wasmReady) {
+      await initWasm();
+      wasmReady = true;
+    }
+    wasmSetDebugLogging(enabled);
   },
 };
 

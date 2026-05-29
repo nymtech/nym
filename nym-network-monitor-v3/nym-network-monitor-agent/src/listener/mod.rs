@@ -144,7 +144,7 @@ impl MixnetListener {
     /// Returns `self` so that the caller can inspect fields such as
     /// [`last_noise_handshake_duration`](Self::last_noise_handshake_duration) after the run.
     pub(crate) async fn run(mut self, on_start: Arc<Notify>) -> Self {
-        on_start.notify_waiters();
+        on_start.notify_one();
         // only handle a single connection at once
         // (we don't need more than that)
         loop {

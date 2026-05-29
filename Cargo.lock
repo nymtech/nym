@@ -7571,7 +7571,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-agent"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -7604,7 +7604,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-orchestrator"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "axum",

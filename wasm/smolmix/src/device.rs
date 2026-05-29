@@ -28,13 +28,34 @@ impl WasmDevice {
     pub fn new() -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Sized so one IP packet fits in one sphinx packet payload (no
-        // chunking-layer fragmentation). Budget in bytes from the 2048 B
-        // sphinx plaintext: − 344 (SURB-ack) − 32 (x25519 ephemeral key,
-        // Repliable msgs) − 7 (frag header) − 1 (padding) − 53 (LP+IPR
-        // framing + AEAD) ≈ 1611. 1600 leaves ~11 B headroom for IPR
-        // overhead variability.
-        capabilities.max_transmission_unit = 1600;
+        // Trade-off between two ceilings:
+        //
+        // 1. **Sphinx budget**: 2048 B plaintext − 344 (SURB-ack) − 32
+        //    (x25519 ephemeral key, Repliable msgs) − 7 (frag header) − 1
+        //    (padding) − 53 (LP+IPR framing + AEAD) ≈ 1611 B. So anything
+        //    up to ~1611 avoids chunking-layer fragmentation between us
+        //    and the IPR.
+        //
+        // 2. **Internet MTU**: the de-facto MTU between the IPR's egress
+        //    NIC and most destination servers is 1500 B (Ethernet). A
+        //    larger MTU at our virtual NIC means the IPR's egress would
+        //    need to either fragment outgoing IPv4 packets (which many
+        //    firewalls drop) or rely on Path-MTU-Discovery — and ICMP
+        //    "Fragmentation Needed" replies often don't make it back
+        //    through the mixnet, so PMTUD fails silently and the larger
+        //    packets just vanish.
+        //
+        // Setting this to 1500 sacrifices ~6% theoretical throughput
+        // (about 100 B per outgoing packet that could have fit) in
+        // exchange for staying well within the path-MTU envelope every
+        // packet end-to-end. Empirically this seems to help against
+        // hosts (cloudflare-fronted ones especially) that drop oversized
+        // fragments without sending the ICMP that PMTUD needs.
+        //
+        // Previously this was 1600 to maximise per-packet efficiency
+        // within the sphinx budget. If you want to revert, the comment
+        // above documents that choice.
+        capabilities.max_transmission_unit = 1500;
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM

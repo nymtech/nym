@@ -14,9 +14,9 @@
 import initWasm, {
   setupMixTunnel as wasmSetup,
   mixFetch as wasmFetch,
-  mixResolve as wasmResolve,
+  mixDNS as wasmDNS,
   disconnectMixTunnel as wasmDisconnect,
-  mixSocket as wasmMixSocket,
+  mixWebSocket as wasmMixWebSocket,
   wsSend as wasmWsSend,
   wsClose as wasmWsClose,
   setDebugLogging as wasmSetDebugLogging,
@@ -43,11 +43,11 @@ const api = {
     return await wasmFetch(url, init || {});
   },
 
-  async mixResolve(hostname) {
+  async mixDNS(hostname) {
     if (!wasmReady) {
       throw new Error("WASM not initialised; call setupMixTunnel first");
     }
-    return await wasmResolve(hostname);
+    return await wasmDNS(hostname);
   },
 
   async disconnectMixTunnel() {
@@ -99,7 +99,7 @@ self.addEventListener("message", async (event) => {
       };
 
       try {
-        await wasmMixSocket(msg.url, msg.protocols, onEvent);
+        await wasmMixWebSocket(msg.url, msg.protocols, onEvent);
       } catch (e) {
         console.error("[ws] connect failed:", e);
         self.postMessage({

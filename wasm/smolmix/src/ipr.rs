@@ -31,13 +31,30 @@ use nym_wasm_client_core::nym_task::connections::TransmissionLane;
 
 use crate::error::FetchError;
 
-/// Reply-SURB counts for Open and Data frames. Defaults: `open=10, data=0`.
+/// Reply-SURB counts for Open and Data frames. Defaults: `open=10, data=5`.
 ///
-/// The Open frame seeds the IPR's SURB bucket; from there, the reply
-/// controller's pre-emptive topup refills it when the bucket dips below
-/// the `min_surbs_threshold` (10, per nym-client-core), so per-data-packet
-/// SURBs are unnecessary in steady state. Override `data` upwards for
-/// workloads that burst faster than topup round-trip can keep up.
+/// Open seeds the IPR's SURB bucket at handshake time. `data` is the
+/// per-frame SURB count for BOTH the initial ConnectRequest AND every
+/// LP-framed IP packet the bridge ships through the tunnel post-handshake
+/// (`tunnel.rs::init_network_stack` forwards `opts.surbs.data` into
+/// `bridge::start_bridge` as `data_surbs`).
+///
+/// `data=5` empirically:
+/// - Makes the IPR handshake reliable. The IPR receives 10 SURBs from
+///   Open plus 5 in-band with the ConnectRequest — 15 in hand when
+///   formulating the ConnectResponse. The IPR's `min_surb_threshold`
+///   defaults to 20 (per nym-client-core's surb-storage), so a topup
+///   exchange still happens, but it races the response gracefully
+///   instead of gating it. With `data=0` (the old default) the IPR had
+///   only 10 SURBs at reply time and the response often timed out.
+/// - Keeps steady-state replies smooth. Each bridge packet seeds another
+///   5 SURBs, so the IPR's bucket stays topped up without per-bucket
+///   topup round-trips stalling responses.
+///
+/// Cost: 5 extra SURBs per outgoing LP frame in steady state. Material
+/// for high-PPS workloads; trivial for typical HTTP/WS traffic. Override
+/// to 0 if you've measured wire-overhead pressure outweighing reply
+/// smoothness for your workload.
 #[derive(Clone, Copy)]
 pub struct SurbsConfig {
     pub open: u32,
@@ -46,7 +63,7 @@ pub struct SurbsConfig {
 
 impl Default for SurbsConfig {
     fn default() -> Self {
-        Self { open: 10, data: 0 }
+        Self { open: 10, data: 5 }
     }
 }
 

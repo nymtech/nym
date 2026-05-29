@@ -3,9 +3,20 @@ packages:
   - 'nym-wallet'
   - 'explorer-v2'
   - 'types'
-  - 'sdk/typescript/packages/mix-fetch/internal-dev'
+  - 'sdk/typescript/packages/internal-dev'
+  - 'sdk/typescript/packages/internal-dev/parcel'
   - 'sdk/typescript/packages/react-components'
   - 'sdk/typescript/packages/mui-theme'
+  # smolmix-wasm pkg/ is the wasm-pack output; mix-tunnel consumes it via
+  # `workspace:*`. Requires `make -C wasm/smolmix build-debug` (or release)
+  # to have produced pkg/ before `pnpm install` can resolve it.
+  - 'wasm/smolmix/pkg'
+  # smolmix-based SDKs: mix-tunnel owns the worker, the three facades
+  # consume it via `workspace:*` so pnpm needs them all listed.
+  - 'sdk/typescript/packages/mix-tunnel'
+  - 'sdk/typescript/packages/mix-fetch'
+  - 'sdk/typescript/packages/mix-dns'
+  - 'sdk/typescript/packages/mix-websocket'
 
 allowBuilds:
   '@biomejs/biome': true
@@ -21,8 +32,12 @@ allowBuilds:
   msgpackr-extract: true
   nx: true
   protobufjs: true
-  sharp: true
-  tiny-secp256k1: true
+  # Native C++ bindings; both fail to compile against Node 24's node-addon-api.
+  # Skipping the build leaves the JS shells in place, which is all our SDK
+  # packages need (only nym-wallet / explorer-v2 image stack actually uses them
+  # at runtime). Mirrors the fix on `max/fix-pnpm-ci` for documentation/docs/.
+  sharp: false
+  tiny-secp256k1: false
   unrs-resolver: true
 
 catalog:

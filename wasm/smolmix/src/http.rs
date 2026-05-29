@@ -108,11 +108,26 @@ where
         .header("Host", host)
         .header("Connection", "keep-alive");
 
+    // Track which browser-shape headers the caller has already set so the
+    // shim below doesn't clobber explicit intent.
     let mut has_content_length = false;
+    let mut has_user_agent = false;
+    let mut has_accept = false;
+    let mut has_accept_language = false;
+    let mut has_accept_encoding = false;
+
     for (name, value) in headers {
         builder = builder.header(name.as_str(), value.as_str());
         if name.eq_ignore_ascii_case("content-length") {
             has_content_length = true;
+        } else if name.eq_ignore_ascii_case("user-agent") {
+            has_user_agent = true;
+        } else if name.eq_ignore_ascii_case("accept") {
+            has_accept = true;
+        } else if name.eq_ignore_ascii_case("accept-language") {
+            has_accept_language = true;
+        } else if name.eq_ignore_ascii_case("accept-encoding") {
+            has_accept_encoding = true;
         }
     }
 
@@ -120,9 +135,55 @@ where
         builder = builder.header("Content-Length", body_bytes.len().to_string());
     }
 
+    // Browser-shape header shim. Many CDNs (cloudflare's bot management)
+    // and host policies (Wikimedia's User-Agent policy) reject requests
+    // that lack browser-canonical headers. We inject sensible defaults
+    // when the caller didn't provide them. Caller-supplied values always
+    // win — this is a floor, not a ceiling.
+    //
+    // `Accept-Encoding: identity` rather than `gzip, deflate, br` because
+    // hyper 1.x in our wasm build doesn't carry a decompressor; advertising
+    // compression would surface gzip bytes to the caller un-decoded. Trade
+    // slightly less browser-shape for body-correctness.
+    //
+    // See `wiki/src/rust-wasm/smolmix-wasm-cloudflare-fingerprinting.md` for
+    // the broader investigation and the open questions around full JA3
+    // impersonation, which this shim does NOT attempt.
+    if !has_user_agent {
+        builder = builder.header(
+            "User-Agent",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        );
+    }
+    if !has_accept {
+        builder = builder.header(
+            "Accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,\
+             image/avif,image/webp,*/*;q=0.8",
+        );
+    }
+    if !has_accept_language {
+        builder = builder.header("Accept-Language", "en-US,en;q=0.9");
+    }
+    if !has_accept_encoding {
+        builder = builder.header("Accept-Encoding", "identity");
+    }
+
     let req = builder
         .body(Full::new(body_bytes))
         .map_err(|e| FetchError::Http(format!("failed to build request: {e}")))?;
+
+    // Dump request headers (debug-only) so we can verify the shim and any
+    // caller-supplied headers actually made it onto the wire. Matches the
+    // response-header dump below for symmetry.
+    for (k, v) in req.headers().iter() {
+        crate::util::debug_log!(
+            "[http] -> {}: {}",
+            k.as_str(),
+            v.to_str().unwrap_or("<non-ascii>")
+        );
+    }
 
     // Perform HTTP/1 handshake; hyper takes ownership of the IO
     let (mut sender, conn) = http1::handshake(HyperIoAdapter(stream))

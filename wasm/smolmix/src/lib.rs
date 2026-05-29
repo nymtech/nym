@@ -6,14 +6,14 @@
 //! Exposes three APIs that mirror the browser's native networking surface:
 //!
 //! - **`mixFetch(url, init)`**: drop-in `fetch()` replacement (HTTP/HTTPS)
-//! - **`mixSocket(url, protocols, onEvent)`**: drop-in `WebSocket` replacement (WS/WSS)
-//! - **`mixResolve(hostname)`**: DNS-only hostname lookup (UDP / IPR path, no TCP/TLS)
+//! - **`mixWebSocket(url, protocols, onEvent)`**: drop-in `WebSocket` replacement (WS/WSS)
+//! - **`mixDNS(hostname)`**: DNS-only hostname lookup (UDP / IPR path, no TCP/TLS)
 //!
 //! All three share the same mixnet tunnel (DNS, TCP, TLS), initialised once
 //! via `setupMixTunnel(opts)` and torn down with `disconnectMixTunnel()`.
 
 // All modules gated on wasm32 so `cargo check` on the host triple sees an empty crate.
-// Cargo features (`dns` / `fetch` / `socket`) further gate the entry-point modules
+// Cargo features (`dns` / `fetch` / `websocket`) further gate the entry-point modules
 // and their heavy deps; see [features] in Cargo.toml.
 #[cfg(target_arch = "wasm32")]
 mod bridge;
@@ -23,7 +23,7 @@ mod device;
 mod dns;
 #[cfg(target_arch = "wasm32")]
 mod error;
-#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "socket")))]
+#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "websocket")))]
 mod fetch;
 #[cfg(all(target_arch = "wasm32", feature = "fetch"))]
 mod http;
@@ -33,15 +33,15 @@ mod ipr;
 mod mixdns;
 #[cfg(all(target_arch = "wasm32", feature = "fetch"))]
 mod mixfetch;
-#[cfg(all(target_arch = "wasm32", feature = "socket"))]
-mod mixsocket;
+#[cfg(all(target_arch = "wasm32", feature = "websocket"))]
+mod mixwebsocket;
 #[cfg(target_arch = "wasm32")]
 mod reactor;
 #[cfg(target_arch = "wasm32")]
 mod state;
 #[cfg(target_arch = "wasm32")]
 mod stream;
-#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "socket")))]
+#[cfg(all(target_arch = "wasm32", any(feature = "fetch", feature = "websocket")))]
 mod tls;
 #[cfg(target_arch = "wasm32")]
 mod tunnel;

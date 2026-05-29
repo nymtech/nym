@@ -25,10 +25,10 @@ wasm-bindgen-futures = { workspace = true }
 wasmtimer = { workspace = true }
 
 # DNS wire-format types (always present; internal DNS resolution is needed
-# even when only `fetch` or `socket` is enabled, for hostname → IP).
+# even when only `fetch` or `websocket` is enabled, for hostname → IP).
 hickory-proto = { workspace = true, features = ["std"] }
 
-# TLS stack: gated by the `_tls` private feature (pulled by `fetch` or `socket`).
+# TLS stack: gated by the `_tls` private feature (pulled by `fetch` or `websocket`).
 # rustls-rustcrypto is the only viable provider on wasm32-unknown-unknown:
 # ring + aws-lc-rs both fail to compile (no OS entropy / no C toolchain in browser).
 rustls = { workspace = true, features = ["std"], optional = true }
@@ -38,12 +38,12 @@ webpki-roots = { workspace = true, optional = true }
 rustls-rustcrypto = { workspace = true, optional = true }
 
 # HTTP/1.1 client (tokio-free; workspace declares default-features = false).
-# Gated by `fetch`: `mixSocket` does its upgrade handshake via async-tungstenite directly.
+# Gated by `fetch`: `mixWebSocket` does its upgrade handshake via async-tungstenite directly.
 hyper = { workspace = true, features = ["client", "http1"], optional = true }
 http-body-util = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
-# WebSocket (RFC 6455 client over futures::io streams). Gated by `socket`.
+# WebSocket (RFC 6455 client over futures::io streams). Gated by `websocket`.
 async-tungstenite = { workspace = true, features = ["handshake"], optional = true }
 
 # WASM utils (panic hook, console_log)
@@ -79,27 +79,27 @@ workspace = true
 features = ["wasm_js"]
 
 [features]
-# Default: build all three JS entry points (mixFetch, mixSocket, mixResolve).
+# Default: build all three JS entry points (mixFetch, mixWebSocket, mixDNS).
 # TS SDK packages that only need a subset can disable defaults and opt in:
 #   smolmix-wasm = { ..., default-features = false, features = ["fetch"] }
-default = ["dns", "fetch", "socket"]
+default = ["dns", "fetch", "websocket"]
 
-# Expose the JS `mixResolve(hostname)` entry point.
-# Note: the internal DNS resolver (used by fetch/socket for hostname lookups)
-# is always compiled — only the standalone JS export is gated here.
+# Expose the JS `mixDNS(hostname)` entry point.
+# Note: the internal DNS resolver (used by fetch/websocket for hostname lookups)
+# is always compiled; only the standalone JS export is gated here.
 dns = []
 
 # Expose the JS `mixFetch(url, init)` HTTP client. Pulls in TLS + the hyper-based
 # HTTP/1.1 stack.
 fetch = ["_tls", "_http"]
 
-# Expose the JS `mixSocket(url, protocols, onEvent)` WebSocket client.
+# Expose the JS `mixWebSocket(url, protocols, onEvent)` WebSocket client.
 # Pulls TLS (for `wss://`) + async-tungstenite. Does not pull `_http` because
 # tungstenite handles the WebSocket upgrade handshake itself.
-socket = ["_tls", "dep:async-tungstenite"]
+websocket = ["_tls", "dep:async-tungstenite"]
 
 # Internal feature aggregating the rustls-based TLS stack. Shared between
-# `fetch` (HTTPS) and `socket` (WSS).
+# `fetch` (HTTPS) and `websocket` (WSS).
 _tls = [
     "dep:rustls",
     "dep:rustls-pki-types",

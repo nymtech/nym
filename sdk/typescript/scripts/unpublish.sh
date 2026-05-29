@@ -8,7 +8,6 @@ cd dist
 
 packages=(
 "ts/sdk/nodejs-client/cjs"
-"ts/sdk/mix-fetch-node/cjs"
 )
 
 pushd () {

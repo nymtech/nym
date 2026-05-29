@@ -22,7 +22,7 @@ pub enum FetchError {
     #[error("HTTP error: {0}")]
     Http(String),
 
-    #[cfg(feature = "socket")]
+    #[cfg(feature = "websocket")]
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] async_tungstenite::tungstenite::Error),
 

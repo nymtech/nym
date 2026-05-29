@@ -105,14 +105,17 @@ sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
 sdk-wasm-build:
 	$(MAKE) -C wasm/client
-	$(MAKE) -C wasm/mix-fetch
 	$(MAKE) -C wasm/smolmix
 # 	$(MAKE) -C wasm/zknym-lib
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
+#
+# `mix-tunnel` must build before the three feature packages — they import it
+# via `workspace:*` and the lerna topological sort will respect that as long
+# as we keep them in the same `--scope` invocation.
 sdk-typescript-build:
 	npx lerna run --scope @nymproject/sdk build --stream
-	npx lerna run --scope @nymproject/mix-fetch build --stream
+	npx lerna run --scope '{@nymproject/mix-tunnel,@nymproject/mix-fetch,@nymproject/mix-dns,@nymproject/mix-websocket}' build --stream
 	pnpm --pwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
@@ -124,7 +127,6 @@ sdk-wasm-test:
 
 sdk-wasm-lint:
 	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
-	$(MAKE) -C wasm/mix-fetch check-fmt
 	$(MAKE) -C wasm/smolmix check-fmt
 
 # Add to top-level targets

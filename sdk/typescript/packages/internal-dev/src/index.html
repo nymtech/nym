@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>smolmix SDK playground</title>
+  <!-- Inline SVG favicon: suppresses the browser's automatic /favicon.ico
+       request that would otherwise 404 against webpack-dev-server. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23333'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%23c8f7c5'/%3E%3C/svg%3E">
+  <!-- HtmlWebpackPlugin injects the compiled <script src="index.js"> at build time. -->
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 980px; margin: 1rem auto; padding: 0 1rem; }
+    h1 { margin: 0 0 1rem; }
+    section, details.config { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+    section h2, details.config summary { margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 600; }
+    details.config summary { cursor: pointer; user-select: none; }
+    details.config[open] summary { margin-bottom: 0.75rem; }
+    .row { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+    input[type="text"], input[type="number"], input[type="password"] { flex: 1; padding: 0.4rem; font-family: monospace; }
+    button { padding: 0.4rem 0.8rem; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    pre { background: #f4f4f4; padding: 0.5rem; border-radius: 4px; white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow: auto; }
+    .state { font-family: monospace; padding: 0.25rem 0.5rem; border-radius: 4px; background: #eee; }
+    .state.ready { background: #c8f7c5; }
+    .state.failed { background: #f7c5c5; }
+    .config-grid { display: grid; grid-template-columns: 220px 1fr; gap: 0.4rem 0.75rem; align-items: center; }
+    .config-grid label { font-family: monospace; font-size: 0.9rem; }
+    .config-grid input[type="checkbox"] { transform: scale(1.2); justify-self: start; }
+    .config-grid .group-header { grid-column: 1 / -1; font-weight: 600; font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #ddd; }
+    .hint { font-size: 0.85rem; color: #666; margin: 0.25rem 0 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>smolmix TS SDK playground</h1>
+  <p>Tests the mix-tunnel + mix-fetch + mix-dns + mix-websocket packages end-to-end against a live mixnet.</p>
+
+  <details class="config">
+    <summary>Tunnel setup options</summary>
+    <p class="hint">Leave a field empty to use the smolmix-wasm default. All keys map directly to <code>SetupMixTunnelOpts</code>.</p>
+    <div class="config-grid">
+
+      <div class="group-header">HTTP request shim</div>
+      <label for="opt-userAgent">User-Agent override</label>
+      <input type="text" id="opt-userAgent" placeholder="(empty → smolmix shim's Chrome 131 Linux default)">
+
+      <div class="group-header">IPR &amp; client identity</div>
+      <label for="opt-preferredIpr">preferredIpr</label>
+      <input type="text" id="opt-preferredIpr" disabled
+             value="5x9dT7cCiAPti9eU1r7rPaiM9ih7nwX36vH2GYMy2QTQ.6GiUCTmfwyce326avSAK88jDtBtRENzmF5DgijcXUvHr@5rXcNe2a44vXisK3uqLHCzpzvEwcnsijDMU7hg4fcYk8"
+             placeholder="(auto-discover)">
+      <label for="opt-randomIpr">use random IPR</label>
+      <input type="checkbox" id="opt-randomIpr" checked>
+      <label for="opt-clientId">clientId</label>
+      <input type="text" id="opt-clientId" placeholder="(default)">
+      <label for="opt-storagePassphrase">storagePassphrase</label>
+      <input type="password" id="opt-storagePassphrase" placeholder="(unencrypted)">
+
+      <div class="group-header">Traffic shaping</div>
+      <label for="opt-forceTls">forceTls</label>
+      <input type="checkbox" id="opt-forceTls" checked>
+      <label for="opt-disablePoissonTraffic">disablePoissonTraffic</label>
+      <input type="checkbox" id="opt-disablePoissonTraffic">
+      <label for="opt-disableCoverTraffic">disableCoverTraffic</label>
+      <input type="checkbox" id="opt-disableCoverTraffic">
+
+      <div class="group-header">Reply SURB budget</div>
+      <label for="opt-openReplySurbs">openReplySurbs</label>
+      <input type="number" id="opt-openReplySurbs" value="10" min="0">
+      <label for="opt-dataReplySurbs">dataReplySurbs</label>
+      <input type="number" id="opt-dataReplySurbs" value="10" min="0">
+
+      <div class="group-header">DNS</div>
+      <label for="opt-primaryDns">primaryDns</label>
+      <input type="text" id="opt-primaryDns" placeholder="(default 8.8.8.8)">
+      <label for="opt-fallbackDns">fallbackDns</label>
+      <input type="text" id="opt-fallbackDns" placeholder="(default 1.1.1.1)">
+      <label for="opt-dnsTimeoutMs">dnsTimeoutMs</label>
+      <input type="number" id="opt-dnsTimeoutMs" placeholder="(default 30000)" min="0">
+
+      <div class="group-header">Timeouts &amp; buffers</div>
+      <label for="opt-connectTimeoutMs">connectTimeoutMs</label>
+      <input type="number" id="opt-connectTimeoutMs" placeholder="(default 60000)" min="0">
+      <label for="opt-tcpKeepaliveMs">tcpKeepaliveMs</label>
+      <input type="number" id="opt-tcpKeepaliveMs" placeholder="(default 10000)" min="0">
+      <label for="opt-tcpBufferSize">tcpBufferSize</label>
+      <input type="number" id="opt-tcpBufferSize" placeholder="(default 65535, cap 65535)" min="0" max="65535">
+
+      <div class="group-header">mix-fetch</div>
+      <label for="opt-maxRedirects">maxRedirects</label>
+      <input type="number" id="opt-maxRedirects" placeholder="(default 5)" min="0">
+
+      <div class="group-header">Logging</div>
+      <label for="opt-debug">debug</label>
+      <input type="checkbox" id="opt-debug" checked>
+
+    </div>
+  </details>
+
+  <section id="tunnel-section">
+    <h2>Mixnet tunnel</h2>
+    <div class="row">
+      <button id="btn-setup">Setup tunnel</button>
+      <button id="btn-disconnect">Disconnect</button>
+      <span id="tunnel-state" class="state">unknown</span>
+    </div>
+    <pre id="tunnel-log"></pre>
+  </section>
+
+  <section id="fetch-section">
+    <h2>mix-fetch &mdash; HTTP/HTTPS</h2>
+    <div class="row">
+      <input type="text" id="fetch-url" value="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt">
+      <button id="btn-fetch-text">Get text</button>
+      <button id="btn-fetch-image" data-url="https://upload.wikimedia.org/wikipedia/commons/8/80/Wikipedia-logo-v2.svg">Get image (wiki logo)</button>
+      <button id="btn-fetch-cf-trace" data-url="https://www.cloudflare.com/cdn-cgi/trace">Get CF trace</button>
+    </div>
+    <pre id="fetch-log"></pre>
+    <div id="fetch-image-output"></div>
+  </section>
+
+  <section id="dns-section">
+    <h2>mix-dns &mdash; hostname lookup</h2>
+    <div class="row">
+      <input type="text" id="dns-host" value="example.com">
+      <button id="btn-dns">Resolve</button>
+    </div>
+    <pre id="dns-log"></pre>
+  </section>
+
+  <section id="ws-section">
+    <h2>mix-websocket &mdash; WS/WSS</h2>
+    <div class="row">
+      <input type="text" id="ws-url" value="wss://echo.websocket.org">
+      <button id="btn-ws-connect">Connect</button>
+      <button id="btn-ws-send" disabled>Send "hello"</button>
+      <button id="btn-ws-close" disabled>Close</button>
+    </div>
+    <pre id="ws-log"></pre>
+  </section>
+</body>
+</html>

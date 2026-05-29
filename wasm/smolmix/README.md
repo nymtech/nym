@@ -11,8 +11,8 @@ Three WASM exports that mirror the browser's native networking surface:
 | Browser API | smolmix export | Description |
 |-------------|---------------|-------------|
 | `fetch()` | `mixFetch(url, init)` | HTTP/HTTPS request-response |
-| `new WebSocket()` | `mixSocket(url, protocols, onEvent)` | WebSocket (WS/WSS) |
-| (no direct browser equivalent) | `mixResolve(hostname)` | DNS-only hostname lookup over UDP/IPR (no TCP/TLS) |
+| `new WebSocket()` | `mixWebSocket(url, protocols, onEvent)` | WebSocket (WS/WSS) |
+| (no direct browser equivalent) | `mixDNS(hostname)` | DNS-only hostname lookup over UDP/IPR (no TCP/TLS) |
 
 ## Arch
 
@@ -60,7 +60,7 @@ Three WASM exports that mirror the browser's native networking surface:
 - Bridge (`bridge.rs`) - shuttles packets between the device and the mixnet
 - IPR (`ipr.rs`) - IP Packet Router protocol layer
 - WasmTcpStream / WasmUdpSocket / PooledConn (`stream.rs`) - `futures::io::AsyncRead + AsyncWrite` adapters over smoltcp sockets
-- WASM exports (`lib.rs`, `mixfetch.rs`, `mixsocket.rs`) - the surface JS calls into
+- WASM exports (`lib.rs`, `mixfetch.rs`, `mixwebsocket.rs`, `mixdns.rs`) - the surface JS calls into
 
 ### Tuning
 
@@ -87,11 +87,11 @@ points. Default builds enable all three; downstream TS SDK packages can opt
 into a subset to drop the corresponding implementation + native deps from the
 wasm binary.
 
-| Feature | JS export       | Pulls                                              |
-|---------|-----------------|----------------------------------------------------|
-| `dns`   | `mixResolve`    | (nothing extra; DNS resolver is always compiled)   |
-| `fetch` | `mixFetch`      | rustls TLS stack + hyper HTTP/1.1 client           |
-| `socket`| `mixSocket`     | rustls TLS stack + async-tungstenite               |
+| Feature    | JS export       | Pulls                                              |
+|------------|-----------------|----------------------------------------------------|
+| `dns`      | `mixDNS`        | (nothing extra; DNS resolver is always compiled)   |
+| `fetch`    | `mixFetch`      | rustls TLS stack + hyper HTTP/1.1 client           |
+| `websocket`| `mixWebSocket`  | rustls TLS stack + async-tungstenite               |
 
 Build a `dns`-only client:
 
@@ -99,13 +99,13 @@ Build a `dns`-only client:
 cargo build --target wasm32-unknown-unknown --no-default-features --features dns
 ```
 
-Build a `fetch`-only client (no WebSocket, no `mixResolve` JS export):
+Build a `fetch`-only client (no WebSocket, no `mixDNS` JS export):
 
 ```sh
 cargo build --target wasm32-unknown-unknown --no-default-features --features fetch
 ```
 
-`fetch` and `socket` share the TLS stack (rustls + rustls-rustcrypto + webpki-roots);
+`fetch` and `websocket` share the TLS stack (rustls + rustls-rustcrypto + webpki-roots);
 enabling both is roughly the same wasm size as either alone plus the hyper +
 async-tungstenite specifics.
 
@@ -145,8 +145,8 @@ make dev                # build-debug then start internal-dev webpack
                  |
        +---------+---------+--------------+
        v                   v              v
-  mixFetch            mixSocket       mixResolve
-  (mixfetch.rs)      (mixsocket.rs)   (mixdns.rs)
+  mixFetch            mixWebSocket    mixDNS
+  (mixfetch.rs)      (mixwebsocket.rs) (mixdns.rs)
        |                   |              |
        v                   v              v
   fetch::fetch       fetch::new_      dns::resolve
@@ -188,5 +188,5 @@ make dev                # build-debug then start internal-dev webpack
 ```
 
 Everything else (TLS handshakes, HTTP/1.1 requests, WebSocket frames in
-`mixSocket`) is content travelling inside that single gateway WSS as
+`mixWebSocket`) is content travelling inside that single gateway WSS as
 Sphinx-packed bytes.

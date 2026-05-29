@@ -1,13 +1,14 @@
 {
   "name": "@nymproject/mix-tunnel",
-  "version": "1.21.0",
+  "version": "0.1.0",
   "description": "Shared mixnet tunnel lifecycle for smolmix-based SDKs (mix-fetch, mix-dns, mix-websocket).",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
-    "dist/esm/worker.js",
     "dist/**/*"
   ],
+  "main": "dist/esm/index.js",
+  "module": "dist/esm/index.js",
   "browser": "dist/esm/index.js",
   "scripts": {
     "build": "scripts/build.sh",

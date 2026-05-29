@@ -1,6 +1,7 @@
 {
   "name": "@nymproject/smolmix-internal-dev",
-  "version": "1.21.0",
+  "version": "0.0.0",
+  "private": true,
   "license": "Apache-2.0",
   "description": "Internal playground exercising the smolmix-based TS SDK family (mix-tunnel, mix-fetch, mix-dns, mix-websocket).",
   "scripts": {
@@ -57,6 +58,5 @@
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "catalog:",
     "webpack-merge": "catalog:"
-  },
-  "private": false
+  }
 }

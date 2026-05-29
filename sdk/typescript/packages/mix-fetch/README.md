@@ -73,6 +73,17 @@ Notable differences:
   (`disableCoverTraffic`, `disablePoissonTraffic`).
 - **Bundle size**: v2 inlines the wasm + worker into a single ~38 MB ESM
   module. No sibling assets to ship. Trade-off for zero-config deployment.
+- **Browser-only**: v2 targets `wasm32-unknown-unknown` and uses a Web Worker
+  for the network stack. The v1 `@nymproject/mix-fetch-node` Node entry point
+  is not yet ported.
 
 See `@nymproject/mix-tunnel`'s `SetupMixTunnelOpts` for the full v2 options
 surface.
+
+## Consumer build requirements
+
+The package ships as raw ESM with a bare `import` of `@nymproject/mix-tunnel`.
+Use a bundler that follows package imports (webpack, rollup, parcel, vite,
+esbuild). The 38 MB wasm payload lives inside `@nymproject/mix-tunnel`, so
+your bundler will surface a single large chunk — plan code-splitting around
+it (dynamic `import('@nymproject/mix-fetch')` is the usual move).

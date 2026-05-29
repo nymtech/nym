@@ -29,3 +29,9 @@ await ws.close(1000, 'done');
 
 The tunnel is shared with `@nymproject/mix-fetch` and `@nymproject/mix-dns`
 via `@nymproject/mix-tunnel`; calling `setupMixTunnel` once is enough.
+
+## Consumer build requirements
+
+Ships as raw ESM with a bare `import` of `@nymproject/mix-tunnel`. Use a
+bundler that follows package imports (webpack, rollup, parcel, vite,
+esbuild). Browser-only target.

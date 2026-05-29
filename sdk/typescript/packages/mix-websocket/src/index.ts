@@ -129,10 +129,18 @@ export class MixWebSocket extends EventTarget {
         this.state = CLOSED;
         this.dispatchEvent(new CloseEvent('close', closeInit(data)));
         break;
-      case 'error':
+      case 'error': {
         this.state = CLOSED;
-        this.dispatchEvent(new Event('error'));
+        // Mirror the constructor's catch-handler shape: attach `.message`
+        // (non-standard but consistent) so application code can read the
+        // cause without scraping the worker's console.error output.
+        // smolmix-wasm always fires `error` with the stringified Rust error
+        // (see `mixwebsocket.rs` `fire_ws_event(..., "error", ...)`).
+        const evt = new Event('error') as Event & { message?: string };
+        evt.message = typeof data === 'string' ? data : String(data ?? '');
+        this.dispatchEvent(evt);
         break;
+      }
       default:
         // Unknown event type; ignore.
         break;

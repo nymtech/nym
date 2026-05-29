@@ -11557,7 +11557,7 @@ dependencies = [
 
 [[package]]
 name = "smolmix-wasm"
-version = "1.21.0"
+version = "0.1.0"
 dependencies = [
  "async-tungstenite",
  "bytes",

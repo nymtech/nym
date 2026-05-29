@@ -1,6 +1,6 @@
 [package]
 name = "smolmix-wasm"
-version = "1.21.0"
+version = "0.1.0"
 authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }

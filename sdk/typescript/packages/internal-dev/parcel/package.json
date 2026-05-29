@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/smolmix-internal-dev-parcel",
-  "version": "1.21.0",
+  "version": "0.0.0",
   "license": "Apache-2.0",
   "scripts": {
     "build": "npx parcel build --no-cache --no-content-hash",
@@ -13,6 +13,6 @@
     "@nymproject/mix-dns": "workspace:*",
     "@nymproject/mix-websocket": "workspace:*"
   },
-  "private": false,
+  "private": true,
   "source": "../src/index.html"
 }

@@ -11,6 +11,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
+    "docs:generate": "typedoc",
+    "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/mix-fetch/",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "start": "tsc -w",

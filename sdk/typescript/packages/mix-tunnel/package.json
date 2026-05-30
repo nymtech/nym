@@ -14,6 +14,8 @@
     "build": "scripts/build.sh",
     "build:worker": "rollup -c rollup-worker.config.mjs",
     "clean": "rimraf dist",
+    "docs:generate": "typedoc",
+    "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/mix-tunnel/",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "start": "tsc -w",

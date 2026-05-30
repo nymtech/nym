@@ -5,7 +5,6 @@
 // import `getMixTunnel()` and call into the same worker, so they share
 // one IPR connection + one smoltcp stack + one DNS cache.
 
-/// <reference path="./typings.d.ts" />
 import InlineWasmWebWorker from 'web-worker:./worker/worker';
 import * as Comlink from 'comlink';
 import { EventKinds, IMixTunnelWorker } from './types';

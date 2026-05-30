@@ -2,22 +2,27 @@
 //
 // The tunnel is a single WASM instance with one IPR + smoltcp stack;
 // mix-fetch, mix-dns, and mix-websocket all route through it.
+//
+// The fields below mirror smolmix-wasm's `SetupOpts`. Kept inline (not
+// imported) so consumers don't take a transitive type-only dep on
+// `@nymproject/smolmix-wasm`, which never publishes to npm.
 
-import type { SetupOpts as SmolmixSetupOpts } from '@nymproject/smolmix-wasm';
-
-/**
- * Options passed to `setupMixTunnel`. Mirrors the full smolmix-wasm `SetupOpts`
- * surface so consumers can reach every tuning knob the wasm exposes — IPR
- * pinning (`preferredIpr`), cover-traffic + Poisson toggles, SURB budgets,
- * DNS server overrides, TCP/connect timeouts, etc.
- *
- * One extra knob lives at the TS layer: `debug`. The wasm has it as a separate
- * runtime call (`setDebugLogging(bool)`); we collapse it into the opts bag so
- * callers can set everything in one place.
- */
-export interface SetupMixTunnelOpts extends SmolmixSetupOpts {
-  /** Toggle smolmix's verbose console tracing. Routed to
-   * `smolmix-wasm::setDebugLogging` at setup time. Off by default. */
+export interface SetupMixTunnelOpts {
+  preferredIpr?: string | undefined;
+  clientId?: string | undefined;
+  forceTls?: boolean;
+  disablePoissonTraffic?: boolean;
+  disableCoverTraffic?: boolean;
+  openReplySurbs?: number | undefined;
+  dataReplySurbs?: number | undefined;
+  primaryDns?: string | undefined;
+  fallbackDns?: string | undefined;
+  storagePassphrase?: string | undefined;
+  connectTimeoutMs?: number | undefined;
+  dnsTimeoutMs?: number | undefined;
+  tcpKeepaliveMs?: number | undefined;
+  tcpBufferSize?: number | undefined;
+  maxRedirects?: number | undefined;
   debug?: boolean;
 }
 

@@ -14,14 +14,18 @@ module.exports = mergeWithRules({
     },
   },
 })(
-  webpackCommon(__dirname, [
-    {
-      inject: true,
-      filename: 'index.html',
-      template: path.resolve(__dirname, 'src/index.html'),
-      chunks: ['index'],
-    },
-  ]),
+  webpackCommon(
+    __dirname,
+    [
+      {
+        inject: true,
+        filename: 'index.html',
+        template: path.resolve(__dirname, 'src/index.html'),
+        chunks: ['index'],
+      },
+    ],
+    { skipFavicon: true },
+  ),
   {
     entry: {
       index: path.resolve(__dirname, 'src/index.ts'),

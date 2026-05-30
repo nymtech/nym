@@ -1,4 +1,4 @@
-import { setupMixTunnel, MixWebSocket } from '@nymproject/mix-websocket';
+import { setupMixTunnel, MixWebSocket, type SetupMixTunnelOpts } from '@nymproject/mix-websocket';
 
 function log(line: string) {
   const el = document.getElementById('output') as HTMLPreElement;
@@ -6,13 +6,40 @@ function log(line: string) {
   el.scrollTop = el.scrollHeight;
 }
 
+// Tunnel configuration. Every field is optional.
+//
+// `debug: true` turns on smolmix-wasm's verbose tracing so you can watch
+// the TLS handshake and WebSocket frame exchange in DevTools. Leave it off
+// in production.
+const setupOpts: SetupMixTunnelOpts = {
+  debug: true,
+
+  // Pin a specific exit IPR. Otherwise auto-discovered from the topology.
+  // preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Anonymity / performance trade-off. Cover traffic + Poisson padding
+  // smear timing patterns at the cost of bandwidth. Default: both on.
+  // disableCoverTraffic: true,
+  // disablePoissonTraffic: true,
+
+  // TCP keepalive cadence for the underlying smoltcp socket. Default: 10s.
+  // Lower it if you need quicker dead-peer detection on idle WebSockets.
+  // tcpKeepaliveMs: 5_000,
+
+  // Connect budget for the TCP + TLS + WS handshake. Default: 60s.
+  // connectTimeoutMs: 30_000,
+};
+
+// Public echo server. Sends each frame back to the client.
+const WS_URL = 'wss://echo.websocket.events';
+
 async function main() {
   log('Setting up mixnet tunnel...');
-  await setupMixTunnel();
+  await setupMixTunnel(setupOpts);
   log('Tunnel ready.');
 
-  log('Connecting to wss://echo.websocket.events...');
-  const ws = new MixWebSocket('wss://echo.websocket.events');
+  log(`Connecting to ${WS_URL}...`);
+  const ws = new MixWebSocket(WS_URL);
 
   ws.addEventListener('open', () => log('< open'));
   ws.addEventListener('message', (e) => {

@@ -11,6 +11,6 @@
     "@nymproject/mix-websocket": "workspace:*",
     "parcel": "^2.9.3"
   },
-  "private": false,
+  "private": true,
   "source": "src/index.html"
 }

@@ -1,5 +1,6 @@
-// rollup-plugin-web-worker-loader exposes worker files as virtual modules
-// prefixed with `web-worker:`. At runtime these resolve to a `Worker` constructor.
+// `web-worker:` virtual modules emitted by `rollup-plugin-web-worker-loader`.
+// Script-style ambient declaration (no imports/exports in this file) so the
+// wildcard pattern works — module augmentations don't support wildcards.
 declare module 'web-worker:*' {
   const WorkerCtor: new () => Worker;
   export default WorkerCtor;

@@ -348,11 +348,11 @@ $('btn-ws-connect').addEventListener('click', () => {
   ws.addEventListener('message', async (ev) => {
     const data = (ev as MessageEvent).data;
     let preview: string;
-    let bytes: Uint8Array | undefined;
+    let bytes: Uint8Array<ArrayBuffer> | undefined;
     if (typeof data === 'string') {
       preview = data.length <= 200 ? data : `${data.slice(0, 200)}...`;
     } else if (data instanceof ArrayBuffer) {
-      bytes = new Uint8Array(data);
+      bytes = new Uint8Array(data as ArrayBuffer);
       preview = `[binary ${bytes.length} bytes] ${hexPreview(bytes)}`;
     } else {
       preview = `[unknown ${typeof data}]`;

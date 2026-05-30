@@ -34,4 +34,9 @@ via `@nymproject/mix-tunnel`; calling `setupMixTunnel` once is enough.
 
 Ships as raw ESM with a bare `import` of `@nymproject/mix-tunnel`. Use a
 bundler that follows package imports (webpack, rollup, parcel, vite,
-esbuild). Browser-only target.
+esbuild).
+
+Runs in any environment exposing `Worker`, `WebAssembly`, `Blob`, and
+`URL.createObjectURL`. That covers modern browsers, Electron renderers,
+and mobile WebViews (Capacitor, Cordova, Ionic, iOS WKWebView, Android
+WebView). A Node-direct entry point is not yet ported from v1.

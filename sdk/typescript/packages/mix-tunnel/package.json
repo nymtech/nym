@@ -22,10 +22,10 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/smolmix-wasm": "workspace:*",
     "comlink": "^4.3.1"
   },
   "devDependencies": {
+    "@nymproject/smolmix-wasm": "workspace:*",
     "@nymproject/eslint-config-react-typescript": "workspace:*",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",
@@ -45,8 +45,5 @@
   },
   "private": false,
   "type": "module",
-  "types": "./src/index.ts",
-  "publishConfig": {
-    "types": "./dist/esm/index.d.ts"
-  }
+  "types": "./dist/esm/index.d.ts"
 }

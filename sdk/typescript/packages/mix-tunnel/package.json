@@ -4,6 +4,17 @@
   "description": "Shared mixnet tunnel lifecycle for smolmix-based SDKs (mix-fetch, mix-dns, mix-websocket).",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
+  "homepage": "https://nym.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nymtech/nym",
+    "directory": "sdk/typescript/packages/mix-tunnel"
+  },
+  "bugs": {
+    "url": "https://github.com/nymtech/nym/issues"
+  },
+  "keywords": ["nym", "mixnet", "privacy", "wasm", "webworker"],
+  "sideEffects": false,
   "files": [
     "dist/**/*"
   ],
@@ -21,9 +32,6 @@
     "start": "tsc -w",
     "tsc": "tsc --noEmit true"
   },
-  "dependencies": {
-    "comlink": "^4.3.1"
-  },
   "devDependencies": {
     "@nymproject/smolmix-wasm": "workspace:*",
     "@nymproject/eslint-config-react-typescript": "workspace:*",
@@ -32,9 +40,9 @@
     "@rollup/plugin-replace": "^5.0.2",
     "@rollup/plugin-typescript": "^10.0.1",
     "@rollup/plugin-wasm": "^6.1.1",
-    "@types/node": "^16.7.13",
     "@typescript-eslint/eslint-plugin": "catalog:",
     "@typescript-eslint/parser": "catalog:",
+    "comlink": "^4.3.1",
     "eslint": "^8.10.0",
     "rimraf": "catalog:",
     "rollup": "^3.9.1",
@@ -45,5 +53,8 @@
   },
   "private": false,
   "type": "module",
-  "types": "./dist/esm/index.d.ts"
+  "types": "./dist/esm/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
 }

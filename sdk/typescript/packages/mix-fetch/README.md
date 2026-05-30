@@ -14,7 +14,7 @@ const res = await mixFetch('https://example.com/');
 const html = await res.text();
 ```
 
-The `setupMixTunnel` call accepts the full `SetupMixTunnelOpts` surface — IPR
+The `setupMixTunnel` call accepts the full `SetupMixTunnelOpts` surface: IPR
 pinning, cover-traffic toggles, SURB budgets, DNS overrides, TCP/connect
 timeouts, etc. See `@nymproject/mix-tunnel`'s typings for the complete list.
 
@@ -60,7 +60,7 @@ tunnel. Caller-supplied values always win.
 | `Accept-Encoding` | `identity` (the wasm build has no decompressor) |
 
 Rationale: many CDNs (cloudflare bot management) and host policies (wikimedia)
-reject requests that lack browser-canonical headers. The shim is a floor —
+reject requests that lack browser-canonical headers. The shim is a floor:
 it does not attempt TLS-fingerprint or HTTP/2 impersonation, just the
 header-shaped tells. See the smolmix-wasm README "Browser-shape header
 shim" section for the full story and the JA3 caveats.
@@ -84,7 +84,7 @@ update it to look like the right:
 |---|---|
 | `await createMixFetch({ preferredNetworkRequester, clientId, mixFetchOverride, responseBodyConfigMap })` | `await setupMixTunnel({ preferredIpr, clientId, connectTimeoutMs, ... })` |
 | `mixFetch(url, args, opts)` (3-arg) | `mixFetch(url, args)` (2-arg) + `setupMixTunnel(opts)` separately |
-| `args.mode = 'unsafe-ignore-cors'` | not needed — the IPR enforces its own egress policy, browser CORS doesn't apply |
+| `args.mode = 'unsafe-ignore-cors'` | not needed; the IPR enforces its own egress policy, browser CORS doesn't apply |
 | `disconnectMixFetch()` | `disconnectMixTunnel()` |
 
 Notable differences:
@@ -98,8 +98,10 @@ Notable differences:
   `.blob()` as usual.
 - **Cover traffic**: v1's `clientOverride.coverTraffic` is now flat opts
   (`disableCoverTraffic`, `disablePoissonTraffic`).
-- **Bundle size**: v2 inlines the wasm + worker into a single ~38 MB ESM
-  module. No sibling assets to ship. Trade-off for zero-config deployment.
+- **Bundle size**: v2 inlines the wasm + worker into a single ESM module.
+  No sibling assets to ship, at the cost of a large single chunk. Plan
+  code-splitting around it (dynamic `import('@nymproject/mix-fetch')` is
+  the usual move).
 - **Runtime target**: v2 ships a single ESM bundle that runs in any environment
   exposing `Worker`, `WebAssembly`, `Blob`, and `URL.createObjectURL`. That
   covers modern browsers, Electron renderers, and mobile WebViews (Capacitor,

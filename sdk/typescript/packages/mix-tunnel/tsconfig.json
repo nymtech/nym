@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "declaration": true,
+    "sourceMap": true,
     "baseUrl": ".",
     "downlevelIteration": true
   },

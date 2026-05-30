@@ -4,10 +4,23 @@
   "description": "Drop-in `fetch` replacement that routes HTTP/HTTPS requests through the Nym mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
+  "homepage": "https://nym.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nymtech/nym",
+    "directory": "sdk/typescript/packages/mix-fetch"
+  },
+  "bugs": {
+    "url": "https://github.com/nymtech/nym/issues"
+  },
+  "keywords": ["nym", "mixnet", "privacy", "fetch", "http"],
+  "sideEffects": false,
   "files": [
     "dist/**/*"
   ],
   "main": "dist/index.js",
+  "module": "dist/index.js",
+  "browser": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
@@ -32,5 +45,8 @@
   },
   "private": false,
   "type": "module",
-  "types": "./dist/index.d.ts"
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
 }

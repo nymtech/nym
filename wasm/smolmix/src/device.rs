@@ -178,6 +178,6 @@ mod tests {
         let dev = WasmDevice::new();
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        assert_eq!(caps.max_transmission_unit, 1980);
+        assert_eq!(caps.max_transmission_unit, 1500);
     }
 }

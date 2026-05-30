@@ -15,6 +15,31 @@ use hyper::client::conn::http1;
 
 use crate::error::FetchError;
 
+// Browser-shape header shim defaults.
+//
+// `mixFetch` ships these as fallbacks when the caller didn't set the header
+// itself; caller-supplied values always win. Many CDNs (cloudflare bot
+// management) and host policies (wikimedia's UA policy) reject requests
+// that lack browser-canonical headers. See README "Browser-shape header
+// shim" for the rationale, limits, and fingerprinting caveats.
+//
+// `DEFAULT_USER_AGENT` is pinned to a recent Chrome-on-Linux UA. Bump it
+// when the Chrome major in the wild drifts far enough that this string
+// starts looking suspicious (heuristic: more than 6 majors stale).
+pub(crate) const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
+     (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+pub(crate) const DEFAULT_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
+     image/avif,image/webp,*/*;q=0.8";
+
+pub(crate) const DEFAULT_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+
+// `identity` rather than `gzip, deflate, br` because hyper 1.x in our wasm
+// build doesn't carry a decompressor; advertising compression would surface
+// gzip bytes to the caller un-decoded. Trade slightly less browser-shape
+// for body-correctness.
+pub(crate) const DEFAULT_ACCEPT_ENCODING: &str = "identity";
+
 /// Parsed HTTP response.
 pub struct HttpResponse {
     pub status: u16,
@@ -135,39 +160,19 @@ where
         builder = builder.header("Content-Length", body_bytes.len().to_string());
     }
 
-    // Browser-shape header shim. Many CDNs (cloudflare's bot management)
-    // and host policies (Wikimedia's User-Agent policy) reject requests
-    // that lack browser-canonical headers. We inject sensible defaults
-    // when the caller didn't provide them. Caller-supplied values always
-    // win — this is a floor, not a ceiling.
-    //
-    // `Accept-Encoding: identity` rather than `gzip, deflate, br` because
-    // hyper 1.x in our wasm build doesn't carry a decompressor; advertising
-    // compression would surface gzip bytes to the caller un-decoded. Trade
-    // slightly less browser-shape for body-correctness.
-    //
-    // See `wiki/src/rust-wasm/smolmix-wasm-cloudflare-fingerprinting.md` for
-    // the broader investigation and the open questions around full JA3
-    // impersonation, which this shim does NOT attempt.
+    // Browser-shape header shim. Definitions + rationale at the top of
+    // this file.
     if !has_user_agent {
-        builder = builder.header(
-            "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        );
+        builder = builder.header("User-Agent", DEFAULT_USER_AGENT);
     }
     if !has_accept {
-        builder = builder.header(
-            "Accept",
-            "text/html,application/xhtml+xml,application/xml;q=0.9,\
-             image/avif,image/webp,*/*;q=0.8",
-        );
+        builder = builder.header("Accept", DEFAULT_ACCEPT);
     }
     if !has_accept_language {
-        builder = builder.header("Accept-Language", "en-US,en;q=0.9");
+        builder = builder.header("Accept-Language", DEFAULT_ACCEPT_LANGUAGE);
     }
     if !has_accept_encoding {
-        builder = builder.header("Accept-Encoding", "identity");
+        builder = builder.header("Accept-Encoding", DEFAULT_ACCEPT_ENCODING);
     }
 
     let req = builder

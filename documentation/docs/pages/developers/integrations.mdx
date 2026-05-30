@@ -1,36 +1,35 @@
 ---
 title: "Choosing an Approach"
-description: "Decide which Nym integration path fits your project. Compare nym-sdk, smolmix, mix-fetch, and the TypeScript SDK by runtime environment and architecture."
+description: "Decide which Nym integration path fits your project. Compare nym-sdk, smolmix, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK by runtime and architecture."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-12"
+lastUpdated: "2026-05-29"
 ---
 
 import { Callout } from 'nextra/components';
 
 # Choosing an Approach
 
-Any application that integrates with Nym sends its traffic through the Mixnet via a Nym client. The right product depends on two factors: your **environment** (where your code runs) and your **architecture** (whether you control both sides of the communication).
+Any application that integrates with Nym sends its traffic through the mixnet via a Nym client. The right package depends on two factors: your **environment** (where your code runs) and your **architecture** (whether you control both sides of the communication).
 
 ## At a glance
 
 |   | **End-to-end** (both sides run Nym) | **Proxy mode** (Nym → clearnet exit) |
 |---|---|---|
-| **Rust** (native / desktop / CLI) | [`nym-sdk`](/developers/rust) (Stream, Mixnet, Client Pool) | [`smolmix`](/developers/smolmix) (TCP / UDP) · [`nym-sdk`](/developers/rust) SOCKS client |
-| **TypeScript** (browser) | [TypeScript SDK](/developers/typescript) (WASM Mixnet Client, messaging only) | [`mix-fetch`](/developers/mix-fetch) (HTTP) |
+| **Rust** (native / desktop / CLI) | [`nym-sdk`](/developers/rust) (Stream, Mixnet, Client Pool) | [`smolmix`](/developers/smolmix) (`TcpStream` / `UdpSocket`) · [`nym-sdk` SOCKS client](/developers/rust) |
+| **TypeScript** (browser) | [TypeScript SDK](/developers/typescript) (`@nymproject/sdk` raw messaging) | [`mix-fetch`](/developers/mix-fetch) (HTTP/S) · [`mix-dns`](/developers/mix-dns) (UDP DNS) · [`mix-websocket`](/developers/mix-websocket) (WS/WSS) |
 | **Mobile** (iOS / Android) | via [`nym-vpn-client`](#mobile) (uniffi + cargo-swift / cargo-ndk) | via [`nym-vpn-client`](#mobile) (uniffi + cargo-swift / cargo-ndk) |
 
 ## Environment
 
 Different runtimes have different transport constraints: a browser cannot open raw sockets or access the filesystem, while a desktop app can.
 
-- **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) (the Rust SDK) for E2E messaging or byte streams, or [`smolmix`](/developers/smolmix) for TCP/UDP socket-shaped access in proxy mode.
-- **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. Use [`mix-fetch`](/developers/mix-fetch) for HTTP(S) requests, or the [TypeScript SDK](/developers/typescript)'s WASM Mixnet Client for raw message passing.
+- **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) for end-to-end messaging or byte streams, or [`smolmix`](/developers/smolmix) for `TcpStream`/`UdpSocket` access in proxy mode.
+- **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. The browser packages share one mixnet tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and split by protocol: [`mix-fetch`](/developers/mix-fetch) for HTTP/S, [`mix-dns`](/developers/mix-dns) for UDP DNS, [`mix-websocket`](/developers/mix-websocket) for WS/WSS. For end-to-end messaging where you control both sides, use the [TypeScript SDK](/developers/typescript).
 
 ### Mobile
 
 There is no first-party mobile SDK, but [`nym-vpn-client`](https://github.com/nymtech/nym-vpn-client) ships production iOS and Android apps built around the Nym stack and is the reference we'd point you at. The relevant pieces are `nym-vpn-core/crates/nym-vpn-lib-uniffi` ([`uniffi`](https://mozilla.github.io/uniffi-rs/) FFI wrapper), `nym-vpn-core/iOS.mk` ([`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) → XCFramework + SwiftPM), and `nym-vpn-core/Android.mk` ([`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) → `jniLibs/`, driven from Gradle).
-
 
 If you try this and hit (or solve) blockers, drop a note in the [Nym dev channel on Matrix](https://matrix.to/#/#dev:nymtech.chat) or open an issue on [GitHub](https://github.com/nymtech/nym).
 
@@ -42,7 +41,7 @@ The second factor is whether you control both sides of the communication.
 
 ![](/images/developers/nym-arch-client-to-client.png)
 
-**Proxy**: only the client side runs Nym. Traffic exits the Mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; payload protection (TLS, Noise, etc.) is your application's job, as on a direct connection. Appropriate when connecting to third-party services such as blockchain RPCs or external APIs.
+**Proxy**: only the client side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; payload protection (TLS, Noise, etc.) is your application's job, as on a direct connection. Appropriate when connecting to third-party services such as blockchain RPCs or external APIs.
 
 ![](/images/developers/nym-arch-ip-routing.png)
 
@@ -54,10 +53,16 @@ Once traffic leaves the Exit Gateway, it travels over the public internet to the
 
 ![](/images/developers/nym-browser-arch.png)
 
+## Browser packages, one tunnel
+
+The three browser proxy-mode packages ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)) share a single mixnet tunnel via [`mix-tunnel`](/developers/mix-tunnel). Calling `setupMixTunnel()` once brings up one WASM instance, one IPR connection, and one userspace TCP/IP stack; all three packages route through it. There's no per-package handshake cost.
+
 ## Where to go next
 
-- **Rust, E2E messaging or byte streams**: [`nym-sdk`](/developers/rust)
+- **Rust, end-to-end messaging or byte streams**: [`nym-sdk`](/developers/rust)
 - **Rust, TCP/UDP socket replacements**: [`smolmix`](/developers/smolmix)
 - **Browser, HTTP(S) requests**: [`mix-fetch`](/developers/mix-fetch)
-- **Browser, raw mixnet messaging or Nyx smart contracts**: [TypeScript SDK](/developers/typescript)
+- **Browser, DNS lookups**: [`mix-dns`](/developers/mix-dns)
+- **Browser, WebSocket connections**: [`mix-websocket`](/developers/mix-websocket)
+- **Browser, raw end-to-end messaging or Nyx smart contracts**: [TypeScript SDK](/developers/typescript)
 - **Background on Sphinx, gateways, and the mixnet itself**: [Key Concepts](/developers/concepts)

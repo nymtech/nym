@@ -1,4 +1,3 @@
 {
-  "sdk": "@nymproject/sdk",
-  "mix-fetch": "@nymproject/mix-fetch"
+  "sdk": "@nymproject/sdk"
 }

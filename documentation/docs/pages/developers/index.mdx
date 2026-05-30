@@ -1,9 +1,9 @@
 ---
 title: "Overview"
-description: "Developer documentation index for the Nym mixnet: Rust and TypeScript SDKs, smolmix, mix-fetch, chain interaction, and CLI tools."
+description: "Developer documentation index for the Nym mixnet: Rust crates (nym-sdk, smolmix) and TypeScript packages (mix-tunnel, mix-fetch, mix-dns, mix-websocket, sdk), chain interaction, and CLI tools."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-12"
+lastUpdated: "2026-05-29"
 ---
 
 # Overview
@@ -12,17 +12,32 @@ This section covers the SDKs, standalone crates, blockchain interaction, and dev
 
 ## Start here
 
-If you're new, read **[Choosing an Approach](/developers/integrations)** first. It maps your runtime (native vs browser vs mobile) and your architecture (end-to-end vs proxy) onto the right crate/library.
+If you're new, read **[Choosing an Approach](/developers/integrations)** first. It maps your runtime (native vs browser vs mobile) and your architecture (end-to-end vs proxy) onto the right crate or package.
 
-## Crates/Libraries
+## Rust
 
-| Crate/library | Language | Use it for |
-|---|---|---|
-| [`nym-sdk`](/developers/rust) | Rust | E2E messaging, `AsyncRead`/`AsyncWrite` streams, client pooling. Start with the [Tour](/developers/rust/tour). |
-| [`smolmix`](/developers/smolmix) | Rust | `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tungstenite`. |
-| [`mix-fetch`](/developers/mix-fetch) | TypeScript | `fetch()`-compatible API for browser HTTP(S) requests over the Mixnet. |
-| [TypeScript SDK](/developers/typescript) | TypeScript | Browser-side Mixnet Client (raw messaging) and Nyx Smart Contracts. |
-| [Standalone Clients](/developers/clients) | Language-agnostic | SOCKS5 and WebSocket binaries for piping traffic through the Mixnet without an SDK. |
+| Crate | Use it for |
+|---|---|
+| [`nym-sdk`](/developers/rust) | End-to-end mixnet messaging, `AsyncRead`/`AsyncWrite` byte streams, client pooling. Start with the [Tour](/developers/rust/tour). |
+| [`smolmix`](/developers/smolmix) | `TcpStream` and `UdpSocket` over the mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem. |
+
+## TypeScript
+
+The four browser packages below share one shared mixnet tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and exit at an IPR (Internet Packet Router) gateway. Install only what you need; they all reuse the same WASM instance under the hood.
+
+| Package | Use it for |
+|---|---|
+| [`mix-tunnel`](/developers/mix-tunnel) | Shared mixnet tunnel. The base layer for the three packages below. Most apps don't import it directly. |
+| [`mix-fetch`](/developers/mix-fetch) | Drop-in `fetch()` replacement for HTTP and HTTPS through the mixnet. |
+| [`mix-dns`](/developers/mix-dns) | Hostname-to-IP resolution through the mixnet. UDP DNS via the IPR. |
+| [`mix-websocket`](/developers/mix-websocket) | WebSocket-like class for WS and WSS through the mixnet. |
+| [TypeScript SDK](/developers/typescript) | `@nymproject/sdk`: end-to-end raw messaging when you control both ends. Smart contracts via `@nymproject/contract-clients`. |
+
+## Standalone clients
+
+| Client | Use it for |
+|---|---|
+| [SOCKS5 / WebSocket clients](/developers/clients) | Language-agnostic binaries for piping traffic through the mixnet without an SDK. |
 
 ## Other sections
 

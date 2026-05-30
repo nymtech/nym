@@ -14,7 +14,10 @@
     "type": "separator",
     "title": "TypeScript"
   },
+  "mix-tunnel": "mix-tunnel",
   "mix-fetch": "mix-fetch",
+  "mix-dns": "mix-dns",
+  "mix-websocket": "mix-websocket",
   "typescript": "TypeScript SDK",
 
   "---": {

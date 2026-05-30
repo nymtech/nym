@@ -1,14 +1,22 @@
-import { Callout } from 'nextra/components'
+---
+title: "Cosmos Kit: Wallet Connection for Nyx"
+description: "Connect Keplr, Ledger, and Wallet Connect wallets to the Nyx chain from a React app using Cosmology's Cosmos Kit."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-05-29"
+---
 
 # Cosmos Kit
 
-Cosmology's [components](https://cosmoskit.com/) work with Nym. They cover:
+import { Callout } from 'nextra/components'
+
+Cosmology's [Cosmos Kit](https://cosmoskit.com/) works with Nyx. The kit covers:
 
 - Wallets such as Keplr, Cosmostation, and others from your React application
 - The [Ledger hardware wallet](https://docs.cosmoskit.com/integrating-wallets/ledger) from your browser
 - Any wallet that supports [Wallet Connect v2.0](https://docs.cosmoskit.com/integrating-wallets/adding-new-wallets)
 
-##### Environment Setup
+## Environment setup
 
 Create a new project with Vite:
 
@@ -16,16 +24,16 @@ Create a new project with Vite:
 npm create vite@latest
 ```
 
-Choose React, then Typescript. Navigate to your application directory and run:
+Choose React, then TypeScript. Navigate to your application directory and run:
 
 ```bash
-cd < YOUR_APP >
+cd <YOUR_APP>
 npm i
 npm run dev
 ```
 
-##### Installation
-Install the required package:
+## Installation
+
 ```bash
 npm install @cosmos-kit/react @cosmos-kit/keplr @cosmos-kit/ledger chain-registry
 ```

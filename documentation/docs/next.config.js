@@ -62,6 +62,107 @@ const config = {
         permanent: true,
         basePath: false,
       },
+
+      // TS SDK reorg 2026-05: the per-package /developers/typescript/examples/*
+      // and /developers/typescript/playground/* pages were consolidated into
+      // top-level package pages (mix-fetch, mix-dns, mix-websocket) and
+      // typescript/quick-start, typescript/smart-contracts, typescript/cosmos-kit.
+      {
+        source: "/docs/developers/typescript/examples/mix-fetch",
+        destination: "/docs/developers/mix-fetch",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/mixnet",
+        destination: "/docs/developers/typescript/quick-start",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/nym-smart-contracts",
+        destination: "/docs/developers/typescript/smart-contracts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/cosmos-kit",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/mixfetch",
+        destination: "/docs/developers/mix-fetch",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/traffic",
+        destination: "/docs/developers/typescript/quick-start",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/mixnodes",
+        destination: "/docs/developers/typescript/smart-contracts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/wallet",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/cosmos-kit",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+
+      // The per-package typedoc dirs moved out of typescript/api/<pkg>/ to
+      // <pkg>/api/ so each package's API reference nests under its own sidebar
+      // entry (matches the rust/<module>/ pattern). @nymproject/sdk's typedoc
+      // stays at typescript/api/sdk/ since its landing is typescript.mdx.
+      {
+        source: "/docs/developers/typescript/api/mix-tunnel/:path*",
+        destination: "/docs/developers/mix-tunnel/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-fetch/:path*",
+        destination: "/docs/developers/mix-fetch/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-dns/:path*",
+        destination: "/docs/developers/mix-dns/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-websocket/:path*",
+        destination: "/docs/developers/mix-websocket/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+
       {
         source: "/docs/architecture/nym-vs-others.html",
         destination: "/docs/network/overview/comparisons",

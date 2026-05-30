@@ -1,0 +1,145 @@
+---
+title: "mix-tunnel: Shared Mixnet Tunnel for the Browser"
+description: "TypeScript package that owns the shared Nym mixnet tunnel in the browser. The base layer for mix-fetch, mix-dns, and mix-websocket."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-05-29"
+---
+
+# mix-tunnel
+
+import { Callout } from 'nextra/components'
+
+`@nymproject/mix-tunnel` owns a single mixnet tunnel in the browser and exposes it to the feature packages that ride on top: [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket). All three call into the same tunnel, so they share one IPR connection, one userspace TCP/IP stack ([`smoltcp`](https://docs.rs/smoltcp)), and one DNS cache.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│       ├─ mix-fetch     ┐                                     │
+│       ├─ mix-dns       ┼─ all call into ───┐                 │
+│       └─ mix-websocket ┘                   │                 │
+│                                            ▼                 │
+│  mix-tunnel (singleton, Web Worker, smolmix-wasm)            │
+│       └─ WebSocket to entry gateway                          │
+│            └─ Nym mixnet (entry → 3 mix layers → exit)       │
+│                 └─ IPR exit gateway → internet               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The tunnel lives in a Web Worker and is built on [smolmix-wasm](https://crates.io/crates/smolmix), the WebAssembly build of the [Rust `smolmix` crate](/developers/smolmix). One WASM instance per page, regardless of how many feature packages you import.
+
+<Callout type="info">
+Full API reference: [**@nymproject/mix-tunnel**](/developers/mix-tunnel/api/globals).
+</Callout>
+
+## When to use it directly
+
+Most apps don't import `mix-tunnel` directly. The feature packages re-export `setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`, so calling `setupMixTunnel()` from `mix-fetch` is enough to bring the tunnel up for all three.
+
+Use `mix-tunnel` directly when you want to:
+
+- Configure the tunnel once at app startup, before any feature package is loaded.
+- Inspect tunnel state from UI code that isn't tied to a specific feature package.
+- Tear down the tunnel explicitly, for example before a page unload.
+
+## Installation
+
+```bash
+npm install @nymproject/mix-tunnel
+```
+
+The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined, so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+
+## Quick start
+
+```ts
+import { setupMixTunnel, getTunnelState, disconnectMixTunnel } from '@nymproject/mix-tunnel';
+
+// Brings the tunnel up. Idempotent — safe to call from multiple feature packages.
+await setupMixTunnel();
+
+// { state: 'ready' } once the IPR handshake completes.
+console.log(await getTunnelState());
+
+// Tear down before page unload. The WASM is unusable after this until reload.
+window.addEventListener('beforeunload', () => { disconnectMixTunnel(); });
+```
+
+After `setupMixTunnel()` resolves, [`mixFetch()`](/developers/mix-fetch), [`mixDNS()`](/developers/mix-dns), and `new MixWebSocket()` (from [`mix-websocket`](/developers/mix-websocket)) all become usable.
+
+## Configuration
+
+`setupMixTunnel(opts)` accepts the full smolmix-wasm `SetupOpts` surface plus one TS-layer addition (`debug`). Pass any subset; everything has sensible defaults.
+
+```ts
+await setupMixTunnel({
+  // Pin a specific IPR (otherwise auto-discovered from the topology).
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Turn off cover traffic and Poisson timing for lower latency / lower bandwidth.
+  // Off by default; leave on if traffic-analysis resistance matters.
+  disableCoverTraffic: true,
+  disablePoissonProcess: true,
+
+  // Verbose console tracing from smolmix-wasm. Useful while integrating.
+  debug: true,
+});
+```
+
+The complete option surface — IPR pinning, SURB budgets, DNS server overrides, TCP/connect timeouts, gateway selection — is documented in the [`SetupMixTunnelOpts` type reference](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts).
+
+<Callout type="info">
+`setupMixTunnel` is idempotent. Calling it from `mix-fetch`, `mix-dns`, and `mix-websocket` in turn produces one tunnel, not three. The first call wins; subsequent calls with different opts have no effect until the tunnel is torn down.
+</Callout>
+
+## Tunnel state
+
+`getTunnelState()` returns a tagged state for surfacing connection status in the UI. The five states are:
+
+| State | Meaning |
+|---|---|
+| `connecting` | Default before `setupMixTunnel()` completes. |
+| `ready` | Tunnel is up. Feature packages can issue requests. |
+| `disconnecting` | `disconnectMixTunnel()` in progress. |
+| `disconnected` | Cleanly torn down. The WASM is no longer usable. |
+| `failed` | Setup or runtime error. The `reason` field carries a human-readable cause. |
+
+```ts
+const { state, reason } = await getTunnelState();
+if (state === 'failed') {
+  console.error('Tunnel failed:', reason);
+}
+```
+
+Poll `getTunnelState()` from a UI effect if you want a live status indicator. The state transitions are coarse (no progress percentage during `connecting`); the underlying connection events are visible via `debug: true` in the console.
+
+## Security model
+
+`mix-tunnel` inherits the smolmix security model: Sphinx-encrypted traffic across the mixnet, with the exit gateway (IPR) seeing the destination IP and whatever the application layer didn't encrypt. The same trust boundaries and `What's protected` table from the [smolmix page](/developers/smolmix#security-model) apply here verbatim. The differences in the browser are:
+
+- The tunnel runs in a Web Worker, so it doesn't block the UI thread.
+- TLS is handled by [`rustls`](https://docs.rs/rustls) inside the WASM (used by `mix-fetch` for HTTPS). End-to-end ciphertext leaves your machine.
+- The entry-gateway WebSocket uses WSS automatically when the page is served over HTTPS, avoiding [mixed-content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) errors.
+
+<Callout type="warning">
+The IPR sees the destination IP and port of every outbound connection. TLS (used by `mix-fetch` for HTTPS, and available to `mix-websocket` for WSS) keeps the payload as ciphertext to the IPR. Plain HTTP and unencrypted WS are visible to the IPR in full. Pin a trusted IPR (`preferredIpr`) or treat the exit as you would a VPN exit.
+</Callout>
+
+## Architecture
+
+The shared-worker pattern, the Comlink boundary between the main thread and the WASM, and the smoltcp reactor that drives the userspace TCP/IP stack are documented in the smolmix-wasm internals wiki. For browser integration specifics — bundler config, WASM inlining, the `proxy` re-export needed for `mix-websocket` callbacks — see the source under [`sdk/typescript/packages/mix-tunnel`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/packages/mix-tunnel).
+
+## API reference
+
+Full reference: [**@nymproject/mix-tunnel**](/developers/mix-tunnel/api/globals).
+
+The exposed surface is small:
+
+| Export | Purpose |
+|---|---|
+| `setupMixTunnel(opts?)` | Bring the tunnel up. Idempotent. |
+| `disconnectMixTunnel()` | Tear it down. WASM becomes unusable until page reload. |
+| `getTunnelState()` | Returns `{ state, reason? }`. |
+| `getMixTunnel()` | Lower-level Comlink handle. Feature packages use this; apps usually don't need it. |
+| `SetupMixTunnelOpts` (type) | Full options surface. |
+| `TunnelState` (type) | `{ state, reason? }`. |

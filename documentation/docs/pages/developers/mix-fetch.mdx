@@ -1,130 +1,237 @@
 ---
 title: "mix-fetch: fetch() Over the Nym Mixnet"
-description: "Package providing a fetch()-compatible API that routes HTTP(S) requests through the Nym mixnet via a Network Requester. Available for browsers and Node.js."
+description: "Drop-in fetch() replacement that routes HTTP and HTTPS requests through the Nym mixnet via an IPR exit gateway."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-12"
+lastUpdated: "2026-05-29"
 ---
-
-import { Callout } from 'nextra/components'
 
 # mix-fetch
 
-`mix-fetch` is a replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP(S) requests through the Nym mixnet. The call signature is identical; underneath, the request is tunnelled through a WASM Nym client to a Network Requester (a Nym service provider, typically operated by an Exit Gateway), which decodes a SOCKS5-shaped connect request and opens a TCP connection to the destination. TLS runs end-to-end between the WASM bundle and the destination server.
+import { Callout } from 'nextra/components'
 
-Available for browsers and Node.js, with the WASM core shared between both.
+`@nymproject/mix-fetch` is a drop-in replacement for the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP and HTTPS through the Nym mixnet. The call signature is unchanged — `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)` — but the request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│  Your app (browser or Node.js)                                     │
-│    └─ mixFetch('https://...') (fetch() replacement)                │
-│         └─ Go-WASM HTTP/TLS client (embedded Mozilla CA bundle)    │
-│              └─ Rust-WASM SOCKS5 framing + Nym mixnet transport    │
-│                   └─ WebSocket → entry gateway                     │
-│                        └─ mixnet (Sphinx, 3 mix hops by default)   │
-│                             └─ Network Requester decodes SOCKS5    │
-│                                  request, opens TCP to dest        │
-│                                       └─ destination server        │
-│                                          (TLS handshake here)      │
+│  Your browser app                                                  │
+│    └─ mixFetch('https://...')                                      │
+│         └─ mix-tunnel (shared singleton, Web Worker, smolmix-wasm) │
+│              └─ smoltcp userspace TCP/IP + rustls TLS              │
+│                   └─ WebSocket to entry gateway                    │
+│                        └─ Nym mixnet (3 mix layers)                │
+│                             └─ IPR exit gateway → destination      │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-Two WASM modules sit in the bundle: a Go module that handles HTTP and TLS (Go's `crypto/tls` compiled to WASM, with an embedded Mozilla root CA list), and a Rust module that handles SOCKS5 request framing and the Nym mixnet client itself. They communicate via JS bindings.
-
-Because TLS terminates at the destination (not at the Network Requester or any node before it), every hop from the entry gateway onwards only sees TLS ciphertext for HTTPS targets. This is the same trust model as a normal HTTPS request through a SOCKS proxy.
+TLS terminates end-to-end between the WASM bundle and the destination server. The IPR sees destination IP and port; for HTTPS targets, payload is TLS ciphertext.
 
 <Callout type="info">
-The "SOCKS5" framing here is Nym's binary `Socks5Request` format wrapped in Sphinx packets, not RFC 1928 SOCKS5 over a TCP socket. The Network Requester decodes it on the mixnet side and proxies onwards as regular TCP.
+Full API reference: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals).
 </Callout>
-
-## Runtime and platform support
-
-### Browser
-
-The WASM core runs in a Web Worker and needs:
-- WebSocket support, for the entry-gateway connection
-- WebAssembly
-- A CSP that permits `wss://` connections and `worker-src 'self'` (or `blob:` for the `*-full-fat` variants, which load workers as inline blobs)
-
-Mixed-content rules apply: target URLs must be HTTPS.
-
-### Node.js
-
-The same WASM core runs in a `worker_threads` worker. The `ws` package polyfills `WebSocket`, and a Node-flavoured `comlink` adapter (`mix-fetch-node/src/node-adapter.ts`) bridges `worker_threads` to the same Worker-like API surface.
 
 ## Installation
 
-### Browser variants
-
-| Variant | Package | When to use |
-|---|---|---|
-| ESM | `@nymproject/mix-fetch` | Modern project, you can configure your bundler |
-| ESM full-fat | `@nymproject/mix-fetch-full-fat` | Modern project, can't configure your bundler |
-| CommonJS | `@nymproject/mix-fetch-commonjs` | Legacy project, you can configure your bundler |
-| CommonJS full-fat | `@nymproject/mix-fetch-commonjs-full-fat` | Legacy project, can't configure your bundler |
-
-### Node.js variant
-
-| Variant | Package | When to use |
-|---|---|---|
-| CommonJS | `@nymproject/mix-fetch-node-commonjs` | Node.js (currently the only published Node variant) |
-
-The standard browser variants need your bundler to handle WASM and web workers (see [Bundling](/developers/typescript/bundling)). The `*-full-fat` variants inline both as Base64 so no bundler configuration is needed.
-
-<Callout type="warning">
-The `*-full-fat` variants are large (~18 MB), since they inline ~10 MB of WASM (Go runtime + Rust core) and the web-worker source as Base64. Prefer a standard variant if bundle size matters.
-</Callout>
-
 ```bash
-# Browser
-npm install @nymproject/mix-fetch-full-fat
+npm install @nymproject/mix-fetch
+```
 
-# Node.js
-npm install @nymproject/mix-fetch-node-commonjs
+The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined via [`@nymproject/mix-tunnel`](/developers/mix-tunnel), so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+
+## Quick start
+
+```ts
+import { setupMixTunnel, mixFetch, disconnectMixTunnel } from '@nymproject/mix-fetch';
+
+// Bring the shared mixnet tunnel up. Same call works from mix-dns and mix-websocket.
+await setupMixTunnel();
+
+// Drop-in fetch. The Response is the real DOM Response, not a wrapper.
+const res = await mixFetch('https://example.com');
+console.log(res.status, await res.text());
+
+// Tear down. The WASM is unusable after this until page reload.
+await disconnectMixTunnel();
+```
+
+For one-shot use without an explicit setup step, the `createMixFetch` helper combines setup and fetch:
+
+```ts
+import { createMixFetch } from '@nymproject/mix-fetch';
+
+const mixFetch = await createMixFetch({ disableCoverTraffic: true });
+const res = await mixFetch('https://example.com');
+```
+
+Subsequent calls reuse the same tunnel; `createMixFetch` is safe to call multiple times.
+
+## Request shape
+
+The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, body, and `signal` (for `AbortController`) all work.
+
+```ts
+const res = await mixFetch('https://httpbin.org/post', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ hello: 'mixnet' }),
+});
+console.log(await res.json());
+```
+
+Binary responses come back via the standard `Response.arrayBuffer()` / `Response.blob()` methods:
+
+```ts
+const res = await mixFetch('https://example.com/image.png');
+const blob = await res.blob();
+```
+
+Repeated headers (`Set-Cookie`, `Vary`, `Link`, `WWW-Authenticate`) are preserved. The wasm side returns headers as a `[name, value]` pair sequence, which `Headers` reconstructs verbatim.
+
+## Default request headers
+
+When the caller doesn't set them, `mixFetch` injects four browser-shape headers before the request leaves the tunnel. The shim exists because many CDNs (cloudflare's bot management) and host policies (wikimedia's User-Agent policy) reject requests that look unlike a real browser. Caller-supplied values always win.
+
+| Header | Injected default |
+|--------|------------------|
+| `User-Agent` | `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36` |
+| `Accept` | `text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8` |
+| `Accept-Language` | `en-US,en;q=0.9` |
+| `Accept-Encoding` | `identity` |
+
+`Accept-Encoding` is forced to `identity` rather than `gzip, deflate, br` because the wasm build has no decompressor. Advertising compression would surface gzip bytes to the caller un-decoded.
+
+To override any of these, set the header in the `init.headers` bag like normal:
+
+```ts
+const res = await mixFetch('https://example.com', {
+  headers: { 'User-Agent': 'my-app/1.0' },
+});
 ```
 
 <Callout type="info">
-`mixFetch` caps concurrent connections at **10 per destination host** (Go `http.Transport`'s `MaxConnsPerHost`, see `wasm/mix-fetch/go-mix-conn/internal/mixfetch/mixfetch.go:214`). Keep-alive is disabled, so each request opens a fresh TCP connection through the mixnet; extra concurrent requests to the same host queue until a slot frees. Different hosts are independent.
+The shim does not attempt full browser impersonation. TLS fingerprint (JA3), HTTP/2, and header ordering are still distinguishable from a real Chrome request. If you need stronger blend-in, you'll need to handle that at the application or destination layer.
 </Callout>
 
-## Playground and examples
+## Drop-in caveats
 
-See the [interactive playground](/developers/typescript/playground/mixfetch) for a working `mixFetch` example you can run in the browser.
+`mixFetch` matches the `fetch()` call signature but is not a perfect substitute. The differences are intentional and follow from running outside the browser's networking stack:
 
-The first call bootstraps the WASM Nym client (gateway handshake, key generation, cover traffic). Subsequent calls reuse the active client; the Rust side holds it in a `OnceLock` singleton, so there is one client per page (or per Node process).
+| Difference | What it means | What to do |
+|---|---|---|
+| **No same-origin restriction** | Requests aren't subject to browser CORS preflight. The IPR honours its exit policy regardless of `Origin`. | Don't rely on CORS as an access-control mechanism for `mixFetch` requests; treat them as you would server-to-server calls. |
+| **No cookies / credentials** | The browser cookie jar is not shared with the WASM bundle. `credentials: 'include'` has no effect. | Pass auth tokens via `Authorization` or other explicit headers. |
+| **No HTTP cache** | The browser HTTP cache is not consulted. Every call hits the network. | Cache responses at the application layer if needed. |
+| **No service-worker interception** | Requests don't pass through any `fetch` event handlers registered by service workers. | n/a |
+| **HTTPS only in practice** | The IPR sees plaintext HTTP in full. | Always target `https://` URLs. |
 
-## When to use mix-fetch
+## Configuration
 
-| | mix-fetch | WASM Mixnet Client | smolmix | Plain fetch (no mixnet) |
-|---|---|---|---|---|
-| **Runtime** | Browser, Node.js | Browser | Native (Rust) | Anywhere |
-| **Architecture** | Proxy (Network Requester → destination) | E2E (both sides Nym) | Proxy | Direct |
-| **API shape** | `fetch()` replacement | Send/recv text or binary messages | `TcpStream` / `UdpSocket` | `fetch()` |
-| **HTTP support** | Yes | No | Yes (via `hyper` over `TcpStream`) | Yes |
-| **Sender unlinkability** | Strong (mixnet) | Strong (mixnet) | Strong (mixnet) | None |
-| **Concurrency** | 10 per host | Unlimited | Unlimited | Unlimited |
+`setupMixTunnel(opts)` (and `createMixFetch(opts)`) accept the shared tunnel options from [`@nymproject/mix-tunnel`](/developers/mix-tunnel#configuration). The most commonly touched are:
+
+```ts
+await setupMixTunnel({
+  // Pin a specific IPR (otherwise auto-discovered from the topology).
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Lower latency and bandwidth at the cost of traffic-analysis resistance.
+  disableCoverTraffic: true,
+  disablePoissonProcess: true,
+});
+```
+
+The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts).
+
+<Callout type="info">
+The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gateway handshake, IPR discovery, and the first DNS resolution all happen on demand. Subsequent calls reuse the tunnel and complete in roughly the time of a normal HTTPS request plus mixnet latency.
+</Callout>
 
 ## Security model
 
+`mix-fetch` inherits the [smolmix security model](/developers/smolmix#security-model). The browser-specific consequences are:
+
+| Segment | What's visible |
+|---|---|
+| Browser → entry gateway | WebSocket (WSS when the page is served over HTTPS). Entry gateway sees your IP, not the destination. |
+| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
+| IPR exit gateway | Destination IP and port. For HTTPS, payload is TLS ciphertext from the WASM bundle, terminating at the destination. For HTTP, payload is plaintext. |
+| IPR → destination | Regular TCP. The destination sees the IPR's IP, not yours. |
+
 <Callout type="warning">
-Use HTTPS targets. Plaintext HTTP requests are visible to the Network Requester and to any router between it and the destination.
+TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. The Mozilla CA bundle is compiled into the WASM. Mixed content rules still apply at the page level — serve your app over HTTPS.
 </Callout>
 
-### What's protected
+## Migrating from v1.x
 
-| Segment | Mixnet encryption | What's visible |
-|---|---|---|
-| App → entry gateway | Sphinx (layered) over a WebSocket | Entry gateway sees your IP, not the destination |
-| Inside the mixnet | Sphinx (layered) | Each node only knows previous / next hop |
-| Network Requester | Sphinx removed; SOCKS5 connect request decoded | The Requester sees destination hostname + port; payload is application-layer TLS |
-| Network Requester → destination | None (regular TCP) | TLS handshake + ciphertext (with HTTPS targets); cleartext (with HTTP targets) |
+v2 is a clean break. The package no longer ships a Go-WASM HTTP/TLS client or a SOCKS5-shaped Network Requester request; it routes through the shared `mix-tunnel` and exits at an IPR.
 
-### Why mix-fetch ships its own CA store
+### Removed packages
 
-The browser's TLS stack and CA store aren't accessible from JavaScript or from a WASM SOCKS client; on Node, the TLS stack lives outside the Web Worker that hosts the mixnet client. `mix-fetch` therefore performs TLS itself, inside the WASM bundle, against the destination server. The bundle ships with an embedded Mozilla root CA list (refreshed from [curl.se's bundle](https://curl.se/docs/caextract.html), verified by SHA-256 in `wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh`) and an in-WASM TLS implementation (Go's `crypto/tls`, configured at `wasm/mix-fetch/go-mix-conn/internal/sslhelpers/ssl_helper.go`). The mixnet path sees encrypted TLS ciphertext, not plaintext.
+The four-variant publish (`@nymproject/mix-fetch`, `mix-fetch-full-fat`, `mix-fetch-commonjs`, `mix-fetch-commonjs-full-fat`, `mix-fetch-node-commonjs`) is gone. There is one package, ESM only:
 
-`mix-fetch` handles the TLS layer for you: HTTPS targets are protected end-to-end between the WASM bundle and the destination, as if a browser had initiated the TLS handshake directly. Plaintext HTTP targets remain visible to the Network Requester and to any router beyond it. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
+| v1.x | v2.0 |
+|---|---|
+| `@nymproject/mix-fetch` (ESM) | `@nymproject/mix-fetch` |
+| `@nymproject/mix-fetch-full-fat` | `@nymproject/mix-fetch` (always inlined) |
+| `@nymproject/mix-fetch-commonjs` | (no CJS build) |
+| `@nymproject/mix-fetch-commonjs-full-fat` | (no CJS build) |
+| `@nymproject/mix-fetch-node-commonjs` | (no Node build) |
+
+### Removed options
+
+The v1 setup options bag covered Network Requester selection and gateway tuning. v2 replaces it with the smolmix [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts) surface:
+
+| v1 option | v2 equivalent |
+|---|---|
+| `clientId` | (no replacement — tunnel is per-page, not per-client) |
+| `preferredGateway` | (replaced by `preferredIpr` — the exit-side pin) |
+| `preferredNetworkRequester` | (no replacement — v2 exits via IPR, not Network Requester) |
+| `mixFetchOverride.requestTimeoutMs` | (no replacement at TS layer — surface via smolmix-wasm config if needed) |
+| `forceTls: true` | (automatic — entry-gateway WebSocket uses WSS when the page is HTTPS) |
+| `extra.hiddenGateways` | (no replacement) |
+
+### Removed request-init flags
+
+The v1 `mode: 'unsafe-ignore-cors'` flag is gone. v2 doesn't perform browser-side CORS checks at all (see [Drop-in caveats](#drop-in-caveats) above), so the flag has no meaning.
+
+### New setup
+
+```ts
+// v1
+import { createMixFetch } from '@nymproject/mix-fetch-full-fat';
+const mixFetch = await createMixFetch({
+  clientId: 'my-app',
+  preferredGateway: 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1',
+  mixFetchOverride: { requestTimeoutMs: 60_000 },
+  forceTls: true,
+});
+
+// v2
+import { createMixFetch } from '@nymproject/mix-fetch';
+const mixFetch = await createMixFetch({
+  // Optional: pin an exit IPR instead of an entry gateway.
+  // preferredIpr: '...',
+});
+```
+
+### Architectural change
+
+v1 ran two WASM modules: a Go module with `crypto/tls` + Mozilla CA bundle, and a Rust module handling Nym's `Socks5Request` framing to a Network Requester exit. v2 runs one WASM module ([smolmix-wasm](https://crates.io/crates/smolmix)) with a userspace TCP/IP stack ([smoltcp](https://docs.rs/smoltcp)) and `rustls` for TLS. The exit is an IPR, not a Network Requester.
+
+Consequences:
+
+- **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
+- **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
+- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR; pin one with `preferredIpr` if you need a specific exit policy.
 
 ## API reference
 
-Generated reference: [typedoc output](/developers/typescript/api/mix-fetch).
+Full reference: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals).
+
+| Export | Purpose |
+|---|---|
+| `mixFetch(url, init?)` | The drop-in `fetch()`. Requires the tunnel to be up. |
+| `createMixFetch(opts?)` | Convenience: `setupMixTunnel(opts)` then return `mixFetch`. |
+| `setupMixTunnel(opts?)` | Re-export from `@nymproject/mix-tunnel`. |
+| `disconnectMixTunnel()` | Re-export from `@nymproject/mix-tunnel`. |
+| `getTunnelState()` | Re-export from `@nymproject/mix-tunnel`. |
+| `SetupMixTunnelOpts` (type) | Full options surface. |

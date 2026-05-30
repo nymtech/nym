@@ -1,0 +1,107 @@
+---
+title: "mix-dns: Hostname Resolution Over the Nym Mixnet"
+description: "TypeScript package that resolves hostnames through the Nym mixnet. UDP DNS via an IPR exit, no TCP, no TLS, no resolver leak."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-05-29"
+---
+
+# mix-dns
+
+import { Callout } from 'nextra/components'
+
+`@nymproject/mix-dns` resolves hostnames to IPs through the Nym mixnet. DNS queries travel as UDP datagrams to a public resolver via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway. No TCP setup, no TLS handshake, no `dns.lookup()` to the OS resolver.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ mixDNS('example.com')                                  │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ UDP datagram via the IPR                     │
+│                   └─ public resolver (default 1.1.1.1:53)    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The resolver sees a query from the IPR's IP, not yours. Your browser's `navigator.dns`, the OS stub resolver, and any local DNS-over-HTTPS configuration are bypassed.
+
+<Callout type="info">
+Full API reference: [**@nymproject/mix-dns**](/developers/mix-dns/api/globals).
+</Callout>
+
+## When to use it
+
+`mix-dns` is for cases where you need the resolved IP itself, not a connection that uses it. [`mix-fetch`](/developers/mix-fetch) and [`mix-websocket`](/developers/mix-websocket) already resolve via the mixnet internally; you don't need to call `mixDNS` before either.
+
+Direct uses:
+
+- Validate that a hostname resolves to an expected IP range before connecting through any path.
+- Build IP-based allow / deny lists for an app that performs the connection itself.
+- Probe whether a hostname is reachable from the IPR exit's perspective without opening a connection.
+
+## Installation
+
+```bash
+npm install @nymproject/mix-dns
+```
+
+The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined via [`@nymproject/mix-tunnel`](/developers/mix-tunnel), so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+
+## Quick start
+
+```ts
+import { setupMixTunnel, mixDNS, disconnectMixTunnel } from '@nymproject/mix-dns';
+
+await setupMixTunnel();
+
+const ip = await mixDNS('example.com');
+console.log(ip); // "93.184.216.34"
+
+await disconnectMixTunnel();
+```
+
+`mixDNS` returns the first resolved IPv4 address as a string. To resolve and immediately use the result via `mixFetch`, the simpler path is to skip `mixDNS` entirely and call `mixFetch('https://example.com')` — the tunnel handles resolution itself.
+
+## Configuration
+
+The DNS resolver is configured at tunnel setup, not per-call. Pass the resolver in `setupMixTunnel`:
+
+```ts
+await setupMixTunnel({
+  // Override the default resolver (the default depends on the smolmix-wasm
+  // configuration; 1.1.1.1:53 unless changed).
+  dnsServer: '8.8.8.8:53',
+});
+```
+
+The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts).
+
+<Callout type="info">
+The resolver runs on the IPR's network, not yours. Choosing `8.8.8.8` vs `1.1.1.1` changes which third party sees the queries — both still see them coming from the IPR. For higher privacy, target a resolver that supports query minimisation.
+</Callout>
+
+## Security model
+
+`mix-dns` inherits the [smolmix security model](/developers/smolmix#security-model). What differs from a plain browser DNS lookup:
+
+| Segment | What's visible |
+|---|---|
+| Browser → entry gateway | Sphinx-encrypted UDP fragment over WebSocket. Entry gateway sees your IP, not the queried hostname. |
+| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
+| IPR → resolver | Plain UDP DNS query. The resolver sees the queried hostname and the IPR's IP. |
+| Resolver → IPR → you | Plain UDP DNS response (also Sphinx-encrypted on the return mixnet legs). |
+
+<Callout type="warning">
+DNS is plaintext UDP at the resolver. The resolver knows what you're asking for; it does not know who is asking. To remove the resolver from your trust set, choose a resolver you already trust, or layer DNS-over-HTTPS via `mixFetch` to a DoH endpoint instead of using `mixDNS` directly.
+</Callout>
+
+## API reference
+
+Full reference: [**@nymproject/mix-dns**](/developers/mix-dns/api/globals).
+
+| Export | Purpose |
+|---|---|
+| `mixDNS(hostname)` | Resolve a hostname to an IPv4 string. Tunnel must be up. |
+| `setupMixTunnel(opts?)` | Re-export from `@nymproject/mix-tunnel`. |
+| `disconnectMixTunnel()` | Re-export from `@nymproject/mix-tunnel`. |
+| `getTunnelState()` | Re-export from `@nymproject/mix-tunnel`. |
+| `SetupMixTunnelOpts` (type) | Full options surface. |

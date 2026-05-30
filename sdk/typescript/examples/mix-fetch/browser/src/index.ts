@@ -45,10 +45,10 @@ async function main() {
   appendOutput(text);
 
   appendOutput('\nGet an image:\n');
-  url = 'https://nymtech.net/favicon.svg';
+  url = 'https://httpbin.org/image/png';
   resp = await mixFetch(url);
   const buffer = await resp.arrayBuffer();
-  const type = resp.headers.get('Content-Type') || 'image/svg';
+  const type = resp.headers.get('Content-Type') || 'image/png';
   const blobUrl = URL.createObjectURL(new Blob([buffer], { type }));
   appendImageOutput(blobUrl);
 

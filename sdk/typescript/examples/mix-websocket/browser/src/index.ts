@@ -31,7 +31,7 @@ const setupOpts: SetupMixTunnelOpts = {
 };
 
 // Public echo server. Sends each frame back to the client.
-const WS_URL = 'wss://echo.websocket.events';
+const WS_URL = 'wss://echo.websocket.org';
 
 async function main() {
   log('Setting up mixnet tunnel...');

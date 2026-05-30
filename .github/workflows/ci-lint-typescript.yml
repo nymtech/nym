@@ -40,6 +40,13 @@ jobs:
       - name: Install wasm-opt
         run: cargo install wasm-opt
 
+      # Produce wasm/smolmix/pkg/package.json before any pnpm step. The
+      # `pnpm dev:on` in `prebuild:ci` adds wasm/smolmix/pkg to the dynamic
+      # workspace; mix-tunnel's `workspace:*` lookup against @nymproject/
+      # smolmix-wasm needs the package.json to be present.
+      - name: Build smolmix wasm
+        run: make -C wasm/smolmix
+
       - name: Install
         run: pnpm i
 

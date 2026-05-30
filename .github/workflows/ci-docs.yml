@@ -7,7 +7,10 @@ on:
     paths:
       - "documentation/docs/**"
       - "sdk/typescript/packages/sdk/src/**"
+      - "sdk/typescript/packages/mix-tunnel/src/**"
       - "sdk/typescript/packages/mix-fetch/src/**"
+      - "sdk/typescript/packages/mix-dns/src/**"
+      - "sdk/typescript/packages/mix-websocket/src/**"
       - ".github/workflows/ci-docs.yml"
 
 jobs:
@@ -47,7 +50,7 @@ jobs:
       - name: Check if TypeScript SDK source changed
         id: check-ts-sdk
         run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^sdk/typescript/packages/(sdk|mix-fetch)/src/'; then
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^sdk/typescript/packages/(sdk|mix-tunnel|mix-fetch|mix-dns|mix-websocket)/src/'; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -58,8 +61,11 @@ jobs:
         if: steps.check-ts-sdk.outputs.changed == 'true'
         run: |
           npm install -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
-          cd ${{ github.workspace }}/sdk/typescript/packages/sdk && typedoc --skipErrorChecking
-          cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/sdk          && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-tunnel   && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch    && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-dns      && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-websocket && typedoc --skipErrorChecking
 
       - name: Verify doc versions
         run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh

@@ -1,22 +1,17 @@
+# The static workspace below is intentionally minimal. It contains only what
+# CI workflows without a Rust toolchain (e.g. ci-build-ts, storybook) need to
+# resolve. Anything that depends on `@nymproject/smolmix-wasm` (mix-tunnel +
+# mix-fetch + mix-dns + mix-websocket + internal-dev) or the wasm-pack output
+# dir itself lives in `dev-mode-add.mjs` and is only injected when `pnpm
+# dev:on` runs. Build the wasm first if dev:on will be called:
+# `make -C wasm/smolmix` populates wasm/smolmix/pkg/.
 packages:
   - 'ts-packages/*'
   - 'nym-wallet'
   - 'explorer-v2'
   - 'types'
-  - 'sdk/typescript/packages/internal-dev'
-  - 'sdk/typescript/packages/internal-dev/parcel'
   - 'sdk/typescript/packages/react-components'
   - 'sdk/typescript/packages/mui-theme'
-  # smolmix-wasm pkg/ is the wasm-pack output; mix-tunnel consumes it via
-  # `workspace:*`. Requires `make -C wasm/smolmix build-debug` (or release)
-  # to have produced pkg/ before `pnpm install` can resolve it.
-  - 'wasm/smolmix/pkg'
-  # smolmix-based SDKs: mix-tunnel owns the worker, the three facades
-  # consume it via `workspace:*` so pnpm needs them all listed.
-  - 'sdk/typescript/packages/mix-tunnel'
-  - 'sdk/typescript/packages/mix-fetch'
-  - 'sdk/typescript/packages/mix-dns'
-  - 'sdk/typescript/packages/mix-websocket'
 
 allowBuilds:
   '@biomejs/biome': true

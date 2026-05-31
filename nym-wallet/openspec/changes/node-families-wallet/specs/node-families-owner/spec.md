@@ -1,6 +1,10 @@
 ## ADDED Requirements
 
+<!-- Design source: Figma file `moIK1E6AaXhFz8lI1pZVrI`, board `1859:981`. Canonical = `2474:*` set; reference = `1861:*` ticket composite. See design.md "Design Source (Figma)". Per-requirement frame IDs are noted as _Design:_ lines below; open via ?node-id=<id> (dash form). -->
+
 ### Requirement: Family Tab is always visible and exposes create or management based on ownership
+
+_Design: `2474:1935` (4 user states) → `2474:1945` No family yet, `2474:1980` Owner; `2474:1449` Balance — Family tab; ref `1861:393` (SECTION 1)._
 
 The wallet SHALL display the **Family** tab for every connected wallet account, regardless of whether the account owns a family or controls a bonded node, so that any account can start a new family. When the connected address does not own a family, the tab SHALL present a create-family entry point. When the address already owns a family, the tab SHALL show the family management surface instead of the create entry point.
 
@@ -13,6 +17,8 @@ The wallet SHALL display the **Family** tab for every connected wallet account, 
 - **THEN** the Family tab renders the family management surface (member list, invite, edit, delete) and not the create entry point
 
 ### Requirement: Family owner can create a family with the creation fee
+
+_Design: ref `1861:638` (SECTION 2 · Create Family · NYM-1210); canonical entry point `2474:1945` (No family yet)._
 
 The wallet SHALL allow an eligible user to create a family by submitting a name and description and attaching the contract's configured creation fee (`Config::create_family_fee`, read from chain — NOT a hardcoded amount). The wallet MUST display the required fee before submission, deduct it on success, and show a success confirmation that surfaces the new family. The wallet MUST surface an insufficient-balance error before submitting when the balance is below fee + estimated gas, and MUST surface contract fee errors (`InvalidFamilyCreationFee`, `InvalidDeposit`) clearly.
 
@@ -29,6 +35,8 @@ The wallet SHALL allow an eligible user to create a family by submitting a name 
 - **THEN** the wallet shows a clear fee error and the family is not created
 
 ### Requirement: Family owner can add and edit the family name and description
+
+_Design: ref `1861:794` (SECTION 3 · NYM-1211 edit); canonical `2474:1980` (Owner state)._
 
 The wallet SHALL let the owner set a name and description on creation and edit either after creation. Inputs MUST be validated against the contract byte-length limits (`Config::family_name_length_limit`, `Config::family_description_length_limit`) measured in bytes, and MUST be sanitised so that scripts, control characters, and injection attempts are neutralised before submission. Over-limit input MUST be surfaced with an inline error and MUST NOT be submitted. Editing uses the contract's `UpdateFamily` handler.
 
@@ -50,6 +58,8 @@ The wallet SHALL let the owner set a name and description on creation and edit e
 
 ### Requirement: Family owner can invite a node by node ID
 
+_Design: ref `1861:1150` (SECTION 4 · Invite Node · NYM-1212), incl. the three warning states; canonical `2474:1980` (Owner state)._
+
 The wallet SHALL let the owner invite a node by entering its node ID, triggering `InviteToFamily` (with optional `validity_secs` for the TTL/nonce). On success the wallet MUST show a confirmation. The wallet MUST NOT send the invite and MUST warn the owner when: the node is already in a family (`NodeAlreadyInFamily`), the node does not exist or is unbonding (`NodeDoesntExist`), or a pending invite from this family already exists (`PendingInvitationAlreadyExists`). Malformed node IDs MUST be surfaced with a clear validation error.
 
 #### Scenario: Successful invite
@@ -70,6 +80,8 @@ The wallet SHALL let the owner invite a node by entering its node ID, triggering
 
 ### Requirement: Family owner can withdraw pending invites and clear expired ones
 
+_Design: ref `1861:794` (SECTION 3 · roster/invite management) and `1861:1150` (SECTION 4 · pending invite + expired states)._
+
 The wallet SHALL list the family's pending invitations with their expiry state (using the contract `expired` flag). For an active (not-yet-expired) invite the owner SHALL be able to withdraw it via `RevokeFamilyInvitation` behind a confirmation prompt. Expired invites SHALL be shown as expired with a dismiss/clear option, also behind a confirmation prompt. After either action the invite MUST be removed from the pending list and the displayed contract state refreshed.
 
 #### Scenario: Withdraw an active invite
@@ -85,6 +97,8 @@ The wallet SHALL list the family's pending invitations with their expiry state (
 - **THEN** a confirmation prompt is shown, and on confirm the invite is removed from the pending list and the state refreshes
 
 ### Requirement: Family owner can view the member list grouped by status
+
+_Design: ref `1861:794` (SECTION 3 · view roster · NYM-1213); canonical `2474:1980` (Owner state)._
 
 The wallet SHALL display the family's records grouped into four sections: **Pending** (active pending invitations), **Joined** (current members), **Rejected** (invitations the node declined), and **Removed** (members that left or were kicked). Each section is sourced from a distinct contract query and paginates independently using the contract's exclusive `start_after` cursor (default page size 50, max 100), fetching subsequent pages via the returned `start_next_after`. Because the contract stores per-`(family, node)` archive records that accumulate over time, a single node MAY appear in more than one section when its history justifies it (e.g., currently Joined and previously Removed); each row represents a record, not a node. `Revoked` past invitations are owner-side actions and SHALL NOT be shown in the member list. The list SHALL refresh to reflect current contract state and SHALL render an empty state for any section with no entries.
 
@@ -114,6 +128,8 @@ The wallet SHALL display the family's records grouped into four sections: **Pend
 
 ### Requirement: Family owner can remove a node from the family
 
+_Design: ref `1861:794` (SECTION 3 · remove member · NYM-1214); canonical `2474:1311` (Member remove state)._
+
 The wallet SHALL let the owner remove (kick) a Joined member via `KickFromFamily`, behind a confirmation prompt. On confirmation the kick is submitted and the node MUST move to **Removed** in the member list. Cancelling the prompt MUST make no contract call and leave state unchanged.
 
 #### Scenario: Successful removal
@@ -125,6 +141,8 @@ The wallet SHALL let the owner remove (kick) a Joined member via `KickFromFamily
 - **THEN** no contract call is made and the member remains Joined
 
 ### Requirement: Family owner can delete an empty family
+
+_Design: ref `1861:794` (SECTION 3 · dissolve empty family · NYM-1215); canonical `2474:1305` (Dissolve)._
 
 The wallet SHALL offer a delete-family option to the owner. Deletion (via `DisbandFamily`) SHALL be permitted only when the family has zero members and SHALL be behind a confirmation prompt. Attempting to delete a non-empty family MUST surface a clear error (`FamilyNotEmpty`) and MUST NOT remove the family.
 

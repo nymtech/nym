@@ -58,6 +58,32 @@ Because the production app is Tauri (not a plain web target), Playwright e2e spe
 ### D9: Creation fee and limits are read from chain config
 The UI reads `create_family_fee`, `family_name_length_limit`, and `family_description_length_limit` from contract `Config` (mocked in fixtures), never hardcoding 100 NYM or character counts. Validation is byte-length based to match the contract.
 
+## Design Source (Figma)
+
+UI is built from the **Nym 2.0** Figma file, board **"Nym_Wallet – Node families added"**:
+
+- **File key:** `moIK1E6AaXhFz8lI1pZVrI`
+- **Board node:** `1859:981`
+- **Board URL:** https://www.figma.com/design/moIK1E6AaXhFz8lI1pZVrI/%F0%9F%94%A5%F0%9F%94%A5Nym.2.0%F0%9F%94%A5%F0%9F%94%A5?node-id=1859-981
+- Open any frame below via the same URL with `?node-id=<id>` (dash form, e.g. `2474-1935`). Pull frames during apply with the Figma MCP `get_design_context` tool (`fileKey` + `nodeId`).
+
+The board holds two overlapping mockups. The **newer polished wireframe set (`2474:*`, "nym-wallet-ui-wireframes", 28/05) is the canonical build target.** The **ticket-annotated composite (`1861:*`, "family-wallet-composite", 13/05) is the reference** for component-level detail and per-ticket intent (its sections carry the NYM-12xx numbers). Where the two disagree, the `2474:*` set wins; reconcile any drift at apply time.
+
+**Canonical surfaces (`2474:*`):**
+- `2474:1935` — Family · all 4 user states → `2474:1945` No family yet · `2474:1980` Owner · `2474:2063` Member, pending invite · `2474:2134` Member, active
+- `2474:1360` — Balance — Overview · `2474:1449` — Balance — Family tab
+- `2474:1305` — Dissolve · `2474:1311` — Member (remove/offline states)
+
+**Reference composite sections (`1861:*`), ticket-mapped:**
+- `1861:393` SECTION 1 — intro / 4 family states
+- `1861:638` SECTION 2 — Create Family · **NYM-1210**
+- `1861:794` SECTION 3 — Family Detail (roster + settings) · **NYM-1211** edit · **NYM-1213** view roster · **NYM-1214** remove member · **NYM-1215** dissolve empty family
+- `1861:1150` SECTION 4 — Invite Node · **NYM-1212**
+- `1861:1349` SECTION 5 — Incoming Invite popups · **NYM-1216 / 1217 / 1218**
+- `1861:1711` SECTION 6 — Leave family · **NYM-1219**
+
+Also on the board: a wireframe **Components** column (`2474:863`) and ten full-screen render frames (`2386:2352` … `2464:3976`) showing each state in the full app shell. Per-requirement frame links are recorded inline in `specs/node-families-owner/spec.md` and `specs/node-families-operator/spec.md`.
+
 ## Risks / Trade-offs
 
 - **[`UpdateFamily` lands in a separate contract change]** → Build the edit UI + mock against the decided shape (see Resolved); verify on rebase per task 9.5 and reconcile any drift in the request binding, mock execute, and TS types. No feature flag needed since the wallet branch only merges after the contract change lands.
@@ -71,6 +97,6 @@ Additive only — new tab, context, requests, types, stories, tests. No existing
 
 ## Open Questions
 
-- Figma file/frame URLs for each component and page (to be supplied at apply time via Figma MCP).
+_(none open)_
 
-_Resolved:_ no family key concept in V1 (acceptance is a pure membership record; owner-acts-for-node is V2 per NYM-1217); `family_id` is **internal**, the UI identifies families by **name**; names are unique among **live** families only (released for reuse on disband); the Family tab is **always visible**; large lists are **paginated via the contract's `start_after` cursor** (default 50, max 100); the **`UpdateFamily` message shape** is `ExecuteMsg::UpdateFamily { updated_name: Option<String>, updated_description: Option<String> }` with `None` meaning "field unchanged" and `Some(_)` meaning "set to this value", sender must be the family owner; this lands in a separate contract change and is verified on rebase per task 9.5.
+_Resolved:_ **Figma file/frame URLs** for each component and page are now captured — see "Design Source (Figma)" above (file `moIK1E6AaXhFz8lI1pZVrI`, board `1859:981`); the `2474:*` polished set is canonical and the `1861:*` ticket-annotated composite is the per-component reference, with per-requirement node IDs recorded inline in the two spec files. No family key concept in V1 (acceptance is a pure membership record; owner-acts-for-node is V2 per NYM-1217); `family_id` is **internal**, the UI identifies families by **name**; names are unique among **live** families only (released for reuse on disband); the Family tab is **always visible**; large lists are **paginated via the contract's `start_after` cursor** (default 50, max 100); the **`UpdateFamily` message shape** is `ExecuteMsg::UpdateFamily { updated_name: Option<String>, updated_description: Option<String> }` with `None` meaning "field unchanged" and `Some(_)` meaning "set to this value", sender must be the family owner; this lands in a separate contract change and is verified on rebase per task 9.5.

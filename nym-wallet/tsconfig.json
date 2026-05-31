@@ -17,7 +17,9 @@
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["../assets/*"],
-      "@tauri-apps/plugin-process": ["../node_modules/@tauri-apps/plugin-process"]
+      "@tauri-apps/plugin-process": ["../node_modules/@tauri-apps/plugin-process"],
+      "@storybook/react-webpack5": ["node_modules/@storybook/react-webpack5/dist/index.d.ts"],
+      "storybook/test": ["node_modules/storybook/dist/test/index.d.ts"]
     }
   },
 
@@ -28,6 +30,8 @@
     "webpack.config.js",
     "webpack.prod.js",
     "webpack.common.js",
-    "target"
+    "target",
+    "e2e",
+    "playwright.config.ts"
   ]
 }

@@ -25,7 +25,9 @@
     "webpack:dev": "webpack serve --config webpack.dev.js",
     "webpack:prod": "webpack --progress --config webpack.prod.js",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test:e2e": "playwright test",
+    "test:storybook": "test-storybook"
   },
   "dependencies": {
     "@babel/helper-simple-access": "catalog:",
@@ -143,6 +145,8 @@
     "@nymproject/eslint-config-react-typescript": "workspace:*",
     "@nymproject/webpack": "workspace:*",
     "@pmmmwh/react-refresh-webpack-plugin": "catalog:",
+    "@playwright/test": "^1.49.1",
+    "@storybook/test-runner": "^0.23.0",
     "@storybook/addon-a11y": "^10.4.1",
     "@storybook/addon-docs": "^10.4.1",
     "@storybook/addon-mcp": "^0.6.0",

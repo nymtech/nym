@@ -47,4 +47,4 @@ Node Families is a new on-chain capability (see the `node-families-contract` spe
 - **Storybook**: new stories tree for components → pages → flows.
 - **Tests**: Playwright e2e specs; Jest/RTL hook + integration tests against mocks; Storybook interaction tests.
 - **Dependencies / blockers**: `UpdateFamily` edit lands in a separate contract change; this wallet branch will rebase onto that change before merge, and the edit path swaps from the mock to the real IPC binding at rebase time (verified per task 9.5). Creation fee is configurable on-chain (not a hardcoded 100 NYM); UI must read it from config.
-- **External**: Figma designs (via Figma MCP) required during implementation.
+- **External**: Figma designs (via Figma MCP) required during implementation — Nym 2.0 file `moIK1E6AaXhFz8lI1pZVrI`, board "Nym_Wallet – Node families added" (`1859:981`); per-frame mapping in design.md "Design Source (Figma)".

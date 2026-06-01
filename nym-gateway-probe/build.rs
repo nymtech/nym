@@ -69,15 +69,15 @@ fn generate_exit_policy_ports() -> anyhow::Result<()> {
 
         if value.contains('-') {
             let parts: Vec<&str> = value.split('-').collect();
-            if parts.len() == 2 {
-                if let (Ok(lo), Ok(hi)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>()) {
-                    port_map
-                        .entry(lo)
-                        .or_insert_with(|| format!("{service} (range start)"));
-                    port_map
-                        .entry(hi)
-                        .or_insert_with(|| format!("{service} (range end)"));
-                }
+            if parts.len() == 2
+                && let (Ok(lo), Ok(hi)) = (parts[0].parse::<u16>(), parts[1].parse::<u16>())
+            {
+                port_map
+                    .entry(lo)
+                    .or_insert_with(|| format!("{service} (range start)"));
+                port_map
+                    .entry(hi)
+                    .or_insert_with(|| format!("{service} (range end)"));
             }
         } else if let Ok(port) = value.parse::<u16>() {
             port_map.entry(port).or_insert_with(|| service.to_string());

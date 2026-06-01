@@ -67,6 +67,20 @@ struct PortScanRun {
     last_error: Option<String>,
 }
 
+/// Auth endpoint to probe during a port scan.
+struct PortScanTarget {
+    authenticator: nym_sdk::mixnet::Recipient,
+    authenticator_version: nym_authenticator_requests::AuthenticatorVersion,
+    ip_address: IpAddr,
+}
+
+/// Ticket-acquisition parameters for a single port scan session.
+struct PortScanBandwidth<'a> {
+    provider: &'a dyn BandwidthTicketProvider,
+    ticket_type: TicketType,
+    credential_provider: nym_sdk::mixnet::NodeIdentity,
+}
+
 /// Validated info needed to run a WG port-check via the mixnet.
 struct PortCheckSetup {
     exit_node: TestedNodeDetails,
@@ -145,12 +159,8 @@ impl Probe {
     async fn run_port_scan_with_retries(
         mixnet_listener_task: &AuthClientMixnetListenerHandle,
         nym_address: nym_sdk::mixnet::Recipient,
-        authenticator: nym_sdk::mixnet::Recipient,
-        authenticator_version: nym_authenticator_requests::AuthenticatorVersion,
-        ip_address: IpAddr,
-        bandwidth_provider: &dyn BandwidthTicketProvider,
-        wg_ticket_type: TicketType,
-        credential_provider: nym_sdk::mixnet::NodeIdentity,
+        target: PortScanTarget,
+        bandwidth: PortScanBandwidth<'_>,
         netstack_args: NetstackArgs,
         awg_args: Option<String>,
     ) -> PortScanRun {
@@ -165,8 +175,9 @@ impl Probe {
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
 
-            let credential = match bandwidth_provider
-                .get_ecash_ticket(wg_ticket_type, credential_provider, 1)
+            let credential = match bandwidth
+                .provider
+                .get_ecash_ticket(bandwidth.ticket_type, bandwidth.credential_provider, 1)
                 .await
             {
                 Ok(ticket) => ticket.data,
@@ -182,16 +193,16 @@ impl Probe {
                 mixnet_listener_task.subscribe(),
                 mixnet_listener_task.mixnet_sender(),
                 nym_address,
-                authenticator,
-                authenticator_version,
+                target.authenticator,
+                target.authenticator_version,
                 Arc::new(x25519::KeyPair::new(&mut rng)),
-                ip_address,
+                target.ip_address,
             );
 
             match wg_probe(
                 auth_client,
-                ip_address,
-                authenticator_version,
+                target.ip_address,
+                target.authenticator_version,
                 awg_args.clone(),
                 netstack_args.clone(),
                 true, // port_check_only
@@ -265,7 +276,7 @@ impl Probe {
                     "All port-check targets unreachable; falling back to first: '{}'",
                     selected_target
                 );
-            } else if selected_target != *targets.first().unwrap() {
+            } else if selected_target != targets[0] {
                 info!(
                     "Port check: selected target '{}' (first reachable from list)",
                     selected_target
@@ -298,12 +309,16 @@ impl Probe {
         let scan = Self::run_port_scan_with_retries(
             &mixnet_listener_task,
             nym_address,
-            setup.authenticator,
-            setup.exit_node.authenticator_version,
-            setup.ip_address,
-            bandwidth_provider,
-            TicketType::V1WireguardExit,
-            setup.exit_node.identity,
+            PortScanTarget {
+                authenticator: setup.authenticator,
+                authenticator_version: setup.exit_node.authenticator_version,
+                ip_address: setup.ip_address,
+            },
+            PortScanBandwidth {
+                provider: bandwidth_provider,
+                ticket_type: TicketType::V1WireguardExit,
+                credential_provider: setup.exit_node.identity,
+            },
             netstack_args,
             None,
         )

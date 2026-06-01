@@ -156,6 +156,31 @@ async fn request_ports_check_testrun(
         return Err(HttpError::no_testruns_available());
     }
 
+    // 1. guard against other agents attempting to get testruns so that we would be able to check
+    // for ticketbook count without cross-interaction
+    let _guard = state.lock_testrun_assignment().await;
+
+    // 2. check if we have enough ticketbooks of ALL types before assigning the run
+    match state
+        .ticketbook_manager_state()
+        .has_enough_ticketbooks()
+        .await
+    {
+        Err(err) => {
+            return Err(HttpError::internal_with_logging(format!(
+                "failed to check ticketbook storage: {err}"
+            )));
+        }
+        Ok(false) => {
+            tracing::warn!("not enough ticketbooks available, rejecting testrun assignment");
+            return Err(HttpError::internal_with_logging(
+                "not enough ticketbooks available to assign a testrun",
+            ));
+        }
+        Ok(true) => (),
+    }
+
+    // 3. attempt to assign the testrun itself
     match db::queries::testruns::assign_oldest_ports_check_testrun(&mut conn).await {
         Ok(res) => {
             let Some(assignment) = res else {

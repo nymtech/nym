@@ -181,4 +181,168 @@ pub mod v3 {
         /// as an authorised network monitor permitted to submit stress testing results.
         pub authorised: bool,
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::signable::SignableMessageBody;
+        use nym_test_utils::helpers::deterministic_rng;
+        use time::macros::datetime;
+
+        fn dummy_results() -> Vec<StressTestResult> {
+            // Order-distinguishable entries: if deserialisation ever permuted the array, the
+            // re-serialised body would no longer match the signed bytes, and `verify_signature`
+            // would return false. `testrun_id` is the order witness.
+            vec![
+                StressTestResult {
+                    testrun_id: 1,
+                    node_id: 42,
+                    is_mixnode: true,
+                    test_timestamp: datetime!(2026-06-01 12:34:56.123456789 UTC),
+                    test_performance: 0.6666666666666666,
+                    was_reachable: true,
+                },
+                StressTestResult {
+                    testrun_id: 2,
+                    node_id: 7,
+                    is_mixnode: true,
+                    test_timestamp: datetime!(2026-06-01 12:34:56 UTC),
+                    test_performance: 0.0,
+                    was_reachable: false,
+                },
+                StressTestResult {
+                    testrun_id: 3,
+                    node_id: u32::MAX,
+                    is_mixnode: true,
+                    test_timestamp: datetime!(2026-06-01 12:34:56.999999999 UTC),
+                    test_performance: 1.0,
+                    was_reachable: true,
+                },
+            ]
+        }
+
+        // Integrity check on the wire is `serde_json::to_vec(deserialize(serde_json::to_vec(body)))
+        // == serde_json::to_vec(body)`. If JSON serialisation isn't a fixed point, every batch
+        // submission would fail nym-api's signature verification. Cover the timestamp shapes the
+        // orchestrator actually produces, including the `+1ns` bump from the monotonicity safeguard.
+        #[test]
+        fn signed_batch_submission_roundtrips_through_json() {
+            let mut rng = deterministic_rng();
+            let keys = ed25519::KeyPair::new(&mut rng);
+
+            let timestamps = [
+                datetime!(2026-06-01 12:34:56 UTC),
+                datetime!(2026-06-01 12:34:56.000000001 UTC),
+                datetime!(2026-06-01 12:34:56.999999999 UTC),
+                datetime!(2026-06-01 12:34:56.123456789 UTC),
+                OffsetDateTime::now_utc(),
+                OffsetDateTime::now_utc() + time::Duration::NANOSECOND,
+            ];
+
+            for timestamp in timestamps {
+                let body = StressTestBatchSubmissionContent {
+                    signer: *keys.public_key(),
+                    timestamp,
+                    results: dummy_results(),
+                };
+                let signed = body.clone().sign(keys.private_key());
+
+                let bytes = serde_json::to_vec(&signed).unwrap();
+                let deserialised: StressTestBatchSubmission =
+                    serde_json::from_slice(&bytes).unwrap();
+
+                // The handler verifies against `body.body.signer` — match that exactly.
+                assert!(
+                    deserialised.verify_signature(&deserialised.body.signer),
+                    "signature failed to verify after JSON round-trip for timestamp {timestamp}",
+                );
+                assert_eq!(deserialised.body.timestamp, timestamp);
+            }
+        }
+
+        // Every f64 that the orchestrator's `received as f64 / sent as f64` formula can produce
+        // (storage/models.rs) must round-trip byte-exactly through JSON. Exhaustively cover the
+        // range and exercise sent values that produce non-terminating fractions (1/3, 1/7, ...).
+        #[test]
+        fn computed_test_performance_values_roundtrip() {
+            for sent in 1u64..=200 {
+                for received in 0u64..=(sent * 2) {
+                    let perf = received as f64 / sent as f64;
+                    let s = serde_json::to_string(&perf).unwrap();
+                    let perf2: f64 = serde_json::from_str(&s).unwrap();
+                    let s2 = serde_json::to_string(&perf2).unwrap();
+                    assert_eq!(
+                        s, s2,
+                        "f64 round-trip mismatch for {received}/{sent} = {perf}: {s} -> {s2}",
+                    );
+                }
+            }
+        }
+
+        // serde_json serialises non-finite f64 as `null`. Confirm what the deserialiser does with
+        // `null` for a struct field typed as f64 - if it succeeds with a default value (rather than
+        // erroring), a NaN/Infinity test_performance could silently break signature verification
+        // because the re-serialised body would no longer have `null` at that position.
+        #[test]
+        fn non_finite_test_performance_breaks_loudly_not_silently() {
+            let nan_result = StressTestResult {
+                testrun_id: 1,
+                node_id: 1,
+                is_mixnode: true,
+                test_timestamp: datetime!(2026-06-01 12:34:56 UTC),
+                test_performance: f64::NAN,
+                was_reachable: true,
+            };
+            let json = serde_json::to_string(&nan_result).unwrap();
+            // NaN serialises as `null` - this is the dangerous shape
+            assert!(
+                json.contains(r#""test_performance":null"#),
+                "expected NaN to serialise as null: {json}",
+            );
+            // ...and `null` MUST fail to deserialise rather than silently becoming 0.0 / default;
+            // if this ever changes, NaN would silently corrupt signature verification.
+            let deserialised: Result<StressTestResult, _> = serde_json::from_str(&json);
+            assert!(
+                deserialised.is_err(),
+                "deserialising null into f64 unexpectedly succeeded - signature verification \
+                 would silently fail for any submission containing a non-finite test_performance",
+            );
+        }
+
+        // Specifically pin the two hypotheses we want to rule out:
+        //   1. Vec<StressTestResult> serialisation/deserialisation preserves order.
+        //   2. The body bytes serialised standalone (= what gets signed) are byte-identical to
+        //      the body sub-object bytes embedded in the outer SignedMessage JSON (= what the
+        //      server sees after parsing). Re-serialising the deserialised body must reproduce
+        //      the signed bytes verbatim, otherwise no signature could ever verify.
+        #[test]
+        fn batch_body_serialisation_is_a_byte_exact_fixed_point() {
+            let mut rng = deterministic_rng();
+            let keys = ed25519::KeyPair::new(&mut rng);
+
+            let body = StressTestBatchSubmissionContent {
+                signer: *keys.public_key(),
+                timestamp: datetime!(2026-06-01 12:34:56.123456789 UTC),
+                results: dummy_results(),
+            };
+
+            let signed_bytes = body.plaintext();
+            let body_str = std::str::from_utf8(&signed_bytes).unwrap();
+
+            // (1) array order preserved on the wire
+            let pos1 = body_str.find(r#""testrun_id":1"#).unwrap();
+            let pos2 = body_str.find(r#""testrun_id":2"#).unwrap();
+            let pos3 = body_str.find(r#""testrun_id":3"#).unwrap();
+            assert!(pos1 < pos2 && pos2 < pos3, "JSON: {body_str}");
+
+            // (2) round-trip is byte-exact
+            let deserialised: StressTestBatchSubmissionContent =
+                serde_json::from_slice(&signed_bytes).unwrap();
+            let resigned_bytes = deserialised.plaintext();
+            assert_eq!(
+                signed_bytes, resigned_bytes,
+                "deserialise-then-re-serialise was not a fixed point"
+            );
+        }
+    }
 }

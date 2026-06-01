@@ -9,7 +9,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::bip39;
 use std::mem;
 use std::net::SocketAddr;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroUsize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -109,6 +109,10 @@ pub(crate) struct Args {
     /// batch submission (e.g. `15m`, `1h`).
     #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_INTERVAL_ARG, value_parser = humantime::parse_duration, default_value = "15m")]
     result_submission_interval: Duration,
+
+    /// Maximum number of stress testing results to submit in a single POST request
+    #[clap(long, env = NYM_NETWORK_MONITOR_RESULT_SUBMISSION_BATCH_SIZE_ARG, default_value = "50")]
+    result_submission_batch_size: NonZeroUsize,
 }
 
 impl Args {
@@ -145,6 +149,7 @@ impl Args {
             chain_authorisation_check_max_attempts: self.chain_authorisation_check_max_attempts,
             chain_authorisation_check_retry_delay: self.chain_authorisation_check_retry_delay,
             result_submission_interval: self.result_submission_interval,
+            result_submission_batch_size: self.result_submission_batch_size.get(),
         })
     }
 

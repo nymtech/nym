@@ -134,8 +134,7 @@ impl AppState {
             return Err(HttpError::unauthorized());
         };
 
-        if let Err(err) = request.verify_signature() {
-            tracing::debug!("Signature verification error: {:?}", err);
+        if request.verify_signature().is_err() {
             tracing::warn!("Signature verification failed, rejecting");
             return Err(HttpError::unauthorized());
         }

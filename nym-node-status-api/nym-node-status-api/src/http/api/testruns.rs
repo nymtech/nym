@@ -147,8 +147,7 @@ async fn request_ports_check_testrun(
         TestRunKind::PortsCheck,
     )
     .await
-    .map_err(HttpError::internal_with_logging)?
-    .unwrap_or_default();
+    .map_err(HttpError::internal_with_logging)?;
     let max_count = state.agent_max_count();
     if active_ports_check_testruns >= max_count {
         tracing::warn!(

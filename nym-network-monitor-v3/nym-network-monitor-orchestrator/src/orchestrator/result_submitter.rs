@@ -130,7 +130,7 @@ impl ResultSubmitter {
                         // Submission errors shouldn't kill the task - local storage retains the
                         // pending rows until the retention window expires, so the next tick will
                         // retry and eventually catch up once the nym-api is reachable again.
-                        tracing::error!("failed to submit stress-test results: {err}");
+                        tracing::error!("failed to submit stress-test results: {err:#}");
                     }
                 }
             }

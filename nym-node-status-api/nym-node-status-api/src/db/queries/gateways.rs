@@ -118,9 +118,8 @@ impl Storage {
         if failed > 0 {
             tracing::warn!("{failed} gateway DTO(s) failed conversion and were skipped");
         }
-        let items = gateways;
-        tracing::trace!("Fetched {} gateways from DB", items.len());
-        Ok(items)
+        tracing::trace!("Fetched {} gateways from DB", gateways.len());
+        Ok(gateways)
     }
 }
 

@@ -147,7 +147,7 @@ struct RunPortsProbeConfig {
 #[derive(Serialize)]
 #[serde(untagged)]
 pub(crate) enum ProbeOutput {
-    Standard(ProbeResult),
+    Standard(Box<ProbeResult>),
     PortCheck(PortCheckResult),
 }
 
@@ -222,7 +222,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
 
             Box::pin(trial.probe_run_locally(&config_dir, credential_mode))
                 .await
-                .map(ProbeOutput::Standard)
+                .map(|r| ProbeOutput::Standard(Box::new(r)))
         }
         Commands::Run {
             entry_gateway,
@@ -268,7 +268,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                 nym_gateway_probe::Probe::new(entry_details, exit_details, network, probe_config);
             Box::pin(trial.probe_run(&config_dir, credential_mode))
                 .await
-                .map(ProbeOutput::Standard)
+                .map(|r| ProbeOutput::Standard(Box::new(r)))
         }
         Commands::RunPorts {
             entry_gateway,
@@ -350,7 +350,7 @@ pub(crate) async fn run() -> anyhow::Result<ProbeOutput> {
                     .await?;
             Box::pin(trial.probe_run_agent(credential_args))
                 .await
-                .map(ProbeOutput::Standard)
+                .map(|r| ProbeOutput::Standard(Box::new(r)))
         }
     }
 }

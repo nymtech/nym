@@ -5726,7 +5726,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.80"
+version = "1.1.80-fixed-floats"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7497,7 +7497,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-orchestrator"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "anyhow",
  "axum 0.7.9",

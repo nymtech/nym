@@ -5819,7 +5819,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.80-fixed-floats"
+version = "1.1.80-no-gw-penalty"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7571,7 +7571,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-agent"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "anyhow",
  "arrayref",

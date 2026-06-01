@@ -54,7 +54,8 @@ pub(crate) async fn start_http_api(
         .unwrap_or(true);
 
     if ports_check_scheduler_enabled {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 10));
+        let period = std::time::Duration::from_secs(60 * 10);
+        let mut interval = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let scheduler_shutdown = shutdown_tracker.clone_shutdown_token().cancelled_owned();
         shutdown_tracker.spawn(async move {

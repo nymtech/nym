@@ -658,18 +658,24 @@ func checkPorts(target string, ports []uint16, timeoutSec uint64, tnet *netstack
 			}
 		}
 	} else {
-		// All other targets can handle concurrent connections, probably
-		log.Printf("Port check: testing %d ports on %s concurrently (timeout %v each)",
-			len(ports), target, timeout)
+		// All other targets can handle concurrent connections, probably.
+		// A semaphore caps concurrent tnet.DialContext calls to avoid
+		// overwhelming the single userspace netstack instance.
+		const maxConcurrentDials = 64
+		log.Printf("Port check: testing %d ports on %s concurrently (max %d at a time, timeout %v each)",
+			len(ports), target, maxConcurrentDials, timeout)
 
 		var (
-			mu sync.Mutex
-			wg sync.WaitGroup
+			mu  sync.Mutex
+			wg  sync.WaitGroup
+			sem = make(chan struct{}, maxConcurrentDials)
 		)
 		for _, p := range ports {
 			wg.Add(1)
 			go func(port uint16) {
 				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
 				addr := net.JoinHostPort(targetIP, fmt.Sprintf("%d", port))
 				ctx, cancel := context.WithTimeout(context.Background(), timeout)
 				c, err := tnet.DialContext(ctx, "tcp", addr)

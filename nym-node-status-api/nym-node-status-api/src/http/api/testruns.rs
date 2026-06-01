@@ -142,13 +142,18 @@ async fn request_ports_check_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    let active_testruns = db::queries::testruns::count_testruns_in_progress(&mut conn)
-        .await
-        .map_err(HttpError::internal_with_logging)?
-        .unwrap_or_default();
+    let active_ports_check_testruns = db::queries::testruns::count_testruns_in_progress_by_kind(
+        &mut conn,
+        TestRunKind::PortsCheck,
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?
+    .unwrap_or_default();
     let max_count = state.agent_max_count();
-    if active_testruns >= max_count {
-        tracing::warn!("{active_testruns}/{max_count} testruns in progress, rejecting",);
+    if active_ports_check_testruns >= max_count {
+        tracing::warn!(
+            "{active_ports_check_testruns}/{max_count} ports-check testruns in progress, rejecting",
+        );
         return Err(HttpError::no_testruns_available());
     }
 
@@ -562,6 +567,10 @@ async fn process_ports_check_submission(
         payload.port_check_result.can_register,
     );
 
+    // probe_log is intentionally not persisted for ports-check submissions:
+    // the ports-check result is a lightweight JSONB record and does not warrant
+    // the storage overhead of a full probe log. Full logs are retained only for
+    // regular probe testruns via update_gateway_last_probe_log.
     queries::testruns::update_gateway_ports_check_only(
         conn,
         gateway_id,

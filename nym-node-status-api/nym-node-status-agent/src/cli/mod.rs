@@ -34,8 +34,10 @@ pub(super) fn parse_server_config(s: &str) -> Result<ServerConfig, String> {
     let port = parts[1]
         .parse::<u16>()
         .map_err(|_| "Invalid port number".to_string())?;
-    let auth_key =
-        PrivateKey::from_base58_string(env::var("NODE_STATUS_AGENT_AUTH_KEY").unwrap()).unwrap();
+    let raw_key = env::var("NODE_STATUS_AGENT_AUTH_KEY")
+        .map_err(|_| "NODE_STATUS_AGENT_AUTH_KEY environment variable is not set".to_string())?;
+    let auth_key = PrivateKey::from_base58_string(raw_key)
+        .map_err(|e| format!("Failed to decode NODE_STATUS_AGENT_AUTH_KEY as base58: {e}"))?;
 
     Ok(ServerConfig {
         address,

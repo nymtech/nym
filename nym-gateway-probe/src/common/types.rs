@@ -257,7 +257,21 @@ impl PortCheckResult {
     pub fn closed_ports(&self) -> Vec<u16> {
         self.ports
             .iter()
-            .filter_map(|(k, &open)| if !open { k.parse().ok() } else { None })
+            .filter_map(|(k, &open)| {
+                if open {
+                    return None;
+                }
+                match k.parse::<u16>() {
+                    Ok(port) => Some(port),
+                    Err(e) => {
+                        tracing::warn!(
+                            "Skipping port key {:?} that could not be parsed as u16: {e}",
+                            k
+                        );
+                        None
+                    }
+                }
+            })
             .collect()
     }
 }

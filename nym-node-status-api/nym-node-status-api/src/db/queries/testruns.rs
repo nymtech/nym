@@ -24,6 +24,27 @@ pub(crate) async fn count_testruns_in_progress(
     .map_err(anyhow::Error::from)
 }
 
+pub(crate) async fn count_testruns_in_progress_by_kind(
+    conn: &mut DbConnection,
+    kind: TestRunKind,
+) -> anyhow::Result<Option<i64>> {
+    sqlx::query_scalar!(
+        r#"SELECT
+            COUNT(id) as "count: i64"
+         FROM testruns
+         WHERE
+            status = $1
+         AND
+            kind = $2
+         "#,
+        TestRunStatus::InProgress as i64,
+        kind as i16,
+    )
+    .fetch_one(conn.as_mut())
+    .await
+    .map_err(anyhow::Error::from)
+}
+
 pub(crate) async fn get_in_progress_testrun_by_id(
     conn: &mut DbConnection,
     testrun_id: i32,

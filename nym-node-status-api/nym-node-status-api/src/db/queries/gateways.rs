@@ -104,11 +104,21 @@ impl Storage {
         .fetch(&self.pool)
         .try_collect::<Vec<_>>()
         .await?;
-        let items: Vec<Gateway> = items
-            .into_iter()
-            .map(|item| item.try_into())
-            .collect::<anyhow::Result<Vec<_>>>()
-            .inspect_err(|e| error!("Conversion from DTO failed: {e}. Invalidly stored data?"))?;
+        let mut gateways: Vec<Gateway> = Vec::with_capacity(items.len());
+        let mut failed = 0usize;
+        for item in items {
+            match item.try_into() {
+                Ok(gw) => gateways.push(gw),
+                Err(e) => {
+                    error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+                    failed += 1;
+                }
+            }
+        }
+        if failed > 0 {
+            tracing::warn!("{failed} gateway DTO(s) failed conversion and were skipped");
+        }
+        let items = gateways;
         tracing::trace!("Fetched {} gateways from DB", items.len());
         Ok(items)
     }

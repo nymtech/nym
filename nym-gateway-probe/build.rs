@@ -26,7 +26,9 @@ fn main() -> anyhow::Result<()> {
 fn generate_exit_policy_ports() -> anyhow::Result<()> {
     use std::collections::BTreeMap;
 
-    let script_path = PathBuf::from("../scripts/nym-node-setup/network-tunnel-manager.sh");
+    let manifest_dir =
+        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").context("CARGO_MANIFEST_DIR not set")?);
+    let script_path = manifest_dir.join("../scripts/nym-node-setup/network-tunnel-manager.sh");
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").context("OUT_DIR not set")?);
 
     println!("cargo::rerun-if-changed={}", script_path.display());

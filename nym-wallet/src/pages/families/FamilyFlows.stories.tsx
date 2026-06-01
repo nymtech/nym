@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
 import { within, screen, userEvent, waitFor, expect } from 'storybook/test';
 import { withFamiliesMock } from 'src/components/Families/withFamiliesMock';
@@ -11,6 +12,7 @@ import {
   MOCK_OWNER_FLOW_NODE,
 } from 'src/context/mocks/families.fixtures';
 import { FamilyPage } from './FamilyPage';
+import { OperatorInvitesPage } from './OperatorInvitesPage';
 
 /**
  * End-to-end flow stories driven by play functions against the mock contract.
@@ -30,6 +32,7 @@ const NODE = MOCK_OWNER_FLOW_NODE;
 
 /** Owner lifecycle: create → invite → accept → kick → disband (single self-controlled account). */
 export const OwnerLifecycle: Story = {
+  name: 'Owner Lifecycle (auto-run)',
   decorators: [withFamiliesMock({ sender: MOCK_OWNER_ADDRESS, makeStore: buildOwnerFlowStore, latencyMs: 0 })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -68,6 +71,7 @@ export const OwnerLifecycle: Story = {
 
 /** Operator lifecycle: receive → accept (then leave) on one node, reject on another. */
 export const OperatorLifecycle: Story = {
+  name: 'Operator Lifecycle (auto-run)',
   decorators: [withFamiliesMock({ sender: MOCK_OPERATOR_ADDRESS, makeStore: buildOperatorFlowStore, latencyMs: 0 })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -89,4 +93,31 @@ export const OperatorLifecycle: Story = {
     await userEvent.click(await screen.findByTestId('invite-card-1-reject-confirm'));
     await canvas.findByTestId(`node-invite-group-${MOCK_OPERATOR_FLOW_REJECT_NODE}-empty`);
   },
+};
+
+// ---------------------------------------------------------------------------
+// Manual variants — same seeded scenarios, NO play function, so you can click
+// through the steps yourself (accept / reject / leave) and watch state change.
+// ---------------------------------------------------------------------------
+
+/**
+ * Operator lifecycle, driven by hand. Two controlled nodes each hold an active
+ * invite: accept node {ACCEPT}'s invite (a "Current family" card with Leave then
+ * appears) and reject node {REJECT}'s invite. Nothing runs automatically.
+ */
+export const OperatorLifecycleManual: Story = {
+  name: 'Operator Lifecycle (manual)',
+  decorators: [withFamiliesMock({ sender: MOCK_OPERATOR_ADDRESS, makeStore: buildOperatorFlowStore, latencyMs: 300 })],
+  render: () => <OperatorInvitesPage />,
+};
+
+/**
+ * Owner lifecycle, driven by hand. Starts with no family (the create entry point);
+ * create one, then invite node {NODE} (which this account also controls), switch to
+ * the Node invites tab to accept it, kick it, and dissolve. Nothing runs automatically.
+ */
+export const OwnerLifecycleManual: Story = {
+  name: 'Owner Lifecycle (manual)',
+  decorators: [withFamiliesMock({ sender: MOCK_OWNER_ADDRESS, makeStore: buildOwnerFlowStore, latencyMs: 300 })],
+  render: () => <FamilyPage />,
 };

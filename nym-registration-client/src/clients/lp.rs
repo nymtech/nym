@@ -166,8 +166,9 @@ impl LpBasedRegistrationClient {
         let fallback = self.fallback_client_builder.take();
         match &self.config.mode {
             RegistrationMode::Mixnet => {
-                if let Some(fallback) = fallback {
-                    register_with_fallback(fallback).await
+                if let Some(client_builder) = fallback {
+                    // This is forcefully building a mixnet based client
+                    client_builder.build_mixnet().await?.register().await
                 } else {
                     Err(RegistrationClientError::UnsupportedMode)
                 }
@@ -182,15 +183,9 @@ impl LpBasedRegistrationClient {
                     // Everything went fine
                     Some(Ok(res)) => Ok(res),
 
-                    // LP reg failed, try fallback if we have one
                     Some(Err(e)) => {
                         tracing::error!("LP registration failed : {e}");
-                        if let Some(fallback) = fallback {
-                            tracing::info!("Registering with fallback");
-                            register_with_fallback(fallback).await
-                        } else {
-                            Err(e)
-                        }
+                        Err(e)
                     }
 
                     // Cancelled registration
@@ -199,12 +194,4 @@ impl LpBasedRegistrationClient {
             }
         }
     }
-}
-
-async fn register_with_fallback(
-    client_builder: RegistrationClientBuilder,
-) -> Result<RegistrationResult, RegistrationClientError> {
-    // This is forcefully building a mixnet based client
-    let fallback_client = client_builder.build_mixnet().await?;
-    fallback_client.register().await
 }

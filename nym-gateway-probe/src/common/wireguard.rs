@@ -65,24 +65,25 @@ impl WgTunnelConfig {
 /// - Optional download test
 /// - Optional exit policy port check (TCP connect through tunnel)
 ///
-/// Results are written directly into the provided `wg_outcome` to avoid field-by-field
-/// copying at call sites.
+/// **Important:** this function issues blocking FFI calls into Go (CGo) and MUST be
+/// called via `tokio::task::spawn_blocking` at any async call site.  It returns a
+/// fresh `WgProbeResults`; the caller sets `can_register` after verifying WG
+/// registration succeeded.
 ///
 /// # Arguments
 /// * `config` - WireGuard tunnel configuration
 /// * `netstack_args` - Netstack test parameters (DNS, hosts to ping, timeouts, etc.)
 /// * `awg_args` - Amnezia WireGuard arguments (empty string for standard WG)
 /// * `port_check_only` - If true, skip pings/download and only run TCP port checks
-/// * `wg_outcome` - Mutable reference to write test results into
-// This function extracts the shared netstack testing logic from
-// wg_probe() and wg_probe_lp() to eliminate code duplication.
+// This function extracts the shared netstack testing logic from wg_probe()
+// to eliminate code duplication across probe modes.
 pub fn run_tunnel_tests(
     config: &WgTunnelConfig,
     netstack_args: &NetstackArgs,
     awg_args: &str,
     port_check_only: bool,
-    wg_outcome: &mut WgProbeResults,
-) {
+) -> WgProbeResults {
+    let mut wg_outcome = WgProbeResults::default();
     // Build the netstack request
     let netstack_request = NetstackRequest::new(
         &config.private_ipv4,
@@ -143,7 +144,7 @@ pub fn run_tunnel_tests(
     // in port-check-only mode, skip IPv6 tests — port checks ran through IPv4 above
     if port_check_only {
         info!("Port-check-only mode: skipping IPv6 tunnel tests");
-        return;
+        return wg_outcome;
     }
 
     // Perform IPv6 ping test
@@ -182,4 +183,6 @@ pub fn run_tunnel_tests(
             error!("Internal error (IPv6): {error}")
         }
     }
+
+    wg_outcome
 }

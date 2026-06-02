@@ -80,8 +80,6 @@ pub async fn wg_probe(
         AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => bail!("unknown version number"),
     };
 
-    let mut wg_outcome = WgProbeResults::default();
-
     info!(
         "connecting to authenticator: {}...",
         auth_client.auth_recipient
@@ -135,9 +133,9 @@ pub async fn wg_probe(
 
     info!("Successfully registered with the gateway");
 
-    wg_outcome.can_register = true;
-
-    // Run tunnel connectivity tests using shared helper
+    // Run tunnel connectivity tests using shared helper.
+    // run_tunnel_tests issues blocking CGo calls into Go, so it must run on
+    // tokio's dedicated blocking thread pool to avoid stalling the async runtime.
     let tunnel_config = WgTunnelConfig::new(
         registered_data.private_ips().ipv4.to_string(),
         registered_data.private_ips().ipv6.to_string(),
@@ -145,16 +143,18 @@ pub async fn wg_probe(
         public_key_hex,
         wg_endpoint,
     );
+    let awg_str = awg_args.unwrap_or_default();
 
-    run_tunnel_tests(
-        &tunnel_config,
-        &netstack_args,
-        &awg_args.unwrap_or_default(),
-        port_check_only,
-        &mut wg_outcome,
-    );
+    let mut tunnel_result = tokio::task::spawn_blocking(move || {
+        run_tunnel_tests(&tunnel_config, &netstack_args, &awg_str, port_check_only)
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("netstack task panicked: {e}"))?;
 
-    Ok(wg_outcome)
+    // can_register is determined by the auth handshake above, not by netstack
+    tunnel_result.can_register = true;
+
+    Ok(tunnel_result)
 }
 
 pub async fn lp_registration_probe(

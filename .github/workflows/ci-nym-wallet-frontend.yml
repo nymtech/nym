@@ -57,5 +57,5 @@ jobs:
           SOURCE: "nym-wallet/storybook-static/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ github.ref_name }}/nym-wallet/storybook
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet/storybook
           EXCLUDE: "/dist/, /node_modules/"

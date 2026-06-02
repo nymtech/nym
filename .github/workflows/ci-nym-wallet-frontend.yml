@@ -8,7 +8,7 @@ on:
       - '.github/workflows/ci-nym-wallet-frontend.yml'
 
 jobs:
-  types-lint:
+  build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -57,5 +57,5 @@ jobs:
           SOURCE: "nym-wallet/storybook-static/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ env.GITHUB_REF_SLUG }}/nym-wallet/storybook
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/${{ github.ref_name }}/nym-wallet/storybook
           EXCLUDE: "/dist/, /node_modules/"

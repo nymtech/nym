@@ -143,7 +143,6 @@ impl RegistrationClientBuilder {
             config,
             bandwidth_controller,
             cancel_token: self.config.cancel_token.clone(),
-            fallback_client_builder: Some(self),
         })
     }
 }

@@ -18,6 +18,7 @@ use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
+use tracing::warn;
 
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
@@ -162,7 +163,7 @@ impl LpBasedRegistrationClient {
         self.register_wg_with_rng(&mut rng).await
     }
 
-    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+    async fn register_inner(mut self) -> Result<RegistrationResult, RegistrationClientError> {
         let fallback = self.fallback_client_builder.take();
         match &self.config.mode {
             RegistrationMode::Mixnet => {
@@ -193,5 +194,15 @@ impl LpBasedRegistrationClient {
                 }
             }
         }
+    }
+
+    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+        let timeout = self.config.lp_registration_config.exchange_timeout;
+        tokio::time::timeout(timeout, self.register_inner())
+            .await
+            .unwrap_or_else(|timeout| {
+                warn!("timed out while attempting to complete LP registration");
+                Err(RegistrationClientError::Timeout(timeout))
+            })
     }
 }

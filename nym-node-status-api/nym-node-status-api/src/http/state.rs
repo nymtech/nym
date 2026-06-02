@@ -134,10 +134,10 @@ impl AppState {
             return Err(HttpError::unauthorized());
         };
 
-        request.verify_signature().map_err(|_| {
+        if request.verify_signature().is_err() {
             tracing::warn!("Signature verification failed, rejecting");
-            HttpError::unauthorized()
-        })?;
+            return Err(HttpError::unauthorized());
+        }
 
         Ok(())
     }

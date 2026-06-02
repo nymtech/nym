@@ -24,8 +24,6 @@ pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_controller: Box<dyn BandwidthTicketProvider>,
     pub(crate) cancel_token: CancellationToken,
-    // While we allow a fallback, we need to be able to build it
-    pub(crate) fallback_client_builder: Option<RegistrationClientBuilder>,
 }
 
 impl LpBasedRegistrationClient {
@@ -164,15 +162,10 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_inner(mut self) -> Result<RegistrationResult, RegistrationClientError> {
-        let fallback = self.fallback_client_builder.take();
         match &self.config.mode {
             RegistrationMode::Mixnet => {
-                if let Some(client_builder) = fallback {
-                    // This is forcefully building a mixnet based client
-                    client_builder.build_mixnet().await?.register().await
-                } else {
-                    Err(RegistrationClientError::UnsupportedMode)
-                }
+                // mixnet registration is not supported for LP
+                Err(RegistrationClientError::UnsupportedMode)
             }
             RegistrationMode::Wireguard => {
                 let lp_registration_result = self

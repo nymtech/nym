@@ -29,17 +29,11 @@ impl WasmDevice {
     pub fn new() -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Match the standard Ethernet MTU (1500). Two independent reasons
-        // both point at the same value:
-        //   1. One IP packet must fit in one sphinx packet payload, else the
-        //      LP layer fragments it. The usable budget from the 2048 B
-        //      sphinx plaintext, after SURB-ack (344), x25519 ephemeral key
-        //      (32), frag header (7), padding (1) and LP+IPR framing + AEAD
-        //      (53), is ~1611 B. 1500 sits inside that with ~110 B headroom
-        //      for framing variability.
-        //   2. Remote hosts and the path to them are tuned around 1500, so
-        //      emitting 1500 B packets keeps us within what the wider
-        //      internet expects and sidesteps path-MTU surprises upstream.
+        // Match the standard Ethernet MTU (1500). As well as giving us room
+        // for SURB headers w/out fragmenting our payload, most remote hosts
+        // and the path to them are tuned around 1500, so emitting 1500 B packets
+        // keeps us within what the wider internet expects and sidesteps path-MTU
+        // surprises upstream.
         capabilities.max_transmission_unit = 1500;
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100

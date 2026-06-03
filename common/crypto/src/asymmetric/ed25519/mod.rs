@@ -60,7 +60,6 @@ pub enum Ed25519RecoveryError {
 /// Keypair for usage in ed25519 EdDSA.
 #[derive(Debug, Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[allow(unused_assignments)]
 pub struct KeyPair {
     private_key: PrivateKey,
 

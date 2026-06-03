@@ -5,6 +5,7 @@
 //! plus (under the `fetch` feature) the HTTP orchestration + JS `RequestInit` shim.
 
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use crate::dns;
 use crate::error::FetchError;
@@ -194,6 +195,15 @@ pub async fn fetch(
 /// Connect + TLS-handshake attempts on fresh sockets before giving up.
 const CONNECT_ATTEMPTS: u32 = 3;
 
+/// Base delay between connect retries, multiplied by the attempt number for a
+/// mild linear backoff (50ms before the 2nd attempt, 100ms before the 3rd).
+///
+/// Kept small on purpose: the transient failure here is a lost handshake
+/// segment, not congestion that needs time to clear.
+/// The backoff only avoids re-launching a fresh socket the instant
+/// the previous one reset.
+const CONNECT_BACKOFF_MS: u64 = 50;
+
 /// Create a fresh connection: DNS resolve → TCP connect → optional TLS, with
 /// retry on transient failure.
 ///
@@ -226,6 +236,10 @@ pub(crate) async fn new_connection(
                     crate::util::debug_log!(
                         "[fetch] connect attempt {attempt}/{CONNECT_ATTEMPTS} to '{host}' failed ({e}), retrying with fresh connection"
                     );
+                    wasmtimer::tokio::sleep(Duration::from_millis(
+                        attempt as u64 * CONNECT_BACKOFF_MS,
+                    ))
+                    .await;
                 } else {
                     crate::util::debug_error!(
                         "[fetch] connect to '{host}' failed after {CONNECT_ATTEMPTS} attempts: {e}"

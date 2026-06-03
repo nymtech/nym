@@ -6,7 +6,7 @@
 ## Per node changes in inventory/all will overwrite these global vars
 ###############################################################################
 
-## MANDATORY - uncomment & override
+## MANDATORY - uncomment & define
 
 ## --SSH--
 #ansible_user: root                                  # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
@@ -19,19 +19,19 @@
 # moniker: "<MONIKER>" 
 
 ## --Node defaults (can override per node in inventory/all)--
-# accept_operator_terms: true                       # controls --accept-operator-terms-and-conditions
+# accept_operator_terms: true                       # controls --accept-operator-terms-and-conditions, read: https://nym.com/docs/operators/nodes/nym-node/setup#terms--conditions
 # mode: exit-gateway                                # entry-gateway/exit-gateway/mixnode
 # wireguard_enabled: true                           # true/false
 hostname: ""                                        # keep this fallback, keep it and setup hostname per node in inventory/all
 
-## OPTIONAL - uncomment & override
+## OPTIONAL - uncomment & define
 
 # operator_name: "<OPERATOR_NAME>"          # used in landing page if provided
 # nym_version: "nym-binaries-v2026.7-tola"  # to use particular version instead of Latest, provide in such form: 
 
 ## alternative SSH key var setting, instead of a hardcoded path
 ## useful if the playbook is shared in a repo by more admins with each having own local key
-# ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_SSH_ENV_VAR>') }}"
+# ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>') }}"
 
 ###############################################################################
 ## GLOBAL PACKAGES & URLs

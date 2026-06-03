@@ -289,7 +289,7 @@ impl ConnectionHandler {
                 .processing_config
                 .maximum_replay_detection_deferral;
 
-        let count_threshold = self.pending_packets.packets.len()
+        let count_threshold = self.pending_packets.total_count()
             < self
                 .shared
                 .processing_config

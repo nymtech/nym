@@ -31,13 +31,21 @@ use nym_wasm_client_core::nym_task::connections::TransmissionLane;
 
 use crate::error::FetchError;
 
-/// Reply-SURB counts for Open and Data frames. Defaults: `open=10, data=0`.
+/// Reply-SURB counts for the Open and Data frames. Defaults: `open=10, data=2`.
 ///
-/// The Open frame seeds the IPR's SURB bucket; from there, the reply
-/// controller's pre-emptive topup refills it when the bucket dips below
-/// the `min_surbs_threshold` (10, per nym-client-core), so per-data-packet
-/// SURBs are unnecessary in steady state. Override `data` upwards for
-/// workloads that burst faster than topup round-trip can keep up.
+/// `open` seeds the IPR's SURB bucket on the connect handshake. `data` is the
+/// number of reply-SURBs attached to every packet we send (including TCP ACKs);
+/// it funds the IPR's return traffic for the connection.
+///
+/// `data` is deliberately small, and raising it has a cost that is easy to
+/// miss. A reply-SURB is not a flag on the packet: it is a full layer-encrypted
+/// return header that travels as forward payload, and each Sphinx packet has a fixed
+/// payload budget.
+///
+/// Return capacity for downloads does not need a large `data`: every ACK we send
+/// during a transfer carries `data` SURBs, so capacity scales with the ACK rate
+/// (which scales with the download rate), and the reply controller's pre-emptive
+/// topup refills the bucket besides.
 #[derive(Clone, Copy)]
 pub struct SurbsConfig {
     pub open: u32,
@@ -46,7 +54,7 @@ pub struct SurbsConfig {
 
 impl Default for SurbsConfig {
     fn default() -> Self {
-        Self { open: 10, data: 0 }
+        Self { open: 10, data: 2 }
     }
 }
 

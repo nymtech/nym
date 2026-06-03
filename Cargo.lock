@@ -7571,7 +7571,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor-agent"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -11571,7 +11571,7 @@ dependencies = [
  "nym-sdk",
  "reqwest 0.13.1",
  "rustls 0.23.37",
- "smoltcp",
+ "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.18",
  "tokio",
  "tokio-rustls 0.26.2",
@@ -11609,7 +11609,7 @@ dependencies = [
  "semver 1.0.27",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "smoltcp",
+ "smoltcp 0.12.0 (git+https://github.com/nymtech/smoltcp?tag=v0.12.0-nym-rtt)",
  "thiserror 2.0.18",
  "tokio",
  "tsify",
@@ -11625,6 +11625,21 @@ name = "smoltcp"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dad095989c1533c1c266d9b1e8d70a1329dd3723c3edac6d03bbd67e7bf6f4bb"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "cfg-if",
+ "defmt 0.3.100",
+ "heapless",
+ "libc",
+ "log",
+ "managed",
+]
+
+[[package]]
+name = "smoltcp"
+version = "0.12.0"
+source = "git+https://github.com/nymtech/smoltcp?tag=v0.12.0-nym-rtt#62ac5b8b3287d4773694f19a3b55e4c004354a0b"
 dependencies = [
  "bitflags 1.3.2",
  "byteorder",
@@ -12642,7 +12657,7 @@ dependencies = [
  "futures",
  "parking_lot",
  "pin-project-lite",
- "smoltcp",
+ "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tokio-util",
 ]

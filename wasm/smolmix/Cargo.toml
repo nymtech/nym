@@ -49,8 +49,11 @@ async-tungstenite = { workspace = true, features = ["handshake"], optional = tru
 # WASM utils (panic hook, console_log)
 nym-wasm-utils = { workspace = true }
 
-# Tunnel: smoltcp stack + Nym mixnet client + IPR protocol
-smoltcp = { workspace = true, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
+# RTT-patched smoltcp fork, scoped to THIS crate only(not a workspace-wide `[patch.crates-io]`),
+# so native `smolmix/core` builds and publishes against vanilla crates.io smoltcp untouched for
+# the moment - needs further investigation whether that also suffers the same problem (probably does)
+# but makes crates publication more complicated
+smoltcp = { git = "https://github.com/nymtech/smoltcp", tag = "v0.12.0-nym-rtt", features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
 nym-wasm-client-core = { workspace = true }
 nym-ip-packet-requests = { workspace = true }
 # LP wire types (frame, header, codec)

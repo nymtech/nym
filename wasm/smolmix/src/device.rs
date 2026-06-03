@@ -12,6 +12,7 @@ use std::collections::VecDeque;
 
 use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken};
 use smoltcp::time::Instant;
+use smoltcp::wire::{IpAddress, IpProtocol, Ipv4Packet, TcpPacket};
 
 /// smoltcp device backed by in-memory packet queues.
 ///
@@ -28,13 +29,18 @@ impl WasmDevice {
     pub fn new() -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Sized so one IP packet fits in one sphinx packet payload (no
-        // chunking-layer fragmentation). Budget in bytes from the 2048 B
-        // sphinx plaintext: − 344 (SURB-ack) − 32 (x25519 ephemeral key,
-        // Repliable msgs) − 7 (frag header) − 1 (padding) − 53 (LP+IPR
-        // framing + AEAD) ≈ 1611. 1600 leaves ~11 B headroom for IPR
-        // overhead variability.
-        capabilities.max_transmission_unit = 1600;
+        // Match the standard Ethernet MTU (1500). Two independent reasons
+        // both point at the same value:
+        //   1. One IP packet must fit in one sphinx packet payload, else the
+        //      LP layer fragments it. The usable budget from the 2048 B
+        //      sphinx plaintext, after SURB-ack (344), x25519 ephemeral key
+        //      (32), frag header (7), padding (1) and LP+IPR framing + AEAD
+        //      (53), is ~1611 B. 1500 sits inside that with ~110 B headroom
+        //      for framing variability.
+        //   2. Remote hosts and the path to them are tuned around 1500, so
+        //      emitting 1500 B packets keeps us within what the wider
+        //      internet expects and sidesteps path-MTU surprises upstream.
+        capabilities.max_transmission_unit = 1500;
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM
@@ -95,8 +101,110 @@ impl RxToken for WasmRxToken {
     where
         F: FnOnce(&[u8]) -> R,
     {
+        // Diagnostic only: the smoltcp receive path is invisible from outside
+        // (it validates, reassembles and drops silently). When runtime debug
+        // logging is on, log every inbound TCP packet's seq / length / flags /
+        // checksum so a stalled inbound flight can be read straight from the
+        // log. The `f()` call below is unchanged; smoltcp owns all processing.
+        if nym_wasm_utils::debug_logging_enabled() {
+            log_inbound_tcp(&self.buffer);
+        }
         f(&self.buffer)
     }
+}
+
+/// Log one line per inbound TCP packet: source, sequence, payload length,
+/// flags and checksum status.
+///
+/// The smoltcp receive path is otherwise opaque, so a stalled inbound flight
+/// gives no clue why. This makes it readable: whether the data segments arrive
+/// at all, whether their sequence numbers are contiguous or have a hole (the
+/// head of the stream missing => reassembly can never advance), and whether the
+/// checksum is valid. Observation only; smoltcp owns validation and delivery.
+fn log_inbound_tcp(buf: &[u8]) {
+    let Ok(ip) = Ipv4Packet::new_checked(buf) else {
+        return;
+    };
+    let ip_ok = ip.verify_checksum();
+    if ip.next_header() != IpProtocol::Tcp {
+        return;
+    }
+    let src = IpAddress::Ipv4(ip.src_addr());
+    let dst = IpAddress::Ipv4(ip.dst_addr());
+    let Ok(tcp) = TcpPacket::new_checked(ip.payload()) else {
+        return;
+    };
+
+    let cksum_ok = ip_ok && tcp.verify_checksum(&src, &dst);
+    // `dport` is our local ephemeral port, i.e. which client socket this packet
+    // belongs to. It is the discriminator for "is this one connection or
+    // several?": each tcp_connect (and each connect retry) uses a new ephemeral
+    // port, so multiple server ISNs landing on DIFFERENT dports are just our own
+    // separate connections (an artifact of the connect retry + mixnet jitter),
+    // whereas multiple ISNs on the SAME dport would be one flow genuinely split
+    // downstream (NAT/anycast).
+    crate::util::debug_log!(
+        "[device] rx tcp src={}:{} dport={} seq={:?} len={} flags={} cksum={}",
+        ip.src_addr(),
+        tcp.src_port(),
+        tcp.dst_port(),
+        tcp.seq_number(),
+        tcp.payload().len(),
+        tcp_flags(&tcp),
+        if cksum_ok { "ok" } else { "BAD" },
+    );
+}
+
+/// Compact TCP flag string (e.g. `SA`, `AP`, `R`) for packet logging.
+fn tcp_flags(tcp: &TcpPacket<&[u8]>) -> String {
+    let mut s = String::new();
+    if tcp.syn() {
+        s.push('S');
+    }
+    if tcp.ack() {
+        s.push('A');
+    }
+    if tcp.fin() {
+        s.push('F');
+    }
+    if tcp.rst() {
+        s.push('R');
+    }
+    if tcp.psh() {
+        s.push('P');
+    }
+    s
+}
+
+/// Log one line per outbound TCP packet: the full 4-tuple, sequence, payload
+/// length and flags.
+///
+/// The source port is the field to watch: smoltcp keeps it stable for the life
+/// of a connection, so if an IPR egress capture shows it changing per packet,
+/// the exit's NAT is remapping the flow (one of the red herrings in the
+/// handshake investigation, written up in the Nym wiki:
+/// nym/transport/smolmix-smoltcp-rto-fix-and-handshake-investigation.md). Lets the
+/// client-side sends be correlated against that capture. Observation only.
+fn log_outbound_tcp(buf: &[u8]) {
+    let Ok(ip) = Ipv4Packet::new_checked(buf) else {
+        return;
+    };
+    if ip.next_header() != IpProtocol::Tcp {
+        return;
+    }
+    let Ok(tcp) = TcpPacket::new_checked(ip.payload()) else {
+        return;
+    };
+    crate::util::debug_log!(
+        "[device] tx tcp {}:{} -> {}:{} seq={:?} len={} flags={}",
+        ip.src_addr(),
+        tcp.src_port(),
+        ip.dst_addr(),
+        tcp.dst_port(),
+        tcp.seq_number(),
+        tcp.payload().len(),
+        tcp_flags(&tcp),
+    );
 }
 
 /// Transmit token: captures one packet from smoltcp into the tx queue.
@@ -111,6 +219,12 @@ impl<'a> TxToken for WasmTxToken<'a> {
     {
         let mut buffer = vec![0u8; len];
         let result = f(&mut buffer);
+        // Diagnostic only (see log_inbound_tcp). Logs what smoltcp emits so the
+        // source port / seq can be correlated against an IPR egress capture.
+        // Behaviour unchanged; the packet is queued either way.
+        if nym_wasm_utils::debug_logging_enabled() {
+            log_outbound_tcp(&buffer);
+        }
         self.queue.push_back(buffer);
         result
     }
@@ -157,6 +271,6 @@ mod tests {
         let dev = WasmDevice::new();
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        assert_eq!(caps.max_transmission_unit, 1980);
+        assert_eq!(caps.max_transmission_unit, 1500);
     }
 }

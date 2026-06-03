@@ -56,7 +56,7 @@ pub struct TunnelOpts {
     /// Disable cover traffic loop (default: `false`).
     pub disable_cover_traffic: bool,
     /// Reply-SURB counts for the LP Open frame and each Data frame the
-    /// bridge sends. See [`ipr::SurbsConfig`]. Defaults to open=5, data=2.
+    /// bridge sends. See [`ipr::SurbsConfig`] for the values and rationale.
     pub surbs: ipr::SurbsConfig,
     /// Primary DNS resolver. `None` falls back to [`dns::DEFAULT_PRIMARY_DNS`].
     pub primary_dns: Option<SocketAddr>,

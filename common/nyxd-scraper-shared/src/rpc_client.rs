@@ -42,6 +42,8 @@ where
                 last_err = Some(err);
             }
         }
+
+        tokio::time::sleep(std::time::Duration::from_millis(300 * (i as u64 + 1))).await;
     }
 
     // SAFETY: max_attempts >= 1, so we only reach here after at least one recorded failure

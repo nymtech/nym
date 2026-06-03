@@ -10,7 +10,12 @@ lastUpdated: "2026-05-29"
 
 import { Callout } from 'nextra/components'
 
-`@nymproject/mix-fetch` is a drop-in replacement for the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP and HTTPS through the Nym mixnet. The call signature is unchanged — `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)` — but the request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours.
+{/* Live demo: committed but inactive until @nymproject/mix-fetch is published on npm.
+    To activate, remove this comment wrapper and the matching one around the component below.
+import { MixFetchDemo } from '../../components/mix-demos/mix-fetch-demo'
+*/}
+
+`@nymproject/mix-fetch` is a drop-in replacement for the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP and HTTPS through the Nym mixnet. The call signature is unchanged: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
@@ -26,17 +31,13 @@ import { Callout } from 'nextra/components'
 
 TLS terminates end-to-end between the WASM bundle and the destination server. The IPR sees destination IP and port; for HTTPS targets, payload is TLS ciphertext.
 
-<Callout type="info">
-Full API reference: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals).
-</Callout>
-
 ## Installation
 
 ```bash
 npm install @nymproject/mix-fetch
 ```
 
-The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined via [`@nymproject/mix-tunnel`](/developers/mix-tunnel), so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel#installation), so there's no WASM bundler config to set up. See [mix-tunnel's installation notes](/developers/mix-tunnel#installation) for the Webpack, Vite, and esbuild specifics.
 
 ## Quick start
 
@@ -124,6 +125,10 @@ The shim does not attempt full browser impersonation. TLS fingerprint (JA3), HTT
 | **No service-worker interception** | Requests don't pass through any `fetch` event handlers registered by service workers. | n/a |
 | **HTTPS only in practice** | The IPR sees plaintext HTTP in full. | Always target `https://` URLs. |
 
+{/* Live demo: remove this wrapper to activate (see the import note near the top).
+<MixFetchDemo />
+*/}
+
 ## Configuration
 
 `setupMixTunnel(opts)` (and `createMixFetch(opts)`) accept the shared tunnel options from [`@nymproject/mix-tunnel`](/developers/mix-tunnel#configuration). The most commonly touched are:
@@ -135,11 +140,11 @@ await setupMixTunnel({
 
   // Lower latency and bandwidth at the cost of traffic-analysis resistance.
   disableCoverTraffic: true,
-  disablePoissonProcess: true,
+  disablePoissonTraffic: true,
 });
 ```
 
-The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts).
+The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
 
 <Callout type="info">
 The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gateway handshake, IPR discovery, and the first DNS resolution all happen on demand. Subsequent calls reuse the tunnel and complete in roughly the time of a normal HTTPS request plus mixnet latency.
@@ -147,7 +152,7 @@ The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gatew
 
 ## Security model
 
-`mix-fetch` inherits the [smolmix security model](/developers/smolmix#security-model). The browser-specific consequences are:
+`mix-fetch` follows the shared [mixnet exit security model](/developers/concepts/exit-security): the IPR exit sees your destination, and you rely on TLS to keep the payload as ciphertext to it. The browser-specific consequences are:
 
 | Segment | What's visible |
 |---|---|
@@ -157,81 +162,13 @@ The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gatew
 | IPR → destination | Regular TCP. The destination sees the IPR's IP, not yours. |
 
 <Callout type="warning">
-TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. The Mozilla CA bundle is compiled into the WASM. Mixed content rules still apply at the page level — serve your app over HTTPS.
+TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. The Mozilla CA bundle is compiled into the WASM. Mixed content rules still apply at the page level, so serve your app over HTTPS.
 </Callout>
 
 ## Migrating from v1.x
 
-v2 is a clean break. The package no longer ships a Go-WASM HTTP/TLS client or a SOCKS5-shaped Network Requester request; it routes through the shared `mix-tunnel` and exits at an IPR.
-
-### Removed packages
-
-The four-variant publish (`@nymproject/mix-fetch`, `mix-fetch-full-fat`, `mix-fetch-commonjs`, `mix-fetch-commonjs-full-fat`, `mix-fetch-node-commonjs`) is gone. There is one package, ESM only:
-
-| v1.x | v2.0 |
-|---|---|
-| `@nymproject/mix-fetch` (ESM) | `@nymproject/mix-fetch` |
-| `@nymproject/mix-fetch-full-fat` | `@nymproject/mix-fetch` (always inlined) |
-| `@nymproject/mix-fetch-commonjs` | (no CJS build) |
-| `@nymproject/mix-fetch-commonjs-full-fat` | (no CJS build) |
-| `@nymproject/mix-fetch-node-commonjs` | (no Node build) |
-
-### Removed options
-
-The v1 setup options bag covered Network Requester selection and gateway tuning. v2 replaces it with the smolmix [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts) surface:
-
-| v1 option | v2 equivalent |
-|---|---|
-| `clientId` | (no replacement — tunnel is per-page, not per-client) |
-| `preferredGateway` | (replaced by `preferredIpr` — the exit-side pin) |
-| `preferredNetworkRequester` | (no replacement — v2 exits via IPR, not Network Requester) |
-| `mixFetchOverride.requestTimeoutMs` | (no replacement at TS layer — surface via smolmix-wasm config if needed) |
-| `forceTls: true` | (automatic — entry-gateway WebSocket uses WSS when the page is HTTPS) |
-| `extra.hiddenGateways` | (no replacement) |
-
-### Removed request-init flags
-
-The v1 `mode: 'unsafe-ignore-cors'` flag is gone. v2 doesn't perform browser-side CORS checks at all (see [Drop-in caveats](#drop-in-caveats) above), so the flag has no meaning.
-
-### New setup
-
-```ts
-// v1
-import { createMixFetch } from '@nymproject/mix-fetch-full-fat';
-const mixFetch = await createMixFetch({
-  clientId: 'my-app',
-  preferredGateway: 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1',
-  mixFetchOverride: { requestTimeoutMs: 60_000 },
-  forceTls: true,
-});
-
-// v2
-import { createMixFetch } from '@nymproject/mix-fetch';
-const mixFetch = await createMixFetch({
-  // Optional: pin an exit IPR instead of an entry gateway.
-  // preferredIpr: '...',
-});
-```
-
-### Architectural change
-
-v1 ran two WASM modules: a Go module with `crypto/tls` + Mozilla CA bundle, and a Rust module handling Nym's `Socks5Request` framing to a Network Requester exit. v2 runs one WASM module ([smolmix-wasm](https://crates.io/crates/smolmix)) with a userspace TCP/IP stack ([smoltcp](https://docs.rs/smoltcp)) and `rustls` for TLS. The exit is an IPR, not a Network Requester.
-
-Consequences:
-
-- **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
-- **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
-- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR; pin one with `preferredIpr` if you need a specific exit policy.
+v2 is a clean break: one ESM package instead of five, the v1 setup options replaced by [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts), the `mode: 'unsafe-ignore-cors'` flag dropped, and a single WASM module exiting via an IPR rather than the old Go-WASM + Network Requester pair. The package-by-package and option-by-option mapping is on [Migrating from v1.x](/developers/mix-fetch/migration).
 
 ## API reference
 
-Full reference: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals).
-
-| Export | Purpose |
-|---|---|
-| `mixFetch(url, init?)` | The drop-in `fetch()`. Requires the tunnel to be up. |
-| `createMixFetch(opts?)` | Convenience: `setupMixTunnel(opts)` then return `mixFetch`. |
-| `setupMixTunnel(opts?)` | Re-export from `@nymproject/mix-tunnel`. |
-| `disconnectMixTunnel()` | Re-export from `@nymproject/mix-tunnel`. |
-| `getTunnelState()` | Re-export from `@nymproject/mix-tunnel`. |
-| `SetupMixTunnelOpts` (type) | Full options surface. |
+Generated from the source: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals). The package adds `mixFetch(url, init?)` and `createMixFetch(opts?)`, and re-exports the tunnel controls (`setupMixTunnel`, `disconnectMixTunnel`, `getTunnelState`) from [`mix-tunnel`](/developers/mix-tunnel).

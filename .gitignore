@@ -83,3 +83,4 @@ test-tutorials/
 # pnpm
 .pnpm-store/
 
+tmp/

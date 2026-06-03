@@ -18,7 +18,7 @@ A minimal, framework-free example. Connect to the mixnet, subscribe to incoming 
 npm install @nymproject/sdk-full-fat
 ```
 
-`sdk-full-fat` inlines the WASM and Web Worker as Base64, so no bundler configuration is needed. For smaller bundles, install `@nymproject/sdk` instead and follow the [Bundling guide](/developers/typescript/bundling).
+`sdk-full-fat` inlines the WASM and Web Worker as Base64, so no bundler configuration is needed. For smaller bundles, install `@nymproject/sdk` instead and follow the [Bundling guide](/developers/typescript/bundling/bundling).
 
 ## Send and receive
 
@@ -77,9 +77,9 @@ The Nym mixnet has no persistent connections and no guaranteed ordering. The SDK
 
 ## Where to go next
 
-- [TypeScript SDK landing](/developers/typescript) — package variants, smart contracts, full options surface.
-- [TypeDoc reference](/developers/typescript/api/sdk/globals) — generated API docs for `@nymproject/sdk`.
-- [Bundling](/developers/typescript/bundling) — Webpack and esbuild configurations for the non-full-fat variants.
+- [TypeScript SDK landing](/developers/typescript): package variants, smart contracts, full options surface.
+- [TypeDoc reference](/developers/typescript/api/sdk/globals): generated API docs for `@nymproject/sdk`.
+- [Bundling](/developers/typescript/bundling/bundling): Webpack and esbuild configurations for the non-full-fat variants.
 
 <Callout type="info">
 If you encounter a persistent gateway client error, open your browser console, go to the "Application" tab, and delete the databases listed under "IndexedDB". The SDK persists client identity there; clearing it forces a fresh handshake.

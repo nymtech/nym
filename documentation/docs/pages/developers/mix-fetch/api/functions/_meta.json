@@ -1,5 +1,7 @@
 {
-  "mixFetch": "mixFetch",
   "createMixFetch": "createMixFetch",
-  "disconnectMixFetch": "disconnectMixFetch"
+  "disconnectMixTunnel": "disconnectMixTunnel",
+  "getTunnelState": "getTunnelState",
+  "mixFetch": "mixFetch",
+  "setupMixTunnel": "setupMixTunnel"
 }

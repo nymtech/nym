@@ -6,20 +6,20 @@
 
 # Function: createMixFetch()
 
-> **createMixFetch**(`opts`?): `Promise`\<[`IMixFetch`](../interfaces/IMixFetch.md)\>
+> **createMixFetch**(`opts`?): `Promise`\<(`url`, `init`?) => `Promise`\<`Response`\>\>
 
-Create a global mixFetch instance and optionally configure settings.
+Convenience: set up the tunnel and return a fetch-bound function. Equivalent
+to `await setupMixTunnel(opts); return mixFetch;`. Safe to call multiple
+times — the underlying tunnel is a singleton.
 
 ## Parameters
 
-• **opts?**: `any`
-
-Optional settings
+• **opts?**: [`SetupMixTunnelOpts`](../interfaces/SetupMixTunnelOpts.md)
 
 ## Returns
 
-`Promise`\<[`IMixFetch`](../interfaces/IMixFetch.md)\>
+`Promise`\<(`url`, `init`?) => `Promise`\<`Response`\>\>
 
 ## Source
 
-[index.ts:24](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/mix-fetch/src/index.ts#L24)
+[mix-fetch/src/index.ts:62](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-fetch/src/index.ts#L62)

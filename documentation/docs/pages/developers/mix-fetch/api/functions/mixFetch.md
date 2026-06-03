@@ -6,23 +6,18 @@
 
 # Function: mixFetch()
 
-> **mixFetch**(`url`, `args`, `opts`?): `Promise`\<`Response`\>
+> **mixFetch**(`url`, `init`?): `Promise`\<`Response`\>
 
-mixFetch is a drop-in replacement for the standard `fetch` interface.
+Fetch over the mixnet. Drop-in replacement for the browser `fetch()`.
+
+Requires the tunnel to be up — call `setupMixTunnel(opts)` first, or use
+`createMixFetch(opts)` to combine setup + fetch.
 
 ## Parameters
 
 • **url**: `string`
 
-The URL to fetch from.
-
-• **args**: `any`
-
-Fetch options.
-
-• **opts?**: `any`
-
-Optionally configure mixFetch when it gets created. This only happens once, the first time it gets used.
+• **init?**: `RequestInit`
 
 ## Returns
 
@@ -30,4 +25,4 @@ Optionally configure mixFetch when it gets created. This only happens once, the 
 
 ## Source
 
-[index.ts:50](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/mix-fetch/src/index.ts#L50)
+[mix-fetch/src/index.ts:39](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-fetch/src/index.ts#L39)

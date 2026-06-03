@@ -1,34 +1,17 @@
-[**@nymproject/mix-fetch**](globals.md) • **Docs**
+**@nymproject/mix-fetch** • [**Docs**](globals.md)
 
 ***
 
 # @nymproject/mix-fetch
 
-## Enumerations
-
-- [EventKinds](enumerations/EventKinds.md)
-
 ## Interfaces
 
-- [IMixFetchWebWorker](interfaces/IMixFetchWebWorker.md)
-- [IMixFetch](interfaces/IMixFetch.md)
-- [LoadedEvent](interfaces/LoadedEvent.md)
-- [ResponseBody](interfaces/ResponseBody.md)
-- [ResponseBodyConfigMap](interfaces/ResponseBodyConfigMap.md)
-- [MixFetchWebWorkerResponse](interfaces/MixFetchWebWorkerResponse.md)
-
-## Type Aliases
-
-- [IMixFetchFn](type-aliases/IMixFetchFn.md)
-- [SetupMixFetchOps](type-aliases/SetupMixFetchOps.md)
-- [ResponseBodyMethod](type-aliases/ResponseBodyMethod.md)
-
-## Variables
-
-- [ResponseBodyConfigMapDefaults](variables/ResponseBodyConfigMapDefaults.md)
+- [SetupMixTunnelOpts](interfaces/SetupMixTunnelOpts.md)
 
 ## Functions
 
-- [createMixFetch](functions/createMixFetch.md)
 - [mixFetch](functions/mixFetch.md)
-- [disconnectMixFetch](functions/disconnectMixFetch.md)
+- [createMixFetch](functions/createMixFetch.md)
+- [setupMixTunnel](functions/setupMixTunnel.md)
+- [disconnectMixTunnel](functions/disconnectMixTunnel.md)
+- [getTunnelState](functions/getTunnelState.md)

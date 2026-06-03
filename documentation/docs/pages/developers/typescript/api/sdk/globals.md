@@ -1,4 +1,4 @@
-[**@nymproject/sdk**](globals.md) • **Docs**
+**@nymproject/sdk** • [**Docs**](globals.md)
 
 ***
 

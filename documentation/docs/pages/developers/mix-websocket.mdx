@@ -10,6 +10,11 @@ lastUpdated: "2026-05-29"
 
 import { Callout } from 'nextra/components'
 
+{/* Live demo: committed but inactive until @nymproject/mix-websocket is published on npm.
+    To activate, remove this comment wrapper and the matching one around the component below.
+import { MixWebSocketDemo } from '../../components/mix-demos/mix-websocket-demo'
+*/}
+
 `@nymproject/mix-websocket` exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.
 
 ```text
@@ -25,17 +30,13 @@ import { Callout } from 'nextra/components'
 
 The TLS handshake (for `wss://` targets) terminates inside the WASM bundle, end-to-end with the destination. The IPR sees TCP frames addressed to the destination's IP and port; for WSS, the payload is TLS ciphertext.
 
-<Callout type="info">
-Full API reference: [**@nymproject/mix-websocket**](/developers/mix-websocket/api/globals).
-</Callout>
-
 ## Installation
 
 ```bash
 npm install @nymproject/mix-websocket
 ```
 
-The package ships ESM only. The bundled Web Worker and smolmix-wasm are inlined via [`@nymproject/mix-tunnel`](/developers/mix-tunnel), so no separate WASM-loading config is needed in Webpack, Vite, or esbuild.
+ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel#installation), so there's no WASM bundler config to set up. See [mix-tunnel's installation notes](/developers/mix-tunnel#installation) for the Webpack, Vite, and esbuild specifics.
 
 ## Quick start
 
@@ -120,6 +121,10 @@ ws.addEventListener('error', (e) => {
 
 If the upgrade fails before `open` fires, `MixWebSocket` transitions to `CLOSED` and dispatches `error`. `opened()` resolves either on `open` or on the failure event, so callers don't hang.
 
+{/* Live demo: remove this wrapper to activate (see the import note near the top).
+<MixWebSocketDemo />
+*/}
+
 ## Configuration
 
 `MixWebSocket` has no per-instance configuration beyond `url` and `protocols`. Tunnel-level options live on `setupMixTunnel`, the same shared call that mix-fetch and mix-dns use:
@@ -131,11 +136,11 @@ await setupMixTunnel({
 });
 ```
 
-See [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/type-aliases/SetupMixTunnelOpts) for the full surface.
+See [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) for the full surface.
 
 ## Security model
 
-`mix-websocket` inherits the [smolmix security model](/developers/smolmix#security-model). The browser-specific consequences are:
+`mix-websocket` follows the shared [mixnet exit security model](/developers/concepts/exit-security). The browser-specific consequences are:
 
 | Segment | What's visible |
 |---|---|
@@ -149,13 +154,4 @@ TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in
 
 ## API reference
 
-Full reference: [**@nymproject/mix-websocket**](/developers/mix-websocket/api/globals).
-
-| Export | Purpose |
-|---|---|
-| `MixWebSocket` (class) | WebSocket-like channel over the mixnet. Extends `EventTarget`. |
-| `setupMixTunnel(opts?)` | Re-export from `@nymproject/mix-tunnel`. |
-| `disconnectMixTunnel()` | Re-export from `@nymproject/mix-tunnel`. |
-| `getTunnelState()` | Re-export from `@nymproject/mix-tunnel`. |
-| `SetupMixTunnelOpts` (type) | Full options surface. |
-| `MixWebSocketReadyState` (type) | `0 \| 1 \| 2 \| 3` mirroring browser `WebSocket.readyState`. |
+Generated from the source: [**@nymproject/mix-websocket**](/developers/mix-websocket/api/globals). The package adds the `MixWebSocket` class and re-exports the tunnel controls (`setupMixTunnel`, `disconnectMixTunnel`, `getTunnelState`) from [`mix-tunnel`](/developers/mix-tunnel).

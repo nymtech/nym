@@ -291,17 +291,26 @@ KVM network is gone.
 
 ##### 3. Setup KVM public bridge for new VMs
 
-To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` either called `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
+To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` often called `50-cloud-init.yaml` or `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
 
-- Before you edit the file, make a backup to stay on the save side:
+- Before you edit the file, make a backup to stay on the save side, the file should be named something like this:
 ```bash
-cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
+cp /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.bak
 # or
 cp /etc/netplan/00-installer.yaml /etc/netplan/00-installer.yaml.bak
+# or
+cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
 ```
 
-- Open `00-installer-config.yaml` or `00-installer.yaml.`config in a text editor:
+- If none of these files existed, simply check the name of your config by this command and apply the same backup logic:
+```sh
+ls /etc/netplan/
+```
+
+- Open the original config in a text editor:
 ```bash
+nano /etc/netplan/50-cloud-init.yaml
+# or
 nano /etc/netplan/00-installer.yaml
 # or
 nano /etc/netplan/00-installer-config.yaml
@@ -380,12 +389,13 @@ netplan --debug  apply
 ```bash
 apt install yamllint -y
 
+yamlint /etc/netplan/50-cloud-init.yaml
+# or
 yamllint /etc/netplan/00-installer.yaml
 # or
 yamllint /etc/netplan/00-installer-config.yaml
-
-
 ```
+
 - Apply correct permissions:
 ```bash
 chmod 600 /etc/netplan/00-installer.yaml
@@ -410,9 +420,12 @@ systemctl enable --now systemd-networkd
 
 - If things went wrong, you can always revert from the backed up file:
 ```bash
+cp /etc/netplan/50-cloud-init.yaml.bak /etc/netplan/50-cloud-init.yaml
+# or
 cp /etc/netplan/00-installer-config.yaml.bak /etc/netplan/00-installer-config.yaml
 # or
 cp /etc/netplan/00-installer.yaml.bak /etc/netplan/00-installer.yaml
+
 # and
 netplan apply
 ```

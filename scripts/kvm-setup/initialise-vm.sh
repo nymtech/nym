@@ -1,6 +1,7 @@
 #!/bin/bash
 
 usage() {
+    local code="${1:-0}"
     cat <<EOF
 Usage: $0 [OPTIONS]
 
@@ -15,7 +16,7 @@ Options:
 Example:
   $0 --name myvm --password secret --cpus 4 --ram 8192 --size 100
 EOF
-    exit 0
+    exit "$code"
 }
 
 # --- parse flags ---
@@ -27,15 +28,25 @@ SIZE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -n|--name)     VM_NAME="$2";   shift 2 ;;
-        -p|--password) PASSWORD="$2";  shift 2 ;;
-        -c|--cpus)     VCPUS="$2";     shift 2 ;;
-        -r|--ram)      RAM="$2";       shift 2 ;;
-        -s|--size)     SIZE="$2";      shift 2 ;;
+        -n|--name)
+          [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --name requires a value."; exit 1; }
+          VM_NAME="$2"; shift 2 ;;
+        -p|--password)
+          [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --password requires a value."; exit 1; }
+          PASSWORD="$2"; shift 2 ;;
+        -c|--cpus)
+          [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --cpus requires a value."; exit 1; }
+          VCPUS="$2"; shift 2 ;;
+        -r|--ram)
+          [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --ram requires a value."; exit 1; }
+          RAM="$2"; shift 2 ;;
+        -s|--size)
+          [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --size requires a value."; exit 1; }
+          SIZE="$2"; shift 2 ;;
         -h|--help)     usage ;;
         *)
             echo "Error: Unknown option: $1"
-            usage
+            usage 1
             ;;
     esac
 done
@@ -80,6 +91,12 @@ if [[ ! -f noble-server-cloudimg-amd64.img ]]; then
 fi
 
 IMAGE_PATH="/var/lib/libvirt/images/${VM_NAME}.img"
+
+
+if [[ -e "$IMAGE_PATH" ]]; then
+  echo "Error: $IMAGE_PATH already exists. Choose a different --name or remove the old image first."
+  exit 1
+fi
 
 echo "Copying the base image to $IMAGE_PATH..."
 cp noble-server-cloudimg-amd64.img "$IMAGE_PATH"

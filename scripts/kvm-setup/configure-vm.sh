@@ -1,6 +1,7 @@
 #!/bin/bash
 
 usage() {
+    local code="${1:-0}"
     cat <<EOF
 Usage: $0 [OPTIONS]
 
@@ -17,7 +18,7 @@ Example:
   $0 --ipv4 192.168.1.100 --gateway4 192.168.1.1 --ipv6 2001:db8::1 --gateway6 2001:db8::fffe
   $0 --ipv4 192.168.1.100 --gateway4 192.168.1.1 --yes
 EOF
-    exit 0
+    exit "$code"
 }
 
 # --- parse flags ---
@@ -30,16 +31,26 @@ AUTO_YES=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -i|--interface) INTERFACE="$2";                shift 2 ;;
-        -4|--ipv4)      IPv4_VM="$2";                  shift 2 ;;
-        -6|--ipv6)      IPv6_VM="$2";                  shift 2 ;;
-        -g|--gateway4)  IPv4_GATEWAY_HOST_SERVER="$2"; shift 2 ;;
-        -G|--gateway6)  IPv6_GATEWAY_HOST_SERVER="$2"; shift 2 ;;
+        -i|--interface)
+            [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --interface requires a value."; exit 1; }
+            INTERFACE="$2"; shift 2 ;;
+        -4|--ipv4)
+            [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --ipv4 requires a value."; exit 1; }
+            IPv4_VM="$2"; shift 2 ;;
+        -6|--ipv6)
+            [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --ipv6 requires a value."; exit 1; }
+            IPv6_VM="$2"; shift 2 ;;
+        -g|--gateway4)
+            [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --gateway4 requires a value."; exit 1; }
+            IPv4_GATEWAY_HOST_SERVER="$2"; shift 2 ;;
+        -G|--gateway6)
+            [[ -n "${2:-}" && "${2:0:1}" != "-" ]] || { echo "Error: --gateway6 requires a value."; exit 1; }
+            IPv6_GATEWAY_HOST_SERVER="$2"; shift 2 ;;
         -y|--yes)       AUTO_YES=true;                  shift ;;
         -h|--help)      usage ;;
         *)
             echo "Error: Unknown option: $1"
-            usage
+            usage 1
             ;;
     esac
 done
@@ -102,16 +113,16 @@ EOF
 [[ -n "$IPv4_VM" ]] && echo "        - $IPv4_VM/24" >> $NETPLAN_CONFIG
 [[ -n "$IPv6_VM" ]] && echo "        - $IPv6_VM/64" >> $NETPLAN_CONFIG
 
-echo "      routes:" >> $NETPLAN_CONFIG
-
-if [[ -n "$IPv4_GATEWAY_HOST_SERVER" ]]; then
-    echo "        - to: default"                          >> $NETPLAN_CONFIG
-    echo "          via: $IPv4_GATEWAY_HOST_SERVER"       >> $NETPLAN_CONFIG
-fi
-
-if [[ -n "$IPv6_GATEWAY_HOST_SERVER" ]]; then
-    echo "        - to: default"                          >> $NETPLAN_CONFIG
-    echo "          via: $IPv6_GATEWAY_HOST_SERVER"       >> $NETPLAN_CONFIG
+if [[ -n "$IPv4_GATEWAY_HOST_SERVER" || -n "$IPv6_GATEWAY_HOST_SERVER" ]]; then
+    echo "      routes:" >> $NETPLAN_CONFIG
+    if [[ -n "$IPv4_GATEWAY_HOST_SERVER" ]]; then
+        echo "        - to: default"                    >> $NETPLAN_CONFIG
+        echo "          via: $IPv4_GATEWAY_HOST_SERVER" >> $NETPLAN_CONFIG
+    fi
+    if [[ -n "$IPv6_GATEWAY_HOST_SERVER" ]]; then
+        echo "        - to: default"                    >> $NETPLAN_CONFIG
+        echo "          via: $IPv6_GATEWAY_HOST_SERVER" >> $NETPLAN_CONFIG
+    fi
 fi
 
 cat <<EOF >> $NETPLAN_CONFIG

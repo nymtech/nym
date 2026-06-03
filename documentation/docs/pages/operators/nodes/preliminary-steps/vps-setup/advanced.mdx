@@ -548,19 +548,50 @@ Using the scripts is a two-step process. First, initialisation part is done from
 <Steps>
 ##### 1. Initialise VM from the host machine
 - Log in to your host as `root`
-- Run this block and follow the prompts carefully:
+- Get the script:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/initialise-vm.sh"
 chmod +x ./initialise-vm.sh
-./initialise-vm.sh
 ```
 
+-  Run this block and follow the prompts carefully or provide with arguments:
+```sh
+# interactive CLI
+./initialise-vm.sh
+
+# arguments - see --help menu
+./initialise-vm.sh --help
+
+# example
+# ./initialise-vm.sh --name ubuntu1 --password topsecretrootpassword --cpus 4 --ram 8192 --size 60
+```
+
+
 ##### 2. Configure VM from within
-- After logging into your VM run this block and follow the prompts carefully:
+- After logging into your VM, using `login: root` and `password: <YOUR_PASSWORD> VM, get second script to configure the VM from within:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
 chmod +x ./configure-vm.sh
+```
+
+- Likely your connetion won't work and therefore you need to create the script manually, open a text editor:
+```sh
+nano configure-vm.sh
+```
+
+- Paste there [this content](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh)
+- Save and exit
+- Run this block and follow the prompts carefully, or provide with arguments:
+
+```sh
+# interactive CLI
 ./configure-vm.sh
+
+# arguments - see --help menu
+./configure-vm.sh --help
+
+# example
+# ./configure-vm.sh --interface enp1s0 --ipv4 192.168.1.100 --gateway4 192.168.1.1 --ipv6 2001:db8::1 --gateway6 2001:db8::fffe
 ```
 </ Steps>
 

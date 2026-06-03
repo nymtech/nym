@@ -218,6 +218,11 @@ impl ManagedConnection {
             "Managed to establish connection to {}", self.address
         );
 
+        // disable Nagle: mix packets are latency-sensitive and flushed one at a time.
+        if let Err(err) = stream.set_nodelay(true) {
+            warn!(peer = %address, error = %err, "failed to set TCP_NODELAY on outbound mixnet connection");
+        }
+
         // 3. perform noise handshake (if applicable)
         let noise_start = tokio::time::Instant::now();
         let noise_stream = match upgrade_noise_initiator(stream, &self.noise_config).await {

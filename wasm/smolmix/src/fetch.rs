@@ -191,15 +191,18 @@ pub async fn fetch(
     )))
 }
 
-/// Create a fresh connection: DNS resolve → TCP connect → optional TLS.
-/// Connect + TLS-handshake attempts before giving up. The mixnet reorders and
-/// drops packets, so a single multi-segment handshake flight (the server's
-/// certificate) can stall on a lost segment and the connection resets with a
-/// handshake EOF. A fresh socket (new ephemeral port, new sphinx packets)
-/// usually dodges the specific loss. Connect + handshake send no application
-/// data, so retrying them carries no idempotency risk for any HTTP method.
+/// Connect + TLS-handshake attempts on fresh sockets before giving up.
 const CONNECT_ATTEMPTS: u32 = 3;
 
+/// Create a fresh connection: DNS resolve → TCP connect → optional TLS, with
+/// retry on transient failure.
+///
+/// The mixnet reorders and drops packets, so a single multi-segment handshake
+/// flight (the server's certificate) can stall on a lost segment and the
+/// connection resets with a handshake EOF. A fresh socket (new ephemeral port,
+/// new sphinx packets) usually dodges the specific loss. Connect + handshake
+/// send no application data, so retrying them carries no idempotency risk for
+/// any HTTP method.
 pub(crate) async fn new_connection(
     tunnel: &WasmTunnel,
     host: &str,

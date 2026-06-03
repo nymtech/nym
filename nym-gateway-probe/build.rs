@@ -5,18 +5,21 @@
 
 use anyhow::{Context, bail};
 use std::{path::PathBuf, process::Command};
-use vergen_gitcl::{BuildBuilder, CargoBuilder, Emitter, GitclBuilder, RustcBuilder};
+use vergen::EmitBuilder;
 
 fn main() -> anyhow::Result<()> {
     build_go()?;
     generate_exit_policy_ports()?;
 
-    Emitter::default()
-        .add_instructions(&BuildBuilder::all_build()?)?
-        .add_instructions(&CargoBuilder::all_cargo()?)?
-        .add_instructions(&GitclBuilder::all_git()?)?
-        .add_instructions(&RustcBuilder::all_rustc()?)?
+    EmitBuilder::builder()
+        .all_build()
+        .all_git()
+        .all_rustc()
+        .all_cargo()
         .emit()
+        .context("failed to extract build metadata")?;
+
+    Ok(())
 }
 
 /// Parse PORT_MAPPINGS from network-tunnel-manager.sh and generate a sorted

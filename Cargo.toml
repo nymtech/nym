@@ -407,7 +407,6 @@ utoipa-swagger-ui = "9.0.2"
 utoipauto = "0.2"
 uuid = "1.19.0"
 vergen = { version = "=8.3.1", default-features = false }
-vergen-gitcl = { version = "1.0.8", default-features = false }
 walkdir = "2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"

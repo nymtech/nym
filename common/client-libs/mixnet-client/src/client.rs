@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::trace::{TraceStage, Traced};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
@@ -52,8 +53,10 @@ impl Config {
 
 pub trait SendWithoutResponse {
     // Without response in this context means we will not listen for anything we might get back (not
-    // that we should get anything), including any possible io errors
-    fn send_without_response(&self, packet: MixPacket) -> io::Result<()>;
+    // that we should get anything), including any possible io errors.
+    // The packet carries the latency trace started upstream (at receive); the egress stages are
+    // stamped here and are a no-op for unsampled packets.
+    fn send_without_response(&self, packet: Traced<MixPacket>) -> io::Result<()>;
 }
 
 pub struct Client {
@@ -89,7 +92,7 @@ impl Deref for ActiveConnections {
 }
 
 pub struct ConnectionSender {
-    channel: mpsc::Sender<FramedNymPacket>,
+    channel: mpsc::Sender<Traced<FramedNymPacket>>,
     current_reconnection_attempt: Arc<AtomicU32>,
     // Identifies the `ManagedConnection` task currently owning this entry; used
     // to ensure drop-time eviction only fires on the still-owning task.
@@ -97,7 +100,7 @@ pub struct ConnectionSender {
 }
 
 impl ConnectionSender {
-    fn new(channel: mpsc::Sender<FramedNymPacket>, handle_token: Arc<()>) -> Self {
+    fn new(channel: mpsc::Sender<Traced<FramedNymPacket>>, handle_token: Arc<()>) -> Self {
         ConnectionSender {
             channel,
             current_reconnection_attempt: Arc::new(AtomicU32::new(0)),
@@ -109,7 +112,7 @@ impl ConnectionSender {
 struct ManagedConnection {
     address: SocketAddr,
     noise_config: NoiseConfig,
-    message_receiver: ReceiverStream<FramedNymPacket>,
+    message_receiver: ReceiverStream<Traced<FramedNymPacket>>,
     connection_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
     active_connections: ActiveConnections,
@@ -143,7 +146,7 @@ impl ManagedConnection {
     fn new(
         address: SocketAddr,
         noise_config: NoiseConfig,
-        message_receiver: mpsc::Receiver<FramedNymPacket>,
+        message_receiver: mpsc::Receiver<Traced<FramedNymPacket>>,
         connection_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
         active_connections: ActiveConnections,
@@ -276,7 +279,7 @@ const OUTBOUND_WRITE_BUFFER: usize = 32 * 1024;
 // next outbound send finds it stale.
 async fn run_io_loop<T>(
     conn: Framed<T, NymCodec>,
-    receiver: ReceiverStream<FramedNymPacket>,
+    receiver: ReceiverStream<Traced<FramedNymPacket>>,
     address: SocketAddr,
 ) where
     T: AsyncRead + AsyncWrite + Unpin,
@@ -329,13 +332,23 @@ async fn run_io_loop<T>(
                     }
                     Some(batch) => {
                         // feed the whole ready batch, then flush once
+                        let mut traces = Vec::with_capacity(batch.len());
                         let res = async {
-                            for packet in batch {
-                                sink.feed(packet).await?;
+                            for mut traced in batch {
+                                // time spent waiting in this connection's egress buffer
+                                traced.record(TraceStage::EgressQueue);
+                                sink.feed(traced.inner).await?;
+                                traces.push(traced.trace);
                             }
                             sink.flush().await
                         }
                         .await;
+
+                        // after the batch hit the wire: socket-write time and end-to-end total
+                        for mut trace in traces {
+                            trace.record(TraceStage::SocketWrite);
+                            trace.record_total();
+                        }
                         if let Err(err) = res {
                             debug!(
                                 event = "connection.forward_error",
@@ -388,7 +401,7 @@ impl Client {
         }
     }
 
-    fn make_connection(&self, address: SocketAddr, pending_packet: FramedNymPacket) {
+    fn make_connection(&self, address: SocketAddr, pending_packet: Traced<FramedNymPacket>) {
         let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
@@ -448,14 +461,14 @@ impl Client {
 }
 
 impl SendWithoutResponse for Client {
-    fn send_without_response(&self, packet: MixPacket) -> io::Result<()> {
-        let address = packet.next_hop_address();
+    fn send_without_response(&self, packet: Traced<MixPacket>) -> io::Result<()> {
+        let address = packet.inner.next_hop_address();
         trace!("Sending packet to {address}");
 
         // TODO: optimisation for the future: rather than constantly using legacy encoding,
         // use the mix packet type / flags to pick encoding per packet
-        let framed_packet =
-            FramedNymPacket::from_mix_packet(packet, self.config.use_legacy_packet_encoding);
+        let legacy = self.config.use_legacy_packet_encoding;
+        let queued = packet.map(|p| FramedNymPacket::from_mix_packet(p, legacy));
 
         let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
@@ -465,7 +478,7 @@ impl SendWithoutResponse for Client {
                 result = "not_connected",
                 "establishing initial connection to {address}"
             );
-            self.make_connection(address, framed_packet);
+            self.make_connection(address, queued);
             return Err(io::Error::new(
                 io::ErrorKind::NotConnected,
                 "connection is in progress",
@@ -476,7 +489,7 @@ impl SendWithoutResponse for Client {
         let channel_available = sender.channel.capacity();
         let channel_used = channel_capacity - channel_available;
 
-        let sending_res = sender.channel.try_send(framed_packet);
+        let sending_res = sender.channel.try_send(queued);
         drop(sender);
 
         sending_res.map_err(|err| {
@@ -577,7 +590,7 @@ mod tests {
         active: &ActiveConnections,
         addr: SocketAddr,
         token: Arc<()>,
-    ) -> mpsc::Receiver<FramedNymPacket> {
+    ) -> mpsc::Receiver<Traced<FramedNymPacket>> {
         let (tx, rx) = mpsc::channel(1);
         active.insert(addr, ConnectionSender::new(tx, token));
         rx

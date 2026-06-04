@@ -9,6 +9,7 @@ use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
+use nym_mixnet_client::trace::PacketTrace;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::PacketKind;
 use nym_noise::config::NoiseConfig;
@@ -41,6 +42,9 @@ pub(crate) struct ProcessingConfig {
 
     pub(crate) forward_hop_processing_enabled: bool,
     pub(crate) final_hop_processing_enabled: bool,
+
+    /// sample 1-in-N forwarded packets for per-stage latency tracing (0 disables)
+    pub(crate) egress_trace_sample_rate: u64,
 }
 
 impl ProcessingConfig {
@@ -60,6 +64,7 @@ impl ProcessingConfig {
             forward_hop_processing_enabled: config.modes.mixnode,
             final_hop_processing_enabled: config.modes.expects_final_hop_traffic()
                 || config.wireguard.enabled,
+            egress_trace_sample_rate: config.mixnet.debug.egress_trace_sample_rate,
         }
     }
 }
@@ -216,6 +221,7 @@ impl SharedData {
         packet: MixPacket,
         delay_until: Option<Instant>,
         network_monitor_packet: bool,
+        trace: PacketTrace,
     ) {
         let has_delay = delay_until.is_some();
         if self
@@ -224,6 +230,7 @@ impl SharedData {
                 packet,
                 delay_until,
                 network_monitor_packet,
+                trace,
             ))
             .is_err()
             && !self.shutdown_token.is_cancelled()
@@ -237,9 +244,11 @@ impl SharedData {
         }
     }
 
-    pub(super) fn forward_ack_packet(&self, forward_ack: Option<MixPacket>) {
+    pub(super) fn forward_ack_packet(&self, forward_ack: Option<MixPacket>, trace: PacketTrace) {
         if let Some(forward_ack) = forward_ack {
-            self.forward_mix_packet(forward_ack, None, false);
+            // an ack is forwarded just like a normal packet, carrying the trace of the
+            // final-hop packet it was derived from
+            self.forward_mix_packet(forward_ack, None, false, trace);
             self.metrics.mixnet.egress_sent_ack();
         }
     }

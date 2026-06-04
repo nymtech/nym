@@ -708,6 +708,10 @@ pub struct MixnetDebug {
     /// processing received packets.
     pub use_legacy_packet_encoding: bool,
 
+    /// Sample 1-in-N forwarded packets for egress latency tracing (per-connection buffer
+    /// sojourn histogram). 0 disables tracing entirely.
+    pub egress_trace_sample_rate: u64,
+
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
 }
@@ -892,6 +896,7 @@ impl MixnetDebug {
     // small enough to keep worst-case egress queuing in the tens-of-ms range at a few thousand
     // pps per peer (vs. the old 2000, which was hundreds of ms of bufferbloat)
     const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 192;
+    const DEFAULT_EGRESS_TRACE_SAMPLE_RATE: u64 = 100;
 }
 
 impl Default for MixnetDebug {
@@ -902,6 +907,7 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+            egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
             // TODO: update this in few releases...
             use_legacy_packet_encoding: true,
             unsafe_disable_noise: false,

@@ -1,6 +1,6 @@
 [nym_nodes]
 ## READ CONFIGURATION GUIDE:
-## https://nym.com//docs/operators/orchestration/ansible#configuration
+## https://nym.com/docs/operators/orchestration/ansible#configuration
 
 ##############
 ## TEMPLATE ##
@@ -36,4 +36,4 @@
 # mix-de-1   ansible_host=13.14.15.16  hostname=nym-mix.de-1.example.net  location=DE  mode=mixnode  wireguard_enabled=false
 
 ## NOTE:
-## all examples above don't have defined user, email nor description as we use global vars from group_vars/main.yml
+## all examples above don't have defined user, email nor description as we use global vars from playbooks/group_vars/all.yml

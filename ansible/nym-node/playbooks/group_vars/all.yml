@@ -38,7 +38,7 @@ hostname: ""                                        # keep this fallback, keep i
 ## These will be installed during deployment
 ###############################################################################
 
-cli_url: "https://github.com/nymtech/nym/releases/download/nym-binaries-{{ nym_version }}/nym-cli"
+nym_cli_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-cli"
 tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh"
 quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
 

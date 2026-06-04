@@ -137,8 +137,6 @@ These variables are read by the main task for `nym-node` installation: `roles/ny
 
 Open `roles/nym/defaults/main.yml` and have a look on the variables used:
 
-- In case of not needing some of them, delete them (ie when running `--mode mixnode` you can delete everything from `--hostname` to `--announce-wss-port`)
-
 ###### 5. Optional: Configure `deploy.yml` playbook
 Open `playbooks/deploy.yml` and comment out `tunnel` and `quic` roles in case of running your playbook for nodes in a mode `mixnode`.
 

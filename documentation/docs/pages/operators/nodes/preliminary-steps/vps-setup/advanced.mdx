@@ -291,17 +291,26 @@ KVM network is gone.
 
 ##### 3. Setup KVM public bridge for new VMs
 
-To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` either called `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
+To create a KVM network bridge on Ubuntu, edit a config file located in `/etc/netplan/` often called `50-cloud-init.yaml` or `00-installer.yaml` or `00-installer-config.yaml` and add the bridge details.
 
-- Before you edit the file, make a backup to stay on the save side:
+- Before you edit the file, make a backup to stay on the save side, the file should be named something like this:
 ```bash
-cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
+cp /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.bak
 # or
 cp /etc/netplan/00-installer.yaml /etc/netplan/00-installer.yaml.bak
+# or
+cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
 ```
 
-- Open `00-installer-config.yaml` or `00-installer.yaml.`config in a text editor:
+- If none of these files existed, simply check the name of your config by this command and apply the same backup logic:
+```sh
+ls /etc/netplan/
+```
+
+- Open the original config in a text editor:
 ```bash
+nano /etc/netplan/50-cloud-init.yaml
+# or
 nano /etc/netplan/00-installer.yaml
 # or
 nano /etc/netplan/00-installer-config.yaml
@@ -380,12 +389,13 @@ netplan --debug  apply
 ```bash
 apt install yamllint -y
 
+yamllint /etc/netplan/50-cloud-init.yaml
+# or
 yamllint /etc/netplan/00-installer.yaml
 # or
 yamllint /etc/netplan/00-installer-config.yaml
-
-
 ```
+
 - Apply correct permissions:
 ```bash
 chmod 600 /etc/netplan/00-installer.yaml
@@ -410,9 +420,12 @@ systemctl enable --now systemd-networkd
 
 - If things went wrong, you can always revert from the backed up file:
 ```bash
+cp /etc/netplan/50-cloud-init.yaml.bak /etc/netplan/50-cloud-init.yaml
+# or
 cp /etc/netplan/00-installer-config.yaml.bak /etc/netplan/00-installer-config.yaml
 # or
 cp /etc/netplan/00-installer.yaml.bak /etc/netplan/00-installer.yaml
+
 # and
 netplan apply
 ```
@@ -535,19 +548,50 @@ Using the scripts is a two-step process. First, initialisation part is done from
 <Steps>
 ##### 1. Initialise VM from the host machine
 - Log in to your host as `root`
-- Run this block and follow the prompts carefully:
+- Get the script:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/initialise-vm.sh"
 chmod +x ./initialise-vm.sh
-./initialise-vm.sh
 ```
 
+-  Run this block and follow the prompts carefully or provide with arguments:
+```sh
+# interactive CLI
+./initialise-vm.sh
+
+# arguments - see --help menu
+./initialise-vm.sh --help
+
+# example
+# ./initialise-vm.sh --name ubuntu1 --password topsecretrootpassword --cpus 4 --ram 8192 --size 60
+```
+
+
 ##### 2. Configure VM from within
-- After logging into your VM run this block and follow the prompts carefully:
+- After logging into your VM, using `login: root` and `password: <YOUR_PASSWORD>`, get second script to configure the VM from within:
 ```bash
 wget "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh"
 chmod +x ./configure-vm.sh
+```
+
+- Likely your connection won't work and therefore you need to create the script manually, open a text editor:
+```sh
+nano configure-vm.sh
+```
+
+- Paste there [this content](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/kvm-setup/configure-vm.sh)
+- Save and exit
+- Run this block and follow the prompts carefully, or provide with arguments:
+
+```sh
+# interactive CLI
 ./configure-vm.sh
+
+# arguments - see --help menu
+./configure-vm.sh --help
+
+# example
+# ./configure-vm.sh --interface enp1s0 --ipv4 192.168.1.100 --gateway4 192.168.1.1 --ipv6 2001:db8::1 --gateway6 2001:db8::fffe
 ```
 </ Steps>
 

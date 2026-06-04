@@ -1,21 +1,4 @@
 ---
-ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>
-
-cli_url: "https://github.com/nymtech/nym/releases/download/nym-binaries-{{ nym_version }}/nym-cli"
-tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh"
-quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
-
-###############################################################################
-## GLOBAL VARS
-## These values will be used globally unless overwritten per node in inventory/all
-###############################################################################
-
-ansible_user: root                         # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
-email: "<EMAIL>"                           # used in certbot, description.toml and landing page
-website: "<WEBSITE>"                       # it is used in the description.toml
-description: "<NODE_PUBLIC_DESCRIPTION>"   # or define per node in inventory/all
-# operator_name: "<OPERATOR_NAME>"         # used in landing page if provided
-
 ###############################################################################
 ## GLOBAL VARS
 ## These values will be used globally unless overwritten per node in inventory/all
@@ -23,16 +6,41 @@ description: "<NODE_PUBLIC_DESCRIPTION>"   # or define per node in inventory/all
 ## Per node changes in inventory/all will overwrite these global vars
 ###############################################################################
 
-# moniker: "<MONIKER>"                      # if not setup here not in inventory/all it get's derived from the hostname
-# mode: <MODE>                              # entry-gateway/exit-gateway/mixnode
-# wireguard_enabled: <WIREGUARD_ENABLED>    # true/false
-hostname: ""                                # this is a fallback, keep it and setup hostname per node in inventory/all
+## MANDATORY - uncomment & define
+
+## --SSH--
+#ansible_user: root                                  # used for ssh, like `ssh root@nym-exit.ch-1.mynodes.net`
+# ansible_ssh_private_key_file: ~/.ssh/<SSH_KEY>    
+
+## --Operator info--
+# email: "<EMAIL>"                                  # used in certbot, description.toml and landing page
+# website: "<WEBSITE>"                              # it is used in the description.toml
+# description: "<NODE_PUBLIC_DESCRIPTION>"          # or define per node in inventory/all
+# moniker: "<MONIKER>" 
+
+## --Node defaults (can override per node in inventory/all)--
+# accept_operator_terms: true                       # controls --accept-operator-terms-and-conditions, read: https://nym.com/docs/operators/nodes/nym-node/setup#terms--conditions
+# mode: exit-gateway                                # entry-gateway/exit-gateway/mixnode
+# wireguard_enabled: true                           # true/false
+hostname: ""                                        # keep this fallback, keep it and setup hostname per node in inventory/all
+
+## OPTIONAL - uncomment & define
+
+# operator_name: "<OPERATOR_NAME>"          # used in landing page if provided
+# nym_version: "nym-binaries-v2026.7-tola"  # to use particular version instead of Latest, provide in such form: 
+
+## alternative SSH key var setting, instead of a hardcoded path
+## useful if the playbook is shared in a repo by more admins with each having own local key
+# ansible_ssh_private_key_file: "{{ lookup('env', '<YOUR_ANSIBLE SSH_KEY_ENV_VAR>') }}"
 
 ###############################################################################
-## GLOBAL PACKAGES
+## GLOBAL PACKAGES & URLs
 ## These will be installed during deployment
 ###############################################################################
 
+nym_cli_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-cli"
+tunnel_manager_url: "https://github.com/nymtech/nym/raw/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh"
+quic_bridge_deployment_url: "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/quic_bridge_deployment.sh"
 
 packages:
   - tmux
@@ -49,24 +57,6 @@ packages:
   - wget
   - ufw
 
-
-###############################################################################
-## OPTIONAL OVERRIDES
-## All values below already have defaults in the playbook/roles
-## Uncomment only if you want to override them
-###############################################################################
-
-###############################################################################
-## SYSTEM MAINTENANCE PLAYBOOK KNOBS
-###############################################################################
-
-# To use particular version instead of Latest, provide in such form: 
-# nym_version: "nym-binaries-v2026.7-tola"
-
-## NOTE:
-## if you want to pin Nym to a specific version instead of using the
-## latest release from GitHub in /tasks/main.yml then
-## uncomment the line above and set the tag
 
 ###############################################################################
 ## SYSTEM MAINTENANCE PLAYBOOK KNOBS

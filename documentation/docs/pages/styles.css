@@ -537,3 +537,15 @@ html:not(.dark) .landing-card {
     margin-bottom: 1.5rem;
   }
 }
+
+
+/* Bold pages/operators/nodes sidebar item */
+html.dark .nextra-sidebar-container a[href="/docs/operators/nodes"] {
+  color: var(--textPrimary) !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .nextra-sidebar-container a[href="/docs/operators/nodes"] {
+  color: #111 !important;
+  font-weight: 700;
+}

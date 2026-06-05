@@ -162,7 +162,7 @@ for h, p in [('smtp.gmail.com', 25), ('smtp.gmail.com', 465), ('smtp.gmail.com',
 
 Possible outcomes:
 
-- **All three OPEN with no error**: your hoster does not filter SMTP, you are good. If users still report issues with your gateway, the cause is IP reputation at the receiving mail provider (see Step 3).
+- **All three OPEN with no error**: your hoster does not filter outbound TCP on these ports, you are good. If users still report issues with your gateway, the cause is IP reputation at the receiving mail provider (see Step 3).
 - **One or more `TimeoutError`**: your hoster is silently dropping the SYN packets at their edge. Confirm with `tcpdump -i any -nn 'tcp port 587'` while running the test - you should see SYN leaving with no reply. Proceed to Step 2.
 - **`ConnectionRefusedError`**: rare for SMTP, usually means a local firewall on your side. Check your `iptables -L OUTPUT` rules.
 
@@ -183,4 +183,4 @@ Remediation options:
 
 #### Reference: testing the whole network
 
-Per-exit SMTP egress test results across the entire Nym network are tracked at [vvmmaann/nym-checker](https://github.com/vvmmaann/nym-checker) and can be referenced when diagnosing whether a specific exit is operator-side, hoster-side, or mail-receiver-side. The full investigation that produced these categories and the wording of the unblock template is documented in the forum post [Nym SMTP egress investigation](https://forum.nym.com/t/nym-smtp-egress-investigation/2288).
+Community-run per-exit SMTP egress testing has been reported at [nym-checker](https://github.com/vvmmaann/nym-checker) (a community-maintained project, not an official Nym data source) and can be referenced when diagnosing whether a specific exit is operator-side, hoster-side, or mail-receiver-side. The full investigation that produced these categories and the wording of the unblock template is documented in the forum post [Nym SMTP egress investigation](https://forum.nym.com/t/nym-smtp-egress-investigation/2288).

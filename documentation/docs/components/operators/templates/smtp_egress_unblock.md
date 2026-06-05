@@ -2,10 +2,10 @@ Two variants are provided. Pick whichever fits your threat model and how much yo
 
 ### Variant A - minimal, no project disclosure
 
-This is the wording that actually got OneProvider to lift the filter on two of my own servers. It does not mention Nym, mixnets, exit gateways or any specific use case beyond "I want to send mail." If you would rather not disclose to your hoster that you are running a Nym node, use this one.
+This wording has been used successfully to get OneProvider to lift the filter on operator servers. It does not mention Nym, mixnets, exit gateways or any specific use case beyond "I want to send mail." If you would rather not disclose to your hoster that you are running a Nym node, use this one.
 
 ```
-Subject: Request to unblock outbound SMTP ports (25, 465, 587) on my servers
+Subject: Request to unblock outbound SMTP submission ports (465, 587) on my servers
 
 Hello,
 
@@ -15,7 +15,7 @@ I am operating the following dedicated servers with you:
   <IP_2> (<LOCATION_2>)
   <IP_3> (<LOCATION_3>)
 
-Could you please unblock outbound TCP on ports 25, 465 and 587 on all of them?
+Could you please unblock outbound TCP on ports 465 and 587 on all of them?
 
 Currently the ports are blocked at the network edge on each of these servers.
 SYN packets leave the server but no response is ever returned (confirmed with
@@ -35,7 +35,7 @@ Thank you.
 If you are comfortable telling your hoster what the server actually does (some hosters appreciate the context, and it can help when arguing the case), use this version.
 
 ```
-Subject: Request to unblock outbound SMTP ports (25, 465, 587)
+Subject: Request to unblock outbound SMTP submission ports (465, 587)
 
 Hi,
 
@@ -43,7 +43,7 @@ I am operating a dedicated server with you at <YOUR_SERVER_IP> running a "nym
 node" - part of the Nym mixnet (https://nym.com/), a privacy-preserving
 network similar in spirit to Tor.
 
-I would like to request the unblocking of outbound TCP on ports 25, 465 and
+I would like to request the unblocking of outbound TCP on ports 465 and
 587 on this server.
 
 Currently these ports are filtered at your network edge: SYN packets leave
@@ -58,9 +58,9 @@ https://nymtech.net/.wellknown/network-requester/exit-policy.txt
 
 To address abuse concerns up front:
 
-1. Nym exit gateways apply a per-source-IP rate limit on outbound SMTP at the
-   firewall level (iptables `hashlimit` rule). A single user cannot use the
-   node as a high-volume spam relay.
+1. The standard Nym exit-gateway setup applies a per-source-IP rate limit on
+   outbound SMTPS (port 465) at the firewall level (an iptables `hashlimit`
+   rule), so a single user cannot use the node as a high-volume spam relay.
 2. The IP address <YOUR_SERVER_IP> is currently clean on all major public
    blocklists (Spamhaus ZEN/SBL/XBL/PBL, Barracuda, SpamCop, SORBS,
    UCEPROTECT L1/L2/L3, PSBL, Truncate). I am happy to provide screenshots

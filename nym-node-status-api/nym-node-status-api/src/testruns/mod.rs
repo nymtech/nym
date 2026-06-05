@@ -8,9 +8,13 @@ use tracing::instrument;
 pub(crate) mod models;
 mod queue;
 
-pub(crate) async fn start(pool: DbPool, refresh_interval: Duration) {
+pub(crate) async fn start(
+    pool: DbPool,
+    refresh_interval: Duration,
+    stale_in_progress_after: Duration,
+) {
     loop {
-        if let Err(e) = refresh_stale_testruns(&pool, refresh_interval).await {
+        if let Err(e) = refresh_stale_testruns(&pool, stale_in_progress_after).await {
             tracing::error!("{e}");
         }
 

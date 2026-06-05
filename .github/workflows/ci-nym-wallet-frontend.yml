@@ -1,6 +1,7 @@
 name: ci-nym-wallet-frontend
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'nym-wallet/**'

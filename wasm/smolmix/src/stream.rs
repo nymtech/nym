@@ -81,9 +81,10 @@ impl AsyncRead for WasmTcpStream {
                 Poll::Ready(Ok(0))
             } else {
                 crate::util::debug_log!(
-                    "[tcp:read] Pending (state={:?}, buf={})",
+                    "[tcp:read] Pending (state={:?}, buf={}, recv_queue={})",
                     socket.state(),
                     buf.len(),
+                    socket.recv_queue(),
                 );
                 // smoltcp wakes this waker on any state change affecting `recv`,
                 // including FIN/CloseWait transitions that produce EOF.

@@ -5,6 +5,7 @@
 //! plus (under the `fetch` feature) the HTTP orchestration + JS `RequestInit` shim.
 
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use crate::dns;
 use crate::error::FetchError;
@@ -215,16 +216,74 @@ pub async fn fetch(
     )))
 }
 
-/// Create a fresh connection: DNS resolve → TCP connect → optional TLS.
+/// Connect + TLS-handshake attempts on fresh sockets before giving up.
+const CONNECT_ATTEMPTS: u32 = 3;
+
+/// Base delay between connect retries, multiplied by the attempt number for a
+/// mild linear backoff (50ms before the 2nd attempt, 100ms before the 3rd).
+///
+/// Kept small on purpose: the transient failure here is a lost handshake
+/// segment, not congestion that needs time to clear.
+/// The backoff only avoids re-launching a fresh socket the instant
+/// the previous one reset.
+const CONNECT_BACKOFF_MS: u64 = 50;
+
+/// Create a fresh connection: DNS resolve → TCP connect → optional TLS, with
+/// retry on transient failure.
+///
+/// The mixnet reorders and drops packets, so a single multi-segment handshake
+/// flight (the server's certificate) can stall on a lost segment and the
+/// connection resets with a handshake EOF. A fresh socket (new ephemeral port,
+/// new sphinx packets) usually dodges the specific loss. Connect + handshake
+/// send no application data, so retrying them carries no idempotency risk for
+/// any HTTP method.
 pub(crate) async fn new_connection(
     tunnel: &WasmTunnel,
     host: &str,
     port: u16,
     is_https: bool,
 ) -> Result<PooledConn, FetchError> {
+    // Resolve once: a DNS failure is not transient the way a lost handshake
+    // segment is, and re-resolving per attempt would just repeat the lookup.
     let ip = dns::resolve(tunnel, host).await?;
     let addr = SocketAddr::new(ip, port);
 
+    let mut last_err = None;
+    for attempt in 1..=CONNECT_ATTEMPTS {
+        match connect_once(tunnel, addr, host, is_https).await {
+            Ok(conn) => return Ok(conn),
+            // Only connect / handshake I/O errors are transient over the
+            // mixnet. A bad TLS server name or other non-I/O error fails
+            // identically on retry, so propagate it immediately.
+            Err(e @ FetchError::Io(_)) => {
+                if attempt < CONNECT_ATTEMPTS {
+                    crate::util::debug_log!(
+                        "[fetch] connect attempt {attempt}/{CONNECT_ATTEMPTS} to '{host}' failed ({e}), retrying with fresh connection"
+                    );
+                    wasmtimer::tokio::sleep(Duration::from_millis(
+                        attempt as u64 * CONNECT_BACKOFF_MS,
+                    ))
+                    .await;
+                } else {
+                    crate::util::debug_error!(
+                        "[fetch] connect to '{host}' failed after {CONNECT_ATTEMPTS} attempts: {e}"
+                    );
+                }
+                last_err = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last_err.expect("loop body runs at least once"))
+}
+
+/// One connect + optional TLS handshake on a fresh socket.
+async fn connect_once(
+    tunnel: &WasmTunnel,
+    addr: SocketAddr,
+    host: &str,
+    is_https: bool,
+) -> Result<PooledConn, FetchError> {
     crate::util::debug_log!("[fetch] TCP connecting to {addr}...");
     let tcp = tunnel.tcp_connect(addr).await.map_err(FetchError::Io)?;
     crate::util::debug_log!("[fetch] TCP connected to {addr}");

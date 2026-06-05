@@ -54,6 +54,8 @@ nym-network-defaults = { workspace = true }
 nym-ticketbooks-merkle = { workspace = true }
 nym-ecash-signer-check-types = { workspace = true }
 nym-kkt-ciphersuite = { workspace = true }
+# only pulled in by the `mock-fixtures` feature; also a dev-dependency for this crate's own tests
+nym-test-utils = { workspace = true, optional = true }
 
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
@@ -62,3 +64,5 @@ nym-test-utils = { workspace = true }
 [features]
 default = []
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]
+# exposes deterministic data mocks (e.g. `mock_nym_node_description`) to downstream crates' tests
+mock-fixtures = ["dep:nym-test-utils", "nym-crypto/rand"]

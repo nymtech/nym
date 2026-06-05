@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO testruns (gateway_id, status, kind, created_utc, last_assigned_utc, ip_address, log)\n        SELECT\n            gw.id,\n            $1,\n            $2,\n            $3,\n            NULL,\n            'ports_check_scheduler',\n            ''\n        FROM gateways gw\n        WHERE gw.bonded = true\n          AND (gw.last_ports_check_utc IS NULL OR gw.last_ports_check_utc < $4)\n          AND NOT EXISTS (\n              SELECT 1\n              FROM testruns t\n              WHERE t.gateway_id = gw.id\n                AND t.kind = $2\n                AND t.status IN ($1, $5)\n          )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int2",
+        "Int8",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "65b5a3ed9a73f1304badfa8d9bba57fb24f6b21655039a9bfa21c44409c87910"
+}

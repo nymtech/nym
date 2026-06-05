@@ -18,6 +18,103 @@ use strum_macros::{EnumString, FromRepr};
 use time::{Date, OffsetDateTime, UtcDateTime};
 use utoipa::ToSchema;
 
+fn build_ports_check_summary_json(
+    can_register: bool,
+    port_check_target: Option<String>,
+    ports: Option<&serde_json::Map<String, serde_json::Value>>,
+    error: Option<String>,
+) -> serde_json::Value {
+    let failed_ports = ports
+        .map(|ports| {
+            ports
+                .iter()
+                .filter_map(|(port, open)| open.as_bool().filter(|is_open| !is_open).map(|_| port))
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let has_ports = ports.is_some_and(|p| !p.is_empty());
+    let all_pass = can_register && failed_ports.is_empty() && has_ports;
+
+    serde_json::json!({
+        "all_pass": all_pass,
+        "error": error,
+        "port_check_target": port_check_target,
+        "failed_ports": failed_ports,
+    })
+}
+
+pub(crate) fn ports_check_summary_json_from_result(
+    result: &nym_gateway_probe::PortCheckResult,
+) -> serde_json::Value {
+    let ports = result
+        .ports
+        .iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::Bool(*v)))
+        .collect::<serde_json::Map<_, _>>();
+
+    build_ports_check_summary_json(
+        result.can_register,
+        Some(result.port_check_target.clone()),
+        Some(&ports),
+        result.error.clone(),
+    )
+}
+
+pub(crate) fn normalize_ports_check_payload(value: serde_json::Value) -> Option<serde_json::Value> {
+    let serde_json::Value::Object(map) = value else {
+        return None;
+    };
+
+    // New shape is already in place; pass through untouched.
+    if map.contains_key("all_pass")
+        && map.contains_key("error")
+        && map.contains_key("port_check_target")
+        && map.contains_key("failed_ports")
+    {
+        return Some(serde_json::Value::Object(map));
+    }
+
+    // Legacy dedicated shape: { gateway, can_register, port_check_target, ports, error }
+    if map.contains_key("can_register") && map.contains_key("ports") {
+        let can_register = map
+            .get("can_register")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        let port_check_target = map
+            .get("port_check_target")
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+        let ports = map.get("ports").and_then(serde_json::Value::as_object);
+        let error = map
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+
+        return Some(build_ports_check_summary_json(
+            can_register,
+            port_check_target,
+            ports,
+            error,
+        ));
+    }
+
+    if map.contains_key("all_pass") && map.contains_key("failed_ports") {
+        let mut normalized = map;
+        normalized.remove("ports_tested");
+        normalized
+            .entry("port_check_target".to_string())
+            .or_insert(serde_json::Value::Null);
+        normalized
+            .entry("error".to_string())
+            .or_insert(serde_json::Value::Null);
+        return Some(serde_json::Value::Object(normalized));
+    }
+
+    Some(serde_json::Value::Object(map))
+}
+
 macro_rules! serialize_opt_to_value {
     ($var:expr) => {{
         match $var {
@@ -48,6 +145,8 @@ pub(crate) struct GatewayDto {
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_probe_result: Option<String>,
     pub(crate) last_probe_log: Option<String>,
+    pub(crate) ports_check: Option<serde_json::Value>,
+    pub(crate) last_ports_check_utc: Option<i64>,
     pub(crate) last_testrun_utc: Option<i64>,
     pub(crate) last_updated_utc: i64,
     pub(crate) moniker: String,
@@ -73,7 +172,7 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             .explorer_pretty_bond
             .clone()
             .unwrap_or("null".to_string());
-        let last_probe_result = value
+        let last_probe_result_raw = value
             .last_probe_result
             .clone()
             .unwrap_or("null".to_string());
@@ -81,7 +180,18 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
 
         let self_described = serde_json::from_str(&self_described).unwrap_or(None);
         let explorer_pretty_bond = serde_json::from_str(&explorer_pretty_bond).unwrap_or(None);
-        let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
+        let last_probe_result = serde_json::from_str::<serde_json::Value>(&last_probe_result_raw)
+            .ok()
+            .and_then(|v| (!v.is_null()).then_some(v));
+
+        let ports_check = value
+            .ports_check
+            .clone()
+            .filter(|v| !v.is_null())
+            .and_then(normalize_ports_check_payload);
+        let last_ports_check_utc = value
+            .last_ports_check_utc
+            .map(unix_timestamp_to_utc_rfc3339);
 
         let bonded = value.bonded;
         let performance = value.performance as u8;
@@ -104,6 +214,8 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
             description,
             last_probe_result,
             last_probe_log,
+            ports_check,
+            last_ports_check_utc,
             routing_score,
             config_score,
             last_testrun_utc,
@@ -292,6 +404,7 @@ pub struct TestRunDto {
     pub id: i32,
     pub gateway_id: i32,
     pub status: i32,
+    pub kind: i16,
     pub created_utc: i64,
     pub ip_address: String,
     pub log: String,
@@ -304,6 +417,13 @@ pub(crate) enum TestRunStatus {
     Complete = 2,
     InProgress = 1,
     Queued = 0,
+}
+
+#[derive(Debug, Clone, Copy, strum_macros::Display, EnumString, FromRepr, PartialEq, Eq)]
+#[repr(i16)]
+pub(crate) enum TestRunKind {
+    Probe = 0,
+    PortsCheck = 1,
 }
 
 #[derive(Debug, Clone)]

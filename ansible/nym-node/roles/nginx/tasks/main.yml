@@ -89,7 +89,6 @@
   loop:
     - "/etc/nginx/sites-enabled/{{ hostname }}-ssl"
     - "/etc/nginx/sites-enabled/nym-wss-config"
-  when: not le_cert.stat.exists
   notify: Restart nginx
 
 - name: Ensure nginx is enabled and running (needed for ACME http-01)
@@ -111,18 +110,13 @@
 - name: Obtain/renew certificate
   command:
     cmd: >-
-      {% if le_cert.stat.exists %}
-      certbot certonly --webroot
-      -w /var/www/{{ hostname }}
+      certbot certonly --nginx
       --non-interactive --agree-tos --keep-until-expiring
       -m {{ email }} -d {{ hostname }}
-      {% else %}
-      certbot --nginx
-      --non-interactive --agree-tos --redirect
-      -m {{ email }} -d {{ hostname }}
-      {% endif %}
   register: certbot_result
-  failed_when: false
+  failed_when: false  
+  
+  
 
 # re-check cert after certbot attempt
 - name: Re-check whether certificate exists after certbot

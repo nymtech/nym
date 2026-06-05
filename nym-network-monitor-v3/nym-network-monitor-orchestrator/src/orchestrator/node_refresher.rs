@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::{Instant, interval};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info};
 
 pub(crate) struct NodeRefresher {
     pub(crate) client: QueryHttpRpcNyxdClient,
@@ -142,13 +142,13 @@ impl NodeRefresher {
             .await
         {
             Err(_timeout) => {
-                warn!(
+                debug!(
                     "timed out while attempting to retrieve self-described node details for node {node_id}"
                 );
                 return node_update;
             }
             Ok(Err(err)) => {
-                error!("failed to retrieve self-described node details for node {node_id}: {err}");
+                debug!("failed to retrieve self-described node details for node {node_id}: {err}");
                 return node_update;
             }
             Ok(Ok(info)) => info,

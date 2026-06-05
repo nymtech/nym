@@ -87,6 +87,8 @@ impl Storage {
                 gw.explorer_pretty_bond as "explorer_pretty_bond?",
                 gw.last_probe_result as "last_probe_result?",
                 gw.last_probe_log as "last_probe_log?",
+                gw.ports_check as "ports_check?",
+                gw.last_ports_check_utc as "last_ports_check_utc?",
                 gw.last_testrun_utc as "last_testrun_utc?",
                 gw.last_updated_utc as "last_updated_utc!",
                 gw.bridges as "bridges?: serde_json::Value",
@@ -102,14 +104,22 @@ impl Storage {
         .fetch(&self.pool)
         .try_collect::<Vec<_>>()
         .await?;
-
-        let items: Vec<Gateway> = items
-            .into_iter()
-            .map(|item| item.try_into())
-            .collect::<anyhow::Result<Vec<_>>>()
-            .inspect_err(|e| error!("Conversion from DTO failed: {e}. Invalidly stored data?"))?;
-        tracing::trace!("Fetched {} gateways from DB", items.len());
-        Ok(items)
+        let mut gateways: Vec<Gateway> = Vec::with_capacity(items.len());
+        let mut failed = 0usize;
+        for item in items {
+            match item.try_into() {
+                Ok(gw) => gateways.push(gw),
+                Err(e) => {
+                    error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+                    failed += 1;
+                }
+            }
+        }
+        if failed > 0 {
+            tracing::warn!("{failed} gateway DTO(s) failed conversion and were skipped");
+        }
+        tracing::trace!("Fetched {} gateways from DB", gateways.len());
+        Ok(gateways)
     }
 }
 

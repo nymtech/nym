@@ -31,30 +31,21 @@ use nym_wasm_client_core::nym_task::connections::TransmissionLane;
 
 use crate::error::FetchError;
 
-/// Reply-SURB counts for Open and Data frames. Defaults: `open=10, data=5`.
+/// Reply-SURB counts for the Open and Data frames. Defaults: `open=10, data=2`.
 ///
-/// Open seeds the IPR's SURB bucket at handshake time. `data` is the
-/// per-frame SURB count for BOTH the initial ConnectRequest AND every
-/// LP-framed IP packet the bridge ships through the tunnel post-handshake
-/// (`tunnel.rs::init_network_stack` forwards `opts.surbs.data` into
-/// `bridge::start_bridge` as `data_surbs`).
+/// `open` seeds the IPR's SURB bucket on the connect handshake. `data` is the
+/// number of reply-SURBs attached to every packet we send (including TCP ACKs);
+/// it funds the IPR's return traffic for the connection.
 ///
-/// `data=5` empirically:
-/// - Makes the IPR handshake reliable. The IPR receives 10 SURBs from
-///   Open plus 5 in-band with the ConnectRequest — 15 in hand when
-///   formulating the ConnectResponse. The IPR's `min_surb_threshold`
-///   defaults to 20 (per nym-client-core's surb-storage), so a topup
-///   exchange still happens, but it races the response gracefully
-///   instead of gating it. With `data=0` (the old default) the IPR had
-///   only 10 SURBs at reply time and the response often timed out.
-/// - Keeps steady-state replies smooth. Each bridge packet seeds another
-///   5 SURBs, so the IPR's bucket stays topped up without per-bucket
-///   topup round-trips stalling responses.
+/// `data` is deliberately small, and raising it has a cost that is easy to
+/// miss. A reply-SURB is not a flag on the packet: it is a full layer-encrypted
+/// return header that travels as forward payload, and each Sphinx packet has a fixed
+/// payload budget.
 ///
-/// Cost: 5 extra SURBs per outgoing LP frame in steady state. Material
-/// for high-PPS workloads; trivial for typical HTTP/WS traffic. Override
-/// to 0 if you've measured wire-overhead pressure outweighing reply
-/// smoothness for your workload.
+/// Return capacity for downloads does not need a large `data`: every ACK we send
+/// during a transfer carries `data` SURBs, so capacity scales with the ACK rate
+/// (which scales with the download rate), and the reply controller's pre-emptive
+/// topup refills the bucket besides.
 #[derive(Clone, Copy)]
 pub struct SurbsConfig {
     pub open: u32,
@@ -63,7 +54,7 @@ pub struct SurbsConfig {
 
 impl Default for SurbsConfig {
     fn default() -> Self {
-        Self { open: 10, data: 5 }
+        Self { open: 10, data: 2 }
     }
 }
 

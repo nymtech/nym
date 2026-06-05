@@ -80,6 +80,32 @@ impl LpBasedRegistrationClient {
             self.config.lp_registration_config,
         );
 
+        // Open the entry connection through a socket that has the connection
+        // fd callback applied before connecting (sets SO_MARK on Linux), so
+        // the connection is allowed through the VPN firewall during the
+        // connecting state.
+        #[cfg(unix)]
+        {
+            let fd_callback = self.config.connection_fd_callback.clone();
+            entry_client.set_dialer(Arc::new(move |addr| {
+                let fd_callback = fd_callback.clone();
+                Box::pin(async move {
+                    let socket = if addr.is_ipv4() {
+                        tokio::net::TcpSocket::new_v4()
+                    } else {
+                        tokio::net::TcpSocket::new_v6()
+                    }
+                    .map_err(|err| {
+                        nym_lp::transport::LpTransportError::connection_failure(err.to_string())
+                    })?;
+                    fd_callback(std::os::fd::AsRawFd::as_raw_fd(&socket));
+                    socket.connect(addr).await.map_err(|err| {
+                        nym_lp::transport::LpTransportError::connection_failure(err.to_string())
+                    })
+                })
+            }));
+        }
+
         // Perform handshake with entry gateway (outer session now established)
         entry_client.perform_handshake().await.map_err(|source| {
             RegistrationClientError::EntryGatewayRegisterLp {

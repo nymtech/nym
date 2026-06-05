@@ -334,7 +334,16 @@ impl PeerController {
         let Ok(Some(mut peer)) = self.handle_query_peer_by_key(peer_key).await else {
             return Ok(());
         };
+        let encoded_psk = psk.to_lower_hex();
         peer.preshared_key = Some(psk);
+
+        // Account for bandwidth used so far *before* reconfiguring: `configure_peer`
+        // isn't guaranteed to preserve the kernel rx/tx counters, so fold the
+        // accrued bytes into the metrics first to avoid losing them on a reset.
+        if let Ok(host) = self.wg_api.read_interface_data() {
+            self.update_metrics(&host).await;
+            *self.host_information.write().await = host;
+        }
 
         // Try to update WireGuard peer
         if let Err(e) = self.wg_api.configure_peer(&peer) {
@@ -343,12 +352,19 @@ impl PeerController {
             return Err(e.into());
         };
 
-        // try to immediately update the host information, to eliminate races
-        if let Ok(host_information) = self.wg_api.read_interface_data() {
-            *self.host_information.write().await = host_information;
+        // Persist the new PSK to disk so it survives a restart. Kernel-first: a
+        // failure here leaves the live session working, only risking drift on restart.
+        self.ecash_verifier
+            .storage()
+            .update_peer_psk(&peer_key.to_string(), Some(&encoded_psk))
+            .await?;
+
+        // Refresh again so the cached host information reflects the post-update state
+        if let Ok(host) = self.wg_api.read_interface_data() {
+            *self.host_information.write().await = host;
         }
 
-        nym_metrics::inc!("wg_peer_addition_success");
+        nym_metrics::inc!("wg_peer_update_psk_success");
         Ok(())
     }
 

@@ -15,23 +15,14 @@ use std::time::Instant;
 
 impl PeerRegistrator {
     /// In the case of an already registered WG peer, update its PSK.
+    ///
+    /// The peer controller keeps the active config and the on-disk PSK in sync.
     pub(super) async fn update_peer_psk(
         &self,
         peer: PeerPublicKey,
         psk: Key,
     ) -> Result<(), GatewayWireguardError> {
-        let encoded_psk = psk.to_lower_hex();
-
-        // 1. update the PSK in the active configuration
-        self.peer_manager.update_peer_psk(peer, psk).await?;
-
-        // 2. update the on-disk PSK
-        self.ecash_verifier
-            .storage()
-            .update_peer_psk(&peer.to_string(), Some(&encoded_psk))
-            .await?;
-
-        Ok(())
+        self.peer_manager.update_peer_psk(peer, psk).await
     }
 
     fn lp_peer_to_final_response(

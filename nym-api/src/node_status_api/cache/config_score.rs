@@ -30,6 +30,8 @@ fn has_sufficient_tokens(
     };
     let chain_balance = &capabilities.on_chain_balance;
 
+    // this should never happen because we have queried for this specific balance,
+    // but some defensive coding never hurt
     if chain_balance.denom != minimum_balance.denom {
         return false;
     }

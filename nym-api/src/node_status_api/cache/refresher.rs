@@ -39,7 +39,7 @@ use tracing::{error, info, trace, warn};
 
 pub(crate) struct NodeStatusCacheConfig {
     pub(crate) minimum_on_chain_balance: Coin,
-    pub(crate) balance_retrieval_concurrency: usize,
+    pub(crate) chain_capabilities_retrieval_concurrency: usize,
 
     /// Indicates how often should the chain balances (and feegrants) of known nodes be refreshed.
     /// (it is an overkill to do it every single iteration)
@@ -66,8 +66,8 @@ pub(crate) struct NodeStatusCacheConfig {
 pub struct NodeStatusCacheRefresher {
     config: NodeStatusCacheConfig,
 
-    /// Indicates the last time chain balances of known nodes were refreshed.
-    last_refreshed_chain_balances: Option<Instant>,
+    /// Indicates the last time chain capabilities of known nodes were refreshed.
+    last_refreshed_chain_capabilities: Option<Instant>,
 
     // Main stored data
     cache: NodeStatusCache,
@@ -117,7 +117,7 @@ impl NodeStatusCacheRefresher {
         Self {
             cache,
             config,
-            last_refreshed_chain_balances: None,
+            last_refreshed_chain_capabilities: None,
             mixnet_contract_cache: contract_cache,
             described_cache,
             mixnet_contract_cache_listener: contract_cache_listener,
@@ -261,7 +261,7 @@ impl NodeStatusCacheRefresher {
         // note: we use `for_each_concurrent` rather than `stream::iter(..).buffer_unordered(..)`.
         // The latter yields a `Stream` whose `Send` bound gets over-generalised once chained into
         // `collect()`, tripping "implementation of `Send` is not general enough" (rust-lang/rust#102211)
-        let concurrency = self.config.balance_retrieval_concurrency.max(1);
+        let concurrency = self.config.chain_capabilities_retrieval_concurrency.max(1);
 
         // std Mutex is fine because we don't hold it across await points
         let capabilities = std::sync::Mutex::new(HashMap::<
@@ -373,7 +373,7 @@ impl NodeStatusCacheRefresher {
     }
 
     fn should_refresh_chain_interaction(&self) -> bool {
-        let Some(last_refresh) = self.last_refreshed_chain_balances else {
+        let Some(last_refresh) = self.last_refreshed_chain_capabilities else {
             return true;
         };
         last_refresh.elapsed() > self.config.chain_capabilities_refresh_interval
@@ -417,7 +417,7 @@ impl NodeStatusCacheRefresher {
 
         let chain_info = if self.should_refresh_chain_interaction() {
             let info = self.retrieve_chain_info(&described).await?;
-            self.last_refreshed_chain_balances = Some(Instant::now());
+            self.last_refreshed_chain_capabilities = Some(Instant::now());
             info
         } else {
             // use the currently cached values instead
@@ -470,6 +470,8 @@ async fn retrieve_chain_capabilities(
     };
 
     let is_feegrant_grantee = match query_client.allowances(account_id, None).await {
+        // currently this is a very coarse check. the grant might be expired, it might not allow for
+        // cosmwasm executemsg, but that's a good enough first iteration
         Ok(allowances) => !allowances.allowances.is_empty(),
         Err(err) => {
             warn!(node_id, %err, "failed to retrieve node feegrant allowances");

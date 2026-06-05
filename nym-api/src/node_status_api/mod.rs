@@ -56,10 +56,10 @@ pub(crate) async fn start_cache_refresh(
 
     let config = NodeStatusCacheConfig {
         minimum_on_chain_balance,
-        balance_retrieval_concurrency: config
+        chain_capabilities_retrieval_concurrency: config
             .node_status_api
             .debug
-            .node_balance_retrieval_concurrency,
+            .chain_capabilities_retrieval_concurrency,
         chain_capabilities_refresh_interval: config
             .node_status_api
             .debug

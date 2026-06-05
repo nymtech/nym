@@ -388,7 +388,7 @@ impl<T> DeserialisedCache<T> {
         };
 
         serialiser.deserialize_from(file).map_err(|err| {
-            error!("failed to deserialised persistent cache file at {path:?}: {err}");
+            error!("failed to deserialise persistent cache file at {path:?}: {err}");
             std::io::Error::other(err)
         })
     }

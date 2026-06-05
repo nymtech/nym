@@ -61,7 +61,11 @@ jobs:
         if: steps.check-ts-sdk.outputs.changed == 'true'
         run: |
           npm install -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
-          bash ${{ github.workspace }}/documentation/scripts/next-scripts/generate-typedoc.sh
+          cd ${{ github.workspace }}/sdk/typescript/packages/sdk          && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-tunnel   && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch    && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-dns      && typedoc --skipErrorChecking
+          cd ${{ github.workspace }}/sdk/typescript/packages/mix-websocket && typedoc --skipErrorChecking
 
       - name: Verify doc versions
         run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh

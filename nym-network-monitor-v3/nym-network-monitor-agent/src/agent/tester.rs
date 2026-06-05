@@ -350,6 +350,13 @@ impl NodeStressTester {
                 "did not manage to send all required packets within the sending window. sent {sent}/{total_packets}"
             );
         }
+        // Report `total_packets` (= expected) rather than `sent` so the orchestrator's
+        // `received / sent` score formula effectively becomes `received / expected` -
+        // a node that throttled us via TCP back-pressure into not pushing all packets
+        // through is correctly penalised. Per-batch `set_packets_sent(sent)` updates
+        // above remain in place for the `Ok(false)` early-exit (send error) path, so
+        // partial-progress visibility is preserved when the test aborts mid-run.
+        result.set_packets_sent(total_packets);
         Ok(true)
     }
 

@@ -71,6 +71,9 @@ pub(crate) struct Config {
     /// How often the orchestrator flushes accumulated test results to the nym-api as a signed
     /// batch submission (e.g. `15m`, `1h`).
     pub(crate) result_submission_interval: Duration,
+
+    /// Maximum number of stress testing results to submit in a single POST request
+    pub(crate) result_submission_batch_size: usize,
 }
 
 impl Config {

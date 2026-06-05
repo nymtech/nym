@@ -44,6 +44,8 @@ pub struct Gateway {
     pub description: NodeDescription,
     pub last_probe_result: Option<serde_json::Value>,
     pub last_probe_log: Option<String>,
+    pub ports_check: Option<serde_json::Value>,
+    pub last_ports_check_utc: Option<String>,
     pub last_testrun_utc: Option<String>,
     pub last_updated_utc: String,
     pub routing_score: f32,
@@ -355,21 +357,20 @@ pub struct DVpnGateway {
     pub role: NodeRole,
     pub entry: Option<BasicEntryInformation>,
     pub bridges: Option<BridgeInformation>,
-
     // The performance data here originates from the nym-api, and is effectively mixnet performance
     // at the time of writing this
     pub performance: String,
-
     // Node performance information needed by the NymVPN UI / Explorer to show more information
     // about the node in a user-friendly way
     pub performance_v2: Option<DVpnGatewayPerformance>,
-
     pub lewes_protocol_details: Option<LewesProtocolDetailsV1>,
 
     pub family_data: Option<NodeFamilyInformation>,
     pub staking_data: Option<NodeStakeInformation>,
 
     pub build_information: BinaryBuildInformationOwned,
+    pub ports_check: Option<serde_json::Value>,
+    pub last_ports_check_utc: Option<String>,
 }
 
 impl DVpnGateway {
@@ -432,6 +433,8 @@ impl DVpnGateway {
             family_data: family_details,
             staking_data: staking_details,
             build_information: self_described.build_information,
+            ports_check: gateway.ports_check,
+            last_ports_check_utc: gateway.last_ports_check_utc,
         })
     }
 }
@@ -676,6 +679,8 @@ mod test {
             self_described: Some(serde_json::json!({"test": "value"})),
             explorer_pretty_bond: None,
             last_probe_result: Some(serde_json::json!({"status": "ok"})),
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some("2024-01-20T10:00:00Z".to_string()),
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,
@@ -738,6 +743,8 @@ pub struct GatewaySkinny {
     pub self_described: Option<serde_json::Value>,
     pub explorer_pretty_bond: Option<serde_json::Value>,
     pub last_probe_result: Option<serde_json::Value>,
+    pub ports_check: Option<serde_json::Value>,
+    pub last_ports_check_utc: Option<String>,
     pub last_testrun_utc: Option<String>,
     pub last_updated_utc: String,
     pub routing_score: f32,

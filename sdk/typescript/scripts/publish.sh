@@ -73,7 +73,7 @@ popd () {
 #       a breaking major: ship under `next`, leave existing users on `latest`,
 #       and promote later with `npm dist-tag add <pkg>@<version> latest`.
 #       Once `latest` points at the new major, the next patch resolves to
-#       `latest` again on its own — nothing to clean up.
+#       `latest` again on its own, with nothing to clean up.
 #   * publishing major  < current `latest` major   -> next
 #       a backport; never silently move `latest` backwards. Pass an explicit
 #       NPM_DIST_TAG if a dedicated legacy tag is wanted.
@@ -87,8 +87,33 @@ resolve_tag() {
     printf 'next'
     return
   fi
-  local current
-  current="$(npm view "$name" dist-tags.latest 2>/dev/null || true)"
+  # Find the package's current `latest` version on npm. There are three
+  # outcomes, each driving the tag decision below:
+  #   - success           -> compare majors (same major: latest; higher: next)
+  #   - package not found  -> first ever publish; it has to set `latest`
+  #   - any other failure  -> registry/network problem; abort rather than guess
+  #
+  # The third case is why this is careful. Defaulting to `latest` when the
+  # lookup merely failed would move `latest` onto this version even for a
+  # package that already exists, and so could push a breaking major onto every
+  # current consumer. Only a genuine 404 counts as "new"; anything else aborts.
+  #
+  # stderr is sent to a file rather than merged into stdout so the success value
+  # holds only the version (never an npm warning), while the failure text can
+  # still be inspected to recognise a 404.
+  local current err
+  err="$(mktemp)"
+  if current="$(npm view "$name" dist-tags.latest 2>"$err")"; then
+    rm -f "$err"
+  elif grep -qiE 'E404|404 Not Found' "$err"; then
+    current=""
+    rm -f "$err"
+  else
+    printf 'npm view failed for %s (not a 404), refusing to guess a dist-tag: %s\n' "$name" "$(cat "$err")" >&2
+    rm -f "$err"
+    return 1
+  fi
+
   if [[ -z "$current" ]]; then
     printf 'latest'
   elif [[ "${version%%.*}" == "${current%%.*}" ]]; then
@@ -127,7 +152,7 @@ echo
 DRY_RUN_FLAG=""
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   DRY_RUN_FLAG="--dry-run"
-  echo "DRY_RUN=1 — running pnpm publish in dry-run mode (no tarballs uploaded)"
+  echo "DRY_RUN=1: running pnpm publish in dry-run mode (no tarballs uploaded)"
 fi
 
 COUNTER=0

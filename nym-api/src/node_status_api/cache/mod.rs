@@ -5,7 +5,7 @@ use self::data::NodeStatusCacheData;
 use crate::node_performance::provider::PerformanceRetrievalFailure;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::Cache;
-use nym_api_requests::models::{ChainInteractionCapabilitiesDetailed, NodeAnnotationV2};
+use nym_api_requests::models::NodeAnnotationV2;
 use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::path::Path;
@@ -102,20 +102,5 @@ impl NodeStatusCache {
         &self,
     ) -> Result<RwLockReadGuard<'_, HashMap<NodeId, NodeAnnotationV2>>, UninitialisedCache> {
         self.get(|c| &c.node_annotations).await
-    }
-
-    async fn chain_information(
-        &self,
-    ) -> Result<HashMap<NodeId, Option<ChainInteractionCapabilitiesDetailed>>, NodeStatusCacheError>
-    {
-        Ok(self
-            .cache()
-            .await?
-            .node_annotations
-            .iter()
-            .map(|(node_id, annotation)| {
-                (*node_id, annotation.chain_interaction_capabilities.clone())
-            })
-            .collect::<HashMap<_, _>>())
     }
 }

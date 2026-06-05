@@ -17,20 +17,23 @@ impl PeerRegistrator {
     /// In the case of an already registered WG peer, update its PSK.
     pub(super) async fn update_peer_psk(
         &self,
-        peer: PeerPublicKey,
+        peer_key: PeerPublicKey,
         psk: Key,
     ) -> Result<(), GatewayWireguardError> {
+        let encoded_psk = psk.to_lower_hex();
+
         // 1. check if the peer is currently being handled
-        if self.peer_manager.check_active_peer(peer).await? {
+        if let Some(mut peer) = self.peer_manager.query_peer(peer_key).await? {
             // 2. if so, force disconnect it (as we're handling new request from the same peer)
-            self.peer_manager.remove_peer(peer).await?;
+            self.peer_manager.remove_peer(peer_key).await?;
+            peer.preshared_key = Some(psk);
+            self.peer_manager.add_peer(peer).await?;
         }
 
         // 3. update the on-disk PSK
-        let encoded_psk = psk.to_lower_hex();
         self.ecash_verifier
             .storage()
-            .update_peer_psk(&peer.to_string(), Some(&encoded_psk))
+            .update_peer_psk(&peer_key.to_string(), Some(&encoded_psk))
             .await?;
 
         Ok(())

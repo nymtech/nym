@@ -402,7 +402,7 @@ where
         };
 
         // Connect to target gateway with timeout
-        let stream = match timeout(Duration::from_secs(5), S::connect(target_addr)).await {
+        let mut stream = match timeout(Duration::from_secs(5), S::connect(target_addr)).await {
             Ok(Ok(stream)) => stream,
             Ok(Err(e)) => {
                 inc!("lp_forward_failed");
@@ -419,6 +419,16 @@ where
                 });
             }
         };
+
+        // Disable Nagle's algorithm: the forward stream carries small request/response
+        // handshake packets, so we want them sent immediately rather than coalesced.
+        if let Err(e) = stream.set_no_delay(true) {
+            inc!("lp_forward_failed");
+            return Err(LpHandlerError::ConnectionFailure {
+                egress: target_addr,
+                reason: format!("failed to set TCP_NODELAY: {e}"),
+            });
+        }
 
         debug!("Opened persistent exit connection to {target_addr} for forwarding");
         self.exit_stream = Some((stream, target_addr));

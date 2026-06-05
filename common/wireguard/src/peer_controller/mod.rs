@@ -76,6 +76,12 @@ pub enum PeerControlRequest {
         peer: Peer,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
+    /// Update PSK for an existing peer, without changing its IP allocation
+    UpdatePeerPsk {
+        peer_key: Key,
+        psk: Key,
+        response_tx: oneshot::Sender<UpdatePeerPskControlResponse>,
+    },
     /// Attempt to allocate an IP pair from the pool
     PreAllocateIpPair {
         response_tx: oneshot::Sender<AllocatePeerControlResponse>,
@@ -118,6 +124,7 @@ pub enum PeerControlRequest {
 }
 
 pub type AddPeerControlResponse = Result<()>;
+pub type UpdatePeerPskControlResponse = Result<()>;
 pub type AllocatePeerControlResponse = Result<IpPair>;
 pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
@@ -312,6 +319,34 @@ impl PeerController {
             handle.run().await;
             debug!("Peer handle shut down for {public_key}");
         });
+
+        nym_metrics::inc!("wg_peer_addition_success");
+        Ok(())
+    }
+
+    async fn handle_update_peer_psk_request(&mut self, peer_key: &Key, psk: Key) -> Result<()> {
+        // observation will get automatically added once dropped
+        let _metric_timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::WireguardDefguardPeerPskUpdate);
+
+        nym_metrics::inc!("wg_peer_update_psk_attempts");
+
+        let Ok(Some(mut peer)) = self.handle_query_peer_by_key(peer_key).await else {
+            return Ok(());
+        };
+        peer.preshared_key = Some(psk);
+
+        // Try to update WireGuard peer
+        if let Err(e) = self.wg_api.configure_peer(&peer) {
+            nym_metrics::inc!("wg_peer_update_psk_failed");
+            nym_metrics::inc!("wg_config_errors_total");
+            return Err(e.into());
+        };
+
+        // try to immediately update the host information, to eliminate races
+        if let Ok(host_information) = self.wg_api.read_interface_data() {
+            *self.host_information.write().await = host_information;
+        }
 
         nym_metrics::inc!("wg_peer_addition_success");
         Ok(())
@@ -512,6 +547,15 @@ impl PeerController {
         match msg {
             PeerControlRequest::AddPeer { peer, response_tx } => {
                 response_tx.send(self.handle_add_request(&peer).await).ok();
+            }
+            PeerControlRequest::UpdatePeerPsk {
+                peer_key,
+                psk,
+                response_tx,
+            } => {
+                response_tx
+                    .send(self.handle_update_peer_psk_request(&peer_key, psk).await)
+                    .ok();
             }
             PeerControlRequest::PreAllocateIpPair { response_tx } => {
                 response_tx.send(self.handle_ip_allocation_request()).ok();

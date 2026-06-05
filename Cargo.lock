@@ -7608,7 +7608,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.32.0"
+version = "1.32.1"
 dependencies = [
  "anyhow",
  "arc-swap",

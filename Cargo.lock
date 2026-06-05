@@ -5415,32 +5415,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mix-fetch-wasm"
-version = "1.4.3"
-dependencies = [
- "async-trait",
- "futures",
- "js-sys",
- "nym-bin-common",
- "nym-http-api-client",
- "nym-ordered-buffer",
- "nym-service-providers-common",
- "nym-socks5-requests",
- "nym-validator-client",
- "nym-wasm-client-core",
- "nym-wasm-utils",
- "rand 0.8.6",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "thiserror 2.0.18",
- "tokio",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
-]
-
-[[package]]
 name = "mixnet-connectivity-check"
 version = "0.1.0"
 dependencies = [
@@ -11583,7 +11557,7 @@ dependencies = [
 
 [[package]]
 name = "smolmix-wasm"
-version = "1.21.0"
+version = "0.1.0"
 dependencies = [
  "async-tungstenite",
  "bytes",

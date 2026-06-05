@@ -1,9 +1,15 @@
+# The static workspace below is intentionally minimal. It contains only what
+# CI workflows without a Rust toolchain (e.g. ci-build-ts, storybook) need to
+# resolve. Anything that depends on `@nymproject/smolmix-wasm` (mix-tunnel +
+# mix-fetch + mix-dns + mix-websocket + internal-dev) or the wasm-pack output
+# dir itself lives in `dev-mode-add.mjs` and is only injected when `pnpm
+# dev:on` runs. Build the wasm first if dev:on will be called:
+# `make -C wasm/smolmix` populates wasm/smolmix/pkg/.
 packages:
   - 'ts-packages/*'
   - 'nym-wallet'
   - 'explorer-v2'
   - 'types'
-  - 'sdk/typescript/packages/mix-fetch/internal-dev'
   - 'sdk/typescript/packages/react-components'
   - 'sdk/typescript/packages/mui-theme'
 
@@ -21,8 +27,12 @@ allowBuilds:
   msgpackr-extract: true
   nx: true
   protobufjs: true
-  sharp: true
-  tiny-secp256k1: true
+  # Native C++ bindings; both fail to compile against Node 24's node-addon-api.
+  # Skipping the build leaves the JS shells in place, which is all our SDK
+  # packages need (only nym-wallet / explorer-v2 image stack actually uses them
+  # at runtime). Mirrors the fix on `max/fix-pnpm-ci` for documentation/docs/.
+  sharp: false
+  tiny-secp256k1: false
   unrs-resolver: true
 
 catalog:

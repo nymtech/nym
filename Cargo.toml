@@ -174,7 +174,6 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-    "wasm/mix-fetch",
     "wasm/smolmix",
     "wasm/zknym-lib",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
@@ -602,10 +601,6 @@ web-sys = "0.3.76"
 opt-level = 3
 
 [profile.release.package.nym-client-wasm]
-# lto = true
-opt-level = 'z'
-
-[profile.release.package.mix-fetch-wasm]
 # lto = true
 opt-level = 'z'
 

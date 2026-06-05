@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mixWebSocket</title>
+  <script type="module" src="./index.ts"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 2rem;
+    }
+    pre { background: #f4f4f4; padding: 0.5rem; border-radius: 4px; max-height: 320px; overflow: auto; }
+    .row { display: flex; gap: 0.5rem; margin: 0.5rem 0; }
+    input { flex: 1; padding: 0.4rem; font-family: monospace; }
+    button { padding: 0.4rem 0.8rem; cursor: pointer; }
+  </style>
+</head>
+
+<body>
+<h1>mixWebSocket</h1>
+<p>Opens a WSS connection to <code>wss://echo.websocket.events</code> through the Nym mixnet.</p>
+<div class="row">
+  <input id="message" type="text" value="hello mixnet" placeholder="message">
+  <button id="send" disabled>send</button>
+  <button id="close" disabled>close</button>
+</div>
+<pre id="output"></pre>
+</body>
+
+</html>

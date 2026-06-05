@@ -7,6 +7,7 @@ const devWorkspace = [
   'sdk/typescript/packages/**',
   'sdk/typescript/examples/**',
   'sdk/typescript/codegen/**',
+  'wasm/smolmix/pkg',
 ];
 
 const content = fs.readFileSync(WORKSPACE_FILE, 'utf-8');

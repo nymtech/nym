@@ -237,7 +237,7 @@ document.getElementById("btn-dns-tunnel").addEventListener("click", async () => 
   logTo("dns-log", `tunnel resolve ${hostname}`);
   const t0 = performance.now();
   try {
-    const ip = await api.mixResolve(hostname);
+    const ip = await api.mixDNS(hostname);
     const ms = (performance.now() - t0).toFixed(0);
     logTo("dns-log", `tunnel ${hostname} => ${ip} (${ms} ms)`, "green");
   } catch (e) {

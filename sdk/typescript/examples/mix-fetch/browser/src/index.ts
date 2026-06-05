@@ -1,46 +1,71 @@
-import { mixFetch } from '@nymproject/mix-fetch';
+import { setupMixTunnel, mixFetch, type SetupMixTunnelOpts } from '@nymproject/mix-fetch';
 import { appendOutput, appendImageOutput } from './utils';
 
+// Tunnel configuration. Every field is optional; uncomment to tweak.
+//
+// `debug: true` turns on smolmix-wasm's verbose tracing so you can watch the
+// IPR handshake, DNS lookups, and per-request lifecycle in DevTools. Leave
+// it off in production.
+const setupOpts: SetupMixTunnelOpts = {
+  debug: true,
+
+  // Pin a specific exit IPR. Otherwise auto-discovered from the topology.
+  // preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Anonymity / performance trade-off. Cover traffic + Poisson padding
+  // smear timing patterns at the cost of bandwidth. Default: both on.
+  // disableCoverTraffic: true,
+  // disablePoissonTraffic: true,
+
+  // Custom DNS resolvers (over UDP through the IPR). Default: 1.1.1.1 / 8.8.8.8.
+  // primaryDns: '9.9.9.9',
+  // fallbackDns: '149.112.112.112',
+
+  // Connect / DNS budgets. Defaults: 60s / 30s respectively.
+  // connectTimeoutMs: 30_000,
+  // dnsTimeoutMs: 15_000,
+
+  // mixFetch redirect chain depth. Default: 5.
+  // maxRedirects: 10,
+};
+
 async function main() {
-  // options for mixFetch (you can also set these with the `createMixFetch` function
-  const mixFetchOptions = {
-    preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
-    preferredNetworkRequester:
-      '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
-    mixFetchOverride: {
-      requestTimeoutMs: 60_000,
-    },
-  };
+  appendOutput('Setting up mixnet tunnel...');
+  await setupMixTunnel(setupOpts);
+  appendOutput('Tunnel ready.\n');
 
-  // disable CORS (in your app, you probably don't want to disable CORS, it is a good thing to leave it enabled)
-  const args = { mode: 'unsafe-ignore-cors' };
-
-  // this is the URL of standard list of allow hosts the you can request data from with mixFetch and the Nym SOCKS5
-  // client - you can request to have more hosts added by getting in touch on Discord or Telegram
+  // Standard allowlist for the Nym network-requester. The IPR enforces its own
+  // exit policy, so the URL must pass that policy regardless of the source.
   let url = 'https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt';
 
   appendOutput('Get a text file:');
   appendOutput(`Downloading ${url}...\n`);
-  let resp = await mixFetch(url, args, mixFetchOptions); // NB: you only need to pass options to the 1st call
-  console.log({ resp });
-
+  let resp = await mixFetch(url);
   const text = await resp.text();
   appendOutput(text);
 
-  // get an image
   appendOutput('\nGet an image:\n');
-  url = 'https://nymtech.net/favicon.svg';
-  resp = await mixFetch(url, args);
-  console.log({ resp });
-
+  url = 'https://httpbin.org/image/png';
+  resp = await mixFetch(url);
   const buffer = await resp.arrayBuffer();
-  const type = resp.headers.get('Content-Type') || 'image/svg';
+  const type = resp.headers.get('Content-Type') || 'image/png';
   const blobUrl = URL.createObjectURL(new Blob([buffer], { type }));
   appendImageOutput(blobUrl);
+
+  // Per-request header override. smolmix-wasm ships a browser-shape header
+  // shim (User-Agent + Accept + Accept-Language + Accept-Encoding); anything
+  // you pass in `init.headers` wins over the shim defaults.
+  appendOutput('\nOverride User-Agent for one request:\n');
+  url = 'https://httpbin.org/headers';
+  resp = await mixFetch(url, {
+    headers: { 'User-Agent': 'mix-fetch-example/0.1' },
+  });
+  appendOutput(await resp.text());
 }
 
-// wait for the html to load
 window.addEventListener('DOMContentLoaded', () => {
-  // let's do this!
-  main();
+  main().catch((err) => {
+    console.error(err);
+    appendOutput(`Error: ${err}`);
+  });
 });

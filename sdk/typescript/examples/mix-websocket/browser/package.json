@@ -1,0 +1,16 @@
+{
+  "name": "@nymproject/mix-websocket-example-parcel",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "parcel build --no-cache --no-content-hash",
+    "serve": "serve dist",
+    "start": "parcel --no-cache"
+  },
+  "dependencies": {
+    "@nymproject/mix-websocket": "workspace:*",
+    "parcel": "^2.9.3"
+  },
+  "private": true,
+  "source": "src/index.html"
+}

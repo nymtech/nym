@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! TCP/TLS connection construction shared by `mixFetch` and `mixSocket`,
+//! TCP/TLS connection construction shared by `mixFetch` and `mixWebSocket`,
 //! plus (under the `fetch` feature) the HTTP orchestration + JS `RequestInit` shim.
 
 use std::net::SocketAddr;
@@ -93,26 +93,50 @@ pub async fn fetch(
             result
         };
 
-        // Retry pooled connections once on first-write error; fresh-conn
-        // errors propagate. We only retry idempotent methods because hyper
-        // can fail mid-body-write, and we have no reliable way to tell
-        // whether the server already received and acted on the request. A
-        // silent retry of POST/PUT/PATCH/DELETE could duplicate side-effects
-        // (double payment, repeat resource creation, etc.).
+        // Retry idempotent methods once on a fresh connection in two situations:
+        //   1. The connection came from the pool and failed for any reason
+        //      (typical: server already half-closed the keep-alive socket).
+        //   2. A fresh connection received the response headers but hyper saw
+        //      the body truncate before `Content-Length` / chunked terminator.
+        //      Cloudflare-fronted hosts do this transiently under load — the
+        //      next attempt usually completes cleanly.
+        //
+        // We only retry idempotent methods because hyper can fail mid-body-write
+        // and we have no reliable way to tell whether the server already received
+        // and acted on the request. A silent retry of POST/PUT/PATCH/DELETE could
+        // duplicate side-effects (double payment, repeat resource creation, etc.).
         let http_result = http::request(conn, &method, &url, &opts.headers, body.as_deref()).await;
+
+        let should_retry_fresh = |err: &FetchError| -> bool {
+            if !is_idempotent(&method) {
+                return false;
+            }
+            if from_pool {
+                // Any pooled failure is retryable.
+                return true;
+            }
+            // Fresh-conn case: only retry on hyper's incomplete-message,
+            // i.e. genuine mid-body truncation, not handshake / TLS / IO errors.
+            matches!(err, FetchError::Hyper(e) if e.is_incomplete_message())
+        };
 
         let (response, reusable, conn) = match http_result {
             Ok(result) => result,
-            Err(stale_err) if from_pool && is_idempotent(&method) => {
+            Err(first_err) if should_retry_fresh(&first_err) => {
+                let reason = if from_pool {
+                    "pooled connection failed"
+                } else {
+                    "body truncated mid-stream"
+                };
                 crate::util::debug_log!(
-                    "[fetch] pooled connection failed ({stale_err}), retrying with fresh connection"
+                    "[fetch] {reason} ({first_err}), retrying with fresh connection"
                 );
                 let fresh = new_connection(tunnel, &host, port, is_https).await?;
                 match http::request(fresh, &method, &url, &opts.headers, body.as_deref()).await {
                     Ok(result) => result,
                     Err(e) => {
                         crate::util::debug_error!(
-                            "[fetch] fresh connection also failed: {e} (pooled failed with: {stale_err})"
+                            "[fetch] fresh connection also failed: {e} (first attempt: {first_err})"
                         );
                         return Err(e);
                     }

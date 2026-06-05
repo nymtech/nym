@@ -5,19 +5,31 @@
 TASKSET ?= taskset -c 0-11
 
 .PHONY: build build-rust build-debug build-release-opt check-fmt dev dev-build \
-        internal-dev-install test test\:smoke test\:suite
+        internal-dev-install mark-pkg-private test test\:smoke test\:suite
 
-build: build-rust
+build: build-rust mark-pkg-private
 
 build-rust:
 	$(TASKSET) wasm-pack build --scope nymproject --target web
 
 build-debug:
 	$(TASKSET) wasm-pack build --debug --scope nymproject --target web --features debug
+	$(MAKE) mark-pkg-private
 
 build-release-opt:
 	$(TASKSET) wasm-pack build --scope nymproject --target web
 	$(TASKSET) wasm-opt -Oz -o pkg/smolmix_wasm_bg.wasm pkg/smolmix_wasm_bg.wasm
+	$(MAKE) mark-pkg-private
+
+# smolmix-wasm is workspace-internal: its bytes are base64-inlined into
+# @nymproject/mix-tunnel at build time, so it must never reach npm. wasm-pack
+# does not write `"private": true` itself, so we patch the generated package.json
+# in place. Guard against re-application so the target stays idempotent.
+mark-pkg-private:
+	@if [ -f pkg/package.json ]; then \
+		jq '. + {private: true}' pkg/package.json > pkg/package.json.tmp \
+			&& mv pkg/package.json.tmp pkg/package.json; \
+	fi
 
 check-fmt:
 	cargo fmt --check

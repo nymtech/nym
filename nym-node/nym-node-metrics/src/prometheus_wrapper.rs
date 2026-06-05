@@ -458,7 +458,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(46, PrometheusMetric::COUNT)
+        assert_eq!(47, PrometheusMetric::COUNT)
     }
 
     #[test]

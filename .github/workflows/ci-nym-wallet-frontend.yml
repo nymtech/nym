@@ -1,13 +1,14 @@
 name: ci-nym-wallet-frontend
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'nym-wallet/**'
       - '.github/workflows/ci-nym-wallet-frontend.yml'
 
 jobs:
-  types-lint:
+  build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -43,3 +44,34 @@ jobs:
 
       - name: Unit tests (nym-wallet)
         run: pnpm --filter @nymproject/nym-wallet-app test
+
+      - name: Prepare build output directory
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}/nym-wallet/storybook/
+        run: |
+          rm -rf ci-builds || true
+          mkdir -p "$OUTPUT_DIR"
+          echo "$OUTPUT_DIR"
+
+      - name: Build storybook
+        run: pnpm --filter @nymproject/nym-wallet-app build-storybook
+
+      - name: Copy storybook outputs
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}/nym-wallet/storybook/
+        run: |
+          cp -R nym-wallet/storybook-static "$OUTPUT_DIR"
+
+      - name: Upload storybook to CI build server
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-avz"
+          SOURCE: "ci-builds/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
+          EXCLUDE: "/dist/, /node_modules/"

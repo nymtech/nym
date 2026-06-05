@@ -728,13 +728,13 @@ pub struct NodeStatusAPIDebug {
     pub node_balance_retrieval_concurrency: usize,
 
     #[serde(with = "humantime_serde")]
-    pub chain_balance_refresh_interval: Duration,
+    pub chain_capabilities_refresh_interval: Duration,
 }
 
 impl NodeStatusAPIDebug {
     const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
     const DEFAULT_NODE_BALANCE_RETRIEVAL_CONCURRENCY: usize = 8;
-    const DEFAULT_CHAIN_BALANCE_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // once a day is more than enough
+    const DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // once a day is more than enough
     const DEFAULT_CHAIN_BALANCE_REFRESH_THRESHOLD: u128 = 1_000000; // 1 nym is enough for all tx fees for quite some time
 }
 
@@ -744,7 +744,7 @@ impl Default for NodeStatusAPIDebug {
             caching_interval: Self::DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
             minimum_on_chain_balance_amount: Self::DEFAULT_CHAIN_BALANCE_REFRESH_THRESHOLD,
             node_balance_retrieval_concurrency: Self::DEFAULT_NODE_BALANCE_RETRIEVAL_CONCURRENCY,
-            chain_balance_refresh_interval: Self::DEFAULT_CHAIN_BALANCE_REFRESH_INTERVAL,
+            chain_capabilities_refresh_interval: Self::DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL,
         }
     }
 }

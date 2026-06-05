@@ -60,10 +60,10 @@ pub(crate) async fn start_cache_refresh(
             .node_status_api
             .debug
             .node_balance_retrieval_concurrency,
-        chain_balances_refresh_interval: config
+        chain_capabilities_refresh_interval: config
             .node_status_api
             .debug
-            .chain_balance_refresh_interval,
+            .chain_capabilities_refresh_interval,
 
         fallback_caching_interval: config.node_status_api.debug.caching_interval,
         use_stress_testing_data: config.performance_provider.debug.use_stress_testing_data,

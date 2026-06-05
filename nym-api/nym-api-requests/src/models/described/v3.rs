@@ -279,3 +279,118 @@ impl From<NymNodeAuxiliaryDetailsV3> for NymNodeAuxiliaryDetailsV2 {
         }
     }
 }
+
+#[cfg(any(test, feature = "mock-fixtures"))]
+pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV3 {
+    use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
+    use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
+
+    let mut rng = u64_seeded_rng(seed);
+
+    let ed25519 = nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng);
+
+    // just reuse the same x25519 key for everything - this is just a data mock
+    let x25519 = nym_crypto::asymmetric::x25519::KeyPair::new(&mut rng);
+
+    let mut dummy_kems = std::collections::BTreeMap::new();
+    for kem in [LPKEM::McEliece, LPKEM::McEliece] {
+        let mut kem_digests = std::collections::BTreeMap::new();
+        for (i, sf) in [
+            LPHashFunction::Blake3,
+            LPHashFunction::Shake128,
+            LPHashFunction::Shake256,
+            LPHashFunction::Sha256,
+        ]
+        .iter()
+        .enumerate()
+        {
+            kem_digests.insert(*sf, hex::encode([((seed + i as u64) % 256) as u8; 32]));
+        }
+        dummy_kems.insert(kem, kem_digests);
+    }
+
+    // make sure the serialisation stays the same and signature is still valid
+    let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
+        enabled: false,
+        control_port: 123,
+        data_port: 345,
+        x25519: (*x25519.public_key()).into(),
+        kem_keys: dummy_kems,
+    };
+    let dummy_signed_lp =
+        nym_node_requests::api::SignedLewesProtocol::new(dummy_lp, ed25519.private_key()).unwrap();
+
+    NymNodeDescriptionV3 {
+        node_id: rng.next_u32(),
+        contract_node_type: DescribedNodeTypeV3::NymNode,
+        description: NymNodeDataV3 {
+            last_polled: time::OffsetDateTime::from_unix_timestamp(1767225600)
+                .unwrap()
+                .into(),
+            host_information: HostInformationV3 {
+                ip_address: vec![
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 2, 3, (seed % 255) as u8)),
+                ],
+                hostname: Some(format!("my-awesome-node-{seed}.com")),
+                keys: HostKeysV3 {
+                    ed25519: *ed25519.public_key(),
+                    x25519: *x25519.public_key(),
+                    current_x25519_sphinx_key: SphinxKeyV3 {
+                        rotation_id: 123,
+                        public_key: *x25519.public_key(),
+                    },
+                    pre_announced_x25519_sphinx_key: None,
+                    x25519_versioned_noise: Some(VersionedNoiseKeyV3 {
+                        supported_version: nym_noise_keys::NoiseVersion::V1,
+                        x25519_pubkey: *x25519.public_key(),
+                    }),
+                },
+            },
+            declared_role: DeclaredRolesV3 {
+                mixnode: false,
+                entry: true,
+                exit_nr: true,
+                exit_ipr: true,
+            },
+            auxiliary_details: NymNodeAuxiliaryDetailsV3 {
+                location: Some(celes::Country::switzerland()),
+                address: Some("n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf".to_string()),
+                announce_ports: Default::default(),
+                accepted_operator_terms_and_conditions: true,
+            },
+            build_information: BinaryBuildInformationOwned {
+                binary_name: "dummy-node".to_string(),
+                build_timestamp: "2021-02-23T20:14:46.558472672+00:00".to_string(),
+                build_version: "0.1.0-9-g46f83e1".to_string(),
+                commit_sha: "46f83e112520533338245862d366f6a02cef07d4".to_string(),
+                commit_timestamp: "2021-02-23T08:08:02-05:00".to_string(),
+                commit_branch: "master".to_string(),
+                rustc_version: "1.52.0-nightly".to_string(),
+                rustc_channel: "nightly".to_string(),
+                cargo_profile: "release".to_string(),
+                cargo_triple: "wasm32-unknown-unknown".to_string(),
+            },
+            network_requester: Some(NetworkRequesterDetailsV3 {
+                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
+                uses_exit_policy: true,
+            }),
+            ip_packet_router: Some(IpPacketRouterDetailsV3 {
+                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
+            }),
+            authenticator: Some(AuthenticatorDetailsV3 {
+                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
+            }),
+            wireguard: Some(WireguardDetailsV3 {
+                port: 123,
+                tunnel_port: 234,
+                metadata_port: 456,
+                public_key: x25519.public_key().to_base58_string(),
+            }),
+            lewes_protocol: Some(dummy_signed_lp.into()),
+            mixnet_websockets: WebSocketsV3 {
+                ws_port: 9000,
+                wss_port: None,
+            },
+        },
+    }
+}

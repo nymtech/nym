@@ -419,12 +419,21 @@ pub struct NodeAnnotationV1 {
     pub detailed_performance: DetailedNodePerformanceV1,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+pub struct ChainInteractionCapabilitiesDetailed {
+    #[schema(value_type = CoinSchema)]
+    pub on_chain_balance: Coin,
+
+    // later to be expanded with information on whether the grant would cover
+    // cosmwasm executemsg, but for now we assume any feegrant is sufficient
+    pub is_feegrant_grantee: bool,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NodeAnnotationV2 {
     pub current_role: Option<DisplayRole>,
 
-    #[schema(value_type = Option<CoinSchema>)]
-    pub on_chain_balance: Option<Coin>,
+    pub chain_interaction_capabilities: Option<ChainInteractionCapabilitiesDetailed>,
 
     pub detailed_performance: DetailedNodePerformanceV2,
 }

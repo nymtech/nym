@@ -17,13 +17,16 @@ use crate::{
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
-use cosmwasm_std::Coin;
+use cosmwasm_std::{coin, Coin};
 use futures::StreamExt;
 use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
-use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2};
+use nym_api_requests::models::{
+    ChainInteractionCapabilitiesDetailed, DetailedNodePerformanceV2, NodeAnnotationV2,
+};
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
+use nym_validator_client::nyxd::module_traits::feegrant::query::FeegrantQueryClient;
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::collections::HashMap;
@@ -38,9 +41,9 @@ pub(crate) struct NodeStatusCacheConfig {
     pub(crate) minimum_on_chain_balance: Coin,
     pub(crate) balance_retrieval_concurrency: usize,
 
-    /// Indicates how often should the chain balances of known nodes be refreshed.
+    /// Indicates how often should the chain balances (and feegrants) of known nodes be refreshed.
     /// (it is an overkill to do it every single iteration)
-    pub(crate) chain_balances_refresh_interval: Duration,
+    pub(crate) chain_capabilities_refresh_interval: Duration,
 
     pub(crate) fallback_caching_interval: Duration,
 
@@ -232,10 +235,11 @@ impl NodeStatusCacheRefresher {
 
     // SAFETY: unwrap is fine as if the mutex got poisoned we'd be experiencing some UB anyway
     #[allow(clippy::unwrap_used)]
-    async fn retrieve_balances(
+    async fn retrieve_chain_info(
         &self,
         nodes: &DescribedNodes,
-    ) -> Result<HashMap<NodeId, Option<Coin>>, NodeStatusCacheError> {
+    ) -> Result<HashMap<NodeId, Option<ChainInteractionCapabilitiesDetailed>>, NodeStatusCacheError>
+    {
         let denom = self.config.minimum_on_chain_balance.denom.clone();
 
         // create an iterator of node ids with valid associated account addresses
@@ -260,30 +264,24 @@ impl NodeStatusCacheRefresher {
         let concurrency = self.config.balance_retrieval_concurrency.max(1);
 
         // std Mutex is fine because we don't hold it across await points
-        let balances = std::sync::Mutex::new(HashMap::<NodeId, Option<Coin>>::new());
+        let capabilities = std::sync::Mutex::new(HashMap::<
+            NodeId,
+            Option<ChainInteractionCapabilitiesDetailed>,
+        >::new());
         futures::stream::iter(to_check)
             .for_each_concurrent(concurrency, |(node_id, account_id)| {
                 let denom = denom.clone();
                 let query_client = &self.query_client;
-                let balances = &balances;
+                let capabilities = &capabilities;
                 async move {
-                    match query_client.get_balance(&account_id, denom).await {
-                        Ok(balance) => {
-                            balances
-                                .lock()
-                                .unwrap()
-                                .insert(node_id, balance.map(Into::into));
-                        }
-                        Err(err) => {
-                            warn!(node_id, %err, "failed to retrieve node balance");
-                        }
-                    }
+                    let chain_info =
+                        retrieve_chain_capabilities(query_client, node_id, account_id, denom).await;
+                    capabilities.lock().unwrap().insert(node_id, chain_info);
                 }
             })
             .await;
-        let balances = balances.into_inner().unwrap();
 
-        Ok(balances)
+        Ok(capabilities.into_inner().unwrap())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -295,7 +293,7 @@ impl NodeStatusCacheRefresher {
         nym_nodes: &[NymNodeDetails],
         rewarded_set: &CachedEpochRewardedSet,
         described_nodes: &DescribedNodes,
-        balances: HashMap<NodeId, Option<Coin>>,
+        chain_capabilities: HashMap<NodeId, Option<ChainInteractionCapabilitiesDetailed>>,
     ) -> HashMap<NodeId, NodeAnnotationV2> {
         let mut annotations = HashMap::new();
         if nym_nodes.is_empty() {
@@ -336,13 +334,13 @@ impl NodeStatusCacheRefresher {
             let described = described_nodes.get_node(&node_id);
             let routing_score = routing_scores.get_or_log(node_id);
             let stress_testing_score = stress_testing_scores.get_or_log(node_id);
-            let on_chain_balance = balances.get(&node_id).unwrap_or(&None).clone();
+            let node_chain_cap = chain_capabilities.get(&node_id).unwrap_or(&None).clone();
 
             let config_score = calculate_config_score(
                 minimum_balance,
                 config_score_data,
                 described,
-                &on_chain_balance,
+                &node_chain_cap,
             );
 
             // a node only takes the stress-testing component if it is actually stress-tested (i.e.
@@ -360,7 +358,7 @@ impl NodeStatusCacheRefresher {
                 node_id,
                 NodeAnnotationV2 {
                     current_role: rewarded_set.role(node_id).map(|r| r.into()),
-                    on_chain_balance,
+                    chain_interaction_capabilities: node_chain_cap,
                     detailed_performance: DetailedNodePerformanceV2::new(
                         performance,
                         routing_score,
@@ -374,11 +372,11 @@ impl NodeStatusCacheRefresher {
         annotations
     }
 
-    fn should_refresh_balances(&self) -> bool {
+    fn should_refresh_chain_interaction(&self) -> bool {
         let Some(last_refresh) = self.last_refreshed_chain_balances else {
             return true;
         };
-        last_refresh.elapsed() > self.config.chain_balances_refresh_interval
+        last_refresh.elapsed() > self.config.chain_capabilities_refresh_interval
     }
 
     /// Refreshes the node status cache by fetching the latest data from the contract cache
@@ -417,13 +415,13 @@ impl NodeStatusCacheRefresher {
 
         // decide whether to refresh cache of node balances
 
-        let balances = if self.should_refresh_balances() {
-            let balances = self.retrieve_balances(&described).await?;
+        let chain_info = if self.should_refresh_chain_interaction() {
+            let info = self.retrieve_chain_info(&described).await?;
             self.last_refreshed_chain_balances = Some(Instant::now());
-            balances
+            info
         } else {
             // use the currently cached values instead
-            self.cache.node_balances().await?
+            self.cache.chain_information().await?
         };
 
         // Create annotated data
@@ -435,7 +433,7 @@ impl NodeStatusCacheRefresher {
                 &nym_nodes,
                 &rewarded_set,
                 &described,
-                balances,
+                chain_info,
             )
             .await;
 
@@ -452,6 +450,38 @@ impl NodeStatusCacheRefresher {
 
         Ok(())
     }
+}
+
+async fn retrieve_chain_capabilities(
+    query_client: &QueryHttpRpcNyxdClient,
+    node_id: NodeId,
+    account_id: AccountId,
+    balance_denom: String,
+) -> Option<ChainInteractionCapabilitiesDetailed> {
+    let on_chain_balance = match query_client
+        .get_balance(&account_id, balance_denom.clone())
+        .await
+    {
+        Ok(balance) => balance.map(Into::into).unwrap_or(coin(0, balance_denom)),
+        Err(err) => {
+            warn!(node_id, %err, "failed to retrieve node balance");
+            return None;
+        }
+    };
+
+    let is_feegrant_grantee = match query_client.allowances(account_id, None).await {
+        Ok(allowances) => !allowances.allowances.is_empty(),
+        Err(err) => {
+            warn!(node_id, %err, "failed to retrieve node feegrant allowances");
+            // if there was a network blip, at least preserve the balance information
+            false
+        }
+    };
+
+    Some(ChainInteractionCapabilitiesDetailed {
+        on_chain_balance,
+        is_feegrant_grantee,
+    })
 }
 
 /// Whether `node` is currently in scope for stress testing, and therefore expected to have a
@@ -506,7 +536,7 @@ fn node_performance(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_api_requests::models::mock_nym_node_description;
+    use nym_api_requests::models::described::v3::mock_nym_node_description;
 
     #[test]
     fn ineligible_nodes_are_not_penalised_for_missing_stress_data() {

@@ -1,7 +1,7 @@
 ## 1. Build-time mock provider seam
 
 - [ ] 1.1 Add a webpack `DefinePlugin` constant for the families mock flag (e.g. `process.env.WALLET_MOCK_FAMILIES`, tri-state `owner|operator|off`, default `off`) in the dev/mock webpack config.
-- [ ] 1.2 Introduce a provider-selection module that exports either `FamiliesContextProvider` (real) or `MockFamiliesContextProvider` (mock) based on the compile-time flag, behind a `const` guard so the unused branch tree-shakes.
+- [ ] 1.2 Introduce a provider-selection module that exports either `FamiliesContextProvider` (real) or `MockFamiliesContextProvider` (mock) based on the compile-time flag, behind a `const` guard so the unused branch tree-shakes. Keep this seam in its **own** module — do NOT make `FamilyPage.tsx` depend on the flag or on Tauri, so the merged `FamilyPage.figma.tsx` Code Connect mapping (`example: () => <FamilyPage />`) still imports it in isolation.
 - [ ] 1.3 Have the Family route/entry consume the selection module instead of importing `FamiliesContextProvider` directly; in mock mode seed `buildOwnerFlowStore` / `buildOperatorFlowStore` per the persona flag (reuse `families.fixtures.ts`).
 - [ ] 1.4 Ensure the Family page is reachable via normal in-app navigation in the mock build and renders inside the app shell (not a Storybook iframe), keeping the existing `data-testid`s.
 - [ ] 1.5 Verify a default (flag `off`) production build excludes families mock-engine code (inspect bundle / add a guard); confirm the real provider still wires unchanged.
@@ -29,14 +29,15 @@
 
 ## 5. CI integration
 
-- [ ] 5.1 Add a Linux CI job that installs `WebKitWebDriver` (WebKitGTK) and `tauri-driver` (`cargo install --locked`, cached).
-- [ ] 5.2 In the job, build the mock-wired binary (per persona) and run `test:e2e:tauri`; fail the job on any owner/operator journey failure.
-- [ ] 5.3 Keep the existing Playwright/Storybook `test:e2e` job as the cross-platform check (unchanged); document the split in the e2e README/comment.
-- [ ] 5.4 Optionally gate the native-webview job as non-blocking initially if flaky, with a note to promote it to required once stable.
+- [ ] 5.1 Add a **separate** job to `.github/workflows/ci-nym-wallet-frontend.yml` (alongside the existing `build` job, not appended to it) running on `ubuntu-22.04`, installing `WebKitWebDriver` (WebKitGTK) and `tauri-driver` (`cargo install --locked`, cached) plus the Tauri/Rust build toolchain.
+- [ ] 5.2 In that job, build the mock-wired binary (per persona) and run `test:e2e:tauri`; fail the job on any owner/operator journey failure.
+- [ ] 5.3 Decide whether to also wire the existing Playwright→Storybook `test:e2e` into the `build` job as the cross-platform check (it is currently NOT in CI — only unit tests + `build-storybook` run); document the two-suite split in the e2e README/comment.
+- [ ] 5.4 Optionally gate the native-webview job as non-blocking (`continue-on-error`) initially if flaky, with a note to promote it to required once stable.
 
 ## 6. Verification & docs
 
 - [ ] 6.1 Run the WebdriverIO suite in CI (Linux) and confirm both owner and operator journeys pass against the native webview.
 - [ ] 6.2 Confirm the macOS local invocation skips cleanly (no red failure).
 - [ ] 6.3 Confirm `tsc` + eslint stay clean and the production build is unaffected (no mock code, no behavior change).
+- [ ] 6.4a Confirm the provider seam didn't break Code Connect (`FamilyPage.figma.tsx` still type-checks / `figma connect` parse is clean) and that the Nym 2.0 theme swap left all journey `data-testid`s intact (selectors unchanged).
 - [ ] 6.4 Document the two-suite setup (Playwright→Storybook for local/cross-platform; WebdriverIO→tauri-driver for native-webview CI) and the mock-flag usage in the wallet README / e2e comments.

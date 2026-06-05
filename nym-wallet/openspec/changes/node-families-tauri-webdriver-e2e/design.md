@@ -45,6 +45,9 @@ The mock build seeds `buildOwnerFlowStore` / `buildOperatorFlowStore` and the pa
 **D5 — Skip-not-fail on unsupported platforms.**
 The WebdriverIO suite detects macOS (or a missing `tauri-driver`/`WebKitWebDriver`) and skips with a clear message, so `pnpm test:e2e:tauri` on a Mac is a no-op rather than a red failure. CI is the source of truth.
 
+**D6 — Separate CI job, not a step in `build` (reconciled with recent merge).**
+The merged `ci-nym-wallet-frontend.yml` has one `build` job (ubuntu-22.04) doing install → tsc → lint → unit tests → build-storybook → upload. The native-webview suite is added as a **separate job** rather than appended to `build`: it additionally needs a Rust/Tauri compile, `WebKitWebDriver`, and `tauri-driver`, which would slow every `build` run and couple unrelated failures. It can `needs: build` (reuse nothing) or run independently. *Also reconciled:* the existing Playwright→Storybook suite (`test:e2e`) is **not yet in CI** — only unit tests + Storybook build are — so the "keep Playwright as the cross-platform check" intent means optionally wiring `test:e2e` into CI too, not assuming it already runs there.
+
 ## Risks / Trade-offs
 
 - **Native-webview e2e can't run on the developer's Mac** → Keep the Playwright/Storybook suite as the local check (works everywhere); rely on Linux CI for native-webview coverage; D5 makes the local invocation a clean skip.
@@ -52,6 +55,8 @@ The WebdriverIO suite detects macOS (or a missing `tauri-driver`/`WebKitWebDrive
 - **Build-flag branch could accidentally ship mock code** → Default flag off; add a check (bundle assertion or the existing `check:singletons`-style guard) and the spec scenario "Production build excludes mock code" to lock it in.
 - **`tauri-driver` + `WebKitWebDriver` version drift in CI** → Pin `tauri-driver` (`cargo install --locked`) and install a known WebKitGTK driver in the CI image; cache cargo bin.
 - **Duplicated journey logic across two suites drifts over time** → Both target identical `data-testid`s and assert identical outcomes (parity requirement); factor shared selector/step constants if drift appears.
+- **Provider seam breaks the merged Figma Code Connect mapping** (`FamilyPage.figma.tsx` does `example: () => <FamilyPage />`) → Keep the mock/real selection in a *separate* module (D2); never make `FamilyPage`'s own module depend on the flag or on Tauri, so it stays importable in isolation. The `src/**/*.figma.tsx` include is unaffected.
+- **Theme swap (Nym 2.0) changing appearance under test** → Confirmed color-only (no DOM/`data-testid` change, families components untouched by the merge); journeys assert visibility/test ids, not pixels, so parity holds across the palette change.
 
 ## Migration Plan
 

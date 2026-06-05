@@ -71,6 +71,7 @@ impl From<&Key> for KeyWrapper {
 #[derive(Hash, PartialOrd, PartialEq, Clone, Debug, Eq)]
 pub enum PeerControlRequestType {
     AddPeer { public_key: KeyWrapper },
+    UpdatePeerPsk { peer_key: KeyWrapper },
     AllocatePeerIpPair {},
     ReleaseIpPair { ip_pair: IpPair },
     RemovePeer { key: KeyWrapper },
@@ -86,6 +87,7 @@ impl PeerControlRequestType {
     pub fn peer_key(&self) -> Option<KeyWrapper> {
         match self {
             PeerControlRequestType::AddPeer { public_key } => Some(public_key.clone()),
+            PeerControlRequestType::UpdatePeerPsk { peer_key } => Some(peer_key.clone()),
             PeerControlRequestType::AllocatePeerIpPair {} => None,
             PeerControlRequestType::ReleaseIpPair { .. } => None,
             PeerControlRequestType::RemovePeer { key } => Some(key.clone()),
@@ -109,6 +111,11 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             PeerControlRequest::AddPeer { peer, .. } => PeerControlRequestType::AddPeer {
                 public_key: (&peer.public_key).into(),
             },
+            PeerControlRequest::UpdatePeerPsk { peer_key, .. } => {
+                PeerControlRequestType::UpdatePeerPsk {
+                    peer_key: peer_key.into(),
+                }
+            }
             PeerControlRequest::PreAllocateIpPair { .. } => {
                 PeerControlRequestType::AllocatePeerIpPair {}
             }
@@ -269,6 +276,9 @@ impl MockPeerController {
                 if response.success {
                     peer.add_success = true;
                 }
+                response_tx.send_downcasted(response.content)
+            }
+            PeerControlRequest::UpdatePeerPsk { response_tx, .. } => {
                 response_tx.send_downcasted(response.content)
             }
             PeerControlRequest::PreAllocateIpPair { response_tx, .. } => {

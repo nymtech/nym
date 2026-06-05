@@ -157,6 +157,9 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The distribution of defguard peer creation time"))]
     WireguardDefguardPeerCreation,
 
+    #[strum(props(help = "The distribution of defguard peer psk update time"))]
+    WireguardDefguardPeerPskUpdate,
+
     #[strum(props(
         help = "The distribution of time it takes to verify a credential during peer registration"
     ))]
@@ -318,6 +321,9 @@ impl PrometheusMetric {
             PrometheusMetric::WireguardBytesTxRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::WireguardBytesRxRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::WireguardDefguardPeerCreation => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
+            PrometheusMetric::WireguardDefguardPeerPskUpdate => {
                 Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
             }
             PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg1 => {

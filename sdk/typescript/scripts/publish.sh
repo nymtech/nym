@@ -34,7 +34,12 @@ cd "$REPO_ROOT"
 # Arm the cleanup before mutating the workspace: dev:off filters unconditionally,
 # so it is safe even if dev:on fails mid-write, and this closes the window where a
 # crash between the two would leave pnpm-workspace.yaml dirty.
-trap 'pnpm dev:off' EXIT
+#
+# The trap must cd back to the repo root first: a failed `pnpm publish` exits
+# (errexit) while still inside a pushd'd package dir, and `dev:off` is a script
+# defined only in the root package.json. Running it from a package dir fails with
+# "Command dev:off not found" and leaves dev mode on.
+trap 'cd "$REPO_ROOT" && pnpm dev:off' EXIT
 pnpm dev:on
 
 packages=(

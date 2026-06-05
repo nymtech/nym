@@ -171,6 +171,14 @@ impl LpControlListener {
     }
 
     fn handle_connection(&self, stream: tokio::net::TcpStream, remote_addr: SocketAddr) {
+        // Disable Nagle's algorithm on the accepted socket so our responses are flushed
+        // immediately rather than coalesced. This is the write side of every reply we send,
+        // including handshake replies forwarded back to an entry gateway. Non-fatal: a valid
+        // connection should still be served if the option can't be set.
+        if let Err(e) = stream.set_nodelay(true) {
+            warn!("failed to set TCP_NODELAY on accepted LP connection from {remote_addr}: {e}");
+        }
+
         if let Some(initiator_details) = self
             .nodes_handler_state
             .nodes

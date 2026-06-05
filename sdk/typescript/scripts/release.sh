@@ -9,7 +9,7 @@ make sdk-wasm-build
 
 # Build Typescript packages
 pnpm i
-pnpm build:sdk
+pnpm sdk:build
 
 # Publish to NPM
 ./sdk/typescript/scripts/publish.sh

@@ -35,8 +35,8 @@ This design supersedes an earlier framing that made WebdriverIO + `tauri-driver`
 **D1 — Playwright against the mock-wired dev server is the PRIMARY suite.**
 Point Playwright at `http://localhost:9000` with the mock flag on, and replay the journeys against the real app shell + router. Rationale: runs on every OS (incl. the developer's Mac), reuses the already-present `@playwright/test` dep and the existing selectors/specs, and tests the actual app chrome rather than Storybook iframes. *Alternative considered:* keep driving Storybook stories — lower fidelity (no router/app shell) and no closer to the real app. *Alternative considered:* Cypress — no advantage over the Playwright suite already in the repo.
 
-**D2 — Build-time env flag selects the provider (not runtime).**
-A webpack `DefinePlugin` constant (e.g. `WALLET_MOCK_FAMILIES`, tri-state `owner|operator|off`) gates the import of `MockFamiliesContextProvider` vs `FamiliesContextProvider` behind a `const` check; with the flag off (default) the dead branch and its transitive mock imports tree-shake out. The flag both selects the mock provider and chooses the persona seed (`buildOwnerFlowStore` / `buildOperatorFlowStore`). *Alternatives considered:* runtime URL/query flag (ships mock code in prod unless guarded; rejected) and a separate entry point (heavier; unnecessary since the page is already provider-agnostic).
+**D2 — Build-time flag gates mock-vs-real; persona is chosen at runtime *within* the mock build.**
+A webpack `DefinePlugin` boolean (`WALLET_MOCK_FAMILIES=on|off`, default `off`) gates the import of `MockFamiliesContextProvider` vs `FamiliesContextProvider` behind a `const` check; with the flag off the dead branch and its transitive mock imports tree-shake out, so no mock code ships. The **persona** (`buildOwnerFlowStore` / `buildOperatorFlowStore` + sender) is selected at *runtime* from a URL param (`?persona=owner|operator`, default `owner`) read only by the mock route wrapper. This stays prod-safe — the runtime reader lives inside the already-build-gated mock branch — and means a **single** dev server serves both personas, so Playwright just navigates to different URLs (resolves the persona open question). *Alternatives considered:* tri-state build flag with one persona per build (forces two dev servers / two builds; rejected as heavier and slower); pure runtime URL flag for mock-vs-real (ships mock code in prod unless guarded; rejected); separate entry point (unnecessary — the page is already provider-agnostic).
 
 **D3 — Reuse the existing fixtures and selectors verbatim.**
 The mock-wired dev server seeds the same fixtures as the Storybook flows, and the page already exposes the journey `data-testid`s, so the Playwright journeys mirror `FamilyFlows.stories.tsx` step-for-step. The same selectors then carry over to the optional WebdriverIO leg, keeping all suites observably equivalent.
@@ -52,6 +52,15 @@ The merged `ci-nym-wallet-frontend.yml` has one `build` job (ubuntu-22.04: insta
 
 **D7 — Sandbox real-IPC smoke is a separate, optional, READ-only tier.**
 The sandbox contract (one family/one member) lets us smoke the real `FamiliesContextProvider` + `src/requests/families.ts` against a live chain — validating the IPC wiring that the mock deliberately stands in for (parent-change 9.4). Keep it read-only and separate from the deterministic mock e2e: a shared sandbox is a poor place to run create/kick/disband lifecycles, and live-network reads are inherently flakier. *Alternative considered:* fold sandbox into the main e2e — rejected (non-determinism + shared-state mutation).
+
+**D8 — Native leg is Linux-only initially (no Windows leg yet).**
+Tier 2 ships as a single Ubuntu job. Adding the Windows/WebView2 leg (also supported by `tauri-driver`) doubles CI cost and maintenance for a tier that is already optional/`continue-on-error`; WebKitGTK on Linux is the higher-value target since it is closest to the Linux desktop builds. Revisit Windows only if a WebView2-specific regression surfaces.
+
+**D9 — Sandbox smoke ships as a documented MANUAL step first, pinning the known family id.**
+A live sandbox read needs a connected, funded wallet account, which is not provisionable non-interactively in CI today (mnemonic in secrets + network + chain availability). So D7's smoke starts as a documented manual procedure that pins the known sandbox family id and asserts render/shape, not exact contents. It graduates to a CI job only once a sandbox test account can be provisioned headlessly — tracked as a follow-up, not a blocker.
+
+**D10 — One Playwright suite: repoint to the dev server, retire the Storybook-iframe specs.**
+Rather than maintain two Playwright suites, repoint the single `e2e/families.spec.ts` at the mock-wired dev server (`:9000`). The Storybook `play` functions remain as Storybook-level interaction coverage (runnable via the test-runner), but we do not keep a parallel Playwright-against-Storybook suite — it would be lower fidelity and a drift source for no added coverage.
 
 ## Risks / Trade-offs
 
@@ -69,7 +78,10 @@ Additive only. Rollout: (1) build-time flag + provider seam; (2) repoint Playwri
 
 ## Open Questions
 
-- Persona handling for the dev server: one server per persona run (re-launch with a different `WALLET_MOCK_FAMILIES`) vs a single launch with a runtime persona switch — default to per-run env, resolve during tasks.
-- Whether to add a Windows leg to the native job (supported by `tauri-driver`) or keep Linux-only initially — start Linux-only.
-- Sandbox smoke placement: CI job vs a documented manual step, and whether it pins a known family id — resolve during tasks.
-- Whether to retire the Storybook-iframe Playwright specs once the dev-server suite lands, or keep both — lean toward repointing (one suite).
+All four prior open questions are now resolved:
+- **Persona handling** → single dev server; persona via runtime `?persona=` URL param inside the build-gated mock branch (**D2**).
+- **Windows native leg** → no; Linux-only initially (**D8**).
+- **Sandbox smoke placement / family id** → documented manual step first, pinning the known sandbox family id; CI only once a headless test account exists (**D9**).
+- **Retire Storybook-iframe Playwright specs?** → yes; one suite, repointed at the dev server (**D10**).
+
+Residual (a follow-up, not a blocker): provisioning a headless sandbox test account would let D9's smoke graduate from manual to CI.

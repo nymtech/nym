@@ -1,0 +1,27 @@
+---
+title: "mix-tunnel concepts & security"
+description: "The mix-tunnel security model and the browser architecture behind the shared tunnel."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+import { Callout } from 'nextra/components'
+
+# Concepts & security
+
+## Security model
+
+`mix-tunnel` follows the shared [mixnet exit security model](/developers/concepts/exit-security): Sphinx-encrypted traffic across the mixnet, with the IPR exit seeing the destination IP and whatever the application layer didn't encrypt. The differences in the browser are:
+
+- The tunnel runs in a Web Worker, so it doesn't block the UI thread.
+- TLS is handled by [`rustls`](https://docs.rs/rustls) inside the WASM (used by `mix-fetch` for HTTPS). End-to-end ciphertext leaves your machine.
+- The entry-gateway WebSocket uses WSS by default (`forceTls`), which also avoids [mixed-content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) errors on HTTPS pages.
+
+<Callout type="warning">
+The IPR sees the destination IP and port of every outbound connection. TLS (used by `mix-fetch` for HTTPS, and available to `mix-websocket` for WSS) keeps the payload as ciphertext to the IPR. Plain HTTP and unencrypted WS are visible to the IPR in full. Pin a trusted IPR (`preferredIpr`) or treat the exit as you would a VPN exit.
+</Callout>
+
+## Architecture
+
+The shared-worker pattern, the Comlink boundary between the main thread and the WASM, the `proxy` re-export, and the smoltcp + rustls stack inside the worker are shared by all four packages and documented once on the [mix-* architecture page](/developers/mix-architecture).

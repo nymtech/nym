@@ -3,19 +3,12 @@ title: "mix-fetch: fetch() Over the Nym Mixnet"
 description: "Drop-in fetch() replacement that routes HTTP and HTTPS requests through the Nym mixnet via an IPR exit gateway."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-29"
+lastUpdated: "2026-06-05"
 ---
 
 # mix-fetch
 
-import { Callout } from 'nextra/components'
-
-{/* Live demo: committed but inactive until @nymproject/mix-fetch is published on npm.
-    To activate, remove this comment wrapper and the matching one around the component below.
-import { MixFetchDemo } from '../../components/mix-demos/mix-fetch-demo'
-*/}
-
-`@nymproject/mix-fetch` is a drop-in replacement for the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP and HTTPS through the Nym mixnet. The call signature is unchanged: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours.
+[`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) routes HTTP and HTTPS through the Nym mixnet behind the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) signature: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours. It is not a perfect substitute for `fetch`: no cookies or credentials, no HTTP cache, no `AbortController`, and HTTPS in practice (see [drop-in caveats](/developers/mix-fetch/guides#drop-in-caveats)).
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
@@ -31,144 +24,11 @@ import { MixFetchDemo } from '../../components/mix-demos/mix-fetch-demo'
 
 TLS terminates end-to-end between the WASM bundle and the destination server. The IPR sees destination IP and port; for HTTPS targets, payload is TLS ciphertext.
 
-## Installation
+## In this section
 
-```bash
-npm install @nymproject/mix-fetch
-```
-
-ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel#installation), so there's no WASM bundler config to set up. See [mix-tunnel's installation notes](/developers/mix-tunnel#installation) for the Webpack, Vite, and esbuild specifics.
-
-## Quick start
-
-```ts
-import { setupMixTunnel, mixFetch, disconnectMixTunnel } from '@nymproject/mix-fetch';
-
-// Bring the shared mixnet tunnel up. Same call works from mix-dns and mix-websocket.
-await setupMixTunnel();
-
-// Drop-in fetch. The Response is the real DOM Response, not a wrapper.
-const res = await mixFetch('https://example.com');
-console.log(res.status, await res.text());
-
-// Tear down. The WASM is unusable after this until page reload.
-await disconnectMixTunnel();
-```
-
-For one-shot use without an explicit setup step, the `createMixFetch` helper combines setup and fetch:
-
-```ts
-import { createMixFetch } from '@nymproject/mix-fetch';
-
-const mixFetch = await createMixFetch({ disableCoverTraffic: true });
-const res = await mixFetch('https://example.com');
-```
-
-Subsequent calls reuse the same tunnel; `createMixFetch` is safe to call multiple times.
-
-## Request shape
-
-The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, body, and `signal` (for `AbortController`) all work.
-
-```ts
-const res = await mixFetch('https://httpbin.org/post', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ hello: 'mixnet' }),
-});
-console.log(await res.json());
-```
-
-Binary responses come back via the standard `Response.arrayBuffer()` / `Response.blob()` methods:
-
-```ts
-const res = await mixFetch('https://example.com/image.png');
-const blob = await res.blob();
-```
-
-Repeated headers (`Set-Cookie`, `Vary`, `Link`, `WWW-Authenticate`) are preserved. The wasm side returns headers as a `[name, value]` pair sequence, which `Headers` reconstructs verbatim.
-
-## Default request headers
-
-When the caller doesn't set them, `mixFetch` injects four browser-shape headers before the request leaves the tunnel. The shim exists because many CDNs (cloudflare's bot management) and host policies (wikimedia's User-Agent policy) reject requests that look unlike a real browser. Caller-supplied values always win.
-
-| Header | Injected default |
-|--------|------------------|
-| `User-Agent` | `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36` |
-| `Accept` | `text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8` |
-| `Accept-Language` | `en-US,en;q=0.9` |
-| `Accept-Encoding` | `identity` |
-
-`Accept-Encoding` is forced to `identity` rather than `gzip, deflate, br` because the wasm build has no decompressor. Advertising compression would surface gzip bytes to the caller un-decoded.
-
-To override any of these, set the header in the `init.headers` bag like normal:
-
-```ts
-const res = await mixFetch('https://example.com', {
-  headers: { 'User-Agent': 'my-app/1.0' },
-});
-```
-
-<Callout type="info">
-The shim does not attempt full browser impersonation. TLS fingerprint (JA3), HTTP/2, and header ordering are still distinguishable from a real Chrome request. If you need stronger blend-in, you'll need to handle that at the application or destination layer.
-</Callout>
-
-## Drop-in caveats
-
-`mixFetch` matches the `fetch()` call signature but is not a perfect substitute. The differences are intentional and follow from running outside the browser's networking stack:
-
-| Difference | What it means | What to do |
-|---|---|---|
-| **No same-origin restriction** | Requests aren't subject to browser CORS preflight. The IPR honours its exit policy regardless of `Origin`. | Don't rely on CORS as an access-control mechanism for `mixFetch` requests; treat them as you would server-to-server calls. |
-| **No cookies / credentials** | The browser cookie jar is not shared with the WASM bundle. `credentials: 'include'` has no effect. | Pass auth tokens via `Authorization` or other explicit headers. |
-| **No HTTP cache** | The browser HTTP cache is not consulted. Every call hits the network. | Cache responses at the application layer if needed. |
-| **No service-worker interception** | Requests don't pass through any `fetch` event handlers registered by service workers. | n/a |
-| **HTTPS only in practice** | The IPR sees plaintext HTTP in full. | Always target `https://` URLs. |
-
-{/* Live demo: remove this wrapper to activate (see the import note near the top).
-<MixFetchDemo />
-*/}
-
-## Configuration
-
-`setupMixTunnel(opts)` (and `createMixFetch(opts)`) accept the shared tunnel options from [`@nymproject/mix-tunnel`](/developers/mix-tunnel#configuration). The most commonly touched are:
-
-```ts
-await setupMixTunnel({
-  // Pin a specific IPR (otherwise auto-discovered from the topology).
-  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
-
-  // Lower latency and bandwidth at the cost of traffic-analysis resistance.
-  disableCoverTraffic: true,
-  disablePoissonTraffic: true,
-});
-```
-
-The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
-
-<Callout type="info">
-The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gateway handshake, IPR discovery, and the first DNS resolution all happen on demand. Subsequent calls reuse the tunnel and complete in roughly the time of a normal HTTPS request plus mixnet latency.
-</Callout>
-
-## Security model
-
-`mix-fetch` follows the shared [mixnet exit security model](/developers/concepts/exit-security): the IPR exit sees your destination, and you rely on TLS to keep the payload as ciphertext to it. The browser-specific consequences are:
-
-| Segment | What's visible |
-|---|---|
-| Browser → entry gateway | WebSocket (WSS when the page is served over HTTPS). Entry gateway sees your IP, not the destination. |
-| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
-| IPR exit gateway | Destination IP and port. For HTTPS, payload is TLS ciphertext from the WASM bundle, terminating at the destination. For HTTP, payload is plaintext. |
-| IPR → destination | Regular TCP. The destination sees the IPR's IP, not yours. |
-
-<Callout type="warning">
-TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. The Mozilla CA bundle is compiled into the WASM. Mixed content rules still apply at the page level, so serve your app over HTTPS.
-</Callout>
-
-## Migrating from v1.x
-
-v2 is a clean break: one ESM package instead of five, the v1 setup options replaced by [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts), the `mode: 'unsafe-ignore-cors'` flag dropped, and a single WASM module exiting via an IPR rather than the old Go-WASM + Network Requester pair. The package-by-package and option-by-option mapping is on [Migrating from v1.x](/developers/mix-fetch/migration).
-
-## API reference
-
-Generated from the source: [**@nymproject/mix-fetch**](/developers/mix-fetch/api/globals). The package adds `mixFetch(url, init?)` and `createMixFetch(opts?)`, and re-exports the tunnel controls (`setupMixTunnel`, `disconnectMixTunnel`, `getTunnelState`) from [`mix-tunnel`](/developers/mix-tunnel).
+- [Get started](/developers/mix-fetch/get-started): install and make your first mixnet request.
+- [Reference](/developers/mix-fetch/guides): request shape, default headers, drop-in caveats, configuration.
+- [Concepts & security](/developers/mix-fetch/concepts): what the IPR exit sees.
+- [Migrating from v1.x](/developers/mix-fetch/migration): the v1 to v2 clean break.
+- [TypeDoc reference](/developers/mix-fetch/api/globals): generated from the source.
+- [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-fetch/browser): a runnable example app.

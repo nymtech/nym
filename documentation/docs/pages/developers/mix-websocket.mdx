@@ -3,19 +3,12 @@ title: "mix-websocket: WebSocket Over the Nym Mixnet"
 description: "TypeScript package that exposes a WebSocket-like class for WS and WSS traffic routed through the Nym mixnet."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-29"
+lastUpdated: "2026-06-05"
 ---
 
 # mix-websocket
 
-import { Callout } from 'nextra/components'
-
-{/* Live demo: committed but inactive until @nymproject/mix-websocket is published on npm.
-    To activate, remove this comment wrapper and the matching one around the component below.
-import { MixWebSocketDemo } from '../../components/mix-demos/mix-websocket-demo'
-*/}
-
-`@nymproject/mix-websocket` exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.
+[`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket) exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -30,128 +23,10 @@ import { MixWebSocketDemo } from '../../components/mix-demos/mix-websocket-demo'
 
 The TLS handshake (for `wss://` targets) terminates inside the WASM bundle, end-to-end with the destination. The IPR sees TCP frames addressed to the destination's IP and port; for WSS, the payload is TLS ciphertext.
 
-## Installation
+## In this section
 
-```bash
-npm install @nymproject/mix-websocket
-```
-
-ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel#installation), so there's no WASM bundler config to set up. See [mix-tunnel's installation notes](/developers/mix-tunnel#installation) for the Webpack, Vite, and esbuild specifics.
-
-## Quick start
-
-Echo against `wss://ws.postman-echo.com/raw`, the same test endpoint the Rust smolmix example uses:
-
-```ts
-import { setupMixTunnel } from '@nymproject/mix-tunnel';
-import { MixWebSocket } from '@nymproject/mix-websocket';
-
-await setupMixTunnel();
-
-const ws = new MixWebSocket('wss://ws.postman-echo.com/raw');
-
-ws.addEventListener('open', () => {
-  console.log('connected');
-  ws.send('hello mixnet');
-});
-
-ws.addEventListener('message', (e) => {
-  console.log('received:', e.data);
-  ws.close();
-});
-
-ws.addEventListener('close', () => console.log('closed'));
-ws.addEventListener('error', (e) => console.error('error:', e));
-```
-
-Or `await` on the upgrade instead of subscribing to the `open` event:
-
-```ts
-const ws = new MixWebSocket('wss://ws.postman-echo.com/raw');
-await ws.opened();
-ws.send('hello mixnet');
-```
-
-## Differences from the browser WebSocket
-
-`MixWebSocket` extends `EventTarget` and mirrors the standard WebSocket surface where it makes sense. Differences are intentional and follow from the underlying WASM transport:
-
-| Browser `WebSocket` | `MixWebSocket` | Why |
-|---|---|---|
-| Synchronous constructor; readiness via the `open` event | Asynchronous constructor; readiness via `await ws.opened()` or the `open` event | The mixnet connect, smoltcp socket open, and TLS handshake all happen in the worker. |
-| `binaryType: 'blob' \| 'arraybuffer'` (default Blob) | `binaryType` is fixed to `'arraybuffer'` | Blob construction in a Web Worker requires a transferable; ArrayBuffer is the lowest common denominator. |
-| `bufferedAmount` | Not exposed | Writes queue inside the worker; no main-thread byte counter. |
-| `send()` returns `void` synchronously | `send()` returns `Promise<void>` | The send hops the worker boundary. |
-| `close(code, reason)` returns `void` | `close(code, reason)` returns `Promise<void>` | Same reason. |
-| `protocols` argument supports string or string[] | Same | (no difference) |
-
-The standard `open`, `message`, `close`, and `error` events fire as you would expect. `MessageEvent.data` is `string` for text frames and `ArrayBuffer` for binary frames.
-
-## Sending and receiving
-
-```ts
-ws.addEventListener('message', (e) => {
-  if (typeof e.data === 'string') {
-    console.log('text frame:', e.data);
-  } else {
-    // ArrayBuffer for binary frames
-    console.log('binary frame:', e.data.byteLength, 'bytes');
-  }
-});
-
-// Send a text frame
-await ws.send('hello');
-
-// Send a binary frame
-await ws.send(new Uint8Array([0x01, 0x02, 0x03]));
-```
-
-`send()` rejects if called when `readyState` is not `OPEN`. Use `await ws.opened()` to gate the first send, and check `ws.readyState` if you keep references around for later use.
-
-## Error handling
-
-The `error` event carries a non-standard `.message` field with the underlying cause (the standard `Event` carries no payload). Use it for diagnostics:
-
-```ts
-ws.addEventListener('error', (e) => {
-  const msg = (e as Event & { message?: string }).message;
-  console.error('mix-websocket failure:', msg);
-});
-```
-
-If the upgrade fails before `open` fires, `MixWebSocket` transitions to `CLOSED` and dispatches `error`. `opened()` resolves either on `open` or on the failure event, so callers don't hang.
-
-{/* Live demo: remove this wrapper to activate (see the import note near the top).
-<MixWebSocketDemo />
-*/}
-
-## Configuration
-
-`MixWebSocket` has no per-instance configuration beyond `url` and `protocols`. Tunnel-level options live on `setupMixTunnel`, the same shared call that mix-fetch and mix-dns use:
-
-```ts
-await setupMixTunnel({
-  preferredIpr: '...',
-  disableCoverTraffic: true,
-});
-```
-
-See [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) for the full surface.
-
-## Security model
-
-`mix-websocket` follows the shared [mixnet exit security model](/developers/concepts/exit-security). The browser-specific consequences are:
-
-| Segment | What's visible |
-|---|---|
-| Browser → entry gateway | WSS to the entry gateway carries Sphinx-encrypted frames. |
-| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
-| IPR → destination | Regular TCP. For `wss://`, payload is TLS ciphertext terminating at the destination. For `ws://`, payload is plaintext. |
-
-<Callout type="warning">
-TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. Mozilla's CA bundle is compiled into the WASM. Use `wss://` for any non-public traffic; `ws://` is visible to the IPR in full.
-</Callout>
-
-## API reference
-
-Generated from the source: [**@nymproject/mix-websocket**](/developers/mix-websocket/api/globals). The package adds the `MixWebSocket` class and re-exports the tunnel controls (`setupMixTunnel`, `disconnectMixTunnel`, `getTunnelState`) from [`mix-tunnel`](/developers/mix-tunnel).
+- [Get started](/developers/mix-websocket/get-started): install and open your first mixnet WebSocket.
+- [Reference](/developers/mix-websocket/guides): sending and receiving, error handling, configuration.
+- [Concepts & security](/developers/mix-websocket/concepts): how it differs from the browser WebSocket, and the security model.
+- [TypeDoc reference](/developers/mix-websocket/api/globals): generated from the source.
+- [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-websocket/browser): a runnable example app.

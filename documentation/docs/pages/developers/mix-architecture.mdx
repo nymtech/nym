@@ -1,0 +1,85 @@
+---
+title: "mix-* Architecture: How the Browser Mixnet Packages Are Wired"
+description: "The shared browser architecture behind mix-tunnel, mix-fetch, mix-dns, and mix-websocket: one Web Worker, one WASM instance, a Comlink boundary, and a smoltcp + rustls stack reaching the mixnet via an IPR."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+import { Callout } from 'nextra/components'
+
+# Architecture
+
+The four mix-* packages ([`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket)) are not four independent clients. They are thin facades over a single shared tunnel, which runs in a Web Worker. This page explains that shared machinery once, so the per-package pages can stay focused on their own API.
+
+```text
+Main thread (your app)
+  mix-fetch, mix-dns, mix-websocket
+      │  each re-exports mix-tunnel's controls and calls into it
+      ▼
+  mix-tunnel → Comlink proxy
+      │
+      ▼  postMessage (structured clone), into the worker
+Web Worker (one per page)
+  smolmix-wasm
+      ├─ IPR client → WebSocket (WSS) to entry gateway
+      ├─ smoltcp  (userspace TCP/IP stack)
+      └─ rustls   (TLS, Mozilla CA bundle compiled in)
+      │
+      ▼
+  Nym mixnet:  entry → 3 mix layers → IPR exit → internet
+```
+
+## The package family
+
+Only `mix-tunnel` owns the tunnel. The three feature packages each depend on it and **re-export** its controls (`setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`) alongside their own operation:
+
+| Package | Adds | Re-exports from mix-tunnel |
+|---|---|---|
+| `mix-tunnel` | the tunnel itself | (owns them) |
+| `mix-fetch` | `mixFetch`, `createMixFetch` | setup / disconnect / state |
+| `mix-dns` | `mixDNS` | setup / disconnect / state |
+| `mix-websocket` | `MixWebSocket` | setup / disconnect / state |
+
+So `import { setupMixTunnel, mixFetch } from '@nymproject/mix-fetch'` and `import { setupMixTunnel } from '@nymproject/mix-tunnel'` reach the **same** `setupMixTunnel`. You rarely import `mix-tunnel` directly; you get it transitively through whichever feature package you use.
+
+## One tunnel, one WASM instance
+
+The bundler deduplicates [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) to a single module, so no matter how many feature packages a page imports, there is exactly one Web Worker and one `smolmix-wasm` instance. Any feature package reaches that same instance through `getMixTunnel`. Bringing the tunnel up with `setupMixTunnel`, though, is a one-time operation: the first call succeeds and a second rejects with `tunnel already initialised`, so call it once.
+
+This is why the tunnel is configured once, at the first `setupMixTunnel`, and why options passed to a later call have no effect until teardown. It is also why a single connection to the entry gateway, a single IPR exit, and a single DNS cache are shared across all your `mixFetch` / `mixDNS` / `MixWebSocket` traffic.
+
+## The worker boundary
+
+The mixnet work (Sphinx packet construction, cover traffic, Poisson send timing, the smoltcp poll loop) is CPU-bound and must not block the UI thread. So `mix-tunnel` runs all of it in a Web Worker and talks to it over [Comlink](https://github.com/GoogleChromeLabs/comlink), which wraps `postMessage` in an async RPC. The main thread holds a `Comlink.Remote` proxy; every call (`mixFetch`, `mixDNS`, `ws.send`) is an `await` that hops the worker boundary. That boundary is the reason `MixWebSocket.send()` and `.close()` return promises where the browser `WebSocket` returns `void`.
+
+<Callout type="info">
+**The `proxy` re-export.** `mix-websocket` needs to pass a message callback *into* the worker. Comlink marks a value as "transfer this by proxy, not by clone" using a `Symbol` that is created per module instance. If `mix-websocket` bundled its own copy of Comlink, that symbol would not match the one the worker-owning module's serialiser checks for, and the callback would fall through to structured clone, which cannot clone functions, so it throws. To avoid that, `mix-tunnel` re-exports `proxy`, and `mix-websocket` imports it from there, so both sides share one Comlink instance and the marker symbol matches.
+</Callout>
+
+## Inside the worker
+
+The worker hosts `smolmix-wasm`, the WebAssembly build of the Rust [`smolmix`](/developers/smolmix) crate. Three pieces do the work:
+
+- **IPR client**: opens a WebSocket (WSS by default, via `forceTls`) to a Nym entry gateway and speaks the mixnet protocol, exiting at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router).
+- **`smoltcp`**: a userspace TCP/IP stack. Because the browser exposes no raw sockets, smolmix runs its own TCP and UDP over the mixnet's IP transport. A reactor polls smoltcp and wakes the relevant tasks when data arrives.
+- **`rustls`**: terminates TLS for `https://` and `wss://` end-to-end with the destination, with the Mozilla CA bundle compiled into the WASM. The IPR sees only ciphertext for encrypted targets.
+
+The tunnel is **one-shot per WASM instance**: `setupMixTunnel` can initialise it once. After `disconnectMixTunnel`, the instance is spent and the page must reload to build a new tunnel.
+
+## Tunnel lifecycle
+
+```text
+(no tunnel) ──setupMixTunnel()──▶ connecting ──▶ ready ──┐
+                                                          │ mixFetch / mixDNS / MixWebSocket
+                                                          ▼
+                                  shutdown ◀──disconnectMixTunnel()── (still ready)
+```
+
+`getTunnelState()` reflects this as `connecting | ready | shutting_down | shutdown | failed` (see [tunnel state](/developers/mix-tunnel/guides#tunnel-state); the diagram shows the happy path, `shutting_down` is the transient during teardown and `failed` carries a `reason`). The transitions are coarse; the fine-grained gateway, IPR-discovery, and smoltcp events are logged to the browser console when the tunnel is brought up with `debug: true`.
+
+## Going deeper
+
+- The native crate and its design: [`smolmix`](/developers/smolmix).
+- The package sources, including bundler/WASM-inlining specifics and the worker plumbing: [`sdk/typescript/packages`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/packages) and the WASM crate under [`wasm/smolmix`](https://github.com/nymtech/nym/tree/develop/wasm/smolmix).
+- See it run: the [mixnet playground](/developers/playground).

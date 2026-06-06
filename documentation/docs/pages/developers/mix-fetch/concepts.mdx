@@ -1,0 +1,26 @@
+---
+title: "mix-fetch concepts & security"
+description: "What the IPR exit sees when you route HTTP through mix-fetch, and what TLS keeps private."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+import { Callout } from 'nextra/components'
+
+# Concepts & security
+
+## Security model
+
+`mix-fetch` follows the shared [mixnet exit security model](/developers/concepts/exit-security): the IPR exit sees your destination, and you rely on TLS to keep the payload as ciphertext to it. The browser-specific consequences are:
+
+| Segment | What's visible |
+|---|---|
+| Browser → entry gateway | WebSocket to the entry gateway, WSS by default (`forceTls`). Entry gateway sees your IP, not the destination. |
+| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
+| IPR exit gateway | Destination IP and port. For HTTPS, payload is TLS ciphertext from the WASM instance, terminating at the destination. For HTTP, payload is plaintext. |
+| IPR → destination | Regular TCP. The destination sees the IPR's IP, not yours. |
+
+<Callout type="warning">
+TLS terminates inside the WASM instance (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. The Mozilla CA bundle is compiled into the WASM. Mixed content rules still apply at the page level, so serve your app over HTTPS.
+</Callout>

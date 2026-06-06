@@ -1309,25 +1309,13 @@ const config = {
       },
       {
         source: "/docs/developers/typescript/api/mix-fetch",
-        destination: "/docs/developers/typescript/api/mix-fetch/globals",
+        destination: "/docs/developers/mix-fetch/api/globals",
         permanent: false,
         basePath: false,
       },
       {
         source: "/docs/developers/typescript/api/sdk",
         destination: "/docs/developers/typescript/api/sdk/globals",
-        permanent: false,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/typescript/examples",
-        destination: "/docs/developers/typescript/examples/mix-fetch",
-        permanent: false,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/typescript/playground",
-        destination: "/docs/developers/typescript/playground/mixfetch",
         permanent: false,
         basePath: false,
       },

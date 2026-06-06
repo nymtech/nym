@@ -33,7 +33,7 @@ Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastru
 This means `smolmix` is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to use `smolmix` from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
 
 ### The WebAssembly build (browsers and WebViews)
-The WebAssembly build of `smolmix` powers the browser packages [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket). The wasm is inlined into `mix-tunnel`, so apps install one of those packages rather than building the crate themselves.
+The WebAssembly build of `smolmix` powers the mix-* packages [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket). The wasm is inlined into `mix-tunnel`, so apps install one of those packages rather than building the crate themselves.
 
 It runs in any JavaScript runtime that provides `WebSocket`, Web Workers, and WebAssembly. That means desktop browsers and mobile WebViews alike, so hybrid app shells (Capacitor, Ionic, Cordova, `react-native-webview`) are in scope, not just web pages. It does not run in a bare Node.js or React Native Hermes/JSC runtime, which lack Web Workers (and, for Hermes, WebAssembly). For native mobile or server targets, compile the Rust crate itself rather than using the wasm packages.
 

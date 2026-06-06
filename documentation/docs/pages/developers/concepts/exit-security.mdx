@@ -10,7 +10,7 @@ lastUpdated: "2026-06-03"
 
 import { Callout } from 'nextra/components'
 
-Every tool that reaches an external service through the Nym mixnet shares the same security model, whether it's the Rust [`smolmix`](/developers/smolmix) crate or the browser packages built on [`mix-tunnel`](/developers/mix-tunnel) ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)). They all exit the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, so they inherit the same properties and the same single caveat. This page is the canonical statement of that model; the package pages link here rather than restating it.
+Every tool that reaches an external service through the Nym mixnet shares the same security model, whether it's the Rust [`smolmix`](/developers/smolmix) crate or the mix-* packages built on [`mix-tunnel`](/developers/mix-tunnel) ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)). They all exit the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, so they inherit the same properties and the same single caveat. This page is the canonical statement of that model; the package pages link here rather than restating it.
 
 ## The one-sentence version
 
@@ -64,7 +64,7 @@ Treat the IPR exactly as you would a VPN exit or a Tor exit node: it can inspect
 Network-layer anonymity is not application-layer anonymity. The mixnet hides your IP and unlinks sender from receiver, but it does nothing about identifiers you send *through* it:
 
 - **Application identity.** If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. The mixnet anonymises the pipe, not the contents.
-- **Fingerprinting.** A stable request pattern, a distinctive TLS or HTTP fingerprint, or a recognisable account defeats network anonymity by correlation. `mix-fetch`'s [default headers](/developers/mix-fetch#default-request-headers) reduce trivial fingerprinting but do not make you indistinguishable from a real browser.
+- **Fingerprinting.** A stable request pattern, a distinctive TLS or HTTP fingerprint, or a recognisable account defeats network anonymity by correlation. `mix-fetch`'s [default headers](/developers/mix-fetch/guides#default-request-headers) reduce trivial fingerprinting but do not make you indistinguishable from a real browser.
 - **Statistical traffic analysis.** Unlinkability is probabilistic, not a guarantee. It is strong by default but weakens with low network traffic, with cover traffic and Poisson timing turned off, and against an adversary observing a large fraction of the network.
 
 If you need anonymity at the application layer too, design for it explicitly: fresh identities, no cross-session correlators, and no logged-in accounts you also use over clearnet.
@@ -78,11 +78,11 @@ If you need anonymity at the application layer too, design for it explicitly: fr
 | **Timing analysis resistance** | Strong with defaults (mixing, cover traffic) | Weak (low-latency) | None |
 | **UDP support** | Yes | No (TCP only) | Yes |
 
-The timing-analysis rating assumes the defaults. Cover traffic and Poisson timing can be turned off to trade that resistance for latency and bandwidth, moving Nym's row toward Tor's. The named switches for this (`disableCoverTraffic` / `disablePoissonTraffic`) are specific to the browser/wasm packages ([`mix-tunnel`](/developers/mix-tunnel#configuration) and the feature packages built on it); the native `smolmix` crate does not expose them by those names. The UDP row is a design difference, not a scoreboard: Tor is TCP-only by design, while the Nym IPR routes raw IP.
+The timing-analysis rating assumes the defaults. Cover traffic and Poisson timing can be turned off to trade that resistance for latency and bandwidth, moving Nym's row toward Tor's. The named switches for this (`disableCoverTraffic` / `disablePoissonTraffic`) are specific to the browser/wasm packages ([`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it); the native `smolmix` crate does not expose them by those names. The UDP row is a design difference, not a scoreboard: Tor is TCP-only by design, while the Nym IPR routes raw IP.
 
 ## Read more
 
 The package pages add the parts specific to their transport (where TLS terminates, what the resolver sees, WSS vs `ws://`):
 
 - [Exit Gateway Services](/network/infrastructure/exit-services#ip-packet-router): how the IPR allocates addresses and routes raw IP packets, and how it differs from the SOCKS-based Network Requester.
-- The per-package "Security model" section on [mix-fetch](/developers/mix-fetch#security-model), [mix-dns](/developers/mix-dns#security-model), and [mix-websocket](/developers/mix-websocket#security-model) for the transport-specific exposure tables.
+- The per-package "Security model" section on [mix-fetch](/developers/mix-fetch/concepts#security-model), [mix-dns](/developers/mix-dns/concepts#security-model), and [mix-websocket](/developers/mix-websocket/concepts#security-model) for the transport-specific exposure tables.

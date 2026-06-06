@@ -1,0 +1,20 @@
+---
+title: "Interacting with the Nyx Blockchain"
+description: "Query and transact against Nyx, the Cosmos-SDK chain underpinning Nym: the nyxd CLI wallet, Ledger, the Cosmos chain registry, and running an RPC node."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-06"
+---
+
+# Interacting with the Nyx blockchain
+
+Nyx is the Cosmos-SDK blockchain that underpins Nym. It holds the NYM token and the mixnet smart contracts (node bonding, rewarding, and the directory). This section covers the ways to query it and submit transactions.
+
+For smart-contract access from TypeScript, see [`@nymproject/contract-clients`](https://www.npmjs.com/package/@nymproject/contract-clients), covered under [Smart Contracts](/developers/typescript/smart-contracts) in the TypeScript SDK.
+
+## In this section
+
+- [CLI Wallet](/developers/chain/cli-wallet): use the `nyxd` binary to create keypairs and to sign and broadcast transactions from the command line.
+- [Ledger Live](/developers/chain/ledger-live): use a Ledger hardware wallet with the Nyx chain.
+- [Cosmos Registry](/developers/chain/cosmos-registry): Nyx's entry in the Cosmos chain registry (chain info and RPC endpoints).
+- [RPC Nodes](/developers/chain/rpc-node): run a node that holds a copy of the chain for querying and broadcasting, without taking part in consensus.

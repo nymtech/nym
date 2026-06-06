@@ -25,13 +25,15 @@ Any application that integrates with Nym sends its traffic through the mixnet vi
 Different runtimes have different transport constraints: a browser cannot open raw sockets or access the filesystem, while a desktop app can.
 
 - **Native / Desktop / CLI**: full access to system networking and persistent storage. Use [`nym-sdk`](/developers/rust) for end-to-end messaging or byte streams, or [`smolmix`](/developers/smolmix) for `TcpStream`/`UdpSocket` access in proxy mode.
-- **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. The browser packages share one mixnet tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and split by protocol: [`mix-fetch`](/developers/mix-fetch) for HTTP/S, [`mix-dns`](/developers/mix-dns) for UDP DNS, [`mix-websocket`](/developers/mix-websocket) for WS/WSS. For end-to-end messaging where you control both sides, use the [TypeScript SDK](/developers/typescript).
+- **Browser**: restricted to WebSockets, Web Transport, and `fetch`; HTTPS-only mixed-content rules; no filesystem access. The mix-* packages share one mixnet tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and split by protocol: [`mix-fetch`](/developers/mix-fetch) for HTTP/S, [`mix-dns`](/developers/mix-dns) for UDP DNS, [`mix-websocket`](/developers/mix-websocket) for WS/WSS. For end-to-end messaging where you control both sides, use the [TypeScript SDK](/developers/typescript).
 
 ### Mobile
 
-There is no first-party mobile SDK, but [`nym-vpn-client`](https://github.com/nymtech/nym-vpn-client) ships production iOS and Android apps built around the Nym stack and is the reference we'd point you at. The relevant pieces are `nym-vpn-core/crates/nym-vpn-lib-uniffi` ([`uniffi`](https://mozilla.github.io/uniffi-rs/) FFI wrapper), `nym-vpn-core/iOS.mk` ([`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) → XCFramework + SwiftPM), and `nym-vpn-core/Android.mk` ([`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) → `jniLibs/`, driven from Gradle).
+There is no first-party mobile SDK; you compile the Rust SDK to the mobile targets yourself. A [`uniffi`](https://mozilla.github.io/uniffi-rs/) wrapper exposes a foreign-function interface, and from there [`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) builds an iOS XCFramework (consumed via SwiftPM) while [`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) builds Android `jniLibs/` (driven from Gradle).
 
-If you try this and hit (or solve) blockers, drop a note in the [Nym dev channel on Matrix](https://matrix.to/#/#dev:nymtech.chat) or open an issue on [GitHub](https://github.com/nymtech/nym).
+### Android TLS workaround
+
+On Android the client can fail to bootstrap the mixnet when the validator API serves a Let's Encrypt certificate with no OCSP responder URL (`validator.nymtech.net` is one): `rustls-platform-verifier` routes through Java's `CertPathValidator`, which raises a hard `Revoked` / "Certificate does not specify OCSP responder" error before its soft-fail policy can apply, so every API call fails. iOS and the desktop targets are unaffected (they tolerate or skip the check). The fix is a `cfg(target_os = "android")` shim in `common/http-api-client/src/registry.rs` that routes `default_builder()` through `use_preconfigured_tls` with `webpki_roots::TLS_SERVER_ROOTS` (no revocation check), leaving other targets on the platform verifier; about 25 lines plus a `webpki-roots` dependency. An upstream fix ([rustls-platform-verifier#179](https://github.com/rustls/rustls-platform-verifier/pull/179)) would let it be dropped.
 
 ## Architecture
 

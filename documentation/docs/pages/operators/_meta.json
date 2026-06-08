@@ -3,17 +3,23 @@
   "changelog": "Changelog",
   "release-cycle": "Release Cycle",
   "variables": "Variables & Parameters",
-  "sandbox": "Sandbox Testnet",
-  "binaries": "Binaries",
+  "---1": {
+    "type": "separator"
+  },
   "nodes": "Nodes & Validators Guides",
+  "binaries": "Binaries",
   "orchestration" : "Orchestration",
   "performance-and-testing": "Performance Measurement",
   "tools": "Tools",
   "troubleshooting": "Troubleshooting",
+  "---2": {
+    "type": "separator"
+  },
+  "sandbox": "Sandbox Testnet",  
   "tokenomics": "Tokenomics",
   "faq": "FAQ",
   "community-counsel": "Community Counsel",
-  "---": {
+  "---3": {
     "type": "separator"
   },
   "archive": "Archive",

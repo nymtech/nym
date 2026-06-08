@@ -26,7 +26,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::LpRegistrationClient;
+use nym_registration_client::{LpClientError, LpRegistrationClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
@@ -46,6 +46,7 @@ pub async fn wg_probe(
     auth_version: AuthenticatorVersion,
     awg_args: Option<String>,
     netstack_args: NetstackArgs,
+    port_check_only: bool,
     // TODO: update type
     credential: CredentialSpendingData,
 ) -> anyhow::Result<WgProbeResults> {
@@ -78,8 +79,6 @@ pub async fn wg_probe(
         )),
         AuthenticatorVersion::V1 | AuthenticatorVersion::UNKNOWN => bail!("unknown version number"),
     };
-
-    let mut wg_outcome = WgProbeResults::default();
 
     info!(
         "connecting to authenticator: {}...",
@@ -134,9 +133,9 @@ pub async fn wg_probe(
 
     info!("Successfully registered with the gateway");
 
-    wg_outcome.can_register = true;
-
-    // Run tunnel connectivity tests using shared helper
+    // Run tunnel connectivity tests using shared helper.
+    // run_tunnel_tests issues blocking CGo calls into Go, so it must run on
+    // tokio's dedicated blocking thread pool to avoid stalling the async runtime.
     let tunnel_config = WgTunnelConfig::new(
         registered_data.private_ips().ipv4.to_string(),
         registered_data.private_ips().ipv6.to_string(),
@@ -144,15 +143,18 @@ pub async fn wg_probe(
         public_key_hex,
         wg_endpoint,
     );
+    let awg_str = awg_args.unwrap_or_default();
 
-    run_tunnel_tests(
-        &tunnel_config,
-        &netstack_args,
-        &awg_args.unwrap_or_default(),
-        &mut wg_outcome,
-    );
+    let mut tunnel_result = tokio::task::spawn_blocking(move || {
+        run_tunnel_tests(&tunnel_config, &netstack_args, &awg_str, port_check_only)
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("netstack task panicked: {e}"))?;
 
-    Ok(wg_outcome)
+    // can_register is determined by the auth handshake above, not by netstack
+    tunnel_result.can_register = true;
+
+    Ok(tunnel_result)
 }
 
 pub async fn lp_registration_probe(
@@ -186,7 +188,11 @@ pub async fn lp_registration_probe(
     // LpRegistrationClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {lp_address}...");
-    match client.perform_handshake().await {
+    let handshake_result =
+        tokio::time::timeout(Duration::from_secs(15), client.perform_handshake())
+            .await
+            .unwrap_or_else(|_| Err(LpClientError::HandshakeTimeout));
+    match handshake_result {
         Ok(_) => {
             info!("LP handshake completed successfully");
             lp_outcome.can_connect = true; // Connection succeeded if handshake succeeded
@@ -209,16 +215,23 @@ pub async fn lp_registration_probe(
 
     // Register using the new packet-per-connection API (returns GatewayData directly)
     let ticket_type = TicketType::V1WireguardEntry;
-    let gateway_data = match client
-        .register_dvpn(
+    let register_result = tokio::time::timeout(
+        Duration::from_secs(15),
+        client.register_dvpn(
             &mut rng09,
             &wg_keypair,
             &gateway_identity,
             bandwidth_controller,
             ticket_type,
-        )
-        .await
-    {
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(LpClientError::Other(
+            "LP registration timed out after 15s".to_string(),
+        ))
+    });
+    let gateway_data = match register_result {
         Ok(data) => data,
         Err(e) => {
             let error_msg = format!("LP registration failed: {}", e);
@@ -256,8 +269,8 @@ pub async fn do_ping(
         let (maybe_ip_pair, mut mixnet_client) =
             connect_exit(mixnet_client, exit_router_address).await;
         match maybe_ip_pair {
-            Some((ip_pair, stream_id)) => (
-                do_ping_exit(&mut mixnet_client, ip_pair, stream_id, exit_router_address).await,
+            Some(ip_pair) => (
+                do_ping_exit(&mut mixnet_client, ip_pair, exit_router_address).await,
                 mixnet_client,
             ),
             None => (Ok(Some(Exit::fail_to_connect())), mixnet_client),
@@ -304,7 +317,7 @@ async fn do_ping_entry(
 async fn connect_exit(
     mixnet_client: MixnetClient,
     exit_router_address: Recipient,
-) -> (Option<(IpPair, u64)>, MixnetClient) {
+) -> (Option<IpPair>, MixnetClient) {
     // Step 2: connect to the exit gateway
     info!(
         "Connecting to exit gateway: {}",
@@ -315,19 +328,12 @@ async fn connect_exit(
     let mut ipr_client = IprClientConnect::new(mixnet_client, cancel_token);
 
     let maybe_ip_pair = ipr_client.connect(exit_router_address).await;
-    let stream_id = ipr_client.stream_id();
     let mixnet_client = ipr_client.into_mixnet_client();
 
     if let Ok(our_ips) = maybe_ip_pair {
         info!("Successfully connected to exit gateway");
         info!("Using mixnet VPN IP addresses: {our_ips}");
-        let Some(stream_id) = stream_id else {
-            tracing::warn!(
-                "No active IPR stream id set after connect; cannot run IPR data-plane tests"
-            );
-            return (None, mixnet_client);
-        };
-        (Some((our_ips, stream_id)), mixnet_client)
+        (Some(our_ips), mixnet_client)
     } else {
         (None, mixnet_client)
     }
@@ -336,11 +342,10 @@ async fn connect_exit(
 pub async fn do_ping_exit(
     mixnet_client: &mut MixnetClient,
     our_ips: IpPair,
-    stream_id: u64,
     exit_router_address: Recipient,
 ) -> anyhow::Result<Option<Exit>> {
     // Step 3: perform ICMP connectivity checks for the exit gateway
-    send_icmp_pings(mixnet_client, our_ips, exit_router_address, stream_id).await?;
+    send_icmp_pings(mixnet_client, our_ips, exit_router_address).await?;
     listen_for_icmp_ping_replies(mixnet_client, our_ips).await
 }
 
@@ -348,7 +353,6 @@ async fn send_icmp_pings(
     mixnet_client: &MixnetClient,
     our_ips: IpPair,
     exit_router_address: Recipient,
-    stream_id: u64,
 ) -> anyhow::Result<()> {
     // ipv4 addresses for testing
     let ipr_tun_ip_v4 = NYM_TUN_DEVICE_ADDRESS_V4;
@@ -370,7 +374,6 @@ async fn send_icmp_pings(
             ii,
             ipr_tun_ip_v4,
             exit_router_address,
-            stream_id,
         )
         .await?;
         icmp::send_ping_v4(
@@ -379,7 +382,6 @@ async fn send_icmp_pings(
             ii,
             external_ip_v4,
             exit_router_address,
-            stream_id,
         )
         .await?;
     }
@@ -392,7 +394,6 @@ async fn send_icmp_pings(
             ii,
             ipr_tun_ip_v6,
             exit_router_address,
-            stream_id,
         )
         .await?;
         icmp::send_ping_v6(
@@ -401,7 +402,6 @@ async fn send_icmp_pings(
             ii,
             external_ip_v6,
             exit_router_address,
-            stream_id,
         )
         .await?;
     }

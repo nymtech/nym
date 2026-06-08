@@ -38,6 +38,7 @@ pub mod ecash {
 }
 
 pub const NYM_NODES_ROUTES: &str = "nym-nodes";
+pub const NODE_FAMILIES_ROUTES: &str = "node-families";
 
 pub use nym_nodes::*;
 pub mod nym_nodes {
@@ -49,6 +50,9 @@ pub mod nym_nodes {
     pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
     pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
     pub const BY_ADDRESSES: &str = "by-addresses";
+    pub const STRESS_TESTING: &str = "stress-testing";
+    pub const STRESS_TESTING_KNOWN_MONITORS: &str = "known-monitors";
+    pub const STRESS_TESTING_BATCH_SUBMIT: &str = "batch-submit";
 }
 
 pub const STATUS_ROUTES: &str = "status";

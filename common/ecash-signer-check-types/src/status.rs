@@ -11,10 +11,11 @@ use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use time::OffsetDateTime;
+use tracing::warn;
 use utoipa::ToSchema;
 
-pub(crate) const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(5 * 60);
-pub(crate) const STALE_RESPONSE_THRESHOLD: Duration = Duration::from_secs(5 * 60);
+pub(crate) const CHAIN_STALL_THRESHOLD: Duration = Duration::from_secs(10 * 60);
+pub(crate) const STALE_RESPONSE_THRESHOLD: Duration = Duration::from_secs(10 * 60);
 
 // the reason for generics is not to remove duplication of code,
 // but because without them, we'd be having problems with circular dependencies,
@@ -188,6 +189,7 @@ where
         };
 
         let SignerStatus::Tested { result } = &self.status else {
+            warn!("no valid chain response");
             return false;
         };
         result
@@ -239,6 +241,7 @@ where
         };
 
         let SignerStatus::Tested { result } = &self.status else {
+            warn!("no valid signer response");
             return false;
         };
         result.signing_status.signing_available(

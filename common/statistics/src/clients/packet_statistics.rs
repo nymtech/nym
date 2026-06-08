@@ -490,6 +490,11 @@ impl PacketStatisticsControl {
         // Do basic averaging over the entire history, which just uses the first and last
         if let Some((start, start_stats)) = self.history.front() {
             let duration_secs = Instant::now().duration_since(start).as_secs_f64();
+            // skip when only one entry was just pushed in this tick: dividing by 0
+            // would yield inf/NaN rates that downstream consumers treat as real values.
+            if duration_secs == 0.0 {
+                return None;
+            }
             let delta = self.stats.clone() - start_stats.clone();
             let rates = PacketRates::from(delta) / duration_secs;
             Some(rates)

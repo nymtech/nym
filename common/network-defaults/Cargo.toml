@@ -8,7 +8,9 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-rust-version.workspace = true
+# pinned (not inherited from workspace) because this crate is imported by the ecash contract,
+# and the contracts workspace cannot be built with rustc more recent than 1.86
+rust-version = "1.86.0"
 readme.workspace = true
 publish = true
 # Exclude build.rs from published crate - it's only used for dev-time sync
@@ -17,11 +19,10 @@ exclude = ["build.rs"]
 
 [dependencies]
 dotenvy = { workspace = true, optional = true }
-log = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
-serde_json = {workspace = true, optional = true }
-tracing = {workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
 
@@ -30,9 +31,9 @@ utoipa = { workspace = true, optional = true }
 
 [features]
 default = ["env", "network"]
-env = ["dotenvy", "log", "serde_json", "tracing"]
+env = ["dotenvy", "serde_json", "tracing"]
 network = ["schemars", "serde", "url"]
-utoipa = [ "dep:utoipa" ]
+utoipa = ["dep:utoipa"]
 
 [build-dependencies]
 regex = { workspace = true }

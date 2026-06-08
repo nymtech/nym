@@ -47,7 +47,7 @@ pub fn validator_consensus_address(id: account::Id) -> Result<AccountId, Malform
 }
 
 pub fn tx_gas_sum(txs: &[ParsedTransactionResponse]) -> i64 {
-    txs.iter().map(|tx| tx.tx_result.gas_used).sum()
+    txs.iter().map(|tx| tx.tx_details.tx_result.gas_used).sum()
 }
 
 pub fn validator_info(

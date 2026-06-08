@@ -11,6 +11,7 @@
       "epoch_duration",
       "epochs_in_interval",
       "initial_rewarding_params",
+      "node_families_contract_address",
       "rewarding_denom",
       "rewarding_validator_address",
       "vesting_contract_address"
@@ -49,6 +50,9 @@
         ],
         "format": "uint32",
         "minimum": 0.0
+      },
+      "node_families_contract_address": {
+        "type": "string"
       },
       "profit_margin": {
         "default": {
@@ -1267,6 +1271,81 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: forcibly migrate the vested mixnode owned by `owner`. Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.",
+        "type": "object",
+        "required": [
+          "admin_migrate_vested_mix_node"
+        ],
+        "properties": {
+          "admin_migrate_vested_mix_node": {
+            "type": "object",
+            "required": [
+              "owner"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: forcibly migrate the vested delegation `(mix_id, owner)`. Used to drain the last vested entries so the mixnet contract can drop its dependency on the vesting contract.",
+        "type": "object",
+        "required": [
+          "admin_migrate_vested_delegation"
+        ],
+        "properties": {
+          "admin_migrate_vested_delegation": {
+            "type": "object",
+            "required": [
+              "mix_id",
+              "owner"
+            ],
+            "properties": {
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Admin-only: batch variant of [`ExecuteMsg::AdminMigrateVestedDelegation`]. Reverts the entire batch on the first error, so callers should treat it as all-or-nothing.",
+        "type": "object",
+        "required": [
+          "admin_batch_migrate_vested_delegations"
+        ],
+        "properties": {
+          "admin_batch_migrate_vested_delegations": {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/VestedDelegationMigrationEntry"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -1955,6 +2034,24 @@
           },
           "penalty_scaling": {
             "$ref": "#/definitions/Decimal"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VestedDelegationMigrationEntry": {
+        "type": "object",
+        "required": [
+          "mix_id",
+          "owner"
+        ],
+        "properties": {
+          "mix_id": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          "owner": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3509,7 +3606,13 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "MigrateMsg",
     "type": "object",
+    "required": [
+      "node_families_contract_address"
+    ],
     "properties": {
+      "node_families_contract_address": {
+        "type": "string"
+      },
       "unsafe_skip_state_updates": {
         "type": [
           "boolean",
@@ -10774,12 +10877,21 @@
       "description": "The current state of the mixnet contract.",
       "type": "object",
       "required": [
+        "node_families_contract_address",
         "params",
         "rewarding_denom",
         "rewarding_validator_address",
         "vesting_contract_address"
       ],
       "properties": {
+        "node_families_contract_address": {
+          "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        },
         "owner": {
           "description": "Address of the contract owner.",
           "default": null,

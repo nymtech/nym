@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::block_processor::types::{
-    BlockToProcess, FullBlockInformation, ParsedTransactionResponse,
+    BlockToProcess, DecodedMessage, FullBlockInformation, ParsedTransactionResponse,
 };
 use crate::error::ScraperError;
 use crate::helpers::tx_hash;
-use crate::{Any, MessageRegistry, default_message_registry};
+use crate::{Any, MessageRegistry, ParsedTransactionDetails, default_message_registry};
 use futures::StreamExt;
 use futures::future::join3;
 use std::collections::BTreeMap;
@@ -77,8 +77,7 @@ impl RpcClient {
     ) -> Result<Vec<ParsedTransactionResponse>, ScraperError> {
         let mut transactions = Vec::with_capacity(raw_transactions.len());
         for raw_tx in raw_transactions {
-            let mut parsed_messages = BTreeMap::new();
-            let mut parsed_message_urls = BTreeMap::new();
+            let mut decoded_messages = BTreeMap::new();
             let tx = cosmrs::Tx::from_bytes(&raw_tx.tx).map_err(|source| {
                 ScraperError::TxParseFailure {
                     hash: raw_tx.hash,
@@ -87,22 +86,27 @@ impl RpcClient {
             })?;
 
             for (index, msg) in tx.body.messages.iter().enumerate() {
-                if let Some(value) = self.decode_or_skip(msg) {
-                    parsed_messages.insert(index, value);
-                    parsed_message_urls.insert(index, msg.type_url.clone());
+                if let Some(decoded_content) = self.decode_or_skip(msg) {
+                    decoded_messages.insert(
+                        index,
+                        DecodedMessage {
+                            type_url: msg.type_url.clone(),
+                            decoded_content,
+                        },
+                    );
                 }
             }
 
             transactions.push(ParsedTransactionResponse {
-                hash: raw_tx.hash,
-                height: raw_tx.height,
-                index: raw_tx.index,
-                tx_result: raw_tx.tx_result,
-                tx,
-                proof: raw_tx.proof,
-                parsed_messages,
-                parsed_message_urls,
-                block: block.clone(),
+                tx_details: ParsedTransactionDetails {
+                    hash: raw_tx.hash,
+                    index: raw_tx.index,
+                    tx_result: raw_tx.tx_result,
+                    tx,
+                    proof: raw_tx.proof,
+                    block: block.clone(),
+                },
+                decoded_messages,
             })
         }
         Ok(transactions)

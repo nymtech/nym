@@ -1,16 +1,29 @@
 import fs from 'fs';
 
-const packageJson = JSON.parse(fs.readFileSync('package.json').toString());
+const WORKSPACE_FILE = 'pnpm-workspace.yaml';
 
 const devWorkspace = [
   'dist/**',
   'sdk/typescript/packages/**',
   'sdk/typescript/examples/**',
   'sdk/typescript/codegen/**',
+  'wasm/smolmix/pkg',
 ];
 
-// remove
-packageJson.workspaces = packageJson.workspaces.filter((w) => !devWorkspace.includes(w));
+const content = fs.readFileSync(WORKSPACE_FILE, 'utf-8');
 
-// write out modified file
-fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
+// Match the packages: block — one or more indented list items
+const packagesRegex = /(^packages:\n)((?:  - .+\n)+)/m;
+const match = content.match(packagesRegex);
+if (!match) throw new Error('Could not find packages: section in pnpm-workspace.yaml');
+
+const current = match[2]
+  .split('\n')
+  .filter(l => l.startsWith('  - '))
+  .map(l => l.replace(/^  - ['"]?/, '').replace(/['"]?\s*$/, ''));
+
+const updated = current
+  .filter(p => !devWorkspace.includes(p))
+  .map(p => `  - '${p}'`).join('\n') + '\n';
+
+fs.writeFileSync(WORKSPACE_FILE, content.replace(packagesRegex, `$1${updated}`));

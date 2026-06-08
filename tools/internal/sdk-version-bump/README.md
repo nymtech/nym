@@ -1,19 +1,62 @@
 # sdk-version-bump
 
-simple tool to update version numbers of our sdk packages.
+Tool to update version numbers across the SDK packages, both Cargo
+(`wasm/smolmix`, `wasm/client`) and TS (`@nymproject/mix-tunnel`,
+`@nymproject/mix-fetch`, `@nymproject/mix-dns`, `@nymproject/mix-websocket`,
+plus the legacy `@nymproject/sdk` family).
 
-## Usage:
+## Usage
 
-note: this tool is expected to be run during CI, but if one wants to do it manually:
+This tool is expected to be run by CI; the snippets below are for manual use
+from the repo root.
 
-### For releases:
+### Full release (Rust + TS in parity)
 
-1. run `./sdk-version-bump remove-suffix` that will remove the `-rc.X` suffixes from all relevant packages
-2. build everything and publish it to npm
-3. run `./sdk-version-bump bump-version` that will update the versions of all relevant packages from `X.Y.Z` into `X.Y.(Z+1)-rc.0`. It will also update the `@nymproject/...` dependencies from `">=X.Y.Z-rc.0 || ^X"` to `">=X.Y.(Z+1)-rc.0 || ^X"`
+This is the default. Use it when smolmix-wasm has changed and the TS SDK
+must publish a matching version.
 
-### For pre-releases:
+1. `cargo run -p sdk-version-bump remove-suffix`
+2. Build everything and publish to crates.io / npm.
+3. `cargo run -p sdk-version-bump bump-version` — bumps every package from
+   `X.Y.Z` to `X.Y.(Z+1)-rc.0`, and rewrites every `@nymproject/...` dep
+   specifier of the form `>=X.Y.Z-rc.W || ^X` accordingly.
 
-1. run `./sdk-version-bump bump-version --pre-release` that will update the release candidate version of all relevant packages from `X.Y.Z-rc.W` to `X.Y.Z-rc.(W+1)`
+### TS-only release
 
-To run it from the root, do: `cargo run -p sdk-version-bump`
+Use this when the TS SDK needs a bump but smolmix-wasm itself hasn't changed.
+The Cargo crates are left untouched, and downstream package.json files keep
+their existing dep ranges for `@nymproject/smolmix-wasm` and
+`@nymproject/nym-client-wasm` (so they continue to resolve to the last
+published wasm version).
+
+1. `cargo run -p sdk-version-bump remove-suffix --ts-only`
+2. Build the TS packages and publish to npm.
+3. `cargo run -p sdk-version-bump bump-version --ts-only`
+
+### Pre-release (rc bump)
+
+To increment just the `-rc.X` counter (`X.Y.Z-rc.W` → `X.Y.Z-rc.W+1`):
+
+```
+cargo run -p sdk-version-bump bump-version --pre-release
+```
+
+Combine with `--ts-only` if you're rc-bumping the TS layer alone.
+
+## What gets touched
+
+| What | Where it's declared | Behaviour under `--ts-only` |
+|---|---|---|
+| `Cargo.toml` `package.version` of each Cargo crate | `register_cargo(...)` | skipped |
+| `package.json` `version` of each TS package | `register_json(...)` | bumped |
+| `@nymproject/...` dep ranges in `dependencies` / `peerDependencies` / `devDependencies` / `optionalDependencies` / `bundledDependencies` | `register_known_js_dependency(...)` | bumped, except cargo-derived ones |
+| Cargo-derived JS dep ranges (`@nymproject/smolmix-wasm`, `@nymproject/nym-client-wasm`) | `register_cargo_derived_js_dependency(...)` | left alone |
+| `workspace:*`, `file:..`, `link:..`, `npm:..` specifiers | n/a (skipped at parse time) | always skipped — pnpm rewrites them at publish |
+
+## Adding a new package
+
+1. If it's a Cargo crate: `packages.register_cargo("relative/path")`.
+2. If it's a TS package: `packages.register_json("relative/path")`.
+3. If the package is consumed by other packages as a dep, also add its npm
+   name to either `register_known_js_dependency` (TS-driven version) or
+   `register_cargo_derived_js_dependency` (wasm-pack-driven version).

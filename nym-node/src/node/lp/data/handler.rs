@@ -17,7 +17,7 @@
 
 use crate::node::lp::error::LpHandlerError;
 use crate::node::lp::state::SharedLpDataState;
-use nym_lp::packet::OuterHeader;
+use nym_lp_data::packet::OuterHeader;
 use nym_metrics::inc;
 use std::net::SocketAddr;
 use tracing::*;

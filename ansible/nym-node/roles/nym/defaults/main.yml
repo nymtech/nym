@@ -10,7 +10,7 @@ mixnet_bind_address: "0.0.0.0:1789"      # maps to --mixnet-bind-address
 landing_page_assets_base_dir: "/var/www"
 
 # Flag toggles
-# accept_operator_terms: true              # controls --accept-operator-terms-and-conditions
+accept_operator_terms: false             # override in group_vars or inventory
 nym_write_flag: true                     # controls -w
 nym_init_only_flag: true                 # controls --init-only
 wss_port: 9001                           # controlls --announce-wss-port
@@ -18,7 +18,7 @@ wss_port: 9001                           # controlls --announce-wss-port
 # Optional: extra flags if you want to append more later
 nym_extra_flags: ""
 
-# CLI URL (nym_version can be set elsewhere / via GitHub API)
+# CLI URL
 nym_cli_url: "https://github.com/nymtech/nym/releases/download/{{ nym_version }}/nym-cli"
 
 # UFW

@@ -1,6 +1,5 @@
 use crate::db::{DbPool, models::GatewaySessionsRecord, queries};
-use error::NodeScraperError;
-use nym_network_defaults::{DEFAULT_NYM_NODE_HTTP_PORT, NymNetworkDetails};
+use nym_network_defaults::NymNetworkDetails;
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
@@ -8,13 +7,13 @@ use nym_validator_client::{
 };
 use time::OffsetDateTime;
 
+use nym_bin_common::bin_info;
+use nym_node_requests::try_get_valid_nym_node_api_client;
 use nym_statistics_common::types::SessionType;
 use nym_validator_client::client::NymApiClientExt;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;
-
-mod error;
 
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60 * 6);
@@ -131,7 +130,10 @@ impl MetricsScrapingData {
 
     #[instrument(level = "info", name = "metrics_scraper", skip_all)]
     async fn try_scrape_metrics(&self) -> Option<SessionStats> {
-        match self.try_get_client().await {
+        let client_fut =
+            try_get_valid_nym_node_api_client(&self.host, self.node_id, self.port, bin_info!());
+
+        match client_fut.await {
             Ok(client) => {
                 match client.get_sessions_metrics().await {
                     Ok(session_stats) => {
@@ -153,54 +155,6 @@ impl MetricsScrapingData {
                 None
             }
         }
-    }
-
-    async fn try_get_client(&self) -> Result<nym_node_requests::api::Client, NodeScraperError> {
-        // first try the standard port in case the operator didn't put the node behind the proxy,
-        // then default https (443)
-        // finally default http (80)
-        let mut addresses_to_try = vec![
-            format!("http://{0}:{DEFAULT_NYM_NODE_HTTP_PORT}", self.host), // 'standard' nym-node
-            format!("https://{0}", self.host), // node behind https proxy (443)
-            format!("http://{0}", self.host),  // node behind http proxy (80)
-        ];
-
-        // note: I removed 'standard' legacy mixnode port because it should now be automatically pulled via
-        // the 'custom_port' since it should have been present in the contract.
-
-        if let Some(port) = self.port {
-            addresses_to_try.insert(0, format!("http://{0}:{port}", self.host));
-        }
-
-        for address in addresses_to_try {
-            // if provided host was malformed, no point in continuing
-            let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
-                b.with_timeout(Duration::from_secs(5))
-                    .with_user_agent("node-status-api-metrics-scraper")
-                    .no_hickory_dns()
-                    .build()
-            }) {
-                Ok(client) => client,
-                Err(err) => {
-                    return Err(NodeScraperError::MalformedHost {
-                        host: self.host.to_string(),
-                        node_id: self.node_id,
-                        source: Box::new(err),
-                    });
-                }
-            };
-
-            if let Ok(health) = client.get_health().await {
-                if health.status.is_up() {
-                    return Ok(client);
-                }
-            }
-        }
-
-        Err(NodeScraperError::NoHttpPortsAvailable {
-            host: self.host.to_string(),
-            node_id: self.node_id,
-        })
     }
 }
 

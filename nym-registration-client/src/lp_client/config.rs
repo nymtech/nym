@@ -28,40 +28,43 @@ use std::time::Duration;
 /// - Optimize for latency over throughput (small messages)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LpRegistrationConfig {
-    /// TCP connection timeout (nym-102).
+    /// TCP connection timeout.
     ///
     /// Maximum time to wait for TCP connection establishment.
-    /// Default: 10 seconds.
+    /// Default: 5 seconds.
     pub connect_timeout: Duration,
 
-    /// Noise protocol handshake timeout (nym-102).
+    /// KKT/PSQ protocol handshake timeout.
     ///
-    /// Maximum time to wait for Noise handshake completion (all round-trips).
-    /// Default: 15 seconds.
+    /// Maximum time to wait for KKT/PSQ handshake completion with the entry (all round-trips).
+    /// Default: 8 seconds.
     pub handshake_timeout: Duration,
 
-    /// Registration request/response timeout (nym-102).
+    /// Registration request/response timeout.
     ///
     /// Maximum time to wait for registration request send + response receive.
     /// Includes credential verification on gateway side.
-    /// Default: 30 seconds.
+    /// Default: 8 seconds.
     pub registration_timeout: Duration,
+
+    /// Maximum time for the whole exchange (handshake + registration).
+    /// Default: 20 seconds.
+    pub exchange_timeout: Duration,
 
     /// Forward packet send/receive timeout.
     ///
-    /// Maximum time to wait for forward packet send + response receive via entry gateway.
-    /// Covers the entire round-trip through entry to exit gateway and back.
-    /// Default: 30 seconds.
+    /// Maximum time to wait for forward packet to get sent via entry gateway.
+    /// Default: 3 seconds.
     pub forward_timeout: Duration,
 
-    /// Enable TCP_NODELAY (disable Nagle's algorithm) (nym-104).
+    /// Enable TCP_NODELAY (disable Nagle's algorithm).
     ///
     /// When true, disables Nagle's algorithm for lower latency.
     /// Recommended for registration messages which are small and latency-sensitive.
     /// Default: true.
     pub tcp_nodelay: bool,
 
-    /// TCP keepalive duration (nym-104).
+    /// TCP keepalive duration.
     ///
     /// When Some, enables TCP keepalive with specified interval.
     /// Since LP is registration-only with short-lived connections, keepalive is not needed.
@@ -72,15 +75,14 @@ pub struct LpRegistrationConfig {
 impl Default for LpRegistrationConfig {
     fn default() -> Self {
         Self {
-            // nym-102: Sane timeout defaults for real network conditions
-            connect_timeout: Duration::from_secs(10),
-            handshake_timeout: Duration::from_secs(15),
-            registration_timeout: Duration::from_secs(30),
-            forward_timeout: Duration::from_secs(30),
+            connect_timeout: Duration::from_secs(5),
+            handshake_timeout: Duration::from_secs(8),
+            registration_timeout: Duration::from_secs(8),
+            exchange_timeout: Duration::from_secs(20),
+            forward_timeout: Duration::from_secs(3),
 
-            // nym-104: Optimized for registration-only protocol
-            tcp_nodelay: true,   // Lower latency for small messages
-            tcp_keepalive: None, // Not needed for ephemeral connections
+            tcp_nodelay: true,
+            tcp_keepalive: None,
         }
     }
 }
@@ -93,10 +95,11 @@ mod tests {
     fn test_default_config() {
         let config = LpRegistrationConfig::default();
 
-        assert_eq!(config.connect_timeout, Duration::from_secs(10));
-        assert_eq!(config.handshake_timeout, Duration::from_secs(15));
-        assert_eq!(config.registration_timeout, Duration::from_secs(30));
-        assert_eq!(config.forward_timeout, Duration::from_secs(30));
+        assert_eq!(config.connect_timeout, Duration::from_secs(5));
+        assert_eq!(config.handshake_timeout, Duration::from_secs(8));
+        assert_eq!(config.registration_timeout, Duration::from_secs(8));
+        assert_eq!(config.forward_timeout, Duration::from_secs(3));
+        assert_eq!(config.exchange_timeout, Duration::from_secs(20));
         assert!(config.tcp_nodelay);
         assert_eq!(config.tcp_keepalive, None);
     }

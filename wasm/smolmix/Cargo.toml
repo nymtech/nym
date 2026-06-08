@@ -1,0 +1,123 @@
+[package]
+name = "smolmix-wasm"
+version = "0.1.0"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+publish = false
+keywords = ["nym", "fetch", "wasm", "mixnet", "privacy"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+futures = { workspace = true }
+js-sys = { workspace = true }
+thiserror = { workspace = true }
+# `sync` feature only: gives us `tokio::sync::Notify` (the reactor wake source)
+# without pulling in tokio's runtime (wasm32-incompatible).
+tokio = { workspace = true, features = ["sync"] }
+url = { workspace = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+wasmtimer = { workspace = true }
+
+# DNS wire-format types (always present; internal DNS resolution is needed
+# even when only `fetch` or `websocket` is enabled, for hostname → IP).
+hickory-proto = { workspace = true, features = ["std"] }
+
+# TLS stack: gated by the `_tls` private feature (pulled by `fetch` or `websocket`).
+# rustls-rustcrypto is the only viable provider on wasm32-unknown-unknown:
+# ring + aws-lc-rs both fail to compile (no OS entropy / no C toolchain in browser).
+rustls = { workspace = true, features = ["std"], optional = true }
+rustls-pki-types = { workspace = true, features = ["web"], optional = true }
+futures-rustls = { workspace = true, features = ["tls12"], optional = true }
+webpki-roots = { workspace = true, optional = true }
+rustls-rustcrypto = { workspace = true, optional = true }
+
+# HTTP/1.1 client (tokio-free; workspace declares default-features = false).
+# Gated by `fetch`: `mixWebSocket` does its upgrade handshake via async-tungstenite directly.
+hyper = { workspace = true, features = ["client", "http1"], optional = true }
+http-body-util = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+
+# WebSocket (RFC 6455 client over futures::io streams). Gated by `websocket`.
+async-tungstenite = { workspace = true, features = ["handshake"], optional = true }
+
+# WASM utils (panic hook, console_log)
+nym-wasm-utils = { workspace = true }
+
+# RTT-patched smoltcp fork, scoped to THIS crate only(not a workspace-wide `[patch.crates-io]`),
+# so native `smolmix/core` builds and publishes against vanilla crates.io smoltcp untouched for
+# the moment - needs further investigation whether that also suffers the same problem (probably does)
+# but makes crates publication more complicated.
+#
+# This commit is tag `v0.12.0-nym-rtt`.
+smoltcp = { git = "https://github.com/nymtech/smoltcp", rev = "62ac5b8b3287d4773694f19a3b55e4c004354a0b", features = ["std", "medium-ip", "proto-ipv4", "socket-tcp", "socket-udp", "async"] }
+nym-wasm-client-core = { workspace = true }
+nym-ip-packet-requests = { workspace = true }
+# LP wire types (frame, header, codec)
+nym-lp-data = { workspace = true }
+bytes = { workspace = true }
+rand = { workspace = true }
+nym-bin-common = { workspace = true }
+# IPR auto-discovery (`NymApiClientExt` + `semver` gate for v9-capable IPRs).
+nym-validator-client = { workspace = true }
+semver = { workspace = true }
+
+# JS interop: typed `SetupOpts` deserialisation.
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+tsify = { workspace = true, features = ["js"] }
+
+# crypto.getRandomValues() backend for the 0.2 line.
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+workspace = true
+features = ["js"]
+
+# The 0.4 line is pulled in transitively by hickory-proto via rand_core 0.10;
+# its wasm32 feature was renamed from "js" to "wasm_js".
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom04]
+workspace = true
+features = ["wasm_js"]
+
+[features]
+# Default: build all three JS entry points (mixFetch, mixWebSocket, mixDNS).
+# TS SDK packages that only need a subset can disable defaults and opt in:
+#   smolmix-wasm = { ..., default-features = false, features = ["fetch"] }
+default = ["dns", "fetch", "websocket"]
+
+# Expose the JS `mixDNS(hostname)` entry point.
+# Note: the internal DNS resolver (used by fetch/websocket for hostname lookups)
+# is always compiled; only the standalone JS export is gated here.
+dns = []
+
+# Expose the JS `mixFetch(url, init)` HTTP client. Pulls in TLS + the hyper-based
+# HTTP/1.1 stack.
+fetch = ["_tls", "_http"]
+
+# Expose the JS `mixWebSocket(url, protocols, onEvent)` WebSocket client.
+# Pulls TLS (for `wss://`) + async-tungstenite. Does not pull `_http` because
+# tungstenite handles the WebSocket upgrade handshake itself.
+websocket = ["_tls", "dep:async-tungstenite"]
+
+# Internal feature aggregating the rustls-based TLS stack. Shared between
+# `fetch` (HTTPS) and `websocket` (WSS).
+_tls = [
+    "dep:rustls",
+    "dep:rustls-pki-types",
+    "dep:futures-rustls",
+    "dep:webpki-roots",
+    "dep:rustls-rustcrypto",
+]
+
+# Internal feature aggregating hyper + http types. `fetch`-only.
+_http = ["dep:hyper", "dep:http-body-util", "dep:http"]
+
+# Verbose `console.log` tracing (off by default).
+debug = []
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

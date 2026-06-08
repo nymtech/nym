@@ -16,7 +16,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(gateways))
         .route("/skinny", axum::routing::get(gateways_skinny))
-        .route("/:identity_key", axum::routing::get(get_gateway))
+        .route("/{identity_key}", axum::routing::get(get_gateway))
 }
 
 #[utoipa::path(
@@ -34,8 +34,8 @@ async fn gateways(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<Gateway>>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
 
     Ok(Json(PagedResult::paginate(pagination, res)))
 }
@@ -55,8 +55,8 @@ async fn gateways_skinny(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<GatewaySkinny>>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
     let res: Vec<GatewaySkinny> = filter_bonded_gateways_to_skinny(res);
 
     Ok(Json(PagedResult::paginate(pagination, res)))
@@ -83,8 +83,8 @@ async fn get_gateway(
     Path(IdentityKeyParam { identity_key }): Path<IdentityKeyParam>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<Gateway>> {
-    let db = state.db_pool();
-    let res = state.cache().get_gateway_list(db).await;
+    let storage = state.storage();
+    let res = state.cache().get_gateway_list(storage).await;
 
     match res
         .iter()
@@ -106,6 +106,8 @@ fn filter_bonded_gateways_to_skinny(gateways: Vec<Gateway>) -> Vec<GatewaySkinny
             performance: g.performance,
             explorer_pretty_bond: g.explorer_pretty_bond.clone(),
             last_probe_result: g.last_probe_result.clone(),
+            ports_check: g.ports_check.clone(),
+            last_ports_check_utc: g.last_ports_check_utc.clone(),
             last_testrun_utc: g.last_testrun_utc.clone(),
             last_updated_utc: g.last_updated_utc.clone(),
             routing_score: g.routing_score,
@@ -135,6 +137,8 @@ mod tests {
             },
             last_probe_result: Some(serde_json::json!({"result": "ok"})),
             last_probe_log: None,
+            ports_check: None,
+            last_ports_check_utc: None,
             last_testrun_utc: Some("2024-01-20T10:00:00Z".to_string()),
             last_updated_utc: "2024-01-20T11:00:00Z".to_string(),
             routing_score: 0.95,

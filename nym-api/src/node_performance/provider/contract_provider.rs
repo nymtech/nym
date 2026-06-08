@@ -68,7 +68,7 @@ impl ContractPerformanceProvider {
 
     pub(crate) async fn node_routing_scores(
         &self,
-        node_ids: Vec<NodeId>,
+        node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesRoutingScores, PerformanceRetrievalFailure> {
         let Some(first) = node_ids.first() else {
@@ -84,7 +84,7 @@ impl ContractPerformanceProvider {
         })?;
 
         let mut scores = HashMap::new();
-        for node_id in node_ids {
+        for &node_id in node_ids {
             let score = self.node_routing_score_with_fallback(&contract_cache, node_id, epoch_id);
             scores.insert(node_id, score);
         }

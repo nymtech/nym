@@ -72,7 +72,13 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     /// Will strip any `-rc.X` suffixes from the package versions
-    RemoveSuffix,
+    RemoveSuffix {
+        /// If set, only TypeScript (package.json) packages are touched and the
+        /// Rust (Cargo.toml) packages are left alone. Use when shipping a
+        /// TS-only release without bumping `wasm/smolmix`.
+        #[arg(long)]
+        ts_only: bool,
+    },
 
     /// Will update the versions of all relevant packages from `X.Y.Z` into `X.Y.(Z+1)-rc.0`.
     /// It will also update the `@nymproject/...` dependencies from `">=X.Y.Z-rc.0 || ^X"` to `">=X.Y.(Z+1)-rc.0 || ^X"`
@@ -81,6 +87,13 @@ enum Commands {
         /// If enabled, the packages will only have their rc version bumped and the dependencies
         /// will get updated from `">=X.Y.Z-rc.W || ^X"` to `">=X.Y.Z-rc.(W+1) || ^X"`
         pre_release: bool,
+
+        /// If set, only TypeScript (package.json) packages are bumped and the
+        /// Rust (Cargo.toml) packages are left alone. Use this when the TS SDK
+        /// needs a release without an underlying smolmix-wasm change. Default
+        /// is parity (Rust + TS together).
+        #[arg(long)]
+        ts_only: bool,
     },
 }
 
@@ -152,7 +165,16 @@ struct InternalPackages {
     cargo: HashSet<String>,
     json: HashSet<String>,
 
+    /// All `@nymproject/...` dep names whose specifiers should get bumped
+    /// alongside the source package versions.
     internal_js_dependencies: HashSet<String>,
+
+    /// Subset of `internal_js_dependencies` whose source-of-truth is a Cargo
+    /// crate (the wasm-pack-generated `pkg/package.json`). Under `--ts-only`,
+    /// the Cargo crate isn't bumped, so its dep specifiers must NOT be bumped
+    /// either — otherwise downstream package.jsons end up pinning a version
+    /// that was never published.
+    cargo_derived_js_dependencies: HashSet<String>,
 }
 
 impl InternalPackages {
@@ -162,6 +184,7 @@ impl InternalPackages {
             cargo: Default::default(),
             json: Default::default(),
             internal_js_dependencies: Default::default(),
+            cargo_derived_js_dependencies: Default::default(),
         }
     }
 
@@ -177,11 +200,22 @@ impl InternalPackages {
         self.internal_js_dependencies.insert(name.into());
     }
 
-    pub fn remove_suffix(&self) -> Summary {
+    /// Register a JS dep whose version is driven by a Cargo crate (and thus
+    /// regenerated from `Cargo.toml` by wasm-pack). Implicitly also adds it to
+    /// the general known-deps set so it gets bumped during a full release.
+    pub fn register_cargo_derived_js_dependency<S: Into<String>>(&mut self, name: S) {
+        let name = name.into();
+        self.internal_js_dependencies.insert(name.clone());
+        self.cargo_derived_js_dependencies.insert(name);
+    }
+
+    pub fn remove_suffix(&self, ts_only: bool) -> Summary {
         let mut cargo_results = HashMap::new();
-        for cargo_package in &self.cargo {
-            let res = remove_suffix::<CargoPackage>(&self.root, cargo_package);
-            cargo_results.insert(cargo_package.clone(), res);
+        if !ts_only {
+            for cargo_package in &self.cargo {
+                let res = remove_suffix::<CargoPackage>(&self.root, cargo_package);
+                cargo_results.insert(cargo_package.clone(), res);
+            }
         }
 
         let mut json_results = HashMap::new();
@@ -193,24 +227,38 @@ impl InternalPackages {
         Summary::new(cargo_results, json_results)
     }
 
-    pub fn bump_version(&self, pre_release: bool) -> Summary {
+    pub fn bump_version(&self, pre_release: bool, ts_only: bool) -> Summary {
         let mut cargo_results = HashMap::new();
-        for cargo_package in &self.cargo {
-            let res = bump_version::<CargoPackage>(
-                &self.root,
-                cargo_package,
-                &Default::default(),
-                pre_release,
-            );
-            cargo_results.insert(cargo_package.clone(), res);
+        if !ts_only {
+            for cargo_package in &self.cargo {
+                let res = bump_version::<CargoPackage>(
+                    &self.root,
+                    cargo_package,
+                    &Default::default(),
+                    pre_release,
+                );
+                cargo_results.insert(cargo_package.clone(), res);
+            }
         }
+
+        // Under --ts-only the wasm/Cargo crates aren't getting a new version,
+        // so we must NOT bump downstream `>=X.Y.Z || ^X` specifiers that point
+        // at them either.
+        let deps_to_update: HashSet<String> = if ts_only {
+            self.internal_js_dependencies
+                .difference(&self.cargo_derived_js_dependencies)
+                .cloned()
+                .collect()
+        } else {
+            self.internal_js_dependencies.clone()
+        };
 
         let mut json_results = HashMap::new();
         for package_json in &self.json {
             let res = bump_version::<PackageJson>(
                 &self.root,
                 package_json,
-                &self.internal_js_dependencies,
+                &deps_to_update,
                 pre_release,
             );
             json_results.insert(package_json.clone(), res);
@@ -223,53 +271,48 @@ impl InternalPackages {
 fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     let mut packages = InternalPackages::new(root);
 
-    // cargo packages that will have their Cargo.toml modified
-    packages.register_cargo("wasm/mix-fetch");
+    // cargo packages that will have their Cargo.toml modified.
+    // `wasm/smolmix` replaces the legacy `wasm/mix-fetch`; smolmix is the
+    // only wasm crate that ships TS-SDK-facing bindings now.
+    packages.register_cargo("wasm/smolmix");
     packages.register_cargo("wasm/client");
-    packages.register_cargo("wasm/node-tester");
-    // packages.register_cargo("wasm/full-nym-wasm");
-    packages.register_cargo("nym-browser-extension/storage");
 
-    // js packages that will have their package.json modified
+    // js packages that will have their package.json modified.
     packages.register_json("nym-wallet");
     packages.register_json("sdk/typescript/docs");
     packages.register_json("sdk/typescript/examples/chat-app/parcel");
     packages.register_json("sdk/typescript/examples/chat-app/plain-html");
     packages.register_json("sdk/typescript/examples/chat-app/react-webpack-with-theme-example");
-    packages.register_json("sdk/typescript/examples/chrome-extension");
-    packages.register_json("sdk/typescript/examples/firefox-extension");
     packages.register_json("sdk/typescript/examples/mix-fetch/browser");
-    packages.register_json("sdk/typescript/examples/node-tester/parcel");
-    packages.register_json("sdk/typescript/examples/node-tester/plain-html");
-    packages.register_json("sdk/typescript/examples/node-tester/react");
+    packages.register_json("sdk/typescript/packages/mix-tunnel");
     packages.register_json("sdk/typescript/packages/mix-fetch");
-    packages.register_json("sdk/typescript/packages/mix-fetch-node");
+    packages.register_json("sdk/typescript/packages/mix-dns");
+    packages.register_json("sdk/typescript/packages/mix-websocket");
     packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev");
     packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev/parcel");
-    packages.register_json("sdk/typescript/packages/node-tester");
     packages.register_json("sdk/typescript/packages/nodejs-client");
     packages.register_json("sdk/typescript/packages/sdk");
     packages.register_json("sdk/typescript/packages/sdk-react");
     packages.register_json("sdk/typescript/codegen/contract-clients");
 
-    // dependencies that will have their versions adjusted in the above packages
+    // dependencies that will have their versions adjusted in the above packages.
 
-    // WASM NodeJS
-    packages.register_known_js_dependency("@nymproject/nym-client-wasm-node");
-    packages.register_known_js_dependency("@nymproject/mix-fetch-wasm-node");
+    // WASM packages. Their package.json is generated by wasm-pack from the
+    // corresponding Cargo crate, so they're tracked as cargo-derived: a
+    // `--ts-only` bump leaves their dep specifiers alone.
+    packages.register_cargo_derived_js_dependency("@nymproject/nym-client-wasm");
+    packages.register_cargo_derived_js_dependency("@nymproject/smolmix-wasm");
 
-    // WASM
-    packages.register_known_js_dependency("@nymproject/nym-node-tester-wasm");
-    packages.register_known_js_dependency("@nymproject/nym-client-wasm");
-    packages.register_known_js_dependency("@nymproject/mix-fetch-wasm");
-
+    // smolmix-based TS SDKs.
+    packages.register_known_js_dependency("@nymproject/mix-tunnel");
     packages.register_known_js_dependency("@nymproject/mix-fetch");
-    packages.register_known_js_dependency("@nymproject/mix-fetch-full-fat");
+    packages.register_known_js_dependency("@nymproject/mix-dns");
+    packages.register_known_js_dependency("@nymproject/mix-websocket");
+
+    // Other SDK packages.
     packages.register_known_js_dependency("@nymproject/mui-theme");
-    packages.register_known_js_dependency("@nymproject/node-tester");
     packages.register_known_js_dependency("@nymproject/react-components");
     packages.register_known_js_dependency("@nymproject/sdk");
-    packages.register_known_js_dependency("@nymproject/sdk-full-fat");
     packages.register_known_js_dependency("@nymproject/sdk-react");
     packages.register_known_js_dependency("@nymproject/react");
     packages.register_known_js_dependency("@nymproject/nym-validator-client");
@@ -284,8 +327,11 @@ fn main() -> anyhow::Result<()> {
     let packages = initialise_internal_packages(args.root);
 
     let summary = match args.command {
-        Commands::RemoveSuffix => packages.remove_suffix(),
-        Commands::BumpVersion { pre_release } => packages.bump_version(pre_release),
+        Commands::RemoveSuffix { ts_only } => packages.remove_suffix(ts_only),
+        Commands::BumpVersion {
+            pre_release,
+            ts_only,
+        } => packages.bump_version(pre_release, ts_only),
     };
 
     summary.print();

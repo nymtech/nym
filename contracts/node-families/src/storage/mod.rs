@@ -1,0 +1,1428 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+// storage will be used in subsequent PRs/tickets
+#![allow(dead_code)]
+
+use crate::helpers::NewFamilyName;
+use crate::storage::storage_indexes::{
+    FamilyMembersIndex, NodeFamiliesIndex, NodeFamilyInvitationIndex, PastFamilyInvitationsIndex,
+    PastFamilyMembersIndex,
+};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, Order, StdResult, Storage};
+use cw_controllers::Admin;
+use cw_storage_plus::{IndexedMap, Item, Map};
+use nym_mixnet_contract_common::NodeId;
+use nym_node_families_contract_common::constants::storage_keys;
+use nym_node_families_contract_common::{
+    Config, FamilyInvitation, FamilyInvitationStatus, FamilyMembership, NodeFamiliesContractError,
+    NodeFamily, NodeFamilyId, PastFamilyInvitation, PastFamilyMember,
+};
+
+pub(crate) mod retrieval_limits;
+mod storage_indexes;
+
+/// Composite primary key for the invitation / past-member maps:
+/// `(family id, node id)`. Only one pending invitation can exist for a given
+/// `(family, node)` pair at a time.
+pub(crate) type FamilyMember = (NodeFamilyId, NodeId);
+
+/// Container for every storage handle used by the contract.
+///
+/// Constructed once via [`NodeFamiliesStorage::new`] and accessed through a
+/// `lazy_static`-style singleton in the entry point modules.
+pub struct NodeFamiliesStorage<'a> {
+    /// Admin of the contract; gates privileged operations.
+    pub(crate) contract_admin: Admin,
+
+    /// Runtime configuration (fees, length limits) persisted at instantiation
+    /// and consulted by transaction handlers.
+    pub(crate) config: Item<Config>,
+
+    /// Address of the mixnet contract; used to verify a node id refers to a
+    /// real, registered node.
+    pub(crate) mixnet_contract_address: Item<Addr>,
+
+    /// Monotonically increasing id assigned to every newly created family.
+    /// Ids start at `1` (see [`NodeFamiliesStorage::next_family_id`]); `0` is
+    /// reserved as a "no family" sentinel.
+    pub(crate) node_family_id_counter: Item<NodeFamilyId>,
+
+    /// All existing families, keyed by id, with unique secondary indexes on
+    /// `owner` (one-family-per-owner-address) and on `normalised_name`
+    /// (family names are globally unique under their normalised form, so
+    /// `"MyFamily"` and `"myfamily"` collide while the original `name` field
+    /// preserves the user-submitted formatting).
+    pub(crate) families: IndexedMap<NodeFamilyId, NodeFamily, NodeFamiliesIndex<'a>>,
+
+    /// Current family membership records, keyed by [`NodeId`]. A node
+    /// belongs to at most one family at a time, so the PK is the node id.
+    /// A `family` multi-index enables paginated listing of all nodes
+    /// belonging to a given family.
+    pub(crate) family_members: IndexedMap<NodeId, FamilyMembership, FamilyMembersIndex<'a>>,
+
+    /// Currently outstanding family invitations, indexed by both family id
+    /// and node id (a single node can simultaneously hold invitations from
+    /// multiple families).
+    pub(crate) pending_family_invitations:
+        IndexedMap<FamilyMember, FamilyInvitation, NodeFamilyInvitationIndex<'a>>,
+
+    // ##### historical data #####
+    //
+    // The two maps below archive terminal events. The trailing `u64` in the
+    // composite key is a per-`(family, node)` counter — a node can be removed
+    // from (or rejected by) the same family more than once, and we cannot use
+    // the block timestamp to disambiguate because multiple txs may share a
+    // block.
+    /// Archive of family memberships that have ended (kicked, left, or family
+    /// disbanded). Key: `((family_id, node_id), counter)`.
+    pub(crate) past_family_members:
+        IndexedMap<(FamilyMember, u64), PastFamilyMember, PastFamilyMembersIndex<'a>>,
+
+    /// Per-`(family, node)` counter for the [`Self::past_family_members`]
+    /// archive — yields the next free `counter` slot when archiving a new
+    /// past-membership record. Stored explicitly (rather than derived via
+    /// range scan) to keep archival writes O(1).
+    pub(crate) past_family_member_counter: Map<FamilyMember, u64>,
+
+    /// Archive of invitations that reached a terminal `Accepted` / `Rejected`
+    /// / `Revoked` state. Timed-out invitations are **not** archived here —
+    /// there is no background process that sweeps expired entries out of
+    /// [`Self::pending_family_invitations`].
+    pub(crate) past_family_invitations:
+        IndexedMap<(FamilyMember, u64), PastFamilyInvitation, PastFamilyInvitationsIndex<'a>>,
+
+    /// Per-`(family, node)` counter for the [`Self::past_family_invitations`]
+    /// archive — yields the next free `counter` slot when archiving a
+    /// terminal invitation event.
+    pub(crate) past_family_invitation_counter: Map<FamilyMember, u64>,
+}
+
+impl NodeFamiliesStorage<'_> {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        NodeFamiliesStorage {
+            contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
+            config: Item::new(storage_keys::CONFIG),
+            mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
+            node_family_id_counter: Item::new(storage_keys::NODE_FAMILY_ID_COUNTER),
+            families: IndexedMap::new(storage_keys::FAMILIES_NAMESPACE, NodeFamiliesIndex::new()),
+            family_members: IndexedMap::new(
+                storage_keys::NODE_FAMILY_MEMBERS,
+                FamilyMembersIndex::new(),
+            ),
+            pending_family_invitations: IndexedMap::new(
+                storage_keys::INVITATIONS_NAMESPACE,
+                NodeFamilyInvitationIndex::new(),
+            ),
+            past_family_members: IndexedMap::new(
+                storage_keys::PAST_FAMILY_MEMBER_NAMESPACE,
+                PastFamilyMembersIndex::new(),
+            ),
+            past_family_member_counter: Map::new(
+                storage_keys::PAST_FAMILY_MEMBER_COUNTER_NAMESPACE,
+            ),
+            past_family_invitations: IndexedMap::new(
+                storage_keys::PAST_INVITATIONS_NAMESPACE,
+                PastFamilyInvitationsIndex::new(),
+            ),
+            past_family_invitation_counter: Map::new(
+                storage_keys::PAST_INVITATIONS_COUNTER_NAMESPACE,
+            ),
+        }
+    }
+
+    /// One-time storage initialisation called from the contract's `instantiate`
+    /// entry point. Persists the runtime [`Config`] and mixnet contract
+    /// address, and sets `sender` as the contract admin.
+    pub(crate) fn initialise(
+        &self,
+        deps: DepsMut,
+        sender: Addr,
+        mixnet_contract_address: Addr,
+        config: Config,
+    ) -> Result<(), NodeFamiliesContractError> {
+        self.config.save(deps.storage, &config)?;
+        self.mixnet_contract_address
+            .save(deps.storage, &mixnet_contract_address)?;
+
+        self.contract_admin.set(deps, Some(sender))?;
+        Ok(())
+    }
+
+    /// Allocate the next [`NodeFamilyId`] and persist the bumped counter.
+    ///
+    /// Ids are issued starting from `1`; `0` is reserved as a "no family"
+    /// sentinel value and must never be assigned to a real family.
+    pub(crate) fn next_family_id(
+        &self,
+        store: &mut dyn Storage,
+    ) -> Result<NodeFamilyId, NodeFamiliesContractError> {
+        let next_id = self
+            .node_family_id_counter
+            .may_load(store)?
+            .unwrap_or_default()
+            + 1;
+        self.node_family_id_counter.save(store, &next_id)?;
+        Ok(next_id)
+    }
+
+    /// Allocate the next free archive slot for the [`Self::past_family_invitations`]
+    /// map under the given `(family, node)` key, and persist the bumped counter.
+    ///
+    /// Slots are issued starting from `0` and increase by 1 on every call.
+    pub(crate) fn next_past_invitation_counter(
+        &self,
+        store: &mut dyn Storage,
+        key: FamilyMember,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        let counter = self
+            .past_family_invitation_counter
+            .may_load(store, key)?
+            .unwrap_or_default();
+        self.past_family_invitation_counter
+            .save(store, key, &(counter + 1))?;
+        Ok(counter)
+    }
+
+    /// Allocate the next free archive slot for the [`Self::past_family_members`]
+    /// map under the given `(family, node)` key, and persist the bumped counter.
+    ///
+    /// Slots are issued starting from `0` and increase by 1 on every call.
+    pub(crate) fn next_past_member_counter(
+        &self,
+        store: &mut dyn Storage,
+        key: FamilyMember,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        let counter = self
+            .past_family_member_counter
+            .may_load(store, key)?
+            .unwrap_or_default();
+        self.past_family_member_counter
+            .save(store, key, &(counter + 1))?;
+        Ok(counter)
+    }
+
+    /// Persist a brand-new family in storage.
+    ///
+    /// Assigns a fresh [`NodeFamilyId`], stamps `created_at` from `env`
+    /// (unix seconds) and starts the membership counter at `0` — the owner
+    /// is **not** counted as a member.
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - validating `name`, `description` and `owner`;
+    /// - computing `normalised_name` from `name` (e.g. via
+    ///   [`crate::helpers::normalise_family_name`]) — the unique-name index
+    ///   keys on this field, so it is what enforces global uniqueness;
+    /// - ensuring `owner` does not already own a family **and** is not
+    ///   currently a member of one.
+    ///
+    /// Returns the freshly persisted [`NodeFamily`]. The underlying
+    /// `IndexedMap` enforces the one-family-per-owner and unique-name
+    /// invariants via unique indexes on `owner` and `normalised_name` as a
+    /// defence-in-depth check, so this call will fail if either is already
+    /// taken — but the caller must not rely on it for the membership check.
+    pub(crate) fn register_new_family(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        fee: Coin,
+        owner: Addr,
+        name: NewFamilyName,
+        description: String,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let id = self.next_family_id(store)?;
+        let family = NodeFamily {
+            id,
+            name: name.name,
+            normalised_name: name.normalised_name,
+            description,
+            owner,
+            paid_fee: fee,
+            members: 0,
+            created_at: env.block.time.seconds(),
+        };
+        self.families.save(store, id, &family)?;
+        Ok(family)
+    }
+
+    /// Apply name and/or description updates to an existing family, leaving
+    /// every other field (id, owner, members, paid_fee, created_at)
+    /// untouched. Each argument follows `None = keep` / `Some = replace`
+    /// semantics.
+    ///
+    /// No validation is performed here — the caller (transaction handler)
+    /// owns the length / non-empty / global-uniqueness checks before invoking.
+    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
+    ///
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn update_family_details(
+        &self,
+        store: &mut dyn Storage,
+        family_id: NodeFamilyId,
+        updated_name: Option<NewFamilyName>,
+        updated_description: Option<String>,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        if let Some(new_name) = updated_name {
+            family.name = new_name.name;
+            family.normalised_name = new_name.normalised_name;
+        }
+        if let Some(description) = updated_description {
+            family.description = description;
+        }
+        self.families.save(store, family.id, &family)?;
+        Ok(family)
+    }
+
+    /// Persist a new pending invitation for `node_id` to join `family_id`.
+    ///
+    /// `expires_at` is taken as a unix-seconds absolute deadline (the caller
+    /// is expected to compute it from the current block time plus the
+    /// configured invitation duration).
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that `family_id` exists and that the transaction sender
+    ///   is its owner;
+    /// - verifying that `node_id` refers to a real, registered node;
+    /// - ensuring `node_id` is not already a member of any family;
+    /// - ensuring `expires_at` is strictly in the future.
+    ///
+    /// As defence-in-depth, this method errors with [`FamilyNotFound`] if
+    /// `family_id` is unknown and with [`PendingInvitationAlreadyExists`] if
+    /// a pending invitation for the same `(family, node)` pair is already
+    /// stored — the underlying `IndexedMap` would otherwise silently
+    /// overwrite it.
+    ///
+    /// Returns the freshly persisted [`FamilyInvitation`].
+    ///
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    /// [`PendingInvitationAlreadyExists`]: NodeFamiliesContractError::PendingInvitationAlreadyExists
+    pub(crate) fn add_pending_invitation(
+        &self,
+        store: &mut dyn Storage,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+        expires_at: u64,
+    ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let key: FamilyMember = (family_id, node_id);
+
+        if !self.families.has(store, family_id) {
+            return Err(NodeFamiliesContractError::FamilyNotFound { family_id });
+        }
+
+        if self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .is_some()
+        {
+            return Err(NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                family_id,
+                node_id,
+            });
+        }
+
+        let invitation = FamilyInvitation {
+            family_id,
+            node_id,
+            expires_at,
+        };
+        self.pending_family_invitations
+            .save(store, key, &invitation)?;
+        Ok(invitation)
+    }
+
+    /// Accept a pending invitation for `node_id` to join `family_id`.
+    ///
+    /// Performs the full storage transition atomically:
+    /// 1. loads the pending invitation (errors with [`InvitationNotFound`] if
+    ///    none exists for the given pair);
+    /// 2. verifies it has not expired (`now < expires_at`, errors with
+    ///    [`InvitationExpired`] otherwise);
+    /// 3. removes it from the pending map;
+    /// 4. records `node_id -> family_id` in [`Self::family_members`];
+    /// 5. increments the family's `members` counter (errors with
+    ///    [`FamilyNotFound`] if the family has somehow been removed);
+    /// 6. archives the invitation in [`Self::past_family_invitations`] with
+    ///    status [`FamilyInvitationStatus::Accepted`], using the next free
+    ///    per-`(family, node)` counter.
+    ///
+    /// The caller is responsible for verifying that `node_id` is owned by
+    /// the transaction sender and is not already a member of any family.
+    ///
+    /// Returns the updated [`NodeFamily`] (with the bumped `members` count).
+    ///
+    /// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
+    /// [`InvitationExpired`]: NodeFamiliesContractError::InvitationExpired
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn accept_invitation(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+        let key: FamilyMember = (family_id, node_id);
+
+        let invitation = self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
+
+        if now >= invitation.expires_at {
+            return Err(NodeFamiliesContractError::InvitationExpired {
+                family_id,
+                node_id,
+                expires_at: invitation.expires_at,
+                now,
+            });
+        }
+
+        self.pending_family_invitations.remove(store, key)?;
+
+        self.family_members.save(
+            store,
+            node_id,
+            &FamilyMembership {
+                family_id,
+                joined_at: now,
+            },
+        )?;
+
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        family.members += 1;
+        self.families.save(store, family_id, &family)?;
+
+        let counter = self.next_past_invitation_counter(store, key)?;
+        self.past_family_invitations.save(
+            store,
+            (key, counter),
+            &PastFamilyInvitation {
+                invitation,
+                status: FamilyInvitationStatus::Accepted { at: now },
+            },
+        )?;
+
+        Ok(family)
+    }
+
+    /// Reject a pending invitation for `node_id` from `family_id`.
+    ///
+    /// Invitee-side counterpart to [`Self::revoke_pending_invitation`]:
+    /// removes the invitation from [`Self::pending_family_invitations`] and
+    /// archives it in [`Self::past_family_invitations`] with status
+    /// [`FamilyInvitationStatus::Rejected`], using the next free
+    /// per-`(family, node)` counter. Errors with [`InvitationNotFound`] if
+    /// no pending invitation exists for the given pair.
+    ///
+    /// Works regardless of whether the invitation has expired.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the controller of `node_id`.
+    ///
+    /// Returns the rejected [`FamilyInvitation`].
+    ///
+    /// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
+    pub(crate) fn reject_pending_invitation(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+        let key: FamilyMember = (family_id, node_id);
+
+        let invitation = self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
+
+        self.pending_family_invitations.remove(store, key)?;
+
+        let counter = self.next_past_invitation_counter(store, key)?;
+        self.past_family_invitations.save(
+            store,
+            (key, counter),
+            &PastFamilyInvitation {
+                invitation: invitation.clone(),
+                status: FamilyInvitationStatus::Rejected { at: now },
+            },
+        )?;
+
+        Ok(invitation)
+    }
+
+    /// Revoke a pending invitation for `node_id` from `family_id`.
+    ///
+    /// Removes the invitation from [`Self::pending_family_invitations`] and
+    /// archives it in [`Self::past_family_invitations`] with status
+    /// [`FamilyInvitationStatus::Revoked`], using the next free
+    /// per-`(family, node)` counter. Errors with [`InvitationNotFound`] if
+    /// no pending invitation exists for the given pair.
+    ///
+    /// Works regardless of whether the invitation has expired — this is the
+    /// only path that can clean expired entries out of the pending map, since
+    /// no background sweeper exists.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the owner of `family_id`.
+    ///
+    /// Returns the revoked [`FamilyInvitation`].
+    ///
+    /// [`InvitationNotFound`]: NodeFamiliesContractError::InvitationNotFound
+    pub(crate) fn revoke_pending_invitation(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+        let key: FamilyMember = (family_id, node_id);
+
+        let invitation = self
+            .pending_family_invitations
+            .may_load(store, key)?
+            .ok_or(NodeFamiliesContractError::InvitationNotFound { family_id, node_id })?;
+
+        self.pending_family_invitations.remove(store, key)?;
+
+        let counter = self.next_past_invitation_counter(store, key)?;
+        self.past_family_invitations.save(
+            store,
+            (key, counter),
+            &PastFamilyInvitation {
+                invitation: invitation.clone(),
+                status: FamilyInvitationStatus::Revoked { at: now },
+            },
+        )?;
+
+        Ok(invitation)
+    }
+
+    /// Remove `node_id` from whichever family it currently belongs to.
+    ///
+    /// Shared storage path for both routes that drop a member:
+    /// - **kick** — invoked by the family owner against another node;
+    /// - **leave** — invoked by the node's own controller.
+    ///
+    /// Looks up the node's family via [`Self::family_members`] (errors with
+    /// [`NodeNotInFamily`] if the node has no membership record), removes
+    /// the membership entry, decrements the family's `members` counter
+    /// (saturating at `0` as defence-in-depth — a underflow would indicate
+    /// an invariant break elsewhere), and archives a [`PastFamilyMember`]
+    /// record stamped with `removed_at = env.block.time.seconds()` using
+    /// the next per-`(family, node)` archive slot.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is authorised to remove this node — either as the family owner
+    /// (kick) or as the node's controller (leave).
+    ///
+    /// Returns the updated [`NodeFamily`] (with the decremented `members`
+    /// count). Errors with [`FamilyNotFound`] if the node's family has
+    /// somehow been removed.
+    ///
+    /// [`NodeNotInFamily`]: NodeFamiliesContractError::NodeNotInFamily
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn remove_family_member(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        node_id: NodeId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+
+        let family_id = self
+            .family_members
+            .may_load(store, node_id)?
+            .ok_or(NodeFamiliesContractError::NodeNotInFamily { node_id })?
+            .family_id;
+
+        self.family_members.remove(store, node_id)?;
+
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        family.members = family.members.saturating_sub(1);
+        self.families.save(store, family_id, &family)?;
+
+        let key: FamilyMember = (family_id, node_id);
+        let counter = self.next_past_member_counter(store, key)?;
+        self.past_family_members.save(
+            store,
+            (key, counter),
+            &PastFamilyMember {
+                family_id,
+                node_id,
+                removed_at: now,
+            },
+        )?;
+
+        Ok(family)
+    }
+
+    /// Apply the family-side cleanup triggered when `node_id` initiates
+    /// unbonding from the mixnet contract.
+    ///
+    /// Idempotent over the membership half: drops the node's [`FamilyMembership`]
+    /// record (decrementing the family's `members` count and archiving a
+    /// [`PastFamilyMember`]) iff such a record exists, otherwise leaves the
+    /// state untouched. Then sweeps every pending invitation addressed to
+    /// `node_id` (iterating via [`NodeFamilyInvitationIndex::node`]),
+    /// removing each from the pending map and archiving it as
+    /// [`FamilyInvitationStatus::Rejected`] at `env.block.time` — the
+    /// auto-cleared invitations share the `Rejected` terminal state with
+    /// invitations the node controller would have explicitly declined.
+    ///
+    /// The caller is responsible for verifying that the transaction sender
+    /// is the configured mixnet contract address — there is no node-side
+    /// authority for this path and storage cannot tell the difference between
+    /// the legitimate callback and an arbitrary execute call.
+    ///
+    /// Returns the number of pending invitations that were swept (useful for
+    /// event attributes / telemetry); the membership half is observable via
+    /// the archived `PastFamilyMember`.
+    pub(crate) fn handle_node_unbonding(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        node_id: NodeId,
+    ) -> Result<u64, NodeFamiliesContractError> {
+        if self.family_members.may_load(store, node_id)?.is_some() {
+            self.remove_family_member(store, env, node_id)?;
+        }
+
+        let now = env.block.time.seconds();
+        let pending: Vec<(FamilyMember, FamilyInvitation)> = self
+            .pending_family_invitations
+            .idx
+            .node
+            .prefix(node_id)
+            .range(store, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        let swept = pending.len() as u64;
+        for (key, invitation) in pending {
+            self.pending_family_invitations.remove(store, key)?;
+            let counter = self.next_past_invitation_counter(store, key)?;
+            self.past_family_invitations.save(
+                store,
+                (key, counter),
+                &PastFamilyInvitation {
+                    invitation,
+                    status: FamilyInvitationStatus::Rejected { at: now },
+                },
+            )?;
+        }
+
+        Ok(swept)
+    }
+
+    /// Disband (delete) `family_id`.
+    ///
+    /// Sweeps every still-pending invitation issued by the family
+    /// (iterating via the `family` multi-index over
+    /// [`Self::pending_family_invitations`]), removing each from the
+    /// pending map and archiving it as
+    /// [`FamilyInvitationStatus::Revoked`] at `env.block.time` — disbanding
+    /// the family is treated as the family withdrawing all of its
+    /// outstanding invitations. Gas cost therefore scales with the number
+    /// of leftover invitations; if that becomes a concern, the owner can
+    /// revoke them manually before disbanding.
+    ///
+    /// The caller (a transaction handler) is responsible for:
+    /// - verifying that the transaction sender is the owner of `family_id`;
+    /// - verifying that the family has zero current members (errors with
+    ///   [`FamilyNotEmpty`] are raised at the transaction layer, not here)
+    ///   — disbanding a family with members would otherwise leak orphaned
+    ///   `FamilyMembership` records pointing at a removed family.
+    ///
+    /// Errors with [`FamilyNotFound`] if `family_id` does not exist.
+    /// Returns the disbanded [`NodeFamily`] (final snapshot) for use in
+    /// event attributes.
+    ///
+    /// [`FamilyNotEmpty`]: NodeFamiliesContractError::FamilyNotEmpty
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn disband_family(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
+
+        let family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+
+        // collect first, then mutate — iterating an IndexedMap while modifying it is unsafe
+        let pending: Vec<(FamilyMember, FamilyInvitation)> = self
+            .pending_family_invitations
+            .idx
+            .family
+            .prefix(family_id)
+            .range(store, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        for (key, invitation) in pending {
+            self.pending_family_invitations.remove(store, key)?;
+            let counter = self.next_past_invitation_counter(store, key)?;
+            self.past_family_invitations.save(
+                store,
+                (key, counter),
+                &PastFamilyInvitation {
+                    invitation,
+                    status: FamilyInvitationStatus::Revoked { at: now },
+                },
+            )?;
+        }
+
+        self.families.remove(store, family_id)?;
+
+        Ok(family)
+    }
+
+    // helpers
+
+    /// Look up the family owned by `owner` via the unique `owner` index.
+    ///
+    /// Returns `Ok(None)` if the address owns no family. The unique index
+    /// guarantees the lookup is `O(log n)` and that at most one family can
+    /// ever match.
+    pub(crate) fn may_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<Option<NodeFamily>, NodeFamiliesContractError> {
+        Ok(self
+            .families
+            .idx
+            .owner
+            .item(storage, owner.clone())?
+            .map(|(_, owned)| owned))
+    }
+
+    /// Like [`Self::may_get_owned_family`] but errors with
+    /// [`SenderDoesntOwnAFamily`] when the address doesn't own one — meant
+    /// for owner-gated execute paths (`disband`, `invite`, …) where the
+    /// absence of a family is itself an error.
+    ///
+    /// [`SenderDoesntOwnAFamily`]: NodeFamiliesContractError::SenderDoesntOwnAFamily
+    pub(crate) fn must_get_owned_family(
+        &self,
+        storage: &dyn Storage,
+        owner: &Addr,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        self.may_get_owned_family(storage, owner)?.ok_or_else(|| {
+            NodeFamiliesContractError::SenderDoesntOwnAFamily {
+                address: owner.clone(),
+            }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::helpers::NewFamilyName;
+    use crate::testing::{init_contract_tester, NodeFamiliesContractTesterExt};
+    use nym_contracts_common_testing::ContractOpts;
+
+    // ---- counters ----
+
+    #[test]
+    fn next_family_id_starts_at_1_and_increments() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 1);
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 2);
+        assert_eq!(s.next_family_id(tester.storage_mut()).unwrap(), 3);
+    }
+
+    #[test]
+    fn past_invitation_counter_starts_at_0_per_key() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let k1: FamilyMember = (1, 100);
+        let k2: FamilyMember = (2, 100);
+
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            1
+        );
+        // independent counter for a different key
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k2)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_invitation_counter(tester.storage_mut(), k1)
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn past_member_counter_starts_at_0_per_key() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let k: FamilyMember = (1, 100);
+
+        assert_eq!(
+            s.next_past_member_counter(tester.storage_mut(), k).unwrap(),
+            0
+        );
+        assert_eq!(
+            s.next_past_member_counter(tester.storage_mut(), k).unwrap(),
+            1
+        );
+    }
+
+    // ---- register_new_family ----
+
+    #[test]
+    fn register_new_family_persists_with_expected_fields() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let fee = tester.family_fee();
+        let env = tester.env();
+        let owner = tester.addr_make("alice");
+
+        let family = s
+            .register_new_family(
+                tester.storage_mut(),
+                &env,
+                fee,
+                owner.clone(),
+                NewFamilyName {
+                    name: "Fam!".into(),
+                    normalised_name: "fam".into(),
+                },
+                "desc".into(),
+            )
+            .unwrap();
+
+        assert_eq!(family.id, 1);
+        assert_eq!(family.owner, owner);
+        assert_eq!(family.name, "Fam!");
+        assert_eq!(family.normalised_name, "fam");
+        assert_eq!(family.description, "desc");
+        assert_eq!(family.members, 0);
+        assert_eq!(family.created_at, tester.env().block.time.seconds());
+
+        let stored = s.families.load(tester.storage(), 1).unwrap();
+        assert_eq!(stored, family);
+    }
+
+    #[test]
+    fn register_new_family_assigns_sequential_ids() {
+        let mut tester = init_contract_tester();
+
+        let f1 = tester.add_dummy_family();
+        let f2 = tester.add_dummy_family();
+
+        assert_eq!(f1.id, 1);
+        assert_eq!(f2.id, 2);
+    }
+
+    #[test]
+    fn register_new_family_rejects_duplicate_name() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+        let fee = tester.family_fee();
+
+        s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            fee.clone(),
+            alice,
+            NewFamilyName {
+                name: "Shared".into(),
+                normalised_name: "shared".into(),
+            },
+            "".into(),
+        )
+        .unwrap();
+
+        // unique-index defence-in-depth check: same normalised_name even though
+        // the user-submitted `name` differs in casing/punctuation.
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            fee,
+            bob,
+            NewFamilyName {
+                name: "$$shared$$".into(),
+                normalised_name: "shared".into(),
+            },
+            "".into(),
+        );
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn register_new_family_rejects_duplicate_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let fee = tester.family_fee();
+
+        tester.make_family(&alice);
+
+        // unique-index defence-in-depth check
+        let res = s.register_new_family(
+            tester.storage_mut(),
+            &env,
+            fee,
+            alice,
+            NewFamilyName {
+                name: "second".into(),
+                normalised_name: "second".into(),
+            },
+            "".into(),
+        );
+        assert!(res.is_err());
+    }
+
+    // ---- add_pending_invitation ----
+
+    #[test]
+    fn add_pending_invitation_persists() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = tester.env().block.time.seconds() + 100;
+
+        let inv = s
+            .add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        assert_eq!(inv.family_id, f.id);
+        assert_eq!(inv.node_id, 42);
+        assert_eq!(inv.expires_at, expires_at);
+        let stored = s
+            .pending_family_invitations
+            .load(tester.storage(), (f.id, 42))
+            .unwrap();
+        assert_eq!(stored, inv);
+    }
+
+    #[test]
+    fn add_pending_invitation_errors_on_unknown_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let expires_at = env.block.time.seconds() + 100;
+
+        let res = s.add_pending_invitation(tester.storage_mut(), 99, 42, expires_at);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::FamilyNotFound { family_id: 99 }
+        );
+    }
+
+    #[test]
+    fn add_pending_invitation_errors_on_duplicate() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        tester.invite_to_family(f.id, 42);
+
+        let expires_at = env.block.time.seconds() + 200;
+        let res = s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                family_id: f.id,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- accept_invitation ----
+
+    #[test]
+    fn accept_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = env.block.time.seconds() + 100;
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        let updated = s
+            .accept_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+
+        assert_eq!(updated.members, 1);
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        let membership = s.family_members.load(tester.storage(), 42).unwrap();
+        assert_eq!(membership.family_id, f.id);
+        assert_eq!(membership.joined_at, tester.env().block.time.seconds());
+        assert_eq!(s.families.load(tester.storage(), f.id).unwrap().members, 1);
+
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Accepted {
+                at: tester.env().block.time.seconds()
+            }
+        );
+        assert_eq!(past.invitation.family_id, f.id);
+        assert_eq!(past.invitation.node_id, 42);
+    }
+
+    #[test]
+    fn accept_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.accept_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    #[test]
+    fn accept_invitation_errors_when_expired() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        // expires at exactly `now` — `now >= expires_at` triggers
+        let expires_at = tester.env().block.time.seconds();
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        let res = s.accept_invitation(tester.storage_mut(), &env, f.id, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationExpired {
+                family_id: f.id,
+                node_id: 42,
+                expires_at,
+                now: tester.env().block.time.seconds(),
+            }
+        );
+    }
+
+    // ---- reject_pending_invitation ----
+
+    #[test]
+    fn reject_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+
+        let inv = s
+            .reject_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+        assert_eq!(inv.node_id, 42);
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Rejected {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn reject_invitation_works_on_expired() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        let expires_at = env.block.time.seconds();
+        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .unwrap();
+
+        s.reject_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+    }
+
+    #[test]
+    fn reject_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.reject_pending_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- revoke_pending_invitation ----
+
+    #[test]
+    fn revoke_invitation_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+
+        s.revoke_pending_invitation(tester.storage_mut(), &env, f.id, 42)
+            .unwrap();
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn revoke_invitation_errors_when_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.revoke_pending_invitation(tester.storage_mut(), &env, 1, 42);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::InvitationNotFound {
+                family_id: 1,
+                node_id: 42,
+            }
+        );
+    }
+
+    // ---- remove_family_member ----
+
+    #[test]
+    fn remove_family_member_happy_path() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.add_to_family(f.id, 42);
+
+        let updated = s
+            .remove_family_member(tester.storage_mut(), &env, 42)
+            .unwrap();
+
+        assert_eq!(updated.members, 0);
+        assert!(s
+            .family_members
+            .may_load(tester.storage(), 42)
+            .unwrap()
+            .is_none());
+        let past = s
+            .past_family_members
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(past.family_id, f.id);
+        assert_eq!(past.node_id, 42);
+        assert_eq!(past.removed_at, tester.env().block.time.seconds());
+    }
+
+    #[test]
+    fn remove_family_member_errors_when_node_not_in_any_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.remove_family_member(tester.storage_mut(), &env, 999);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::NodeNotInFamily { node_id: 999 }
+        );
+    }
+
+    #[test]
+    fn remove_family_member_uses_per_pair_archive_counter() {
+        // joining and leaving the same family twice must not collide on the archive key
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        let expires_at = env.block.time.seconds() + 100;
+        for _ in 0..2 {
+            s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+                .unwrap();
+            s.accept_invitation(tester.storage_mut(), &env, f.id, 42)
+                .unwrap();
+            s.remove_family_member(tester.storage_mut(), &env, 42)
+                .unwrap();
+        }
+
+        // both archive slots present
+        s.past_family_members
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        s.past_family_members
+            .load(tester.storage(), ((f.id, 42), 1))
+            .unwrap();
+    }
+
+    // ---- disband_family ----
+
+    #[test]
+    fn disband_family_happy_path_no_pending() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        let snap = s.disband_family(tester.storage_mut(), &env, f.id).unwrap();
+        assert_eq!(snap.id, f.id);
+        assert!(s
+            .families
+            .may_load(tester.storage(), f.id)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn disband_family_sweeps_all_pending_invitations_as_revoked() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+        tester.invite_to_family(f.id, 42);
+        tester.invite_to_family(f.id, 43);
+
+        s.disband_family(tester.storage_mut(), &env, f.id).unwrap();
+
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 42))
+            .unwrap()
+            .is_none());
+        assert!(s
+            .pending_family_invitations
+            .may_load(tester.storage(), (f.id, 43))
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            s.past_family_invitations
+                .load(tester.storage(), ((f.id, 42), 0))
+                .unwrap()
+                .status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+        assert_eq!(
+            s.past_family_invitations
+                .load(tester.storage(), ((f.id, 43), 0))
+                .unwrap()
+                .status,
+            FamilyInvitationStatus::Revoked {
+                at: tester.env().block.time.seconds()
+            }
+        );
+    }
+
+    #[test]
+    fn disband_family_errors_on_unknown_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+
+        let res = s.disband_family(tester.storage_mut(), &env, 99);
+        assert_eq!(
+            res.unwrap_err(),
+            NodeFamiliesContractError::FamilyNotFound { family_id: 99 }
+        );
+    }
+
+    #[test]
+    fn after_disband_owner_can_register_again_with_new_id() {
+        let mut tester = init_contract_tester();
+        let fee = tester.family_fee();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+
+        let f1 = tester.make_family(&alice);
+        s.disband_family(tester.storage_mut(), &env, f1.id).unwrap();
+        let f2 = s
+            .register_new_family(
+                tester.storage_mut(),
+                &env,
+                fee,
+                alice,
+                NewFamilyName {
+                    name: "2".into(),
+                    normalised_name: "2".into(),
+                },
+                "".into(),
+            )
+            .unwrap();
+
+        // ids monotonically increase, never recycled
+        assert_eq!(f1.id, 1);
+        assert_eq!(f2.id, 2);
+    }
+
+    // ---- may_get_owned_family ----
+
+    #[test]
+    fn may_get_owned_family_returns_none_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s
+            .may_get_owned_family(tester.storage(), &alice)
+            .unwrap()
+            .unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn may_get_owned_family_does_not_leak_other_owners_family() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let bob = tester.addr_make("bob");
+        tester.make_family(&alice);
+
+        let res = s.may_get_owned_family(tester.storage(), &bob).unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn may_get_owned_family_returns_none_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let res = s.may_get_owned_family(tester.storage(), &alice).unwrap();
+        assert!(res.is_none());
+    }
+
+    // ---- must_get_owned_family ----
+
+    #[test]
+    fn must_get_owned_family_returns_the_family_for_its_owner() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let res = s.must_get_owned_family(tester.storage(), &alice).unwrap();
+        assert_eq!(res, family);
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_when_address_owns_nothing() {
+        let tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
+    }
+
+    #[test]
+    fn must_get_owned_family_errors_after_disband() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let alice = tester.addr_make("alice");
+        let family = tester.make_family(&alice);
+
+        let env = tester.env();
+        s.disband_family(tester.storage_mut(), &env, family.id)
+            .unwrap();
+
+        let err = s
+            .must_get_owned_family(tester.storage(), &alice)
+            .unwrap_err();
+        assert_eq!(
+            err,
+            NodeFamiliesContractError::SenderDoesntOwnAFamily { address: alice }
+        );
+    }
+}

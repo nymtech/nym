@@ -439,7 +439,7 @@ where
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut to_forward: HashMap<_, Vec<_>> = HashMap::new();
 
-        for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
+        for (raw, prepared) in fragments.into_iter().zip(prepared_fragments) {
             let lane = raw.0;
             let FragmentWithMaxRetransmissions {
                 fragment,
@@ -670,7 +670,7 @@ where
 
         Ok(fragments
             .into_iter()
-            .zip(reply_surbs.into_iter())
+            .zip(reply_surbs)
             .map(|(fragment, reply_surb)| {
                 // unwrap here is fine as we know we have a valid topology
                 #[allow(clippy::unwrap_used)]

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.31.0"
+version = "1.32.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -109,6 +109,7 @@ nym-node-requests = { workspace = true, default-features = false, features = [
     "openapi",
 ] }
 nym-node-metrics = { workspace = true }
+nyxd-scraper-shared = { workspace = true }
 
 # nodes:
 nym-gateway = { path = "../gateway" }
@@ -116,16 +117,17 @@ nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 # LP dependencies
-nym-lp = { workspace = true }
+nym-lp = { workspace = true, default-features = true }
+nym-lp-data.workspace = true
 nym-registration-common = { path = "../common/registration" }
 bincode = { workspace = true }
 
 
 # throughput tester to recreate lioness
 # we don't care about particular versions - just pull whatever is used by sphinx
-lioness = "*"
+lioness = { workspace = true }
 chacha = "0.3.0"
-arrayref = "*"
+arrayref = { workspace = true }
 blake2 = "=0.8.1"
 sha2 = { workspace = true }
 hkdf = { workspace = true }
@@ -140,7 +142,7 @@ harness = false
 cargo_metadata = { workspace = true }
 
 [dev-dependencies]
-nym-lp = { workspace = true, features = ["mock"] }
+nym-lp = { workspace = true, default-features = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
 

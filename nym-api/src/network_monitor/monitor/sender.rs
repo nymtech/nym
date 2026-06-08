@@ -448,7 +448,7 @@ impl PacketSender {
         //
         // we need to keep clients alive until the test finishes so that we could keep receiving
         ForEachConcurrentClientUse::new(
-            stream::iter(stream_data.into_iter()),
+            stream::iter(stream_data),
             max_concurrent_clients,
             |(packets, fresh_data)| async move {
                 Self::send_gateway_packets(

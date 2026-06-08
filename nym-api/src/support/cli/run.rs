@@ -13,6 +13,7 @@ use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
+use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
 use crate::node_performance::provider::legacy_storage_provider::LegacyStoragePerformanceProvider;
 use crate::node_performance::provider::NodePerformanceProvider;
@@ -27,6 +28,7 @@ use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
+use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
 use crate::support::http::state::node_annotations_cache::NodeAnnotationsCache;
 use crate::support::http::state::AppState;
 use crate::support::http::{RouterBuilder, TASK_MANAGER_TIMEOUT_S};
@@ -36,7 +38,7 @@ use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
     ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_performance, node_status_api, signers_cache,
+    node_families, node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -188,6 +190,19 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         described_path,
     );
 
+    // NODE FAMILIES
+    let node_families_path = storage_cfg.cache_file("node_families");
+    let ttl = config.node_families_cache.debug.caching_interval;
+    let node_families_cache =
+        SharedCache::<NodeFamiliesCacheData>::new_with_persistent(&node_families_path, ttl, None);
+    let node_families_cache_refresher = node_families::build_refresher(
+        &config.node_families_cache,
+        &mixnet_contract_cache_state.clone(),
+        &node_families_cache,
+        nyxd_client.clone(),
+        node_families_path,
+    );
+
     // NODES ANNOTATIONS
     let annotations_path = storage_cfg.cache_file("node_annotations");
     let ttl = config.node_status_api.debug.caching_interval;
@@ -297,6 +312,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         Box::new(LegacyStoragePerformanceProvider::new(
             storage.clone(),
             mixnet_contract_cache_state.clone(),
+            config.performance_provider.debug.stress_testing_data_period,
         ))
     };
 
@@ -305,7 +321,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         mixnet_contract_cache_refresher.start_with_watcher(shutdown_manager.clone_shutdown_token());
 
     let node_status_cache_refresh_requester = node_status_api::start_cache_refresh(
-        &config.node_status_api,
+        &config,
         &mixnet_contract_cache_state,
         &described_nodes_cache,
         &node_status_cache_state,
@@ -315,6 +331,8 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         annotations_path,
         &shutdown_manager,
     );
+
+    node_families_cache_refresher.start(shutdown_manager.clone_shutdown_token());
 
     // start dkg task
     if config.ecash_signer.enabled {
@@ -394,7 +412,12 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
             config.address_cache.capacity,
         ),
         forced_refresh: ForcedRefresh::new(config.describe_cache.debug.allow_illegal_ips),
+        network_monitor_submissions: LastNMSubmissions::new(),
         mixnet_contract_cache,
+        network_monitors_cache: NetworkMonitorsCache::new(
+            config.network_monitors_cache.time_to_live,
+        ),
+        node_families_cache,
         node_annotations_cache,
         storage,
         described_nodes_cache,

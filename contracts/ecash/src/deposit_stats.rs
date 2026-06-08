@@ -6,6 +6,10 @@ use cw_storage_plus::{Item, Map};
 use nym_ecash_contract_common::EcashContractError;
 use std::collections::HashMap;
 
+/// Tier-stratified deposit accounting. Maintains the invariant
+/// `default_count + sum(custom_count_per_account) == total_deposits_made`.
+/// Any code that writes to the `"deposit"` namespace MUST go through
+/// `new_default_deposit` / `new_reduced_deposit` or it breaks the invariant.
 pub(crate) struct DepositStatsStorage {
     /// Total deposits performed with the default price
     pub(crate) deposits_with_default_price: Item<u32>,
@@ -30,6 +34,9 @@ impl DepositStatsStorage {
         }
     }
 
+    /// Bump the global default-price counter + amount accumulator. Called by
+    /// `DepositTicketBookFunds` whenever the sender paid the default amount
+    /// (regardless of whether they are also whitelisted for a reduced price).
     pub(crate) fn new_default_deposit(
         &self,
         store: &mut dyn Storage,
@@ -47,6 +54,9 @@ impl DepositStatsStorage {
         Ok(())
     }
 
+    /// Bump the per-account custom-price counter + amount accumulator. Called
+    /// by `DepositTicketBookFunds` when a whitelisted sender paid their
+    /// configured reduced amount.
     pub(crate) fn new_reduced_deposit(
         &self,
         store: &mut dyn Storage,

@@ -104,30 +104,30 @@ $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
 sdk-wasm-build:
-# 	$(MAKE) -C nym-browser-extension/storage wasm-pack
 	$(MAKE) -C wasm/client
-	$(MAKE) -C wasm/node-tester
-	$(MAKE) -C wasm/mix-fetch
+	$(MAKE) -C wasm/smolmix
 # 	$(MAKE) -C wasm/zknym-lib
-	# $(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
+#
+# `mix-tunnel` must build before the three feature packages — they import it
+# via `workspace:*` and the lerna topological sort will respect that as long
+# as we keep them in the same `--scope` invocation.
 sdk-typescript-build:
 	npx lerna run --scope @nymproject/sdk build --stream
-	npx lerna run --scope @nymproject/mix-fetch build --stream
-	npx lerna run --scope @nymproject/node-tester build --stream
-	yarn --cwd sdk/typescript/codegen/contract-clients build
+	npx lerna run --scope '{@nymproject/mix-tunnel,@nymproject/mix-fetch,@nymproject/mix-dns,@nymproject/mix-websocket}' build --stream
+	pnpm --pwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-# WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
-WASM_CRATES = nym-client-wasm nym-node-tester-wasm
+
+WASM_CRATES = nym-client-wasm
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 
 sdk-wasm-lint:
 	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
-	$(MAKE) -C wasm/mix-fetch check-fmt
+	$(MAKE) -C wasm/smolmix check-fmt
 
 # Add to top-level targets
 build: sdk-wasm-build
@@ -223,7 +223,7 @@ build-nym-cli:
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
-	yarn types:lint:fix
+	pnpm types:lint:fix
 
 # Run the integration tests for public nym-api endpoints
 run-api-tests:

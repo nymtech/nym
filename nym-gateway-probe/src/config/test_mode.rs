@@ -10,6 +10,9 @@
 //! - LpOnly: LP registration only, no WireGuard
 //! - Socks5Only: Socks5 test
 //! - All: Mixnet, wireguard over authenticator and LP registration
+//!
+//! Note: Exit policy port checking is handled by the `run-ports` subcommand,
+//! not via a test mode.
 
 /// Test mode for the gateway probe.
 ///

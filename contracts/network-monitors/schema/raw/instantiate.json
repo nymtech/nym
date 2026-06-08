@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "orchestrator_address"
+  ],
+  "properties": {
+    "orchestrator_address": {
+      "description": "Address of the initial network monitor orchestrator.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

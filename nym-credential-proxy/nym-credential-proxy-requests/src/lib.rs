@@ -62,9 +62,9 @@ pub mod routes {
                 pub mod shares {
                     use super::*;
 
-                    pub const SHARE_BY_ID: &str = "/:share_id";
+                    pub const SHARE_BY_ID: &str = "/{share_id}";
                     pub const SHARE_BY_DEVICE_AND_CREDENTIAL_ID: &str =
-                        "/device/:device_id/credential/:credential_id";
+                        "/device/{device_id}/credential/{credential_id}";
 
                     absolute_route!(share_by_id_absolute, shares_absolute(), SHARE_BY_ID);
                     absolute_route!(

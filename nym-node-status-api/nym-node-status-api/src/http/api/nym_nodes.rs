@@ -18,7 +18,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(nym_nodes))
         .route(
-            "/:node_id/delegations",
+            "/{node_id}/delegations",
             axum::routing::get(node_delegations),
         )
 }
@@ -40,12 +40,12 @@ async fn nym_nodes(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<PagedResult<ExtendedNymNode>>> {
-    let db = state.db_pool();
+    let storage = state.storage();
     let node_geocache = state.node_geocache();
 
     let nodes = state
         .cache()
-        .get_nym_nodes_list(db, node_geocache)
+        .get_nym_nodes_list(storage, node_geocache)
         .await
         .map_err(|e| {
             tracing::error!("{e}");

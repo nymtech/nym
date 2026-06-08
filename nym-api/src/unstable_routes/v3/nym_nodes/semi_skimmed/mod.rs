@@ -6,7 +6,7 @@ use crate::support::http::state::AppState;
 use crate::unstable_routes::helpers::refreshed_at;
 use axum::extract::{Query, State};
 use nym_api_requests::models::{
-    NodeAnnotation, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
+    NodeAnnotationV1, NodeAnnotationV2, NymNodeDescriptionV2, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_api_requests::nym_nodes::{NodeRole, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV3};
 use nym_api_requests::pagination::PaginatedResponse;
@@ -22,7 +22,7 @@ pub type PaginatedSemiSkimmedNodes =
 fn build_response<'a>(
     rewarded_set: &CachedEpochRewardedSet,
     nym_nodes: impl Iterator<Item = &'a NymNodeDescriptionV2>,
-    annotations: &HashMap<NodeId, NodeAnnotation>,
+    annotations: &HashMap<NodeId, NodeAnnotationV2>,
     current_key_rotation: u32,
 ) -> Vec<SemiSkimmedNodeV3> {
     let mut nodes = Vec::new();
@@ -33,7 +33,11 @@ fn build_response<'a>(
 
         // honestly, not sure under what exact circumstances this value could be missing,
         // but in that case just use 0 performance
-        let annotation = annotations.get(&node_id).copied().unwrap_or_default();
+        let annotation: NodeAnnotationV1 = annotations
+            .get(&node_id)
+            .copied()
+            .unwrap_or_default()
+            .into();
 
         nodes.push(nym_node.to_semi_skimmed_node_v3(
             current_key_rotation,

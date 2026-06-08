@@ -3,6 +3,7 @@ import { Box, SxProps } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateUndelegateFromNode, simulateVestingUndelegateFromMixnode } from 'src/requests';
+import { formatDelegationNodeIdentityForDisplay } from 'src/utils';
 import { AppContext } from 'src/context';
 import { ModalFee } from '../Modals/ModalFee';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -49,7 +50,11 @@ export const UndelegateModal: FCWithChildren<{
       backdropProps={backdropProps}
     >
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Node identity" value={identityKey || '-'} divider />
+        <ModalListItem
+          label="Node identity"
+          value={formatDelegationNodeIdentityForDisplay(identityKey, mixId) || '-'}
+          divider
+        />
         <ModalListItem label="Delegation amount" value={`${amount} ${currency.toUpperCase()}`} divider />
         <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
         <ModalListItem label=" Tokens will be transferred to account you are logged in with now" value="" divider />

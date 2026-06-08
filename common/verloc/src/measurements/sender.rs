@@ -109,8 +109,8 @@ impl PacketSender {
 
         let mut results = Vec::with_capacity(self.packets_per_node);
 
-        let mut seq = self.random_sequence_number();
-        for _ in 0..self.packets_per_node {
+        let start_seq = self.random_sequence_number();
+        for seq in start_seq..start_seq + self.packets_per_node as u64 {
             let packet = EchoPacket::new(seq, &self.identity);
             let start = Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
@@ -210,7 +210,6 @@ impl PacketSender {
             let time_taken = Instant::now().duration_since(start);
             results.push(time_taken);
 
-            seq += 1;
             sleep(self.delay_between_packets).await;
         }
 

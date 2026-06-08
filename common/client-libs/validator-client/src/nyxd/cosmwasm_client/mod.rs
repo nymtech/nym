@@ -36,7 +36,7 @@ pub mod logs;
 pub mod module_traits;
 pub mod types;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct SigningClientOptions {
     gas_price: GasPrice,
     simulated_gas_multiplier: f32,
@@ -78,6 +78,17 @@ impl<C, S> MaybeSigningClient<C, S> {
             client,
             signer,
             opts,
+        }
+    }
+
+    pub(crate) fn clone_query_client(&self) -> MaybeSigningClient<C, NoSigner>
+    where
+        C: Clone,
+    {
+        MaybeSigningClient {
+            client: self.client.clone(),
+            signer: Default::default(),
+            opts: self.opts.clone(),
         }
     }
 }

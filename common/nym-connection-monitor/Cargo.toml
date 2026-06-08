@@ -18,7 +18,7 @@ bytes.workspace = true
 futures.workspace = true
 nym-config = { workspace = true }
 nym-common = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 nym-sdk = { workspace = true }
 pnet_packet.workspace = true
 thiserror.workspace = true

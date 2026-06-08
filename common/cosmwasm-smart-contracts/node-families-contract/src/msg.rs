@@ -1,0 +1,221 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+use crate::{
+    Config, GlobalPastFamilyInvitationCursor, NodeFamilyId, PastFamilyInvitationCursor,
+    PastFamilyInvitationForNodeCursor, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
+};
+use cosmwasm_schema::cw_serde;
+use nym_mixnet_contract_common::NodeId;
+
+#[cfg(feature = "schema")]
+use crate::{
+    AllFamilyMembersPagedResponse, AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse,
+    FamilyMembersPagedResponse, NodeFamilyByNameResponse, NodeFamilyByOwnerResponse,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationsForNodePagedResponse,
+    PastFamilyInvitationsPagedResponse, PastFamilyMembersForNodePagedResponse,
+    PastFamilyMembersPagedResponse, PendingFamilyInvitationResponse,
+    PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
+    PendingInvitationsPagedResponse,
+};
+
+/// Message used to instantiate the node families contract.
+#[cw_serde]
+pub struct InstantiateMsg {
+    pub config: Config,
+
+    pub mixnet_contract_address: String,
+}
+
+/// Execute messages accepted by the contract.
+#[cw_serde]
+pub enum ExecuteMsg {
+    /// Replace the contract's runtime [`Config`]. Restricted to the contract
+    /// admin.
+    UpdateConfig { config: Config },
+
+    /// Create a new family owned by the message sender. The configured
+    /// `create_family_fee` must be attached as funds.
+    CreateFamily { name: String, description: String },
+
+    /// Update the name and/or description of the family owned by the message
+    /// sender. Each field is independently optional: `None` leaves the
+    /// existing value unchanged, `Some(_)` replaces it. Updated values are
+    /// validated against the same length / normalisation / global-uniqueness
+    /// rules as [`Self::CreateFamily`].
+    UpdateFamily {
+        updated_name: Option<String>,
+        updated_description: Option<String>,
+    },
+
+    /// Disband the family owned by the message sender. The family must have
+    /// no current members; any still-pending invitations are revoked.
+    DisbandFamily {},
+
+    /// Invite a node to the family owned by the message sender. If
+    /// `validity_secs` is omitted the invitation expires
+    /// `default_invitation_validity_secs` seconds (from [`Config`]) after the
+    /// current block time.
+    InviteToFamily {
+        node_id: NodeId,
+        validity_secs: Option<u64>,
+    },
+
+    /// Revoke a still-pending invitation previously issued by the sender's
+    /// family.
+    RevokeFamilyInvitation { node_id: NodeId },
+
+    /// Accept a pending invitation. The sender must control `node_id`.
+    AcceptFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Reject a pending invitation. The sender must control `node_id`.
+    RejectFamilyInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Leave the family `node_id` currently belongs to. The sender must
+    /// control `node_id`.
+    LeaveFamily { node_id: NodeId },
+
+    /// Remove `node_id` from the family owned by the message sender.
+    KickFromFamily { node_id: NodeId },
+
+    /// Cross-contract callback fired by the mixnet contract the moment
+    /// node with `node_id` initiates unbonding.
+    /// Removes the node from any family it currently
+    /// belongs to and rejects every pending invitation issued to it.
+    /// Sender must be the configured mixnet contract address.
+    OnNymNodeUnbond { node_id: NodeId },
+}
+
+/// Query messages accepted by the contract.
+#[cw_serde]
+#[cfg_attr(feature = "schema", derive(cosmwasm_schema::QueryResponses))]
+pub enum QueryMsg {
+    /// Look up a single family by its id.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyResponse))]
+    GetFamilyById { family_id: NodeFamilyId },
+
+    /// Look up the (at most one) family owned by a given address.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyByOwnerResponse))]
+    GetFamilyByOwner { owner: String },
+
+    /// Look up a single family by its name. The lookup is normalised
+    /// contract-side (lowercased, non-alphanumerics stripped), so equivalent
+    /// inputs resolve to the same family.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyByNameResponse))]
+    GetFamilyByName { name: String },
+
+    #[cfg_attr(feature = "schema", returns(FamiliesPagedResponse))]
+    GetFamiliesPaged {
+        start_after: Option<NodeFamilyId>,
+        limit: Option<u32>,
+    },
+
+    /// Look up which family — if any — a node currently belongs to.
+    #[cfg_attr(feature = "schema", returns(NodeFamilyMembershipResponse))]
+    GetFamilyMembership { node_id: NodeId },
+
+    /// Page through every node currently in a given family.
+    #[cfg_attr(feature = "schema", returns(FamilyMembersPagedResponse))]
+    GetFamilyMembersPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every current family member across all families, in
+    /// ascending [`NodeId`] order. Each entry carries the membership record
+    /// (which in turn names the family the node belongs to).
+    #[cfg_attr(feature = "schema", returns(AllFamilyMembersPagedResponse))]
+    GetAllFamilyMembersPaged {
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// Look up the pending invitation for a specific `(family_id, node_id)`
+    /// pair.
+    #[cfg_attr(feature = "schema", returns(PendingFamilyInvitationResponse))]
+    GetPendingInvitation {
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    },
+
+    /// Page through every pending invitation issued by a given family.
+    #[cfg_attr(feature = "schema", returns(PendingFamilyInvitationsPagedResponse))]
+    GetPendingInvitationsForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<NodeId>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every pending invitation issued for a given node.
+    #[cfg_attr(feature = "schema", returns(PendingInvitationsForNodePagedResponse))]
+    GetPendingInvitationsForNodePaged {
+        node_id: NodeId,
+        start_after: Option<NodeFamilyId>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every pending invitation across all families.
+    #[cfg_attr(feature = "schema", returns(PendingInvitationsPagedResponse))]
+    GetAllPendingInvitationsPaged {
+        start_after: Option<(NodeFamilyId, NodeId)>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation issued by a
+    /// given family.
+    #[cfg_attr(feature = "schema", returns(PastFamilyInvitationsPagedResponse))]
+    GetPastInvitationsForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<PastFamilyInvitationCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation issued to a
+    /// given node.
+    #[cfg_attr(feature = "schema", returns(PastFamilyInvitationsForNodePagedResponse))]
+    GetPastInvitationsForNodePaged {
+        node_id: NodeId,
+        start_after: Option<PastFamilyInvitationForNodeCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived (terminal-state) invitation across all
+    /// families.
+    #[cfg_attr(feature = "schema", returns(AllPastFamilyInvitationsPagedResponse))]
+    GetAllPastInvitationsPaged {
+        start_after: Option<GlobalPastFamilyInvitationCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived membership record for a given family
+    /// (nodes that used to belong to it but have since been removed).
+    #[cfg_attr(feature = "schema", returns(PastFamilyMembersPagedResponse))]
+    GetPastMembersForFamilyPaged {
+        family_id: NodeFamilyId,
+        start_after: Option<PastFamilyMemberCursor>,
+        limit: Option<u32>,
+    },
+
+    /// Page through every archived membership record for a given node
+    /// (every family the node used to belong to but has since been removed
+    /// from), across all families.
+    #[cfg_attr(feature = "schema", returns(PastFamilyMembersForNodePagedResponse))]
+    GetPastMembersForNodePaged {
+        node_id: NodeId,
+        start_after: Option<PastFamilyMemberForNodeCursor>,
+        limit: Option<u32>,
+    },
+}
+
+/// Message passed to the contract's `migrate` entry point.
+#[cw_serde]
+pub struct MigrateMsg {
+    //
+}

@@ -12,7 +12,7 @@ use nym_ip_packet_requests::{
     v8::response::IpPacketResponse as IpPacketResponseV8,
     v9,
 };
-use nym_lp::packet::frame::{
+use nym_lp_data::packet::frame::{
     LpFrame, LpFrameHeader, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
 use nym_sdk::mixnet::{
@@ -218,10 +218,7 @@ fn create_ip_packet_response(
         ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
         ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V9 => {
-            let resp = v9::new_ip_packet_response(packets);
-            resp.to_bytes()
-        }
+        ClientVersion::V9 => v9::new_ip_packet_response(packets).to_bytes(),
     }
 }
 

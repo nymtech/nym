@@ -5,6 +5,7 @@
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
+    "description": "Instantiation payload. The sender of the instantiate transaction becomes the contract admin; the three addresses are bech32-validated and persisted as immutable cross-contract pointers (see spec requirement \"Contract instantiation\").",
     "type": "object",
     "required": [
       "deposit_amount",
@@ -14,15 +15,23 @@
     ],
     "properties": {
       "deposit_amount": {
-        "$ref": "#/definitions/Coin"
+        "description": "Default per-deposit price. The denom of this coin is the contract's canonical denom for the rest of its lifetime.",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Coin"
+          }
+        ]
       },
       "group_addr": {
+        "description": "cw4 group contract referenced by the (stubbed) blacklist proposal flow.",
         "type": "string"
       },
       "holding_account": {
+        "description": "Cosmos SDK address reserved for the future pool-contract transition. Stored in `Config` but never debited by the current contract.",
         "type": "string"
       },
       "multisig_addr": {
+        "description": "cw3 multisig contract that gates `RedeemTickets` and (in the redesign) blacklist proposals. Not updatable through any execute path.",
         "type": "string"
       }
     },
@@ -55,7 +64,7 @@
     "title": "ExecuteMsg",
     "oneOf": [
       {
-        "description": "Used by clients to request ticket books from the signers",
+        "description": "Submitted by clients to escrow funds and register a claimed ed25519 identity key. Mints a sequential `deposit_id`. The contract does not verify control of the identity key - that proof is checked off-chain by nym-api signers at blind-sign time.",
         "type": "object",
         "required": [
           "deposit_ticket_book_funds"
@@ -77,7 +86,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Used by gateways to batch redeem tokens from the spent tickets",
+        "description": "Submitted by gateways to request batch redemption of spent tickets. Dispatches a `Propose` SubMsg to the multisig contract; the actual transfer effect is gated behind multisig approval.",
         "type": "object",
         "required": [
           "request_redemption"
@@ -105,7 +114,7 @@
         "additionalProperties": false
       },
       {
-        "description": "The actual message that gets executed, after multisig votes, that transfers the ticket tokens into gateway's (and the holding) account",
+        "description": "**Legacy / dead code.** Only callable by the multisig; bumps the unredeemed-tickets counter and emits a `ticket_redemption` event with `moved_to_holding_account = \"false\"`. No known consumer depends on the side effects; candidate for removal in a follow-on breaking-schema change.",
         "type": "object",
         "required": [
           "redeem_tickets"
@@ -133,6 +142,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Transfer the contract admin role. Only the current admin may sign. Dispatches via the cw_controllers `execute_update_admin` handshake.",
         "type": "object",
         "required": [
           "update_admin"
@@ -154,6 +164,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Overwrite `Config::deposit_amount`. Only callable by the contract admin. Rejects values below `nym_network_defaults::TICKETBOOK_SIZE` and trips `TicketBookSizeChanged` if the snapshotted invariant has diverged from the current crate constant.",
         "type": "object",
         "required": [
           "update_default_deposit_value"
@@ -223,6 +234,7 @@
         "additionalProperties": false
       },
       {
+        "description": "**Stubbed**: always returns `EcashContractError::UnimplementedBlacklisting`. Storage, reply handler, and helper paths exist but are unreachable from the public ExecuteMsg surface. Preserved for the redesign.",
         "type": "object",
         "required": [
           "propose_to_blacklist"
@@ -244,6 +256,7 @@
         "additionalProperties": false
       },
       {
+        "description": "*Stubbed**: always returns `EcashContractError::UnimplementedBlacklisting`.",
         "type": "object",
         "required": [
           "add_to_blacklist"
@@ -293,6 +306,7 @@
     "title": "QueryMsg",
     "oneOf": [
       {
+        "description": "Look up a blacklist entry by its bs58-encoded ed25519 public key. Always returns `None` on a freshly deployed contract because the blacklist execute paths are stubbed.",
         "type": "object",
         "required": [
           "get_blacklisted_account"
@@ -314,6 +328,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Paginated listing of blacklist entries. Always empty today (see stubbed blacklist surface). Defaults: limit 50, max 75.",
         "type": "object",
         "required": [
           "get_blacklist_paged"
@@ -343,6 +358,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Default per-deposit price (`Config::deposit_amount`). The `GetRequiredDepositAmount` aliases are kept for backwards compatibility.",
         "type": "object",
         "required": [
           "get_default_deposit_amount"
@@ -356,6 +372,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Per-address reduced deposit price override, if any. `None` for any non-whitelisted address.",
         "type": "object",
         "required": [
           "get_reduced_deposit_amount"
@@ -377,6 +394,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Enumerate every reduced-deposit whitelist entry in ascending address order. Unpaginated by design (the whitelist is expected to stay small).",
         "type": "object",
         "required": [
           "get_all_whitelisted_accounts"
@@ -390,6 +408,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Look up a deposit by id. Returns `{ id, deposit: None }` when the id has not yet been assigned.",
         "type": "object",
         "required": [
           "get_deposit"
@@ -413,6 +432,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Most recently assigned deposit (or `{ deposit: None }` on a fresh contract). See `DepositStorage::latest_deposit`.",
         "type": "object",
         "required": [
           "get_latest_deposit"
@@ -426,6 +446,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Paginated listing of deposits in ascending id order. Defaults: limit 50, max 100.",
         "type": "object",
         "required": [
           "get_deposits_paged"
@@ -457,6 +478,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Aggregate statistics: global totals + per-account custom-price breakdowns. Reassembled in a single read pass from `PoolCounters` and `DepositStatsStorage`.",
         "type": "object",
         "required": [
           "get_deposits_statistics"
@@ -533,6 +555,7 @@
     "get_all_whitelisted_accounts": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "WhitelistedAccountsResponse",
+      "description": "Response shape for `GetAllWhitelistedAccounts`. Unpaginated - the whitelist is expected to stay small.",
       "type": "object",
       "required": [
         "whitelisted_accounts"
@@ -572,6 +595,7 @@
           "type": "string"
         },
         "WhitelistedAccount": {
+          "description": "Whitelist entry: an address and the reduced deposit price it may pay. Persisted in the `\"reduced_deposits\"` storage map.",
           "type": "object",
           "required": [
             "address",
@@ -592,6 +616,7 @@
     "get_blacklist_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedBlacklistedAccountResponse",
+      "description": "Page of blacklist entries returned by `GetBlacklistPaged`. Always empty on a freshly deployed contract.",
       "type": "object",
       "required": [
         "accounts",
@@ -620,6 +645,7 @@
       "additionalProperties": false,
       "definitions": {
         "BlacklistedAccount": {
+          "description": "Public-key + metadata pair surfaced by `GetBlacklistedAccount` / `GetBlacklistPaged`. Always empty on a freshly deployed contract.",
           "type": "object",
           "required": [
             "info",
@@ -636,6 +662,7 @@
           "additionalProperties": false
         },
         "Blacklisting": {
+          "description": "Per-key blacklist record: the multisig proposal that approved it and the block height at which finalisation landed (None until finalised).",
           "type": "object",
           "required": [
             "proposal_id"
@@ -662,6 +689,7 @@
     "get_blacklisted_account": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "BlacklistedAccountResponse",
+      "description": "Response shape for `GetBlacklistedAccount`. `account` is `None` for any key not present in the (currently always-empty) blacklist.",
       "type": "object",
       "properties": {
         "account": {
@@ -678,6 +706,7 @@
       "additionalProperties": false,
       "definitions": {
         "Blacklisting": {
+          "description": "Per-key blacklist record: the multisig proposal that approved it and the block height at which finalisation landed (None until finalised).",
           "type": "object",
           "required": [
             "proposal_id"
@@ -728,6 +757,7 @@
     "get_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DepositResponse",
+      "description": "Response shape for `GetDeposit { deposit_id }`. `deposit` is `None` when the id has not yet been assigned (`id >= total_deposits_made`).",
       "type": "object",
       "required": [
         "id"
@@ -752,6 +782,7 @@
       "additionalProperties": false,
       "definitions": {
         "Deposit": {
+          "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
           "type": "object",
           "required": [
             "bs58_encoded_ed25519_pubkey"
@@ -768,6 +799,7 @@
     "get_deposits_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedDepositsResponse",
+      "description": "Page of deposits returned by `GetDepositsPaged`. `start_next_after` is the id of the last returned entry; pass it as the next call's `start_after`.",
       "type": "object",
       "required": [
         "deposits"
@@ -792,6 +824,7 @@
       "additionalProperties": false,
       "definitions": {
         "Deposit": {
+          "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
           "type": "object",
           "required": [
             "bs58_encoded_ed25519_pubkey"
@@ -804,6 +837,7 @@
           "additionalProperties": false
         },
         "DepositData": {
+          "description": "`(deposit_id, deposit)` pair surfaced by the latest-deposit and paginated deposit queries.",
           "type": "object",
           "required": [
             "deposit",
@@ -919,6 +953,7 @@
     "get_latest_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LatestDepositResponse",
+      "description": "Response shape for `GetLatestDeposit`. `deposit` is `None` on a freshly deployed contract.",
       "type": "object",
       "properties": {
         "deposit": {
@@ -935,6 +970,7 @@
       "additionalProperties": false,
       "definitions": {
         "Deposit": {
+          "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
           "type": "object",
           "required": [
             "bs58_encoded_ed25519_pubkey"
@@ -947,6 +983,7 @@
           "additionalProperties": false
         },
         "DepositData": {
+          "description": "`(deposit_id, deposit)` pair surfaced by the latest-deposit and paginated deposit queries.",
           "type": "object",
           "required": [
             "deposit",

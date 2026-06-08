@@ -4,6 +4,7 @@ use crate::node_scraper::helpers::scrape_and_store_description_by_node_id;
 use crate::ticketbook_manager::TicketbookManager;
 use crate::ticketbook_manager::state::TicketbookManagerState;
 use clap::Parser;
+use nym_bin_common::bin_info_owned;
 use nym_credential_proxy_lib::quorum_checker::QuorumStateChecker;
 use nym_credential_proxy_lib::shared_state::nyxd_client::ChainClient;
 use nym_crypto::asymmetric::ed25519::PublicKey;
@@ -11,13 +12,14 @@ use nym_network_defaults::setup_env;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::NyxdClient;
 use std::sync::Arc;
+use tracing::info;
 
 mod cli;
 mod db;
 mod http;
 mod logging;
 mod metrics_scraper;
-mod monitor;
+pub(crate) mod monitor;
 mod node_scraper;
 mod testruns;
 mod ticketbook_manager;
@@ -26,6 +28,9 @@ mod utils;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     logging::setup_tracing_logger()?;
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
 
     let args = cli::Cli::parse();
     if let Some(env_file) = &args.config_env_file {
@@ -125,7 +130,12 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = storage.pool_owned();
     shutdown_manager.spawn_with_shutdown(async move {
-        testruns::start(pool, args.testruns_refresh_interval).await
+        testruns::start(
+            pool,
+            args.testruns_refresh_interval,
+            args.testruns_stale_in_progress,
+        )
+        .await
     });
 
     let db_pool_scraper = storage.pool_owned();
@@ -182,7 +192,7 @@ async fn main() -> anyhow::Result<()> {
 
     let shutdown_tracker = shutdown_manager.shutdown_tracker();
     http::server::start_http_api(
-        storage.pool_owned(),
+        storage,
         args.http_port,
         args.nym_http_cache_ttl,
         agent_key_list.to_owned(),

@@ -38,18 +38,15 @@ jobs:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
 
       - name: Setup MSBuild.exe
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
-      # No cache:yarn here: setup-node needs yarn on PATH to populate the cache, but this runner
-      # only gets yarn from the step below.
-      - name: Node
-        uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5.0.0
         with:
-          node-version: 22.13.0
-
-      - name: Install Yarn (classic)
-        shell: bash
-        run: npm install -g yarn@1.22.22
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Strip Authenticode thumbprint (avoid signtool on runner)
         working-directory: nym-wallet/src-tauri
@@ -118,11 +115,11 @@ jobs:
           ' tauri.conf.json
       - name: Install project dependencies
         shell: bash
-        run: cd .. && yarn --network-timeout 100000
+        run: cd .. && pnpm i
 
       - name: Install app dependencies
         shell: bash
-        run: yarn --network-timeout 100000
+        run: pnpm i
 
       - name: Build and sign it
         shell: bash
@@ -136,7 +133,7 @@ jobs:
           SSL_COM_TOTP_SECRET: ${{ env.SIGN_WINDOWS == 'true' && secrets.SSL_COM_TOTP_SECRET }}
         run: |
           echo "Starting build process..."
-          yarn build
+          pnpm build
 
       - name: Check bundle directory
         shell: bash
@@ -165,7 +162,7 @@ jobs:
           find . -name "*.msi" -type f
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nym-wallet.msi
           path: |

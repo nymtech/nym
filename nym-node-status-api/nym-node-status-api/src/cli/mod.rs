@@ -76,11 +76,20 @@ pub(crate) struct Cli {
 
     #[clap(
         long,
-        default_value = "300",
+        default_value = "450",
         env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
     )]
     #[arg(value_parser = parse_duration_std)]
     pub(crate) testruns_refresh_interval: Duration,
+
+    /// Safety net for stale in-progress testruns (whole seconds, es. 7200).
+    #[clap(
+        long,
+        default_value = "7200",
+        env = "NODE_STATUS_API_TESTRUN_STALE_IN_PROGRESS"
+    )]
+    #[arg(value_parser = parse_duration_std)]
+    pub(crate) testruns_stale_in_progress: Duration,
 
     #[clap(long, default_value = "86400", env = "NODE_STATUS_API_GEODATA_TTL")]
     #[arg(value_parser = parse_duration_std)]

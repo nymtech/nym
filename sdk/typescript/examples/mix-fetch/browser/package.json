@@ -8,9 +8,9 @@
     "start": "parcel --no-cache"
   },
   "dependencies": {
-    "@nymproject/mix-fetch": ">=1.4.2-rc.0 || ^1",
+    "@nymproject/mix-fetch": "workspace:*",
     "parcel": "^2.9.3"
   },
-  "private": false,
+  "private": true,
   "source": "src/index.html"
 }

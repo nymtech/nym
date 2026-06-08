@@ -1,0 +1,346 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "description": "Execute messages accepted by the contract.",
+  "oneOf": [
+    {
+      "description": "Replace the contract's runtime [`Config`]. Restricted to the contract admin.",
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "required": [
+            "config"
+          ],
+          "properties": {
+            "config": {
+              "$ref": "#/definitions/Config"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Create a new family owned by the message sender. The configured `create_family_fee` must be attached as funds.",
+      "type": "object",
+      "required": [
+        "create_family"
+      ],
+      "properties": {
+        "create_family": {
+          "type": "object",
+          "required": [
+            "description",
+            "name"
+          ],
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Update the name and/or description of the family owned by the message sender. Each field is independently optional: `None` leaves the existing value unchanged, `Some(_)` replaces it. Updated values are validated against the same length / normalisation / global-uniqueness rules as [`Self::CreateFamily`].",
+      "type": "object",
+      "required": [
+        "update_family"
+      ],
+      "properties": {
+        "update_family": {
+          "type": "object",
+          "properties": {
+            "updated_description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updated_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Disband the family owned by the message sender. The family must have no current members; any still-pending invitations are revoked.",
+      "type": "object",
+      "required": [
+        "disband_family"
+      ],
+      "properties": {
+        "disband_family": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Invite a node to the family owned by the message sender. If `validity_secs` is omitted the invitation expires `default_invitation_validity_secs` seconds (from [`Config`]) after the current block time.",
+      "type": "object",
+      "required": [
+        "invite_to_family"
+      ],
+      "properties": {
+        "invite_to_family": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "validity_secs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Revoke a still-pending invitation previously issued by the sender's family.",
+      "type": "object",
+      "required": [
+        "revoke_family_invitation"
+      ],
+      "properties": {
+        "revoke_family_invitation": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Accept a pending invitation. The sender must control `node_id`.",
+      "type": "object",
+      "required": [
+        "accept_family_invitation"
+      ],
+      "properties": {
+        "accept_family_invitation": {
+          "type": "object",
+          "required": [
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Reject a pending invitation. The sender must control `node_id`.",
+      "type": "object",
+      "required": [
+        "reject_family_invitation"
+      ],
+      "properties": {
+        "reject_family_invitation": {
+          "type": "object",
+          "required": [
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "family_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Leave the family `node_id` currently belongs to. The sender must control `node_id`.",
+      "type": "object",
+      "required": [
+        "leave_family"
+      ],
+      "properties": {
+        "leave_family": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Remove `node_id` from the family owned by the message sender.",
+      "type": "object",
+      "required": [
+        "kick_from_family"
+      ],
+      "properties": {
+        "kick_from_family": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Cross-contract callback fired by the mixnet contract the moment node with `node_id` initiates unbonding. Removes the node from any family it currently belongs to and rejects every pending invitation issued to it. Sender must be the configured mixnet contract address.",
+      "type": "object",
+      "required": [
+        "on_nym_node_unbond"
+      ],
+      "properties": {
+        "on_nym_node_unbond": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Coin": {
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Config": {
+      "description": "Runtime configuration of the node families contract.",
+      "type": "object",
+      "required": [
+        "create_family_fee",
+        "default_invitation_validity_secs",
+        "family_description_length_limit",
+        "family_name_length_limit"
+      ],
+      "properties": {
+        "create_family_fee": {
+          "description": "Fee charged on each successful `create_family` execution.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "default_invitation_validity_secs": {
+          "description": "Default lifetime, in seconds, used by `invite_to_family` when the sender doesn't supply an explicit value. Senders may override this per-invitation via the optional `validity_secs` argument.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "family_description_length_limit": {
+          "description": "Maximum allowed length, in characters, of a family description.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "family_name_length_limit": {
+          "description": "Maximum allowed length, in characters, of a family name.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Uint128": {
+      "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+      "type": "string"
+    }
+  }
+}

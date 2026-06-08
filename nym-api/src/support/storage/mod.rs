@@ -12,7 +12,8 @@ use crate::storage::manager::StorageManager;
 use crate::storage::models::TestingRoute;
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
-    TestedGatewayStatus, TestedMixnodeStatus,
+    NymNodeStressTestingResult, RetrievedAverageStressTestResult, TestedGatewayStatus,
+    TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
@@ -82,6 +83,33 @@ impl NymApiStorage {
             .max_connections(25)
             .acquire_timeout(Duration::from_secs(60));
 
+        Self::from_options(connect_opts, pool_opts).await
+    }
+
+    /// Build a [`NymApiStorage`] backed by an in-memory SQLite database. The
+    /// pool is pinned to a single connection so every query sees the same DB
+    /// (the standard "private :memory:" gotcha — multiple connections to
+    /// `:memory:` produce independent DBs unless shared-cache is used).
+    ///
+    /// Intended for tests; migrations run identically to the file-backed
+    /// constructor.
+    #[cfg(test)]
+    pub async fn init_in_memory() -> Result<Self, NymApiStorageError> {
+        let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(":memory:")
+            .create_if_missing(true);
+
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(1)
+            .max_connections(1);
+
+        Self::from_options(connect_opts, pool_opts).await
+    }
+
+    async fn from_options(
+        connect_opts: sqlx::sqlite::SqliteConnectOptions,
+        pool_opts: sqlx::sqlite::SqlitePoolOptions,
+    ) -> Result<Self, NymApiStorageError> {
         let connection_pool = match pool_opts.connect_with(connect_opts).await {
             Ok(db) => db,
             Err(err) => {
@@ -97,12 +125,10 @@ impl NymApiStorage {
 
         info!("Database migration finished!");
 
-        let storage = NymApiStorage {
+        Ok(NymApiStorage {
             manager: StorageManager { connection_pool },
             db_id_cache: Arc::new(Default::default()),
-        };
-
-        Ok(storage)
+        })
     }
 
     pub(crate) async fn get_mixnode_database_id(
@@ -224,6 +250,18 @@ impl NymApiStorage {
             .get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
             .await?;
         Ok(reliability)
+    }
+
+    pub(crate) async fn get_average_node_stress_test_score(
+        &self,
+        node_id: NodeId,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<Option<RetrievedAverageStressTestResult>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_average_node_stress_test_score(node_id as i64, start_ts, end_ts)
+            .await?)
     }
 
     #[allow(unused)]
@@ -688,6 +726,18 @@ impl NymApiStorage {
     ) -> Result<(), NymApiStorageError> {
         self.manager
             .submit_gateway_statuses_v2(gateway_results)
+            .await?;
+        Ok(())
+    }
+
+    /// Persist the given stress-testing results, produced by an authorised network monitor
+    /// orchestrator, into the database.
+    pub(crate) async fn insert_nym_node_stress_testing_results(
+        &self,
+        results: Vec<NymNodeStressTestingResult>,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_nym_node_stress_testing_results(results)
             .await?;
         Ok(())
     }

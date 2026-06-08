@@ -1,79 +1,65 @@
-/* eslint-disable no-underscore-dangle */
-import type { SetupMixFetchOps, IMixFetchFn, IMixFetch } from './types';
-import { createMixFetch as createMixFetchInternal } from './create-mix-fetch';
+// @nymproject/mix-fetch
+//
+// Drop-in `fetch()` replacement that routes HTTP/HTTPS through the Nym mixnet.
+// Shares a single mixnet tunnel with @nymproject/mix-dns and
+// @nymproject/mix-websocket via @nymproject/mix-tunnel.
+//
+// v2 surface (clean, no legacy shim):
+//
+//   import { setupMixTunnel, mixFetch, disconnectMixTunnel } from '@nymproject/mix-fetch';
+//   await setupMixTunnel({ preferredIpr, disableCoverTraffic, ... });
+//   const res = await mixFetch('https://example.com');
+//   await disconnectMixTunnel();
+//
+// Or, for the "setup + fetch" convenience:
+//
+//   const mixFetch = await createMixFetch({ ...opts });
+//   const res = await mixFetch('https://example.com');
+//
+// See `SetupMixTunnelOpts` (re-exported from @nymproject/mix-tunnel) for the
+// full options surface — mirrors smolmix-wasm's SetupOpts.
 
-// this is the default timeout for getting a response
-const REQUEST_TIMEOUT_MILLISECONDS = 60_000;
+import {
+  getMixTunnel,
+  setupMixTunnel,
+  disconnectMixTunnel,
+  getTunnelState,
+  SetupMixTunnelOpts,
+} from '@nymproject/mix-tunnel';
 
-export * from './types';
-
-declare global {
-  interface Window {
-    /**
-     * Keep a singleton of the mixFetch interface on the `window` object.
-     */
-    __mixFetchGlobal?: IMixFetch;
-  }
-}
-
-/**
- * Create a global mixFetch instance and optionally configure settings.
- *
- * @param opts Optional settings
- */
-export const createMixFetch = async (opts?: SetupMixFetchOps) => {
-  if (!window) {
-    throw new Error('`window` is not defined');
-  }
-
-  if (!window.__mixFetchGlobal) {
-    // load the worker and set up mixFetch with defaults
-    window.__mixFetchGlobal = await createMixFetchInternal();
-    await window.__mixFetchGlobal.setupMixFetch(opts);
-
-    window.onunload = async () => {
-      if (window.__mixFetchGlobal) {
-        await window.__mixFetchGlobal.disconnectMixFetch();
-      }
-    };
-  }
-  return window.__mixFetchGlobal;
-};
+export { setupMixTunnel, disconnectMixTunnel, getTunnelState };
+export type { SetupMixTunnelOpts };
 
 /**
- * mixFetch is a drop-in replacement for the standard `fetch` interface.
+ * Fetch over the mixnet. Drop-in replacement for the browser `fetch()`.
  *
- * @param url  The URL to fetch from.
- * @param args Fetch options.
- * @param opts Optionally configure mixFetch when it gets created. This only happens once, the first time it gets used.
+ * Requires the tunnel to be up — call `setupMixTunnel(opts)` first, or use
+ * `createMixFetch(opts)` to combine setup + fetch.
  */
-export const mixFetch: IMixFetchFn = async (url, args, opts?: SetupMixFetchOps) => {
-  // ensure mixFetch instance exists
-  const instance = await createMixFetch({
-    mixFetchOverride: {
-      requestTimeoutMs: REQUEST_TIMEOUT_MILLISECONDS,
-    },
-    ...opts,
+export const mixFetch = async (url: string, init?: RequestInit): Promise<Response> => {
+  const tunnel = await getMixTunnel();
+  // The wasm-side returns a `{body: Uint8Array, status, statusText,
+  // headers: [[k,v]...]}` object (see smolmix `serialise_response`).
+  // The `Headers` constructor accepts the [[k,v]] pair shape directly so
+  // repeated names like `Set-Cookie` survive.
+  const raw = await tunnel.mixFetch(url, init ?? {});
+
+  // `raw.body` is `Uint8Array<ArrayBufferLike>` — the ArrayBufferLike side
+  // includes SharedArrayBuffer, which the Response constructor's BodyInit
+  // doesn't accept. The runtime value is always a non-shared array; cast.
+  return new Response(raw.body as BodyInit, {
+    status: raw.status,
+    statusText: raw.statusText,
+    headers: new Headers(raw.headers),
   });
-
-  // execute user request
-  return instance.mixFetch(url, args);
 };
 
 /**
- * Stops the usage of mixFetch and disconnect the client from the mixnet.
+ * Convenience: set up the tunnel and return a fetch-bound function. Equivalent
+ * to `await setupMixTunnel(opts); return mixFetch;`. Safe to call multiple
+ * times — the underlying tunnel is a singleton.
  */
-export const disconnectMixFetch = async (): Promise<void> => {
-  if (!window) {
-    throw new Error('`window` is not defined');
-  }
-
-  // JS: I'm ignoring this lint (no-else-return) because I want to explicitly state
-  // that `__mixFetchGlobal` is definitely not null in the else branch.
-  if (!window.__mixFetchGlobal) {
-    throw new Error("mixFetch hasn't been setup");
-    // eslint-disable-next-line no-else-return
-  } else {
-    return window.__mixFetchGlobal.disconnectMixFetch();
-  }
+export const createMixFetch = async (opts?: SetupMixTunnelOpts): Promise<typeof mixFetch> => {
+  await setupMixTunnel(opts);
+  return mixFetch;
 };

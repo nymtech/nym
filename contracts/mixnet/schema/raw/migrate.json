@@ -2,7 +2,13 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "MigrateMsg",
   "type": "object",
+  "required": [
+    "node_families_contract_address"
+  ],
   "properties": {
+    "node_families_contract_address": {
+      "type": "string"
+    },
     "unsafe_skip_state_updates": {
       "type": [
         "boolean",

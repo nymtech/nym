@@ -17,7 +17,7 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
 futures = { workspace = true }
 hex = { workspace = true }
 tracing = { workspace = true }
@@ -57,9 +57,10 @@ nym-crypto = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-ip-packet-client = { workspace = true }
-nym-ip-packet-requests = { workspace = true }
+nym-ip-packet-requests = { workspace = true, default-features = true }
 nym-kkt-ciphersuite = { workspace = true }
 nym-lp = { path = "../common/nym-lp" }
+nym-lp-data.workspace = true
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-registration-client = { path = "../nym-registration-client" }

@@ -15,11 +15,16 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_api_requests::models::network_monitor::{
+    KnownNetworkMonitorResponse, StressTestBatchSubmission,
+};
+use nym_api_requests::models::node_families::NodeFamily;
 use nym_api_requests::models::{
-    AnnotationResponse, ApiHealthResponse, BinaryBuildInformationOwned, ChainBlocksStatusResponse,
-    ChainStatusResponse, KeyRotationInfoResponse, NodePerformanceResponse, NodeRefreshBody,
-    NymNodeDescriptionV1, NymNodeDescriptionV2, PerformanceHistoryResponse, RewardedSetResponse,
-    SignerInformationResponse,
+    AnnotationResponseV1, ApiHealthResponse, BinaryBuildInformationOwned,
+    ChainBlocksStatusResponse, ChainStatusResponse, KeyRotationInfoResponse,
+    NodePerformanceResponse, NodeRefreshBody, NymNodeDescriptionV1, NymNodeDescriptionV2,
+    PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
+    StressTestBatchSubmissionResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
@@ -387,6 +392,45 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(bonds)
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_node_families(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedResponse<NodeFamily>, NymAPIError> {
+        let mut params = Vec::new();
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+        self.get_json(
+            &[routes::V1_API_VERSION, routes::NODE_FAMILIES_ROUTES],
+            &params,
+        )
+        .await
+    }
+
+    async fn get_all_node_families(&self) -> Result<Vec<NodeFamily>, NymAPIError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut families = Vec::new();
+
+        loop {
+            let mut res = self.get_node_families(Some(page), None).await?;
+
+            families.append(&mut res.data);
+            if families.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(families)
     }
 
     #[deprecated]
@@ -976,7 +1020,7 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_node_annotation(
         &self,
         node_id: NodeId,
-    ) -> Result<AnnotationResponse, NymAPIError> {
+    ) -> Result<AnnotationResponseV1, NymAPIError> {
         self.get_json(
             &[
                 routes::V1_API_VERSION,
@@ -1358,6 +1402,53 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         Ok(SemiSkimmedNodesWithMetadata::new(nodes, metadata))
+    }
+
+    /// Queries the nym-api for whether a particular ed25519 identity key is currently recognised
+    /// as an authorised network monitor permitted to submit stress testing results.
+    ///
+    /// `identity_key` is expected to be the base58-encoded form of the ed25519 public key.
+    #[instrument(level = "debug", skip(self))]
+    async fn get_known_network_monitor(
+        &self,
+        identity_key: IdentityKeyRef<'_>,
+    ) -> Result<KnownNetworkMonitorResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_KNOWN_MONITORS,
+                identity_key,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    /// Submit a signed batch of stress-testing results to nym-api on behalf of a network monitor
+    /// orchestrator.
+    ///
+    /// The caller is expected to have produced `request` via
+    /// `StressTestBatchSubmissionContent::new(...)` and signed it with the orchestrator's ed25519
+    /// key; nym-api will reject submissions that are stale, replayed, unauthorised, or whose
+    /// signature fails to verify.
+    #[instrument(level = "debug", skip(self, request))]
+    async fn submit_stress_testing_results(
+        &self,
+        request: &StressTestBatchSubmission,
+    ) -> Result<StressTestBatchSubmissionResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::STRESS_TESTING,
+                routes::STRESS_TESTING_BATCH_SUBMIT,
+            ],
+            NO_PARAMS,
+            request,
+        )
+        .await
     }
 }
 

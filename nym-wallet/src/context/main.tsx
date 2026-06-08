@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -19,6 +19,7 @@ import {
 } from '../requests';
 import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
+import { fetchNymPriceDeduped, getNetworkOverviewEndpoints } from '../api/networkOverview';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -100,6 +101,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoadingInternal] = useState(false);
+  const hadClientDetailsRef = useRef(false);
   const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
   const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
@@ -128,10 +130,14 @@ export const AppProvider: FCWithChildren = ({ children }) => {
 
   const initFromRustState = async () => {
     const stateJson = await getReactState();
-    if (stateJson) {
-      const state: RustState = JSON.parse(stateJson);
-      setNetwork(state.network);
-      setLoginType(state.loginType);
+    if (!stateJson) {
+      return;
+    }
+    const state: RustState = JSON.parse(stateJson);
+    setNetwork(state.network);
+    setLoginType(state.loginType);
+    if (state.network) {
+      await loadAccount(state.network);
     }
   };
 
@@ -140,7 +146,6 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   const keepState = async () => {
-    // add any state from this context to store in the Rust process
     const state: RustState = {
       network,
       loginType,
@@ -211,10 +216,15 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (!clientDetails) {
-      clearState();
-      navigate('/');
+    if (clientDetails) {
+      hadClientDetailsRef.current = true;
+      return;
     }
+    if (!hadClientDetailsRef.current) {
+      return;
+    }
+    clearState();
+    navigate('/');
   }, [clientDetails]);
 
   useEffect(() => {
@@ -223,6 +233,16 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       getEnv().then(setAppEnv);
     }
   }, [network]);
+
+  useEffect(() => {
+    if (network !== 'MAINNET' || !clientDetails?.client_address) {
+      return;
+    }
+    const { nymPrice } = getNetworkOverviewEndpoints('MAINNET');
+    fetchNymPriceDeduped(nymPrice).catch(() => {
+      /* Balance card handles display errors */
+    });
+  }, [network, clientDetails?.client_address]);
 
   useEffect(() => {
     const currency = clientDetails?.display_mix_denom.toUpperCase() || 'NYM';
@@ -293,27 +313,25 @@ export const AppProvider: FCWithChildren = ({ children }) => {
         setLoginType('password');
       }
       setNetwork('MAINNET');
+      await loadAccount('MAINNET');
       navigate('/balance');
     } catch (e) {
       setError(e as string);
-    } finally {
       publishSetIsLoading(false);
     }
   };
 
   const logOut = async () => {
-    setLoadingPresentation('app-overlay');
-    setLoadingOverlayTitle('Signing out');
-    setLoadingOverlaySubtitle('Closing your session safely.');
-    setIsLoadingInternal(true);
     try {
       await signOut();
       await setReactState(undefined);
       setClientDetails(undefined);
+      hadClientDetailsRef.current = false;
       enqueueSnackbar('Successfully logged out', { variant: 'success' });
       await createSignInWindow();
-    } finally {
-      publishSetIsLoading(false);
+    } catch (e) {
+      Console.error(e as string);
+      enqueueSnackbar('Error signing out', { variant: 'error' });
     }
   };
 

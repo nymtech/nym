@@ -1,4 +1,4 @@
-import React, { ComponentType, useEffect } from 'react';
+import React, { ComponentType } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
@@ -6,8 +6,6 @@ import { SnackbarProvider } from 'notistack';
 import { AppProvider } from './context/main';
 import { ErrorFallback } from './components';
 import { NymWalletTheme } from './theme';
-import { maximizeWindow } from './utils';
-import { config } from './config';
 import { useTauriTextEditingClipboard } from './hooks/useTauriTextEditingClipboard';
 
 type RouterComponent = ComponentType<{ children?: React.ReactNode }>;
@@ -47,13 +45,6 @@ export const AppCommon = ({
   Router?: RouterComponent;
 }) => {
   const Router = RouterProp ?? selectRouter();
-
-  useEffect(() => {
-    // do not maximise in dev mode, because it happens on hot reloading
-    if (!config.IS_DEV_MODE) {
-      maximizeWindow();
-    }
-  }, []);
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>

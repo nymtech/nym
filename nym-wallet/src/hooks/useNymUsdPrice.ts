@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchNymPriceDeduped, getNetworkOverviewEndpoints } from 'src/api/networkOverview';
+import { fetchNymPriceDeduped, getCachedNymPrice, getNetworkOverviewEndpoints } from 'src/api/networkOverview';
 import type { Network } from 'src/types';
 
 export type UseNymUsdPrice = {
@@ -9,10 +9,6 @@ export type UseNymUsdPrice = {
 };
 
 export function useNymUsdPrice(network: Network | undefined): UseNymUsdPrice {
-  const [usdPerNym, setUsdPerNym] = useState<number | undefined>();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-
   const url = useMemo(() => {
     if (network === undefined) {
       return undefined;
@@ -20,9 +16,22 @@ export function useNymUsdPrice(network: Network | undefined): UseNymUsdPrice {
     return getNetworkOverviewEndpoints(network).nymPrice;
   }, [network]);
 
+  const cached = url ? getCachedNymPrice(url) : undefined;
+  const [usdPerNym, setUsdPerNym] = useState<number | undefined>(cached?.quotes.USD.price);
+  const [loading, setLoading] = useState(Boolean(url && !cached));
+  const [error, setError] = useState<string | undefined>();
+
   useEffect(() => {
     if (!url) {
       setUsdPerNym(undefined);
+      setLoading(false);
+      setError(undefined);
+      return undefined;
+    }
+
+    const cached = getCachedNymPrice(url);
+    if (cached) {
+      setUsdPerNym(cached.quotes.USD.price);
       setLoading(false);
       setError(undefined);
       return undefined;

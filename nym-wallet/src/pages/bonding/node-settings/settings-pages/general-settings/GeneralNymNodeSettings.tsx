@@ -3,21 +3,27 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { NodeConfigUpdate } from '@nymproject/types';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { BalanceWarning } from 'src/components/FeeWarning';
-import { AppContext, useBondingContext } from 'src/context';
+import { Error } from 'src/components/Error';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { useBondingContext, AppContext } from 'src/context';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { settingsValidationSchema } from 'src/components/Bonding/forms/nym-node/settingsValidationSchema';
+import { simulateUpdateNymNodeConfig } from 'src/requests';
+import { getHostnameUpdateErrorMessage } from 'src/utils/hostnameUpdateError';
 
 export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymNode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const { fee, resetFeeState } = useGetFee();
+  const [submitError, setSubmitError] = useState<string>();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
   const { userBalance } = useContext(AppContext);
-  const { updateNymNodeConfig } = useBondingContext();
+  const { updateNymNodeConfig, isLoading: isBondingLoading } = useBondingContext();
 
   const theme = useTheme();
 
@@ -34,22 +40,40 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
     },
   });
 
-  const onSubmit = async ({ host, custom_http_port }: { host: string; custom_http_port: number | null }) => {
-    resetFeeState();
+  const buildConfigUpdate = ({
+    host,
+    custom_http_port,
+  }: {
+    host: string;
+    custom_http_port: number | null;
+  }): NodeConfigUpdate => ({
+    host,
+    custom_http_port,
+    restore_default_http_port: custom_http_port === null,
+  });
+
+  const onSubmit = async (configUpdate: NodeConfigUpdate) => {
+    setSubmitError(undefined);
 
     try {
-      const NymNodeConfigParams = {
-        host,
-        custom_http_port,
-        restore_default_http_port: custom_http_port === null,
-      };
-      await updateNymNodeConfig(NymNodeConfigParams);
+      const tx = await updateNymNodeConfig(configUpdate, fee);
+      const errorMessage = getHostnameUpdateErrorMessage(tx);
+      if (errorMessage) {
+        setSubmitError(errorMessage);
+        resetFeeState();
+        return;
+      }
 
+      resetFeeState();
       setOpenConfirmationModal(true);
     } catch (error) {
       Console.error(error);
+      setSubmitError(getHostnameUpdateErrorMessage(undefined, String(error)));
+      resetFeeState();
     }
   };
+
+  const displayError = submitError || feeError;
 
   return (
     <Grid container xs>
@@ -58,17 +82,18 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
           open
           header="Update node settings"
           fee={fee}
-          onConfirm={handleSubmit(onSubmit)}
+          onConfirm={handleSubmit((formData) => onSubmit(buildConfigUpdate(formData)))}
           onPrev={resetFeeState}
           onClose={resetFeeState}
         >
-          {fee.amount?.amount && userBalance?.balance?.amount.amount && (
+          {fee.amount?.amount != null && (
             <Box sx={{ mb: 2 }}>
               <BalanceWarning fee={fee.amount.amount} />
             </Box>
           )}
         </ConfirmTx>
       )}
+      {(isSubmitting || isBondingLoading) && <LoadingModal />}
       <Alert
         title={
           <Stack>
@@ -81,6 +106,11 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
         bgColor={`${theme.palette.nym.nymWallet.text.blue}0D !important`}
         dismissable
       />
+      {displayError && (
+        <Box sx={{ px: 3, pt: 2, width: '100%' }}>
+          <Error message={displayError} />
+        </Box>
+      )}
       <Grid container mt={2}>
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>
@@ -132,7 +162,11 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
               size="large"
               variant="contained"
               disabled={isSubmitting || !isDirty || !isValid}
-              onClick={handleSubmit(onSubmit)}
+              onClick={handleSubmit((formData) => {
+                resetFeeState();
+                setSubmitError(undefined);
+                getFee(simulateUpdateNymNodeConfig, buildConfigUpdate(formData));
+              })}
               sx={{ m: 3, mr: 0 }}
               fullWidth
             >

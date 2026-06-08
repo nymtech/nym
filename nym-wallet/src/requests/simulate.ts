@@ -5,6 +5,7 @@ import {
   NodeCostParams,
   MixNodeConfigUpdate,
   GatewayConfigUpdate,
+  NodeConfigUpdate,
 } from '@nymproject/types';
 import { TBondGatewayArgs, TBondMixNodeArgs, TSimulateUpdateBondArgs } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -27,6 +28,9 @@ export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =
 
 export const simulateUpdateGatewayConfig = async (update: GatewayConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_gateway_config', { update });
+
+export const simulateUpdateNymNodeConfig = async (update: NodeConfigUpdate) =>
+  invokeWrapper<FeeDetails>('simulate_update_nymnode_config', { update });
 
 export const simulateDelegateToNode = async (args: { nodeId: number; amount: DecCoin }) =>
   invokeWrapper<FeeDetails>('simulate_delegate_to_node', args);

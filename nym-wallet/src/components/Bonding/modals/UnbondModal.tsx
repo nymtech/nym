@@ -4,6 +4,7 @@ import { Typography } from '@mui/material';
 import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
+import { formatCoinDisplay, formatOperatorUnbondReturn } from 'src/utils/formatOperatorUnbondReturn';
 import { ModalFee } from '../../Modals/ModalFee';
 import { ModalListItem } from '../../Modals/ModalListItem';
 import { SimpleModal } from '../../Modals/SimpleModal';
@@ -23,6 +24,7 @@ interface Props {
 
 export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
   const { fee, isFeeLoading, getFee, feeError } = useGetFee();
+  const unbondReturn = formatOperatorUnbondReturn(node);
 
   useEffect(() => {
     if (feeError) {
@@ -59,7 +61,26 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
       onOk={onConfirm}
       onClose={onClose}
     >
-      <ModalListItem label="Total to unbond" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} divider />
+      {unbondReturn.hasCompoundedRewards ? (
+        <>
+          <ModalListItem label="Original pledge" value={formatCoinDisplay(unbondReturn.pledge)} divider />
+          <ModalListItem
+            label="Compounded operator rewards"
+            value={formatCoinDisplay(unbondReturn.operatorRewards!)}
+            divider
+          />
+          <ModalListItem
+            label="Total returned to your account"
+            value={formatCoinDisplay(unbondReturn.total)}
+            divider
+          />
+          <Typography fontSize="small" sx={{ mb: 1 }}>
+            Delegator stake is returned to delegators separately and is not included in this total.
+          </Typography>
+        </>
+      ) : (
+        <ModalListItem label="Total to unbond" value={formatCoinDisplay(unbondReturn.total)} divider />
+      )}
       <ModalFee isLoading={isFeeLoading} fee={fee} divider />
       <Typography fontSize="small">Tokens will be transferred to the account you are logged in with now</Typography>
     </SimpleModal>

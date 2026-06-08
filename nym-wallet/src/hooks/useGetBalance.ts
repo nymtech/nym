@@ -241,8 +241,14 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
   };
 
   useEffect(() => {
-    refreshBalances();
-  }, [clientDetails]);
+    if (!clientDetails?.client_address) {
+      clearAll();
+      return;
+    }
+    setIsLoading(true);
+    setError(undefined);
+    void refreshBalances();
+  }, [clientDetails?.client_address]);
 
   return {
     error,

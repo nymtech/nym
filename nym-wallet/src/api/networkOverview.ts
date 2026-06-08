@@ -124,16 +124,36 @@ export async function fetchNymPrice(url: string): Promise<NymTokenomics> {
 }
 
 const nymPriceInflight = new Map<string, Promise<NymTokenomics>>();
+const nymPriceCache = new Map<string, NymTokenomics>();
+
+export function getCachedNymPrice(url: string): NymTokenomics | undefined {
+  return nymPriceCache.get(url);
+}
+
+/** @internal */
+export function clearNymPriceCacheForTests(): void {
+  nymPriceCache.clear();
+  nymPriceInflight.clear();
+}
 
 /** Coalesces concurrent requests for the same price URL (e.g. Balance card + Network overview). */
 export function fetchNymPriceDeduped(url: string): Promise<NymTokenomics> {
+  const cached = nymPriceCache.get(url);
+  if (cached) {
+    return Promise.resolve(cached);
+  }
   const existing = nymPriceInflight.get(url);
   if (existing) {
     return existing;
   }
-  const pending = fetchNymPrice(url).finally(() => {
-    nymPriceInflight.delete(url);
-  });
+  const pending = fetchNymPrice(url)
+    .then((data) => {
+      nymPriceCache.set(url, data);
+      return data;
+    })
+    .finally(() => {
+      nymPriceInflight.delete(url);
+    });
   nymPriceInflight.set(url, pending);
   return pending;
 }

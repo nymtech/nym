@@ -39,7 +39,9 @@ use tracing::{debug, warn};
 /// initiated, e.g. set `SO_MARK` on Linux so the connection is allowed
 /// through the VPN firewall during the connecting state.
 pub type LpDialer<S> = Arc<
-    dyn Fn(SocketAddr) -> futures::future::BoxFuture<'static, std::result::Result<S, LpTransportError>>
+    dyn Fn(
+            SocketAddr,
+        ) -> futures::future::BoxFuture<'static, std::result::Result<S, LpTransportError>>
         + Send
         + Sync,
 >;
@@ -249,17 +251,17 @@ where
         };
 
         let mut stream = connect_result
-        .map_err(|_| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source: LpTransportError::ConnectionFailure(format!(
-                "Connection timeout after {:?}",
-                self.config.connect_timeout
-            )),
-        })?
-        .map_err(|source| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source,
-        })?;
+            .map_err(|_| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source: LpTransportError::ConnectionFailure(format!(
+                    "Connection timeout after {:?}",
+                    self.config.connect_timeout
+                )),
+            })?
+            .map_err(|source| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source,
+            })?;
 
         // Set TCP_NODELAY for low latency
         stream

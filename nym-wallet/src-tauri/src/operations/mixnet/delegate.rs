@@ -603,7 +603,7 @@ pub(crate) fn delegation_mixnode_is_unbonding(
 ) -> Option<bool> {
     match node_details {
         Some(node) => Some(node.is_unbonding),
-        None => Some(true),
+        None => None,
     }
 }
 
@@ -619,6 +619,6 @@ mod tests {
             delegation_node_identity(&None, EXAMPLE_MIX_ID),
             "unbonded:1234"
         );
-        assert_eq!(delegation_mixnode_is_unbonding(&None), Some(true));
+        assert_eq!(delegation_mixnode_is_unbonding(&None), None);
     }
 }

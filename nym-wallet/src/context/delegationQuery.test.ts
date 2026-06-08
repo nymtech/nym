@@ -26,7 +26,7 @@ describe('fetchDelegationSummaryQuery', () => {
           node_identity: 'unbonded:42',
           amount: { amount: '1000000', denom: 'unym' },
           unclaimed_rewards: { amount: '50000', denom: 'unym' },
-          mixnode_is_unbonding: true,
+          mixnode_is_unbonding: null,
         },
       ],
       total_delegations: { amount: '1000000', denom: 'unym' },

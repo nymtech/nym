@@ -28,7 +28,7 @@ describe('unbonded delegation wallet visibility acceptance', () => {
     const fixedRow = buildFixedUnbondedWalletDelegation();
 
     expect(fixedRow.node_identity).toBe(`unbonded:${EXAMPLE_UNBONDED_MIX_ID}`);
-    expect(fixedRow.mixnode_is_unbonding).toBe(true);
+    expect(fixedRow.mixnode_is_unbonding).toBeNull();
     expect(shouldHideDelegationFromList(fixedRow)).toBe(false);
     expect(filterVisibleDelegations([fixedRow])).toHaveLength(1);
     expect(isUndelegateOnlyDelegation(fixedRow)).toBe(true);

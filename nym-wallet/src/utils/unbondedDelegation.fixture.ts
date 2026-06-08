@@ -37,7 +37,7 @@ export function buildFixedUnbondedWalletDelegation(
     cost_params: null,
     uses_vesting_contract_tokens: false,
     pending_events: [],
-    mixnode_is_unbonding: true,
+    mixnode_is_unbonding: null,
     historical_node_identity: options.historicalNodeIdentity ?? null,
     errors: null,
   };

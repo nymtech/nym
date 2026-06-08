@@ -92,6 +92,7 @@ def run(cmd: list, dry_run: bool, capture=True, cwd=None) -> subprocess.Complete
 
 
 def extract_ansible_recap(output: str):
+    """Extract PLAY RECAP block from ansible stdout."""
     match = re.search(r"(PLAY RECAP \*+.*?)(?=\n\n|\Z)", output, re.DOTALL)
     return match.group(0).strip() if match else None
 
@@ -116,6 +117,7 @@ def generate_payload(row: dict, nym_cli: Path, dry_run: bool) -> str:
 
 
 def ansible_sign(node_id: str, payload: str, ansible_pb: Path, inventory: Path, dry_run: bool):
+    """Returns (signature, recap_block)."""
     result = run([
         "ansible-playbook", ansible_pb,
         "-i",           inventory,
@@ -128,15 +130,16 @@ def ansible_sign(node_id: str, payload: str, ansible_pb: Path, inventory: Path, 
         return "DRY_RUN_SIGNATURE", "DRY_RUN_RECAP"
 
     recap = extract_ansible_recap(result.stdout)
-    match = re.search(r'"signature"\s*:\s*"([^"]+)"', result.stdout)
+
+    match = re.search(r'ENCODED_SIGNATURE=([1-9A-HJ-NP-Za-km-z]+)', result.stdout)
     if not match:
-        raise ValueError(f"Could not find signature in ansible output:\n{result.stdout}")
+        raise ValueError(f"Could not find ENCODED_SIGNATURE in ansible output:\n{result.stdout}")
 
     return match.group(1), recap
 
 
 def bond_node(row: dict, signature: str, nym_cli: Path, dry_run: bool):
-    run([
+    cmd = [
         nym_cli, "mixnet", "operators", "nymnode", "bond",
         "--host",                    row["hostname"],
         "--identity-key",            row["identity_key"],
@@ -147,7 +150,13 @@ def bond_node(row: dict, signature: str, nym_cli: Path, dry_run: bool):
         "--nyxd-url",                NYXD_URL,
         "--nym-api-url",             NYM_API_URL,
         "--force",
-    ], dry_run, capture=False)
+    ]
+    dim("$ " + " ".join(str(c) for c in cmd))
+    if dry_run:
+        return
+    result = subprocess.run(cmd, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"bond command failed with exit code {result.returncode}")
 
 
 def main():
@@ -166,7 +175,7 @@ def main():
     print(f"  {W}Bonding {len(nodes)} node(s){NC}{dry_label}")
     print(f"{W}{'═'*70}{NC}\n")
 
-    results  = []   # (hostname, ok: bool, recap | None, error | None)
+    results  = []
     failures = []
 
     for i, row in enumerate(nodes, 1):

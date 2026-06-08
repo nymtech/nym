@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Check balances for all accounts in nodes.csv.
-Usage: python3 check_balances.py nodes.csv [--dry-run]
+Usage: python3 show_balances.py nodes.csv [--dry-run]
 """
 import csv
 import subprocess
@@ -28,8 +28,14 @@ def main():
         print("Usage: check_balances.py nodes.csv [--dry-run]")
         sys.exit(1)
 
-    with open(csv_file) as f:
-        nodes = list(csv.DictReader(f))
+    with open(csv_file, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        required = {"hostname", "account"}
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            print(f"Missing required CSV columns: {', '.join(sorted(missing))}")
+            sys.exit(1)
+        nodes = list(reader)
 
     print(f"\n{'='*60}")
     print(f"  Checking {len(nodes)} account(s){'  [DRY RUN]' if DRY_RUN else ''}")

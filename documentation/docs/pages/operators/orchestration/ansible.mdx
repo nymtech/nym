@@ -232,13 +232,13 @@ cd playbooks
 ansible-playbook bond.yml
 ```
 
-Your nodes are bonded and will show in the network in the next epoch (mac 60min).
+Your nodes are bonded and will show in the network in the next epoch (max 60min).
 
     </MyTab>
     <MyTab>
 
 A playbook to *automatically* register your nodes to Nym Network by bonding it to Nyx blockchain accounts.
-This automatic flow is slightly harder to setup in the beggining and it's recommended for operators bonding many nodes, as the initial work is worthit by saving the time of bonding a node at a time.
+This automatic flow is slightly harder to setup in the beginning and it's recommended for operators bonding many nodes, as the initial work is worth it by saving the time of bonding a node at a time.
 
 **Requirements**
 
@@ -250,14 +250,14 @@ This automatic flow is slightly harder to setup in the beggining and it's recomm
 
 **Usage**
 
-1. Copy `nodes.csvv.example` to your prefered location without `.example` suffix
+1. Copy `nodes.csv.example` to your prefered location without `.example` suffix
 2. Fill correctly the csv columns for each node you want to bond:
   - `inventory_node_id`: ie `node1`
   - `hostname`: same like in your `playbooks/inventory/all` (without `https://` !)
   - `ip`: same like `ansible_host`
   - `account`: Nyx account which will bond this node
-  - `mnemonic`: Your nyx mnenonic
-  - `identity_key`: node identity key - the easieast way to get it is to navigate to `playbooks/` and run:
+  - `mnemonic`: Your nyx mnemonic
+  - `identity_key`: node identity key - the easiest way to get it is to navigate to `playbooks/` and run:
 
 ```sh
 ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
@@ -269,7 +269,7 @@ ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information
 3. Save the csv
 4. Run `auto_bond_all.py` with all needed arguments.
 
-To see help menu:
+- To see help menu:
 
 ```sh
 python3 ./auto_bond_all.py --help
@@ -309,7 +309,7 @@ Your `nodes.csv` can be used for other operations:
 
 A playbook to interactively register your node to Nym network by bonding it to Nyx blockchain account.
 
-This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
+This playbook is interactive as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
 
 ```sh
 cd playbooks

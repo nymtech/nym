@@ -33,6 +33,19 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
+/// Custom dialer used to open the connection to the gateway.
+///
+/// Allows the caller to configure the socket before the connection is
+/// initiated, e.g. set `SO_MARK` on Linux so the connection is allowed
+/// through the VPN firewall during the connecting state.
+pub type LpDialer<S> = Arc<
+    dyn Fn(
+            SocketAddr,
+        ) -> futures::future::BoxFuture<'static, std::result::Result<S, LpTransportError>>
+        + Send
+        + Sync,
+>;
+
 /// LP (Lewes Protocol) registration client for direct gateway connections.
 ///
 /// This client uses a persistent TCP connection model where a single TCP
@@ -70,6 +83,11 @@ pub struct LpRegistrationClient<S = TcpStream> {
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
     stream: Option<S>,
+
+    /// Optional custom dialer used to open the connection, allowing socket
+    /// configuration (e.g. `SO_MARK`) before the connection is initiated.
+    /// Falls back to `S::connect` when unset.
+    dialer: Option<LpDialer<S>>,
 }
 
 impl<S> LpRegistrationClient<S>
@@ -115,7 +133,16 @@ where
             transport_session: None,
             config,
             stream: None,
+            dialer: None,
         }
+    }
+
+    /// Sets a custom dialer used to open the connection to the gateway.
+    ///
+    /// Allows socket configuration (e.g. setting `SO_MARK` on Linux so the
+    /// connection is allowed through the VPN firewall) before connecting.
+    pub fn set_dialer(&mut self, dialer: LpDialer<S>) {
+        self.dialer = Some(dialer);
     }
 
     /// Attempt to use this `LpRegistrationClient` as transport for `NestedSession`
@@ -209,22 +236,32 @@ where
             self.gateway_lp_address
         );
 
-        let mut stream = tokio::time::timeout(
-            self.config.connect_timeout,
-            S::connect(self.gateway_lp_address),
-        )
-        .await
-        .map_err(|_| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source: LpTransportError::ConnectionFailure(format!(
-                "Connection timeout after {:?}",
-                self.config.connect_timeout
-            )),
-        })?
-        .map_err(|source| LpClientError::TcpConnection {
-            address: self.gateway_lp_address.to_string(),
-            source,
-        })?;
+        let connect_result = match &self.dialer {
+            Some(dialer) => {
+                tokio::time::timeout(self.config.connect_timeout, dialer(self.gateway_lp_address))
+                    .await
+            }
+            None => {
+                tokio::time::timeout(
+                    self.config.connect_timeout,
+                    S::connect(self.gateway_lp_address),
+                )
+                .await
+            }
+        };
+
+        let mut stream = connect_result
+            .map_err(|_| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source: LpTransportError::ConnectionFailure(format!(
+                    "Connection timeout after {:?}",
+                    self.config.connect_timeout
+                )),
+            })?
+            .map_err(|source| LpClientError::TcpConnection {
+                address: self.gateway_lp_address.to_string(),
+                source,
+            })?;
 
         // Set TCP_NODELAY for low latency
         stream

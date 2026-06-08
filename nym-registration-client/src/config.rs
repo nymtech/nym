@@ -19,4 +19,9 @@ pub struct RegistrationClientConfig {
     pub(crate) exit: NymNodeWithKeys,
     pub(crate) mode: RegistrationMode,
     pub(crate) lp_registration_config: LpRegistrationConfig,
+    /// Callback invoked with the raw fd of sockets opened for registration,
+    /// before connecting. Used to set `SO_MARK` on Linux so the connection is
+    /// allowed through the VPN firewall during the connecting state.
+    #[cfg(unix)]
+    pub(crate) connection_fd_callback: std::sync::Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>,
 }

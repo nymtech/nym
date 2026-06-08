@@ -97,6 +97,8 @@ impl BuilderConfig {
             exit: self.exit_node.clone(),
             mode: self.mode,
             lp_registration_config: self.lp_registration_config,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback.clone(),
         }
     }
 

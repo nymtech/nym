@@ -1,8 +1,4 @@
-export function dedupeInflightByKey<K, T>(
-  inflight: Map<K, Promise<T>>,
-  key: K,
-  load: () => Promise<T>,
-): Promise<T> {
+export function dedupeInflightByKey<K, T>(inflight: Map<K, Promise<T>>, key: K, load: () => Promise<T>): Promise<T> {
   const existing = inflight.get(key);
   if (existing) {
     return existing;

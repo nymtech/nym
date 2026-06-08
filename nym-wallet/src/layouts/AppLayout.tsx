@@ -13,9 +13,7 @@ export const ApplicationLayout: FCWithChildren = ({ children }) => {
 
   return (
     <>
-      {showAppOverlay && (
-        <AppSessionLoadingOverlay title={loadingOverlayTitle} subtitle={loadingOverlaySubtitle} />
-      )}
+      {showAppOverlay && <AppSessionLoadingOverlay title={loadingOverlayTitle} subtitle={loadingOverlaySubtitle} />}
       <Box
         sx={{
           height: '100vh',

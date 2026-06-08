@@ -1,5 +1,5 @@
-import { formatCoinDisplay, formatOperatorUnbondReturn } from './formatOperatorUnbondReturn';
 import { TBondedNode } from 'src/context/bonding';
+import { formatCoinDisplay, formatOperatorUnbondReturn } from './formatOperatorUnbondReturn';
 
 const mixnodeWithRewards = {
   bond: { denom: 'nym', amount: '1000' },

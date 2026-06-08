@@ -27,4 +27,19 @@ describe('getHostnameUpdateErrorMessage', () => {
       'Unable to update node settings. Check your balance and try again.',
     );
   });
+
+  it('returns an error message when transaction_hash is an empty string', () => {
+    expect(
+      getHostnameUpdateErrorMessage({
+        transaction_hash: '',
+        logs_json: '',
+        msg_responses_json: '',
+        gas_info: {
+          gas_wanted: { gas_units: BigInt(1) },
+          gas_used: { gas_units: BigInt(1) },
+        },
+        fee: { amount: '1', denom: 'nym' },
+      }),
+    ).toBe('Unable to update node settings. Check your balance and try again.');
+  });
 });

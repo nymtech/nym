@@ -47,4 +47,23 @@ describe('formatOperatorUnbondReturn', () => {
     expect(result.total.amount).toBe('500');
     expect(result.operatorRewards).toBeNull();
   });
+
+  it('preserves the raw amount string and sets parseError when bond amount is malformed', () => {
+    const result = formatOperatorUnbondReturn({
+      bond: { denom: 'nym', amount: 'not-a-number' },
+    } as TBondedNode);
+    expect(result.pledge.amount).toBe('not-a-number');
+    expect(result.parseError).toMatch(/Could not parse amount/);
+    expect(result.hasCompoundedRewards).toBe(false);
+  });
+
+  it('sets parseError and treats malformed reward as zero when reward amount is unparseable', () => {
+    const result = formatOperatorUnbondReturn({
+      ...mixnodeWithRewards,
+      operatorRewards: { denom: 'nym', amount: 'NaN' },
+    } as TBondedNode);
+    expect(result.operatorRewards).toBeNull();
+    expect(result.hasCompoundedRewards).toBe(false);
+    expect(result.parseError).toMatch(/Could not/);
+  });
 });

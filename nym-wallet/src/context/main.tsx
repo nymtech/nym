@@ -20,6 +20,7 @@ import {
 import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
 import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
+import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -102,7 +103,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoadingInternal] = useState(false);
   const hadClientDetailsRef = useRef(false);
-  const accountLoadInflightRef = useRef<Promise<void> | null>(null);
+  const accountLoadInflightRef = useRef<Promise<Account | undefined> | null>(null);
   const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
   const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
@@ -160,7 +161,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setMixnodeDetails(null);
   };
 
-  const loadAccount = async (n: Network): Promise<void> => {
+  const loadAccount = async (n: Network): Promise<Account | undefined> => {
     if (accountLoadInflightRef.current) {
       return accountLoadInflightRef.current;
     }
@@ -169,9 +170,11 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       try {
         const client = await selectNetwork(n);
         setClientDetails(client);
+        return client;
       } catch (e) {
         enqueueSnackbar('Error loading account', { variant: 'error' });
         Console.error(e as string);
+        return undefined;
       } finally {
         accountLoadInflightRef.current = null;
       }
@@ -238,10 +241,12 @@ export const AppProvider: FCWithChildren = ({ children }) => {
 
   useEffect(() => {
     if (network) {
-      refreshAccount(network);
+      if (!clientDetails) {
+        refreshAccount(network);
+      }
       getEnv().then(setAppEnv);
     }
-  }, [network]);
+  }, [network, clientDetails?.client_address]);
 
   useEffect(() => {
     if (network !== 'MAINNET' || !clientDetails?.client_address) {
@@ -314,17 +319,17 @@ export const AppProvider: FCWithChildren = ({ children }) => {
           : 'Unlocking your wallet and connecting to the network.',
       );
       setIsLoadingInternal(true);
-      if (type === 'mnemonic') {
-        await signInWithMnemonic(value);
-        setLoginType('mnemonic');
-      } else {
-        await signInWithPassword(value);
-        setLoginType('password');
-      }
+      await signInAndNavigateToBalance({
+        type,
+        value,
+        network: 'MAINNET',
+        signInWithMnemonic,
+        signInWithPassword,
+        loadAccount,
+        setLoginType,
+        navigate,
+      });
       setNetwork('MAINNET');
-      await loadAccount('MAINNET');
-      navigate('/balance');
-      // Overlay stays up until auth window closes via switchWindows on clientDetails.
     } catch (e) {
       setError(e as string);
       publishSetIsLoading(false);

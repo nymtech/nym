@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect } from 'react';
-import { Typography } from '@mui/material';
+import { Alert, Typography } from '@mui/material';
 import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
@@ -61,6 +61,11 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
       onOk={onConfirm}
       onClose={onClose}
     >
+      {unbondReturn.parseError && (
+        <Alert severity="warning" sx={{ mb: 1 }}>
+          Could not calculate exact return - check your wallet balance after unbonding.
+        </Alert>
+      )}
       {unbondReturn.hasCompoundedRewards ? (
         <>
           <ModalListItem label="Original pledge" value={formatCoinDisplay(unbondReturn.pledge)} divider />
@@ -69,11 +74,7 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
             value={formatCoinDisplay(unbondReturn.operatorRewards!)}
             divider
           />
-          <ModalListItem
-            label="Total returned to your account"
-            value={formatCoinDisplay(unbondReturn.total)}
-            divider
-          />
+          <ModalListItem label="Total returned to your account" value={formatCoinDisplay(unbondReturn.total)} divider />
           <Typography fontSize="small" sx={{ mb: 1 }}>
             Delegator stake is returned to delegators separately and is not included in this total.
           </Typography>

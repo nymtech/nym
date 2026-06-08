@@ -251,7 +251,7 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     }
     setIsLoading(true);
     setError(undefined);
-    void refreshBalances();
+    refreshBalances().catch((e) => Console.error(String(e)));
   }, [clientDetails?.client_address]);
 
   return {

@@ -418,6 +418,24 @@ export const NetworkOverviewSection: React.FC = () => {
     );
   };
 
+  const delegationsCountBody = () => {
+    if (delegationsErr) {
+      return (
+        <Typography color="error" variant="body2">
+          {delegationsErr}
+        </Typography>
+      );
+    }
+    if (delegationsCount !== undefined) {
+      return (
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {formatCompactNumber(delegationsCount)}
+        </Typography>
+      );
+    }
+    return <Skeleton width={72} height={32} />;
+  };
+
   const showTrafficChartToggle = trafficChartData.length > 0;
 
   return (
@@ -539,17 +557,7 @@ export const NetworkOverviewSection: React.FC = () => {
                   <Typography variant="caption" color="text.secondary">
                     Number of delegations
                   </Typography>
-                  {delegationsErr ? (
-                    <Typography color="error" variant="body2">
-                      {delegationsErr}
-                    </Typography>
-                  ) : delegationsCount !== undefined ? (
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {formatCompactNumber(delegationsCount)}
-                    </Typography>
-                  ) : (
-                    <Skeleton width={72} height={32} />
-                  )}
+                  {delegationsCountBody()}
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">

@@ -49,11 +49,7 @@ export const BalanceCard = ({
       usdApproximationRow = <Skeleton width={140} height={22} />;
     } else if (usdApproxLabel) {
       usdApproximationRow = (
-        <Typography
-          variant="body2"
-          sx={{ color: 'nym.text.muted', fontWeight: 500 }}
-          data-testid="balance-usd-approx"
-        >
+        <Typography variant="body2" sx={{ color: 'nym.text.muted', fontWeight: 500 }} data-testid="balance-usd-approx">
           {`≈ ${usdApproxLabel}`}
         </Typography>
       );

@@ -29,9 +29,9 @@ export function useNymUsdPrice(network: Network | undefined): UseNymUsdPrice {
       return undefined;
     }
 
-    const cached = getCachedNymPrice(url);
-    if (cached) {
-      setUsdPerNym(cached.quotes.USD.price);
+    const cachedPrice = getCachedNymPrice(url);
+    if (cachedPrice) {
+      setUsdPerNym(cachedPrice.quotes.USD.price);
       setLoading(false);
       setError(undefined);
       return undefined;

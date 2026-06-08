@@ -58,6 +58,40 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2026.11-xynomizithra`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.11-xynomizithra)
+- [`nym-node`](nodes/nym-node.mdx) version `1.33.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-06-08T15:46:08.599178376Z
+Build Version:      1.33.0
+Commit SHA:         34709e76a1c23ed9f2f01bbb4f851fc44bfd7c8d
+Commit Date:        2026-06-08T16:30:10.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Tools
+
+
+### Features
+
+- [Disable Nagle's algorithm for LP between nym-nodes](https://github.com/nymtech/nym/pull/6857)
+- [Node Families (full implementation) - storage, queries, transactions, API exposure](https://github.com/nymtech/nym/pull/6715)
+- [Max/smolmix wasm - Browser-friendly WASM version](https://github.com/nymtech/nym/pull/6784)
+
+### Bugfix
+
+- [Fix gateways being penalised for no stress testing](https://github.com/nymtech/nym/pull/6843)
+- [Fix score inflation for throttled nodes](https://github.com/nymtech/nym/pull/6842)
+- [NYM-583: Avoid corrupted database on Windows](https://github.com/nymtech/nym/pull/6785)
+
+
 ## `v2026.10-waterloo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)

@@ -61,9 +61,12 @@ pub struct NodeFamily {
 
 /// A pending invitation for a node to join a particular family.
 ///
-/// Invitations are stored until they are accepted, rejected, revoked, or until the
-/// chain advances past `expires_at` (in which case they remain in storage but are
-/// treated as inert — there is no background process clearing expired invitations).
+/// Invitations are stored until they are accepted, rejected, or revoked. Once the
+/// chain advances past `expires_at` an invitation becomes inert but stays in storage
+/// — there is no background process clearing expired invitations. A timed-out
+/// invitation is cleared either when explicitly revoked/rejected, or when the family
+/// issues a fresh invitation for the same node, which archives the stale one as
+/// `Expired` and supersedes it.
 #[cw_serde]
 pub struct FamilyInvitation {
     /// The family that issued the invitation.
@@ -107,8 +110,10 @@ pub struct PastFamilyMember {
 
 /// Terminal status for an invitation that has been moved out of the pending set.
 ///
-/// Note: timed-out invitations are not represented here — they are simply left in
-/// the pending set (see `FamilyInvitation::expires_at`).
+/// Note: an invitation that merely times out is **not** archived here on its own —
+/// it is left inert in the pending set (see `FamilyInvitation::expires_at`). It only
+/// reaches `Expired` if the family issues a fresh invitation for the same node, which
+/// supersedes and archives the stale one.
 #[cw_serde]
 pub enum FamilyInvitationStatus {
     /// Still awaiting a response. Recorded with a timestamp for completeness even
@@ -121,11 +126,16 @@ pub enum FamilyInvitationStatus {
     /// The family revoked the invitation at the given timestamp before it could
     /// be accepted or rejected.
     Revoked { at: u64 },
+    /// The invitation had already expired and was superseded by a fresh invitation
+    /// for the same node from the same family, issued at the given timestamp. This is
+    /// the only path that archives a timed-out invitation.
+    Expired { at: u64 },
 }
 
 /// Historical record of an invitation that has reached a terminal state
-/// (`Accepted`, `Rejected`, or `Revoked`). Timed-out invitations are **not**
-/// archived here — they remain in the pending map until explicitly cleared.
+/// (`Accepted`, `Rejected`, `Revoked`, or `Expired`). A timed-out invitation is
+/// archived here only when a fresh invitation for the same node supersedes it
+/// (status `Expired`); otherwise it stays in the pending map until explicitly cleared.
 #[cw_serde]
 pub struct PastFamilyInvitation {
     /// The original invitation as it was issued.

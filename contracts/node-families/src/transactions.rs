@@ -254,7 +254,8 @@ pub(crate) fn try_invite_to_family(
     ensure_node_not_in_family(&storage, deps.as_ref(), node_id)?;
 
     let expires_at = env.block.time.seconds() + validity;
-    let invitation = storage.add_pending_invitation(deps.storage, owned.id, node_id, expires_at)?;
+    let invitation =
+        storage.add_pending_invitation(deps.storage, &env, owned.id, node_id, expires_at)?;
 
     Ok(Response::new().add_event(
         Event::new(events::FAMILY_INVITATION_EVENT_NAME)
@@ -1311,6 +1312,8 @@ mod tests {
         use super::*;
         use crate::testing::NodeFamiliesContractTesterExt;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::ChainOpts;
+        use nym_node_families_contract_common::FamilyInvitationStatus;
 
         #[test]
         fn happy_path_persists_pending_invitation() -> anyhow::Result<()> {
@@ -1467,6 +1470,98 @@ mod tests {
                     node_id,
                 }
             );
+            Ok(())
+        }
+
+        #[test]
+        fn allows_reinvite_once_previous_invitation_has_expired() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            // first invitation with a short, explicit validity
+            let first_env = tester.env();
+            try_invite_to_family(
+                tester.deps_mut(),
+                first_env.clone(),
+                message_info(&alice, &[]),
+                node_id,
+                Some(5),
+            )?;
+            let first_expires_at = first_env.block.time.seconds() + 5;
+
+            // let it lapse
+            tester.advance_time_by(10);
+
+            // re-inviting the same node now succeeds and refreshes the expiry
+            let second_env = tester.env();
+            try_invite_to_family(
+                tester.deps_mut(),
+                second_env.clone(),
+                message_info(&alice, &[]),
+                node_id,
+                Some(5),
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            let pending = storage
+                .pending_family_invitations
+                .load(tester.deps().storage, (family.id, node_id))?;
+            assert_eq!(pending.expires_at, second_env.block.time.seconds() + 5);
+
+            // the lapsed invitation was archived as Expired at the re-invite time
+            let archived = storage
+                .past_family_invitations
+                .load(tester.deps().storage, ((family.id, node_id), 0))?;
+            assert!(matches!(
+                archived.status,
+                FamilyInvitationStatus::Expired { at } if at == second_env.block.time.seconds()
+            ));
+            assert_eq!(archived.invitation.expires_at, first_expires_at);
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_reinvite_while_previous_invitation_is_still_valid() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let alice = tester.addr_make("alice");
+            let family = tester.make_family(&alice);
+            let node_id = tester.bond_dummy_nymnode()?;
+
+            let env = tester.env();
+            try_invite_to_family(
+                tester.deps_mut(),
+                env,
+                message_info(&alice, &[]),
+                node_id,
+                Some(100),
+            )?;
+
+            // some time passes, but the invitation has not yet expired
+            tester.advance_time_by(10);
+
+            let env = tester.env();
+            let err = try_invite_to_family(
+                tester.deps_mut(),
+                env,
+                message_info(&alice, &[]),
+                node_id,
+                Some(100),
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                    family_id: family.id,
+                    node_id,
+                }
+            );
+            // nothing was archived — the still-valid invitation stays pending
+            assert!(NodeFamiliesStorage::new()
+                .past_family_invitations
+                .may_load(tester.deps().storage, ((family.id, node_id), 0))?
+                .is_none());
             Ok(())
         }
     }

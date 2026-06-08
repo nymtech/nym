@@ -4,6 +4,7 @@ import {
   AlertTitle,
   Box,
   Button,
+  Chip,
   Collapse,
   FormControl,
   IconButton,
@@ -30,7 +31,13 @@ import { useNavigate } from 'react-router-dom';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { format } from 'date-fns';
 import { Undelegate } from 'src/svg-icons';
-import { toPercentIntegerString } from 'src/utils';
+import {
+  toPercentIntegerString,
+  isFullyUnbondedDelegation,
+  formatUnbondedNodeLabel,
+  shouldHideDelegationFromList,
+  searchDelegations,
+} from 'src/utils';
 import { InfoTooltip } from '../InfoToolTip';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 import { PendingDelegationCard } from './PendingDelegationCard';
@@ -41,25 +48,7 @@ export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
 export type SortingKeys = keyof AdditionalTypes | keyof DelegationWithEverything;
 
-const shouldBeFiltered = (item: any): boolean => {
-  if (isDelegation(item)) {
-    if (!item.node_identity || item.node_identity === '-' || item.node_identity === '...') {
-      return true;
-    }
-    if (typeof item.avg_uptime_percent === 'string' && item.avg_uptime_percent === '-') {
-      return true;
-    }
-  }
-
-  if (isPendingDelegation(item)) {
-    if ((!item.node_identity || item.node_identity === '') && item.event && item.event.kind === 'Undelegate') {
-      return true;
-    }
-    return false;
-  }
-
-  return false;
-};
+const shouldBeFiltered = (item: TDelegations[number]): boolean => shouldHideDelegationFromList(item);
 
 const SORT_FIELD_OPTIONS: { id: SortingKeys; label: string }[] = [
   { id: 'delegated_on_iso_datetime', label: 'Delegated on' },
@@ -131,10 +120,10 @@ export const DelegationList: FCWithChildren<{
 
   const searchNeedle = identityFilter.trim().toLowerCase();
 
-  const displayedDelegations = React.useMemo(() => {
-    if (!searchNeedle) return activeDelegations;
-    return activeDelegations.filter((d) => d.node_identity.toLowerCase().includes(searchNeedle));
-  }, [activeDelegations, searchNeedle]);
+  const displayedDelegations = React.useMemo(
+    () => searchDelegations(activeDelegations, identityFilter),
+    [activeDelegations, identityFilter],
+  );
 
   const activeCount = activeDelegations.length;
 
@@ -330,28 +319,9 @@ export const DelegationList: FCWithChildren<{
               Pending
             </Typography>
             <Stack spacing={2}>
-              {pendingItems.map((item: any, index: number) => {
-                if (
-                  item.event &&
-                  item.event.kind === 'Delegate' &&
-                  (!item.node_identity || item.node_identity === '')
-                ) {
-                  return (
-                    <PendingDelegationCard
-                      key={pendingKey(item, `d-${index}`)}
-                      item={{
-                        ...item,
-                        node_identity: `Mix Identity Key ${item.event.mix_id}`,
-                      }}
-                      explorerUrl={explorerUrl}
-                    />
-                  );
-                }
-
-                return (
-                  <PendingDelegationCard key={pendingKey(item, `p-${index}`)} item={item} explorerUrl={explorerUrl} />
-                );
-              })}
+              {pendingItems.map((item: any, index: number) => (
+                <PendingDelegationCard key={pendingKey(item, `p-${index}`)} item={item} explorerUrl={explorerUrl} />
+              ))}
             </Stack>
           </Stack>
         )}
@@ -407,7 +377,7 @@ export const DelegationList: FCWithChildren<{
                 displayedDelegations.map((item) => {
                   const rowKey = `${item.mix_id}-${item.node_identity}`;
                   const isOpen = expandedKey === rowKey;
-                  const nodeIsUnbonded = Boolean(!item.node_identity);
+                  const nodeIsFullyUnbonded = isFullyUnbondedDelegation(item);
                   const satNum = saturationNumeric(item);
                   let satColor: 'text.secondary' | 'error.main' | 'success.main' = 'text.secondary';
                   if (satNum !== undefined) {
@@ -458,9 +428,20 @@ export const DelegationList: FCWithChildren<{
                                   <LockOutlined sx={{ color: 'text.secondary', fontSize: 18 }} />
                                 </Tooltip>
                               )}
-                              {nodeIsUnbonded ? (
+                              {nodeIsFullyUnbonded ? (
                                 <Tooltip title={unbondedTooltip} arrow>
-                                  <Typography color="text.secondary">-</Typography>
+                                  <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
+                                    <Chip
+                                      label="Node unbonded"
+                                      size="small"
+                                      color="warning"
+                                      variant="outlined"
+                                      icon={<WarningAmberOutlined />}
+                                    />
+                                    <Typography variant="body2" color="text.secondary" noWrap>
+                                      {formatUnbondedNodeLabel(item.mix_id)}
+                                    </Typography>
+                                  </Stack>
                                 </Tooltip>
                               ) : (
                                 <Link
@@ -487,7 +468,7 @@ export const DelegationList: FCWithChildren<{
                           {getRewardValue(item)}
                         </TableCell>
                         <TableCell align="right" sx={{ py: 1.25, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                          {!item.pending_events.length && !nodeIsUnbonded && (
+                          {!item.pending_events.length && !nodeIsFullyUnbonded && (
                             <DelegationsActionsMenu
                               onActionClick={(action) =>
                                 onItemActionClick ? onItemActionClick(item, action) : undefined
@@ -496,7 +477,7 @@ export const DelegationList: FCWithChildren<{
                               disableDelegateMore={item.mixnode_is_unbonding}
                             />
                           )}
-                          {!item.pending_events.length && nodeIsUnbonded && (
+                          {!item.pending_events.length && nodeIsFullyUnbonded && (
                             <IconButton sx={{ color: (t) => t.palette.nym.nymWallet.text.main }} size="small">
                               <Undelegate
                                 onClick={() => (onItemActionClick ? onItemActionClick(item, 'undelegate') : undefined)}

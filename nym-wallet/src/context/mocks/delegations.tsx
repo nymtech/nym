@@ -37,6 +37,7 @@ let mockDelegations: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: false,
     pending_events: [],
     mixnode_is_unbonding: false,
+    historical_node_identity: null,
     errors: null,
   },
   {
@@ -61,6 +62,7 @@ let mockDelegations: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: false,
+    historical_node_identity: null,
     errors: null,
   },
 ];

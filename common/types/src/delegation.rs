@@ -49,6 +49,8 @@ pub struct DelegationWithEverything {
     pub owner: String,
     pub mix_id: NodeId,
     pub node_identity: String,
+    /// Prior node identity when `node_identity` is synthetic (registry miss after unbond).
+    pub historical_node_identity: Option<String>,
     pub amount: DecCoin,
     pub accumulated_by_delegates: Option<DecCoin>,
     pub accumulated_by_operator: Option<DecCoin>,

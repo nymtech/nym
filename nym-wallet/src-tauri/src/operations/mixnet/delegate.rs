@@ -48,13 +48,25 @@ pub async fn get_pending_delegation_events(
     let mut client_specific_events = Vec::new();
     for delegation_event in delegation_events {
         if delegation_event.address_matches(client.nyxd.address().as_ref()) {
-            let node_identity = client
-                .nyxd
-                .get_mixnode_details(delegation_event.mix_id)
-                .await?
-                .mixnode_details
-                .map(|d| d.bond_information.mix_node.identity_key)
-                .unwrap_or_default();
+            let mut error_strings = Vec::new();
+            let node_identity = match get_node_information(
+                client,
+                delegation_event.mix_id,
+                &mut error_strings,
+            )
+            .await
+            {
+                Ok(node_details) => {
+                    delegation_node_identity(&node_details, delegation_event.mix_id)
+                }
+                Err(err) => {
+                    log::error!(
+                            "Failed to resolve node identity for pending event mix_id = {}. Error: {err}",
+                            delegation_event.mix_id
+                        );
+                    delegation_node_identity(&None, delegation_event.mix_id)
+                }
+            };
 
             client_specific_events
                 .push(WrappedDelegationEvent::new(delegation_event, node_identity));
@@ -182,6 +194,39 @@ pub(crate) async fn get_node_information(
     }
 
     Ok(None)
+}
+
+pub(crate) async fn lookup_historical_node_identity(
+    client: &DirectSigningHttpRpcValidatorClient,
+    node_id: NodeId,
+    error_strings: &mut Vec<String>,
+) -> Option<String> {
+    match client.nyxd.get_unbonded_nymnode_information(node_id).await {
+        Ok(response) => {
+            if let Some(details) = response.details {
+                return Some(details.identity_key);
+            }
+        }
+        Err(err) => {
+            let str_err = format!(
+                "Failed to get unbonded nymnode information for node_id = {node_id}. Error: {err}",
+            );
+            log::error!("  <<< {str_err}");
+            error_strings.push(str_err);
+        }
+    }
+
+    match client.nyxd.get_unbonded_mixnode_information(node_id).await {
+        Ok(response) => response.unbonded_info.map(|info| info.identity_key),
+        Err(err) => {
+            let str_err = format!(
+                "Failed to get unbonded mixnode information for mix_id = {node_id}. Error: {err}",
+            );
+            log::error!("  <<< {str_err}");
+            error_strings.push(str_err);
+            None
+        }
+    }
 }
 
 // TODO: fix later (yeah...)
@@ -418,17 +463,23 @@ pub async fn get_all_mix_delegations(
             pending_events.len()
         );
 
-        let mixnode_is_unbonding = node_details.as_ref().map(|m| m.is_unbonding);
+        let mixnode_is_unbonding = delegation_mixnode_is_unbonding(&node_details);
         log::trace!(
             "  >>> node with mix_id: {} is unbonding: {:?}",
             d.mix_id,
             mixnode_is_unbonding
         );
 
+        let historical_node_identity = match &node_details {
+            Some(node) => Some(node.node_identity.clone()),
+            None => lookup_historical_node_identity(client, d.mix_id, &mut error_strings).await,
+        };
+
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
-            node_identity: node_details.map(|m| m.node_identity).unwrap_or_default(),
+            node_identity: delegation_node_identity(&node_details, d.mix_id),
+            historical_node_identity,
             amount: d.amount,
             block_height: d.height,
             uses_vesting_contract_tokens,
@@ -535,4 +586,39 @@ pub async fn get_delegation_summary(
         total_delegations,
         total_rewards,
     })
+}
+
+pub(crate) fn delegation_node_identity(
+    node_details: &Option<NodeInformation>,
+    mix_id: NodeId,
+) -> String {
+    node_details
+        .as_ref()
+        .map(|m| m.node_identity.clone())
+        .unwrap_or_else(|| format!("unbonded:{}", mix_id))
+}
+
+pub(crate) fn delegation_mixnode_is_unbonding(
+    node_details: &Option<NodeInformation>,
+) -> Option<bool> {
+    match node_details {
+        Some(node) => Some(node.is_unbonding),
+        None => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unbonded_registry_miss_uses_synthetic_identity() {
+        const EXAMPLE_MIX_ID: NodeId = 1234;
+
+        assert_eq!(
+            delegation_node_identity(&None, EXAMPLE_MIX_ID),
+            "unbonded:1234"
+        );
+        assert_eq!(delegation_mixnode_is_unbonding(&None), None);
+    }
 }

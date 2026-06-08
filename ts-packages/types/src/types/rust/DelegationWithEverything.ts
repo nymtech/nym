@@ -7,6 +7,7 @@ export type DelegationWithEverything = {
   owner: string;
   mix_id: number;
   node_identity: string;
+  historical_node_identity: string | null;
   amount: DecCoin;
   accumulated_by_delegates: DecCoin | null;
   accumulated_by_operator: DecCoin | null;

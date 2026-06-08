@@ -18,6 +18,7 @@ use nym_sphinx_types::{Delay, REPLAY_TAG_SIZE};
 use std::collections::HashMap;
 use std::mem;
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
@@ -57,6 +58,11 @@ impl PendingReplayCheckPackets {
 
     fn total_count(&self) -> usize {
         self.packets.values().map(|v| v.len()).sum()
+    }
+
+    /// Instant at which the currently-deferred batch must be flushed, or `None` if nothing is pending.
+    fn flush_deadline(&self, deferral: Duration) -> Option<Instant> {
+        (self.total_count() > 0).then(|| self.last_acquired_mutex + deferral)
     }
 
     fn replay_tags(&self) -> HashMap<u32, Vec<&[u8; REPLAY_TAG_SIZE]>> {
@@ -289,7 +295,7 @@ impl ConnectionHandler {
                 .processing_config
                 .maximum_replay_detection_deferral;
 
-        let count_threshold = self.pending_packets.packets.len()
+        let count_threshold = self.pending_packets.total_count()
             < self
                 .shared
                 .processing_config
@@ -706,13 +712,23 @@ impl ConnectionHandler {
     ) {
         let mut packets_processed: u64 = 0;
         loop {
+            // make sure pending packets are not stuck in the queue if we don't get any more packets
+            // from this sender
+            let flush_deadline = self.pending_packets.flush_deadline(
+                self.shared
+                    .processing_config
+                    .maximum_replay_detection_deferral,
+            );
+
             tokio::select! {
                 biased;
+                // 1. check for cancellation
                 _ = self.shared.shutdown_token.cancelled() => {
                     trace!("connection handler: received shutdown");
                     Span::current().record("exit_reason", "shutdown");
                     break
                 }
+                // 2. handle any incoming packet
                 maybe_framed_nym_packet = mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
                         Some(Ok(packet)) => {
@@ -732,7 +748,7 @@ impl ConnectionHandler {
                             );
                             Span::current().record("exit_reason", "corrupted");
                             Span::current().record("packets_processed", packets_processed);
-                            return
+                            break
                         }
                         None => {
                             debug!(
@@ -742,14 +758,101 @@ impl ConnectionHandler {
                             );
                             Span::current().record("exit_reason", "closed_by_remote");
                             Span::current().record("packets_processed", packets_processed);
-                            return
+                            break
                         }
                     }
+                }
+                // 3. check for the deferred pending packets
+                _ = async move {
+                    match flush_deadline {
+                        Some(d) => tokio::time::sleep_until(d).await,
+                        None => std::future::pending::<()>().await,
+                    }
+                } => {
+                    self.handle_pending_packets_batch(Instant::now()).await;
                 }
             }
         }
 
+        // drain any packets still deferred for replay-checking so they are forwarded
+        // rather than silently dropped when the connection closes, errors, or shuts down
+        self.handle_pending_packets_batch(Instant::now()).await;
+
         Span::current().record("packets_processed", packets_processed);
         debug!("exiting and closing connection");
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use nym_sphinx_params::{PacketSize, PacketType};
+    use nym_sphinx_types::{
+        DESTINATION_ADDRESS_LENGTH, Destination, DestinationAddressBytes, IDENTIFIER_LENGTH,
+        NODE_ADDRESS_LENGTH, Node, NodeAddressBytes, NymPacket, PrivateKey, PublicKey,
+    };
+
+    fn random_pubkey() -> PublicKey {
+        (&PrivateKey::random()).into()
+    }
+
+    // Build a real sphinx packet whose first hop validates against `key`, then partially
+    // unwrap it - enough to land one entry in the pending replay-check batch.
+    fn pending_packet(key: &PrivateKey) -> PartialyUnwrappedPacketWithKeyRotation {
+        let route = [
+            Node::new(
+                NodeAddressBytes::from_bytes([1u8; NODE_ADDRESS_LENGTH]),
+                key.into(),
+            ),
+            Node::new(
+                NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
+                random_pubkey(),
+            ),
+        ];
+        let destination = Destination::new(
+            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
+            [4u8; IDENTIFIER_LENGTH],
+        );
+        let delays: Vec<Delay> = std::iter::repeat_with(|| Delay::new_from_nanos(0))
+            .take(route.len())
+            .collect();
+        let packet = NymPacket::sphinx_build(
+            true,
+            PacketSize::RegularPacket.payload_size(),
+            b"x",
+            &route,
+            &destination,
+            &delays,
+        )
+        .expect("failed to build test sphinx packet");
+        let framed =
+            FramedNymPacket::new(packet, PacketType::Mix, SphinxKeyRotation::Unknown, true);
+
+        PartiallyUnwrappedPacket::new(framed, key)
+            .map_err(|(_, err)| err)
+            .expect("failed to partially unwrap test packet")
+            .with_key_rotation(0)
+    }
+
+    #[test]
+    fn no_flush_deadline_when_nothing_pending() {
+        let pending = PendingReplayCheckPackets::new();
+        assert!(pending.flush_deadline(Duration::from_millis(50)).is_none());
+    }
+
+    #[test]
+    fn flush_deadline_is_batch_start_plus_deferral() {
+        let key = PrivateKey::random();
+        let mut pending = PendingReplayCheckPackets::new();
+
+        let batch_start = Instant::now();
+        pending.push(batch_start, pending_packet(&key));
+
+        let deferral = Duration::from_millis(50);
+        assert_eq!(
+            pending.flush_deadline(deferral),
+            Some(batch_start + deferral)
+        );
     }
 }

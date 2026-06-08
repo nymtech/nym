@@ -21,6 +21,7 @@ import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
 import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
 import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
+import { dedupeInflightByKey } from '../utils/dedupeInflightByKey';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -103,7 +104,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoadingInternal] = useState(false);
   const hadClientDetailsRef = useRef(false);
-  const accountLoadInflightRef = useRef<Promise<Account | undefined> | null>(null);
+  const accountLoadInflightRef = useRef<Map<Network, Promise<Account | undefined>>>(new Map());
   const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
   const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
@@ -161,12 +162,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setMixnodeDetails(null);
   };
 
-  const loadAccount = async (n: Network): Promise<Account | undefined> => {
-    if (accountLoadInflightRef.current) {
-      return accountLoadInflightRef.current;
-    }
-
-    const pending = (async () => {
+  const loadAccount = async (n: Network): Promise<Account | undefined> =>
+    dedupeInflightByKey(accountLoadInflightRef.current, n, async () => {
       try {
         const client = await selectNetwork(n);
         setClientDetails(client);
@@ -175,14 +172,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
         enqueueSnackbar('Error loading account', { variant: 'error' });
         Console.error(e as string);
         return undefined;
-      } finally {
-        accountLoadInflightRef.current = null;
       }
-    })();
-
-    accountLoadInflightRef.current = pending;
-    return pending;
-  };
+    });
 
   const loadStoredAccounts = async () => {
     const accounts = await listAccounts();

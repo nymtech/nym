@@ -24,6 +24,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,15 +786,16 @@ dependencies = [
 
 [[package]]
 name = "ed25519-zebra"
-version = "4.2.0"
+version = "4.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "775765289f7c6336c18d3d66127527820dd45ffd9eb3b6b8ee4708590e6c20f5"
+checksum = "7d9ce6874da5d4415896cd45ffbc4d1cfc0c4f9c079427bd870742c30f2f65a9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
+ "hashbrown 0.14.5",
+ "hex",
  "rand_core",
  "sha2",
- "subtle",
  "zeroize",
 ]
 
@@ -878,6 +885,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
  "ahash",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
 ]
 
 [[package]]

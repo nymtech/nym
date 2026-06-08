@@ -418,7 +418,7 @@ pub async fn get_all_mix_delegations(
             pending_events.len()
         );
 
-        let mixnode_is_unbonding = node_details.as_ref().map(|m| m.is_unbonding);
+        let mixnode_is_unbonding = delegation_mixnode_is_unbonding(&node_details);
         log::trace!(
             "  >>> node with mix_id: {} is unbonding: {:?}",
             d.mix_id,
@@ -428,7 +428,7 @@ pub async fn get_all_mix_delegations(
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
-            node_identity: node_details.map(|m| m.node_identity).unwrap_or_default(),
+            node_identity: delegation_node_identity(&node_details, d.mix_id),
             amount: d.amount,
             block_height: d.height,
             uses_vesting_contract_tokens,
@@ -535,4 +535,42 @@ pub async fn get_delegation_summary(
         total_delegations,
         total_rewards,
     })
+}
+
+pub(crate) fn delegation_node_identity(
+    node_details: &Option<NodeInformation>,
+    mix_id: NodeId,
+) -> String {
+    node_details
+        .as_ref()
+        .map(|m| m.node_identity.clone())
+        .unwrap_or_else(|| format!("unbonded:{}", mix_id))
+}
+
+pub(crate) fn delegation_mixnode_is_unbonding(
+    node_details: &Option<NodeInformation>,
+) -> Option<bool> {
+    node_details.as_ref().map(|m| m.is_unbonding).or_else(|| {
+        if node_details.is_none() {
+            Some(true)
+        } else {
+            None
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unbonded_registry_miss_uses_synthetic_identity() {
+        const EXAMPLE_MIX_ID: NodeId = 1234;
+
+        assert_eq!(
+            delegation_node_identity(&None, EXAMPLE_MIX_ID),
+            "unbonded:1234"
+        );
+        assert_eq!(delegation_mixnode_is_unbonding(&None), Some(true));
+    }
 }

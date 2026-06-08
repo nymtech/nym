@@ -1,12 +1,17 @@
 import { orderBy as _orderBy } from 'lodash';
 import { Order, SortingKeys } from 'src/components/Delegation/DelegationList';
 import { TDelegations, isDelegation } from 'src/context/delegations';
+import { isFullyUnbondedDelegation } from 'src/utils';
 
 type MappedTypes = 'delegationValue' | 'operatorReward' | 'profitMarginValue' | 'operatorCostValue';
 
 export const useSortDelegations = (delegationItems: TDelegations, order: Order, orderBy: SortingKeys) => {
-  const unbondedDelegations = delegationItems.filter((delegation) => !delegation.node_identity);
-  const delegations = delegationItems.filter((delegation) => delegation.node_identity);
+  const unbondedDelegations = delegationItems.filter(
+    (delegation) => isDelegation(delegation) && isFullyUnbondedDelegation(delegation),
+  );
+  const delegations = delegationItems.filter(
+    (delegation) => !(isDelegation(delegation) && isFullyUnbondedDelegation(delegation)),
+  );
 
   // example of a mapped type in typescript
 

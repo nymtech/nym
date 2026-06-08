@@ -1,5 +1,6 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
 import { Steps } from 'nextra/components';
 import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
@@ -204,17 +205,14 @@ Bonding can be managed via two playbooks:
 1. `bond.yml`: an interactive way, requiring operator to use own wallet (desktop or CLI)
 2. `auto-bond.yml`: automatic bonding flow requiring operator to prepare `nodes.csv` and have `nym-cli` installed
 
-
-
-
 <div>
   <Tabs items={[
     <code>bond.yml</code>,
     <code>auto-bond.yml</code>,
     ]} defaultIndex="1">
     <MyTab>
-A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts.
 
+A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts.
 This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
 
 **Requirements**
@@ -233,79 +231,80 @@ This playbook is intercative as it prompts user for data from Nym wallet to sign
 cd playbooks
 ansible-playbook bond.yml
 ```
+
+Your nodes are bonded and will show in the network in the next epoch (mac 60min).
+
     </MyTab>
     <MyTab>
-A playbook to *automatically* register your nodes to Nym Network by bonding it to Nyx blockchain accounts.     
 
-This automatic flow is slightly harder to setup in the beggining and it's recommended for operators bonding many nodes, as the initial work is worthit by saving the time of bonding a node at a time. 
+A playbook to *automatically* register your nodes to Nym Network by bonding it to Nyx blockchain accounts.
+This automatic flow is slightly harder to setup in the beggining and it's recommended for operators bonding many nodes, as the initial work is worthit by saving the time of bonding a node at a time.
 
 **Requirements**
 
 - Installed [`nym-cli`](/developers/tools/nym-cli)
 - Python3
 - Nym repository with directory `scripts/nym-node-setup/auto-bond/`, containing:
-  - `Python program [`auto_bond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py)
+  - Python program [`auto_bond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py)
   - `nodes.csv.example` with correct data
 
 **Usage**
 
 1. Copy `nodes.csvv.example` to your prefered location without `.example` suffix
 2. Fill correctly the csv columns for each node you want to bond:
-  - `inventory_node_id`: ise node1
+  - `inventory_node_id`: ie `node1`
   - `hostname`: same like in your `playbooks/inventory/all` (without `https://` !)
   - `ip`: same like `ansible_host`
   - `account`: Nyx account which will bond this node
   - `mnemonic`: Your nyx mnenonic
-  - `identity_key`: node identity key - the easieast way to get it is to navigate to `playbooks/` and run: 
-  ```sh
-  ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
-  ```
+  - `identity_key`: node identity key - the easieast way to get it is to navigate to `playbooks/` and run:
+
+```sh
+ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
+```
+
   - `amount`: Amount to bond in `uNYM` (1 NYM = 1 000 000 uNYM), Make sure to leave extra 1 NYM (1 000 000 uNYM) for fees
-  - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `uNYM` (1 NYM = 1 000 000 uNYM) 
+  - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `uNYM` (1 NYM = 1 000 000 uNYM)
+
 3. Save the csv
-4. Run `auto_bond_all.py` with all needed arguments:
-  - To see help menu
+4. Run `auto_bond_all.py` with all needed arguments.
+
+To see help menu:
+
 ```sh
 python3 ./auto_bond_all.py --help
 ```
-  - To test your paths run with `--dry-run`
-  - Argument usage:
+
+- To test your paths run with `--dry-run`. Argument usage:
+
 ```sh
 --ansible-repo ANSIBLE_REPO
                       Path to ansible playbooks directory (contains auto-bond.yml and inventory/)
 --cli-dir CLI_DIR     Directory containing the nym-cli binary
 --dry-run             Print commands without executing
 ```
-  - Example (note that the `nodes.csv` has no flag as it's a required argument):
-```sh  
+
+- Example (note that the `nodes.csv` has no flag as it's a required argument):
+
+```sh
 python ./auto_bond_all.py \
   --ansible-repo ~/admin/nym-nodes/nym-nodes-ansible/playbooks \
   --cli-dir ~/repos/nymtech/nym/target/release \
   ~/admin/nym-nodes/nodes.csv
 ```
+
 5. Your nodes should be bonded and come up in the next epoch (max 60min)
 
 **Additional scripts**
 
 Your `nodes.csv` can be used for other operations:
-
-- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): Shows all accounts balances if provided with Nyx accounts (`account` column) 
-- [`unbond_all.py`](://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`mnemonic` column)
+- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): Shows all accounts balances if provided with Nyx accounts (`account` column)
+- [`unbond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`mnemonic` column)
+<br/>
 
     </MyTab>
   </Tabs>
 </div>
-
-
-
-
-
-
-
-
-
-
-
 
 
 A playbook to interactively register your node to Nym network by bonding it to Nyx blockchain account.

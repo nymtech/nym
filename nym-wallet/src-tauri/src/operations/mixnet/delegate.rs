@@ -184,6 +184,39 @@ pub(crate) async fn get_node_information(
     Ok(None)
 }
 
+pub(crate) async fn lookup_historical_node_identity(
+    client: &DirectSigningHttpRpcValidatorClient,
+    node_id: NodeId,
+    error_strings: &mut Vec<String>,
+) -> Option<String> {
+    match client.nyxd.get_unbonded_nymnode_information(node_id).await {
+        Ok(response) => {
+            if let Some(details) = response.details {
+                return Some(details.identity_key);
+            }
+        }
+        Err(err) => {
+            let str_err = format!(
+                "Failed to get unbonded nymnode information for node_id = {node_id}. Error: {err}",
+            );
+            log::error!("  <<< {str_err}");
+            error_strings.push(str_err);
+        }
+    }
+
+    match client.nyxd.get_unbonded_mixnode_information(node_id).await {
+        Ok(response) => response.unbonded_info.map(|info| info.identity_key),
+        Err(err) => {
+            let str_err = format!(
+                "Failed to get unbonded mixnode information for mix_id = {node_id}. Error: {err}",
+            );
+            log::error!("  <<< {str_err}");
+            error_strings.push(str_err);
+            None
+        }
+    }
+}
+
 // TODO: fix later (yeah...)
 #[allow(deprecated)]
 #[tauri::command]
@@ -425,10 +458,16 @@ pub async fn get_all_mix_delegations(
             mixnode_is_unbonding
         );
 
+        let historical_node_identity = match &node_details {
+            Some(node) => Some(node.node_identity.clone()),
+            None => lookup_historical_node_identity(client, d.mix_id, &mut error_strings).await,
+        };
+
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
             node_identity: delegation_node_identity(&node_details, d.mix_id),
+            historical_node_identity,
             amount: d.amount,
             block_height: d.height,
             uses_vesting_contract_tokens,
@@ -550,13 +589,10 @@ pub(crate) fn delegation_node_identity(
 pub(crate) fn delegation_mixnode_is_unbonding(
     node_details: &Option<NodeInformation>,
 ) -> Option<bool> {
-    node_details.as_ref().map(|m| m.is_unbonding).or_else(|| {
-        if node_details.is_none() {
-            Some(true)
-        } else {
-            None
-        }
-    })
+    match node_details {
+        Some(node) => Some(node.is_unbonding),
+        None => Some(true),
+    }
 }
 
 #[cfg(test)]

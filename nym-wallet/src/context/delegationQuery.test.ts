@@ -1,3 +1,6 @@
+import { getAllPendingDelegations, getDelegationSummary } from 'src/requests';
+import { fetchDelegationSummaryQuery } from './delegationQuery';
+
 jest.mock('src/utils', () => ({
   decCoinToDisplay: jest.fn((coin: { amount: string; denom: string }) => coin),
 }));
@@ -7,13 +10,8 @@ jest.mock('src/requests', () => ({
   getAllPendingDelegations: jest.fn(),
 }));
 
-import { fetchDelegationSummaryQuery } from './delegationQuery';
-import { getAllPendingDelegations, getDelegationSummary } from 'src/requests';
-
 const mockedGetDelegationSummary = getDelegationSummary as jest.MockedFunction<typeof getDelegationSummary>;
-const mockedGetAllPendingDelegations = getAllPendingDelegations as jest.MockedFunction<
-  typeof getAllPendingDelegations
->;
+const mockedGetAllPendingDelegations = getAllPendingDelegations as jest.MockedFunction<typeof getAllPendingDelegations>;
 
 describe('fetchDelegationSummaryQuery', () => {
   beforeEach(() => {

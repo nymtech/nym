@@ -38,9 +38,11 @@ export function searchDelegations(
   if (!needle) {
     return delegations;
   }
-  return delegations.filter(
-    (d) => d.node_identity.toLowerCase().includes(needle) || String(d.mix_id).includes(needle),
-  );
+  return delegations.filter((d) => {
+    const identity = d.node_identity?.toLowerCase() ?? '';
+    const historical = d.historical_node_identity?.toLowerCase() ?? '';
+    return identity.includes(needle) || historical.includes(needle) || String(d.mix_id).includes(needle);
+  });
 }
 
 export function isUndelegateOnlyDelegation(item: DelegationWithEverything): boolean {

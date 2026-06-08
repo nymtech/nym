@@ -1,5 +1,5 @@
 import type { DelegationWithEverything } from '@nymproject/types';
-import { formatDelegationNodeIdentityForDisplay } from './delegationIdentity';
+import { formatDelegationNodeIdentityForDisplay, isFullyUnbondedDelegation } from './delegationIdentity';
 import {
   filterVisibleDelegations,
   isUndelegateOnlyDelegation,
@@ -46,6 +46,45 @@ describe('unbonded delegation wallet visibility acceptance', () => {
 
     expect(searchDelegations(visible, String(EXAMPLE_UNBONDED_MIX_ID))).toHaveLength(1);
     expect(searchDelegations(visible, EXAMPLE_HISTORICAL_NODE_IDENTITY)).toHaveLength(0);
+  });
+
+  it('does not throw when search runs on unfiltered rows with empty node_identity', () => {
+    const legacyRow = buildLegacyHiddenUnbondedWalletDelegation();
+
+    expect(searchDelegations([legacyRow], String(EXAMPLE_UNBONDED_MIX_ID))).toHaveLength(1);
+    expect(searchDelegations([legacyRow], 'nonexistent-needle')).toHaveLength(0);
+  });
+
+  it('finds the row by historical identity when the backend preserved it', () => {
+    const fixedRow = buildFixedUnbondedWalletDelegation({
+      historicalNodeIdentity: EXAMPLE_HISTORICAL_NODE_IDENTITY,
+    });
+    const visible = filterVisibleDelegations([fixedRow]) as DelegationWithEverything[];
+
+    expect(searchDelegations(visible, EXAMPLE_HISTORICAL_NODE_IDENTITY)).toHaveLength(1);
+    expect(searchDelegations(visible, String(EXAMPLE_UNBONDED_MIX_ID))).toHaveLength(1);
+  });
+
+  it('keeps bonded-but-unbonding rows linked and not undelegate-only', () => {
+    const bondedUnbondingRow: DelegationWithEverything = {
+      ...buildFixedUnbondedWalletDelegation(),
+      node_identity: EXAMPLE_HISTORICAL_NODE_IDENTITY,
+      historical_node_identity: EXAMPLE_HISTORICAL_NODE_IDENTITY,
+      mixnode_is_unbonding: true,
+    };
+
+    expect(isFullyUnbondedDelegation(bondedUnbondingRow)).toBe(false);
+    expect(isUndelegateOnlyDelegation(bondedUnbondingRow)).toBe(false);
+    expect(searchDelegations([bondedUnbondingRow], EXAMPLE_HISTORICAL_NODE_IDENTITY)).toHaveLength(1);
+  });
+
+  it('treats synthetic registry-miss rows as undelegate-only even with historical identity', () => {
+    const syntheticRow = buildFixedUnbondedWalletDelegation({
+      historicalNodeIdentity: EXAMPLE_HISTORICAL_NODE_IDENTITY,
+    });
+
+    expect(isFullyUnbondedDelegation(syntheticRow)).toBe(true);
+    expect(isUndelegateOnlyDelegation(syntheticRow)).toBe(true);
   });
 
   it('formats undelegate confirmation copy without exposing the synthetic prefix', () => {

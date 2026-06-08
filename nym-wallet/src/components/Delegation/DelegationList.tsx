@@ -31,7 +31,13 @@ import { useNavigate } from 'react-router-dom';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
 import { format } from 'date-fns';
 import { Undelegate } from 'src/svg-icons';
-import { toPercentIntegerString, isFullyUnbondedDelegation, formatUnbondedNodeLabel, shouldHideDelegationFromList, searchDelegations } from 'src/utils';
+import {
+  toPercentIntegerString,
+  isFullyUnbondedDelegation,
+  formatUnbondedNodeLabel,
+  shouldHideDelegationFromList,
+  searchDelegations,
+} from 'src/utils';
 import { InfoTooltip } from '../InfoToolTip';
 import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 import { PendingDelegationCard } from './PendingDelegationCard';
@@ -42,7 +48,7 @@ export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
 export type SortingKeys = keyof AdditionalTypes | keyof DelegationWithEverything;
 
-const shouldBeFiltered = (item: any): boolean => shouldHideDelegationFromList(item);
+const shouldBeFiltered = (item: TDelegations[number]): boolean => shouldHideDelegationFromList(item);
 
 const SORT_FIELD_OPTIONS: { id: SortingKeys; label: string }[] = [
   { id: 'delegated_on_iso_datetime', label: 'Delegated on' },
@@ -114,9 +120,10 @@ export const DelegationList: FCWithChildren<{
 
   const searchNeedle = identityFilter.trim().toLowerCase();
 
-  const displayedDelegations = React.useMemo(() => {
-    return searchDelegations(activeDelegations, identityFilter);
-  }, [activeDelegations, identityFilter]);
+  const displayedDelegations = React.useMemo(
+    () => searchDelegations(activeDelegations, identityFilter),
+    [activeDelegations, identityFilter],
+  );
 
   const activeCount = activeDelegations.length;
 

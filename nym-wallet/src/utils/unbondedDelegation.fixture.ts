@@ -14,6 +14,7 @@ type UnbondedWalletDelegationOptions = {
   amount?: string;
   blockHeight?: bigint;
   owner?: string;
+  historicalNodeIdentity?: string | null;
 };
 
 export function buildFixedUnbondedWalletDelegation(
@@ -37,6 +38,7 @@ export function buildFixedUnbondedWalletDelegation(
     uses_vesting_contract_tokens: false,
     pending_events: [],
     mixnode_is_unbonding: true,
+    historical_node_identity: options.historicalNodeIdentity ?? null,
     errors: null,
   };
 }

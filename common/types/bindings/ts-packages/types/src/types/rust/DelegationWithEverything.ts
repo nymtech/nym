@@ -3,4 +3,8 @@ import type { DecCoin } from "./DecCoin";
 import type { DelegationEvent } from "./DelegationEvent";
 import type { NodeCostParams } from "./MixNodeCostParams";
 
-export type DelegationWithEverything = { owner: string, mix_id: number, node_identity: string, amount: DecCoin, accumulated_by_delegates: DecCoin | null, accumulated_by_operator: DecCoin | null, block_height: bigint, delegated_on_iso_datetime: string | null, cost_params: NodeCostParams | null, avg_uptime_percent: number | null, stake_saturation: string | null, uses_vesting_contract_tokens: boolean, unclaimed_rewards: DecCoin | null, errors: string | null, pending_events: Array<DelegationEvent>, mixnode_is_unbonding: boolean | null, };
+export type DelegationWithEverything = { owner: string, mix_id: number, node_identity: string, 
+/**
+ * Prior node identity when `node_identity` is synthetic (registry miss after unbond).
+ */
+historical_node_identity: string | null, amount: DecCoin, accumulated_by_delegates: DecCoin | null, accumulated_by_operator: DecCoin | null, block_height: bigint, delegated_on_iso_datetime: string | null, cost_params: NodeCostParams | null, avg_uptime_percent: number | null, stake_saturation: string | null, uses_vesting_contract_tokens: boolean, unclaimed_rewards: DecCoin | null, errors: string | null, pending_events: Array<DelegationEvent>, mixnode_is_unbonding: boolean | null, };

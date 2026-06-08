@@ -130,10 +130,13 @@ export function getCachedNymPrice(url: string): NymTokenomics | undefined {
   return nymPriceCache.get(url);
 }
 
-/** @internal */
 export function clearNymPriceCacheForTests(): void {
   nymPriceCache.clear();
   nymPriceInflight.clear();
+}
+
+export function clearNymPriceCache(): void {
+  clearNymPriceCacheForTests();
 }
 
 /** Coalesces concurrent requests for the same price URL (e.g. Balance card + Network overview). */

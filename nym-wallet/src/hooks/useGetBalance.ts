@@ -232,11 +232,15 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
 
   const refreshBalances = async () => {
     vestingAccountStatusRef.current = 'unknown';
-    if (clientDetails?.client_address) {
+    if (!clientDetails?.client_address) {
+      clearAll();
+      return;
+    }
+    try {
       await fetchBalance();
       await fetchTokenAllocation();
-    } else {
-      clearAll();
+    } finally {
+      setIsLoading(false);
     }
   };
 

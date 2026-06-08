@@ -19,7 +19,7 @@ import {
 } from '../requests';
 import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
-import { fetchNymPriceDeduped, getNetworkOverviewEndpoints } from '../api/networkOverview';
+import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -102,6 +102,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoadingInternal] = useState(false);
   const hadClientDetailsRef = useRef(false);
+  const accountLoadInflightRef = useRef<Promise<void> | null>(null);
   const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
   const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
@@ -136,9 +137,6 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     const state: RustState = JSON.parse(stateJson);
     setNetwork(state.network);
     setLoginType(state.loginType);
-    if (state.network) {
-      await loadAccount(state.network);
-    }
   };
 
   useEffect(() => {
@@ -162,14 +160,25 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setMixnodeDetails(null);
   };
 
-  const loadAccount = async (n: Network) => {
-    try {
-      const client = await selectNetwork(n);
-      setClientDetails(client);
-    } catch (e) {
-      enqueueSnackbar('Error loading account', { variant: 'error' });
-      Console.error(e as string);
+  const loadAccount = async (n: Network): Promise<void> => {
+    if (accountLoadInflightRef.current) {
+      return accountLoadInflightRef.current;
     }
+
+    const pending = (async () => {
+      try {
+        const client = await selectNetwork(n);
+        setClientDetails(client);
+      } catch (e) {
+        enqueueSnackbar('Error loading account', { variant: 'error' });
+        Console.error(e as string);
+      } finally {
+        accountLoadInflightRef.current = null;
+      }
+    })();
+
+    accountLoadInflightRef.current = pending;
+    return pending;
   };
 
   const loadStoredAccounts = async () => {
@@ -315,6 +324,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       setNetwork('MAINNET');
       await loadAccount('MAINNET');
       navigate('/balance');
+      // Overlay stays up until auth window closes via switchWindows on clientDetails.
     } catch (e) {
       setError(e as string);
       publishSetIsLoading(false);
@@ -325,6 +335,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     try {
       await signOut();
       await setReactState(undefined);
+      clearNymPriceCache();
       setClientDetails(undefined);
       hadClientDetailsRef.current = false;
       enqueueSnackbar('Successfully logged out', { variant: 'success' });

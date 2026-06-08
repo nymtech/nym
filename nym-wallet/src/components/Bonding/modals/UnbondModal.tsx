@@ -25,6 +25,7 @@ interface Props {
 export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
   const { fee, isFeeLoading, getFee, feeError } = useGetFee();
   const unbondReturn = formatOperatorUnbondReturn(node);
+  const compoundedRewards = unbondReturn.hasCompoundedRewards ? unbondReturn.operatorRewards : null;
 
   useEffect(() => {
     if (feeError) {
@@ -66,14 +67,10 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
           Could not calculate exact return - check your wallet balance after unbonding.
         </Alert>
       )}
-      {unbondReturn.hasCompoundedRewards ? (
+      {compoundedRewards ? (
         <>
           <ModalListItem label="Original pledge" value={formatCoinDisplay(unbondReturn.pledge)} divider />
-          <ModalListItem
-            label="Compounded operator rewards"
-            value={formatCoinDisplay(unbondReturn.operatorRewards!)}
-            divider
-          />
+          <ModalListItem label="Compounded operator rewards" value={formatCoinDisplay(compoundedRewards)} divider />
           <ModalListItem label="Total returned to your account" value={formatCoinDisplay(unbondReturn.total)} divider />
           <Typography fontSize="small" sx={{ mb: 1 }}>
             Delegator stake is returned to delegators separately and is not included in this total.

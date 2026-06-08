@@ -1,10 +1,11 @@
 import { TransactionExecuteResult } from '@nymproject/types';
+import { isTransactionExecuteSuccessful } from './transactionExecuteSuccess';
 
-export const getHostnameUpdateErrorMessage = (
+export const getNodeSettingsUpdateErrorMessage = (
   tx: TransactionExecuteResult | undefined,
   contextError?: string,
 ): string | undefined => {
-  if (tx?.transaction_hash && tx.transaction_hash.length > 0) {
+  if (isTransactionExecuteSuccessful(tx)) {
     return undefined;
   }
   if (contextError) {

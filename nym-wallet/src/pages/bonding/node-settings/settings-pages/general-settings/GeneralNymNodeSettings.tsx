@@ -16,7 +16,7 @@ import { useBondingContext, AppContext } from 'src/context';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { settingsValidationSchema } from 'src/components/Bonding/forms/nym-node/settingsValidationSchema';
 import { simulateUpdateNymNodeConfig } from 'src/requests';
-import { getHostnameUpdateErrorMessage } from 'src/utils/hostnameUpdateError';
+import { getNodeSettingsUpdateErrorMessage } from 'src/utils/nodeSettingsUpdateError';
 
 export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymNode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -57,7 +57,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
 
     try {
       const tx = await updateNymNodeConfig(configUpdate, fee);
-      const errorMessage = getHostnameUpdateErrorMessage(tx);
+      const errorMessage = getNodeSettingsUpdateErrorMessage(tx);
       if (errorMessage) {
         setSubmitError(errorMessage);
         resetFeeState();
@@ -68,7 +68,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
       setOpenConfirmationModal(true);
     } catch (error) {
       Console.error(error);
-      setSubmitError(getHostnameUpdateErrorMessage(undefined, String(error)));
+      setSubmitError(getNodeSettingsUpdateErrorMessage(undefined, String(error)));
       resetFeeState();
     }
   };

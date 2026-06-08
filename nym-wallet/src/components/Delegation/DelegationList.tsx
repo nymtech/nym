@@ -319,28 +319,9 @@ export const DelegationList: FCWithChildren<{
               Pending
             </Typography>
             <Stack spacing={2}>
-              {pendingItems.map((item: any, index: number) => {
-                if (
-                  item.event &&
-                  item.event.kind === 'Delegate' &&
-                  (!item.node_identity || item.node_identity === '')
-                ) {
-                  return (
-                    <PendingDelegationCard
-                      key={pendingKey(item, `d-${index}`)}
-                      item={{
-                        ...item,
-                        node_identity: `Mix Identity Key ${item.event.mix_id}`,
-                      }}
-                      explorerUrl={explorerUrl}
-                    />
-                  );
-                }
-
-                return (
-                  <PendingDelegationCard key={pendingKey(item, `p-${index}`)} item={item} explorerUrl={explorerUrl} />
-                );
-              })}
+              {pendingItems.map((item: any, index: number) => (
+                <PendingDelegationCard key={pendingKey(item, `p-${index}`)} item={item} explorerUrl={explorerUrl} />
+              ))}
             </Stack>
           </Stack>
         )}

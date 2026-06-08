@@ -69,3 +69,19 @@ export function buildPendingUndelegateEvent(
     },
   };
 }
+
+export function buildPendingDelegateEvent(
+  nodeIdentity: string,
+  mixId: number = EXAMPLE_UNBONDED_MIX_ID,
+): WrappedDelegationEvent {
+  return {
+    node_identity: nodeIdentity,
+    event: {
+      kind: 'Delegate',
+      mix_id: mixId,
+      address: EXAMPLE_DELEGATOR_ADDRESS,
+      amount: { amount: '1000000', denom: 'nym' },
+      proxy: null,
+    },
+  };
+}

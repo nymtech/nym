@@ -2,9 +2,12 @@ import {
   UNBONDED_NODE_IDENTITY_PREFIX,
   formatUnbondedNodeLabel,
   formatDelegationNodeIdentityForDisplay,
+  formatPendingDelegationLinkLabel,
   isFullyUnbondedDelegation,
+  isPendingUndelegateWithRegistryMiss,
   isUnbondedNodeIdentity,
 } from './delegationIdentity';
+import { buildPendingDelegateEvent, buildPendingUndelegateEvent } from './unbondedDelegation.fixture';
 
 describe('delegationIdentity', () => {
   it('treats empty identity as unbonded', () => {
@@ -33,6 +36,22 @@ describe('delegationIdentity', () => {
     expect(formatDelegationNodeIdentityForDisplay('unbonded:42', 42)).toBe('Node unbonded (mix 42)');
     expect(formatDelegationNodeIdentityForDisplay('2Abcdefghijklmnopqrstuvwxyz1234567890', 42)).toBe(
       '2Abcdefghijklmnopqrstuvwxyz1234567890',
+    );
+  });
+
+  it('uses unbonded label only for pending undelegate registry misses', () => {
+    const pendingDelegate = buildPendingDelegateEvent(`unbonded:${42}`);
+    const pendingUndelegate = buildPendingUndelegateEvent(`unbonded:${42}`);
+
+    expect(isPendingUndelegateWithRegistryMiss(pendingDelegate)).toBe(false);
+    expect(isPendingUndelegateWithRegistryMiss(pendingUndelegate)).toBe(true);
+  });
+
+  it('formats pending delegate explorer link label by mix id when identity lookup missed', () => {
+    expect(formatPendingDelegationLinkLabel('', 788)).toBe('Mix 788');
+    expect(formatPendingDelegationLinkLabel('unbonded:788', 788)).toBe('Mix 788');
+    expect(formatPendingDelegationLinkLabel('2Abcdefghijklmnopqrstuvwxyz1234567890', 788)).toBe(
+      '2Abcde...567890',
     );
   });
 });

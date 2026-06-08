@@ -1,4 +1,4 @@
-import type { DelegationWithEverything } from '@nymproject/types';
+import type { DelegationWithEverything, WrappedDelegationEvent } from '@nymproject/types';
 
 export const UNBONDED_NODE_IDENTITY_PREFIX = 'unbonded:';
 
@@ -24,4 +24,17 @@ export function formatDelegationNodeIdentityForDisplay(nodeIdentity: string, mix
     return formatUnbondedNodeLabel(mixId);
   }
   return nodeIdentity;
+}
+
+export function isPendingUndelegateWithRegistryMiss(
+  item: Pick<WrappedDelegationEvent, 'node_identity' | 'event'>,
+): boolean {
+  return item.event.kind === 'Undelegate' && isUnbondedNodeIdentity(item.node_identity);
+}
+
+export function formatPendingDelegationLinkLabel(nodeIdentity: string, mixId: number): string {
+  if (!nodeIdentity || isUnbondedNodeIdentity(nodeIdentity)) {
+    return `Mix ${mixId}`;
+  }
+  return `${nodeIdentity.slice(0, 6)}...${nodeIdentity.slice(-6)}`;
 }

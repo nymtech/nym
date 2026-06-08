@@ -2,11 +2,16 @@ import React from 'react';
 import { Box, Chip, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import { WrappedDelegationEvent } from '@nymproject/types';
 import { TauriLink as Link } from 'src/components/TauriLinkWrapper';
-import { formatDelegationNodeIdentityForDisplay, isUnbondedNodeIdentity } from 'src/utils/delegationIdentity';
+import {
+  formatDelegationNodeIdentityForDisplay,
+  formatPendingDelegationLinkLabel,
+  isPendingUndelegateWithRegistryMiss,
+} from 'src/utils/delegationIdentity';
 
 export const PendingDelegationCard = ({ item, explorerUrl }: { item: WrappedDelegationEvent; explorerUrl: string }) => {
+  const pendingUndelegateRegistryMiss = isPendingUndelegateWithRegistryMiss(item);
   const displayIdentity = formatDelegationNodeIdentityForDisplay(item.node_identity, item.event.mix_id);
-  const nodeIsUnbonded = isUnbondedNodeIdentity(item.node_identity);
+  const linkLabel = formatPendingDelegationLinkLabel(item.node_identity, item.event.mix_id);
 
   return (
     <Paper
@@ -20,7 +25,7 @@ export const PendingDelegationCard = ({ item, explorerUrl }: { item: WrappedDele
       }}
     >
       <Stack spacing={1.5} direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} flexWrap="wrap">
-        {nodeIsUnbonded ? (
+        {pendingUndelegateRegistryMiss ? (
           <Typography variant="body2" color="text.secondary">
             {displayIdentity}
           </Typography>
@@ -28,7 +33,7 @@ export const PendingDelegationCard = ({ item, explorerUrl }: { item: WrappedDele
           <Link
             target="_blank"
             href={`${explorerUrl}/nodes/${item.event.mix_id}`}
-            text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+            text={linkLabel}
             color="text.primary"
             noIcon
           />

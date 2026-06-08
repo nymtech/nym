@@ -11,6 +11,7 @@ import {
   EXAMPLE_UNBONDED_MIX_ID,
   buildFixedUnbondedWalletDelegation,
   buildLegacyHiddenUnbondedWalletDelegation,
+  buildPendingUndelegateEvent,
 } from './unbondedDelegation.fixture';
 
 describe('unbonded delegation wallet visibility acceptance', () => {
@@ -53,6 +54,15 @@ describe('unbonded delegation wallet visibility acceptance', () => {
 
     expect(searchDelegations([legacyRow], String(EXAMPLE_UNBONDED_MIX_ID))).toHaveLength(1);
     expect(searchDelegations([legacyRow], 'nonexistent-needle')).toHaveLength(0);
+  });
+
+  it('shows pending undelegate events when node identity lookup missed', () => {
+    const emptyIdentityPending = buildPendingUndelegateEvent('');
+    const syntheticPending = buildPendingUndelegateEvent(`unbonded:${EXAMPLE_UNBONDED_MIX_ID}`);
+
+    expect(shouldHideDelegationFromList(emptyIdentityPending)).toBe(false);
+    expect(shouldHideDelegationFromList(syntheticPending)).toBe(false);
+    expect(filterVisibleDelegations([emptyIdentityPending, syntheticPending])).toHaveLength(2);
   });
 
   it('finds the row by historical identity when the backend preserved it', () => {

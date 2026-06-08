@@ -48,13 +48,25 @@ pub async fn get_pending_delegation_events(
     let mut client_specific_events = Vec::new();
     for delegation_event in delegation_events {
         if delegation_event.address_matches(client.nyxd.address().as_ref()) {
-            let node_identity = client
-                .nyxd
-                .get_mixnode_details(delegation_event.mix_id)
-                .await?
-                .mixnode_details
-                .map(|d| d.bond_information.mix_node.identity_key)
-                .unwrap_or_default();
+            let mut error_strings = Vec::new();
+            let node_identity = match get_node_information(
+                client,
+                delegation_event.mix_id,
+                &mut error_strings,
+            )
+            .await
+            {
+                Ok(node_details) => {
+                    delegation_node_identity(&node_details, delegation_event.mix_id)
+                }
+                Err(err) => {
+                    log::error!(
+                            "Failed to resolve node identity for pending event mix_id = {}. Error: {err}",
+                            delegation_event.mix_id
+                        );
+                    delegation_node_identity(&None, delegation_event.mix_id)
+                }
+            };
 
             client_specific_events
                 .push(WrappedDelegationEvent::new(delegation_event, node_identity));

@@ -1,4 +1,4 @@
-import type { DelegationWithEverything } from '@nymproject/types';
+import type { DelegationWithEverything, WrappedDelegationEvent } from '@nymproject/types';
 import { UNBONDED_NODE_IDENTITY_PREFIX } from './delegationIdentity';
 
 /** Synthetic mix_id used in wallet unbonded-delegation tests. */
@@ -51,5 +51,21 @@ export function buildLegacyHiddenUnbondedWalletDelegation(
     ...buildFixedUnbondedWalletDelegation(options),
     node_identity: '',
     mixnode_is_unbonding: null,
+  };
+}
+
+export function buildPendingUndelegateEvent(
+  nodeIdentity: string,
+  mixId: number = EXAMPLE_UNBONDED_MIX_ID,
+): WrappedDelegationEvent {
+  return {
+    node_identity: nodeIdentity,
+    event: {
+      kind: 'Undelegate',
+      mix_id: mixId,
+      address: EXAMPLE_DELEGATOR_ADDRESS,
+      amount: { amount: '1000000', denom: 'nym' },
+      proxy: null,
+    },
   };
 }

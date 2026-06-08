@@ -17,9 +17,7 @@ export function shouldHideDelegationFromList(item: DelegationListItem): boolean 
   }
 
   if (isPendingDelegationItem(item)) {
-    if ((!item.node_identity || item.node_identity === '') && item.event && item.event.kind === 'Undelegate') {
-      return true;
-    }
+    // Pending rows carry mix_id on the event; do not hide when bonded-registry identity lookup missed.
     return false;
   }
 

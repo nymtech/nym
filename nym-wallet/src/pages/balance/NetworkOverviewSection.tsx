@@ -9,6 +9,7 @@ import {
   Collapse,
   IconButton,
   LinearProgress,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -275,10 +276,18 @@ export const NetworkOverviewSection: React.FC = () => {
         bgcolor: (t) =>
           t.palette.mode === 'dark' ? 'nym.nymWallet.nav.background' : 'nym.nymWallet.background.subtle',
         p: 2,
+        minHeight: 168,
       }}
     >
       {children}
     </Box>
+  );
+
+  const metricSkeleton = (
+    <Stack spacing={1} sx={{ mt: 1 }}>
+      <Skeleton width="55%" height={32} />
+      <Skeleton width="38%" height={20} />
+    </Stack>
   );
 
   const subtle = theme.palette.text.secondary;
@@ -293,11 +302,7 @@ export const NetworkOverviewSection: React.FC = () => {
       );
     }
     if (!trafficHeadline) {
-      return (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Loading…
-        </Typography>
-      );
+      return metricSkeleton;
     }
     return (
       <>
@@ -335,11 +340,7 @@ export const NetworkOverviewSection: React.FC = () => {
       );
     }
     if (!epoch) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          Loading…
-        </Typography>
-      );
+      return metricSkeleton;
     }
     return (
       <>
@@ -377,11 +378,7 @@ export const NetworkOverviewSection: React.FC = () => {
       );
     }
     if (!price) {
-      return (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Loading…
-        </Typography>
-      );
+      return metricSkeleton;
     }
     return (
       <Stack spacing={1.25} sx={{ mt: 1 }}>
@@ -419,6 +416,24 @@ export const NetworkOverviewSection: React.FC = () => {
         </Stack>
       </Stack>
     );
+  };
+
+  const delegationsCountBody = () => {
+    if (delegationsErr) {
+      return (
+        <Typography color="error" variant="body2">
+          {delegationsErr}
+        </Typography>
+      );
+    }
+    if (delegationsCount !== undefined) {
+      return (
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {formatCompactNumber(delegationsCount)}
+        </Typography>
+      );
+    }
+    return <Skeleton width={72} height={32} />;
   };
 
   const showTrafficChartToggle = trafficChartData.length > 0;
@@ -542,15 +557,7 @@ export const NetworkOverviewSection: React.FC = () => {
                   <Typography variant="caption" color="text.secondary">
                     Number of delegations
                   </Typography>
-                  {delegationsErr ? (
-                    <Typography color="error" variant="body2">
-                      {delegationsErr}
-                    </Typography>
-                  ) : (
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {delegationsCount !== undefined ? formatCompactNumber(delegationsCount) : '…'}
-                    </Typography>
-                  )}
+                  {delegationsCountBody()}
                 </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">

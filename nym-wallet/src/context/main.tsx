@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -19,6 +19,9 @@ import {
 } from '../requests';
 import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
+import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
+import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
+import { dedupeInflightByKey } from '../utils/dedupeInflightByKey';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -100,6 +103,8 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
   const [loginType, setLoginType] = useState<'mnemonic' | 'password'>();
   const [isLoading, setIsLoadingInternal] = useState(false);
+  const hadClientDetailsRef = useRef(false);
+  const accountLoadInflightRef = useRef<Map<Network, Promise<Account | undefined>>>(new Map());
   const [loadingPresentation, setLoadingPresentation] = useState<AppLoadingPresentation>('auth-splash');
   const [loadingOverlayTitle, setLoadingOverlayTitle] = useState('');
   const [loadingOverlaySubtitle, setLoadingOverlaySubtitle] = useState<string | undefined>();
@@ -128,11 +133,12 @@ export const AppProvider: FCWithChildren = ({ children }) => {
 
   const initFromRustState = async () => {
     const stateJson = await getReactState();
-    if (stateJson) {
-      const state: RustState = JSON.parse(stateJson);
-      setNetwork(state.network);
-      setLoginType(state.loginType);
+    if (!stateJson) {
+      return;
     }
+    const state: RustState = JSON.parse(stateJson);
+    setNetwork(state.network);
+    setLoginType(state.loginType);
   };
 
   useEffect(() => {
@@ -140,7 +146,6 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   const keepState = async () => {
-    // add any state from this context to store in the Rust process
     const state: RustState = {
       network,
       loginType,
@@ -157,15 +162,18 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     setMixnodeDetails(null);
   };
 
-  const loadAccount = async (n: Network) => {
-    try {
-      const client = await selectNetwork(n);
-      setClientDetails(client);
-    } catch (e) {
-      enqueueSnackbar('Error loading account', { variant: 'error' });
-      Console.error(e as string);
-    }
-  };
+  const loadAccount = async (n: Network): Promise<Account | undefined> =>
+    dedupeInflightByKey(accountLoadInflightRef.current, n, async () => {
+      try {
+        const client = await selectNetwork(n);
+        setClientDetails(client);
+        return client;
+      } catch (e) {
+        enqueueSnackbar('Error loading account', { variant: 'error' });
+        Console.error(e as string);
+        return undefined;
+      }
+    });
 
   const loadStoredAccounts = async () => {
     const accounts = await listAccounts();
@@ -211,18 +219,35 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (!clientDetails) {
-      clearState();
-      navigate('/');
+    if (clientDetails) {
+      hadClientDetailsRef.current = true;
+      return;
     }
+    if (!hadClientDetailsRef.current) {
+      return;
+    }
+    clearState();
+    navigate('/');
   }, [clientDetails]);
 
   useEffect(() => {
     if (network) {
-      refreshAccount(network);
+      if (!clientDetails) {
+        refreshAccount(network);
+      }
       getEnv().then(setAppEnv);
     }
-  }, [network]);
+  }, [network, clientDetails?.client_address]);
+
+  useEffect(() => {
+    if (network !== 'MAINNET' || !clientDetails?.client_address) {
+      return;
+    }
+    const { nymPrice } = getNetworkOverviewEndpoints('MAINNET');
+    fetchNymPriceDeduped(nymPrice).catch(() => {
+      /* Balance card handles display errors */
+    });
+  }, [network, clientDetails?.client_address]);
 
   useEffect(() => {
     const currency = clientDetails?.display_mix_denom.toUpperCase() || 'NYM';
@@ -285,35 +310,35 @@ export const AppProvider: FCWithChildren = ({ children }) => {
           : 'Unlocking your wallet and connecting to the network.',
       );
       setIsLoadingInternal(true);
-      if (type === 'mnemonic') {
-        await signInWithMnemonic(value);
-        setLoginType('mnemonic');
-      } else {
-        await signInWithPassword(value);
-        setLoginType('password');
-      }
+      await signInAndNavigateToBalance({
+        type,
+        value,
+        network: 'MAINNET',
+        signInWithMnemonic,
+        signInWithPassword,
+        loadAccount,
+        setLoginType,
+        navigate,
+      });
       setNetwork('MAINNET');
-      navigate('/balance');
     } catch (e) {
       setError(e as string);
-    } finally {
       publishSetIsLoading(false);
     }
   };
 
   const logOut = async () => {
-    setLoadingPresentation('app-overlay');
-    setLoadingOverlayTitle('Signing out');
-    setLoadingOverlaySubtitle('Closing your session safely.');
-    setIsLoadingInternal(true);
     try {
       await signOut();
       await setReactState(undefined);
+      clearNymPriceCache();
       setClientDetails(undefined);
+      hadClientDetailsRef.current = false;
       enqueueSnackbar('Successfully logged out', { variant: 'success' });
       await createSignInWindow();
-    } finally {
-      publishSetIsLoading(false);
+    } catch (e) {
+      Console.error(e as string);
+      enqueueSnackbar('Error signing out', { variant: 'error' });
     }
   };
 

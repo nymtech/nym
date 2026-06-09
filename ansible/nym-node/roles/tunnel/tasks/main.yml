@@ -10,11 +10,17 @@
     - ntm
 
 - name: Download network tunnel manager
-  get_url:
-    url: "{{ tunnel_manager_url }}"
-    dest: /root/nym-binaries/network-tunnel-manager.sh
+  command:
+    cmd: "curl -fsSL {{ tunnel_manager_url }} -o /root/nym-binaries/network-tunnel-manager.sh"
+  tags:
+    - tunnel
+    - network_tunnel_manager
+    - ntm
+
+- name: Set network tunnel manager permissions
+  file:
+    path: /root/nym-binaries/network-tunnel-manager.sh
     mode: "0755"
-    force: yes
   tags:
     - tunnel
     - network_tunnel_manager

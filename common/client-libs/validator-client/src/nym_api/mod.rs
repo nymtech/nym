@@ -20,7 +20,7 @@ use nym_api_requests::models::network_monitor::{
 };
 use nym_api_requests::models::node_families::NodeFamily;
 use nym_api_requests::models::{
-    AnnotationResponseV1, ApiHealthResponse, BinaryBuildInformationOwned,
+    AnnotationResponseV1, AnnotationResponseV2, ApiHealthResponse, BinaryBuildInformationOwned,
     ChainBlocksStatusResponse, ChainStatusResponse, KeyRotationInfoResponse,
     NodePerformanceResponse, NodeRefreshBody, NymNodeDescriptionV1, NymNodeDescriptionV2,
     PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
@@ -1024,6 +1024,22 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::V1_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_ANNOTATION,
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_node_annotation_v2(
+        &self,
+        node_id: NodeId,
+    ) -> Result<AnnotationResponseV2, NymAPIError> {
+        self.get_json(
+            &[
+                routes::V2_API_VERSION,
                 routes::NYM_NODES_ROUTES,
                 routes::NYM_NODES_ANNOTATION,
                 &node_id.to_string(),

@@ -4927,7 +4927,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api-requests"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bs58",
  "celes",
@@ -4967,7 +4967,7 @@ dependencies = [
 
 [[package]]
 name = "nym-bin-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "const-str",
  "log",
@@ -4998,7 +4998,7 @@ dependencies = [
 
 [[package]]
 name = "nym-coconut-dkg-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5011,7 +5011,7 @@ dependencies = [
 
 [[package]]
 name = "nym-compact-ecash"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bincode",
  "bs58",
@@ -5033,7 +5033,7 @@ dependencies = [
 
 [[package]]
 name = "nym-config"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "dirs 6.0.0",
  "handlebars",
@@ -5047,7 +5047,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -5061,7 +5061,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credentials-interface"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "nym-bls12_381-fork",
  "nym-compact-ecash",
@@ -5079,7 +5079,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -5101,7 +5101,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -5114,7 +5114,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-signer-check-types"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "nym-coconut-dkg-common",
  "nym-crypto",
@@ -5129,14 +5129,14 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-time"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "time",
 ]
 
 [[package]]
 name = "nym-exit-policy"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5147,7 +5147,7 @@ dependencies = [
 
 [[package]]
 name = "nym-group-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
@@ -5158,7 +5158,7 @@ dependencies = [
 
 [[package]]
 name = "nym-http-api-client"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "async-trait",
  "bincode",
@@ -5190,7 +5190,7 @@ dependencies = [
 
 [[package]]
 name = "nym-http-api-client-macro"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "proc-macro-crate 3.3.0",
  "proc-macro2",
@@ -5201,7 +5201,7 @@ dependencies = [
 
 [[package]]
 name = "nym-http-api-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bincode",
  "serde",
@@ -5211,7 +5211,7 @@ dependencies = [
 
 [[package]]
 name = "nym-kkt-ciphersuite"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "num_enum",
  "semver",
@@ -5222,7 +5222,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -5243,7 +5243,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5258,7 +5258,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-defaults"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cargo_metadata 0.19.2",
  "dotenvy",
@@ -5273,7 +5273,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitors-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5285,7 +5285,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-families-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5300,7 +5300,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-requests"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "async-trait",
  "celes",
@@ -5327,7 +5327,7 @@ dependencies = [
 
 [[package]]
 name = "nym-noise-keys"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "nym-crypto",
  "schemars",
@@ -5337,7 +5337,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "pem",
  "tracing",
@@ -5346,7 +5346,7 @@ dependencies = [
 
 [[package]]
 name = "nym-performance-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5359,7 +5359,7 @@ dependencies = [
 
 [[package]]
 name = "nym-serde-helpers"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -5370,7 +5370,7 @@ dependencies = [
 
 [[package]]
 name = "nym-store-cipher"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -5385,7 +5385,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ticketbooks-merkle"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "nym-credentials-interface",
  "nym-serde-helpers",
@@ -5399,7 +5399,7 @@ dependencies = [
 
 [[package]]
 name = "nym-types"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "base64 0.22.1",
  "cosmrs",
@@ -5429,7 +5429,7 @@ dependencies = [
 
 [[package]]
 name = "nym-upgrade-mode-check"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "jwt-simple",
  "nym-crypto",
@@ -5445,7 +5445,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-client"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5496,7 +5496,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -5542,7 +5542,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wireguard-types"
-version = "1.21.0"
+version = "1.21.1"
 dependencies = [
  "base64 0.22.1",
  "nym-crypto",

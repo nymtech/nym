@@ -1,6 +1,6 @@
 ---
 title: "mix-dns: Hostname Resolution Over the Nym Mixnet"
-description: "TypeScript package that resolves hostnames through the Nym mixnet. UDP DNS via an IPR exit, no TCP, no TLS, no resolver leak."
+description: "TypeScript package that resolves hostnames through the Nym mixnet as UDP DNS via an IPR exit gateway."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-06-05"
@@ -8,7 +8,7 @@ lastUpdated: "2026-06-05"
 
 # mix-dns
 
-[`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns) resolves hostnames to IPs through the Nym mixnet. DNS queries travel as UDP datagrams to a public resolver via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway. No TCP setup, no TLS handshake, no `dns.lookup()` to the OS resolver.
+[`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns) resolves hostnames to IPs through the Nym mixnet. The query travels as a UDP datagram to a public resolver via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway, not through the browser or OS resolver.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -35,7 +35,6 @@ Direct uses:
 ## In this section
 
 - [Get started](/developers/mix-dns/get-started): install and resolve your first hostname.
-- [Reference](/developers/mix-dns/guides): configure the resolver.
-- [Concepts & security](/developers/mix-dns/concepts): what the resolver sees, and what it doesn't.
+- [Reference & security](/developers/mix-dns/guides): configure the resolver, and what it sees.
 - [TypeDoc reference](/developers/mix-dns/api/globals): generated from the source.
 - [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-dns/browser): a runnable example app.

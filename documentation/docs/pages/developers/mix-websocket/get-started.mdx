@@ -6,8 +6,6 @@ section: "Developers"
 lastUpdated: "2026-06-05"
 ---
 
-import { Callout } from 'nextra/components'
-
 # Get started
 
 ## Installation
@@ -16,7 +14,7 @@ import { Callout } from 'nextra/components'
 npm install @nymproject/mix-websocket
 ```
 
-ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel), so no Webpack, Vite, or esbuild config is needed for them.
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
 
 ## Quick start
 
@@ -51,6 +49,4 @@ await ws.opened();
 ws.send('hello mixnet');
 ```
 
-<Callout type="info">
-**Try it live.** The [mixnet playground](/developers/playground) opens a `MixWebSocket`, echoes messages, and runs an echo burst in your browser over the live mixnet.
-</Callout>
+Open a `MixWebSocket` live in the [mixnet playground](/developers/playground), which echoes messages and runs an echo burst over the live mixnet.

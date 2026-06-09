@@ -27,13 +27,12 @@ The standard `open`, `message`, `close`, and `error` events fire as you would ex
 
 ## Security model
 
-`mix-websocket` follows the shared [mixnet exit security model](/developers/concepts/exit-security). The browser-specific consequences are:
+`mix-websocket` follows the shared [mixnet exit security model](/developers/concepts/exit-security). What that means specifically for WS/WSS:
 
-| Segment | What's visible |
+| At the IPR exit | What's visible |
 |---|---|
-| Browser → entry gateway | WSS to the entry gateway carries Sphinx-encrypted frames. |
-| Inside the mixnet | Sphinx layered encryption. Each node sees only its previous and next hop. |
-| IPR → destination | Regular TCP. For `wss://`, payload is TLS ciphertext terminating at the destination. For `ws://`, payload is plaintext. |
+| Secure (`wss://`) | Destination IP and port. Frames are TLS ciphertext, terminating at the destination. |
+| Plain (`ws://`) | Destination IP and port, plus every frame in plaintext. |
 
 <Callout type="warning">
 TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. Mozilla's CA bundle is compiled into the WASM. Use `wss://` for any non-public traffic; `ws://` is visible to the IPR in full.

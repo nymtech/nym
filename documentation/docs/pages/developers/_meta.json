@@ -1,6 +1,5 @@
 {
   "index": "Overview",
-  "integrations": "Choosing an Approach",
   "concepts": "Key Concepts",
 
   "sep-intro": {
@@ -17,12 +16,12 @@
     "type": "separator",
     "title": "TypeScript"
   },
+  "playground": "Playground (embedded clients)",
   "mix-tunnel": "mix-tunnel (shared tunnel)",
   "mix-fetch": "mix-fetch (HTTPS requests)",
   "mix-dns": "mix-dns (DNS resolution)",
   "mix-websocket": "mix-websocket (ws / wss)",
   "mix-architecture": "mix-* Family Architecture",
-  "playground": "Playground",
   "typescript": "Raw Messaging SDK",
 
   "sep-extras": {

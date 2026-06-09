@@ -39,6 +39,11 @@ import {
 
 const VERIFY_TEXT_URL = 'https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-demo.txt';
 
+// Default IPR exit for the playground. Users can switch to auto-discovery
+// with the "Use random IPR" toggle.
+const DEFAULT_IPR =
+  '6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
+
 function eqBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) return false;
   for (let i = 0; i < a.byteLength; i++) if (a[i] !== b[i]) return false;
@@ -53,8 +58,8 @@ export function MixPlayground() {
   const [tunnelStatus, setTunnelStatus] = useState<Status>({ text: 'Not started', colour: 'gray' });
 
   // Connection form.
-  const [useRandomIpr, setUseRandomIpr] = useState(true);
-  const [iprAddress, setIprAddress] = useState('');
+  const [useRandomIpr, setUseRandomIpr] = useState(false);
+  const [iprAddress, setIprAddress] = useState(DEFAULT_IPR);
   const [clientId, setClientId] = useState('');
   const [forceTls, setForceTls] = useState(true);
   const [disablePoisson, setDisablePoisson] = useState(false);

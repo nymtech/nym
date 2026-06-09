@@ -1,45 +1,78 @@
 ---
 title: "Overview"
-description: "Developer documentation index for the Nym mixnet: Rust crates (nym-sdk, smolmix) and TypeScript packages (mix-tunnel, mix-fetch, mix-dns, mix-websocket, sdk), chain interaction, and CLI tools."
+description: "Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-05-29"
+lastUpdated: "2026-06-09"
 ---
+
+import { Callout } from 'nextra/components'
 
 # Overview
 
-This section covers the SDKs, standalone crates, blockchain interaction, and developer tools for building on the Nym mixnet.
+Every Nym integration sends its traffic through the mixnet via a Nym client. Which crate or package you use comes down to two questions:
 
-## Start here
+1. **Runtime**: where does your code run?
+2. **Approach**: do you control both sides of the connection (**end-to-end**), or are you reaching a third-party service through the mixnet (**proxy**)?
 
-If you're new, read **[Choosing an Approach](/developers/integrations)** first. It maps your runtime (native vs browser vs mobile) and your architecture (end-to-end vs proxy) onto the right crate or package.
+Answer those two and the matrix names the package.
 
-## Rust
+## Choosing a package
+
+| Runtime | End-to-end (both sides run Nym) | Proxy (exit to clearnet) |
+|---|---|---|
+| **Native Rust** (desktop / CLI / server) | [`nym-sdk`](/developers/rust): Mixnet, Stream, Client Pool | [`smolmix`](/developers/smolmix): `TcpStream` / `UdpSocket` · [`nym-sdk` SOCKS](/developers/rust) |
+| **Browser / WebView** (JS + WASM) | [TypeScript SDK](/developers/typescript): `@nymproject/sdk` raw messaging | [`mix-fetch`](/developers/mix-fetch) HTTP/S · [`mix-dns`](/developers/mix-dns) DNS · [`mix-websocket`](/developers/mix-websocket) WS/WSS |
+
+<Callout type="info">
+**Mobile is a host, not a runtime.** The same phone can run either row. Compile the Rust SDK to a native library (`uniffi` plus [`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) for an iOS XCFramework, or [`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) for Android `jniLibs/`), or load the WASM packages inside a WebView (Capacitor, Cordova, Ionic, WKWebView, Android WebView). The SDK ships [FFI bindings](/developers/rust/ffi) for Go and C/C++ only; for Swift or Kotlin you generate your own from the [`sdk/ffi/shared`](https://github.com/nymtech/nym/tree/develop/sdk/ffi) uniffi crate. The WebView path needs no Nym-specific native code. On Android the native path has a [TLS bootstrap gotcha](/developers/rust/mixnet/troubleshooting#android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error).
+</Callout>
+
+## End-to-end or proxy
+
+The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.
+
+**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
+
+![](/images/developers/nym-arch-client-to-client.png)
+
+**Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
+
+![](/images/developers/nym-arch-ip-routing.png)
+
+<Callout type="warning">
+Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
+</Callout>
+
+In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
+
+![](/images/developers/nym-browser-arch.png)
+
+## Packages
+
+### Rust
 
 | Crate | Use it for |
 |---|---|
 | [`nym-sdk`](/developers/rust) | End-to-end mixnet messaging, `AsyncRead`/`AsyncWrite` byte streams, client pooling. Start with the [Tour](/developers/rust/tour). |
 | [`smolmix`](/developers/smolmix) | `TcpStream` and `UdpSocket` over the mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem. |
 
-## TypeScript
+### TypeScript
 
-The four mix-* packages below share one shared mixnet tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and exit at an IPR (Internet Packet Router) gateway. Install only what you need; they all reuse the same WASM instance under the hood.
+The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)) and one WASM instance; install only what you need. See [mix-* architecture](/developers/mix-architecture) for how they're wired.
 
 | Package | Use it for |
 |---|---|
-| [`mix-tunnel`](/developers/mix-tunnel) | Shared mixnet tunnel. The base layer for the three packages below. Most apps don't import it directly. |
-| [`mix-fetch`](/developers/mix-fetch) | Drop-in `fetch()` replacement for HTTP and HTTPS through the mixnet. |
+| [`mix-tunnel`](/developers/mix-tunnel) | The shared tunnel the three feature packages build on. Most apps don't import it directly. |
+| [`mix-fetch`](/developers/mix-fetch) | Drop-in `fetch()` for HTTP and HTTPS through the mixnet. |
 | [`mix-dns`](/developers/mix-dns) | Hostname-to-IP resolution through the mixnet. UDP DNS via the IPR. |
 | [`mix-websocket`](/developers/mix-websocket) | WebSocket-like class for WS and WSS through the mixnet. |
 | [TypeScript SDK](/developers/typescript) | `@nymproject/sdk`: end-to-end raw messaging when you control both ends. Smart contracts via `@nymproject/contract-clients`. |
 
-## Standalone clients
+### Standalone and other
 
-| Client | Use it for |
+| Resource | Use it for |
 |---|---|
 | [SOCKS5 / WebSocket clients](/developers/clients) | Language-agnostic binaries for piping traffic through the mixnet without an SDK. |
-
-## Other sections
-
-- **[Chain interaction](/developers/chain)**: query Nyx state, submit transactions, and call Nym smart contracts.
-- **[APIs](/apis/introduction)**: auto-generated reference for Nym infrastructure HTTP endpoints.
+| [Chain interaction](/developers/chain) | Query Nyx state, submit transactions, call Nym smart contracts. |
+| [APIs](/apis/introduction) | Auto-generated reference for Nym infrastructure HTTP endpoints. |

@@ -1,14 +1,14 @@
 ---
-title: "mix-dns guides"
-description: "Configure the DNS resolver used by mix-dns."
+title: "mix-dns reference & security"
+description: "Configure the DNS resolver used by mix-dns, and what the resolver sees through the IPR exit."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-05"
+lastUpdated: "2026-06-09"
 ---
 
 import { Callout } from 'nextra/components'
 
-# Reference
+# Reference & security
 
 ## Configuration
 
@@ -26,6 +26,10 @@ await setupMixTunnel({
 
 The full options surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
 
-<Callout type="info">
-The resolver runs on the IPR's network, not yours. Choosing `8.8.8.8` vs `1.1.1.1` changes which third party sees the queries. Both still see them coming from the IPR. For higher privacy, target a resolver that supports query minimisation.
+## Security model
+
+`mix-dns` follows the shared [mixnet exit security model](/developers/concepts/exit-security). The transport-specific exposure: at the IPR exit the query leaves as a plain UDP DNS request to the resolver, so the resolver sees the queried hostname and the IPR's IP, never yours. There is no TLS to terminate; the query and response are plaintext on the IPR-to-resolver leg.
+
+<Callout type="warning">
+DNS is plaintext UDP at the resolver: it knows what you're asking for, not who is asking. Choosing `8.8.8.8` vs `1.1.1.1` only changes which third party sees the queries; both see them coming from the IPR. To remove the resolver from your trust set, pick one you already trust, or layer DNS-over-HTTPS via `mixFetch` to a DoH endpoint instead of `mixDNS`.
 </Callout>

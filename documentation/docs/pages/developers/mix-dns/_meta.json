@@ -1,6 +1,5 @@
 {
   "get-started": "Get started",
-  "guides": "Reference",
-  "concepts": "Concepts & security",
+  "guides": "Reference & security",
   "api": "TypeDoc Reference"
 }

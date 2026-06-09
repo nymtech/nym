@@ -6,8 +6,6 @@ section: "Developers"
 lastUpdated: "2026-06-05"
 ---
 
-import { Callout } from 'nextra/components'
-
 # Get started
 
 ## Installation
@@ -16,7 +14,7 @@ import { Callout } from 'nextra/components'
 npm install @nymproject/mix-fetch
 ```
 
-ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel), so no Webpack, Vite, or esbuild config is needed for them.
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
 
 ## Quick start
 
@@ -45,6 +43,4 @@ const res = await mixFetch('https://example.com');
 
 Call `createMixFetch` once and reuse the function it returns. It calls `setupMixTunnel` internally, so calling `createMixFetch` a second time rejects with `tunnel already initialised`; the tunnel is [one-shot per page](/developers/mix-tunnel/get-started).
 
-<Callout type="info">
-**Try it live.** The [mixnet playground](/developers/playground) runs `mixFetch` in your browser over the live mixnet, with a tunnel-vs-clearnet comparison.
-</Callout>
+Run `mixFetch` live in the [mixnet playground](/developers/playground), with a tunnel-vs-clearnet comparison.

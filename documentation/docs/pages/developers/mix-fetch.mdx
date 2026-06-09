@@ -8,7 +8,7 @@ lastUpdated: "2026-06-05"
 
 # mix-fetch
 
-[`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) routes HTTP and HTTPS through the Nym mixnet behind the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) signature: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours. It is not a perfect substitute for `fetch`: no cookies or credentials, no HTTP cache, no `AbortController`, and HTTPS in practice (see [drop-in caveats](/developers/mix-fetch/guides#drop-in-caveats)).
+[`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) routes HTTP and HTTPS through the Nym mixnet behind the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) signature: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours. It is not a perfect substitute for `fetch`: no cookies or credentials, no HTTP cache, no `AbortController`, and HTTPS-only in practice (plain HTTP is fully visible at the exit; see [drop-in caveats](/developers/mix-fetch/guides#drop-in-caveats)).
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐

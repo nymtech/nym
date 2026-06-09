@@ -10,7 +10,7 @@
 
 Convenience: set up the tunnel and return a fetch-bound function. Equivalent
 to `await setupMixTunnel(opts); return mixFetch;`. Safe to call multiple
-times — the underlying tunnel is a singleton.
+times; the underlying tunnel is a singleton.
 
 ## Parameters
 

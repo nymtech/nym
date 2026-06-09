@@ -40,7 +40,7 @@ const createTunnel = async (): Promise<Comlink.Remote<IMixTunnelWorker>> => {
  * Get the singleton tunnel worker handle. The first call spawns the worker
  * and loads smolmix-wasm; subsequent calls return the same handle.
  *
- * Note: this does NOT call `setupMixTunnel` automatically — call it on the
+ * Note: this does NOT call `setupMixTunnel` automatically. Call it on the
  * returned handle (or use the top-level `setupMixTunnel` helper) before
  * issuing fetch/dns/websocket requests.
  */
@@ -77,7 +77,7 @@ export const getTunnelState = async (): Promise<import('./types').TunnelState> =
  * Why: Comlink detects proxy-marked values via a `Symbol('Comlink.proxy')`.
  * That symbol is created per module instance, so if mix-websocket bundled its
  * own Comlink, `mix-websocket.Comlink.proxy(fn)` would mark `fn` with a
- * symbol that mix-tunnel's serializer doesn't recognise — fall-through to
+ * symbol that mix-tunnel's serializer doesn't recognise, falling through to
  * structured-clone, which can't clone functions, throws DOMException.
  *
  * By exposing this re-export, mix-websocket's `import { proxy } from

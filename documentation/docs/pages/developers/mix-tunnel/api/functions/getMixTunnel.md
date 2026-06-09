@@ -11,7 +11,7 @@
 Get the singleton tunnel worker handle. The first call spawns the worker
 and loads smolmix-wasm; subsequent calls return the same handle.
 
-Note: this does NOT call `setupMixTunnel` automatically — call it on the
+Note: this does NOT call `setupMixTunnel` automatically. Call it on the
 returned handle (or use the top-level `setupMixTunnel` helper) before
 issuing fetch/dns/websocket requests.
 

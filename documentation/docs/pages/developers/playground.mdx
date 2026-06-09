@@ -1,9 +1,9 @@
 ---
 title: "Mixnet Playground"
-description: "Interactive browser playground for the mix-* TypeScript SDK: bring up a mixnet tunnel and drive fetch, DNS, WebSocket, stress and download traffic through it."
+description: "Interactive browser playground for Nym's TypeScript packages: drive fetch, DNS, WebSocket and download traffic through a mixnet tunnel, and send end-to-end messages with the raw messaging SDK."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-05"
+lastUpdated: "2026-06-09"
 ---
 
 import { Callout } from 'nextra/components'
@@ -12,11 +12,12 @@ import { MessagingDemo } from '../../components/playground/messaging-section'
 
 # Mixnet playground
 
-Run the [mix-* TypeScript SDK](/developers/mix-tunnel) in your browser against the
-live Nym mixnet. Bring the shared tunnel up once, then send fetch, DNS, WebSocket,
-stress and file-download traffic through it; a separate section runs the raw
-messaging SDK. Some sections send the same request over the tunnel and over the
-clearnet, so you can compare the two.
+This playground runs Nym's browser TypeScript packages against the live mixnet. It covers both integration models:
+
+- **Proxy**, via the [mix-* family](/developers/mix-tunnel): bring the shared tunnel up once, then drive `fetch`, DNS, WebSocket, stress and file-download traffic through it to clearnet destinations.
+- **End-to-end**, via the [raw messaging SDK](/developers/typescript): Sphinx-encrypted messages between two Nym clients, with nothing exiting to the clearnet.
+
+Some sections send the same request over the tunnel and over the clearnet, so you can compare the two.
 
 ## HTTPS / DNS / WebSockets
 
@@ -27,8 +28,8 @@ clearnet, so you can compare the two.
 inside the single WebSocket to the entry gateway. Only the *clearnet* comparison
 buttons add rows. (Setup also fetches the network topology over HTTPS and
 refreshes it periodically, so those nym-api calls and the gateway WebSocket are
-the only clearnet requests you will see.) That contrast is the point: your real
-traffic never leaves the browser as an identifiable, per-destination request.
+the only clearnet requests you will see.) Your real traffic never leaves the
+browser as an identifiable, per-destination request.
 </Callout>
 
 <Callout type="info">
@@ -42,7 +43,7 @@ Later calls reuse the tunnel.
 
 ## Raw mixnet messaging
 
-The sections above ride one shared smolmix tunnel and exit to the clearnet through an IPR. The [Messaging SDK](/developers/typescript) (`@nymproject/sdk`) is the other model: end-to-end mixnet messages between two Nym clients, where you control both ends and nothing exits to the clearnet. It runs a separate wasm client, so it loads on demand:
+The sections above share one smolmix tunnel and exit to the clearnet through an IPR. The [Messaging SDK](/developers/typescript) (`@nymproject/sdk`) is the other model: end-to-end mixnet messages between two Nym clients, where you control both ends and nothing exits to the clearnet. It runs a separate wasm client, so it loads on demand:
 
 <MessagingDemo />
 

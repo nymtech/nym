@@ -10,7 +10,7 @@
 
 Fetch over the mixnet. Drop-in replacement for the browser `fetch()`.
 
-Requires the tunnel to be up — call `setupMixTunnel(opts)` first, or use
+Requires the tunnel to be up: call `setupMixTunnel(opts)` first, or use
 `createMixFetch(opts)` to combine setup + fetch.
 
 ## Parameters

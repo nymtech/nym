@@ -6,8 +6,6 @@ section: "Developers"
 lastUpdated: "2026-06-05"
 ---
 
-import { Callout } from 'nextra/components'
-
 # Get started
 
 ## Installation
@@ -16,7 +14,7 @@ import { Callout } from 'nextra/components'
 npm install @nymproject/mix-dns
 ```
 
-ESM only. The Web Worker and WASM are inlined via [`mix-tunnel`](/developers/mix-tunnel), so no Webpack, Vite, or esbuild config is needed for them.
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
 
 ## Quick start
 
@@ -33,6 +31,4 @@ await disconnectMixTunnel();
 
 `mixDNS` returns the first resolved address as a string: an IPv4 A record when available, otherwise IPv6. It rejects if the hostname cannot be resolved. To resolve and immediately use the result via `mixFetch`, the simpler path is to skip `mixDNS` entirely and call `mixFetch('https://example.com')`, which handles resolution itself.
 
-<Callout type="info">
-**Try it live.** The [mixnet playground](/developers/playground) resolves hostnames through the IPR in your browser, with a tunnel-vs-clearnet (DoH) comparison.
-</Callout>
+Resolve hostnames live in the [mixnet playground](/developers/playground), with a tunnel-vs-clearnet (DoH) comparison.

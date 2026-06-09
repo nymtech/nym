@@ -469,13 +469,13 @@ const config = {
       },
       {
         source: "/developers/integrations/integration-options.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -535,7 +535,7 @@ const config = {
       },
       {
         source: "/developers/integrations",
-        destination: "/docs/developers/integrations/payment-integration.html",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -895,7 +895,7 @@ const config = {
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -985,7 +985,7 @@ const config = {
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -1280,16 +1280,39 @@ const config = {
       },
 
       // Docs reorg: language-based sidebar
-      // Deleted routing pages → merged into integrations
+      // Deleted routing pages → merged into the developer overview
       {
         source: "/docs/developers/native",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/developers/browsers",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Developers reorg (2026-06): single front door + collapsed mix-* pages ---
+      // integrations.mdx merged into the overview (index)
+      {
+        source: "/docs/developers/integrations",
+        destination: "/docs/developers",
+        permanent: true,
+        basePath: false,
+      },
+      // mix-dns concepts merged into its reference page
+      {
+        source: "/docs/developers/mix-dns/concepts",
+        destination: "/docs/developers/mix-dns/guides",
+        permanent: true,
+        basePath: false,
+      },
+      // mix-tunnel concepts removed; security lives in exit-security, architecture on its own page
+      {
+        source: "/docs/developers/mix-tunnel/concepts",
+        destination: "/docs/developers/mix-tunnel",
         permanent: true,
         basePath: false,
       },

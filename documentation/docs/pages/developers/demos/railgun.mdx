@@ -18,10 +18,10 @@ import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
 
 # Shielding testnet ETH into Railgun over the mixnet
 
-Two privacy layers stacked. **Nym** hides the network layer: every Ethereum RPC
+**Nym** hides the network layer: every Ethereum RPC
 call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
-node and your ISP cannot link you to the query. **Railgun** hides the
-application layer: shielded notes break the on-chain link between sender,
+node and your ISP cannot link you to the query, and **Railgun** hides the
+application layer, as shielded notes break the on-chain link between sender,
 receiver, and amount. This demo covers just the **shield** step on Sepolia:
 depositing testnet ETH into a private note. It does not do private transfers or
 unshielding.
@@ -34,15 +34,15 @@ Ethereum RPC call routed through the mixnet. The shield lands on chain (you can
 open it on Etherscan), but the IP that submitted it is the Nym exit's, not yours.
 
 The entire integration is a single ethers shim (shown below). Because the
-Railgun engine talks to the chain through ethers, routing ethers through
+Railgun engine talks to the chain through the `ethers` library, routing through
 `mixFetch` is enough to put a whole privacy SDK behind the mixnet. The same
-pattern drops into any ethers-based app or library.
+pattern drops into any `ethers`-based app or library.
 
 ## How it works
 
-The [ENS demo](/developers/demos/ens) swapped one provider's transport. Railgun
+The [ENS demo](/developers/demos/ens) swapped one provider's transport, but Railgun
 constructs its own providers internally, so routing only our provider would leak
-the engine's RPC to clearnet. Instead this demo installs a **global** ethers
+the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
 transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
 page through `mixFetch`, including the ones the Railgun engine makes.
 
@@ -67,10 +67,9 @@ FetchRequest.registerGetUrl(async (req) => {
 ```
 
 `registerGetUrl` is global static state on the `FetchRequest` class, so this only
-works if ethers is a **single instance** across your bundle. If your app and
+works if `ethers` is a **single instance** across your bundle. If your app and
 Railgun resolve to different ethers copies, the handler installs on one and the
-engine uses the other. Pin the exact ethers version Railgun peer-depends on (this
-demo aliases ethers to one instance in the bundler).
+engine uses the other. Pin the exact version Railgun peer-depends on.
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
 

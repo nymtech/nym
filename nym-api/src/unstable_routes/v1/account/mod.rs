@@ -22,7 +22,7 @@ pub(crate) mod data_collector;
 pub(crate) mod models;
 
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new().route("/:address", get(address))
+    Router::new().route("/{address}", get(address))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema, utoipa::IntoParams)]

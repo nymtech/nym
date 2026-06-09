@@ -1,0 +1,63 @@
+name: ci-build-upload-network-monitor-agent
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [arc-ubuntu-22.04]
+
+    runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTUP_PERMIT_COPY_RENAME: 1
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare build output directory
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+        run: |
+          rm -rf ci-builds || true
+          mkdir -p "$OUTPUT_DIR"
+
+      - name: Install Dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get -y install libudev-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+
+      - name: Build nym-network-monitor-agent
+        shell: bash
+        run: cargo build -p nym-network-monitor-agent --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nym-network-monitor-agent
+          path: target/release/nym-network-monitor-agent
+          retention-days: 30
+
+      - name: Prepare build output
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+        run: cp target/release/nym-network-monitor-agent "$OUTPUT_DIR"
+
+      - name: Deploy to CI www
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-avzr"
+          SOURCE: "ci-builds/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
+          EXCLUDE: "/dist/, /node_modules/"

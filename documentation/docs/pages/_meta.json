@@ -8,21 +8,7 @@
   },
   "developers": {
     "title": "Developers",
-    "type": "menu",
-    "items": {
-      "developers": {
-        "title": "Integrations",
-        "href": "/developers/integrations"
-      },
-      "rust": {
-        "title": "Rust SDK",
-        "href": "/developers/rust"
-      },
-      "typescript": {
-        "title": "Typescript SDK",
-        "href": "/developers/typescript"
-      }
-    }
+    "type": "page"
   },
   "operators": {
     "title": "Operators",

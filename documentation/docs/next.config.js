@@ -1178,10 +1178,43 @@ const config = {
         basePath: false,
       },
 
+      // Docs reorg: language-based sidebar
+      // Deleted routing pages → merged into integrations
+      {
+        source: "/docs/developers/native",
+        destination: "/docs/developers/integrations",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/browsers",
+        destination: "/docs/developers/integrations",
+        permanent: true,
+        basePath: false,
+      },
+
       // --- Directory index redirects (directories without index pages) ---
+      {
+        source: "/docs/developers/concepts",
+        destination: "/docs/developers/concepts/message-queue",
+        permanent: false,
+        basePath: false,
+      },
       {
         source: "/docs/developers/typescript/bundling",
         destination: "/docs/developers/typescript/bundling/bundling",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-fetch",
+        destination: "/docs/developers/typescript/api/mix-fetch/globals",
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/sdk",
+        destination: "/docs/developers/typescript/api/sdk/globals",
         permanent: false,
         basePath: false,
       },
@@ -1231,7 +1264,8 @@ const config = {
       },
       {
         source: "/docs/apis/ns-api/ns-api-run-deploy",
-        destination: "/docs/operators/performance-and-testing/ns-api-deployment",
+        destination:
+          "/docs/operators/performance-and-testing/ns-api-deployment",
         permanent: true,
         basePath: false,
       },

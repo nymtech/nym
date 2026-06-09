@@ -1,0 +1,130 @@
+---
+title: "mix-fetch: fetch() Over the Nym Mixnet"
+description: "Package providing a fetch()-compatible API that routes HTTP(S) requests through the Nym mixnet via a Network Requester. Available for browsers and Node.js."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-05-12"
+---
+
+import { Callout } from 'nextra/components'
+
+# mix-fetch
+
+`mix-fetch` is a replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that routes HTTP(S) requests through the Nym mixnet. The call signature is identical; underneath, the request is tunnelled through a WASM Nym client to a Network Requester (a Nym service provider, typically operated by an Exit Gateway), which decodes a SOCKS5-shaped connect request and opens a TCP connection to the destination. TLS runs end-to-end between the WASM bundle and the destination server.
+
+Available for browsers and Node.js, with the WASM core shared between both.
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│  Your app (browser or Node.js)                                     │
+│    └─ mixFetch('https://...') (fetch() replacement)                │
+│         └─ Go-WASM HTTP/TLS client (embedded Mozilla CA bundle)    │
+│              └─ Rust-WASM SOCKS5 framing + Nym mixnet transport    │
+│                   └─ WebSocket → entry gateway                     │
+│                        └─ mixnet (Sphinx, 3 mix hops by default)   │
+│                             └─ Network Requester decodes SOCKS5    │
+│                                  request, opens TCP to dest        │
+│                                       └─ destination server        │
+│                                          (TLS handshake here)      │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Two WASM modules sit in the bundle: a Go module that handles HTTP and TLS (Go's `crypto/tls` compiled to WASM, with an embedded Mozilla root CA list), and a Rust module that handles SOCKS5 request framing and the Nym mixnet client itself. They communicate via JS bindings.
+
+Because TLS terminates at the destination (not at the Network Requester or any node before it), every hop from the entry gateway onwards only sees TLS ciphertext for HTTPS targets. This is the same trust model as a normal HTTPS request through a SOCKS proxy.
+
+<Callout type="info">
+The "SOCKS5" framing here is Nym's binary `Socks5Request` format wrapped in Sphinx packets, not RFC 1928 SOCKS5 over a TCP socket. The Network Requester decodes it on the mixnet side and proxies onwards as regular TCP.
+</Callout>
+
+## Runtime and platform support
+
+### Browser
+
+The WASM core runs in a Web Worker and needs:
+- WebSocket support, for the entry-gateway connection
+- WebAssembly
+- A CSP that permits `wss://` connections and `worker-src 'self'` (or `blob:` for the `*-full-fat` variants, which load workers as inline blobs)
+
+Mixed-content rules apply: target URLs must be HTTPS.
+
+### Node.js
+
+The same WASM core runs in a `worker_threads` worker. The `ws` package polyfills `WebSocket`, and a Node-flavoured `comlink` adapter (`mix-fetch-node/src/node-adapter.ts`) bridges `worker_threads` to the same Worker-like API surface.
+
+## Installation
+
+### Browser variants
+
+| Variant | Package | When to use |
+|---|---|---|
+| ESM | `@nymproject/mix-fetch` | Modern project, you can configure your bundler |
+| ESM full-fat | `@nymproject/mix-fetch-full-fat` | Modern project, can't configure your bundler |
+| CommonJS | `@nymproject/mix-fetch-commonjs` | Legacy project, you can configure your bundler |
+| CommonJS full-fat | `@nymproject/mix-fetch-commonjs-full-fat` | Legacy project, can't configure your bundler |
+
+### Node.js variant
+
+| Variant | Package | When to use |
+|---|---|---|
+| CommonJS | `@nymproject/mix-fetch-node-commonjs` | Node.js (currently the only published Node variant) |
+
+The standard browser variants need your bundler to handle WASM and web workers (see [Bundling](/developers/typescript/bundling)). The `*-full-fat` variants inline both as Base64 so no bundler configuration is needed.
+
+<Callout type="warning">
+The `*-full-fat` variants are large (~18 MB), since they inline ~10 MB of WASM (Go runtime + Rust core) and the web-worker source as Base64. Prefer a standard variant if bundle size matters.
+</Callout>
+
+```bash
+# Browser
+npm install @nymproject/mix-fetch-full-fat
+
+# Node.js
+npm install @nymproject/mix-fetch-node-commonjs
+```
+
+<Callout type="info">
+`mixFetch` caps concurrent connections at **10 per destination host** (Go `http.Transport`'s `MaxConnsPerHost`, see `wasm/mix-fetch/go-mix-conn/internal/mixfetch/mixfetch.go:214`). Keep-alive is disabled, so each request opens a fresh TCP connection through the mixnet; extra concurrent requests to the same host queue until a slot frees. Different hosts are independent.
+</Callout>
+
+## Playground and examples
+
+See the [interactive playground](/developers/typescript/playground/mixfetch) for a working `mixFetch` example you can run in the browser.
+
+The first call bootstraps the WASM Nym client (gateway handshake, key generation, cover traffic). Subsequent calls reuse the active client; the Rust side holds it in a `OnceLock` singleton, so there is one client per page (or per Node process).
+
+## When to use mix-fetch
+
+| | mix-fetch | WASM Mixnet Client | smolmix | Plain fetch (no mixnet) |
+|---|---|---|---|---|
+| **Runtime** | Browser, Node.js | Browser | Native (Rust) | Anywhere |
+| **Architecture** | Proxy (Network Requester → destination) | E2E (both sides Nym) | Proxy | Direct |
+| **API shape** | `fetch()` replacement | Send/recv text or binary messages | `TcpStream` / `UdpSocket` | `fetch()` |
+| **HTTP support** | Yes | No | Yes (via `hyper` over `TcpStream`) | Yes |
+| **Sender unlinkability** | Strong (mixnet) | Strong (mixnet) | Strong (mixnet) | None |
+| **Concurrency** | 10 per host | Unlimited | Unlimited | Unlimited |
+
+## Security model
+
+<Callout type="warning">
+Use HTTPS targets. Plaintext HTTP requests are visible to the Network Requester and to any router between it and the destination.
+</Callout>
+
+### What's protected
+
+| Segment | Mixnet encryption | What's visible |
+|---|---|---|
+| App → entry gateway | Sphinx (layered) over a WebSocket | Entry gateway sees your IP, not the destination |
+| Inside the mixnet | Sphinx (layered) | Each node only knows previous / next hop |
+| Network Requester | Sphinx removed; SOCKS5 connect request decoded | The Requester sees destination hostname + port; payload is application-layer TLS |
+| Network Requester → destination | None (regular TCP) | TLS handshake + ciphertext (with HTTPS targets); cleartext (with HTTP targets) |
+
+### Why mix-fetch ships its own CA store
+
+The browser's TLS stack and CA store aren't accessible from JavaScript or from a WASM SOCKS client; on Node, the TLS stack lives outside the Web Worker that hosts the mixnet client. `mix-fetch` therefore performs TLS itself, inside the WASM bundle, against the destination server. The bundle ships with an embedded Mozilla root CA list (refreshed from [curl.se's bundle](https://curl.se/docs/caextract.html), verified by SHA-256 in `wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh`) and an in-WASM TLS implementation (Go's `crypto/tls`, configured at `wasm/mix-fetch/go-mix-conn/internal/sslhelpers/ssl_helper.go`). The mixnet path sees encrypted TLS ciphertext, not plaintext.
+
+`mix-fetch` handles the TLS layer for you: HTTPS targets are protected end-to-end between the WASM bundle and the destination, as if a browser had initiated the TLS handshake directly. Plaintext HTTP targets remain visible to the Network Requester and to any router beyond it. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe.
+
+## API reference
+
+Generated reference: [typedoc output](/developers/typescript/api/mix-fetch).

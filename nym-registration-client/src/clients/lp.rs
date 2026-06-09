@@ -18,13 +18,12 @@ use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
+use tracing::warn;
 
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_controller: Box<dyn BandwidthTicketProvider>,
     pub(crate) cancel_token: CancellationToken,
-    // While we allow a fallback, we need to be able to build it
-    pub(crate) fallback_client_builder: Option<RegistrationClientBuilder>,
 }
 
 impl LpBasedRegistrationClient {
@@ -162,15 +161,11 @@ impl LpBasedRegistrationClient {
         self.register_wg_with_rng(&mut rng).await
     }
 
-    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
-        let fallback = self.fallback_client_builder.take();
+    async fn register_inner(mut self) -> Result<RegistrationResult, RegistrationClientError> {
         match &self.config.mode {
             RegistrationMode::Mixnet => {
-                if let Some(fallback) = fallback {
-                    register_with_fallback(fallback).await
-                } else {
-                    Err(RegistrationClientError::UnsupportedMode)
-                }
+                // mixnet registration is not supported for LP
+                Err(RegistrationClientError::UnsupportedMode)
             }
             RegistrationMode::Wireguard => {
                 let lp_registration_result = self
@@ -182,15 +177,9 @@ impl LpBasedRegistrationClient {
                     // Everything went fine
                     Some(Ok(res)) => Ok(res),
 
-                    // LP reg failed, try fallback if we have one
                     Some(Err(e)) => {
                         tracing::error!("LP registration failed : {e}");
-                        if let Some(fallback) = fallback {
-                            tracing::info!("Registering with fallback");
-                            register_with_fallback(fallback).await
-                        } else {
-                            Err(e)
-                        }
+                        Err(e)
                     }
 
                     // Cancelled registration
@@ -199,12 +188,14 @@ impl LpBasedRegistrationClient {
             }
         }
     }
-}
 
-async fn register_with_fallback(
-    client_builder: RegistrationClientBuilder,
-) -> Result<RegistrationResult, RegistrationClientError> {
-    // This is forcefully building a mixnet based client
-    let fallback_client = client_builder.build_mixnet().await?;
-    fallback_client.register().await
+    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+        let timeout = self.config.lp_registration_config.exchange_timeout;
+        tokio::time::timeout(timeout, self.register_inner())
+            .await
+            .unwrap_or_else(|timeout| {
+                warn!("timed out while attempting to complete LP registration");
+                Err(RegistrationClientError::Timeout(timeout))
+            })
+    }
 }

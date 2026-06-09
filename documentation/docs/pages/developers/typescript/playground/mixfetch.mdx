@@ -17,6 +17,6 @@ Fetch a URL through the Nym Mixnet. This demo creates a mixFetch client in your 
 
 ## How this works
 
-The component calls `createMixFetch()` to initialize a Mixnet client in the browser, then uses the returned `mixFetch()` function as a drop-in replacement for `window.fetch()`. The request is routed through the Mixnet to a Network Requester, which makes the HTTP request on your behalf and returns the response anonymously.
+The component calls `createMixFetch()` to initialise a Mixnet client in the browser, then uses the returned `mixFetch()` function as a replacement for `window.fetch()`. The request is routed through the Mixnet to a Network Requester, which makes the HTTP request on your behalf and returns the response anonymously.
 
 <FormattedMixFetchExampleCode />

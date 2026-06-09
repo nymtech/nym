@@ -139,7 +139,7 @@ impl MixnetPacketProcessor {
     /// than causing the entire drain to abort.
     pub(crate) fn all_available(&mut self) -> Vec<anyhow::Result<ProcessedPacket>> {
         let mut packets = Vec::new();
-        while let Ok(Some(pending)) = self.receiver.try_next() {
+        while let Ok(pending) = self.receiver.try_recv() {
             packets.push(self.process_received(pending));
         }
 

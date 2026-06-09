@@ -1,0 +1,2944 @@
+{
+  "contract_name": "node-families",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "description": "Message used to instantiate the node families contract.",
+    "type": "object",
+    "required": [
+      "config",
+      "mixnet_contract_address"
+    ],
+    "properties": {
+      "config": {
+        "$ref": "#/definitions/Config"
+      },
+      "mixnet_contract_address": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Config": {
+        "description": "Runtime configuration of the node families contract.",
+        "type": "object",
+        "required": [
+          "create_family_fee",
+          "default_invitation_validity_secs",
+          "family_description_length_limit",
+          "family_name_length_limit"
+        ],
+        "properties": {
+          "create_family_fee": {
+            "description": "Fee charged on each successful `create_family` execution.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          },
+          "default_invitation_validity_secs": {
+            "description": "Default lifetime, in seconds, used by `invite_to_family` when the sender doesn't supply an explicit value. Senders may override this per-invitation via the optional `validity_secs` argument.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "family_description_length_limit": {
+            "description": "Maximum allowed length, in characters, of a family description.",
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0.0
+          },
+          "family_name_length_limit": {
+            "description": "Maximum allowed length, in characters, of a family name.",
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "description": "Execute messages accepted by the contract.",
+    "oneOf": [
+      {
+        "description": "Replace the contract's runtime [`Config`]. Restricted to the contract admin.",
+        "type": "object",
+        "required": [
+          "update_config"
+        ],
+        "properties": {
+          "update_config": {
+            "type": "object",
+            "required": [
+              "config"
+            ],
+            "properties": {
+              "config": {
+                "$ref": "#/definitions/Config"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Create a new family owned by the message sender. The configured `create_family_fee` must be attached as funds.",
+        "type": "object",
+        "required": [
+          "create_family"
+        ],
+        "properties": {
+          "create_family": {
+            "type": "object",
+            "required": [
+              "description",
+              "name"
+            ],
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Update the name and/or description of the family owned by the message sender. Each field is independently optional: `None` leaves the existing value unchanged, `Some(_)` replaces it. Updated values are validated against the same length / normalisation / global-uniqueness rules as [`Self::CreateFamily`].",
+        "type": "object",
+        "required": [
+          "update_family"
+        ],
+        "properties": {
+          "update_family": {
+            "type": "object",
+            "properties": {
+              "updated_description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "updated_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Disband the family owned by the message sender. The family must have no current members; any still-pending invitations are revoked.",
+        "type": "object",
+        "required": [
+          "disband_family"
+        ],
+        "properties": {
+          "disband_family": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Invite a node to the family owned by the message sender. If `validity_secs` is omitted the invitation expires `default_invitation_validity_secs` seconds (from [`Config`]) after the current block time.",
+        "type": "object",
+        "required": [
+          "invite_to_family"
+        ],
+        "properties": {
+          "invite_to_family": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "validity_secs": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Revoke a still-pending invitation previously issued by the sender's family.",
+        "type": "object",
+        "required": [
+          "revoke_family_invitation"
+        ],
+        "properties": {
+          "revoke_family_invitation": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Accept a pending invitation. The sender must control `node_id`.",
+        "type": "object",
+        "required": [
+          "accept_family_invitation"
+        ],
+        "properties": {
+          "accept_family_invitation": {
+            "type": "object",
+            "required": [
+              "family_id",
+              "node_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Reject a pending invitation. The sender must control `node_id`.",
+        "type": "object",
+        "required": [
+          "reject_family_invitation"
+        ],
+        "properties": {
+          "reject_family_invitation": {
+            "type": "object",
+            "required": [
+              "family_id",
+              "node_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Leave the family `node_id` currently belongs to. The sender must control `node_id`.",
+        "type": "object",
+        "required": [
+          "leave_family"
+        ],
+        "properties": {
+          "leave_family": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Remove `node_id` from the family owned by the message sender.",
+        "type": "object",
+        "required": [
+          "kick_from_family"
+        ],
+        "properties": {
+          "kick_from_family": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Cross-contract callback fired by the mixnet contract the moment node with `node_id` initiates unbonding. Removes the node from any family it currently belongs to and rejects every pending invitation issued to it. Sender must be the configured mixnet contract address.",
+        "type": "object",
+        "required": [
+          "on_nym_node_unbond"
+        ],
+        "properties": {
+          "on_nym_node_unbond": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Config": {
+        "description": "Runtime configuration of the node families contract.",
+        "type": "object",
+        "required": [
+          "create_family_fee",
+          "default_invitation_validity_secs",
+          "family_description_length_limit",
+          "family_name_length_limit"
+        ],
+        "properties": {
+          "create_family_fee": {
+            "description": "Fee charged on each successful `create_family` execution.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          },
+          "default_invitation_validity_secs": {
+            "description": "Default lifetime, in seconds, used by `invite_to_family` when the sender doesn't supply an explicit value. Senders may override this per-invitation via the optional `validity_secs` argument.",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "family_description_length_limit": {
+            "description": "Maximum allowed length, in characters, of a family description.",
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0.0
+          },
+          "family_name_length_limit": {
+            "description": "Maximum allowed length, in characters, of a family name.",
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "description": "Query messages accepted by the contract.",
+    "oneOf": [
+      {
+        "description": "Look up a single family by its id.",
+        "type": "object",
+        "required": [
+          "get_family_by_id"
+        ],
+        "properties": {
+          "get_family_by_id": {
+            "type": "object",
+            "required": [
+              "family_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Look up the (at most one) family owned by a given address.",
+        "type": "object",
+        "required": [
+          "get_family_by_owner"
+        ],
+        "properties": {
+          "get_family_by_owner": {
+            "type": "object",
+            "required": [
+              "owner"
+            ],
+            "properties": {
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Look up a single family by its name. The lookup is normalised contract-side (lowercased, non-alphanumerics stripped), so equivalent inputs resolve to the same family.",
+        "type": "object",
+        "required": [
+          "get_family_by_name"
+        ],
+        "properties": {
+          "get_family_by_name": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_families_paged"
+        ],
+        "properties": {
+          "get_families_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Look up which family — if any — a node currently belongs to.",
+        "type": "object",
+        "required": [
+          "get_family_membership"
+        ],
+        "properties": {
+          "get_family_membership": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every node currently in a given family.",
+        "type": "object",
+        "required": [
+          "get_family_members_paged"
+        ],
+        "properties": {
+          "get_family_members_paged": {
+            "type": "object",
+            "required": [
+              "family_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every current family member across all families, in ascending [`NodeId`] order. Each entry carries the membership record (which in turn names the family the node belongs to).",
+        "type": "object",
+        "required": [
+          "get_all_family_members_paged"
+        ],
+        "properties": {
+          "get_all_family_members_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Look up the pending invitation for a specific `(family_id, node_id)` pair.",
+        "type": "object",
+        "required": [
+          "get_pending_invitation"
+        ],
+        "properties": {
+          "get_pending_invitation": {
+            "type": "object",
+            "required": [
+              "family_id",
+              "node_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every pending invitation issued by a given family.",
+        "type": "object",
+        "required": [
+          "get_pending_invitations_for_family_paged"
+        ],
+        "properties": {
+          "get_pending_invitations_for_family_paged": {
+            "type": "object",
+            "required": [
+              "family_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every pending invitation issued for a given node.",
+        "type": "object",
+        "required": [
+          "get_pending_invitations_for_node_paged"
+        ],
+        "properties": {
+          "get_pending_invitations_for_node_paged": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every pending invitation across all families.",
+        "type": "object",
+        "required": [
+          "get_all_pending_invitations_paged"
+        ],
+        "properties": {
+          "get_all_pending_invitations_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every archived (terminal-state) invitation issued by a given family.",
+        "type": "object",
+        "required": [
+          "get_past_invitations_for_family_paged"
+        ],
+        "properties": {
+          "get_past_invitations_for_family_paged": {
+            "type": "object",
+            "required": [
+              "family_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every archived (terminal-state) invitation issued to a given node.",
+        "type": "object",
+        "required": [
+          "get_past_invitations_for_node_paged"
+        ],
+        "properties": {
+          "get_past_invitations_for_node_paged": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every archived (terminal-state) invitation across all families.",
+        "type": "object",
+        "required": [
+          "get_all_past_invitations_paged"
+        ],
+        "properties": {
+          "get_all_past_invitations_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "array",
+                    "items": [
+                      {
+                        "type": "integer",
+                        "format": "uint32",
+                        "minimum": 0.0
+                      },
+                      {
+                        "type": "integer",
+                        "format": "uint32",
+                        "minimum": 0.0
+                      }
+                    ],
+                    "maxItems": 2,
+                    "minItems": 2
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every archived membership record for a given family (nodes that used to belong to it but have since been removed).",
+        "type": "object",
+        "required": [
+          "get_past_members_for_family_paged"
+        ],
+        "properties": {
+          "get_past_members_for_family_paged": {
+            "type": "object",
+            "required": [
+              "family_id"
+            ],
+            "properties": {
+              "family_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Page through every archived membership record for a given node (every family the node used to belong to but has since been removed from), across all families.",
+        "type": "object",
+        "required": [
+          "get_past_members_for_node_paged"
+        ],
+        "properties": {
+          "get_past_members_for_node_paged": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "description": "Message passed to the contract's `migrate` entry point.",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "get_all_family_members_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllFamilyMembersPagedResponse",
+      "description": "Response to [`QueryMsg::GetAllFamilyMembersPaged`](crate::QueryMsg::GetAllFamilyMembersPaged).",
+      "type": "object",
+      "required": [
+        "members"
+      ],
+      "properties": {
+        "members": {
+          "description": "The members on this page, in ascending [`NodeId`] order across every family.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FamilyMemberRecord"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor (last `node_id`) to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyMemberRecord": {
+          "description": "One entry in a [`FamilyMembersPagedResponse`] page — pairs a node id with its [`FamilyMembership`] record (notably its `joined_at` timestamp).",
+          "type": "object",
+          "required": [
+            "membership",
+            "node_id"
+          ],
+          "properties": {
+            "membership": {
+              "description": "The membership record (carries `family_id` and `joined_at`).",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyMembership"
+                }
+              ]
+            },
+            "node_id": {
+              "description": "The node currently in the family.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "FamilyMembership": {
+          "description": "On-chain record of a node's current family membership.\n\nA node belongs to at most one family at a time, so this is keyed by `NodeId` alone — `family_id` is carried in the value to support reverse lookups (all nodes in a given family) via a secondary index.",
+          "type": "object",
+          "required": [
+            "family_id",
+            "joined_at"
+          ],
+          "properties": {
+            "family_id": {
+              "description": "The family the node is currently a member of.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "joined_at": {
+              "description": "Block timestamp (unix seconds) at which the node accepted its invitation and joined the family.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_all_past_invitations_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllPastFamilyInvitationsPagedResponse",
+      "description": "Response to [`QueryMsg::GetAllPastInvitationsPaged`](crate::QueryMsg::GetAllPastInvitationsPaged).",
+      "type": "object",
+      "required": [
+        "invitations"
+      ],
+      "properties": {
+        "invitations": {
+          "description": "The archived invitations on this page, in ascending `((family_id, node_id), counter)` order across all terminal statuses.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PastFamilyInvitation"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "array",
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "FamilyInvitationStatus": {
+          "description": "Terminal status for an invitation that has been moved out of the pending set.\n\nNote: an invitation that merely times out is **not** archived here on its own — it is left inert in the pending set (see `FamilyInvitation::expires_at`). It only reaches `Expired` if the family issues a fresh invitation for the same node, which supersedes and archives the stale one.",
+          "oneOf": [
+            {
+              "description": "Still awaiting a response. Recorded with a timestamp for completeness even though pending invitations live in a separate map.",
+              "type": "object",
+              "required": [
+                "pending"
+              ],
+              "properties": {
+                "pending": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee accepted and joined the family at the given timestamp.",
+              "type": "object",
+              "required": [
+                "accepted"
+              ],
+              "properties": {
+                "accepted": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee explicitly rejected the invitation at the given timestamp.",
+              "type": "object",
+              "required": [
+                "rejected"
+              ],
+              "properties": {
+                "rejected": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The family revoked the invitation at the given timestamp before it could be accepted or rejected.",
+              "type": "object",
+              "required": [
+                "revoked"
+              ],
+              "properties": {
+                "revoked": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitation had already expired and was superseded by a fresh invitation for the same node from the same family, issued at the given timestamp. This is the only path that archives a timed-out invitation.",
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "PastFamilyInvitation": {
+          "description": "Historical record of an invitation that has reached a terminal state (`Accepted`, `Rejected`, `Revoked`, or `Expired`). A timed-out invitation is archived here only when a fresh invitation for the same node supersedes it (status `Expired`); otherwise it stays in the pending map until explicitly cleared.",
+          "type": "object",
+          "required": [
+            "invitation",
+            "status"
+          ],
+          "properties": {
+            "invitation": {
+              "description": "The original invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            },
+            "status": {
+              "description": "What ultimately happened to it.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitationStatus"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_all_pending_invitations_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PendingInvitationsPagedResponse",
+      "description": "Response to [`QueryMsg::GetAllPendingInvitationsPaged`](crate::QueryMsg::GetAllPendingInvitationsPaged).",
+      "type": "object",
+      "required": [
+        "invitations"
+      ],
+      "properties": {
+        "invitations": {
+          "description": "The pending invitations on this page, in ascending `(family_id, node_id)` order, each stamped with whether it had already timed out at the time the query was served.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PendingFamilyInvitationDetails"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor (last `(family_id, node_id)` pair) to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "PendingFamilyInvitationDetails": {
+          "description": "A pending [`FamilyInvitation`] paired with whether it has already timed out at the time the query was served.",
+          "type": "object",
+          "required": [
+            "expired",
+            "invitation"
+          ],
+          "properties": {
+            "expired": {
+              "description": "`true` iff `now >= invitation.expires_at` at query time, i.e. the invitation is still in the pending map but can no longer be acted on.",
+              "type": "boolean"
+            },
+            "invitation": {
+              "description": "The stored invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_families_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FamiliesPagedResponse",
+      "description": "Response to [`QueryMsg::GetFamiliesPaged`](crate::QueryMsg::GetFamiliesPaged).",
+      "type": "object",
+      "required": [
+        "families"
+      ],
+      "properties": {
+        "families": {
+          "description": "The families on this page, in ascending [`NodeFamilyId`] order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NodeFamily"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (which the caller should treat as end-of-list).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeFamily": {
+          "description": "On-chain representation of a node family.",
+          "type": "object",
+          "required": [
+            "created_at",
+            "description",
+            "id",
+            "members",
+            "name",
+            "normalised_name",
+            "owner",
+            "paid_fee"
+          ],
+          "properties": {
+            "created_at": {
+              "description": "Timestamp of the creation of the node family",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "description": {
+              "description": "The optional description of the node family",
+              "type": "string"
+            },
+            "id": {
+              "description": "The id of the node family",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "members": {
+              "description": "Memoized value of the current number of members in the node family Used to detect if the family is empty",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "name": {
+              "description": "The name of the node family",
+              "type": "string"
+            },
+            "normalised_name": {
+              "description": "Normalised name of the node family used for uniqueness checks",
+              "type": "string"
+            },
+            "owner": {
+              "description": "The owner of the node family",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "paid_fee": {
+              "description": "Records the fee paid when the family was created, so that the appropriate amount could be returned upon it getting disbanded.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_family_by_id": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeFamilyResponse",
+      "description": "Response to [`QueryMsg::GetFamilyById`](crate::QueryMsg::GetFamilyById).",
+      "type": "object",
+      "required": [
+        "family_id"
+      ],
+      "properties": {
+        "family": {
+          "description": "The matching family, or `None` if no family with `family_id` exists.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeFamily"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "family_id": {
+          "description": "The id that was queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeFamily": {
+          "description": "On-chain representation of a node family.",
+          "type": "object",
+          "required": [
+            "created_at",
+            "description",
+            "id",
+            "members",
+            "name",
+            "normalised_name",
+            "owner",
+            "paid_fee"
+          ],
+          "properties": {
+            "created_at": {
+              "description": "Timestamp of the creation of the node family",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "description": {
+              "description": "The optional description of the node family",
+              "type": "string"
+            },
+            "id": {
+              "description": "The id of the node family",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "members": {
+              "description": "Memoized value of the current number of members in the node family Used to detect if the family is empty",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "name": {
+              "description": "The name of the node family",
+              "type": "string"
+            },
+            "normalised_name": {
+              "description": "Normalised name of the node family used for uniqueness checks",
+              "type": "string"
+            },
+            "owner": {
+              "description": "The owner of the node family",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "paid_fee": {
+              "description": "Records the fee paid when the family was created, so that the appropriate amount could be returned upon it getting disbanded.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_family_by_name": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeFamilyByNameResponse",
+      "description": "Response to [`QueryMsg::GetFamilyByName`](crate::QueryMsg::GetFamilyByName).",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "family": {
+          "description": "The matching family, or `None` if no family with that name exists.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeFamily"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "The name that was queried, echoed back so callers can correlate.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeFamily": {
+          "description": "On-chain representation of a node family.",
+          "type": "object",
+          "required": [
+            "created_at",
+            "description",
+            "id",
+            "members",
+            "name",
+            "normalised_name",
+            "owner",
+            "paid_fee"
+          ],
+          "properties": {
+            "created_at": {
+              "description": "Timestamp of the creation of the node family",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "description": {
+              "description": "The optional description of the node family",
+              "type": "string"
+            },
+            "id": {
+              "description": "The id of the node family",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "members": {
+              "description": "Memoized value of the current number of members in the node family Used to detect if the family is empty",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "name": {
+              "description": "The name of the node family",
+              "type": "string"
+            },
+            "normalised_name": {
+              "description": "Normalised name of the node family used for uniqueness checks",
+              "type": "string"
+            },
+            "owner": {
+              "description": "The owner of the node family",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "paid_fee": {
+              "description": "Records the fee paid when the family was created, so that the appropriate amount could be returned upon it getting disbanded.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_family_by_owner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeFamilyByOwnerResponse",
+      "description": "Response to [`QueryMsg::GetFamilyByOwner`](crate::QueryMsg::GetFamilyByOwner).",
+      "type": "object",
+      "required": [
+        "owner"
+      ],
+      "properties": {
+        "family": {
+          "description": "The matching family, or `None` if `owner` does not currently own one.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeFamily"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner": {
+          "description": "The (validated) owner address that was queried, echoed back so callers can correlate.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeFamily": {
+          "description": "On-chain representation of a node family.",
+          "type": "object",
+          "required": [
+            "created_at",
+            "description",
+            "id",
+            "members",
+            "name",
+            "normalised_name",
+            "owner",
+            "paid_fee"
+          ],
+          "properties": {
+            "created_at": {
+              "description": "Timestamp of the creation of the node family",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "description": {
+              "description": "The optional description of the node family",
+              "type": "string"
+            },
+            "id": {
+              "description": "The id of the node family",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "members": {
+              "description": "Memoized value of the current number of members in the node family Used to detect if the family is empty",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "name": {
+              "description": "The name of the node family",
+              "type": "string"
+            },
+            "normalised_name": {
+              "description": "Normalised name of the node family used for uniqueness checks",
+              "type": "string"
+            },
+            "owner": {
+              "description": "The owner of the node family",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "paid_fee": {
+              "description": "Records the fee paid when the family was created, so that the appropriate amount could be returned upon it getting disbanded.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_family_members_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FamilyMembersPagedResponse",
+      "description": "Response to [`QueryMsg::GetFamilyMembersPaged`](crate::QueryMsg::GetFamilyMembersPaged).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "members"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family whose members were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "members": {
+          "description": "The members on this page, in ascending [`NodeId`] order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FamilyMemberRecord"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (which the caller should treat as end-of-list).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyMemberRecord": {
+          "description": "One entry in a [`FamilyMembersPagedResponse`] page — pairs a node id with its [`FamilyMembership`] record (notably its `joined_at` timestamp).",
+          "type": "object",
+          "required": [
+            "membership",
+            "node_id"
+          ],
+          "properties": {
+            "membership": {
+              "description": "The membership record (carries `family_id` and `joined_at`).",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyMembership"
+                }
+              ]
+            },
+            "node_id": {
+              "description": "The node currently in the family.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "FamilyMembership": {
+          "description": "On-chain record of a node's current family membership.\n\nA node belongs to at most one family at a time, so this is keyed by `NodeId` alone — `family_id` is carried in the value to support reverse lookups (all nodes in a given family) via a secondary index.",
+          "type": "object",
+          "required": [
+            "family_id",
+            "joined_at"
+          ],
+          "properties": {
+            "family_id": {
+              "description": "The family the node is currently a member of.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "joined_at": {
+              "description": "Block timestamp (unix seconds) at which the node accepted its invitation and joined the family.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_family_membership": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeFamilyMembershipResponse",
+      "description": "Response to [`QueryMsg::GetFamilyMembership`](crate::QueryMsg::GetFamilyMembership).",
+      "type": "object",
+      "required": [
+        "node_id"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The id of the family the node currently belongs to, or `None` if the node is not currently a member of any family.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "description": "The node that was queried.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "get_past_invitations_for_family_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PastFamilyInvitationsPagedResponse",
+      "description": "Response to [`QueryMsg::GetPastInvitationsForFamilyPaged`](crate::QueryMsg::GetPastInvitationsForFamilyPaged).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "invitations"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family whose archived invitations were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "invitations": {
+          "description": "The archived invitations on this page, in ascending `(node_id, counter)` order across all terminal statuses.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PastFamilyInvitation"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "FamilyInvitationStatus": {
+          "description": "Terminal status for an invitation that has been moved out of the pending set.\n\nNote: an invitation that merely times out is **not** archived here on its own — it is left inert in the pending set (see `FamilyInvitation::expires_at`). It only reaches `Expired` if the family issues a fresh invitation for the same node, which supersedes and archives the stale one.",
+          "oneOf": [
+            {
+              "description": "Still awaiting a response. Recorded with a timestamp for completeness even though pending invitations live in a separate map.",
+              "type": "object",
+              "required": [
+                "pending"
+              ],
+              "properties": {
+                "pending": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee accepted and joined the family at the given timestamp.",
+              "type": "object",
+              "required": [
+                "accepted"
+              ],
+              "properties": {
+                "accepted": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee explicitly rejected the invitation at the given timestamp.",
+              "type": "object",
+              "required": [
+                "rejected"
+              ],
+              "properties": {
+                "rejected": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The family revoked the invitation at the given timestamp before it could be accepted or rejected.",
+              "type": "object",
+              "required": [
+                "revoked"
+              ],
+              "properties": {
+                "revoked": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitation had already expired and was superseded by a fresh invitation for the same node from the same family, issued at the given timestamp. This is the only path that archives a timed-out invitation.",
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "PastFamilyInvitation": {
+          "description": "Historical record of an invitation that has reached a terminal state (`Accepted`, `Rejected`, `Revoked`, or `Expired`). A timed-out invitation is archived here only when a fresh invitation for the same node supersedes it (status `Expired`); otherwise it stays in the pending map until explicitly cleared.",
+          "type": "object",
+          "required": [
+            "invitation",
+            "status"
+          ],
+          "properties": {
+            "invitation": {
+              "description": "The original invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            },
+            "status": {
+              "description": "What ultimately happened to it.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitationStatus"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_past_invitations_for_node_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PastFamilyInvitationsForNodePagedResponse",
+      "description": "Response to [`QueryMsg::GetPastInvitationsForNodePaged`](crate::QueryMsg::GetPastInvitationsForNodePaged).",
+      "type": "object",
+      "required": [
+        "invitations",
+        "node_id"
+      ],
+      "properties": {
+        "invitations": {
+          "description": "The archived invitations addressed to this node on this page, in ascending `(family_id, counter)` order across all terminal statuses.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PastFamilyInvitation"
+          }
+        },
+        "node_id": {
+          "description": "The node whose past invitations were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "FamilyInvitationStatus": {
+          "description": "Terminal status for an invitation that has been moved out of the pending set.\n\nNote: an invitation that merely times out is **not** archived here on its own — it is left inert in the pending set (see `FamilyInvitation::expires_at`). It only reaches `Expired` if the family issues a fresh invitation for the same node, which supersedes and archives the stale one.",
+          "oneOf": [
+            {
+              "description": "Still awaiting a response. Recorded with a timestamp for completeness even though pending invitations live in a separate map.",
+              "type": "object",
+              "required": [
+                "pending"
+              ],
+              "properties": {
+                "pending": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee accepted and joined the family at the given timestamp.",
+              "type": "object",
+              "required": [
+                "accepted"
+              ],
+              "properties": {
+                "accepted": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitee explicitly rejected the invitation at the given timestamp.",
+              "type": "object",
+              "required": [
+                "rejected"
+              ],
+              "properties": {
+                "rejected": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The family revoked the invitation at the given timestamp before it could be accepted or rejected.",
+              "type": "object",
+              "required": [
+                "revoked"
+              ],
+              "properties": {
+                "revoked": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "The invitation had already expired and was superseded by a fresh invitation for the same node from the same family, issued at the given timestamp. This is the only path that archives a timed-out invitation.",
+              "type": "object",
+              "required": [
+                "expired"
+              ],
+              "properties": {
+                "expired": {
+                  "type": "object",
+                  "required": [
+                    "at"
+                  ],
+                  "properties": {
+                    "at": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "PastFamilyInvitation": {
+          "description": "Historical record of an invitation that has reached a terminal state (`Accepted`, `Rejected`, `Revoked`, or `Expired`). A timed-out invitation is archived here only when a fresh invitation for the same node supersedes it (status `Expired`); otherwise it stays in the pending map until explicitly cleared.",
+          "type": "object",
+          "required": [
+            "invitation",
+            "status"
+          ],
+          "properties": {
+            "invitation": {
+              "description": "The original invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            },
+            "status": {
+              "description": "What ultimately happened to it.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitationStatus"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_past_members_for_family_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PastFamilyMembersPagedResponse",
+      "description": "Response to [`QueryMsg::GetPastMembersForFamilyPaged`](crate::QueryMsg::GetPastMembersForFamilyPaged).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "members"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family whose archived memberships were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "members": {
+          "description": "The archived membership records on this page, in ascending `(node_id, counter)` order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PastFamilyMember"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "PastFamilyMember": {
+          "description": "Historical record of a node that used to be part of a family but has since been removed (kicked, left voluntarily, or because the family was disbanded).",
+          "type": "object",
+          "required": [
+            "family_id",
+            "node_id",
+            "removed_at"
+          ],
+          "properties": {
+            "family_id": {
+              "description": "The family the node used to belong to.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node that was removed.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "removed_at": {
+              "description": "Block timestamp (unix seconds) at which the membership was terminated.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_past_members_for_node_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PastFamilyMembersForNodePagedResponse",
+      "description": "Response to [`QueryMsg::GetPastMembersForNodePaged`](crate::QueryMsg::GetPastMembersForNodePaged).",
+      "type": "object",
+      "required": [
+        "members",
+        "node_id"
+      ],
+      "properties": {
+        "members": {
+          "description": "The archived membership records for this node on this page, in ascending `(family_id, counter)` order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PastFamilyMember"
+          }
+        },
+        "node_id": {
+          "description": "The node whose archived memberships were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "PastFamilyMember": {
+          "description": "Historical record of a node that used to be part of a family but has since been removed (kicked, left voluntarily, or because the family was disbanded).",
+          "type": "object",
+          "required": [
+            "family_id",
+            "node_id",
+            "removed_at"
+          ],
+          "properties": {
+            "family_id": {
+              "description": "The family the node used to belong to.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node that was removed.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "removed_at": {
+              "description": "Block timestamp (unix seconds) at which the membership was terminated.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_pending_invitation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PendingFamilyInvitationResponse",
+      "description": "Response to [`QueryMsg::GetPendingInvitation`](crate::QueryMsg::GetPendingInvitation).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "node_id"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family component of the queried `(family_id, node_id)` key.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "invitation": {
+          "description": "The matching pending invitation along with an explicit expiry flag, or `None` if no such invitation exists.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PendingFamilyInvitationDetails"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_id": {
+          "description": "The node component of the queried `(family_id, node_id)` key.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "PendingFamilyInvitationDetails": {
+          "description": "A pending [`FamilyInvitation`] paired with whether it has already timed out at the time the query was served.",
+          "type": "object",
+          "required": [
+            "expired",
+            "invitation"
+          ],
+          "properties": {
+            "expired": {
+              "description": "`true` iff `now >= invitation.expires_at` at query time, i.e. the invitation is still in the pending map but can no longer be acted on.",
+              "type": "boolean"
+            },
+            "invitation": {
+              "description": "The stored invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_pending_invitations_for_family_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PendingFamilyInvitationsPagedResponse",
+      "description": "Response to [`QueryMsg::GetPendingInvitationsForFamilyPaged`](crate::QueryMsg::GetPendingInvitationsForFamilyPaged).",
+      "type": "object",
+      "required": [
+        "family_id",
+        "invitations"
+      ],
+      "properties": {
+        "family_id": {
+          "description": "The family whose pending invitations were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "invitations": {
+          "description": "The pending invitations on this page, in ascending invitee [`NodeId`] order, each stamped with whether it had already timed out at the time the query was served.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PendingFamilyInvitationDetails"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor (last invitee node id) to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "PendingFamilyInvitationDetails": {
+          "description": "A pending [`FamilyInvitation`] paired with whether it has already timed out at the time the query was served.",
+          "type": "object",
+          "required": [
+            "expired",
+            "invitation"
+          ],
+          "properties": {
+            "expired": {
+              "description": "`true` iff `now >= invitation.expires_at` at query time, i.e. the invitation is still in the pending map but can no longer be acted on.",
+              "type": "boolean"
+            },
+            "invitation": {
+              "description": "The stored invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_pending_invitations_for_node_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PendingInvitationsForNodePagedResponse",
+      "description": "Response to [`QueryMsg::GetPendingInvitationsForNodePaged`](crate::QueryMsg::GetPendingInvitationsForNodePaged).",
+      "type": "object",
+      "required": [
+        "invitations",
+        "node_id"
+      ],
+      "properties": {
+        "invitations": {
+          "description": "The pending invitations addressed to this node on this page, in ascending [`NodeFamilyId`] order, each stamped with whether it had already timed out at the time the query was served.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PendingFamilyInvitationDetails"
+          }
+        },
+        "node_id": {
+          "description": "The node whose pending invitations were queried, echoed back so paginated callers can correlate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "start_next_after": {
+          "description": "Cursor (last issuing family id) to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "FamilyInvitation": {
+          "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+          "type": "object",
+          "required": [
+            "expires_at",
+            "family_id",
+            "node_id"
+          ],
+          "properties": {
+            "expires_at": {
+              "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "family_id": {
+              "description": "The family that issued the invitation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "node_id": {
+              "description": "The node being invited.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "PendingFamilyInvitationDetails": {
+          "description": "A pending [`FamilyInvitation`] paired with whether it has already timed out at the time the query was served.",
+          "type": "object",
+          "required": [
+            "expired",
+            "invitation"
+          ],
+          "properties": {
+            "expired": {
+              "description": "`true` iff `now >= invitation.expires_at` at query time, i.e. the invitation is still in the pending map but can no longer be acted on.",
+              "type": "boolean"
+            },
+            "invitation": {
+              "description": "The stored invitation as it was issued.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyInvitation"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

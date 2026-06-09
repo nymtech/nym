@@ -8,7 +8,7 @@ lastUpdated: "2026-02-11"
 
 # The Nym Network
 
-The Nym Network is decentralized privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
+The Nym Network is decentralised privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
 
 Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate Mixnet mode directly via the [Nym SDKs](/developers). See [Choosing a Mode](/network/overview/choosing-a-mode) for guidance on which fits a given threat model.
 
@@ -26,7 +26,7 @@ The [Nym SDKs](/developers) allow developers to embed mixnet functionality direc
 
 ## Paying for privacy without losing it
 
-A fundamental weakness of traditional VPNs is that payment records can deanonymize users, since most providers link sessions to account IDs. Nym addresses this with **zk-nyms**: zero-knowledge anonymous credentials that prove payment without revealing any other information. Each credential covers a small chunk of bandwidth and is unlinkable to any other.
+A fundamental weakness of traditional VPNs is that payment records can deanonymise users, since most providers link sessions to account IDs. Nym addresses this with **zk-nyms**: zero-knowledge anonymous credentials that prove payment without revealing any other information. Each credential covers a small chunk of bandwidth and is unlinkable to any other.
 
 When you pay for NymVPN, your payment is converted into a credential that can be split and re-randomized. Each Gateway connection uses a fresh, unlinkable proof; the Gateway verifies that you have paid without learning who you are. Your subscription cannot be linked to your network activity, even by infrastructure operators.
 

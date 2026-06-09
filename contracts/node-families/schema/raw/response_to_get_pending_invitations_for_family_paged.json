@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PendingFamilyInvitationsPagedResponse",
+  "description": "Response to [`QueryMsg::GetPendingInvitationsForFamilyPaged`](crate::QueryMsg::GetPendingInvitationsForFamilyPaged).",
+  "type": "object",
+  "required": [
+    "family_id",
+    "invitations"
+  ],
+  "properties": {
+    "family_id": {
+      "description": "The family whose pending invitations were queried, echoed back so paginated callers can correlate.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "invitations": {
+      "description": "The pending invitations on this page, in ascending invitee [`NodeId`] order, each stamped with whether it had already timed out at the time the query was served.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PendingFamilyInvitationDetails"
+      }
+    },
+    "start_next_after": {
+      "description": "Cursor (last invitee node id) to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "FamilyInvitation": {
+      "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+      "type": "object",
+      "required": [
+        "expires_at",
+        "family_id",
+        "node_id"
+      ],
+      "properties": {
+        "expires_at": {
+          "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "family_id": {
+          "description": "The family that issued the invitation.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "description": "The node being invited.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "PendingFamilyInvitationDetails": {
+      "description": "A pending [`FamilyInvitation`] paired with whether it has already timed out at the time the query was served.",
+      "type": "object",
+      "required": [
+        "expired",
+        "invitation"
+      ],
+      "properties": {
+        "expired": {
+          "description": "`true` iff `now >= invitation.expires_at` at query time, i.e. the invitation is still in the pending map but can no longer be acted on.",
+          "type": "boolean"
+        },
+        "invitation": {
+          "description": "The stored invitation as it was issued.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyInvitation"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

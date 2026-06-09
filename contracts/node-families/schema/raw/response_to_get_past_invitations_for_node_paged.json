@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PastFamilyInvitationsForNodePagedResponse",
+  "description": "Response to [`QueryMsg::GetPastInvitationsForNodePaged`](crate::QueryMsg::GetPastInvitationsForNodePaged).",
+  "type": "object",
+  "required": [
+    "invitations",
+    "node_id"
+  ],
+  "properties": {
+    "invitations": {
+      "description": "The archived invitations addressed to this node on this page, in ascending `(family_id, counter)` order across all terminal statuses.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PastFamilyInvitation"
+      }
+    },
+    "node_id": {
+      "description": "The node whose past invitations were queried, echoed back so paginated callers can correlate.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "start_next_after": {
+      "description": "Cursor to pass as `start_after` on the next call, or `None` if this page is empty (treat as end-of-list).",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": [
+        {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      ],
+      "maxItems": 2,
+      "minItems": 2
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "FamilyInvitation": {
+      "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
+      "type": "object",
+      "required": [
+        "expires_at",
+        "family_id",
+        "node_id"
+      ],
+      "properties": {
+        "expires_at": {
+          "description": "Block timestamp (unix seconds) after which the invitation is no longer valid.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "family_id": {
+          "description": "The family that issued the invitation.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "description": "The node being invited.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "FamilyInvitationStatus": {
+      "description": "Terminal status for an invitation that has been moved out of the pending set.\n\nNote: an invitation that merely times out is **not** archived here on its own — it is left inert in the pending set (see `FamilyInvitation::expires_at`). It only reaches `Expired` if the family issues a fresh invitation for the same node, which supersedes and archives the stale one.",
+      "oneOf": [
+        {
+          "description": "Still awaiting a response. Recorded with a timestamp for completeness even though pending invitations live in a separate map.",
+          "type": "object",
+          "required": [
+            "pending"
+          ],
+          "properties": {
+            "pending": {
+              "type": "object",
+              "required": [
+                "at"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The invitee accepted and joined the family at the given timestamp.",
+          "type": "object",
+          "required": [
+            "accepted"
+          ],
+          "properties": {
+            "accepted": {
+              "type": "object",
+              "required": [
+                "at"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The invitee explicitly rejected the invitation at the given timestamp.",
+          "type": "object",
+          "required": [
+            "rejected"
+          ],
+          "properties": {
+            "rejected": {
+              "type": "object",
+              "required": [
+                "at"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The family revoked the invitation at the given timestamp before it could be accepted or rejected.",
+          "type": "object",
+          "required": [
+            "revoked"
+          ],
+          "properties": {
+            "revoked": {
+              "type": "object",
+              "required": [
+                "at"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The invitation had already expired and was superseded by a fresh invitation for the same node from the same family, issued at the given timestamp. This is the only path that archives a timed-out invitation.",
+          "type": "object",
+          "required": [
+            "expired"
+          ],
+          "properties": {
+            "expired": {
+              "type": "object",
+              "required": [
+                "at"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PastFamilyInvitation": {
+      "description": "Historical record of an invitation that has reached a terminal state (`Accepted`, `Rejected`, `Revoked`, or `Expired`). A timed-out invitation is archived here only when a fresh invitation for the same node supersedes it (status `Expired`); otherwise it stays in the pending map until explicitly cleared.",
+      "type": "object",
+      "required": [
+        "invitation",
+        "status"
+      ],
+      "properties": {
+        "invitation": {
+          "description": "The original invitation as it was issued.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyInvitation"
+            }
+          ]
+        },
+        "status": {
+          "description": "What ultimately happened to it.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyInvitationStatus"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

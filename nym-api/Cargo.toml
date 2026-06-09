@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.80"
+version = "1.1.81"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -104,6 +104,7 @@ nym-serde-helpers = { workspace = true, features = ["date"] }
 nym-ticketbooks-merkle = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
+nym-node-families-contract-common = { workspace = true }
 
 
 [features]
@@ -122,6 +123,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+nym-api-requests = { workspace = true, features = ["mock-fixtures"] }
 axum-test = { workspace = true }
 reqwest = { workspace = true, features = ["json", "query"] }
 tempfile = { workspace = true }

@@ -31,6 +31,11 @@ pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
+// \/ TODO: this has to be updated once the contract is deployed
+pub(crate) const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
+    "n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z";
+// /\ TODO: this has to be updated once the contract is deployed
+
 // -- Constructor functions --
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
@@ -57,6 +62,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             network_monitors_contract_address: parse_optional_str(
                 NETWORK_MONITORS_CONTRACT_ADDRESS,
             ),
+            node_families_contract_address: parse_optional_str(NODE_FAMILIES_CONTRACT_ADDRESS),
             ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),

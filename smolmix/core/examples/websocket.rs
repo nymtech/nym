@@ -1,22 +1,22 @@
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
 //! WebSocket echo over the Nym mixnet.
 //!
-//! Demonstrates stacking tokio-tungstenite on top of tokio-rustls on top of
-//! smolmix TcpStream. Sends a message to a public echo server via clearnet
-//! and via the mixnet, then compares responses and timing.
-//!
-//! The clearnet and mixnet paths use the *exact same* TLS + WebSocket stack —
-//! only the underlying TCP transport differs:
+//! Sends one message to a public echo server, first via clearnet and then
+//! via the mixnet. Both paths use the same TLS and WebSocket stack; only
+//! the underlying TCP stream changes.
 //!
 //! ```text
 //! tokio-tungstenite (WebSocket framing)
 //!   └─ tokio-rustls (TLS encryption)
-//!        └─ tokio::net::TcpStream  (clearnet)
+//!        ├─ tokio::net::TcpStream  (clearnet)
 //!        └─ smolmix::TcpStream     (mixnet)
 //! ```
 //!
-//! Run with:
-//!   cargo run -p smolmix --example websocket
-//!   cargo run -p smolmix --example websocket -- --ipr <IPR_ADDRESS>
+//! ```sh
+//! cargo run -p smolmix --example websocket
+//! cargo run -p smolmix --example websocket -- --ipr <IPR_ADDRESS>
+//! ```
 
 use std::sync::Arc;
 
@@ -48,17 +48,16 @@ async fn main() -> Result<(), BoxError> {
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    // Resolve hostname via clearnet DNS - you can resolve via the Mixnet (see UDP example) but for this test its not necessary
+    // Clearnet DNS is fine here; the UDP example shows mixnet-side DNS.
     let addr = tokio::net::lookup_host(format!("{WS_HOST}:443"))
         .await?
         .next()
         .ok_or("DNS resolution failed")?;
-    info!("Resolved {WS_HOST} -> {addr}");
+    info!("Resolved {WS_HOST} → {addr}");
 
     let connector = tls_connector();
     let domain = ServerName::try_from(WS_HOST)?.to_owned();
 
-    // Clearnet baseline: tokio TCP -> rustls -> tungstenite
     info!("Connecting via clearnet...");
     let clearnet_start = tokio::time::Instant::now();
 
@@ -75,7 +74,7 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
-    // Mixnet: smolmix TCP -> rustls -> tungstenite (same stack)
+    // TCP source is smolmix::TcpStream; everything above is the same.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()
@@ -89,7 +88,6 @@ async fn main() -> Result<(), BoxError> {
     let tunnel = builder.build().await?;
     info!("Allocated IP: {}", tunnel.allocated_ips().ipv4);
 
-    // Phase 1: Setup (TCP + TLS + WebSocket handshakes)
     let setup_start = tokio::time::Instant::now();
 
     info!("TCP connecting via mixnet...");
@@ -107,7 +105,6 @@ async fn main() -> Result<(), BoxError> {
     let setup_duration = setup_start.elapsed();
     info!("Setup complete ({:?})", setup_duration);
 
-    // Phase 2: Echo request/response
     let request_start = tokio::time::Instant::now();
 
     mixnet_ws.send(Message::Text(ECHO_MSG.into())).await?;
@@ -115,20 +112,19 @@ async fn main() -> Result<(), BoxError> {
 
     let request_duration = request_start.elapsed();
     let mixnet_text = mixnet_reply.into_text()?;
-    mixnet_ws.close(None).await?;
+    let _ = mixnet_ws.close(None).await;
 
     info!("Echo: \"{mixnet_text}\" ({:?})", request_duration);
 
-    // Results
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
     info!(
-        "Mixnet:   \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",
+        "Mixnet: \"{mixnet_text}\" (setup {:?} + echo {:?} = {:?})",
         setup_duration,
         request_duration,
         setup_duration + request_duration
     );
     info!("Clearnet echo match: {}", clearnet_text == ECHO_MSG);
-    info!("Mixnet echo match:   {}", mixnet_text == ECHO_MSG);
+    info!("Mixnet echo match: {}", mixnet_text == ECHO_MSG);
 
     let total = setup_duration + request_duration;
     let slowdown = total.as_millis() as f64 / clearnet_duration.as_millis().max(1) as f64;

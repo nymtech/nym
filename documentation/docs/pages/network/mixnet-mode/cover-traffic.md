@@ -43,7 +43,7 @@ Mix nodes also generate their own cover traffic, ensuring minimum traffic levels
 
 Traffic follows a Poisson process with a configurable rate parameter. Inter-packet times are exponentially distributed: random, but with a known average rate. This distribution provides maximum entropy (uncertainty) for a given mean rate, which translates to optimal privacy properties.
 
-## Tradeoffs
+## Trade-offs
 
 More cover traffic provides better unobservability but uses more bandwidth and, when zk-nyms are enabled, more credential value. Less cover traffic reduces costs but may allow some inference about activity patterns.
 
@@ -51,4 +51,4 @@ The default parameters balance privacy and resource usage. Applications with hei
 
 ## What cover traffic defeats
 
-Cover traffic prevents volume analysis (how much you communicate), timing analysis (when you communicate), and behavioral profiling (your communication patterns over time). Combined with packet mixing, it ensures that even an adversary watching the entire network cannot learn about your communication behavior with currently known methods.
+Cover traffic prevents volume analysis (how much you communicate), timing analysis (when you communicate), and behavioural profiling (your communication patterns over time). Combined with packet mixing, this means that even an adversary watching the entire network cannot learn about your communication behaviour with currently known methods.

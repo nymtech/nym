@@ -16,6 +16,8 @@ import { Steps } from 'nextra/components';
 import AbuseResponse from 'components/operators/templates/dmca_response.md';
 import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
 import QuicDeploymentSteps from 'components/operators/snippets/quic-bridge-deployment-script-setup.mdx';
+import NTMExplanation from 'components/operators/snippets/ntm-accordion-explanation.mdx';
+
 
 
 export const TestingSteps = () => (
@@ -48,7 +50,6 @@ export const LoadEndpointInfo = () => (
   </div>
 );
 
-
 # Changelog
 
 This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
@@ -56,6 +57,169 @@ This page displays a full list of all the changes during our release cycle from 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
+
+## `v2026.10-waterloo`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)
+- [`nym-node`](nodes/nym-node.mdx) version `1.32.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-05-27T12:46:38.359447083Z
+Build Version:      1.32.0
+Commit SHA:         25eba09b92cff648cd37bdd7f0921e710eed25f5
+Commit Date:        2026-05-27T11:00:31.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Tools
+
+<Callout type="error" emoji="🚨">
+**Two breaking issues requiring attention:**
+
+1. We ask all operators to **migrate away from WorkTitans B.V. ([AS209847](https://ipinfo.io/AS209847))**, also known as _the.hosting_, _PQ-Hosting_ and _Stark Industries_! Please read the [info below](#migrate-away-from-the-hosting).
+
+1. [**Security steps required**](/operators/troubleshooting/vps-isp#security-patch-copyfail--dirtyfrag): Several critical [Linux kernel vulnerabilities](https://ubuntu.com/blog/copy-fail-vulnerability-fixes-available) had been disclosed. Check out your servers and if needed apply required mitigations!
+</Callout>
+
+- [**New Nym Wallet `v1.2.20`**](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.20) 
+
+
+- [**NIP-11 - NTM updated: Telegram voice and video call works now!**](https://github.com/nymtech/nym/pull/6807) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>    
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps> 
+    </MyTab>
+  </Tabs>
+</div>
+
+- [**New docs**](https://github.com/nymtech/nym/pull/6716): Max's leg work on [exit services documentation](/network/infrastructure/exit-services), [`Mixfetch`](/developers/mix-fetch) and [`smolmix`](/developers/smolmix)
+
+#### Migrate away from The Hosting
+
+**WorkTitans B.V. ([AS209847](https://ipinfo.io/AS209847))**, also known as _the.hosting_, _PQ-Hosting_ and _Stark Industries_, has been [seized by Dutch authorities](https://securityaffairs.com/192602/intelligence/dutch-authorities-dismantle-hosting-network-allegedly-used-for-cyberattacks-and-disinformation.html). Infrastructure in the United States, Germany, the Netherlands and Austria was permanently lost — **nodes hosted there are gone and cannot be restored.**
+
+This provider had been the most popular choice among Nym node operators for years, combining solid services, broad location coverage, good port speeds, unlimited bandwidth and crypto payments. Despite this, it repeatedly proved unreliable and put operations at risk in terms of reliability, security and privacy.
+
+##### Action Steps
+
+- **All operators must move away from [the.hosting](https://the.hosting/en/) (WorkTitans B.V., [AS209847](https://ipinfo.io/AS209847)) as soon as possible**
+- **If your nodes are under SGP, this is a requirement — please act within one month**
+- **If this affects your locations or grant size, contact us before purchasing new servers**
+- When researching alternatives, check [_The ISP List_](/operators/community-counsel/isp-list) and please submit a PR if you find anything outdated
+- We are in talks with several providers to establish mission-aligned partnerships and negotiate discounts on dedicated servers, will keep you updated
+
+This situation is a reminder of why we have [Operator Terms and Conditions with zero logging tolerance](/operators/nodes/nym-node/setup#terms--conditions) and do active steps to reinforce the security model described in our [latest Operators Town Hall](https://www.youtube.com/watch?v=j8WWBY8ewXE).
+
+#### Operators UX Improvements
+
+- [**NTM: Split IPv4 / IPv6 uplinks**](https://github.com/nymtech/nym/pull/6640): Now NTM can work with different uplink interfaces for IPv4 and IPv6
+
+- [**Nym Node CLI: Split IPv4 / IPv6 uplinks**](https://github.com/nymtech/nym/pull/6743): `nym-node-cli.py` uplinks sync up with NTM
+
+- [**NTM & Nym Node CLI: Alternative SSH port**](https://github.com/nymtech/nym/pull/6633): Operators can use these tools with `HOST_SSH_PORT` allowing them to define any alternative port instead of only using hard-coded 22
+
+- [**Token Rewards SpectreDAO Explorer page**](https://explorer.nym.spectredao.net/rewards): The most favorite Nym explorer of the year is shipping another feature, showing rewards and much more in a nice GUI
+
+### Features
+
+- [Re-order default API urls for network details - Waterloo release](https://github.com/nymtech/nym/pull/6799): 
+
+- [Add workflows for NM3](https://github.com/nymtech/nym/pull/6729): Added automated GitHub Actions workflows to streamline deployment of network monitor components to the container registry with optional release versioning
+
+- [Credential proxy pool](https://github.com/nymtech/nym/pull/6726)
+
+- [NMv3 updated performance calculation](https://github.com/nymtech/nym/pull/6714): Wire stress-testing scores submitted by the network-monitor orchestrator into nym-api's node performance calculation, behind a config gate and an availability guard so an orchestrator outage cannot silently slash every node's score.
+ 
+- [NMv3: submission of stress testing result into nym-api](https://github.com/nymtech/nym/pull/6709): Allow the network monitor orchestrator to submit stress-testing results to the nym-api over a signed, authenticated channel.
+
+- [NMv3: Prometheus metrics for network monitor](https://github.com/nymtech/nym/pull/6693): Wires up a `/v1/metrics/prometheus` scrape endpoint for the v3 orchestrator, along with the metric variants it exposes and the call-site instrumentation that feeds them. The handle follows the existing nym-node wrapper pattern: a singleton `PROMETHEUS_METRICS` backed by `nym_metrics`, with every variant pre-registered at startup so scrapes never see a missing series.
+
+- [NMv3: add read-only results API to orchestrator](https://github.com/nymtech/nym/pull/6689): Read in detail summary [here](https://github.com/nymtech/nym/pull/6689)
+
+- [NMv3: Eviction of stale testrun data](https://github.com/nymtech/nym/pull/6685): Read in detail summary [here](https://github.com/nymtech/nym/pull/6685)
+
+- [Nym Wallet: deps updates, clipboard/updater/, icon, polishing...](https://github.com/nymtech/nym/pull/6681): Rolls together desktop wallet UX polish, and operational fixes we have been carrying in the branch. The goal is safer defaults, less noisy background behaviour.
+
+- [NMv3: Wire up testrun assignment and result submission flow](https://github.com/nymtech/nym/pull/6680): Read in detail summary [here](https://github.com/nymtech/nym/pull/6680)
+
+- [NMv3: Support multiple network monitor agents per host](https://github.com/nymtech/nym/pull/6679): Read in detail summary [here](https://github.com/nymtech/nym/pull/6679)
+
+- [NMv3 agent announcement](https://github.com/nymtech/nym/pull/6673): Read in detail summary [here](https://github.com/nymtech/nym/pull/6673)
+
+- [Add node refresher for periodic scraping of bonded nym-node details](https://github.com/nymtech/nym/pull/6626)
+
+- [NMv3 orchestrator queue](https://github.com/nymtech/nym/pull/6597): This PR bootstraps the orchestrator side of the v3 network monitor. It introduces the persistent storage layer, configuration, CLI wiring, and the initial NetworkMonitorOrchestrator struct - everything needed before the actual scheduling and HTTP server logic lands in follow-up PRs.
+
+- [Network monitor agent - standalone node stress-testing](https://github.com/nymtech/nym/pull/6582): Introduces the nym-network-monitor-agent binary. The agent can connect to a single mixnode and run a controlled stress test against it without requiring an orchestrator, making it useful for manual diagnostics as well as the foundation for the future automated pipeline.
+
+- [Propagate NM agent noise keys to `nym-node` routing](https://github.com/nymtech/nym/pull/6577): Network Monitor agents need to perform Noise protocol handshakes with `nym-node`s, just like any other `nym-node` on the network. Previously the contract stored only the agent's IP address, and the noise key map in `nym-node` only tracked keys for `nym-api`-sourced nodes. This PR closes the gap end-to-end: from on-chain registration through to live packet routing.
+
+- [Start mix stress testing topic branch](https://github.com/nymtech/nym/pull/6575)
+
+- [NMv3 agents subscription](https://github.com/nymtech/nym/pull/6567): This PR introduces real-time blockchain monitoring for network monitor agent authorizations and implements replay protection bypass for authorized network monitor (NM) agents. This allows NM agents to perform node stress testing, while maintaining security for regular traffic.
+
+- [NMv3 agents contract](https://github.com/nymtech/nym/pull/6555): This PR introduces the smart contract storing information about ip addresses of the authorised NM agents.
+
+### Bugfix
+
+- [IPR v8\<\-\>v9 mismatch on Waterloo](https://github.com/nymtech/nym/pull/6772)
+
+### Refactors & Maintenance
+
+- [Migrate to hickory `0.26.1`](https://github.com/nymtech/nym/pull/6751): Migrate to hickory `0.26.1`. Fixes recent CVEs reported over GitHub
+
+- [Made sphinx version threshold assertion a compile time check](https://github.com/nymtech/nym/pull/6718)
+
 
 ## `v2026.9-venaco`
 

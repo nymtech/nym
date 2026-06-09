@@ -11,10 +11,16 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
-use std::{io, path::Path};
+use std::{io, path::Path, time::Duration};
 use time::OffsetDateTime;
 use tracing::{error, info, trace};
 use url::Url;
+
+/// Maximum rename retry attempts when the database file is temporarily locked.
+const ARCHIVE_MAX_RETRY_ATTEMPTS: u8 = 15;
+
+/// Delay between archive rename retry attempts.
+const ARCHIVE_RETRY_DELAY: Duration = Duration::from_millis(200);
 
 async fn setup_fresh_backend<P: AsRef<Path>>(
     db_path: P,
@@ -74,13 +80,58 @@ async fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()
         };
     let renamed = db_path.with_extension(new_extension);
 
-    tokio::fs::rename(db_path, &renamed).await.inspect_err(|_| {
-        error!(
-            "Failed to rename corrupt database file: {} to {}",
-            db_path.display(),
-            renamed.display()
-        );
-    })
+    // On Windows, sqlx may release its OS file handles asynchronously after
+    // pool.close() returns, briefly keeping the file locked
+    // (ERROR_SHARING_VIOLATION, os error 32).  Retry with a short delay to
+    // give the OS time to flush the remaining handles.
+    for attempt in 0..ARCHIVE_MAX_RETRY_ATTEMPTS {
+        match tokio::fs::rename(db_path, &renamed).await {
+            Ok(()) => return Ok(()),
+            Err(e) if is_file_locked_error(&e) && (attempt + 1) < ARCHIVE_MAX_RETRY_ATTEMPTS => {
+                trace!(
+                    "Database file is temporarily locked, retrying archive \
+                     (attempt {}/{}): {e}",
+                    attempt + 1,
+                    ARCHIVE_MAX_RETRY_ATTEMPTS
+                );
+                tokio::time::sleep(ARCHIVE_RETRY_DELAY).await;
+            }
+            Err(e) => {
+                error!(
+                    "Failed to rename corrupt database file: {} to {}",
+                    db_path.display(),
+                    renamed.display()
+                );
+                return Err(e);
+            }
+        }
+    }
+
+    // Reached only when every attempt was blocked by a file lock.
+    error!(
+        "Failed to rename corrupt database file after {} attempts: {} to {}",
+        ARCHIVE_MAX_RETRY_ATTEMPTS,
+        db_path.display(),
+        renamed.display()
+    );
+    Err(io::Error::other(
+        "corrupt database archive blocked by persistent file lock",
+    ))
+}
+
+/// Returns `true` when the IO error indicates a temporary file lock held by another handle
+/// within the same process.  Only meaningful on Windows; always `false` elsewhere.
+fn is_file_locked_error(e: &io::Error) -> bool {
+    #[cfg(windows)]
+    {
+        // ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
+        matches!(e.raw_os_error(), Some(32) | Some(33))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = e;
+        false
+    }
 }
 
 pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(

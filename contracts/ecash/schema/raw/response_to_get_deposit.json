@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DepositResponse",
+  "description": "Response shape for `GetDeposit { deposit_id }`. `deposit` is `None` when the id has not yet been assigned (`id >= total_deposits_made`).",
   "type": "object",
   "required": [
     "id"
@@ -25,6 +26,7 @@
   "additionalProperties": false,
   "definitions": {
     "Deposit": {
+      "description": "Opaque on-chain record of a deposit: the depositor-claimed bs58-encoded ed25519 identity public key. The contract does not verify control of the corresponding private key.",
       "type": "object",
       "required": [
         "bs58_encoded_ed25519_pubkey"

@@ -28,7 +28,7 @@ SURB validity is tied to key rotation. Node keys rotate on an odd/even schedule 
 
 ## SURB replenishment
 
-If Bob's reply is larger than the available SURBs can carry, he uses one SURB to request more. Alice receives the request, generates additional SURBs, and sends them to Bob. This adds round-trip latency but ensures conversations can continue regardless of reply size.
+If Bob's reply is larger than the available SURBs can carry, he uses one SURB to request more. Alice receives the request, generates additional SURBs, and sends them to Bob. This adds round-trip latency but lets conversations continue regardless of reply size.
 
 ```mermaid
 ---
@@ -53,7 +53,7 @@ sequenceDiagram
 
 ## Sender tags
 
-For sessions with multiple messages, Alice includes a randomly generated sender tag with her SURBs. This helps Bob organize SURBs from multiple conversations without revealing anything about Alice's identity; the tag is random and unlinkable to her address.
+For sessions with multiple messages, Alice includes a randomly generated sender tag with her SURBs. This helps Bob organise SURBs from multiple conversations without revealing anything about Alice's identity; the tag is random and unlinkable to her address.
 
 ## Security considerations
 

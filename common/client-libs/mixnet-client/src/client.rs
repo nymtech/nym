@@ -218,6 +218,11 @@ impl ManagedConnection {
             "Managed to establish connection to {}", self.address
         );
 
+        // disable Nagle: mix packets are latency-sensitive and flushed one at a time.
+        if let Err(err) = stream.set_nodelay(true) {
+            warn!(peer = %address, error = %err, "failed to set TCP_NODELAY on outbound mixnet connection");
+        }
+
         // 3. perform noise handshake (if applicable)
         let noise_start = tokio::time::Instant::now();
         let noise_stream = match upgrade_noise_initiator(stream, &self.noise_config).await {
@@ -246,24 +251,41 @@ impl ManagedConnection {
             noise_handshake_ms,
             "Noise initiator handshake completed for {:?}", address
         );
-        let conn = Framed::new(noise_stream, NymCodec);
+        let mut conn = Framed::new(noise_stream, NymCodec);
+        // let the write buffer accumulate several packets before flushing (see run_io_loop)
+        conn.set_backpressure_boundary(OUTBOUND_WRITE_BUFFER);
 
         // 4. start handling the framed stream
         run_io_loop(conn, self.message_receiver, address).await;
     }
 }
 
+/// Upper bound on how many already-queued packets we drain into a single flush.
+/// Bounds the per-batch allocation and how often we re-check the read side; the actual
+/// write coalescing is governed by the Framed backpressure boundary below.
+const OUTBOUND_FLUSH_BATCH: usize = 1024;
+
+/// Write-buffer high-water mark for the egress `Framed`: packets are coalesced up to
+/// roughly this many bytes before a flush, trading a larger write burst for far fewer
+/// syscalls (and noise frames) under load. Kept under the ~64KiB noise frame ceiling so
+/// a flush is usually a single frame.
+const OUTBOUND_WRITE_BUFFER: usize = 32 * 1024;
+
 // The connection is unidirectional (send-only); we read from it solely to
 // notice peer FIN/RST while idle so we can evict the cache entry before the
 // next outbound send finds it stale.
 async fn run_io_loop<T>(
     conn: Framed<T, NymCodec>,
-    mut receiver: ReceiverStream<FramedNymPacket>,
+    receiver: ReceiverStream<FramedNymPacket>,
     address: SocketAddr,
 ) where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     let (mut sink, mut stream) = conn.split();
+
+    // drain all currently-queued packets into one flush rather than flushing per packet,
+    // which otherwise caps egress throughput and backs up the per-connection queue under load
+    let mut receiver = receiver.ready_chunks(OUTBOUND_FLUSH_BATCH);
 
     loop {
         tokio::select! {
@@ -305,14 +327,22 @@ async fn run_io_loop<T>(
                         );
                         break;
                     }
-                    Some(packet) => {
-                        if let Err(err) = sink.send(packet).await {
+                    Some(batch) => {
+                        // feed the whole ready batch, then flush once
+                        let res = async {
+                            for packet in batch {
+                                sink.feed(packet).await?;
+                            }
+                            sink.flush().await
+                        }
+                        .await;
+                        if let Err(err) = res {
                             debug!(
                                 event = "connection.forward_error",
                                 peer = %address,
                                 error = %err,
                                 exit_reason = "forward_error",
-                                "Failed to forward packet to {address}: {err}"
+                                "failed to forward packet batch to {address}: {err}"
                             );
                             break;
                         }

@@ -3,7 +3,6 @@
 
 pub mod codec;
 pub mod error;
-pub mod packet;
 pub mod peer;
 pub mod peer_config;
 pub mod psq;
@@ -43,9 +42,13 @@ pub struct SessionsMock {
 
 #[cfg(any(feature = "mock", test))]
 impl SessionsMock {
+    // Unwrap in test is fine
+    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::panic)]
+
     pub fn mock_seeded_post_handshake(seed: u64, kem: KEM) -> SessionsMock {
         use crate::peer::mock_peers;
-        use crate::peer_config::LpReceiverIndex;
+        use nym_lp_data::packet::header::LpReceiverIndex;
         use rand09::Rng;
 
         let (init, resp) = mock_peers();

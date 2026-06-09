@@ -16,7 +16,7 @@ use crate::{
     node_status_api::cache::NodeStatusCacheError, support::caching::CacheNotification,
 };
 use ::time::OffsetDateTime;
-use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2};
+use nym_api_requests::models::{DetailedNodePerformanceV2, NodeAnnotationV2, NymNodeDescriptionV2};
 use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
@@ -218,15 +218,23 @@ impl NodeStatusCacheRefresher {
 
         let use_stress_testing_scores = self.config.use_stress_testing_data;
         let threshold = self.config.minimum_available_stress_testing_results;
-        let available_ratio =
-            stress_testing_scores.available_count() as f32 / nym_nodes.len() as f32;
 
-        // Guard against an orchestrator outage silently slashing every node's performance:
-        // if too few nodes have a reachable stress-test sample for the configured window we
+        // Only mixnodes are currently stress-tested: the orchestrator selects test targets by
+        // self-described mixnode capability (see `NodeType::from_roles`), so the availability ratio
+        // must be taken over stress-test-eligible nodes only. Counting gateways in the denominator
+        // would let the network's mixnode:gateway composition - rather than orchestrator health -
+        // decide whether the data is used at all.
+        let eligible_count = nym_nodes
+            .iter()
+            .filter(|n| stress_test_eligible(described_nodes.get_node(&n.node_id())))
+            .count();
+        let available_ratio =
+            stress_availability_ratio(stress_testing_scores.available_count(), eligible_count);
+
+        // Guard against an orchestrator outage silently slashing every eligible node's performance:
+        // if too few mixnodes have a reachable stress-test sample for the configured window we
         // assume the orchestrator (rather than the network) is at fault and fall back to the
-        // routing × config score alone. The threshold is a network-wide ratio, not per-node —
-        // once it is met, individual nodes without data still score 0 in the weighted formula
-        // by design, on the assumption that the orchestrator tried to test them and failed.
+        // routing × config score alone.
         let include_stress_testing = use_stress_testing_scores && available_ratio >= threshold;
 
         if use_stress_testing_scores && !include_stress_testing {
@@ -236,30 +244,28 @@ impl NodeStatusCacheRefresher {
             );
         }
 
-        // stress testing
-        let sw = self.config.stress_testing_score_weight;
-
-        // not stress testing
-        let nsw = 1.0 - sw;
-
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
+            let described = described_nodes.get_node(&node_id);
             let routing_score = routing_scores.get_or_log(node_id);
-            let config_score =
-                calculate_config_score(config_score_data, described_nodes.get_node(&node_id));
+            let config_score = calculate_config_score(config_score_data, described);
             let stress_testing_score = stress_testing_scores.get_or_log(node_id);
 
-            let performance = if include_stress_testing {
-                // use weighted arithmetic mean (we don't want a single 0 to cause the whole thing to be 0)
-                sw * stress_testing_score.score + nsw * routing_score.score * config_score.score
-            } else {
-                routing_score.score * config_score.score
-            };
+            // a node only takes the stress-testing component if it is actually stress-tested (i.e.
+            // it is a mixnode); gateways have no stress data and must not be penalised for it.
+            let apply_stress = include_stress_testing && stress_test_eligible(described);
+            let performance = node_performance(
+                apply_stress,
+                self.config.stress_testing_score_weight,
+                stress_testing_score.score,
+                routing_score.score,
+                config_score.score,
+            );
 
             annotations.insert(
-                nym_node.node_id(),
+                node_id,
                 NodeAnnotationV2 {
-                    current_role: rewarded_set.role(nym_node.node_id()).map(|r| r.into()),
+                    current_role: rewarded_set.role(node_id).map(|r| r.into()),
                     detailed_performance: DetailedNodePerformanceV2::new(
                         performance,
                         routing_score,
@@ -331,5 +337,106 @@ impl NodeStatusCacheRefresher {
         let _ = new_cached.try_serialise_to_file(&self.on_disk_file);
 
         Ok(())
+    }
+}
+
+/// Whether `node` is currently in scope for stress testing, and therefore expected to have a
+/// stress-test sample. This is the single source of truth for stress-test scope and must stay in
+/// sync with the orchestrator's test-target selection (`NodeType::from_roles`, which keys off the
+/// self-described role capabilities).
+///
+/// A node that is *not* in scope has no stress data by design - not because it failed a test - so
+/// it must never have the stress component folded into its performance score (otherwise gateways
+/// would be silently penalised for a test they were never subjected to). Conversely, an in-scope
+/// node with no sample legitimately scores 0 for stress, guarded network-wide by the availability
+/// threshold against orchestrator outages.
+///
+/// Today only mixnodes are stress-tested; when gateway stress testing lands, widen this predicate
+/// (e.g. to also accept `entry`/`exit` capable nodes) and nothing else in the scoring path needs
+/// to change.
+fn stress_test_eligible(described: Option<&NymNodeDescriptionV2>) -> bool {
+    described
+        .map(|n| n.description.declared_role.mixnode)
+        .unwrap_or(false)
+}
+
+/// Fraction of stress-test-eligible nodes for which the orchestrator produced a reachable sample.
+/// The denominator is the eligible count, not the total node count, so the network's role
+/// composition cannot drag the ratio below the orchestrator-health threshold. Returns 0 when there
+/// are no eligible nodes (nothing to base a judgement on, so the data is treated as unavailable).
+fn stress_availability_ratio(available_count: usize, eligible_count: usize) -> f32 {
+    if eligible_count == 0 {
+        0.0
+    } else {
+        available_count as f32 / eligible_count as f32
+    }
+}
+
+/// Overall node performance. When the stress-testing component applies, it is a weighted arithmetic
+/// mean of the stress score and routing × config (so a single 0 doesn't zero the whole thing);
+/// otherwise it is simply routing × config.
+fn node_performance(
+    apply_stress: bool,
+    stress_weight: f64,
+    stress_score: f64,
+    routing_score: f64,
+    config_score: f64,
+) -> f64 {
+    if apply_stress {
+        stress_weight * stress_score + (1.0 - stress_weight) * routing_score * config_score
+    } else {
+        routing_score * config_score
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_api_requests::models::mock_nym_node_description;
+
+    #[test]
+    fn ineligible_nodes_are_not_penalised_for_missing_stress_data() {
+        let sw = 0.2;
+        let stress = 0.0; // no stress sample -> unreachable() score
+        let routing = 0.9;
+        let config = 1.0;
+
+        // an out-of-scope node (e.g. a gateway) is scored on routing × config alone - no haircut
+        let out_of_scope = node_performance(false, sw, stress, routing, config);
+        assert_eq!(out_of_scope, routing * config);
+
+        // an in-scope node (a mixnode) with no/zero stress sample does take the weighted hit
+        let in_scope = node_performance(true, sw, stress, routing, config);
+        assert_eq!(in_scope, sw * stress + (1.0 - sw) * routing * config);
+        assert!(
+            in_scope < out_of_scope,
+            "in-scope node with a 0 stress score should score strictly lower than an out-of-scope one"
+        );
+    }
+
+    #[test]
+    fn availability_ratio_uses_eligible_denominator() {
+        // every eligible node reachable -> full ratio, no matter how many ineligible nodes
+        // (gateways) also exist in the network.
+        assert_eq!(stress_availability_ratio(5, 5), 1.0);
+        // half the eligible nodes reachable
+        assert_eq!(stress_availability_ratio(3, 6), 0.5);
+        // no eligible nodes -> 0, never a division by zero / NaN
+        assert_eq!(stress_availability_ratio(0, 0), 0.0);
+    }
+
+    #[test]
+    fn only_in_scope_node_types_are_stress_test_eligible() {
+        let mut mixnode = mock_nym_node_description(1);
+        mixnode.description.declared_role.mixnode = true;
+        assert!(stress_test_eligible(Some(&mixnode)));
+
+        // a gateway-only node (not a mixnode) is currently out of scope
+        let mut gateway = mock_nym_node_description(2);
+        gateway.description.declared_role.mixnode = false;
+        assert!(!stress_test_eligible(Some(&gateway)));
+
+        // a node with no self-described data is out of scope (the orchestrator can't classify it)
+        assert!(!stress_test_eligible(None));
     }
 }

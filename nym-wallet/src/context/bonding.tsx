@@ -87,7 +87,7 @@ export const BondingContext = createContext<TBondingContext>({
   isVestingAccount: false,
 });
 
-export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Element => {
+export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
 

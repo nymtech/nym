@@ -1,5 +1,4 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-2.0-only
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
 //! Async device adapter for tokio-smoltcp.
 //!
@@ -44,8 +43,8 @@ impl NymAsyncDevice {
     }
 }
 
-// tokio-smoltcp calls poll_next() in its reactor loop to feed packets into the
-// smoltcp Interface for processing.
+// tokio-smoltcp's reactor polls poll_next() to pull packets into the smoltcp
+// Interface for processing.
 impl Stream for NymAsyncDevice {
     type Item = io::Result<Vec<u8>>;
 
@@ -54,11 +53,13 @@ impl Stream for NymAsyncDevice {
     }
 }
 
-// When smoltcp produces a packet (e.g. TCP SYN, data segment, UDP datagram),
-// tokio-smoltcp sends it here and we forward it to the bridge for mixnet delivery.
+// When smoltcp produces a packet (TCP SYN, data segment, UDP datagram, etc.),
+// tokio-smoltcp hands it to this Sink, which forwards it on to the bridge for
+// mixnet delivery.
 //
-// Delegates to the built-in Sink impl on futures::channel::mpsc::UnboundedSender,
-// which handles channel liveness checks (poll_ready) and disconnect (poll_close).
+// Delegates to the built-in Sink impl on futures::channel::mpsc::UnboundedSender;
+// that impl already handles channel liveness checks (poll_ready) and disconnect
+// (poll_close).
 impl Sink<Vec<u8>> for NymAsyncDevice {
     type Error = io::Error;
 

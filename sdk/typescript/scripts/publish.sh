@@ -14,19 +14,14 @@ cd dist
 #chat-app/parcel
 #chat-app/plain-html
 #chat-app/react-webpack-with-theme-example
-#chrome-extension
-#firefox-extension
-#node-tester/parcel
-#node-tester/plain-html
-#node-tester/react
+
 #react/mui-theme
 #react/sdk-react
 #)
 packages=(
 # "wasm/client"
 "wasm/mix-fetch"
-# "wasm/node-tester"
-# "wasm/extension-storage"
+
 
 # "node/wasm/client"
 #"node/wasm/mix-fetch"
@@ -38,11 +33,6 @@ packages=(
 
 # "ts/sdk/nodejs-client/cjs"
 "ts/sdk/mix-fetch-node/cjs"
-
-# "ts/sdk/node-tester/cjs"
-# "ts/sdk/node-tester/cjs-full-fat"
-# "ts/sdk/node-tester/esm"
-# "ts/sdk/node-tester/esm-full-fat"
 
 # "ts/sdk/sdk/cjs"
 # "ts/sdk/sdk/cjs-full-fat"

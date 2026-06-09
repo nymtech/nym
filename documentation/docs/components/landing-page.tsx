@@ -11,8 +11,6 @@ const asciiStyle: React.CSSProperties = {
   margin: 0,
 };
 
-// ── Animation components ──
-
 const randomRow = () => Math.floor(Math.random() * 3);
 const randomPath = () => [randomRow(), randomRow(), randomRow()];
 
@@ -243,8 +241,6 @@ const ApiAnimation = () => {
   );
 };
 
-// ── Section data ──
-
 const sections = [
   {
     title: "Network",
@@ -291,16 +287,28 @@ const AnimationBlock = ({ type }: { type: string }) => {
 
 const sdks = [
   {
-    name: "Rust",
+    name: "Rust SDK",
     description:
-      "Native SDK with async Mixnet client, streams, and TcpProxy modules.",
+      "Async Mixnet client with AsyncRead/AsyncWrite streams over the Mixnet.",
     href: "/developers/rust",
   },
   {
-    name: "TypeScript",
+    name: "smolmix",
     description:
-      "Browser-based SDK with fetch API replacement and message-based WebSocket transport.",
+      "TCP/UDP tunnel over the Mixnet. Userspace smoltcp stack exposing AsyncRead/AsyncWrite TcpStream and UdpSocket types.",
+    href: "/developers/smolmix",
+  },
+  {
+    name: "TypeScript SDK",
+    description:
+      "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",
     href: "/developers/typescript",
+  },
+  {
+    name: "mix-fetch",
+    description:
+      "fetch()-compatible API that routes HTTP(S) requests through the Mixnet. Browsers and Node.js.",
+    href: "/developers/mix-fetch",
   },
 ];
 
@@ -309,7 +317,6 @@ export const LandingPage = () => {
     <div
       style={{ maxWidth: "64rem", margin: "0 auto", padding: "3rem 1.5rem" }}
     >
-      {/* ── Section cards ── */}
       <div
         className="landing-grid"
         style={{
@@ -385,7 +392,6 @@ export const LandingPage = () => {
         ))}
       </div>
 
-      {/* ── SDKs ── */}
       <div
         className="landing-sdk-grid"
         style={{
@@ -407,7 +413,7 @@ export const LandingPage = () => {
               padding: 0,
             }}
           >
-            SDKs
+            Libraries
           </h2>
           <p
             style={{
@@ -416,8 +422,7 @@ export const LandingPage = () => {
               lineHeight: 1.6,
             }}
           >
-            Integrate Mixnet privacy into your application with our Rust and
-            TypeScript SDKs.
+            Rust and TypeScript libraries for Mixnet integration.
           </p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
@@ -466,7 +471,6 @@ export const LandingPage = () => {
         </div>
       </div>
 
-      {/* ── Links ── */}
       <div
         style={{
           borderTop: "1px solid var(--border)",

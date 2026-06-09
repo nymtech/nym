@@ -52,6 +52,11 @@ const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
 const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
+const DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
+
+/// Maximum number of `block_timestamp` lookups in flight in parallel during a
+/// single refresh tick.
+const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
 const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
@@ -128,6 +133,9 @@ pub struct Config {
     #[serde(default)]
     pub mixnet_contract_cache: MixnetContractCache,
 
+    #[serde(default)]
+    pub node_families_cache: NodeFamiliesCache,
+
     pub node_status_api: NodeStatusAPI,
 
     #[serde(alias = "topology_cacher")]
@@ -166,6 +174,7 @@ impl Config {
             performance_provider: Default::default(),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
             mixnet_contract_cache: Default::default(),
+            node_families_cache: Default::default(),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             describe_cache: Default::default(),
             contracts_info_cache: Default::default(),
@@ -423,6 +432,40 @@ impl Default for MixnetContractCacheDebug {
     fn default() -> Self {
         MixnetContractCacheDebug {
             caching_interval: DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct NodeFamiliesCache {
+    #[serde(default)]
+    pub debug: NodeFamiliesCacheDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for NodeFamiliesCache {
+    fn default() -> Self {
+        NodeFamiliesCache {
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct NodeFamiliesCacheDebug {
+    #[serde(with = "humantime_serde")]
+    pub caching_interval: Duration,
+
+    pub node_families_block_timestamp_fetch_concurrency: usize,
+}
+
+impl Default for NodeFamiliesCacheDebug {
+    fn default() -> Self {
+        NodeFamiliesCacheDebug {
+            caching_interval: DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL,
+            node_families_block_timestamp_fetch_concurrency:
+                DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY,
         }
     }
 }

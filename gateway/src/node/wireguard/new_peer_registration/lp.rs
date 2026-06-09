@@ -7,7 +7,7 @@ use crate::node::wireguard::new_peer_registration::pending::{
 use crate::node::wireguard::{GatewayWireguardError, PeerRegistrator};
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::key::Key;
-use nym_lp::peer_config::LpReceiverIndex;
+use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_registration_common::{LpRegistrationResponse, WireguardRegistrationData};
 use nym_wireguard::ip_pool::{allocated_ip_pair, IpPair};
 use nym_wireguard_types::PeerPublicKey;
@@ -15,25 +15,14 @@ use std::time::Instant;
 
 impl PeerRegistrator {
     /// In the case of an already registered WG peer, update its PSK.
+    ///
+    /// The peer controller keeps the active config and the on-disk PSK in sync.
     pub(super) async fn update_peer_psk(
         &self,
         peer: PeerPublicKey,
         psk: Key,
     ) -> Result<(), GatewayWireguardError> {
-        // 1. check if the peer is currently being handled
-        if self.peer_manager.check_active_peer(peer).await? {
-            // 2. if so, force disconnect it (as we're handling new request from the same peer)
-            self.peer_manager.remove_peer(peer).await?;
-        }
-
-        // 3. update the on-disk PSK
-        let encoded_psk = psk.to_lower_hex();
-        self.ecash_verifier
-            .storage()
-            .update_peer_psk(&peer.to_string(), Some(&encoded_psk))
-            .await?;
-
-        Ok(())
+        self.peer_manager.update_peer_psk(peer, psk).await
     }
 
     fn lp_peer_to_final_response(

@@ -79,9 +79,14 @@ pub fn wrap_icmp_in_ipv4(
     let mut ipv4_packet =
         MutableIpv4Packet::owned(ipv4_buffer).ok_or(Error::Ipv4PacketCreationFailure)?;
 
+    let total_length_u16 =
+        u16::try_from(total_length).map_err(|_| Error::PacketLengthOverflow {
+            length: total_length,
+        })?;
+
     ipv4_packet.set_version(4);
     ipv4_packet.set_header_length(5);
-    ipv4_packet.set_total_length(total_length as u16);
+    ipv4_packet.set_total_length(total_length_u16);
     ipv4_packet.set_ttl(64);
     ipv4_packet.set_next_level_protocol(pnet_packet::ip::IpNextHeaderProtocols::Icmp);
     ipv4_packet.set_source(source);
@@ -101,12 +106,18 @@ pub fn wrap_icmp_in_ipv6(
     source: Ipv6Addr,
     destination: Ipv6Addr,
 ) -> Result<Ipv6Packet> {
-    let ipv6_buffer = vec![0u8; 40 + icmp_echo_request.packet().len()];
+    let payload_length = icmp_echo_request.packet().len();
+    let payload_length_u16 =
+        u16::try_from(payload_length).map_err(|_| Error::PacketLengthOverflow {
+            length: payload_length,
+        })?;
+
+    let ipv6_buffer = vec![0u8; 40 + payload_length];
     let mut ipv6_packet =
         MutableIpv6Packet::owned(ipv6_buffer).ok_or(Error::Ipv4PacketCreationFailure)?;
 
     ipv6_packet.set_version(6);
-    ipv6_packet.set_payload_length(icmp_echo_request.packet().len() as u16);
+    ipv6_packet.set_payload_length(payload_length_u16);
     ipv6_packet.set_next_header(pnet_packet::ip::IpNextHeaderProtocols::Icmpv6);
     ipv6_packet.set_hop_limit(64);
     ipv6_packet.set_source(source);
@@ -163,4 +174,123 @@ pub(crate) fn is_icmp_v6_echo_reply(packet: &Bytes) -> Option<(u16, Ipv6Addr, Ip
         ));
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pnet_packet::icmp::IcmpTypes;
+    use pnet_packet::icmpv6::Icmpv6Types;
+    use pnet_packet::ip::IpNextHeaderProtocols;
+
+    const V4_SRC: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 1);
+    const V4_DST: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 2);
+    const V6_SRC: Ipv6Addr = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
+    const V6_DST: Ipv6Addr = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 2);
+
+    #[test]
+    fn icmpv4_echo_request_sets_fields_and_valid_checksum() {
+        let echo = create_icmpv4_echo_request(42, 7).unwrap();
+        assert_eq!(echo.get_sequence_number(), 42);
+        assert_eq!(echo.get_identifier(), 7);
+        assert_eq!(echo.get_icmp_type(), IcmpTypes::EchoRequest);
+
+        // pnet's `checksum` skips the checksum word, so recomputing on the produced
+        // packet must equal the stored value.
+        let icmp = IcmpPacket::new(echo.packet()).unwrap();
+        assert_eq!(echo.get_checksum(), pnet_packet::icmp::checksum(&icmp));
+    }
+
+    #[test]
+    fn icmpv6_echo_request_sets_fields_and_valid_checksum() {
+        let echo = create_icmpv6_echo_request(99, 12, &V6_SRC, &V6_DST).unwrap();
+        assert_eq!(echo.get_sequence_number(), 99);
+        assert_eq!(echo.get_identifier(), 12);
+        assert_eq!(echo.get_icmpv6_type(), Icmpv6Types::EchoRequest);
+
+        let icmpv6 = icmpv6::Icmpv6Packet::new(echo.packet()).unwrap();
+        assert_eq!(
+            echo.get_checksum(),
+            pnet_packet::icmpv6::checksum(&icmpv6, &V6_SRC, &V6_DST)
+        );
+    }
+
+    #[test]
+    fn wrap_icmp_in_ipv4_sets_headers_and_payload() {
+        let echo = create_icmpv4_echo_request(1, 2).unwrap();
+        let echo_bytes = echo.packet().to_vec();
+        let packet = wrap_icmp_in_ipv4(echo, V4_SRC, V4_DST).unwrap();
+
+        assert_eq!(packet.get_version(), 4);
+        assert_eq!(packet.get_header_length(), 5);
+        assert_eq!(packet.get_total_length() as usize, 20 + echo_bytes.len());
+        assert_eq!(packet.get_ttl(), 64);
+        assert_eq!(
+            packet.get_next_level_protocol(),
+            IpNextHeaderProtocols::Icmp
+        );
+        assert_eq!(packet.get_source(), V4_SRC);
+        assert_eq!(packet.get_destination(), V4_DST);
+        assert_eq!(packet.payload(), echo_bytes.as_slice());
+    }
+
+    #[test]
+    fn wrap_icmp_in_ipv6_sets_headers_and_payload() {
+        let echo = create_icmpv6_echo_request(1, 2, &V6_SRC, &V6_DST).unwrap();
+        let echo_bytes = echo.packet().to_vec();
+        let packet = wrap_icmp_in_ipv6(echo, V6_SRC, V6_DST).unwrap();
+
+        assert_eq!(packet.get_version(), 6);
+        assert_eq!(packet.get_payload_length() as usize, echo_bytes.len());
+        assert_eq!(packet.get_next_header(), IpNextHeaderProtocols::Icmpv6);
+        assert_eq!(packet.get_hop_limit(), 64);
+        assert_eq!(packet.get_source(), V6_SRC);
+        assert_eq!(packet.get_destination(), V6_DST);
+        assert_eq!(packet.payload(), echo_bytes.as_slice());
+    }
+
+    #[test]
+    fn compute_ipv4_checksum_is_zero_on_correctly_checksummed_packet() {
+        let echo = create_icmpv4_echo_request(1, 2).unwrap();
+        let packet = wrap_icmp_in_ipv4(echo, V4_SRC, V4_DST).unwrap();
+        // RFC 1071: summing every 16-bit word of a header that already contains its
+        // own checksum yields all-ones; the one's complement is therefore zero.
+        assert_eq!(compute_ipv4_checksum(&packet), 0);
+    }
+
+    #[test]
+    fn is_icmp_echo_reply_extracts_identifier_and_addresses() {
+        // pnet's EchoReply/EchoRequest share the same byte layout (only the ICMP
+        // type field differs) and `is_icmp_echo_reply` does not check the type,
+        // so a wrapped echo *request* exercises the same parsing path.
+        let identifier = 1234;
+        let echo = create_icmpv4_echo_request(7, identifier).unwrap();
+        let packet = wrap_icmp_in_ipv4(echo, V4_SRC, V4_DST).unwrap();
+        let bytes = Bytes::copy_from_slice(packet.packet());
+
+        assert_eq!(
+            is_icmp_echo_reply(&bytes),
+            Some((identifier, V4_SRC, V4_DST))
+        );
+    }
+
+    #[test]
+    fn is_icmp_v6_echo_reply_extracts_identifier_and_addresses() {
+        let identifier = 5678;
+        let echo = create_icmpv6_echo_request(7, identifier, &V6_SRC, &V6_DST).unwrap();
+        let packet = wrap_icmp_in_ipv6(echo, V6_SRC, V6_DST).unwrap();
+        let bytes = Bytes::copy_from_slice(packet.packet());
+
+        assert_eq!(
+            is_icmp_v6_echo_reply(&bytes),
+            Some((identifier, V6_SRC, V6_DST))
+        );
+    }
+
+    #[test]
+    fn is_icmp_echo_reply_returns_none_for_undersized_bytes() {
+        let bytes = Bytes::from_static(&[0u8; 4]);
+        assert!(is_icmp_echo_reply(&bytes).is_none());
+        assert!(is_icmp_v6_echo_reply(&bytes).is_none());
+    }
 }

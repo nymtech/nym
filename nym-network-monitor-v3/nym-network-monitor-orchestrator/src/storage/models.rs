@@ -274,6 +274,14 @@ impl From<TestRun> for StressTestResult {
     }
 }
 
+impl From<&TestRun> for StressTestResult {
+    fn from(run: &TestRun) -> Self {
+        // the data is small enough that cloning is negligible
+        // (since we're going to be converting at most couple dozen a minute rather than a few billion...)
+        run.clone().into()
+    }
+}
+
 /// The data required to insert or update a row in `nym_node`. Does not carry `last_testrun`
 /// since that is managed separately via [`StorageManager::set_node_last_testrun`].
 #[derive(Debug, Clone, sqlx::FromRow)]

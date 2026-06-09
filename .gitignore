@@ -78,3 +78,8 @@ CLAUDE.md
 
 /notes
 /target-otel
+test-tutorials/
+
+# pnpm
+.pnpm-store/
+

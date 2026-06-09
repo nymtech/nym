@@ -24,7 +24,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub(crate) mod final_hop;
 
@@ -192,6 +192,12 @@ impl SharedData {
         match accepted {
             Ok((socket, remote_addr)) => {
                 debug!("accepted incoming mixnet connection from: {remote_addr}");
+                // disable Nagle: mix packets are latency-sensitive and flushed one at a time.
+                if let Err(err) = socket.set_nodelay(true) {
+                    warn!(
+                        "failed to set TCP_NODELAY on mixnet connection from {remote_addr}: {err}"
+                    );
+                }
                 let mut handler = ConnectionHandler::new(self, remote_addr);
                 let join_handle =
                     tokio::spawn(async move { handler.handle_connection(socket).await });

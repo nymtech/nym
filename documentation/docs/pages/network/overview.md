@@ -18,4 +18,4 @@ The Nym Network is a privacy infrastructure that protects metadata: not just mes
 
 ## Network Components
 
-All traffic-routing infrastructure runs on [Nym Nodes](/network/infrastructure/nym-nodes), a single binary that operators configure to serve as an Entry Gateway, Mix Node, or Exit Gateway depending on their setup. Network coordination, token bonding, and the distributed credential system all live on the [Nyx blockchain](/network/infrastructure/nyx), a Cosmos SDK chain whose on-chain topology registry eliminates the need for a centralised directory server.
+All traffic-routing infrastructure runs on [Nym Nodes](/network/infrastructure/nym-nodes), a single binary that operators configure to serve as an Entry Gateway, Mix Node, or Exit Gateway depending on their setup. Network coordination, token bonding, and the distributed credential system all live on the [Nyx blockchain](/network/infrastructure/nyx), a Cosmos SDK chain whose on-chain topology registry removes the need for a centralised directory server.

@@ -1,5 +1,5 @@
 ---
-title: "Demo: Railgun private payments over the Nym mixnet"
+title: "Demo: Shielding testnet ETH into Railgun over the Nym mixnet"
 description: "Shield testnet ETH into a Railgun private note with every Ethereum RPC call routed through the Nym mixnet. Shows the global ethers-to-mixFetch routing that covers a whole SDK."
 schemaType: "TechArticle"
 section: "Developers"
@@ -16,13 +16,15 @@ export const RailgunDemo = dynamic(
 import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
 import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
 
-# Railgun over the mixnet
+# Shielding testnet ETH into Railgun over the mixnet
 
 Two privacy layers stacked. **Nym** hides the network layer: every Ethereum RPC
 call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
 node and your ISP cannot link you to the query. **Railgun** hides the
 application layer: shielded notes break the on-chain link between sender,
-receiver, and amount. This demo shields testnet ETH on Sepolia.
+receiver, and amount. This demo covers just the **shield** step on Sepolia:
+depositing testnet ETH into a private note. It does not do private transfers or
+unshielding.
 
 ## What you can do here
 

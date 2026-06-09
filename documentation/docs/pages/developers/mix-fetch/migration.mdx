@@ -69,4 +69,4 @@ Consequences:
 
 - **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
 - **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
-- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR; pin one with `preferredIpr` if you need a specific exit policy.
+- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR, which applies the current [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).

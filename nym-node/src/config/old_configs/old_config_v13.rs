@@ -532,6 +532,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
                     .packet_forwarding_maximum_backoff,
                 initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
                 maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
+                egress_trace_sample_rate: MixnetDebug::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
                 use_legacy_packet_encoding: old_cfg.mixnet.debug.use_legacy_packet_encoding,
             },

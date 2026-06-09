@@ -7,6 +7,7 @@ use nym_mixnet_client::SendWithoutResponse;
 use nym_mixnet_client::forwarder::{
     MixForwardingReceiver, MixForwardingSender, PacketToForward, mix_forwarding_channels,
 };
+use nym_mixnet_client::trace::{TraceStage, Traced};
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -16,7 +17,7 @@ use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
 pub struct PacketForwarder<C, F> {
-    delay_queue: NonExhaustiveDelayQueue<MixPacket>,
+    delay_queue: NonExhaustiveDelayQueue<Traced<MixPacket>>,
     mixnet_client: C,
 
     metrics: NymNodeMetrics,
@@ -44,12 +45,12 @@ impl<C, F> PacketForwarder<C, F> {
         self.packet_sender.clone()
     }
 
-    fn forward_packet(&mut self, packet: MixPacket)
+    fn forward_packet(&mut self, packet: Traced<MixPacket>)
     where
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
-        let next_hop = packet.next_hop_address();
+        let next_hop = packet.inner.next_hop_address();
 
         if let Err(err) = self.mixnet_client.send_without_response(packet) {
             if err.kind() == io::ErrorKind::WouldBlock {
@@ -73,20 +74,29 @@ impl<C, F> PacketForwarder<C, F> {
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Expired<MixPacket>)
+    fn handle_done_delaying(&mut self, packet: Expired<Traced<MixPacket>>)
     where
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
-        let delayed_packet = packet.into_inner();
+        // how late beyond the target release the queue actually handed the packet back: the
+        // delay-queue's own scheduling/retrieval overhead (timer granularity + task wakeup)
+        let overrun = Instant::now().saturating_duration_since(packet.deadline());
+        let mut delayed_packet = packet.into_inner();
+        // close out the DelayQueue stage (the full wait: intended mix delay + overrun)
+        delayed_packet.record(TraceStage::DelayQueue);
+        delayed_packet.record_value(TraceStage::DelayQueueOverrun, overrun.as_secs_f64());
         self.forward_packet(delayed_packet);
     }
 
-    fn handle_new_packet(&mut self, new_packet: PacketToForward)
+    fn handle_new_packet(&mut self, mut new_packet: PacketToForward)
     where
         C: SendWithoutResponse,
         F: RoutingFilter,
     {
+        // close out the ForwarderQueue stage (wait in the ingress -> forwarder channel)
+        new_packet.trace.record(TraceStage::ForwarderQueue);
+
         let next_hop = new_packet.packet.next_hop();
 
         if !self
@@ -104,18 +114,25 @@ impl<C, F> PacketForwarder<C, F> {
             return;
         }
 
+        let delay_target = new_packet.forward_delay_target;
+        let traced = Traced::new(new_packet.packet, new_packet.trace);
+
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
-        if let Some(instant) = new_packet.forward_delay_target {
+        if let Some(instant) = delay_target {
             // check if the delay has already expired, if so, don't bother putting it through
             // the delay queue only to retrieve it immediately. Just forward it.
             if instant.checked_duration_since(Instant::now()).is_none() {
-                self.forward_packet(new_packet.packet)
+                // the target elapsed before we could even queue it: upstream overhead already
+                // ate the whole intended delay, so the overrun is now - target
+                let overrun = Instant::now().saturating_duration_since(instant);
+                traced.record_value(TraceStage::DelayQueueOverrun, overrun.as_secs_f64());
+                self.forward_packet(traced)
             } else {
-                self.delay_queue.insert_at(new_packet.packet, instant);
+                self.delay_queue.insert_at(traced, instant);
             }
         } else {
-            self.forward_packet(new_packet.packet)
+            self.forward_packet(traced)
         }
     }
 

@@ -42,7 +42,7 @@ export type TBondingContext = {
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   bond: (args: TBondNymNodeArgs) => Promise<TransactionExecuteResult | undefined>;
   updateBondAmount: (data: TUpdateBondArgs) => Promise<TransactionExecuteResult | undefined>;
-  updateNymNodeConfig: (data: NodeConfigUpdate) => Promise<TransactionExecuteResult | undefined>;
+  updateNymNodeConfig: (data: NodeConfigUpdate, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
@@ -161,22 +161,23 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
     return undefined;
   };
 
-  const updateNymNodeConfig = async (data: NodeConfigUpdate) => {
+  const updateNymNodeConfig = async (data: NodeConfigUpdate, fee?: FeeDetails) => {
     let tx;
     setIsLoading(true);
     try {
-      tx = await updateNymNodeConfigReq(data);
+      tx = await updateNymNodeConfigReq(data, fee?.fee);
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
       return tx;
     } catch (e) {
       Console.warn(e);
-      setError(`an error occurred: ${e}`);
+      const message = `an error occurred: ${e}`;
+      setError(message);
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
-    return undefined;
   };
 
   const redeemRewards = async (fee?: FeeDetails) => {

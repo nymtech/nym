@@ -39,6 +39,7 @@ export const Balance = () => {
             userBalanceError={userBalance.error}
             clientAddress={clientDetails?.client_address}
             network={network}
+            isLoading={userBalance.isLoading}
           />
           <OverviewQuickActions />
           {network === 'MAINNET' ? <NetworkOverviewSection /> : null}

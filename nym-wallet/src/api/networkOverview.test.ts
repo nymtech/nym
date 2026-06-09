@@ -1,4 +1,4 @@
-import { fetchNymPriceDeduped } from './networkOverview';
+import { fetchNymPriceDeduped, clearNymPriceCacheForTests } from './networkOverview';
 
 const sampleTokenomics = {
   quotes: {
@@ -13,6 +13,7 @@ const sampleTokenomics = {
 describe('fetchNymPriceDeduped', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    clearNymPriceCacheForTests();
   });
 
   it('coalesces concurrent requests for the same URL', async () => {
@@ -47,5 +48,23 @@ describe('fetchNymPriceDeduped', () => {
 
     await Promise.all([fetchNymPriceDeduped('https://a.test/p'), fetchNymPriceDeduped('https://b.test/p')]);
     expect(callCount).toBe(2);
+  });
+
+  it('returns cached result without a second fetch', async () => {
+    let callCount = 0;
+    global.fetch = jest.fn(() => {
+      callCount += 1;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(sampleTokenomics),
+      } as Response);
+    });
+
+    const url = 'https://api.example.test/v1/nym-price-cached';
+    await fetchNymPriceDeduped(url);
+    const second = await fetchNymPriceDeduped(url);
+
+    expect(second).toStrictEqual(sampleTokenomics);
+    expect(callCount).toBe(1);
   });
 });

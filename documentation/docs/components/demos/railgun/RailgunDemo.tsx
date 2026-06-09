@@ -292,6 +292,7 @@ export function RailgunDemo() {
           <Button onClick={verifyIp} disabled={!connected || busy}>Verify IP routing</Button>
           <span style={sub}>{balance}</span>
         </div>
+        <div style={sub}>Verify IP makes one direct (clearnet) call to ipinfo.io for the comparison, so you will see a single ipinfo.io row in the Network tab.</div>
       </div>
 
       <div style={box}>

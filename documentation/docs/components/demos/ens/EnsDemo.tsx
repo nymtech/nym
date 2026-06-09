@@ -195,7 +195,7 @@ export function EnsDemo() {
         <div style={legend}>ENS lookup</div>
         <div style={row}>
           <Button onClick={verifyIp} disabled={!connected || busy}>Verify IP routing</Button>
-          <span style={sub}>Confirm traffic exits through Nym before resolving.</span>
+          <span style={sub}>Confirms traffic exits through Nym. The comparison makes one direct (clearnet) call to ipinfo.io, so you will see a single ipinfo.io row in the Network tab.</span>
         </div>
 
         <div style={row}>

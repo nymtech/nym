@@ -13,6 +13,9 @@ export const RailgunDemo = dynamic(
   { ssr: false },
 )
 
+import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
+import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
+
 # Railgun over the mixnet
 
 Two privacy layers stacked. **Nym** hides the network layer: every Ethereum RPC
@@ -67,6 +70,8 @@ Railgun resolve to different ethers copies, the handler installs on one and the
 engine uses the other. Pin the exact ethers version Railgun peer-depends on (this
 demo aliases ethers to one instance in the bundler).
 
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
+
 Shielding is a four-step flow, all over the mixnet: sign a shield key, estimate
 gas, populate the transaction, then sign and broadcast. The broadcast that lands
 on Sepolia is observable on Etherscan, but the IP that submitted it stays hidden.
@@ -83,6 +88,8 @@ small amount. If the wallet is low, top it up at a
 **Sepolia testnet only.** The wallet holds only test ETH and the mnemonic is
 stored in plain browser storage. Never paste a mainnet mnemonic.
 
+<NetworkTabCallout />
+
 <RailgunDemo />
 
 ## What to expect
@@ -97,3 +104,7 @@ stored in plain browser storage. Never paste a mainnet mnemonic.
 - **Rate limiting.** If RPC calls start failing with 403/429 or connection
   errors, the exit IP is flagged: disconnect, tick **Use random IPR**, reload,
   and reconnect for a fresh exit.
+
+## Glossary
+
+<MixnetGlossary />

@@ -95,30 +95,44 @@ export function MixTunnelSetup({
     try {
       const m = mods ?? (await loadMixFetch());
       if (!mods) setMods(m);
-      await m.setupMixTunnel({
-        ...(useRandomIpr ? {} : { preferredIpr: iprAddress.trim() }),
-        clientId,
-        forceTls,
-        disablePoissonTraffic: disablePoisson,
-        disableCoverTraffic: disableCover,
-        openReplySurbs: clampSurbs(openSurbs, 1),
-        dataReplySurbs: clampSurbs(dataSurbs, 0),
-        primaryDns: optStr(primaryDns),
-        fallbackDns: optStr(fallbackDns),
-        dnsTimeoutMs: optInt(dnsTimeout),
-        connectTimeoutMs: optInt(connectTimeout),
-        maxRedirects: optInt(maxRedirects),
-        storagePassphrase: storagePassphrase || undefined,
-        debug,
-      });
+      // One WASM instance per browser tab, shared across demo pages by the
+      // bundler. If another page already brought the tunnel up, reuse it rather
+      // than calling setupMixTunnel again (which throws "already initialised").
+      const existing = await m.getTunnelState().catch(() => null);
+      if (existing && existing.state === 'ready') {
+        log('tunnel', 'Tunnel already up from another page; reusing it (its original options apply).', 'green');
+      } else {
+        await m.setupMixTunnel({
+          ...(useRandomIpr ? {} : { preferredIpr: iprAddress.trim() }),
+          clientId,
+          forceTls,
+          disablePoissonTraffic: disablePoisson,
+          disableCoverTraffic: disableCover,
+          openReplySurbs: clampSurbs(openSurbs, 1),
+          dataReplySurbs: clampSurbs(dataSurbs, 0),
+          primaryDns: optStr(primaryDns),
+          fallbackDns: optStr(fallbackDns),
+          dnsTimeoutMs: optInt(dnsTimeout),
+          connectTimeoutMs: optInt(connectTimeout),
+          maxRedirects: optInt(maxRedirects),
+          storagePassphrase: storagePassphrase || undefined,
+          debug,
+        });
+        log('tunnel', 'Tunnel ready', 'green');
+      }
       setConnected(true);
       setStatus({ text: 'Connected', colour: 'green' });
-      log('tunnel', 'Tunnel ready', 'green');
       onReady(m.mixFetch);
     } catch (e) {
-      setStatus({ text: 'Failed', colour: 'red' });
-      log('tunnel', `Connection failed: ${e}`, 'red');
-      log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or tick 'Use random IPR' and reload.", 'orange');
+      const msg = String((e as any)?.message ?? e);
+      if (/already initialised/i.test(msg)) {
+        log('tunnel', 'Tunnel already initialised in this tab; reload the page if it does not connect.', 'orange');
+        setStatus({ text: 'Failed (already initialised, reload)', colour: 'red' });
+      } else {
+        setStatus({ text: 'Failed', colour: 'red' });
+        log('tunnel', `Connection failed: ${msg}`, 'red');
+        log('tunnel', "Timeouts and IPR rate-limits are common. Try again, or tick 'Use random IPR' and reload.", 'orange');
+      }
     } finally {
       setBusy(false);
     }

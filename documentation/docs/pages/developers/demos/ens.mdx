@@ -13,6 +13,9 @@ export const EnsDemo = dynamic(
   { ssr: false },
 )
 
+import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
+import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
+
 # ENS over the mixnet
 
 A normal ENS lookup (name to address to IPFS website) built with
@@ -64,6 +67,8 @@ not, so the demo adds a `DecompressionStream` step after each response (Cloudfla
 gzips RPC replies). The full version with decompression and per-call logging is in
 [`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
 
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) and [`ethers`](https://www.npmjs.com/package/ethers).
+
 The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
 tunnel:
 
@@ -83,6 +88,8 @@ Connect to bring the tunnel up (a default IPR exit is pinned; tick **Use random
 IPR** for auto-discovery), click **Verify IP routing** to confirm traffic exits
 through Nym, then run the three steps.
 
+<NetworkTabCallout />
+
 <EnsDemo />
 
 ## What to expect
@@ -93,26 +100,15 @@ through Nym, then run the three steps.
   sequential round trips). smolmix keeps that connection warm and reuses it, so
   later requests to the same host are much quicker. A long pause is handshakes in
   flight, not a hang.
-- **You will not see the requests in DevTools.** The RPC and IPFS requests never
-  touch the browser's `fetch`. They leave the worker as encrypted packets over a
-  single WebSocket to the entry gateway, which is the one connection the Network
-  tab shows.
+- **You will not see the tunnelled requests in DevTools.** The RPC and IPFS
+  requests never touch the browser's `fetch`. They leave the worker as encrypted
+  packets over a single WebSocket to the entry gateway, which is the one
+  connection the Network tab shows. The exception is **Verify IP routing**, which
+  deliberately makes one direct clearnet call to ipinfo.io for comparison.
 - **Rate limiting.** Public IPFS gateways and Ethereum RPCs rate-limit shared IP
   addresses. If requests start failing with 403, 429, or connection errors, the
   exit IP is likely flagged: tick **Use random IPR** and reload for a fresh exit.
 
 ## Glossary
 
-- **Mixnet.** An overlay network that routes your traffic through several relays
-  and mixes it with other people's, hiding who is talking to whom. Nym operates one.
-- **Entry gateway.** Your first hop into the mixnet. Your browser holds one
-  WebSocket to it; all tunnelled traffic rides that connection as opaque frames.
-- **IPR (IP Packet Router), the exit.** The mixnet's exit point onto the normal
-  internet. The RPC node and IPFS gateway see the IPR's IP address, never yours.
-- **SURB (single-use reply block).** A prepaid, single-use return envelope. It
-  lets the exit send a reply back through the mixnet without learning your address.
-- **Cover traffic / Poisson timing.** Decoy packets and randomised send timing.
-  Together they keep your real traffic statistically hard to pick out.
-- **mixFetch.** The [`@nymproject/mix-fetch`](/developers/mix-fetch) package's
-  `fetch()`-shaped function. It runs the mixnet client (smolmix) in a Web Worker
-  and sends your request through the mixnet instead of the browser's network stack.
+<MixnetGlossary />

@@ -106,7 +106,8 @@ def main():
     print(f"  {D}{'─'*110}{NC}")
     print(f"  {W}Total balance: {G}{total_nym:,.6f} nym{NC}")
     print(f"  {W}Accounts: {G}{len(nodes) - errors} OK{NC}  {R}{errors} errors{NC}\n")
-
+    if errors:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

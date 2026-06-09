@@ -83,14 +83,20 @@ def main():
     print(f"  {W}Unbonding {len(nodes)} node(s){NC}{dry_label}")
     print(f"{W}{'═'*60}{NC}\n")
 
-    results = []
-    for i, row in enumerate(nodes, 1):
-        hostname = row["hostname"]
-        print(f"\n{W}[{i}/{len(nodes)}]{NC} {C}{hostname}{NC}")
+     results = []
+     for i, row in enumerate(nodes, 1):
+
+        hostname = (row.get("hostname") or f"<row {i}>").strip()
+        mnemonic = (row.get("mnemonic") or "").strip()
+         print(f"\n{W}[{i}/{len(nodes)}]{NC} {C}{hostname}{NC}")
+        if not mnemonic:
+            print(f"  {R}✗{NC} Missing mnemonic")
+            results.append((hostname, False))
+            continue
         try:
             run([
                 nym_cli, "mixnet", "operators", "nymnode", "unbond",
-                "--mnemonic", row["mnemonic"],
+                "--mnemonic", mnemonic,
                 "--nyxd-url", NYXD_URL,
             ], args.dry_run)
             print(f"  {G}✓{NC} Unbonded successfully")

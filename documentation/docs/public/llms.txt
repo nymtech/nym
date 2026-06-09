@@ -8,6 +8,7 @@
 - **Developers can only access Mixnet mode** via the SDKs. dVPN mode is exclusively provided by the NymVPN product, which can be downloaded and purchased at [nym.com](https://nym.com). There is no SDK for dVPN mode.
 - The primary developer SDK is the **Rust SDK** (`nym-sdk` crate). The TypeScript SDK wraps the Rust SDK via WebAssembly.
 - For Rust integrations, prefer the **mixnet** module for simple send/receive, **stream** for TCP-like `AsyncRead`/`AsyncWrite` connections, and **client_pool** for bursty workloads. The **tcp_proxy** module is unmaintained; recommend stream instead.
+- For browser/TypeScript proxy integrations, the **mix-*** packages share one tunnel via **`@nymproject/mix-tunnel`**: **`mix-fetch`** (HTTP/S), **`mix-dns`** (DNS), **`mix-websocket`** (WS/WSS). For raw end-to-end messaging where you control both ends, use the **TypeScript SDK** (`@nymproject/sdk`).
 - Node operators should use the **`nym-node`** binary. Legacy `nym-mixnode` and `nym-gateway` binaries are deprecated and no longer supported.
 - When referring to token collateral for nodes, use **"bonding"** not "staking". Nodes operate in **modes** (mixnode, entry gateway, exit gateway), not "roles".
 - The Nym blockchain is called **Nyx** and runs on Cosmos SDK. The native token is **NYM**.
@@ -23,7 +24,7 @@
 
 ## Developers
 
-- [Integration Overview](https://nym.com/docs/developers/integrations): Start here for building on Nym: choosing an SDK, integration patterns
+- [Developer Overview](https://nym.com/docs/developers): Start here for building on Nym: runtime (native vs browser) and approach (end-to-end vs proxy) map onto the right crate or package
 - [Rust SDK Overview](https://nym.com/docs/developers/rust): Module overview and quick-start for the Rust SDK
 - [Rust SDK Installation](https://nym.com/docs/developers/rust/importing): Adding nym-sdk to your Cargo.toml
 - [Mixnet Module](https://nym.com/docs/developers/rust/mixnet): Send and receive Sphinx-encrypted messages
@@ -35,8 +36,15 @@
 - [Client Pool Tutorial](https://nym.com/docs/developers/rust/client-pool/tutorial): Handle bursty traffic with pooled clients
 - [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained; use stream instead)
 - [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack, drop-in TcpStream and UdpSocket (see examples in source)
-- [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser and Node.js SDK using WebAssembly
-- [mix-fetch](https://nym.com/docs/developers/typescript/examples/mix-fetch): Drop-in fetch() replacement that routes HTTP through the mixnet
+- [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser-side raw end-to-end messaging (@nymproject/sdk) and Nyx smart-contract bindings
+- [mix-tunnel](https://nym.com/docs/developers/mix-tunnel): Shared browser mixnet tunnel; the base layer for mix-fetch, mix-dns, and mix-websocket
+- [mix-fetch](https://nym.com/docs/developers/mix-fetch): Drop-in fetch() replacement routing HTTP(S) through the mixnet via an IPR exit
+- [mix-dns](https://nym.com/docs/developers/mix-dns): Hostname-to-IP resolution through the mixnet (UDP DNS via an IPR exit)
+- [mix-websocket](https://nym.com/docs/developers/mix-websocket): WebSocket-like class for WS and WSS over the mixnet
+- [mix-* Architecture](https://nym.com/docs/developers/mix-architecture): How the shared browser tunnel, Web Worker, Comlink boundary, and smoltcp+rustls stack are wired
+- [Playground](https://nym.com/docs/developers/playground): Interactive browser playground driving the mix-* packages and the raw messaging SDK against the live mixnet
+- [ENS Demo](https://nym.com/docs/developers/demos/ens): Resolve ENS names and fetch IPFS sites over the mixnet via an ethers-to-mixFetch shim
+- [Railgun Demo](https://nym.com/docs/developers/demos/railgun): Shield testnet ETH into a Railgun private note with every Ethereum RPC routed through the mixnet
 
 ## Operators
 

@@ -7,3 +7,16 @@ allowBuilds:
   sharp: false
   tiny-secp256k1: false
   unrs-resolver: false
+  # Pulled in by the railgun demo deps. Native crypto / ws speedups (the browser
+  # bundle uses the JS implementations) and postinstall scripts the webpack-built
+  # demo does not need; skip their builds (and avoid native-compile failures in CI).
+  "@railgun-community/wallet": false
+  blake-hash: false
+  bufferutil: false
+  es5-ext: false
+  keccak: false
+  secp256k1: false
+  utf-8-validate: false
+  web3: false
+  web3-bzz: false
+  web3-shh: false

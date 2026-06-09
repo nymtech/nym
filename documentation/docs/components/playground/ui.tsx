@@ -119,3 +119,27 @@ export function StatusText({ status }: { status: Status }) {
     </span>
   );
 }
+
+// A small CSS spinner with optional label. Used while a tunnel request is in
+// flight, since mixFetch buffers the whole body and exposes no byte progress;
+// the live transport detail goes to the browser console instead.
+export function Spinner({ label }: { label?: string }) {
+  return (
+    <span style={{ ...sub, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <style>{'@keyframes mixspin{to{transform:rotate(360deg)}}'}</style>
+      <span
+        aria-hidden
+        style={{
+          width: 11,
+          height: 11,
+          border: '2px solid rgba(127,127,127,0.35)',
+          borderTopColor: COLOURS.orange,
+          borderRadius: '50%',
+          display: 'inline-block',
+          animation: 'mixspin 0.7s linear infinite',
+        }}
+      />
+      {label}
+    </span>
+  );
+}

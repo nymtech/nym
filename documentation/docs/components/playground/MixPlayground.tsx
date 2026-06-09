@@ -27,6 +27,7 @@ import {
   useLogs,
   LogPanel,
   StatusText,
+  Spinner,
   Button,
   box,
   row,
@@ -88,7 +89,7 @@ export function MixPlayground() {
   const [stressBusy, setStressBusy] = useState(false);
   const [stressStatus, setStressStatus] = useState<Status>({ text: '' });
   const [downloadUrl, setDownloadUrl] = useState(
-    'https://nymtech.net/uploads/Nym_WFP_Paper_5_58a1105679.pdf',
+    'https://web.cs.ucdavis.edu/~rogaway/papers/moral-fn.pdf',
   );
   const [textBusy, setTextBusy] = useState(false);
   const [textStatus, setTextStatus] = useState<Status>({ text: '' });
@@ -96,6 +97,7 @@ export function MixPlayground() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfStatus, setPdfStatus] = useState<Status>({ text: '' });
   const [pdfInfo, setPdfInfo] = useState<{ size: number; hash: string } | null>(null);
+  const [filePreview, setFilePreview] = useState<{ url: string; isImage: boolean } | null>(null);
   const [bothStatus, setBothStatus] = useState<Status>({ text: '' });
 
   const wsRef = useRef<MixWebSocketLike | null>(null);
@@ -116,6 +118,9 @@ export function MixPlayground() {
   useEffect(() => {
     setClientId((c) => c || randomClientId());
   }, []);
+
+  // Revoke the previous object URL when the download changes or on unmount.
+  useEffect(() => () => { if (filePreview) URL.revokeObjectURL(filePreview.url); }, [filePreview]);
 
   // Connection -------------------------------------------------------------
 
@@ -454,6 +459,7 @@ export function MixPlayground() {
     if (!mods) return;
     setTextBusy(true);
     setTextStatus({ text: 'Fetching...', colour: 'orange' });
+    log('download', `GET ${VERIFY_TEXT_URL} over the tunnel... (live transport logs in the browser console)`, 'orange');
     const t0 = performance.now();
     try {
       const resp = await mods.mixFetch(VERIFY_TEXT_URL, {});
@@ -465,8 +471,9 @@ export function MixPlayground() {
     } catch (e) {
       setTextStatus({ text: `Failed: ${e}`, colour: 'red' });
       log('download', `UTF-8 demo FAILED: ${e}`, 'red');
+    } finally {
+      setTextBusy(false);
     }
-    setTextBusy(false);
   }
 
   async function fetchFile() {
@@ -476,7 +483,9 @@ export function MixPlayground() {
     setPdfBusy(true);
     cachedPdf.current = null;
     setPdfInfo(null);
+    setFilePreview(null);
     setPdfStatus({ text: 'Fetching...', colour: 'orange' });
+    log('download', `GET ${url} over the tunnel... (live transport logs in the browser console)`, 'orange');
     const t0 = performance.now();
     try {
       const resp = await mods.mixFetch(url, {});
@@ -485,6 +494,10 @@ export function MixPlayground() {
       const hash = await sha256hex(buf);
       cachedPdf.current = buf;
       setPdfInfo({ size: buf.byteLength, hash });
+      const contentType = resp.headers.get('content-type') || '';
+      const isImage = contentType.startsWith('image/') || /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i.test(url);
+      const objectUrl = URL.createObjectURL(new Blob([buf], contentType ? { type: contentType } : undefined));
+      setFilePreview({ url: objectUrl, isImage });
       setPdfStatus({ text: `${formatSize(buf.byteLength)} in ${(ms / 1000).toFixed(1)}s`, colour: 'green' });
       log(
         'download',
@@ -494,14 +507,15 @@ export function MixPlayground() {
     } catch (e) {
       setPdfStatus({ text: `Failed: ${e}`, colour: 'red' });
       log('download', `FAILED: ${e}`, 'red');
+    } finally {
+      setPdfBusy(false);
     }
-    setPdfBusy(false);
   }
 
   function savePdf() {
     const buf = cachedPdf.current;
     if (!buf) return;
-    const filename = downloadUrl.trim().split('/').pop()?.split('?')[0] || 'download';
+    const filename = decodeURIComponent(downloadUrl.trim().split('/').pop()?.split('?')[0] || 'download');
     saveFile(buf, filename, 'application/octet-stream');
   }
 
@@ -611,7 +625,7 @@ export function MixPlayground() {
           <Button onClick={getTunnel} disabled={!connected}>via tunnel</Button>
           <Button onClick={getClearnet}>via window.fetch</Button>
         </div>
-        <div style={sub}>Same URL, two transports. The clearnet request exits at your IP; the tunnel request exits at the IPR's.</div>
+        <div style={sub}>Both buttons request the same URL, but the clearnet one reaches the server from your own IP and the tunnel one from the IPR's exit gateway.</div>
         <div style={sub}>The clearnet button is a normal browser request, so some hosts block it with CORS while the tunnel request to the same URL succeeds; the defaults here are CORS-permissive.</div>
         <div style={sub}>The first tunnel request to a host runs a full TCP + TLS handshake (visible in the browser console with debug logging on). The HTTPS connection is then pooled, so a second request to the same host skips the handshake; the log timings show the difference.</div>
         <LogPanel lines={lines('get')} />
@@ -682,7 +696,7 @@ export function MixPlayground() {
         <div style={legend}>File download</div>
         <div style={row}>
           <Button onClick={verifyText} disabled={!connected || textBusy}>Fetch UTF-8 text</Button>
-          <StatusText status={textStatus} />
+          {textBusy ? <Spinner label="downloading... see the browser console for progress" /> : <StatusText status={textStatus} />}
         </div>
         {textOutput != null && (
           <pre
@@ -704,15 +718,30 @@ export function MixPlayground() {
           <input style={input} value={downloadUrl} onChange={(e) => setDownloadUrl(e.target.value)} />
           <Button onClick={fetchFile} disabled={!connected || pdfBusy}>Fetch file</Button>
           <Button onClick={savePdf} disabled={!pdfInfo}>Save</Button>
+          <Button onClick={() => filePreview && window.open(filePreview.url, '_blank')} disabled={!filePreview}>Open in new tab</Button>
           <Button onClick={runBoth} disabled={!connected}>Run both</Button>
-          <StatusText status={bothStatus} />
+          {pdfBusy ? <Spinner label="downloading... see the browser console for progress" /> : <StatusText status={bothStatus} />}
         </div>
         {pdfInfo && (
           <div style={sub}>
             Size: {pdfInfo.size.toLocaleString()} bytes · SHA-256: <code>{pdfInfo.hash}</code>
           </div>
         )}
-        <div style={sub}>Reuses the pooled HTTPS connection to a host you have already hit, so a large download starts without a fresh handshake.</div>
+        {filePreview?.isImage && (
+          <img
+            src={filePreview.url}
+            alt="File downloaded over the mixnet"
+            style={{
+              maxHeight: 240,
+              maxWidth: '100%',
+              marginTop: '0.5rem',
+              borderRadius: 6,
+              border: '1px solid rgba(127,127,127,0.25)',
+              display: 'block',
+            }}
+          />
+        )}
+        <div style={sub}>Fetches a real file over the tunnel and reports its size and SHA-256. Fetch it twice and the second download reuses the pooled HTTPS connection, skipping the handshake.</div>
         <LogPanel lines={lines('download')} />
       </div>
     </div>

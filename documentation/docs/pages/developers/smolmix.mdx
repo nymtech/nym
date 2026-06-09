@@ -80,7 +80,7 @@ smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 Traffic is Sphinx-encrypted inside the mixnet. Past the Exit Gateway, it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, as you would on a direct connection.
 </Callout>
 
-The mixnet hides your identity from the destination and your destination from the network, but the IPR exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR sees ciphertext to a destination IP: it knows where but not what. Plaintext HTTP is fully readable at the exit.
+The mixnet hides your identity from the destination and your destination from the network, but the IPR exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
 
 The full model (what each hop sees, trust boundaries, and a comparison with Tor and VPNs) is on [Exit security](/developers/concepts/exit-security).
 

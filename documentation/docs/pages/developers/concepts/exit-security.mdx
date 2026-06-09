@@ -18,7 +18,7 @@ The mixnet hides **who** you are from the destination and **where** you're going
 
 ## Proxy mode or end-to-end?
 
-This page is about **proxy mode**: your traffic leaves the mixnet at an IPR exit and continues to a third-party server over clearnet. That exit is where the security trade-offs live.
+This page is about **proxy mode**: your traffic leaves the mixnet at an IPR exit and continues to a third-party server over clearnet, where the security trade-offs apply.
 
 If both ends run a Nym client (**end-to-end**), traffic never exits the mixnet. It stays Sphinx-encrypted from your client to the other client, there is no IPR, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
 
@@ -53,8 +53,8 @@ The Sphinx encryption is the **mixnet transport layer**: it protects packets as 
 
 Because the IPR removes the Sphinx layers, whatever is inside that IP packet is visible to the exit unless you encrypted it yourself.
 
-- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It still sees destination IP and port, but not content. If you connect with TLS, the IPR sees encrypted ciphertext going to a destination IP: it knows where but not what.
-- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The exit doesn't know *who* is asking, but it knows *what*.
+- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It still sees the destination IP and port, but not the content. Over TLS the IPR only ever handles ciphertext bound for that destination; the bytes inside stay opaque to it.
+- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
 
 ## Trust boundaries
 

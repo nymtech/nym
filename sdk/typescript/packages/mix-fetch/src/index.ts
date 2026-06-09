@@ -17,7 +17,7 @@
 //   const res = await mixFetch('https://example.com');
 //
 // See `SetupMixTunnelOpts` (re-exported from @nymproject/mix-tunnel) for the
-// full options surface — mirrors smolmix-wasm's SetupOpts.
+// full options surface, which mirrors smolmix-wasm's SetupOpts.
 
 import {
   getMixTunnel,
@@ -33,7 +33,7 @@ export type { SetupMixTunnelOpts };
 /**
  * Fetch over the mixnet. Drop-in replacement for the browser `fetch()`.
  *
- * Requires the tunnel to be up — call `setupMixTunnel(opts)` first, or use
+ * Requires the tunnel to be up: call `setupMixTunnel(opts)` first, or use
  * `createMixFetch(opts)` to combine setup + fetch.
  */
 export const mixFetch = async (url: string, init?: RequestInit): Promise<Response> => {
@@ -44,7 +44,7 @@ export const mixFetch = async (url: string, init?: RequestInit): Promise<Respons
   // repeated names like `Set-Cookie` survive.
   const raw = await tunnel.mixFetch(url, init ?? {});
 
-  // `raw.body` is `Uint8Array<ArrayBufferLike>` — the ArrayBufferLike side
+  // `raw.body` is `Uint8Array<ArrayBufferLike>`. The ArrayBufferLike side
   // includes SharedArrayBuffer, which the Response constructor's BodyInit
   // doesn't accept. The runtime value is always a non-shared array; cast.
   return new Response(raw.body as BodyInit, {
@@ -57,7 +57,7 @@ export const mixFetch = async (url: string, init?: RequestInit): Promise<Respons
 /**
  * Convenience: set up the tunnel and return a fetch-bound function. Equivalent
  * to `await setupMixTunnel(opts); return mixFetch;`. Safe to call multiple
- * times — the underlying tunnel is a singleton.
+ * times; the underlying tunnel is a singleton.
  */
 export const createMixFetch = async (opts?: SetupMixTunnelOpts): Promise<typeof mixFetch> => {
   await setupMixTunnel(opts);

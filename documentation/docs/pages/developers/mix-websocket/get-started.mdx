@@ -1,0 +1,52 @@
+---
+title: "Get started with mix-websocket"
+description: "Install @nymproject/mix-websocket and open a WebSocket through the Nym mixnet."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# Get started
+
+## Installation
+
+```bash
+npm install @nymproject/mix-websocket
+```
+
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
+
+## Quick start
+
+Echo against `wss://echo.websocket.org`, the same endpoint the smolmix dev tool uses:
+
+```ts
+import { setupMixTunnel, MixWebSocket } from '@nymproject/mix-websocket';
+
+await setupMixTunnel();
+
+const ws = new MixWebSocket('wss://echo.websocket.org');
+
+ws.addEventListener('open', () => {
+  console.log('connected');
+  ws.send('hello mixnet');
+});
+
+ws.addEventListener('message', (e) => {
+  console.log('received:', e.data);
+  ws.close();
+});
+
+ws.addEventListener('close', () => console.log('closed'));
+ws.addEventListener('error', (e) => console.error('error:', e));
+```
+
+Or `await` on the upgrade instead of subscribing to the `open` event:
+
+```ts
+const ws = new MixWebSocket('wss://echo.websocket.org');
+await ws.opened();
+ws.send('hello mixnet');
+```
+
+Open a `MixWebSocket` live in the [mixnet playground](/developers/playground), which echoes messages and runs an echo burst over the live mixnet.

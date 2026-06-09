@@ -1,12 +1,12 @@
 {
+  "BinaryMessageReceivedEvent": "BinaryMessageReceivedEvent",
+  "Client": "Client",
+  "ConnectedEvent": "ConnectedEvent",
+  "Events": "Events",
+  "LoadedEvent": "LoadedEvent",
   "NymMixnetClient": "NymMixnetClient",
   "NymMixnetClientOptions": "NymMixnetClientOptions",
-  "Client": "Client",
-  "Events": "Events",
   "Payload": "Payload",
-  "ConnectedEvent": "ConnectedEvent",
-  "LoadedEvent": "LoadedEvent",
-  "StringMessageReceivedEvent": "StringMessageReceivedEvent",
-  "BinaryMessageReceivedEvent": "BinaryMessageReceivedEvent",
-  "RawMessageReceivedEvent": "RawMessageReceivedEvent"
+  "RawMessageReceivedEvent": "RawMessageReceivedEvent",
+  "StringMessageReceivedEvent": "StringMessageReceivedEvent"
 }

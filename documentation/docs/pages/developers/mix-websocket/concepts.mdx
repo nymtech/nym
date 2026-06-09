@@ -1,0 +1,39 @@
+---
+title: "mix-websocket concepts & security"
+description: "How MixWebSocket differs from the browser WebSocket, and what the IPR exit sees."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+import { Callout } from 'nextra/components'
+
+# Concepts & security
+
+## Differences from the browser WebSocket
+
+`MixWebSocket` extends `EventTarget` and mirrors the standard WebSocket surface where it makes sense. Differences are intentional and follow from the underlying WASM transport:
+
+| Browser `WebSocket` | `MixWebSocket` | Why |
+|---|---|---|
+| Synchronous constructor; readiness via the `open` event | Asynchronous constructor; readiness via `await ws.opened()` or the `open` event | The mixnet connect, smoltcp socket open, and TLS handshake all happen in the worker. |
+| `binaryType: 'blob' \| 'arraybuffer'` (default Blob) | `binaryType` is fixed to `'arraybuffer'` | Blob construction in a Web Worker requires a transferable; ArrayBuffer is the lowest common denominator. |
+| `bufferedAmount` | Not exposed | Writes queue inside the worker; no main-thread byte counter. |
+| `send()` returns `void` synchronously | `send()` returns `Promise<void>` | The send hops the worker boundary. |
+| `close(code, reason)` returns `void` | `close(code, reason)` returns `Promise<void>` | Same reason. |
+| `protocols` argument supports string or string[] | Same | (no difference) |
+
+The standard `open`, `message`, `close`, and `error` events fire as you would expect. `MessageEvent.data` is `string` for text frames and `ArrayBuffer` for binary frames.
+
+## Security model
+
+`mix-websocket` follows the shared [mixnet exit security model](/developers/concepts/exit-security). What that means specifically for WS/WSS:
+
+| At the IPR exit | What's visible |
+|---|---|
+| Secure (`wss://`) | Destination IP and port. Frames are TLS ciphertext, terminating at the destination. |
+| Plain (`ws://`) | Destination IP and port, plus every frame in plaintext. |
+
+<Callout type="warning">
+TLS terminates inside the WASM bundle (via [`rustls`](https://docs.rs/rustls) in smolmix-wasm), not in the browser. Mozilla's CA bundle is compiled into the WASM. Use `wss://` for any non-public traffic; `ws://` is visible to the IPR in full.
+</Callout>

@@ -26,7 +26,7 @@ events.subscribeToLoaded((e) => {
 
 #### Source
 
-[mixnet/wasm/types.ts:143](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L143)
+[mixnet/wasm/types.ts:143](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L143)
 
 ***
 
@@ -47,7 +47,7 @@ events.subscribeConnected((e) => {
 
 #### Source
 
-[mixnet/wasm/types.ts:153](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L153)
+[mixnet/wasm/types.ts:153](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L153)
 
 ***
 
@@ -72,7 +72,7 @@ unsubscribe();
 
 #### Source
 
-[mixnet/wasm/types.ts:167](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L167)
+[mixnet/wasm/types.ts:167](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L167)
 
 ***
 
@@ -97,7 +97,7 @@ unsubscribe();
 
 #### Source
 
-[mixnet/wasm/types.ts:181](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L181)
+[mixnet/wasm/types.ts:181](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L181)
 
 ***
 
@@ -122,4 +122,4 @@ unsubscribe();
 
 #### Source
 
-[mixnet/wasm/types.ts:195](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L195)
+[mixnet/wasm/types.ts:195](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L195)

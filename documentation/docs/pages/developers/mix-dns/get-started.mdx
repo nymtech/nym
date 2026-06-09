@@ -1,0 +1,34 @@
+---
+title: "Get started with mix-dns"
+description: "Install @nymproject/mix-dns and resolve a hostname through the Nym mixnet."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# Get started
+
+## Installation
+
+```bash
+npm install @nymproject/mix-dns
+```
+
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
+
+## Quick start
+
+```ts
+import { setupMixTunnel, mixDNS, disconnectMixTunnel } from '@nymproject/mix-dns';
+
+await setupMixTunnel();
+
+const ip = await mixDNS('example.com');
+console.log(ip); // e.g. an IPv4 address string
+
+await disconnectMixTunnel();
+```
+
+`mixDNS` returns the first resolved address as a string: an IPv4 A record when available, otherwise IPv6. It rejects if the hostname cannot be resolved. To resolve and immediately use the result via `mixFetch`, the simpler path is to skip `mixDNS` entirely and call `mixFetch('https://example.com')`, which handles resolution itself.
+
+Resolve hostnames live in the [mixnet playground](/developers/playground), with a tunnel-vs-clearnet (DoH) comparison.

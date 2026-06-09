@@ -1,8 +1,0 @@
-{
-  "globals": "API Index",
-  "functions": "Functions",
-  "interfaces": "Interfaces",
-  "enumerations": "Enumerations",
-  "type-aliases": "Type Aliases",
-  "variables": "Variables"
-}

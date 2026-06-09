@@ -1,0 +1,72 @@
+---
+title: "mix-fetch: Migrating from v1.x to v2"
+description: "What changed between mix-fetch v1 and v2: removed packages, the new setup options, dropped request-init flags, and the underlying architecture change to a single WASM module exiting via an IPR."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-05-29"
+---
+
+# Migrating from v1.x
+
+v2 is a clean break. The package no longer ships a Go-WASM HTTP/TLS client or a SOCKS5-shaped Network Requester request; it routes through the shared [`mix-tunnel`](/developers/mix-tunnel) and exits at an IPR. If you're starting fresh, you don't need this page; see [mix-fetch](/developers/mix-fetch).
+
+## Removed packages
+
+The five-variant publish (`@nymproject/mix-fetch`, `mix-fetch-full-fat`, `mix-fetch-commonjs`, `mix-fetch-commonjs-full-fat`, `mix-fetch-node-commonjs`) is gone. There is one package, ESM only:
+
+| v1.x | v2.0 |
+|---|---|
+| `@nymproject/mix-fetch` (ESM) | `@nymproject/mix-fetch` |
+| `@nymproject/mix-fetch-full-fat` | `@nymproject/mix-fetch` (always inlined) |
+| `@nymproject/mix-fetch-commonjs` | (no CJS build) |
+| `@nymproject/mix-fetch-commonjs-full-fat` | (no CJS build) |
+| `@nymproject/mix-fetch-node-commonjs` | (no Node build) |
+
+The single v2 package is ESM-only and always inlines its wasm (the v1 `full-fat` behaviour is now the default), so there is no separate bundler-config step. CommonJS and Node builds are not shipped. The Node build in particular is not just a packaging variant: the mixnet transport runs on browser globals (`WebSocket`, Web Worker) inside the wasm, so a Node target would need a runtime-compatibility layer, not a CommonJS rebuild. If you need a CJS or Node variant, open an issue describing the use case.
+
+## Removed options
+
+The v1 setup options bag covered Network Requester selection and gateway tuning. v2 replaces it with the smolmix [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) surface:
+
+| v1 option | v2 equivalent |
+|---|---|
+| `clientId` | retained as `clientId` in `SetupMixTunnelOpts` (defaults to `smolmix-wasm` if unset) |
+| `preferredGateway` | (replaced by `preferredIpr`, the exit-side pin) |
+| `preferredNetworkRequester` | (no replacement: v2 exits via IPR, not Network Requester) |
+| `mixFetchOverride.requestTimeoutMs` | (no replacement at TS layer: surface via smolmix-wasm config if needed) |
+| `forceTls: true` | retained as `forceTls` in `SetupMixTunnelOpts` (defaults to WSS; you rarely need to set it) |
+| `extra.hiddenGateways` | (no replacement) |
+
+## Removed request-init flags
+
+The v1 `mode: 'unsafe-ignore-cors'` flag is gone. v2 doesn't perform browser-side CORS checks at all (see [Drop-in caveats](/developers/mix-fetch/guides#drop-in-caveats)), so the flag has no meaning.
+
+## New setup
+
+```ts
+// v1
+import { createMixFetch } from '@nymproject/mix-fetch-full-fat';
+const mixFetch = await createMixFetch({
+  clientId: 'my-app',
+  preferredGateway: 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1',
+  mixFetchOverride: { requestTimeoutMs: 60_000 },
+  forceTls: true,
+});
+
+// v2
+import { createMixFetch } from '@nymproject/mix-fetch';
+const mixFetch = await createMixFetch({
+  // Optional: pin an exit IPR instead of an entry gateway.
+  // preferredIpr: '...',
+});
+```
+
+## Architectural change
+
+v1 ran two WASM modules: a Go module with `crypto/tls` + Mozilla CA bundle, and a Rust module handling Nym's `Socks5Request` framing to a Network Requester exit. v2 runs one WASM module ([smolmix-wasm](https://github.com/nymtech/nym/tree/develop/wasm/smolmix)) with a userspace TCP/IP stack ([smoltcp](https://docs.rs/smoltcp)) and `rustls` for TLS. The exit is an IPR, not a Network Requester.
+
+Consequences:
+
+- **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
+- **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
+- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR, which applies the current [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).

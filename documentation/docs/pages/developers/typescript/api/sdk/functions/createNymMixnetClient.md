@@ -28,4 +28,4 @@ const client = await createNymMixnetClient();
 
 ## Source
 
-[mixnet/wasm/index.ts:51](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L51)
+[mixnet/wasm/index.ts:51](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L51)

@@ -40,7 +40,7 @@ importers:
         version: 2.18.1
       '@cosmos-kit/keplr':
         specifier: ^2.6.9
-        version: 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)
+        version: 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)
       '@cosmos-kit/keplr-extension':
         specifier: ^2.7.9
         version: 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(starknet@8.9.2)
@@ -77,9 +77,18 @@ importers:
       '@nymproject/contract-clients':
         specifier: '>=1.2.4-rc.2 || ^1'
         version: 1.4.1
-      '@nymproject/mix-fetch-full-fat':
-        specifier: ^1.4.3
-        version: 1.4.3
+      '@nymproject/mix-dns':
+        specifier: ^0.1.0
+        version: 0.1.0
+      '@nymproject/mix-fetch':
+        specifier: ^2.0.0
+        version: 2.0.0
+      '@nymproject/mix-tunnel':
+        specifier: ^0.1.0
+        version: 0.1.0
+      '@nymproject/mix-websocket':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -1775,8 +1784,17 @@ packages:
   '@nymproject/contract-clients@1.4.1':
     resolution: {integrity: sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==}
 
-  '@nymproject/mix-fetch-full-fat@1.4.3':
-    resolution: {integrity: sha512-r3WVZDDFv+eFWPxhkMDg2VvLWd3ws1OK6kFT6bEt6/qTpfA21vV2MouuuyVkBy8DEUKqyU4z/8MiVFxfpkWlsg==}
+  '@nymproject/mix-dns@0.1.0':
+    resolution: {integrity: sha512-JIbd71MwaorMz1QJ1UfGVSdWHTayCmNvsjA1D5I7rhSZGCrul7wJ7lvVP8zv2PBu3L+DXF4TfzkVDe1kkc9uOQ==}
+
+  '@nymproject/mix-fetch@2.0.0':
+    resolution: {integrity: sha512-dTHPMpd1Zhj4ZauN8vnxOq7gzO3N/ikaQoNvWwl1Xq6niQxqoLw/gKbsKxwrgvbRodhjkKrCqW++0zumTfi7pw==}
+
+  '@nymproject/mix-tunnel@0.1.0':
+    resolution: {integrity: sha512-olm+nue1rW7PyR9hMHbOdEZ/ytRXjEqHh1kGPfw8ZWKV/e+5Gh43mngyxFrZYqlQMVntlRXwkiJkB9bYWFTxxw==}
+
+  '@nymproject/mix-websocket@0.1.0':
+    resolution: {integrity: sha512-h0xFrhUrNjJ4xF337fU/xx8cG64EJyivqOXhNT4jNoqBMFmO/p6jYaNleJZ6NdzabV/JfqHovCUnt/9qPdQc/A==}
 
   '@nymproject/sdk-full-fat@1.4.1':
     resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
@@ -7449,16 +7467,16 @@ snapshots:
       - uploadthing
       - utf-8-validate
 
-  '@cosmos-kit/keplr-mobile@2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)':
+  '@cosmos-kit/keplr-mobile@2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)':
     dependencies:
       '@chain-registry/keplr': 1.74.507
       '@cosmjs/amino': 0.32.4
       '@cosmjs/proto-signing': 0.32.4
       '@cosmos-kit/core': 2.18.1
       '@cosmos-kit/keplr-extension': 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(starknet@8.9.2)
-      '@cosmos-kit/walletconnect': 2.15.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/types@2.23.7)(typescript@5.9.3)(zod@3.25.76)
+      '@cosmos-kit/walletconnect': 2.15.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/types@2.11.0)(typescript@5.9.3)(zod@3.25.76)
       '@keplr-wallet/provider-extension': 0.12.313(starknet@8.9.2)
-      '@keplr-wallet/wc-client': 0.12.313(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)
+      '@keplr-wallet/wc-client': 0.12.313(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -7489,10 +7507,10 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@cosmos-kit/keplr@2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)':
+  '@cosmos-kit/keplr@2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)':
     dependencies:
       '@cosmos-kit/keplr-extension': 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(starknet@8.9.2)
-      '@cosmos-kit/keplr-mobile': 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)
+      '@cosmos-kit/keplr-mobile': 2.17.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)(typescript@5.9.3)(zod@3.25.76)
     transitivePeerDependencies:
       - '@azure/app-configuration'
       - '@azure/cosmos'
@@ -7634,13 +7652,13 @@ snapshots:
       - uploadthing
       - utf-8-validate
 
-  '@cosmos-kit/walletconnect@2.15.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/types@2.23.7)(typescript@5.9.3)(zod@3.25.76)':
+  '@cosmos-kit/walletconnect@2.15.1(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.4)(@walletconnect/types@2.11.0)(typescript@5.9.3)(zod@3.25.76)':
     dependencies:
       '@cosmjs/amino': 0.32.4
       '@cosmjs/proto-signing': 0.32.4
       '@cosmos-kit/core': 2.18.1
       '@walletconnect/sign-client': 2.23.7(typescript@5.9.3)(zod@3.25.76)
-      '@walletconnect/types': 2.23.7
+      '@walletconnect/types': 2.11.0
       '@walletconnect/utils': 2.23.7(typescript@5.9.3)(zod@3.25.76)
       events: 3.3.0
     transitivePeerDependencies:
@@ -8171,12 +8189,12 @@ snapshots:
       big-integer: 1.6.52
       utility-types: 3.11.0
 
-  '@keplr-wallet/wc-client@0.12.313(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.23.7)(starknet@8.9.2)':
+  '@keplr-wallet/wc-client@0.12.313(@walletconnect/sign-client@2.23.7(typescript@5.9.3)(zod@3.25.76))(@walletconnect/types@2.11.0)(starknet@8.9.2)':
     dependencies:
       '@keplr-wallet/provider': 0.12.313(starknet@8.9.2)
       '@keplr-wallet/types': 0.12.313(starknet@8.9.2)
       '@walletconnect/sign-client': 2.23.7(typescript@5.9.3)(zod@3.25.76)
-      '@walletconnect/types': 2.23.7
+      '@walletconnect/types': 2.11.0
       buffer: 6.0.3
       deepmerge: 4.3.1
       long: 5.3.2
@@ -9533,7 +9551,19 @@ snapshots:
 
   '@nymproject/contract-clients@1.4.1': {}
 
-  '@nymproject/mix-fetch-full-fat@1.4.3': {}
+  '@nymproject/mix-dns@0.1.0':
+    dependencies:
+      '@nymproject/mix-tunnel': 0.1.0
+
+  '@nymproject/mix-fetch@2.0.0':
+    dependencies:
+      '@nymproject/mix-tunnel': 0.1.0
+
+  '@nymproject/mix-tunnel@0.1.0': {}
+
+  '@nymproject/mix-websocket@0.1.0':
+    dependencies:
+      '@nymproject/mix-tunnel': 0.1.0
 
   '@nymproject/sdk-full-fat@1.4.1': {}
 

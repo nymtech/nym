@@ -1,0 +1,46 @@
+---
+title: "Get started with mix-fetch"
+description: "Install @nymproject/mix-fetch and make your first HTTP request through the Nym mixnet."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# Get started
+
+## Installation
+
+```bash
+npm install @nymproject/mix-fetch
+```
+
+ESM only, with the worker and WASM inlined via [`mix-tunnel`](/developers/mix-tunnel/get-started#installation); no bundler config needed.
+
+## Quick start
+
+```ts
+import { setupMixTunnel, mixFetch, disconnectMixTunnel } from '@nymproject/mix-fetch';
+
+// Bring the shared mixnet tunnel up. Same call works from mix-dns and mix-websocket.
+await setupMixTunnel();
+
+// Drop-in fetch. The Response is the real DOM Response, not a wrapper.
+const res = await mixFetch('https://example.com');
+console.log(res.status, await res.text());
+
+// Tear down. The WASM is unusable after this until page reload.
+await disconnectMixTunnel();
+```
+
+For one-shot use without an explicit setup step, the `createMixFetch` helper combines setup and fetch:
+
+```ts
+import { createMixFetch } from '@nymproject/mix-fetch';
+
+const mixFetch = await createMixFetch({ disableCoverTraffic: true });
+const res = await mixFetch('https://example.com');
+```
+
+Call `createMixFetch` once and reuse the function it returns. It calls `setupMixTunnel` internally, so calling `createMixFetch` a second time rejects with `tunnel already initialised`; the tunnel is [one-shot per page](/developers/mix-tunnel/get-started).
+
+Run `mixFetch` live in the [mixnet playground](/developers/playground), with a tunnel-vs-clearnet comparison.

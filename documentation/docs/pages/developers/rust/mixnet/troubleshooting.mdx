@@ -76,3 +76,9 @@ client.disconnect().await;
 ## Lots of `duplicate fragment received` messages
 
 `WARN` level logs about duplicate fragments are caused by Mixnet-level packet retransmission: the original and the retransmitted copy both arrive. This is not a bug in your client logic.
+
+## Android: mixnet bootstrap fails with a certificate `Revoked` / OCSP error
+
+When you compile the SDK for Android (via `uniffi` + `cargo-ndk`), the client can fail to bootstrap the mixnet with a hard `Revoked` or "Certificate does not specify OCSP responder" error on certain Validator endpoints. The cause is `rustls-platform-verifier` routing certificate validation through Java's `CertPathValidator`, which enforces an OCSP check the endpoint does not satisfy. iOS and the desktop targets are unaffected; they tolerate or skip the check.
+
+Configure the client to use preconfigured TLS roots with `webpki_roots::TLS_SERVER_ROOTS` instead of the platform verifier to get around it.

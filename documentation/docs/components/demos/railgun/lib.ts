@@ -174,7 +174,8 @@ export async function shieldEth(opts: {
   const txHash = keccak256(signedHex);
   log(`  signed tx hash: ${txHash}`);
   log(`  -> To: ${populated.to}  (Railgun Sepolia proxy contract)`);
-  log(`  -> calldata selector: ${(populated.data || '').slice(0, 10)}`);
+  log(`  -> calldata selector: ${(populated.data || '').slice(0, 10)}  (Railgun shield function; Etherscan decodes this)`);
+  log(`  -> full calldata: ${populated.data || ''}`);
   onTxHash(txHash);
 
   let sentTx: any;

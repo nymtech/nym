@@ -19,6 +19,9 @@ import {
 } from './lib';
 
 const RPC_PRESETS = ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc.sepolia.org'];
+// Fixed shield amount: a single small value so the shared, faucet-funded testnet
+// wallet can't be drained by an arbitrary amount.
+const SHIELD_AMOUNT = '0.01';
 const IP_ECHO_URL = 'https://ipinfo.io/ip';
 const IP_SHAPE_RE = /^[\d.:a-f]{3,45}$/i;
 
@@ -32,7 +35,6 @@ export function RailgunDemo() {
   const [railgunWallet, setRailgunWallet] = useState<RailgunWalletInfo | null>(null);
   const [rpc, setRpc] = useState(RPC_PRESETS[0]);
   const [balance, setBalance] = useState('');
-  const [shieldAmount, setShieldAmount] = useState('0.001');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [storageStatus, setStorageStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -194,7 +196,7 @@ export function RailgunDemo() {
         publicWallet: publicWalletRef.current,
         railgunWallet,
         provider,
-        amountStr: shieldAmount.trim(),
+        amountStr: SHIELD_AMOUNT,
         log: dlog,
         onTxHash: setTxHash,
       });
@@ -298,9 +300,8 @@ export function RailgunDemo() {
       <div style={box}>
         <div style={legend}>Shield ETH into a private note</div>
         <div style={row}>
-          <label style={sub}>amount (ETH)</label>
-          <input style={input} value={shieldAmount} onChange={(e) => setShieldAmount(e.target.value)} placeholder="0.001" />
-          <Button onClick={shield} disabled={!connected || !railgunWallet || busy}>Shield</Button>
+          <Button onClick={shield} disabled={!connected || !railgunWallet || busy}>Shield {SHIELD_AMOUNT} ETH</Button>
+          <span style={sub}>Fixed at {SHIELD_AMOUNT} ETH so the shared testnet wallet isn't drained.</span>
         </div>
         {txHash && (
           <div style={{ marginTop: '0.5rem' }}>

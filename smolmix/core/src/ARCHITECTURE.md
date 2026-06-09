@@ -5,6 +5,23 @@ smolmix tunnels TCP and UDP over the Nym mixnet. It exposes `TcpStream` and
 hyper, tokio-tungstenite), with all traffic routed through the mixnet so a
 network observer cannot correlate source and destination.
 
+## Workspace layout
+
+```text
+                  smolmix-hyper
+                   (top-level)
+                   /          \
+                  v            v
+            smolmix-dns ←→ smolmix-tls
+            (resolution)    (encryption)
+                   \          /
+                    v        v
+                     smolmix
+                    (tunnel)
+```
+
+This crate (`smolmix`) provides the underlying TCP/UDP tunnel. The companion crates each handle one concern: [`smolmix-dns`](https://crates.io/crates/smolmix-dns) for tunneled DNS resolution, [`smolmix-tls`](https://crates.io/crates/smolmix-tls) for TLS over the tunnel, and [`smolmix-hyper`](https://crates.io/crates/smolmix-hyper) which combines them into a complete HTTP client. The arrows show conceptual layering, not strict Cargo dependencies.
+
 ## Stack
 
 ```text

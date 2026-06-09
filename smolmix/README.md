@@ -5,6 +5,23 @@ to provide real `TcpStream` and `UdpSocket` types that work with the async
 Rust ecosystem: tokio-rustls, hyper, tokio-tungstenite, libp2p, and anything
 else built on `AsyncRead + AsyncWrite`.
 
+## Workspace layout
+
+```text
+                  smolmix-hyper
+                   (top-level)
+                   /          \
+                  v            v
+            smolmix-dns ←→ smolmix-tls
+            (resolution)    (encryption)
+                   \          /
+                    v        v
+                     smolmix
+                    (tunnel)
+```
+
+`smolmix` provides the underlying TCP/UDP tunnel. `smolmix-dns` and `smolmix-tls` are companion crates that each handle one concern; `smolmix-hyper` glues them into a complete HTTP client. Pick the level of abstraction that matches your needs; the lower-level crates remain useful when you want manual control (e.g. websockets, libp2p, custom protocols).
+
 ## Why IP, not messages
 
 The Nym SDK works at the message layer: you send and receive `Vec<u8>`

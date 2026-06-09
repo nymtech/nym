@@ -1,0 +1,85 @@
+---
+title: "smolmix-tls: TLS Over the Mixnet"
+description: "Encrypt the final hop between the exit gateway and remote host using smolmix-tls. Pre-configured TLS with webpki roots for smolmix TCP streams."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-04-28"
+---
+
+# smolmix-tls
+
+import { Callout } from 'nextra/components'
+
+The mixnet protects your identity but not the content of traffic between the exit gateway and remote host. `smolmix-tls` provides a pre-configured `TlsConnector` with webpki root certificates, wrapping a smolmix `TcpStream` in TLS with one function call.
+
+<Callout type="warning">
+**Always use TLS** (or another encryption layer) when connecting to external services through the mixnet. Without it, the exit gateway can read your traffic in plaintext.
+</Callout>
+
+## Installation
+
+```toml
+[dependencies]
+smolmix = "1.21.0"
+smolmix-tls = "1.21.0"
+```
+
+Both crates share the workspace version. Full API docs: [docs.rs/smolmix-tls](https://docs.rs/smolmix-tls).
+
+You also need a rustls crypto provider installed. Add this at the start of `main()`:
+
+```rust
+rustls::crypto::ring::default_provider()
+    .install_default()
+    .expect("Failed to install rustls crypto provider");
+```
+
+## Usage
+
+```rust
+use smolmix::Tunnel;
+use smolmix_tls::{connect, connector, connect_with};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    let tunnel = Tunnel::new().await?;
+    let tcp = tunnel.tcp_connect("93.184.216.34:443".parse()?).await?;
+
+    // One-shot: TLS handshake over an existing TCP stream
+    let mut tls = connect(tcp, "example.com").await?;
+
+    tls.write_all(b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n").await?;
+    let mut buf = Vec::new();
+    tls.read_to_end(&mut buf).await?;
+    println!("{}", String::from_utf8_lossy(&buf));
+
+    tunnel.shutdown().await;
+    Ok(())
+}
+```
+
+## Reusing the connector
+
+If you're making multiple TLS connections, build the connector once and reuse it. This avoids rebuilding the root certificate store each time:
+
+```rust
+let tls = connector();
+let stream1 = connect_with(&tls, tcp1, "a.example.com").await?;
+let stream2 = connect_with(&tls, tcp2, "b.example.com").await?;
+```
+
+The `TlsConnector` clones cheaply via `Arc`.
+
+## Example
+
+```sh
+cargo run -p smolmix-tls --example connect
+cargo run -p smolmix-tls --example connect -- --ipr <IPR_ADDRESS>
+```
+
+Source: [`tls/examples/connect.rs`](https://github.com/nymtech/nym/blob/develop/smolmix/tls/examples/connect.rs)

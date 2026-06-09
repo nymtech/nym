@@ -1,0 +1,7 @@
+{
+  "tunnel": "smolmix-tunnel",
+  "dns": "smolmix-dns",
+  "tls": "smolmix-tls",
+  "hyper": "smolmix-hyper",
+  "extending": "Building on smolmix"
+}

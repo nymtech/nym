@@ -95,12 +95,12 @@ The first call bootstraps the WASM Nym client (gateway handshake, key generation
 
 ## When to use mix-fetch
 
-| | mix-fetch | WASM Mixnet Client | smolmix | Plain fetch (no mixnet) |
+| | mix-fetch | WASM Mixnet Client | [smolmix family](/developers/smolmix) | Plain fetch (no mixnet) |
 |---|---|---|---|---|
 | **Runtime** | Browser, Node.js | Browser | Native (Rust) | Anywhere |
 | **Architecture** | Proxy (Network Requester → destination) | E2E (both sides Nym) | Proxy | Direct |
-| **API shape** | `fetch()` replacement | Send/recv text or binary messages | `TcpStream` / `UdpSocket` | `fetch()` |
-| **HTTP support** | Yes | No | Yes (via `hyper` over `TcpStream`) | Yes |
+| **API shape** | `fetch()` replacement | Send/recv text or binary messages | `TcpStream` / `UdpSocket`, or `hyper`-style HTTP via [`smolmix-hyper`](/developers/smolmix/hyper) | `fetch()` |
+| **HTTP support** | Yes | No | Yes (via [`smolmix-hyper`](/developers/smolmix/hyper)) | Yes |
 | **Sender unlinkability** | Strong (mixnet) | Strong (mixnet) | Strong (mixnet) | None |
 | **Concurrency** | 10 per host | Unlimited | Unlimited | Unlimited |
 

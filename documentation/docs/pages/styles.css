@@ -351,6 +351,11 @@ input:focus-visible {
   background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
+.landing-chip:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--colorPrimary) !important;
+}
+
 /* ── Invert diagrams in dark mode ── */
 
 html.dark .nextra-content img:not([src*="landing"]) {

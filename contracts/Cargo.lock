@@ -1049,7 +1049,7 @@ dependencies = [
 
 [[package]]
 name = "node-families"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -1064,7 +1064,6 @@ dependencies = [
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
- "serde",
 ]
 
 [[package]]

@@ -5,7 +5,7 @@
 
 use crate::queries::{
     query_all_family_members_paged, query_all_past_invitations_paged,
-    query_all_pending_invitations_paged, query_families_paged, query_family_by_id,
+    query_all_pending_invitations_paged, query_config, query_families_paged, query_family_by_id,
     query_family_by_name, query_family_by_owner, query_family_members_paged,
     query_family_membership, query_past_invitations_for_family_paged,
     query_past_invitations_for_node_paged, query_past_members_for_family_paged,
@@ -100,6 +100,7 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NodeFamiliesContractError> {
     match msg {
+        QueryMsg::GetConfig {} => Ok(to_json_binary(&query_config(deps)?)?),
         QueryMsg::GetFamilyById { family_id } => {
             Ok(to_json_binary(&query_family_by_id(deps, family_id)?)?)
         }

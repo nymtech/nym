@@ -96,6 +96,10 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[cfg_attr(feature = "schema", derive(cosmwasm_schema::QueryResponses))]
 pub enum QueryMsg {
+    /// Retrieve current contract configuration values
+    #[cfg_attr(feature = "schema", returns(Config))]
+    GetConfig {},
+
     /// Look up a single family by its id.
     #[cfg_attr(feature = "schema", returns(NodeFamilyResponse))]
     GetFamilyById { family_id: NodeFamilyId },

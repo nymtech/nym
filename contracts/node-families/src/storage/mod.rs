@@ -292,10 +292,16 @@ impl NodeFamiliesStorage<'_> {
     /// - ensuring `expires_at` is strictly in the future.
     ///
     /// As defence-in-depth, this method errors with [`FamilyNotFound`] if
-    /// `family_id` is unknown and with [`PendingInvitationAlreadyExists`] if
-    /// a pending invitation for the same `(family, node)` pair is already
-    /// stored — the underlying `IndexedMap` would otherwise silently
+    /// `family_id` is unknown and with [`PendingInvitationAlreadyExists`] if a
+    /// *still-valid* pending invitation for the same `(family, node)` pair is
+    /// already stored — the underlying `IndexedMap` would otherwise silently
     /// overwrite it.
+    ///
+    /// If a pending invitation for the pair exists but has already expired
+    /// (`now >= expires_at`), it is archived in [`Self::past_family_invitations`]
+    /// with status [`FamilyInvitationStatus::Expired`] and the fresh invitation
+    /// supersedes it. Together with an explicit revoke/reject, this is the only
+    /// path that clears a timed-out invitation out of the pending map.
     ///
     /// Returns the freshly persisted [`FamilyInvitation`].
     ///
@@ -304,25 +310,37 @@ impl NodeFamiliesStorage<'_> {
     pub(crate) fn add_pending_invitation(
         &self,
         store: &mut dyn Storage,
+        env: &Env,
         family_id: NodeFamilyId,
         node_id: NodeId,
         expires_at: u64,
     ) -> Result<FamilyInvitation, NodeFamiliesContractError> {
+        let now = env.block.time.seconds();
         let key: FamilyMember = (family_id, node_id);
 
         if !self.families.has(store, family_id) {
             return Err(NodeFamiliesContractError::FamilyNotFound { family_id });
         }
 
-        if self
-            .pending_family_invitations
-            .may_load(store, key)?
-            .is_some()
-        {
-            return Err(NodeFamiliesContractError::PendingInvitationAlreadyExists {
-                family_id,
-                node_id,
-            });
+        if let Some(existing) = self.pending_family_invitations.may_load(store, key)? {
+            // a still-valid invitation blocks a duplicate; an expired one is
+            // archived and superseded by the fresh invitation below.
+            if now < existing.expires_at {
+                return Err(NodeFamiliesContractError::PendingInvitationAlreadyExists {
+                    family_id,
+                    node_id,
+                });
+            }
+
+            let counter = self.next_past_invitation_counter(store, key)?;
+            self.past_family_invitations.save(
+                store,
+                (key, counter),
+                &PastFamilyInvitation {
+                    invitation: existing,
+                    status: FamilyInvitationStatus::Expired { at: now },
+                },
+            )?;
         }
 
         let invitation = FamilyInvitation {
@@ -914,10 +932,11 @@ mod tests {
         let s = NodeFamiliesStorage::new();
         let alice = tester.addr_make("alice");
         let f = tester.make_family(&alice);
-        let expires_at = tester.env().block.time.seconds() + 100;
+        let env = tester.env();
+        let expires_at = env.block.time.seconds() + 100;
 
         let inv = s
-            .add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            .add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at)
             .unwrap();
 
         assert_eq!(inv.family_id, f.id);
@@ -937,7 +956,7 @@ mod tests {
         let env = tester.env();
         let expires_at = env.block.time.seconds() + 100;
 
-        let res = s.add_pending_invitation(tester.storage_mut(), 99, 42, expires_at);
+        let res = s.add_pending_invitation(tester.storage_mut(), &env, 99, 42, expires_at);
         assert_eq!(
             res.unwrap_err(),
             NodeFamiliesContractError::FamilyNotFound { family_id: 99 }
@@ -955,7 +974,7 @@ mod tests {
         tester.invite_to_family(f.id, 42);
 
         let expires_at = env.block.time.seconds() + 200;
-        let res = s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at);
+        let res = s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at);
         assert_eq!(
             res.unwrap_err(),
             NodeFamiliesContractError::PendingInvitationAlreadyExists {
@@ -963,6 +982,47 @@ mod tests {
                 node_id: 42,
             }
         );
+    }
+
+    #[test]
+    fn add_pending_invitation_supersedes_expired() {
+        let mut tester = init_contract_tester();
+        let s = NodeFamiliesStorage::new();
+        let env = tester.env();
+        let alice = tester.addr_make("alice");
+        let f = tester.make_family(&alice);
+
+        // first invitation expires at exactly `now`, so it is immediately stale
+        let stale_exp = env.block.time.seconds();
+        s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, stale_exp)
+            .unwrap();
+
+        // re-inviting the same node supersedes the expired invitation
+        let fresh_exp = env.block.time.seconds() + 100;
+        let fresh = s
+            .add_pending_invitation(tester.storage_mut(), &env, f.id, 42, fresh_exp)
+            .unwrap();
+        assert_eq!(fresh.expires_at, fresh_exp);
+
+        // the fresh invitation is the one left pending
+        let pending = s
+            .pending_family_invitations
+            .load(tester.storage(), (f.id, 42))
+            .unwrap();
+        assert_eq!(pending.expires_at, fresh_exp);
+
+        // the stale one is archived as Expired, stamped at `now`
+        let past = s
+            .past_family_invitations
+            .load(tester.storage(), ((f.id, 42), 0))
+            .unwrap();
+        assert_eq!(
+            past.status,
+            FamilyInvitationStatus::Expired {
+                at: env.block.time.seconds()
+            }
+        );
+        assert_eq!(past.invitation.expires_at, stale_exp);
     }
 
     // ---- accept_invitation ----
@@ -975,7 +1035,7 @@ mod tests {
         let alice = tester.addr_make("alice");
         let f = tester.make_family(&alice);
         let expires_at = env.block.time.seconds() + 100;
-        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+        s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at)
             .unwrap();
 
         let updated = s
@@ -1032,7 +1092,7 @@ mod tests {
         let f = tester.make_family(&alice);
         // expires at exactly `now` — `now >= expires_at` triggers
         let expires_at = tester.env().block.time.seconds();
-        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+        s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at)
             .unwrap();
 
         let res = s.accept_invitation(tester.storage_mut(), &env, f.id, 42);
@@ -1087,7 +1147,7 @@ mod tests {
         let alice = tester.addr_make("alice");
         let f = tester.make_family(&alice);
         let expires_at = env.block.time.seconds();
-        s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+        s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at)
             .unwrap();
 
         s.reject_pending_invitation(tester.storage_mut(), &env, f.id, 42)
@@ -1205,7 +1265,7 @@ mod tests {
 
         let expires_at = env.block.time.seconds() + 100;
         for _ in 0..2 {
-            s.add_pending_invitation(tester.storage_mut(), f.id, 42, expires_at)
+            s.add_pending_invitation(tester.storage_mut(), &env, f.id, 42, expires_at)
                 .unwrap();
             s.accept_invitation(tester.storage_mut(), &env, f.id, 42)
                 .unwrap();

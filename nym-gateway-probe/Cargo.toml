@@ -75,11 +75,7 @@ test-utils = []
 
 [build-dependencies]
 anyhow = { workspace = true }
-vergen-gitcl = { workspace = true, default-features = false, features = [
-    "build",
-    "cargo",
-    "rustc",
-] }
+vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "cargo"] }
 
 [package.metadata.cargo-machete]
 ignored = ["vergen", "nym-http-api-client"]

@@ -76,6 +76,12 @@ pub enum PeerControlRequest {
         peer: Peer,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
+    /// Update PSK for an existing peer, without changing its IP allocation
+    UpdatePeerPsk {
+        peer_key: Key,
+        psk: Key,
+        response_tx: oneshot::Sender<UpdatePeerPskControlResponse>,
+    },
     /// Attempt to allocate an IP pair from the pool
     PreAllocateIpPair {
         response_tx: oneshot::Sender<AllocatePeerControlResponse>,
@@ -118,6 +124,7 @@ pub enum PeerControlRequest {
 }
 
 pub type AddPeerControlResponse = Result<()>;
+pub type UpdatePeerPskControlResponse = Result<()>;
 pub type AllocatePeerControlResponse = Result<IpPair>;
 pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
@@ -317,6 +324,50 @@ impl PeerController {
         Ok(())
     }
 
+    async fn handle_update_peer_psk_request(&mut self, peer_key: &Key, psk: Key) -> Result<()> {
+        // observation will get automatically added once dropped
+        let _metric_timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::WireguardDefguardPeerPskUpdate);
+
+        nym_metrics::inc!("wg_peer_update_psk_attempts");
+
+        let Ok(Some(mut peer)) = self.handle_query_peer_by_key(peer_key).await else {
+            return Ok(());
+        };
+        let encoded_psk = psk.to_lower_hex();
+        peer.preshared_key = Some(psk);
+
+        // Account for bandwidth used so far *before* reconfiguring: `configure_peer`
+        // isn't guaranteed to preserve the kernel rx/tx counters, so fold the
+        // accrued bytes into the metrics first to avoid losing them on a reset.
+        if let Ok(host) = self.wg_api.read_interface_data() {
+            self.update_metrics(&host).await;
+            *self.host_information.write().await = host;
+        }
+
+        // Try to update WireGuard peer
+        if let Err(e) = self.wg_api.configure_peer(&peer) {
+            nym_metrics::inc!("wg_peer_update_psk_failed");
+            nym_metrics::inc!("wg_config_errors_total");
+            return Err(e.into());
+        };
+
+        // Persist the new PSK to disk so it survives a restart. Kernel-first: a
+        // failure here leaves the live session working, only risking drift on restart.
+        self.ecash_verifier
+            .storage()
+            .update_peer_psk(&peer_key.to_string(), Some(&encoded_psk))
+            .await?;
+
+        // Refresh again so the cached host information reflects the post-update state
+        if let Ok(host) = self.wg_api.read_interface_data() {
+            *self.host_information.write().await = host;
+        }
+
+        nym_metrics::inc!("wg_peer_update_psk_success");
+        Ok(())
+    }
+
     /// Allocate IP pair from pool for a new peer registration
     ///
     /// This only allocates IPs - the caller must handle database storage and
@@ -512,6 +563,15 @@ impl PeerController {
         match msg {
             PeerControlRequest::AddPeer { peer, response_tx } => {
                 response_tx.send(self.handle_add_request(&peer).await).ok();
+            }
+            PeerControlRequest::UpdatePeerPsk {
+                peer_key,
+                psk,
+                response_tx,
+            } => {
+                response_tx
+                    .send(self.handle_update_peer_psk_request(&peer_key, psk).await)
+                    .ok();
             }
             PeerControlRequest::PreAllocateIpPair { response_tx } => {
                 response_tx.send(self.handle_ip_allocation_request()).ok();

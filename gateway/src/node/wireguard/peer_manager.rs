@@ -125,6 +125,44 @@ impl PeerManager {
         res
     }
 
+    pub async fn update_peer_psk(
+        &self,
+        pub_key: PeerPublicKey,
+        psk: Key,
+    ) -> Result<(), GatewayWireguardError> {
+        let controller_start = Instant::now();
+        let peer_key = Key::new(pub_key.to_bytes());
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::UpdatePeerPsk {
+            peer_key,
+            psk,
+            response_tx,
+        };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        let res = response_rx
+            .await
+            .map_err(|_| GatewayWireguardError::internal("no response for update peer psk"))?
+            .map_err(|err| {
+                GatewayWireguardError::InternalError(format!(
+                    "updating peer psk could not be performed: {err:?}"
+                ))
+            });
+
+        let latency = controller_start.elapsed().as_secs_f64();
+        add_histogram_obs!(
+            "wg_peer_controller_channel_latency_seconds",
+            latency,
+            WG_CONTROLLER_LATENCY_BUCKETS
+        );
+
+        res
+    }
+
     pub async fn remove_peer(&self, pub_key: PeerPublicKey) -> Result<(), GatewayWireguardError> {
         let controller_start = Instant::now();
         let key = Key::new(pub_key.to_bytes());

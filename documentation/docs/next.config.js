@@ -62,6 +62,107 @@ const config = {
         permanent: true,
         basePath: false,
       },
+
+      // TS SDK reorg 2026-05: the per-package /developers/typescript/examples/*
+      // and /developers/typescript/playground/* pages were consolidated into
+      // top-level package pages (mix-fetch, mix-dns, mix-websocket) and
+      // typescript/quick-start, typescript/smart-contracts, typescript/cosmos-kit.
+      {
+        source: "/docs/developers/typescript/examples/mix-fetch",
+        destination: "/docs/developers/mix-fetch",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/mixnet",
+        destination: "/docs/developers/typescript/quick-start",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/nym-smart-contracts",
+        destination: "/docs/developers/typescript/smart-contracts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples/cosmos-kit",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/examples",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/mixfetch",
+        destination: "/docs/developers/mix-fetch",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/traffic",
+        destination: "/docs/developers/typescript/quick-start",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/mixnodes",
+        destination: "/docs/developers/typescript/smart-contracts",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/wallet",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground/cosmos-kit",
+        destination: "/docs/developers/typescript/cosmos-kit",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/playground",
+        destination: "/docs/developers/typescript",
+        permanent: true,
+        basePath: false,
+      },
+
+      // The per-package typedoc dirs moved out of typescript/api/<pkg>/ to
+      // <pkg>/api/ so each package's API reference nests under its own sidebar
+      // entry (matches the rust/<module>/ pattern). @nymproject/sdk's typedoc
+      // stays at typescript/api/sdk/ since its landing is typescript.mdx.
+      {
+        source: "/docs/developers/typescript/api/mix-tunnel/:path*",
+        destination: "/docs/developers/mix-tunnel/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-fetch/:path*",
+        destination: "/docs/developers/mix-fetch/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-dns/:path*",
+        destination: "/docs/developers/mix-dns/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/typescript/api/mix-websocket/:path*",
+        destination: "/docs/developers/mix-websocket/api/:path*",
+        permanent: true,
+        basePath: false,
+      },
+
       {
         source: "/docs/architecture/nym-vs-others.html",
         destination: "/docs/network/overview/comparisons",
@@ -368,13 +469,13 @@ const config = {
       },
       {
         source: "/developers/integrations/integration-options.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -434,7 +535,7 @@ const config = {
       },
       {
         source: "/developers/integrations",
-        destination: "/docs/developers/integrations/payment-integration.html",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -794,7 +895,7 @@ const config = {
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -884,7 +985,7 @@ const config = {
       },
       {
         source: "/developers/faq/integrations-faq.html",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
@@ -1179,16 +1280,39 @@ const config = {
       },
 
       // Docs reorg: language-based sidebar
-      // Deleted routing pages → merged into integrations
+      // Deleted routing pages → merged into the developer overview
       {
         source: "/docs/developers/native",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/developers/browsers",
-        destination: "/docs/developers/integrations",
+        destination: "/docs/developers",
+        permanent: true,
+        basePath: false,
+      },
+
+      // --- Developers reorg (2026-06): single front door + collapsed mix-* pages ---
+      // integrations.mdx merged into the overview (index)
+      {
+        source: "/docs/developers/integrations",
+        destination: "/docs/developers",
+        permanent: true,
+        basePath: false,
+      },
+      // mix-dns concepts merged into its reference page
+      {
+        source: "/docs/developers/mix-dns/concepts",
+        destination: "/docs/developers/mix-dns/guides",
+        permanent: true,
+        basePath: false,
+      },
+      // mix-tunnel concepts removed; security lives in exit-security, architecture on its own page
+      {
+        source: "/docs/developers/mix-tunnel/concepts",
+        destination: "/docs/developers/mix-tunnel",
         permanent: true,
         basePath: false,
       },
@@ -1208,25 +1332,13 @@ const config = {
       },
       {
         source: "/docs/developers/typescript/api/mix-fetch",
-        destination: "/docs/developers/typescript/api/mix-fetch/globals",
+        destination: "/docs/developers/mix-fetch/api/globals",
         permanent: false,
         basePath: false,
       },
       {
         source: "/docs/developers/typescript/api/sdk",
         destination: "/docs/developers/typescript/api/sdk/globals",
-        permanent: false,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/typescript/examples",
-        destination: "/docs/developers/typescript/examples/mix-fetch",
-        permanent: false,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/typescript/playground",
-        destination: "/docs/developers/typescript/playground/mixfetch",
         permanent: false,
         basePath: false,
       },

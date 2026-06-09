@@ -1,0 +1,40 @@
+---
+title: "mix-dns: Hostname Resolution Over the Nym Mixnet"
+description: "TypeScript package that resolves hostnames through the Nym mixnet as UDP DNS via an IPR exit gateway."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# mix-dns
+
+[`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns) resolves hostnames to IPs through the Nym mixnet. The query travels as a UDP datagram to a public resolver via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway, not through the browser or OS resolver.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ mixDNS('example.com')                                  │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ UDP datagram via the IPR                     │
+│                   └─ public resolver (default 8.8.8.8:53)    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The resolver sees a query from the IPR's IP, not yours, and the browser's own resolver path (the OS stub resolver, any local DoH) is bypassed entirely.
+
+## When to use it
+
+`mix-dns` is for cases where you need the resolved IP itself, not a connection that uses it. [`mix-fetch`](/developers/mix-fetch) and [`mix-websocket`](/developers/mix-websocket) already resolve via the mixnet internally; you don't need to call `mixDNS` before either.
+
+Direct uses:
+
+- Validate that a hostname resolves to an expected IP range before connecting through any path.
+- Build IP-based allow / deny lists for an app that performs the connection itself.
+- Probe whether a hostname is reachable from the IPR exit's perspective without opening a connection.
+
+## In this section
+
+- [Get started](/developers/mix-dns/get-started): install and resolve your first hostname.
+- [Reference & security](/developers/mix-dns/guides): configure the resolver, and what it sees.
+- [TypeDoc reference](/developers/mix-dns/api/globals): generated from the source.
+- [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-dns/browser): a runnable example app.

@@ -1,0 +1,32 @@
+---
+title: "mix-tunnel: Shared Mixnet Tunnel for the Browser"
+description: "TypeScript package that owns the shared Nym mixnet tunnel in the browser. The base layer for mix-fetch, mix-dns, and mix-websocket."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# mix-tunnel
+
+[`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel) owns a single mixnet tunnel in the browser and exposes it to the feature packages built on it: [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket). All three call into the same tunnel, so they share one IPR connection, one userspace TCP/IP stack ([`smoltcp`](https://docs.rs/smoltcp)), and one DNS cache.
+
+The tunnel lives in a Web Worker and is built on [smolmix-wasm](https://github.com/nymtech/nym/tree/develop/wasm/smolmix), the WebAssembly build of the [Rust `smolmix` crate](/developers/smolmix). One WASM instance per page, regardless of how many feature packages you import. See [mix-* architecture](/developers/mix-architecture) for how the worker, the Comlink boundary, and the smoltcp + rustls stack fit together.
+
+## When to use it directly
+
+Most apps don't import `mix-tunnel` directly. The feature packages re-export `setupMixTunnel`, `disconnectMixTunnel`, and `getTunnelState`, so calling `setupMixTunnel()` from `mix-fetch` brings the tunnel up for all three.
+
+Use `mix-tunnel` directly when you want to:
+
+- Configure the tunnel once at app startup, before any feature package is loaded.
+- Inspect tunnel state from UI code that isn't tied to a specific feature package.
+- Tear down the tunnel explicitly, for example before a page unload.
+
+## In this section
+
+- [Get started](/developers/mix-tunnel/get-started): install and bring the tunnel up.
+- [Reference](/developers/mix-tunnel/guides): configuration and reading tunnel state.
+- [Architecture](/developers/mix-architecture): how the shared tunnel and Web Worker are wired.
+- [Exit security](/developers/concepts/exit-security): what the IPR exit can see.
+- [TypeDoc reference](/developers/mix-tunnel/api/globals): generated from the source.
+- [Examples](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples): the mix-fetch, mix-dns, and mix-websocket example apps all bring the tunnel up through this package.

@@ -1,0 +1,32 @@
+---
+title: "mix-websocket: WebSocket Over the Nym Mixnet"
+description: "TypeScript package that exposes a WebSocket-like class for WS and WSS traffic routed through the Nym mixnet."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# mix-websocket
+
+[`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket) exposes `MixWebSocket`, a class that mirrors the browser [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) API for traffic that needs to travel through the Nym mixnet. WS and WSS endpoints are reached via the [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) exit gateway; the destination server sees the connection coming from the IPR's IP, not yours.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your browser app                                            │
+│    └─ new MixWebSocket('wss://...')                          │
+│         └─ mix-tunnel (smolmix-wasm, Web Worker)             │
+│              └─ smoltcp userspace TCP/IP + rustls TLS        │
+│                   └─ Nym mixnet → IPR exit gateway           │
+│                        └─ destination WS server              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+The TLS handshake (for `wss://` targets) terminates inside the WASM bundle, end-to-end with the destination. The IPR sees TCP frames addressed to the destination's IP and port; for WSS, the payload is TLS ciphertext.
+
+## In this section
+
+- [Get started](/developers/mix-websocket/get-started): install and open your first mixnet WebSocket.
+- [Reference](/developers/mix-websocket/guides): sending and receiving, error handling, configuration.
+- [Concepts & security](/developers/mix-websocket/concepts): how it differs from the browser WebSocket, and the security model.
+- [TypeDoc reference](/developers/mix-websocket/api/globals): generated from the source.
+- [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-websocket/browser): a runnable example app.

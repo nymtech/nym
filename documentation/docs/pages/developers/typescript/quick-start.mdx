@@ -1,0 +1,86 @@
+---
+title: "TypeScript SDK Quick Start"
+description: "Send and receive messages over the Nym mixnet using @nymproject/sdk. Vanilla TypeScript, no framework."
+schemaType: "HowTo"
+section: "Developers"
+lastUpdated: "2026-05-29"
+---
+
+# Quick start
+
+import { Callout } from 'nextra/components'
+
+A minimal, framework-free example. Connect to the mixnet, subscribe to incoming messages, send a message to yourself, disconnect.
+
+## Installation
+
+```bash
+npm install @nymproject/sdk-full-fat
+```
+
+`sdk-full-fat` inlines the WASM and Web Worker as Base64, so no bundler configuration is needed. For smaller bundles, install `@nymproject/sdk` instead and follow the [Bundling guide](/developers/typescript/bundling/bundling).
+
+## Send and receive
+
+```ts
+import { createNymMixnetClient } from '@nymproject/sdk-full-fat';
+
+const nymApiUrl = 'https://validator.nymtech.net/api';
+
+const nym = await createNymMixnetClient();
+
+nym.events.subscribeToConnected((e) => {
+  console.log('Connected:', e.args.address);
+});
+
+nym.events.subscribeToTextMessageReceivedEvent((e) => {
+  console.log('Received:', e.args.payload);
+});
+
+await nym.client.start({
+  clientId: crypto.randomUUID(),
+  nymApiUrl,
+  forceTls: true, // WSS to entry gateway, required on HTTPS pages
+});
+
+const selfAddress = nym.client.selfAddress();
+await nym.client.send({
+  payload: { message: 'hello mixnet', mimeType: 'text/plain' },
+  recipient: selfAddress,
+});
+
+// ... receive event fires, message logged ...
+
+await nym.client.stop();
+```
+
+That's the whole loop: subscribe, start, send, receive, stop. The mixnet handshake takes a few seconds on first run; subsequent calls in the same session reuse the client.
+
+## Anonymous replies (SURBs)
+
+Every outgoing message carries Single Use Reply Blocks by default. The recipient gets an opaque `sender_tag` and can reply without learning the sender's address:
+
+```ts
+nym.events.subscribeToTextMessageReceivedEvent(async (e) => {
+  if (e.args.senderTag) {
+    await nym.client.replyWithSurb({
+      senderTag: e.args.senderTag,
+      payload: { message: 'hello back, anonymously', mimeType: 'text/plain' },
+    });
+  }
+});
+```
+
+<Callout type="info">
+The Nym mixnet has no persistent connections and no guaranteed ordering. The SDK abstracts this, but it shapes the patterns you can build: request/response works (via SURBs), but assumptions like "the third message will arrive third" don't hold.
+</Callout>
+
+## Where to go next
+
+- [TypeScript SDK landing](/developers/typescript): package variants, smart contracts, full options surface.
+- [TypeDoc reference](/developers/typescript/api/sdk/globals): generated API docs for `@nymproject/sdk`.
+- [Bundling](/developers/typescript/bundling/bundling): Webpack and esbuild configurations for the non-full-fat variants.
+
+<Callout type="info">
+If you encounter a persistent gateway client error, open your browser console, go to the "Application" tab, and delete the databases listed under "IndexedDB". The SDK persists client identity there; clearing it forces a fresh handshake.
+</Callout>

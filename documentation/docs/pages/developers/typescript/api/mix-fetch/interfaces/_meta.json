@@ -1,8 +1,0 @@
-{
-  "IMixFetch": "IMixFetch",
-  "IMixFetchWebWorker": "IMixFetchWebWorker",
-  "ResponseBody": "ResponseBody",
-  "ResponseBodyConfigMap": "ResponseBodyConfigMap",
-  "MixFetchWebWorkerResponse": "MixFetchWebWorkerResponse",
-  "LoadedEvent": "LoadedEvent"
-}

@@ -1,0 +1,56 @@
+---
+title: "mix-websocket guides"
+description: "Send and receive frames, handle errors, and configure the tunnel for mix-websocket."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+# Reference
+
+## Sending and receiving
+
+```ts
+ws.addEventListener('message', (e) => {
+  if (typeof e.data === 'string') {
+    console.log('text frame:', e.data);
+  } else {
+    // ArrayBuffer for binary frames
+    console.log('binary frame:', e.data.byteLength, 'bytes');
+  }
+});
+
+// Send a text frame
+await ws.send('hello');
+
+// Send a binary frame
+await ws.send(new Uint8Array([0x01, 0x02, 0x03]));
+```
+
+`send()` rejects if called when `readyState` is not `OPEN`. Use `await ws.opened()` to gate the first send, and check `ws.readyState` if you keep references around for later use.
+
+## Error handling
+
+The `error` event carries a non-standard `.message` field with the underlying cause (the standard `Event` carries no payload). Use it for diagnostics:
+
+```ts
+ws.addEventListener('error', (e) => {
+  const msg = (e as Event & { message?: string }).message;
+  console.error('mix-websocket failure:', msg);
+});
+```
+
+If the upgrade fails before `open` fires, `MixWebSocket` transitions to `CLOSED` and dispatches `error`. `opened()` resolves either on `open` or on the failure event, so callers don't hang.
+
+## Configuration
+
+`MixWebSocket` has no per-instance configuration beyond `url` and `protocols`. Tunnel-level options live on `setupMixTunnel`, the same shared call that mix-fetch and mix-dns use:
+
+```ts
+await setupMixTunnel({
+  preferredIpr: '...',
+  disableCoverTraffic: true,
+});
+```
+
+See [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts) for the full surface.

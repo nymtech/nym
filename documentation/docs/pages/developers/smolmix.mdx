@@ -32,8 +32,10 @@ Traffic exits the mixnet at an [IPR (Internet Packet Router)](/network/infrastru
 
 This means `smolmix` is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to use `smolmix` from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
 
-### Non-native `smolmix`
-A WASM version of `smolmix` is planned for a future release.
+### The WebAssembly build (browsers and WebViews)
+The WebAssembly build of `smolmix` powers the mix-* packages [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket). The wasm is inlined into `mix-tunnel`, so apps install one of those packages rather than building the crate themselves.
+
+It runs in any JavaScript runtime that provides `WebSocket`, Web Workers, and WebAssembly. That means desktop browsers and mobile WebViews alike, so hybrid app shells (Capacitor, Ionic, Cordova, `react-native-webview`) are in scope, not just web pages. It does not run in a bare Node.js or React Native Hermes/JSC runtime, which lack Web Workers (and, for Hermes, WebAssembly). For native mobile or server targets, compile the Rust crate itself rather than using the wasm packages.
 
 ## Installation
 
@@ -41,8 +43,8 @@ Add `smolmix` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-smolmix = "1.21.0"
-nym-bin-common = { version = "1.21.0", features = ["basic_tracing"] }
+smolmix = "1.21.1"
+nym-bin-common = { version = "1.21.1", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -51,6 +53,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 `nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see mixnet connection progress.
 
 **Minimum Rust version:** {RUST_MSRV}+
+
+`smolmix`'s API may still change between minor releases. Pin a version rather than tracking the latest, and read the changelog before bumping.
 
 ### From Git
 
@@ -76,33 +80,9 @@ smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 Traffic is Sphinx-encrypted inside the mixnet. Past the Exit Gateway, it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, as you would on a direct connection.
 </Callout>
 
-### What's protected
+The mixnet hides your identity from the destination and your destination from the network, but the IPR exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
 
-| Segment | Mixnet encryption | What's visible |
-|---|---|---|
-| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
-| Inside the mixnet (entry + 3 mix layers + exit) | Sphinx (layered) | Each node only knows prev/next hop |
-| Exit gateway (IPR) | Sphinx removed, raw IP packet exposed | IPR sees destination IP + port. Payload depends on your application layer (see below). |
-| IPR → remote host | None (Sphinx is mixnet-only) | Remote host sees IPR's IP, not yours |
-
-The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. At the exit gateway, the Sphinx layers are stripped and the original IP packet is forwarded to the destination. This is analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
-
-What's inside that IP packet is up to you. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR sees encrypted TLS ciphertext going to a destination IP: it knows where but not what. If you send plaintext HTTP, the IPR can read the full request and response.
-
-### Trust boundaries
-
-- You trust the mixnet to provide unlinkability between sender and receiver. This is enforced cryptographically by the Sphinx packet format and mixing.
-- You trust the IPR exit gateway in the same way you trust a VPN exit or Tor exit node: it can inspect your raw IP packets. The difference is that the IPR doesn't know who is sending the traffic (the mixnet hides your identity).
-- **Application-layer encryption closes the gap.** TLS, Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It can see destination IP and port, but not payload content.
-
-### Comparison with other privacy tools
-
-| | smolmix | Tor | VPN |
-|---|---|---|---|
-| **Exit node sees traffic?** | Yes (encrypt it) | Yes (encrypt it) | Yes (encrypt it) |
-| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
-| **Timing analysis resistance** | Strong (mixing, cover traffic) | Weak (low-latency) | None |
-| **UDP support** | Yes | No (TCP only) | Yes |
+The full model (what each hop sees, trust boundaries, and a comparison with Tor and VPNs) is on [Exit security](/developers/concepts/exit-security).
 
 ## Examples
 

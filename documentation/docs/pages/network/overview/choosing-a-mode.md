@@ -52,4 +52,4 @@ Your App --> Entry --> Mix Nodes --> Exit --> Internet
 Your App --> Entry --> Mix Nodes --> Exit --> Nym Client
 ```
 
-See the [integration overview](/developers/integrations) for guidance on choosing between them.
+See the [developer overview](/developers) for guidance on choosing between them.

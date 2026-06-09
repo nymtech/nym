@@ -310,6 +310,24 @@ const sdks = [
       "fetch()-compatible API that routes HTTP(S) requests through the Mixnet. Browsers and Node.js.",
     href: "/developers/mix-fetch",
   },
+  {
+    name: "mix-tunnel",
+    description:
+      "Owns the shared Mixnet tunnel that mix-fetch, mix-dns, and mix-websocket ride on. One IPR connection and userspace TCP/IP stack for all three.",
+    href: "/developers/mix-tunnel",
+  },
+  {
+    name: "mix-dns",
+    description:
+      "Resolves hostnames to IPs through the Mixnet. UDP DNS via an IPR exit, no TCP or TLS.",
+    href: "/developers/mix-dns",
+  },
+  {
+    name: "mix-websocket",
+    description:
+      "WebSocket-compatible class for ws and wss traffic routed through the Mixnet via an IPR exit.",
+    href: "/developers/mix-websocket",
+  },
 ];
 
 export const LandingPage = () => {

@@ -1,4 +1,5 @@
 {
   "socks5": "SOCKS Proxy",
-  "websocket": "Websocket"
+  "websocket": "Websocket",
+  "webassembly-client": "WebAssembly Client"
 }

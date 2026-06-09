@@ -78,6 +78,22 @@ cargo Profile:      release
 
 ### Operators Tools
 
+<Callout type="error" emoji="🚨">
+The provider [WorkTitans B.V., AS209847](https://ipinfo.io/AS209847), also known as _the.hosting, PQ-Hosting and Stark Industries_, has been [under investigation](https://securityaffairs.com/192602/intelligence/dutch-authorities-dismantle-hosting-network-allegedly-used-for-cyberattacks-and-disinformation.html) and majority of their servers were seized. 
+
+**If by any chance your nodes are hosted by this provider and it's subsidies (ie *one.hosting*) and still running, please find a new provider and discontinue to use these services.**
+</Callout>
+
+- [**New menu layout**](https://github.com/nymtech/nym/commit/495f020730c7d421ba33a77ec15c2bad8f1f2603): Operators Guide has a new menu, easier to navigate through
+
+- **Ansible improvements**: [\#6848](https://github.com/nymtech/nym/pull/6848) and [\#6860](https://github.com/nymtech/nym/pull/6860):
+  - [Simpler configuration](/operators/orchestration/ansible#configuration): all operator unique values are set only in [`group_vars/all.yml`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/group_vars/all.yml) and [`inventory/all`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/inventory/all)
+  - [Automatic bonding flow](/operators/orchestration/ansible#2-bond): Using new components:
+    - [`auto_bond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): a program using `nodes.csv` and [Ansible playbook](/operators/orchestration/ansible) to bond all desired nodes in an automated flow
+    - [`nodes.csv`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes.csv.example): a node registry combining Ansible inventory and Nyx mnemonics to serve `auto_bond_all.py`, `unbond_all.py` and `show_balances.py`
+  - Additionally there are two more components to help automate the flow:  
+    - [`unbond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): a program using `nodes.csv` to unbond all desired nodes in an automated flow
+    - [`show_balances.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/show_balances.py): a program using `nodes.csv` to show all Nyx account balances, helping operators to decide on bonding amount
 
 ### Features
 

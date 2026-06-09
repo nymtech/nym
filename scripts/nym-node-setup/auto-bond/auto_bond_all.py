@@ -79,8 +79,24 @@ def resolve_paths(args):
     return nym_cli, ansible_pb, inventory
 
 
-def run(cmd: list, dry_run: bool, capture=True, cwd=None) -> subprocess.CompletedProcess:
-    dim("$ " + " ".join(str(c) for c in cmd))
+
+SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
+
+def redact_cmd(cmd: list) -> list[str]:
+    redacted = []
+    hide_next = False
+    for token in map(str, cmd):
+        if hide_next:
+            redacted.append("***REDACTED***")
+            hide_next = False
+            continue
+        redacted.append(token)
+        if token in SENSITIVE_FLAGS:
+            hide_next = True
+    return redacted
+
+ def run(cmd: list, capture=True) -> subprocess.CompletedProcess:
+    print(f"  $ {' '.join(redact_cmd(cmd))}")
     if dry_run:
         return subprocess.CompletedProcess(cmd, 0, stdout='{"dry_run": true}', stderr="")
     result = subprocess.run(cmd, capture_output=capture, text=True, cwd=cwd)

@@ -1,4 +1,4 @@
-import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, NodeConfigUpdate, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network, TNymNodeSignatureArgs } from 'src/types';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
@@ -149,7 +149,10 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const updateNymNodeConfig = async (): Promise<TransactionExecuteResult> => {
+  const updateNymNodeConfig = async (
+    _data?: NodeConfigUpdate,
+    _fee?: FeeDetails,
+  ): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();

@@ -13,6 +13,7 @@ import {
   userBalance,
 } from '../requests';
 import { Console } from '../utils/console';
+import { runBalanceRefreshWithoutNestedLoading } from './balanceRefreshOrchestration';
 
 type TTokenAllocation = {
   [key in
@@ -98,16 +99,22 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     setVestingAccountInfo(vestingAccountDetail);
   };
 
-  const fetchTokenAllocation = async (isBackgroundPoll = false) => {
-    setIsLoading(true);
+  const fetchTokenAllocation = async (isBackgroundPoll = false, manageLoading = true) => {
+    if (manageLoading) {
+      setIsLoading(true);
+    }
     if (!clientDetails?.client_address) {
-      setIsLoading(false);
+      if (manageLoading) {
+        setIsLoading(false);
+      }
       return;
     }
 
     if (vestingAccountStatusRef.current === 'absent') {
       if (isBackgroundPoll) {
-        setIsLoading(false);
+        if (manageLoading) {
+          setIsLoading(false);
+        }
         return;
       }
       vestingAccountStatusRef.current = 'unknown';
@@ -204,12 +211,16 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
       clearVestingUiState();
       Console.error(e as string);
     } finally {
-      setIsLoading(false);
+      if (manageLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
-  const fetchBalance = useCallback(async () => {
-    setIsLoading(true);
+  const fetchBalance = useCallback(async (manageLoading = true) => {
+    if (manageLoading) {
+      setIsLoading(true);
+    }
     setError(undefined);
     try {
       const bal = await userBalance();
@@ -217,7 +228,9 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     } catch (err) {
       setError(err as string);
     } finally {
-      setIsLoading(false);
+      if (manageLoading) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -232,17 +245,26 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
 
   const refreshBalances = async () => {
     vestingAccountStatusRef.current = 'unknown';
-    if (clientDetails?.client_address) {
-      await fetchBalance();
-      await fetchTokenAllocation();
-    } else {
+    if (!clientDetails?.client_address) {
       clearAll();
+      return;
+    }
+    setIsLoading(true);
+    setError(undefined);
+    try {
+      await runBalanceRefreshWithoutNestedLoading(fetchBalance, fetchTokenAllocation);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshBalances();
-  }, [clientDetails]);
+    if (!clientDetails?.client_address) {
+      clearAll();
+      return;
+    }
+    refreshBalances().catch((e) => Console.error(String(e)));
+  }, [clientDetails?.client_address]);
 
   return {
     error,

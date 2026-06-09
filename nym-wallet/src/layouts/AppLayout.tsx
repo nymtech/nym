@@ -3,20 +3,17 @@ import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { AppContext } from 'src/context';
-import { AppBar, AppSessionLoadingOverlay, LoadingPage, Nav } from '../components';
+import { AppBar, AppSessionLoadingOverlay, Nav } from '../components';
 
 export const ApplicationLayout: FCWithChildren = ({ children }) => {
   const { isLoading, loadingPresentation, loadingOverlayTitle, loadingOverlaySubtitle, appVersion } =
     useContext(AppContext);
 
+  const showAppOverlay = isLoading && loadingPresentation === 'app-overlay';
+
   return (
     <>
-      {isLoading &&
-        (loadingPresentation === 'app-overlay' ? (
-          <AppSessionLoadingOverlay title={loadingOverlayTitle} subtitle={loadingOverlaySubtitle} />
-        ) : (
-          <LoadingPage />
-        ))}
+      {showAppOverlay && <AppSessionLoadingOverlay title={loadingOverlayTitle} subtitle={loadingOverlaySubtitle} />}
       <Box
         sx={{
           height: '100vh',
@@ -98,7 +95,6 @@ export const ApplicationLayout: FCWithChildren = ({ children }) => {
               overflowY: 'auto',
               overflowX: 'hidden',
               pr: { xs: 0, md: 1 },
-              // Avoid horizontal layout shift when scrollbar appears between short/tall routes (e.g. delegation vs bonding).
               scrollbarGutter: 'stable',
             }}
           >

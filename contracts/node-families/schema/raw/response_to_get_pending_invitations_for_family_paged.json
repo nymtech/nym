@@ -34,7 +34,7 @@
   "additionalProperties": false,
   "definitions": {
     "FamilyInvitation": {
-      "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, revoked, or until the chain advances past `expires_at` (in which case they remain in storage but are treated as inert — there is no background process clearing expired invitations).",
+      "description": "A pending invitation for a node to join a particular family.\n\nInvitations are stored until they are accepted, rejected, or revoked. Once the chain advances past `expires_at` an invitation becomes inert but stays in storage — there is no background process clearing expired invitations. A timed-out invitation is cleared either when explicitly revoked/rejected, or when the family issues a fresh invitation for the same node, which archives the stale one as `Expired` and supersedes it.",
       "type": "object",
       "required": [
         "expires_at",

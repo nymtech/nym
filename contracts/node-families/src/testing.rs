@@ -168,8 +168,9 @@ pub trait NodeFamiliesContractTesterExt:
         node: NodeId,
         expiration: u64,
     ) -> FamilyInvitation {
+        let env = self.env();
         NodeFamiliesStorage::new()
-            .add_pending_invitation(self, family, node, expiration)
+            .add_pending_invitation(self, &env, family, node, expiration)
             .unwrap()
     }
 

@@ -85,7 +85,13 @@ pub(crate) struct Cli {
 }
 
 impl Cli {
+    #[allow(clippy::unreachable)]
     pub(crate) fn execute(self) -> anyhow::Result<()> {
+        // test_throughput sets up its own logger and builds a runtime internally.
+        if let Commands::TestThroughput(args) = self.command {
+            return test_throughput::execute(args);
+        }
+
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
@@ -104,7 +110,7 @@ impl Cli {
                 Commands::Run(args) => run::execute(*args).await?,
                 Commands::Migrate(args) => migrate::execute(*args)?,
                 Commands::Sign(args) => sign::execute(args).await?,
-                Commands::TestThroughput(args) => test_throughput::execute(args)?,
+                Commands::TestThroughput(..) => unreachable!(),
                 Commands::UnsafeResetSphinxKeys(args) => reset_sphinx_keys::execute(args).await?,
                 Commands::Debug(debug) => match debug.command {
                     DebugCommands::ResetProvidersGatewayDbs(args) => {

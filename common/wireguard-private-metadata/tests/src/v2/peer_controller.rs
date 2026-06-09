@@ -14,6 +14,7 @@ use tokio::sync::mpsc::Receiver;
 #[derive(Hash, PartialOrd, PartialEq, Clone, Debug, Eq, Copy)]
 pub enum PeerControlRequestTypeV2 {
     AddPeer,
+    UpdatePeerPsk,
     RemovePeer,
     QueryPeer,
     GetClientBandwidthByKey,
@@ -26,6 +27,7 @@ impl From<&PeerControlRequest> for PeerControlRequestTypeV2 {
     fn from(req: &PeerControlRequest) -> Self {
         match req {
             PeerControlRequest::AddPeer { .. } => PeerControlRequestTypeV2::AddPeer,
+            PeerControlRequest::UpdatePeerPsk { .. } => PeerControlRequestTypeV2::UpdatePeerPsk,
             PeerControlRequest::PreAllocateIpPair { .. } => PeerControlRequestTypeV2::AddPeer,
             PeerControlRequest::RemovePeer { .. } => PeerControlRequestTypeV2::RemovePeer,
             PeerControlRequest::QueryPeer { .. } => PeerControlRequestTypeV2::QueryPeer,
@@ -107,6 +109,15 @@ impl MockPeerControllerV2 {
 
         match request {
             PeerControlRequest::AddPeer { response_tx, .. } => {
+                response_tx
+                    .send(
+                        *response
+                            .downcast()
+                            .expect("registered response has mismatched type"),
+                    )
+                    .unwrap();
+            }
+            PeerControlRequest::UpdatePeerPsk { response_tx, .. } => {
                 response_tx
                     .send(
                         *response

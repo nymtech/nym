@@ -4,6 +4,94 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.11-xynomizithra] (2026-06-08)
+
+- bugfix: allow re-inviting expired members ([#6863])
+- feat: disable Nagle's algorithm for LP between nym-nodes ([#6857])
+- Keep peer in wg table when updating psk ([#6856])
+- chore: minor nym-node improvements ([#6850])
+- chore: LP registration adjustments ([#6845])
+- crates release: bump version to 1.21.1 ([#6844])
+- fix gateways being penalised for no stress testing ([#6843])
+- fix score inflation for throttled nodes ([#6842])
+- Bugfix/cherry pick/waterloo stres testing floats ([#6841])
+- bugfix: NMv3 race condition ([#6837])
+- feat: implement UpdateFamily for the node families contract ([#6834])
+- Bugfix/cherry pick/waterloo ns api ([#6833])
+- experiment: attempt to retroactively generate specs for node families and ecash contracts ([#6813])
+- moving lp packets in lp-data crate ([#6810])
+- upgrade axum to 0.8.9 (and side deps) ([#6808])
+- chore: expose admin method for migrating vesting delegations/mixnodes ([#6795])
+- [chore] fix clippy 1.95 lints for future version update ([#6794])
+- Handle Rate Limit Challenge Response ([#6786])
+- NYM-583: Avoid corrupted database on Windows. ([#6785])
+- Max/smolmix wasm ([#6784])
+- Chore/bugfixes ([#6783])
+- Switch from yarn to pnpm ([#6779])
+- feat: Node Families: expose stake information inside DVpnGateway ([#6778])
+- feat: Node Families: expose family information for NS API consumers ([#6777])
+- feat: Node Families: cache and expose family data within nym API ([#6774])
+- Re-order default API urls for network details ([#6767])
+- add ci for NM agent binary ([#6764])
+- feat/refactor: introduce shared contract caches within Nym API ([#6760])
+- chore: removed dead code for redundant mixnet-vesting integration tests ([#6759])
+- feat: Node Families: remove nodes upon unbonding ([#6752])
+- feat: Node Families: contract transactions ([#6750])
+- feat: Node Families: contract queries ([#6731])
+- feat: Node Families: initial contract storage ([#6717])
+- start node families topic branch ([#6715])
+- Bump rand from 0.8.5 to 0.8.6 in /contracts ([#6702])
+- Testing port checks in NS Agents ([#6694])
+- build(deps): bump microsoft/setup-msbuild from 2 to 3 ([#6602])
+- build(deps): bump tar from 0.4.44 to 0.4.45 ([#6595])
+- build(deps): bump quinn-proto from 0.11.12 to 0.11.14 ([#6549])
+- build(deps): bump docker/login-action from 3 to 4 ([#6518])
+- build(deps): bump actions/download-artifact from 7 to 8 ([#6497])
+- build(deps): bump actions/upload-artifact from 6 to 7 ([#6496])
+
+[#6863]: https://github.com/nymtech/nym/pull/6863
+[#6857]: https://github.com/nymtech/nym/pull/6857
+[#6856]: https://github.com/nymtech/nym/pull/6856
+[#6850]: https://github.com/nymtech/nym/pull/6850
+[#6845]: https://github.com/nymtech/nym/pull/6845
+[#6844]: https://github.com/nymtech/nym/pull/6844
+[#6843]: https://github.com/nymtech/nym/pull/6843
+[#6842]: https://github.com/nymtech/nym/pull/6842
+[#6841]: https://github.com/nymtech/nym/pull/6841
+[#6837]: https://github.com/nymtech/nym/pull/6837
+[#6834]: https://github.com/nymtech/nym/pull/6834
+[#6833]: https://github.com/nymtech/nym/pull/6833
+[#6813]: https://github.com/nymtech/nym/pull/6813
+[#6810]: https://github.com/nymtech/nym/pull/6810
+[#6808]: https://github.com/nymtech/nym/pull/6808
+[#6795]: https://github.com/nymtech/nym/pull/6795
+[#6794]: https://github.com/nymtech/nym/pull/6794
+[#6786]: https://github.com/nymtech/nym/pull/6786
+[#6785]: https://github.com/nymtech/nym/pull/6785
+[#6784]: https://github.com/nymtech/nym/pull/6784
+[#6783]: https://github.com/nymtech/nym/pull/6783
+[#6779]: https://github.com/nymtech/nym/pull/6779
+[#6778]: https://github.com/nymtech/nym/pull/6778
+[#6777]: https://github.com/nymtech/nym/pull/6777
+[#6774]: https://github.com/nymtech/nym/pull/6774
+[#6767]: https://github.com/nymtech/nym/pull/6767
+[#6764]: https://github.com/nymtech/nym/pull/6764
+[#6760]: https://github.com/nymtech/nym/pull/6760
+[#6759]: https://github.com/nymtech/nym/pull/6759
+[#6752]: https://github.com/nymtech/nym/pull/6752
+[#6750]: https://github.com/nymtech/nym/pull/6750
+[#6731]: https://github.com/nymtech/nym/pull/6731
+[#6717]: https://github.com/nymtech/nym/pull/6717
+[#6715]: https://github.com/nymtech/nym/pull/6715
+[#6702]: https://github.com/nymtech/nym/pull/6702
+[#6694]: https://github.com/nymtech/nym/pull/6694
+[#6602]: https://github.com/nymtech/nym/pull/6602
+[#6595]: https://github.com/nymtech/nym/pull/6595
+[#6549]: https://github.com/nymtech/nym/pull/6549
+[#6518]: https://github.com/nymtech/nym/pull/6518
+[#6497]: https://github.com/nymtech/nym/pull/6497
+[#6496]: https://github.com/nymtech/nym/pull/6496
+
 ## [2026.10-waterloo] (2026-05-27)
 
 - Re-order default API urls for network details - Waterloo release ([#6799])

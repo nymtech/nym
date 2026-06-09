@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::trace::PacketTrace;
 use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -43,6 +44,9 @@ pub struct PacketToForward {
     pub packet: MixPacket,
     pub forward_delay_target: Option<Instant>,
     pub network_monitor_packet: bool,
+    /// Latency breadcrumb started at packet receive; stamped as the packet moves through the
+    /// forwarder and egress stages. `PacketTrace::Off` for untraced packets (e.g. acks).
+    pub trace: PacketTrace,
 }
 
 impl PacketToForward {
@@ -50,15 +54,17 @@ impl PacketToForward {
         packet: MixPacket,
         forward_delay_target: Option<Instant>,
         network_monitor_packet: bool,
+        trace: PacketTrace,
     ) -> Self {
         PacketToForward {
             packet,
             forward_delay_target,
             network_monitor_packet,
+            trace,
         }
     }
 
     pub fn client_packet_without_delay(packet: MixPacket) -> Self {
-        Self::new(packet, None, false)
+        Self::new(packet, None, false, PacketTrace::Off)
     }
 }

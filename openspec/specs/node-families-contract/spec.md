@@ -214,9 +214,10 @@ The `family_members` map SHALL be keyed by `NodeId` alone; the value SHALL carry
 - reject `validity == 0` with `ZeroInvitationValidity`;
 - verify `node_id` refers to a currently-bonded, not-unbonding node in the mixnet contract via `MixnetContractQuerier::check_node_existence` (which returns `false` both when no bond exists and when the bond is in the unbonding state), failing with `NodeDoesntExist { node_id }` otherwise;
 - verify the node is not already in any family (see "A node belongs to at most one family");
+- reject `(family_id, node_id)` pairs that already have a **still-valid** pending invitation (`env.block.time.seconds() < existing.expires_at`) with `PendingInvitationAlreadyExists { family_id, node_id }`;
+- when a pending invitation for the pair exists but has already expired (`env.block.time.seconds() >= existing.expires_at`), archive it as `PastFamilyInvitation { invitation, status: Expired { at: env.block.time.seconds() } }` using the next free per-`(family, node)` archive slot, then let the fresh invitation supersede it;
 - persist a `FamilyInvitation` with `expires_at = env.block.time.seconds() + validity`;
-- reject `(family_id, node_id)` pairs that already have a pending invitation with `PendingInvitationAlreadyExists { family_id, node_id }`;
-- emit a `family_invitation` event with `family_id`, `node_id`, `expires_at`.
+- emit a `family_invitation` event with `family_id`, `node_id`, `expires_at` (the same event whether or not it superseded an expired invitation).
 
 #### Scenario: Successful invitation persists with the computed expiry
 - **WHEN** family owner sends `InviteToFamily { node_id, validity_secs: Some(v) }` and all preconditions hold
@@ -235,9 +236,13 @@ The `family_members` map SHALL be keyed by `NodeId` alone; the value SHALL carry
 - **WHEN** `InviteToFamily { node_id }` targets a `node_id` for which the mixnet contract's `check_node_existence` returns `false`
 - **THEN** the call fails with `NodeDoesntExist { node_id }`
 
-#### Scenario: Duplicate pending invitation is rejected
-- **WHEN** family `F` already has a pending invitation for node `n` and `InviteToFamily { node_id: n }` is sent again by `F`'s owner
-- **THEN** the call fails with `PendingInvitationAlreadyExists { family_id: F.id, node_id: n }` (the existing invitation is preserved)
+#### Scenario: Duplicate still-valid pending invitation is rejected
+- **WHEN** family `F` already has a still-valid (not yet expired) pending invitation for node `n` and `InviteToFamily { node_id: n }` is sent again by `F`'s owner
+- **THEN** the call fails with `PendingInvitationAlreadyExists { family_id: F.id, node_id: n }` (the existing invitation is preserved and nothing is archived)
+
+#### Scenario: Re-inviting after the previous invitation expired supersedes it
+- **WHEN** family `F` has a pending invitation for node `n` whose `expires_at <= env.block.time.seconds()` and `InviteToFamily { node_id: n }` is sent again by `F`'s owner
+- **THEN** the call succeeds: the stale invitation is archived under `past_family_invitations` with `status = Expired { at: env.block.time.seconds() }`, and a fresh `FamilyInvitation` for `(F.id, n)` is persisted with the newly computed `expires_at`
 
 ### Requirement: Acceptance and rejection of an invitation are gated on node control
 
@@ -288,7 +293,7 @@ A successful `AcceptFamilyInvitation` SHALL:
 - emit `family_invitation_rejected` or `family_invitation_revoked` respectively, with `family_id` and `node_id` attributes;
 - fail with `InvitationNotFound { family_id, node_id }` if no pending invitation exists.
 
-These two paths SHALL be the only ways to clear an expired invitation out of `pending_family_invitations` — the contract performs no background sweep of expired entries.
+The contract performs no background sweep of expired entries. Reject and revoke are the two *targeted* ways to clear a specific pending invitation; an expired one is additionally cleared if the family owner re-invites the same node (archiving the stale entry as `Expired { at: now }` before superseding it — see "Invitations require an existing family …") or if the family is disbanded.
 
 #### Scenario: Owner revokes a still-pending invitation
 - **WHEN** family owner sends `RevokeFamilyInvitation { node_id }` for a node currently in their pending invitations
@@ -361,7 +366,7 @@ The auto-cleared invitations share the `Rejected` terminal state with invitation
 
 ### Requirement: Expired pending invitations remain in storage until explicitly cleared
 
-The contract SHALL NOT run any background sweep of expired pending invitations. A `FamilyInvitation` whose `expires_at <= env.block.time.seconds()` SHALL remain in `pending_family_invitations` until either the family owner revokes it, the node controller rejects it, or the family is disbanded. Accept attempts against such entries MUST fail with `InvitationExpired`. Read queries SHALL surface a boolean `expired` flag (`now >= invitation.expires_at`) on each returned `PendingFamilyInvitationDetails` so callers can filter without doing the comparison themselves.
+The contract SHALL NOT run any background sweep of expired pending invitations. A `FamilyInvitation` whose `expires_at <= env.block.time.seconds()` SHALL remain in `pending_family_invitations` until either the family owner revokes it, the node controller rejects it, the family owner re-invites the same node (which archives the stale entry as `Expired { at: now }` and replaces it), or the family is disbanded. Accept attempts against such entries MUST fail with `InvitationExpired`. Read queries SHALL surface a boolean `expired` flag (`now >= invitation.expires_at`) on each returned `PendingFamilyInvitationDetails` so callers can filter without doing the comparison themselves.
 
 #### Scenario: Expired invitation is still listed by pending queries
 - **WHEN** family `F` has a pending invitation for node `n` whose `expires_at` is in the past and `GetPendingInvitationsForFamilyPaged { family_id: F.id }` is queried

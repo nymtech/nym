@@ -1,0 +1,38 @@
+- name: Show which node is being bonded
+  tags: bonding
+  debug:
+    msg: "Bonding Nym node: {{ hostname }}"
+
+- name: Get bonding details
+  tags: bonding
+  command: "/root/nym-binaries/nym-node bonding-information"
+  register: bondinfo
+  changed_when: false
+
+- name: Display bonding info
+  tags: bonding
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ bondinfo.stdout_lines }}"
+
+- name: Sign bonding contract message on the node
+  tags: bonding
+  command:
+    argv:
+      - /root/nym-binaries/nym-node
+      - sign
+      - --contract-msg
+      - "{{ contract_msg }}"
+      - --output
+      - json
+  register: sign_output
+
+- name: Display full signed message exactly as returned
+  tags: bonding
+  debug:
+    msg: "{{ sign_output.stdout }}"
+
+- name: Display encoded signature
+  tags: bonding
+  debug:
+    msg: "ENCODED_SIGNATURE={{ (sign_output.stdout | from_json).encoded_signature }}"

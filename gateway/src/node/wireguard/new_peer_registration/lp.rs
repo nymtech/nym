@@ -20,18 +20,22 @@ impl PeerRegistrator {
         peer: PeerPublicKey,
         psk: Key,
     ) -> Result<(), GatewayWireguardError> {
-        // 1. check if the peer is currently being handled
-        if self.peer_manager.check_active_peer(peer).await? {
-            // 2. if so, force disconnect it (as we're handling new request from the same peer)
-            self.peer_manager.remove_peer(peer).await?;
-        }
+        let active_peer = if self.peer_manager.check_active_peer(peer).await? {
+            self.peer_manager.query_peer(peer).await?
+        } else {
+            None
+        };
 
-        // 3. update the on-disk PSK
         let encoded_psk = psk.to_lower_hex();
         self.ecash_verifier
             .storage()
             .update_peer_psk(&peer.to_string(), Some(&encoded_psk))
             .await?;
+
+        if let Some(mut active_peer) = active_peer {
+            active_peer.preshared_key = Some(psk);
+            self.peer_manager.add_peer(active_peer).await?;
+        }
 
         Ok(())
     }

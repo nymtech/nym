@@ -6,7 +6,7 @@ use nym_credentials_interface::AvailableBandwidth;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 
 const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_secs(5 * 60); // 5 minutes
 const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 5 * 1024 * 1024; // 5MB
@@ -33,6 +33,7 @@ impl Default for BandwidthFlushingBehaviourConfig {
 #[derive(Debug, Clone)]
 pub struct ClientBandwidth {
     inner: Arc<RwLock<ClientBandwidthInner>>,
+    sync_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Debug)]
@@ -56,6 +57,7 @@ impl ClientBandwidth {
                 bytes_at_last_sync: bandwidth.bytes,
                 bytes_delta_since_sync: 0,
             })),
+            sync_lock: Arc::new(Mutex::new(())),
         }
     }
 
@@ -77,9 +79,27 @@ impl ClientBandwidth {
         self.inner.read().await.bandwidth.bytes
     }
 
+    #[cfg(test)]
     pub(crate) async fn delta_since_sync(&self) -> i64 {
         self.inner.read().await.bytes_delta_since_sync
     }
+
+    pub(crate) async fn sync_guard(&self) -> OwnedMutexGuard<()> {
+        self.sync_lock.clone().lock_owned().await
+    }
+
+    pub(crate) async fn take_delta_since_sync(&self) -> i64 {
+        let mut guard = self.inner.write().await;
+        let delta = guard.bytes_delta_since_sync;
+        guard.bytes_delta_since_sync = 0;
+        delta
+    }
+
+    pub(crate) async fn restore_delta_since_sync(&self, delta: i64) {
+        let mut guard = self.inner.write().await;
+        guard.bytes_delta_since_sync += delta;
+    }
+
     pub(crate) async fn expiration(&self) -> OffsetDateTime {
         self.inner.read().await.bandwidth.expiration
     }
@@ -115,9 +135,74 @@ impl ClientBandwidth {
     pub(crate) async fn resync_bandwidth_with_storage(&self, stored: i64) {
         let mut guard = self.inner.write().await;
 
-        guard.bandwidth.bytes = stored;
         guard.bytes_at_last_sync = stored;
-        guard.bytes_delta_since_sync = 0;
+        guard.bandwidth.bytes = stored + guard.bytes_delta_since_sync;
         guard.last_synced = OffsetDateTime::now_utc();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_bandwidth(bytes: i64) -> ClientBandwidth {
+        ClientBandwidth::new(AvailableBandwidth {
+            bytes,
+            expiration: OffsetDateTime::UNIX_EPOCH,
+        })
+    }
+
+    #[tokio::test]
+    async fn resync_preserves_delta_accumulated_during_storage_sync() {
+        let bandwidth = test_bandwidth(1_000);
+
+        bandwidth.decrease_bandwidth(100).await;
+        let reserved_delta = bandwidth.take_delta_since_sync().await;
+        assert_eq!(reserved_delta, -100);
+        assert_eq!(bandwidth.delta_since_sync().await, 0);
+
+        bandwidth.decrease_bandwidth(50).await;
+        bandwidth.resync_bandwidth_with_storage(900).await;
+
+        assert_eq!(bandwidth.available().await, 850);
+        assert_eq!(bandwidth.delta_since_sync().await, -50);
+    }
+
+    #[tokio::test]
+    async fn failed_sync_restores_reserved_delta() {
+        let bandwidth = test_bandwidth(1_000);
+
+        bandwidth.decrease_bandwidth(100).await;
+        let reserved_delta = bandwidth.take_delta_since_sync().await;
+        bandwidth.decrease_bandwidth(25).await;
+        bandwidth.restore_delta_since_sync(reserved_delta).await;
+
+        assert_eq!(bandwidth.available().await, 875);
+        assert_eq!(bandwidth.delta_since_sync().await, -125);
+    }
+
+    #[tokio::test]
+    async fn old_read_only_sync_could_apply_the_same_delta_twice() {
+        let old_behaviour = test_bandwidth(1_000);
+        old_behaviour.decrease_bandwidth(100).await;
+
+        let old_first_sync_delta = old_behaviour.delta_since_sync().await;
+        let old_second_sync_delta = old_behaviour.delta_since_sync().await;
+        let old_stored = 1_000 + old_first_sync_delta + old_second_sync_delta;
+
+        assert_eq!(old_first_sync_delta, -100);
+        assert_eq!(old_second_sync_delta, -100);
+        assert_eq!(old_stored, 800);
+
+        let new_behaviour = test_bandwidth(1_000);
+        new_behaviour.decrease_bandwidth(100).await;
+
+        let new_first_sync_delta = new_behaviour.take_delta_since_sync().await;
+        let new_second_sync_delta = new_behaviour.take_delta_since_sync().await;
+        let new_stored = 1_000 + new_first_sync_delta + new_second_sync_delta;
+
+        assert_eq!(new_first_sync_delta, -100);
+        assert_eq!(new_second_sync_delta, 0);
+        assert_eq!(new_stored, 900);
     }
 }

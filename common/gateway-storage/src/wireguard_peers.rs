@@ -25,20 +25,23 @@ impl WgPeerManager {
     ///
     /// * `peer`: peer information needed by wireguard interface.
     pub(crate) async fn insert_peer(&self, peer: &WireguardPeer) -> Result<(), sqlx::Error> {
+        let psk = peer.psk.as_deref();
         sqlx::query!(
             r#"
-                INSERT OR IGNORE INTO wireguard_peer(public_key, allowed_ips, client_id)
-                VALUES (?, ?, ?);
+                INSERT OR IGNORE INTO wireguard_peer(public_key, allowed_ips, client_id, psk)
+                VALUES (?, ?, ?, ?);
 
                 UPDATE wireguard_peer 
-                SET allowed_ips = ?, client_id = ?
+                SET allowed_ips = ?, client_id = ?, psk = ?
                 WHERE public_key = ?
             "#,
             peer.public_key,
             peer.allowed_ips,
             peer.client_id,
+            psk,
             peer.allowed_ips,
             peer.client_id,
+            psk,
             peer.public_key,
         )
         .execute(&self.connection_pool)
@@ -121,6 +124,63 @@ impl WgPeerManager {
         )
         .execute(&self.connection_pool)
         .await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::WireguardPeer;
+    use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+    use std::net::Ipv4Addr;
+
+    fn test_peer(public_key: Key, psk: Key) -> Peer {
+        let mut peer = Peer::new(public_key);
+        peer.allowed_ips = vec![IpAddrMask::new(Ipv4Addr::new(10, 0, 0, 2).into(), 32)];
+        peer.preshared_key = Some(psk);
+        peer
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn insert_peer_persists_psk_on_insert_and_update(
+        pool: sqlx::SqlitePool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query("INSERT INTO clients (id, client_type) VALUES (?, ?)")
+            .bind(1_i64)
+            .bind("entry_wireguard")
+            .execute(&pool)
+            .await?;
+
+        let manager = WgPeerManager::new(pool);
+        let public_key = Key::new([1; 32]);
+
+        let first_psk = Key::new([2; 32]);
+        let first_psk_hex = first_psk.to_lower_hex();
+        let first_peer = test_peer(public_key.clone(), first_psk.clone());
+        manager
+            .insert_peer(&WireguardPeer::from_defguard_peer(first_peer.clone(), 1)?)
+            .await?;
+
+        let retrieved = manager
+            .retrieve_peer(&first_peer.public_key.to_string())
+            .await?
+            .expect("peer should be present after insert");
+        assert_eq!(retrieved.psk.as_deref(), Some(first_psk_hex.as_str()));
+
+        let second_psk = Key::new([3; 32]);
+        let second_psk_hex = second_psk.to_lower_hex();
+        let second_peer = test_peer(public_key, second_psk.clone());
+        manager
+            .insert_peer(&WireguardPeer::from_defguard_peer(second_peer.clone(), 1)?)
+            .await?;
+
+        let retrieved = manager
+            .retrieve_peer(&second_peer.public_key.to_string())
+            .await?
+            .expect("peer should be present after update");
+        assert_eq!(retrieved.psk.as_deref(), Some(second_psk_hex.as_str()));
+
         Ok(())
     }
 }

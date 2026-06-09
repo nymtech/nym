@@ -102,6 +102,7 @@ impl BandwidthStorageManager {
     }
 
     async fn expire_bandwidth(&mut self) -> Result<()> {
+        let _sync_guard = self.client_bandwidth.sync_guard().await;
         self.storage.reset_bandwidth(self.client_id).await?;
         self.client_bandwidth.expire_bandwidth().await;
         Ok(())
@@ -127,13 +128,15 @@ impl BandwidthStorageManager {
     #[instrument(level = "trace", skip_all)]
     pub async fn sync_storage_bandwidth(&mut self) -> Result<()> {
         trace!("syncing client bandwidth with the underlying storage");
-        let updated = self
-            .storage
-            .increase_bandwidth(
-                self.client_id,
-                self.client_bandwidth.delta_since_sync().await,
-            )
-            .await?;
+        let _sync_guard = self.client_bandwidth.sync_guard().await;
+        let delta = self.client_bandwidth.take_delta_since_sync().await;
+        let updated = match self.storage.increase_bandwidth(self.client_id, delta).await {
+            Ok(updated) => updated,
+            Err(err) => {
+                self.client_bandwidth.restore_delta_since_sync(delta).await;
+                return Err(err.into());
+            }
+        };
 
         self.client_bandwidth
             .resync_bandwidth_with_storage(updated)

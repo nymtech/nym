@@ -35,7 +35,7 @@ use std::{
 };
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 #[cfg(feature = "mock")]
 pub mod mock;
@@ -212,13 +212,15 @@ impl PeerController {
     pub async fn remove_peer(&mut self, key: &Key) -> Result<()> {
         nym_metrics::inc!("wg_peer_removal_attempts");
 
+        let stored_peer = self.handle_query_peer_by_key(key).await?;
+
         self.ecash_verifier
             .storage()
             .remove_wireguard_peer(&key.to_string())
             .await?;
         self.bw_storage_managers.remove(key);
 
-        if let Ok(Some(peer)) = self.handle_query_peer_by_key(key).await
+        if let Some(peer) = stored_peer
             && let Some(ip_pair) = allocated_ip_pair(&peer)
         {
             self.ip_pool.release(ip_pair)
@@ -274,6 +276,64 @@ impl PeerController {
             ));
         };
 
+        if let Some(existing_bandwidth_storage_manager) =
+            self.bw_storage_managers.get(&peer.public_key).cloned()
+        {
+            warn!(
+                "received duplicate add request for active WireGuard peer {}; refreshing existing peer handle state",
+                peer.public_key
+            );
+
+            let old_allowed_ips = existing_bandwidth_storage_manager.allowed_ips().await;
+            let old_ip_pair = allocated_ip_pair(&Peer {
+                allowed_ips: old_allowed_ips,
+                ..Default::default()
+            });
+            let ip_pair_changed = old_ip_pair != Some(ip_pair);
+            if ip_pair_changed {
+                self.ip_pool.confirm_allocation(ip_pair)?;
+            }
+
+            if let Err(e) = self.wg_api.configure_peer(peer) {
+                if ip_pair_changed {
+                    self.ip_pool.release(ip_pair);
+                }
+                nym_metrics::inc!("wg_peer_addition_failed");
+                nym_metrics::inc!("wg_config_errors_total");
+                return Err(e.into());
+            }
+
+            {
+                let mut guard = existing_bandwidth_storage_manager.inner().write().await;
+                guard
+                    .sync_storage_bandwidth()
+                    .await
+                    .map_err(|err| Error::Internal(format!("failed to sync bandwidth: {err}")))?;
+                *guard = Self::generate_bandwidth_manager(
+                    self.ecash_verifier.storage(),
+                    &peer.public_key,
+                )
+                .await?;
+            }
+
+            existing_bandwidth_storage_manager
+                .set_allowed_ips(peer.allowed_ips.clone())
+                .await;
+
+            if let Ok(host_information) = self.wg_api.read_interface_data() {
+                *self.host_information.write().await = host_information;
+            }
+
+            if ip_pair_changed {
+                if let Some(old_ip_pair) = old_ip_pair {
+                    self.ip_pool.release(old_ip_pair);
+                }
+            }
+
+            nym_metrics::inc!("wg_peer_addition_success");
+            return Ok(());
+        }
+
         // Try to configure WireGuard peer
         if let Err(e) = self.wg_api.configure_peer(peer) {
             nym_metrics::inc!("wg_peer_addition_failed");
@@ -288,7 +348,14 @@ impl PeerController {
             )),
             peer.allowed_ips.clone(),
         );
-        let cached_peer_manager = CachedPeerManager::new(peer);
+        let mut cached_peer_manager = CachedPeerManager::new(peer);
+        let host_information = self.wg_api.read_interface_data().ok();
+        if let Some(kernel_peer) = host_information
+            .as_ref()
+            .and_then(|host_information| host_information.peers.get(&peer.public_key))
+        {
+            cached_peer_manager.update(kernel_peer.into());
+        }
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
@@ -298,15 +365,15 @@ impl PeerController {
             self.upgrade_mode.clone(),
             &self.shutdown_token,
         );
+        let public_key = peer.public_key.clone();
+        self.ip_pool.confirm_allocation(ip_pair)?;
+
         self.bw_storage_managers
-            .insert(peer.public_key.clone(), bandwidth_storage_manager);
+            .insert(public_key.clone(), bandwidth_storage_manager);
         // try to immediately update the host information, to eliminate races
-        if let Ok(host_information) = self.wg_api.read_interface_data() {
+        if let Some(host_information) = host_information {
             *self.host_information.write().await = host_information;
         }
-        let public_key = peer.public_key.clone();
-
-        self.ip_pool.confirm_allocation(ip_pair)?;
 
         tokio::spawn(async move {
             handle.run().await;
@@ -339,16 +406,18 @@ impl PeerController {
     }
 
     async fn ip_to_key(&self, ip: IpAddr) -> Result<Option<Key>> {
-        Ok(self
-            .bw_storage_managers
-            .iter()
-            .find_map(|(key, bw_manager)| {
-                bw_manager
-                    .allowed_ips()
-                    .iter()
-                    .find(|ip_mask| ip_mask.address == ip)
-                    .and(Some(key.clone()))
-            }))
+        for (key, bw_manager) in &self.bw_storage_managers {
+            if bw_manager
+                .allowed_ips()
+                .await
+                .iter()
+                .any(|ip_mask| ip_mask.address == ip)
+            {
+                return Ok(Some(key.clone()));
+            }
+        }
+
+        Ok(None)
     }
 
     async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>> {
@@ -750,11 +819,71 @@ pub async fn stop_controller(mut shutdown_manager: nym_task::ShutdownManager) {
 #[cfg(all(test, feature = "mock"))]
 mod tests {
     use super::*;
+    use defguard_wireguard_rs::net::IpAddrMask;
+    use nym_credentials_interface::TicketType;
+    use nym_gateway_storage::traits::BandwidthGatewayStorage;
+
+    async fn allocate_ip_pair(request_tx: &mpsc::Sender<PeerControlRequest>) -> IpPair {
+        let (response_tx, response_rx) = oneshot::channel();
+        request_tx
+            .send(PeerControlRequest::PreAllocateIpPair { response_tx })
+            .await
+            .unwrap();
+        response_rx.await.unwrap().unwrap()
+    }
+
+    async fn add_peer(request_tx: &mpsc::Sender<PeerControlRequest>, peer: Peer) {
+        let (response_tx, response_rx) = oneshot::channel();
+        request_tx
+            .send(PeerControlRequest::AddPeer { peer, response_tx })
+            .await
+            .unwrap();
+        response_rx.await.unwrap().unwrap()
+    }
+
+    fn peer_with_ip_pair(public_key: Key, ip_pair: IpPair) -> Peer {
+        let mut peer = Peer::new(public_key);
+        peer.allowed_ips = vec![
+            IpAddrMask::new(ip_pair.ipv4.into(), 32),
+            IpAddrMask::new(ip_pair.ipv6.into(), 128),
+        ];
+        peer
+    }
 
     #[tokio::test]
     async fn start_and_stop() {
         let (request_tx, request_rx) = mpsc::channel(1);
         let (_, shutdown_manager) = start_controller(request_tx.clone(), request_rx);
+        stop_controller(shutdown_manager).await;
+    }
+
+    #[tokio::test]
+    async fn duplicate_add_for_active_peer_is_idempotent() {
+        let (request_tx, request_rx) = mpsc::channel(4);
+        let (storage, shutdown_manager) = start_controller(request_tx.clone(), request_rx);
+
+        let public_key = Key::new([7; 32]);
+        let first_ip_pair = allocate_ip_pair(&request_tx).await;
+        let first_peer = peer_with_ip_pair(public_key.clone(), first_ip_pair);
+        let client_id = storage
+            .insert_wireguard_peer(&first_peer, TicketType::V1WireguardEntry.into())
+            .await
+            .unwrap();
+        storage.create_bandwidth_entry(client_id).await.unwrap();
+
+        add_peer(&request_tx, first_peer.clone()).await;
+        add_peer(&request_tx, first_peer).await;
+
+        let second_ip_pair = allocate_ip_pair(&request_tx).await;
+        let updated_peer = peer_with_ip_pair(public_key, second_ip_pair);
+        let reused_client_id = storage
+            .insert_wireguard_peer(&updated_peer, TicketType::V1WireguardEntry.into())
+            .await
+            .unwrap();
+        assert_eq!(client_id, reused_client_id);
+
+        add_peer(&request_tx, updated_peer).await;
+
         stop_controller(shutdown_manager).await;
     }
 }

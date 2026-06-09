@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [v1.2.21] (2026-06-09)
+
+- Keep window size and position when switching between sign-in and the main app ([#6865])
+- Open the balance screen only after sign-in and account load succeed ([#6865])
+- Reduce home screen layout jump with balance skeletons and cached NYM price ([#6865])
+- Show fee confirmation and clearer errors when updating node hostname ([#6865])
+- Show pledge, compounded operator rewards, and total in the unbond confirmation ([#6865])
+
+[#6865]: https://github.com/nymtech/nym/pull/6865
+
 ## [v1.2.20] (2026-05-06)
 - Fix windows open log viewer ([#6741])
 - Delegation query cache, log webview streaming, HTTPS webviews ([#6740])

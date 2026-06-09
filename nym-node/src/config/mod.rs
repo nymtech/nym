@@ -693,7 +693,12 @@ pub struct MixnetDebug {
     #[serde(with = "humantime_serde")]
     pub initial_connection_timeout: Duration,
 
-    /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
+    /// Maximum number of packets buffered per egress connection awaiting a socket write.
+    /// This is a short-term burst absorber, not a queue: buffer depth converts directly into
+    /// added latency (roughly `depth / per-peer send rate`), so an oversized value is just
+    /// bufferbloat. Once it fills, further packets for that peer are dropped rather than
+    /// delayed, which is preferable in a mixnet where a packet held that long has already
+    /// missed its usefulness window. Keep worst-case queuing well under the per-hop mix delay.
     pub maximum_connection_buffer_size: usize,
 
     /// Specify whether any framed packets between nodes should use the legacy format (v7)
@@ -702,6 +707,10 @@ pub struct MixnetDebug {
     /// This will allow for optimisations to indicate which [sphinx] key is meant to be used when
     /// processing received packets.
     pub use_legacy_packet_encoding: bool,
+
+    /// Sample 1-in-N forwarded packets for egress latency tracing (per-connection buffer
+    /// sojourn histogram). 0 disables tracing entirely.
+    pub egress_trace_sample_rate: u64,
 
     /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
     pub unsafe_disable_noise: bool,
@@ -882,9 +891,12 @@ impl MixnetDebug {
     // which for all intents and purposes will never happen
     const DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY: Duration = Duration::from_secs(10);
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
-    const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
+    const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_secs(16);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
+    // small enough to keep worst-case egress queuing in the tens-of-ms range at a few thousand
+    // pps per peer (vs. the old 2000, which was hundreds of ms of bufferbloat)
+    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 192;
+    const DEFAULT_EGRESS_TRACE_SAMPLE_RATE: u64 = 100;
 }
 
 impl Default for MixnetDebug {
@@ -895,6 +907,7 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+            egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
             // TODO: update this in few releases...
             use_legacy_packet_encoding: true,
             unsafe_disable_noise: false,

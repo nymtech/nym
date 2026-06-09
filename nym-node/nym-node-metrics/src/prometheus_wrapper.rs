@@ -157,6 +157,9 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The distribution of defguard peer creation time"))]
     WireguardDefguardPeerCreation,
 
+    #[strum(props(help = "The distribution of defguard peer psk update time"))]
+    WireguardDefguardPeerPskUpdate,
+
     #[strum(props(
         help = "The distribution of time it takes to verify a credential during peer registration"
     ))]
@@ -320,6 +323,9 @@ impl PrometheusMetric {
             PrometheusMetric::WireguardDefguardPeerCreation => {
                 Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
             }
+            PrometheusMetric::WireguardDefguardPeerPskUpdate => {
+                Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
+            }
             PrometheusMetric::DvpnAuthenticatorClientRegistrationMsg1 => {
                 Metric::new_histogram(&name, help, Some(REG_LATENCY_BUCKETS))
             }
@@ -452,7 +458,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(46, PrometheusMetric::COUNT)
+        assert_eq!(47, PrometheusMetric::COUNT)
     }
 
     #[test]

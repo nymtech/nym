@@ -32,7 +32,8 @@ pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
 // \/ TODO: this has to be updated once the contract is deployed
-pub(crate) const NODE_FAMILIES_CONTRACT_ADDRESS: &str = "";
+pub(crate) const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
+    "n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z";
 // /\ TODO: this has to be updated once the contract is deployed
 
 // -- Constructor functions --

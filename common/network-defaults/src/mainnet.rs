@@ -25,7 +25,8 @@ pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1m3a2ltkjqud8mkmrpqvgllrtv2p4r6js6qwl7p8cqkzrq8jg6e2qwqgl8z";
 // \/ TODO: this has to be updated once the contract is deployed
-pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str = "";
+pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
+    "n1na0vys0z077hq3zrz6pfea85zgv8ks3t5zysdt6y38c87q045hnsyf2g5x";
 // /\ TODO: this has to be updated once the contract is deployed
 
 pub const ECASH_CONTRACT_ADDRESS: &str =

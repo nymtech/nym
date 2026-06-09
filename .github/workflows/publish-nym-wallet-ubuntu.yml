@@ -51,7 +51,7 @@ jobs:
         run: pnpm i
       
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.2
+        uses: timheuer/base64-to-file@v2.0
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}

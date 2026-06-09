@@ -44,7 +44,9 @@ export async function decompressBody(body: Uint8Array, headers: Record<string, s
   else if (enc === 'deflate') format = 'deflate';
   else if (enc === 'deflate-raw') format = 'deflate-raw';
   if (!format) return body;
-  const stream = new Blob([body]).stream().pipeThrough(new DecompressionStream(format));
+  // body is always a plain ArrayBuffer-backed Uint8Array at runtime; the cast
+  // sidesteps the TS 5.7 generic-typed-array vs BlobPart (ArrayBuffer) mismatch.
+  const stream = new Blob([body as BlobPart]).stream().pipeThrough(new DecompressionStream(format));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -61,7 +63,7 @@ function makeGetUrl(mixFetch: MixFetchFn) {
     const raw = await callMixFetch(mixFetch, req.url, {
       method: req.method,
       headers: req.headers,
-      body: req.body ?? undefined,
+      body: (req.body ?? undefined) as BodyInit | undefined,
     });
     const body = await decompressBody(raw.body, raw.headers);
     return {

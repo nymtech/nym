@@ -129,7 +129,9 @@ export async function shieldEth(opts: {
 
   // Step 2: gas estimate (needs the funder's address to simulate the call).
   log('step 2/4: estimating gas via mixFetch...');
-  const gasEstResp = await withRetry(
+  // withRetry can't infer T from the `any`-typed SDK call, so it falls back to
+  // unknown; annotate the result to read its fields.
+  const gasEstResp: any = await withRetry(
     () =>
       railgun.gasEstimateForShieldBaseToken(
         TXID_VERSION_V2,

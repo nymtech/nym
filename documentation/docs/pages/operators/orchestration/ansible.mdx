@@ -252,11 +252,11 @@ This automatic flow is slightly harder to setup in the beginning and it's recomm
 
 1. Copy `nodes.csv.example` to your prefered location without `.example` suffix
 2. Fill correctly the csv columns for each node you want to bond:
-  - `inventory_node_id`: ie `node1`
+  - `inventory_node_id`: Your Ansible inventory node ID (ie `node1`)
   - `hostname`: same like in your `playbooks/inventory/all` (without `https://` !)
-  - `ip`: same like `ansible_host`
-  - `account`: Nyx account which will bond this node
-  - `mnemonic`: Your nyx mnemonic
+  - `ip`: same like `ansible_host` value in your Ansible inventory
+  - `account`: Nyx account to bond this node with
+  - `mnemonic`: Your nyx acount mnemonic
   - `identity_key`: node identity key - the easiest way to get it is to navigate to `playbooks/` and run:
 
 ```sh
@@ -275,7 +275,9 @@ ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information
 python3 ./auto_bond_all.py --help
 ```
 
-- To test your paths run with `--dry-run`. Argument usage:
+- To test your paths run with `--dry-run`
+
+- Argument usage:
 
 ```sh
 --ansible-repo ANSIBLE_REPO
@@ -416,6 +418,20 @@ ansible-playbook <PLAYBOOK>.yml --list-tags
 # for example
 ansible-playbook deploy.yml --list-tags
 ```
+
+###### Arbitrary command output
+
+You can use ansible to read a `STDOUT` from any command, using this logic:
+```sh
+ansible all -i inventory/all -a "<COMMAND>>"
+
+# for example to get all node ID keys
+ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
+```
+
+- Note that the command gets also run, be mindful what you executing 
+
+- This logic can be combined with the arguments above, for example to limit the range of nodes
 
 ###### nocows
 

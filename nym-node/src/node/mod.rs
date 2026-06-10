@@ -106,6 +106,7 @@ mod nym_apis_client;
 mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
+mod runtime_metrics;
 mod shared_network;
 
 pub struct GatewayTasksData {
@@ -1275,6 +1276,15 @@ impl NymNode {
         // sampled packet)
         nym_mixnet_client::trace::register_stage_metrics();
         nym_mixnet_client::trace::register_forwarder_metrics();
+        nym_mixnet_client::trace::register_egress_metrics();
+
+        // periodically sample tokio runtime metrics (run-queue depth, busy ratio) onto the
+        // prometheus endpoint so a processing spike can be attributed to runtime starvation
+        let rt_metrics_token = self.shutdown_token();
+        self.shutdown_tracker().try_spawn_named(
+            async move { runtime_metrics::run(rt_metrics_token).await },
+            "RuntimeMetricsSampler",
+        );
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(

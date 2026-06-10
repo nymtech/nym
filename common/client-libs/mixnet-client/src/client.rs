@@ -465,6 +465,9 @@ impl SendWithoutResponse for Client {
         let address = packet.inner.next_hop_address();
         trace!("Sending packet to {address}");
 
+        // capture the sample state before the trace is moved into `queued`
+        let sampled = packet.trace.is_sampled();
+
         // TODO: optimisation for the future: rather than constantly using legacy encoding,
         // use the mix packet type / flags to pick encoding per packet
         let legacy = self.config.use_legacy_packet_encoding;
@@ -488,6 +491,11 @@ impl SendWithoutResponse for Client {
         let channel_capacity = sender.channel.max_capacity();
         let channel_available = sender.channel.capacity();
         let channel_used = channel_capacity - channel_available;
+
+        // record how full this peer's egress buffer was (sampled packets only, to bound cost)
+        if sampled {
+            crate::trace::observe_egress_buffer_fill(channel_used, channel_capacity);
+        }
 
         let sending_res = sender.channel.try_send(queued);
         drop(sender);

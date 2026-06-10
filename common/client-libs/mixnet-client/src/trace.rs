@@ -5,10 +5,12 @@ use strum::{AsRefStr, EnumIter, EnumProperty, IntoEnumIterator};
 use tokio::time::Instant;
 
 /// Histogram buckets (seconds) for per-stage and total packet latency: exponential,
-/// ~100us .. ~1.6s. Shared by every stage so the waterfall is directly comparable.
-const STAGE_LATENCY_BUCKETS: [f64; 14] = [
+/// ~100us .. ~6.5s. Shared by every stage so the waterfall is directly comparable. The top
+/// finite bucket is intentionally high so a rare multi-second processing spike is measured
+/// with magnitude rather than clipped into the `+Inf` overflow.
+const STAGE_LATENCY_BUCKETS: [f64; 17] = [
     0.0001, 0.0002, 0.0004, 0.0008, 0.0016, 0.0032, 0.0064, 0.0128, 0.0256, 0.0512, 0.1024, 0.2048,
-    0.4096, 0.8192,
+    0.4096, 0.8192, 1.6384, 3.2768, 6.5536,
 ];
 
 /// A stage in the packet-forwarding pipeline, in order. Each maps to its own latency histogram
@@ -111,6 +113,36 @@ pub fn observe_drain_batch_size(batch_size: usize) {
     );
 }
 
+/// Fill-ratio buckets (used/capacity) for the per-connection egress buffer. A ratio near 1.0
+/// means the buffer is close to full and packets to that peer are about to be dropped.
+const EGRESS_FILL_BUCKETS: [f64; 9] = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0];
+
+const EGRESS_FILL_METRIC: &str = "mixnet_packet_egress_buffer_fill_ratio";
+const EGRESS_FILL_HELP: &str =
+    "Per-connection egress buffer fill ratio (used/capacity) sampled at packet send time";
+
+/// Pre-register the egress buffer fill-ratio histogram (at zero) into the global registry.
+pub fn register_egress_metrics() {
+    nym_metrics::metrics_registry().register_histogram(
+        EGRESS_FILL_METRIC,
+        Some(EGRESS_FILL_HELP),
+        Some(EGRESS_FILL_BUCKETS.as_slice()),
+    );
+}
+
+/// Observe how full a per-connection egress buffer was when a packet was queued for it.
+pub fn observe_egress_buffer_fill(used: usize, capacity: usize) {
+    if capacity == 0 {
+        return;
+    }
+    nym_metrics::metrics_registry().maybe_register_and_add_to_histogram(
+        EGRESS_FILL_METRIC,
+        used as f64 / capacity as f64,
+        Some(EGRESS_FILL_BUCKETS.as_slice()),
+        Some(EGRESS_FILL_HELP),
+    );
+}
+
 /// A lightweight per-packet stopwatch for attributing forwarding latency to pipeline
 /// stages. Unsampled packets carry the `Off` variant and do zero clock reads, so the only
 /// cost on the hot path is moving a small `Copy` value and a branch.
@@ -135,6 +167,11 @@ impl PacketTrace {
         } else {
             PacketTrace::Off
         }
+    }
+
+    /// Whether this packet is being traced (sampled).
+    pub fn is_sampled(&self) -> bool {
+        matches!(self, PacketTrace::On { .. })
     }
 
     /// Seconds spent in the stage just completed, advancing the cursor to now.

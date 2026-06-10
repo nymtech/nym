@@ -180,9 +180,14 @@ export function MixTunnelSetup({
         <Button onClick={connect} disabled={connected || busy || terminated}>{busy && !connected ? 'Connecting...' : 'Connect to mixnet'}</Button>
         <Button onClick={disconnect} disabled={!connected || busy}>Disconnect</Button>
         <StatusText status={status} />
-        <label style={{ ...sub, marginLeft: 'auto', cursor: 'pointer' }} onClick={() => setShowAdvanced((v) => !v)}>
+        <button
+          type="button"
+          aria-expanded={showAdvanced}
+          style={{ ...sub, marginLeft: 'auto', cursor: 'pointer', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', fontWeight: 'inherit', color: 'inherit' }}
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
           {showAdvanced ? '▾ advanced' : '▸ advanced'}
-        </label>
+        </button>
       </div>
 
       {showAdvanced && (

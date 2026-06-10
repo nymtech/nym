@@ -284,10 +284,10 @@ export function RailgunDemo() {
         <div style={legend}>Public Sepolia state</div>
         <div style={row}>
           <label style={sub}>RPC</label>
-          <select style={input} value={RPC_PRESETS.includes(rpc) ? rpc : ''} onChange={(e) => { setRpc(e.target.value); providerRef.current = null; }}>
+          <select style={input} value={RPC_PRESETS.includes(rpc) ? rpc : ''} disabled={connected || busy} onChange={(e) => { setRpc(e.target.value); providerRef.current = null; }}>
             {RPC_PRESETS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
-          <input style={input} value={rpc} onChange={(e) => { setRpc(e.target.value); providerRef.current = null; }} />
+          <input style={input} value={rpc} disabled={connected || busy} onChange={(e) => { setRpc(e.target.value); providerRef.current = null; }} />
         </div>
         <div style={row}>
           <Button onClick={checkBalance} disabled={!connected || !hasWallet || busy}>Check balance</Button>

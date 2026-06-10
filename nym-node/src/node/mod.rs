@@ -1274,6 +1274,7 @@ impl NymNode {
         // is present on the prometheus endpoint at zero from boot (not just after the first
         // sampled packet)
         nym_mixnet_client::trace::register_stage_metrics();
+        nym_mixnet_client::trace::register_forwarder_metrics();
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(

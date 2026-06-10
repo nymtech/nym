@@ -85,6 +85,32 @@ fn observe(stage: TraceStage, secs: f64) {
     );
 }
 
+/// Count buckets (1 .. MAX_DRAIN_BATCH) for the forwarder drain-batch-size histogram.
+const DRAIN_BATCH_BUCKETS: [f64; 9] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0];
+
+const DRAIN_BATCH_METRIC: &str = "mixnet_packet_forwarder_drain_batch_size";
+const DRAIN_BATCH_HELP: &str =
+    "Number of ingress packets the forwarder drained per select! wakeup (batch size)";
+
+/// Pre-register the forwarder drain-batch-size histogram (at zero) into the global registry.
+pub fn register_forwarder_metrics() {
+    nym_metrics::metrics_registry().register_histogram(
+        DRAIN_BATCH_METRIC,
+        Some(DRAIN_BATCH_HELP),
+        Some(DRAIN_BATCH_BUCKETS.as_slice()),
+    );
+}
+
+/// Observe how many packets the forwarder drained in a single wakeup.
+pub fn observe_drain_batch_size(batch_size: usize) {
+    nym_metrics::metrics_registry().maybe_register_and_add_to_histogram(
+        DRAIN_BATCH_METRIC,
+        batch_size as f64,
+        Some(DRAIN_BATCH_BUCKETS.as_slice()),
+        Some(DRAIN_BATCH_HELP),
+    );
+}
+
 /// A lightweight per-packet stopwatch for attributing forwarding latency to pipeline
 /// stages. Unsampled packets carry the `Off` variant and do zero clock reads, so the only
 /// cost on the hot path is moving a small `Copy` value and a branch.

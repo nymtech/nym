@@ -7,7 +7,7 @@ use nym_mixnet_client::SendWithoutResponse;
 use nym_mixnet_client::forwarder::{
     MixForwardingReceiver, MixForwardingSender, PacketToForward, mix_forwarding_channels,
 };
-use nym_mixnet_client::trace::{TraceStage, Traced};
+use nym_mixnet_client::trace::{TraceStage, Traced, observe_drain_batch_size};
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -15,6 +15,11 @@ use nym_task::ShutdownToken;
 use std::io;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
+
+/// Max ingress packets handled per `select!` wakeup before yielding back to the biased select
+/// (so the delay queue + shutdown get serviced). Per-packet work in `handle_new_packet` is sub-µs
+/// to low-µs, so 256 bounds the worst-case stall before those branches are re-checked to <~1ms.
+const MAX_DRAIN_BATCH: usize = 256;
 
 pub struct PacketForwarder<C, F> {
     delay_queue: NonExhaustiveDelayQueue<Traced<MixPacket>>,
@@ -154,6 +159,7 @@ impl<C, F> PacketForwarder<C, F> {
         F: RoutingFilter,
     {
         let mut processed: u64 = 0;
+        let mut last_logged: u64 = 0;
         trace!("starting PacketForwarder");
         loop {
             tokio::select! {
@@ -172,15 +178,37 @@ impl<C, F> PacketForwarder<C, F> {
                     // and hence it can't happen that ALL senders are dropped
                     #[allow(clippy::unwrap_used)]
                     self.handle_new_packet(new_packet.unwrap());
+
+                    // drain whatever else is already queued (bounded by MAX_DRAIN_BATCH) so the
+                    // per-wakeup select!/waker/coop overhead is amortised across the burst rather
+                    // than paid per packet. `.next().await` above still parks us when idle;
+                    // `try_recv()` only consumes already-queued packets and never blocks.
+                    let mut batch_size = 1usize;
+                    while batch_size < MAX_DRAIN_BATCH {
+                        // Err = empty (or closed, unreachable since we hold a sender) -> stop
+                        // draining and fall back to the idle `.next().await`
+                        let Ok(packet) = self.packet_receiver.try_recv() else {
+                            break;
+                        };
+                        self.handle_new_packet(packet);
+                        batch_size += 1;
+                    }
+                    observe_drain_batch_size(batch_size);
+                    processed += batch_size as u64;
+
                     let channel_len = self.packet_sender.len();
                     let delay_queue_len = self.delay_queue.len();
-                    if processed.is_multiple_of(1000) {
+                    // log roughly every 1000 packets; `processed` now advances in batches, so use
+                    // a crossing test rather than an exact modulo (which a batch could step over)
+                    if processed - last_logged >= 1000 {
+                        last_logged = processed;
                         match channel_len {
                             n if n > 1000 => error!(
                                 event = "forwarder.queue_overload",
                                 channel_depth = n,
                                 delay_queue_depth = delay_queue_len,
                                 packets_processed = processed,
+                                last_drain_batch = batch_size,
                                 "there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"
                             ),
                             n if n > 500 => warn!(
@@ -188,18 +216,19 @@ impl<C, F> PacketForwarder<C, F> {
                                 channel_depth = n,
                                 delay_queue_depth = delay_queue_len,
                                 packets_processed = processed,
+                                last_drain_batch = batch_size,
                                 "there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"
                             ),
                             n => trace!(
                                 channel_depth = n,
                                 delay_queue_depth = delay_queue_len,
                                 packets_processed = processed,
+                                last_drain_batch = batch_size,
                                 "forwarder queue status"
                             ),
                         }
                     }
                     self.update_channel_size_metric(channel_len);
-                    processed += 1;
                 }
             }
 

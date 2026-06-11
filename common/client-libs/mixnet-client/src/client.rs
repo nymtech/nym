@@ -19,7 +19,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TrySendError;
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::codec::Framed;
 use tracing::*;
@@ -31,6 +31,9 @@ pub struct Config {
     pub initial_connection_timeout: Duration,
     pub maximum_connection_buffer_size: usize,
     pub use_legacy_packet_encoding: bool,
+    /// Close an egress connection after this long with no packets sent (0 disables). The cache
+    /// entry is evicted on close and the next packet to that peer transparently reconnects.
+    pub connection_idle_timeout: Duration,
 }
 
 impl Config {
@@ -40,6 +43,7 @@ impl Config {
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
         use_legacy_packet_encoding: bool,
+        connection_idle_timeout: Duration,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
@@ -47,6 +51,7 @@ impl Config {
             initial_connection_timeout,
             maximum_connection_buffer_size,
             use_legacy_packet_encoding,
+            connection_idle_timeout,
         }
     }
 }
@@ -114,6 +119,7 @@ struct ManagedConnection {
     noise_config: NoiseConfig,
     message_receiver: ReceiverStream<Traced<FramedNymPacket>>,
     connection_timeout: Duration,
+    idle_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
     active_connections: ActiveConnections,
     handle_token: Arc<()>,
@@ -143,11 +149,13 @@ impl Drop for EvictOnDrop {
 }
 
 impl ManagedConnection {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         address: SocketAddr,
         noise_config: NoiseConfig,
         message_receiver: mpsc::Receiver<Traced<FramedNymPacket>>,
         connection_timeout: Duration,
+        idle_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
         active_connections: ActiveConnections,
         handle_token: Arc<()>,
@@ -157,6 +165,7 @@ impl ManagedConnection {
             noise_config,
             message_receiver: ReceiverStream::new(message_receiver),
             connection_timeout,
+            idle_timeout,
             current_reconnection,
             active_connections,
             handle_token,
@@ -165,6 +174,7 @@ impl ManagedConnection {
 
     async fn run(self) {
         let address = self.address;
+        let idle_timeout = self.idle_timeout;
         let _evict_guard = EvictOnDrop {
             active_connections: self.active_connections,
             address,
@@ -259,7 +269,7 @@ impl ManagedConnection {
         conn.set_backpressure_boundary(OUTBOUND_WRITE_BUFFER);
 
         // 4. start handling the framed stream
-        run_io_loop(conn, self.message_receiver, address).await;
+        run_io_loop(conn, self.message_receiver, address, idle_timeout).await;
     }
 }
 
@@ -352,6 +362,12 @@ where
     ControlFlow::Continue(())
 }
 
+/// Instant at which a connection idle since `last_activity` should be closed, or `None` if idle
+/// reaping is disabled (`timeout` is zero).
+fn idle_deadline(last_activity: Instant, timeout: Duration) -> Option<Instant> {
+    (!timeout.is_zero()).then(|| last_activity + timeout)
+}
+
 // The connection is unidirectional (send-only); we read from it solely to
 // notice peer FIN/RST while idle so we can evict the cache entry before the
 // next outbound send finds it stale.
@@ -359,6 +375,7 @@ async fn run_io_loop<T>(
     conn: Framed<T, NymCodec>,
     receiver: ReceiverStream<Traced<FramedNymPacket>>,
     address: SocketAddr,
+    idle_timeout: Duration,
 ) where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -367,6 +384,9 @@ async fn run_io_loop<T>(
     // drain all currently-queued packets into one flush rather than flushing per packet,
     // which otherwise caps egress throughput and backs up the per-connection queue under load
     let mut receiver = receiver.ready_chunks(OUTBOUND_FLUSH_BATCH);
+
+    // reset by every batch we send; drives the idle-connection reaping below
+    let mut last_send = tokio::time::Instant::now();
 
     loop {
         tokio::select! {
@@ -387,6 +407,23 @@ async fn run_io_loop<T>(
                 if forward_batch(&mut sink, batch, address).await.is_break() {
                     break;
                 }
+                last_send = Instant::now();
+            }
+            // close the connection (freeing the task/socket) if we haven't sent anything for too
+            // long; EvictOnDrop then clears the cache entry and the next packet reconnects
+            _ = async {
+                match idle_deadline(last_send, idle_timeout) {
+                    Some(d) => tokio::time::sleep_until(d).await,
+                    None => std::future::pending::<()>().await,
+                }
+            } => {
+                debug!(
+                    peer = %address,
+                    exit_reason = "idle_timeout",
+                    idle_secs = idle_timeout.as_secs(),
+                    "closing idle egress mixnet connection to {address}"
+                );
+                break;
             }
         }
     }
@@ -456,8 +493,9 @@ impl Client {
         let reconnection_attempt = current_reconnection_attempt.load(Ordering::Acquire);
         let backoff = self.determine_backoff(reconnection_attempt);
 
-        // copy the value before moving into another task
+        // copy the values before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
+        let connection_idle_timeout = self.config.connection_idle_timeout;
 
         let connections_count = self.connections_count.clone();
         let noise_config = self.noise_config.clone();
@@ -475,6 +513,7 @@ impl Client {
                 noise_config,
                 receiver,
                 initial_connection_timeout,
+                connection_idle_timeout,
                 current_reconnection_attempt,
                 active_connections,
                 handle_token,
@@ -578,6 +617,7 @@ mod tests {
                 initial_connection_timeout: Duration::from_millis(1_500),
                 maximum_connection_buffer_size: 128,
                 use_legacy_packet_encoding: false,
+                connection_idle_timeout: Duration::from_secs(300),
             },
             NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut rng)),
@@ -687,7 +727,13 @@ mod tests {
         let conn = Framed::new(a, NymCodec);
         let (_tx, rx) = mpsc::channel(1);
 
-        let task = tokio::spawn(run_io_loop(conn, ReceiverStream::new(rx), test_addr()));
+        // idle reaping disabled so only the peer-close path is exercised
+        let task = tokio::spawn(run_io_loop(
+            conn,
+            ReceiverStream::new(rx),
+            test_addr(),
+            Duration::ZERO,
+        ));
 
         // Simulate peer closing both directions of the connection.
         drop(b);
@@ -704,13 +750,45 @@ mod tests {
         let conn = Framed::new(a, NymCodec);
         let (tx, rx) = mpsc::channel(1);
 
-        let task = tokio::spawn(run_io_loop(conn, ReceiverStream::new(rx), test_addr()));
+        let task = tokio::spawn(run_io_loop(
+            conn,
+            ReceiverStream::new(rx),
+            test_addr(),
+            Duration::ZERO,
+        ));
 
         drop(tx);
 
         tokio::time::timeout(Duration::from_secs(1), task)
             .await
             .expect("io_loop must exit when the upstream sender is dropped")
+            .expect("io_loop task must not panic");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn io_loop_closes_idle_connection() {
+        // With no packets sent and the peer still connected, the idle timeout must eventually
+        // close the connection so the task/socket don't linger forever. The paused clock is
+        // virtual - it auto-advances to the next timer, so this completes instantly despite the
+        // durations below (no real waiting).
+        let (a, _b) = tokio::io::duplex(64);
+        let conn = Framed::new(a, NymCodec);
+        // keep the sender alive so the sender-dropped path can't fire instead
+        let (_tx, rx) = mpsc::channel(1);
+
+        let idle_timeout = Duration::from_millis(50);
+        let task = tokio::spawn(run_io_loop(
+            conn,
+            ReceiverStream::new(rx),
+            test_addr(),
+            idle_timeout,
+        ));
+
+        // auto-advance fires the nearest timer (the 50ms idle deadline, sooner than this 500ms
+        // guard) once the task is otherwise idle, reaping the connection
+        tokio::time::timeout(Duration::from_millis(500), task)
+            .await
+            .expect("io_loop must close the connection after the idle timeout")
             .expect("io_loop task must not panic");
     }
 }

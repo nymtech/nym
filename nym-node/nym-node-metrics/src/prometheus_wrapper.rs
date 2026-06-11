@@ -195,6 +195,11 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The number of active egress mixnet connections"))]
     NetworkActiveEgressMixnetConnections,
 
+    #[strum(props(
+        help = "The cumulative number of ingress mixnet connections closed due to the idle timeout"
+    ))]
+    NetworkIdleClosedIngressMixnetConnections,
+
     // # PROCESS
     #[strum(props(help = "The current number of packets being delayed"))]
     ProcessForwardHopPacketsBeingDelayed,
@@ -370,6 +375,9 @@ impl PrometheusMetric {
             PrometheusMetric::NetworkActiveEgressMixnetConnections => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::NetworkIdleClosedIngressMixnetConnections => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::ProcessForwardHopPacketsBeingDelayed => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -483,7 +491,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(52, PrometheusMetric::COUNT)
+        assert_eq!(53, PrometheusMetric::COUNT)
     }
 
     #[test]

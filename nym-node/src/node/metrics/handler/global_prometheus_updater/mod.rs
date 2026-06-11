@@ -150,6 +150,12 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
                 .network
                 .active_egress_mixnet_connections_count() as i64,
         );
+        self.prometheus_wrapper.set(
+            NetworkIdleClosedIngressMixnetConnections,
+            self.metrics
+                .network
+                .idle_closed_ingress_mixnet_connections_count() as i64,
+        );
 
         // # PROCESS
         self.prometheus_wrapper.set(

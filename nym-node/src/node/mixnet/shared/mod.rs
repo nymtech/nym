@@ -45,6 +45,9 @@ pub(crate) struct ProcessingConfig {
 
     /// sample 1-in-N forwarded packets for per-stage latency tracing (0 disables)
     pub(crate) egress_trace_sample_rate: u64,
+
+    /// close an ingress connection after this long with no received packets (0 disables)
+    pub(crate) connection_idle_timeout: Duration,
 }
 
 impl ProcessingConfig {
@@ -65,6 +68,7 @@ impl ProcessingConfig {
             final_hop_processing_enabled: config.modes.expects_final_hop_traffic()
                 || config.wireguard.enabled,
             egress_trace_sample_rate: config.mixnet.debug.egress_trace_sample_rate,
+            connection_idle_timeout: config.mixnet.debug.connection_idle_timeout,
         }
     }
 }

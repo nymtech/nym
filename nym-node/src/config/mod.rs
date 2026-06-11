@@ -693,6 +693,12 @@ pub struct MixnetDebug {
     #[serde(with = "humantime_serde")]
     pub initial_connection_timeout: Duration,
 
+    /// How long a mixnet connection (ingress or egress) may sit with no packets before it is
+    /// closed to free the lingering task/socket. Reset by any traffic on that connection.
+    /// 0 disables idle reaping.
+    #[serde(with = "humantime_serde")]
+    pub connection_idle_timeout: Duration,
+
     /// Maximum number of packets buffered per egress connection awaiting a socket write.
     /// This is a short-term burst absorber, not a queue: buffer depth converts directly into
     /// added latency (roughly `depth / per-peer send rate`), so an oversized value is just
@@ -893,6 +899,9 @@ impl MixnetDebug {
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
     const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_secs(16);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+    // reap a mixnet connection after 5min of no traffic; under cover traffic real neighbours
+    // exchange packets far more often, so only genuinely-silent/half-open peers are closed
+    const DEFAULT_CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
     // small enough to keep worst-case egress queuing in the tens-of-ms range at a few thousand
     // pps per peer (vs. the old 2000, which was hundreds of ms of bufferbloat)
     const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 192;
@@ -906,6 +915,7 @@ impl Default for MixnetDebug {
             packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            connection_idle_timeout: Self::DEFAULT_CONNECTION_IDLE_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
             // TODO: update this in few releases...

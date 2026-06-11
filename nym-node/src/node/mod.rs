@@ -31,6 +31,7 @@ use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNo
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
+use crate::node::metrics::handler::tokio_runtime_updater::TokioRuntimeMetricsUpdater;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
@@ -106,7 +107,6 @@ mod nym_apis_client;
 mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
-mod runtime_metrics;
 mod shared_network;
 
 pub struct GatewayTasksData {
@@ -1152,6 +1152,14 @@ impl NymNode {
                 .global_prometheus_counters_update_rate,
         );
 
+        // handler sampling tokio runtime scheduling metrics (run-queue depth, busy ratio) into
+        // the prometheus registry. run-queue depth is a transient gauge, so we sample at the base
+        // aggregator cadence (~5s) rather than the coarse 30s global-prometheus-counters rate.
+        metrics_aggregator.register_handler(
+            TokioRuntimeMetricsUpdater::new(),
+            self.config.metrics.debug.aggregator_update_rate,
+        );
+
         // handler for handling prometheus metrics events
         // metrics_aggregator.register_handler(PrometheusEventsHandler{}, None);
 
@@ -1277,14 +1285,6 @@ impl NymNode {
         nym_mixnet_client::trace::register_stage_metrics();
         nym_mixnet_client::trace::register_forwarder_metrics();
         nym_mixnet_client::trace::register_egress_metrics();
-
-        // periodically sample tokio runtime metrics (run-queue depth, busy ratio) onto the
-        // prometheus endpoint so a processing spike can be attributed to runtime starvation
-        let rt_metrics_token = self.shutdown_token();
-        self.shutdown_tracker().try_spawn_named(
-            async move { runtime_metrics::run(rt_metrics_token).await },
-            "RuntimeMetricsSampler",
-        );
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(

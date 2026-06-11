@@ -34,6 +34,10 @@ pub struct Config {
     /// Close an egress connection after this long with no packets sent (0 disables). The cache
     /// entry is evicted on close and the next packet to that peer transparently reconnects.
     pub connection_idle_timeout: Duration,
+    /// Max time a single batch flush may block on the peer socket before we give up on it
+    /// (0 disables). One timeout is treated as transient congestion - the batch is abandoned but
+    /// the connection is retained (no re-handshake); only a few *consecutive* timeouts tear it down.
+    pub connection_write_timeout: Duration,
 }
 
 impl Config {
@@ -44,6 +48,7 @@ impl Config {
         maximum_connection_buffer_size: usize,
         use_legacy_packet_encoding: bool,
         connection_idle_timeout: Duration,
+        connection_write_timeout: Duration,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
@@ -52,6 +57,7 @@ impl Config {
             maximum_connection_buffer_size,
             use_legacy_packet_encoding,
             connection_idle_timeout,
+            connection_write_timeout,
         }
     }
 }
@@ -120,6 +126,7 @@ struct ManagedConnection {
     message_receiver: ReceiverStream<Traced<FramedNymPacket>>,
     connection_timeout: Duration,
     idle_timeout: Duration,
+    write_timeout: Duration,
     current_reconnection: Arc<AtomicU32>,
     active_connections: ActiveConnections,
     handle_token: Arc<()>,
@@ -156,6 +163,7 @@ impl ManagedConnection {
         message_receiver: mpsc::Receiver<Traced<FramedNymPacket>>,
         connection_timeout: Duration,
         idle_timeout: Duration,
+        write_timeout: Duration,
         current_reconnection: Arc<AtomicU32>,
         active_connections: ActiveConnections,
         handle_token: Arc<()>,
@@ -166,6 +174,7 @@ impl ManagedConnection {
             message_receiver: ReceiverStream::new(message_receiver),
             connection_timeout,
             idle_timeout,
+            write_timeout,
             current_reconnection,
             active_connections,
             handle_token,
@@ -175,6 +184,7 @@ impl ManagedConnection {
     async fn run(self) {
         let address = self.address;
         let idle_timeout = self.idle_timeout;
+        let write_timeout = self.write_timeout;
         let _evict_guard = EvictOnDrop {
             active_connections: self.active_connections,
             address,
@@ -269,7 +279,14 @@ impl ManagedConnection {
         conn.set_backpressure_boundary(OUTBOUND_WRITE_BUFFER);
 
         // 4. start handling the framed stream
-        run_io_loop(conn, self.message_receiver, address, idle_timeout).await;
+        run_io_loop(
+            conn,
+            self.message_receiver,
+            address,
+            idle_timeout,
+            write_timeout,
+        )
+        .await;
     }
 }
 
@@ -319,21 +336,42 @@ fn handle_peer_read<P, E: std::fmt::Display>(
     }
 }
 
+/// Number of consecutive flush timeouts to the same peer we tolerate before dropping the
+/// connection. A single timeout is transient congestion (batch abandoned, connection retained to
+/// avoid a re-handshake); this many in a row means the peer is persistently unable to keep up, so
+/// we tear the connection down (it reconnects on the next packet).
+const MAX_CONSECUTIVE_WRITE_TIMEOUTS: u32 = 3;
+
+/// Outcome of attempting to flush one batch to the peer.
+enum BatchOutcome {
+    /// the batch was flushed to the socket
+    Sent,
+    /// the flush exceeded the write timeout (peer congested): the un-fed tail of the batch is
+    /// dropped, but the already-encoded frames stay buffered for a later flush and the connection
+    /// is left intact - the noise transport stays nonce-consistent across the cancelled flush, so
+    /// resuming the write is sound
+    WriteTimedOut,
+    /// the sink errored: the connection is dead
+    Failed,
+}
+
 /// Feed a ready batch into the sink and flush it once (far fewer syscalls than per-packet), then
 /// stamp the egress latency stages: `EgressQueue` before each feed, then `SocketWrite` + the
-/// end-to-end total once the batch has hit the wire. Returns `Break` if the write/flush failed
-/// (the connection is dead).
+/// end-to-end total once the batch has hit the wire. The flush is bounded by `write_timeout`
+/// (0 disables) so a congested peer can't block this connection's egress queue into the
+/// multi-second range. The caller decides what a timeout means (see [`MAX_CONSECUTIVE_WRITE_TIMEOUTS`]).
 async fn forward_batch<S>(
     sink: &mut S,
     batch: Vec<Traced<FramedNymPacket>>,
     address: SocketAddr,
-) -> ControlFlow<()>
+    write_timeout: Duration,
+) -> BatchOutcome
 where
     S: Sink<FramedNymPacket> + Unpin,
     S::Error: std::fmt::Display,
 {
     let mut traces = Vec::with_capacity(batch.len());
-    let res = async {
+    let write = async {
         for mut traced in batch {
             // time spent waiting in this connection's egress buffer
             traced.record(MixnetMetric::EgressQueue);
@@ -341,25 +379,38 @@ where
             traces.push(traced.trace);
         }
         sink.flush().await
-    }
-    .await;
+    };
 
-    // after the batch hit the wire: socket-write time and end-to-end total
+    // bound how long we block on a slow/congested peer socket. On timeout the `write` future is
+    // cancelled, which is safe: every already-encoded frame is buffered (nonce-consistent), so a
+    // later flush resumes the byte stream in order.
+    let write_result = if write_timeout.is_zero() {
+        Ok(write.await)
+    } else {
+        tokio::time::timeout(write_timeout, write).await
+    };
+
+    // socket-write time + end-to-end total for whatever was fed (on a timeout, those frames are
+    // buffered and will hit the wire on a subsequent flush)
     for mut trace in traces {
         trace.record(MixnetMetric::SocketWrite);
         trace.record_total();
     }
-    if let Err(err) = res {
-        debug!(
-            event = "connection.forward_error",
-            peer = %address,
-            error = %err,
-            exit_reason = "forward_error",
-            "failed to forward packet batch to {address}: {err}"
-        );
-        return ControlFlow::Break(());
+
+    match write_result {
+        Ok(Ok(())) => BatchOutcome::Sent,
+        Ok(Err(err)) => {
+            debug!(
+                event = "connection.forward_error",
+                peer = %address,
+                error = %err,
+                exit_reason = "forward_error",
+                "failed to forward packet batch to {address}: {err}"
+            );
+            BatchOutcome::Failed
+        }
+        Err(_elapsed) => BatchOutcome::WriteTimedOut,
     }
-    ControlFlow::Continue(())
 }
 
 /// Instant at which a connection idle since `last_activity` should be closed, or `None` if idle
@@ -376,6 +427,7 @@ async fn run_io_loop<T>(
     receiver: ReceiverStream<Traced<FramedNymPacket>>,
     address: SocketAddr,
     idle_timeout: Duration,
+    write_timeout: Duration,
 ) where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -387,6 +439,8 @@ async fn run_io_loop<T>(
 
     // reset by every batch we send; drives the idle-connection reaping below
     let mut last_send = tokio::time::Instant::now();
+    // consecutive flush timeouts; a run of them (a persistently congested peer) drops the connection
+    let mut consecutive_write_timeouts = 0u32;
 
     loop {
         tokio::select! {
@@ -404,10 +458,35 @@ async fn run_io_loop<T>(
                     );
                     break;
                 };
-                if forward_batch(&mut sink, batch, address).await.is_break() {
-                    break;
+                match forward_batch(&mut sink, batch, address, write_timeout).await {
+                    BatchOutcome::Sent => {
+                        consecutive_write_timeouts = 0;
+                        last_send = Instant::now();
+                    }
+                    BatchOutcome::WriteTimedOut => {
+                        consecutive_write_timeouts += 1;
+                        warn!(
+                            event = "connection.write_congested",
+                            peer = %address,
+                            write_ms = write_timeout.as_millis() as u64,
+                            attempt = consecutive_write_timeouts,
+                            max_attempts = MAX_CONSECUTIVE_WRITE_TIMEOUTS,
+                            "egress flush to {address} timed out (peer congested); abandoned batch, retaining connection"
+                        );
+                        if consecutive_write_timeouts >= MAX_CONSECUTIVE_WRITE_TIMEOUTS {
+                            debug!(
+                                peer = %address,
+                                exit_reason = "write_timeout",
+                                "egress connection to {address} congested for {MAX_CONSECUTIVE_WRITE_TIMEOUTS} consecutive flushes; dropping it"
+                            );
+                            break;
+                        }
+                        // keep the connection: a single congestion spike shouldn't cost a
+                        // re-handshake. `last_send` is deliberately not bumped, so a peer that goes
+                        // congested-then-silent still idle-reaps on schedule.
+                    }
+                    BatchOutcome::Failed => break,
                 }
-                last_send = Instant::now();
             }
             // close the connection (freeing the task/socket) if we haven't sent anything for too
             // long; EvictOnDrop then clears the cache entry and the next packet reconnects
@@ -496,6 +575,7 @@ impl Client {
         // copy the values before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
         let connection_idle_timeout = self.config.connection_idle_timeout;
+        let connection_write_timeout = self.config.connection_write_timeout;
 
         let connections_count = self.connections_count.clone();
         let noise_config = self.noise_config.clone();
@@ -514,6 +594,7 @@ impl Client {
                 receiver,
                 initial_connection_timeout,
                 connection_idle_timeout,
+                connection_write_timeout,
                 current_reconnection_attempt,
                 active_connections,
                 handle_token,
@@ -618,6 +699,7 @@ mod tests {
                 maximum_connection_buffer_size: 128,
                 use_legacy_packet_encoding: false,
                 connection_idle_timeout: Duration::from_secs(300),
+                connection_write_timeout: Duration::from_millis(500),
             },
             NoiseConfig::new(
                 Arc::new(x25519::KeyPair::new(&mut rng)),
@@ -733,6 +815,7 @@ mod tests {
             ReceiverStream::new(rx),
             test_addr(),
             Duration::ZERO,
+            Duration::ZERO,
         ));
 
         // Simulate peer closing both directions of the connection.
@@ -754,6 +837,7 @@ mod tests {
             conn,
             ReceiverStream::new(rx),
             test_addr(),
+            Duration::ZERO,
             Duration::ZERO,
         ));
 
@@ -782,6 +866,7 @@ mod tests {
             ReceiverStream::new(rx),
             test_addr(),
             idle_timeout,
+            Duration::ZERO,
         ));
 
         // auto-advance fires the nearest timer (the 50ms idle deadline, sooner than this 500ms

@@ -699,6 +699,12 @@ pub struct MixnetDebug {
     #[serde(with = "humantime_serde")]
     pub connection_idle_timeout: Duration,
 
+    /// Max time a single egress batch flush may block on a peer socket before the batch is
+    /// abandoned. A few consecutive timeouts drop the (congested) connection; a single one is
+    /// treated as transient and the connection is retained. 0 disables the bound.
+    #[serde(with = "humantime_serde")]
+    pub connection_write_timeout: Duration,
+
     /// Maximum number of packets buffered per egress connection awaiting a socket write.
     /// This is a short-term burst absorber, not a queue: buffer depth converts directly into
     /// added latency (roughly `depth / per-peer send rate`), so an oversized value is just
@@ -902,6 +908,10 @@ impl MixnetDebug {
     // reap a mixnet connection after 5min of no traffic; under cover traffic real neighbours
     // exchange packets far more often, so only genuinely-silent/half-open peers are closed
     const DEFAULT_CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
+    // bound a single egress flush; healthy flushes are sub-ms, so this only trips on genuine
+    // peer congestion. A single trip just drops the batch (connection retained); see
+    // MAX_CONSECUTIVE_WRITE_TIMEOUTS in the mixnet client for the teardown threshold.
+    const DEFAULT_CONNECTION_WRITE_TIMEOUT: Duration = Duration::from_millis(500);
     // small enough to keep worst-case egress queuing in the tens-of-ms range at a few thousand
     // pps per peer (vs. the old 2000, which was hundreds of ms of bufferbloat)
     const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 192;
@@ -916,6 +926,7 @@ impl Default for MixnetDebug {
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             connection_idle_timeout: Self::DEFAULT_CONNECTION_IDLE_TIMEOUT,
+            connection_write_timeout: Self::DEFAULT_CONNECTION_WRITE_TIMEOUT,
             maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
             // TODO: update this in few releases...

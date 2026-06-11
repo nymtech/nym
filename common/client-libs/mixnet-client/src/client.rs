@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::trace::{TraceStage, Traced};
+use crate::metrics::{MixnetMetric, Traced};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
@@ -336,7 +336,7 @@ async fn run_io_loop<T>(
                         let res = async {
                             for mut traced in batch {
                                 // time spent waiting in this connection's egress buffer
-                                traced.record(TraceStage::EgressQueue);
+                                traced.record(MixnetMetric::EgressQueue);
                                 sink.feed(traced.inner).await?;
                                 traces.push(traced.trace);
                             }
@@ -346,7 +346,7 @@ async fn run_io_loop<T>(
 
                         // after the batch hit the wire: socket-write time and end-to-end total
                         for mut trace in traces {
-                            trace.record(TraceStage::SocketWrite);
+                            trace.record(MixnetMetric::SocketWrite);
                             trace.record_total();
                         }
                         if let Err(err) = res {
@@ -494,7 +494,7 @@ impl SendWithoutResponse for Client {
 
         // record how full this peer's egress buffer was (sampled packets only, to bound cost)
         if sampled {
-            crate::trace::observe_egress_buffer_fill(channel_used, channel_capacity);
+            crate::metrics::observe_egress_buffer_fill(channel_used, channel_capacity);
         }
 
         let sending_res = sender.channel.try_send(queued);

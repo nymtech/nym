@@ -4,7 +4,7 @@
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
-use nym_mixnet_client::trace::{PacketTrace, TraceStage, Traced};
+use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
 use nym_noise::upgrade_noise_responder;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -476,7 +476,7 @@ impl ConnectionHandler {
         };
 
         // close out the Unwrap stage (partial unwrap: shared secret + header MAC)
-        trace.record(TraceStage::Unwrap);
+        trace.record(MixnetMetric::Unwrap);
         self.pending_packets.push(now, partially_unwrapped, trace);
 
         // 2. check for packet replay
@@ -567,7 +567,7 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
-                    trace.record(TraceStage::ReplayCheck);
+                    trace.record(MixnetMetric::ReplayCheck);
                     self.handle_unwrapped_packet(
                         now,
                         Err(PacketProcessingError::PacketReplay),
@@ -581,7 +581,7 @@ impl ConnectionHandler {
                 // finalise the (expensive) full unwrapping, then close out the ReplayCheck stage:
                 // it spans partial-unwrap -> deferral -> replay check -> finalise
                 let unwrapped_packet = packet.finalise_unwrapping();
-                trace.record(TraceStage::ReplayCheck);
+                trace.record(MixnetMetric::ReplayCheck);
                 self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet, trace)
                     .await;
             }
@@ -678,7 +678,7 @@ impl ConnectionHandler {
         let packet = packet.inner;
         let unwrapped_packet = self.try_full_unwrap_packet(packet);
         // no replay batching on this path: the Unwrap stage covers the full unwrapping
-        trace.record(TraceStage::Unwrap);
+        trace.record(MixnetMetric::Unwrap);
 
         let is_network_monitor_packet = self.is_from_authorised_network_monitor_agent();
         self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet, trace)

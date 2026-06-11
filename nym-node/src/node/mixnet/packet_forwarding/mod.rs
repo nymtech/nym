@@ -7,7 +7,7 @@ use nym_mixnet_client::SendWithoutResponse;
 use nym_mixnet_client::forwarder::{
     MixForwardingReceiver, MixForwardingSender, PacketToForward, mix_forwarding_channels,
 };
-use nym_mixnet_client::trace::{TraceStage, Traced, observe_drain_batch_size};
+use nym_mixnet_client::metrics::{MixnetMetric, Traced, observe_drain_batch_size};
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -89,8 +89,8 @@ impl<C, F> PacketForwarder<C, F> {
         let overrun = Instant::now().saturating_duration_since(packet.deadline());
         let mut delayed_packet = packet.into_inner();
         // close out the DelayQueue stage (the full wait: intended mix delay + overrun)
-        delayed_packet.record(TraceStage::DelayQueue);
-        delayed_packet.record_value(TraceStage::DelayQueueOverrun, overrun.as_secs_f64());
+        delayed_packet.record(MixnetMetric::DelayQueue);
+        delayed_packet.record_value(MixnetMetric::DelayQueueOverrun, overrun.as_secs_f64());
         self.forward_packet(delayed_packet);
     }
 
@@ -100,7 +100,7 @@ impl<C, F> PacketForwarder<C, F> {
         F: RoutingFilter,
     {
         // close out the ForwarderQueue stage (wait in the ingress -> forwarder channel)
-        new_packet.trace.record(TraceStage::ForwarderQueue);
+        new_packet.trace.record(MixnetMetric::ForwarderQueue);
 
         let next_hop = new_packet.packet.next_hop();
 
@@ -131,7 +131,7 @@ impl<C, F> PacketForwarder<C, F> {
                 // the target elapsed before we could even queue it: upstream overhead already
                 // ate the whole intended delay, so the overrun is now - target
                 let overrun = Instant::now().saturating_duration_since(instant);
-                traced.record_value(TraceStage::DelayQueueOverrun, overrun.as_secs_f64());
+                traced.record_value(MixnetMetric::DelayQueueOverrun, overrun.as_secs_f64());
                 self.forward_packet(traced)
             } else {
                 self.delay_queue.insert_at(traced, instant);

@@ -1279,12 +1279,9 @@ impl NymNode {
     {
         let processing_config = ProcessingConfig::new(&self.config);
 
-        // pre-register the per-stage packet-latency histograms so the whole mixnet_packet_* family
-        // is present on the prometheus endpoint at zero from boot (not just after the first
-        // sampled packet)
-        nym_mixnet_client::trace::register_stage_metrics();
-        nym_mixnet_client::trace::register_forwarder_metrics();
-        nym_mixnet_client::trace::register_egress_metrics();
+        // pre-register the whole mixnet_packet_* histogram family so it's present on the
+        // prometheus endpoint at zero from boot (not just after the first sampled packet)
+        nym_mixnet_client::metrics::register_all();
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(

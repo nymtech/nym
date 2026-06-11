@@ -9,7 +9,7 @@ use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketToForward};
-use nym_mixnet_client::trace::PacketTrace;
+use nym_mixnet_client::metrics::PacketTrace;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::mixnet::PacketKind;
 use nym_noise::config::NoiseConfig;

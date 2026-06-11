@@ -4,7 +4,7 @@
 #[cfg(feature = "client")]
 pub mod client;
 pub mod forwarder;
-pub mod trace;
+pub mod metrics;
 
 #[cfg(feature = "client")]
 pub use client::{Client, Config, SendWithoutResponse};

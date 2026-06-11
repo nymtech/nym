@@ -1,13 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_config::defaults::{mainnet, DenomDetails, NymNetworkDetails};
+use nym_config::defaults::{mainnet, sandbox, DenomDetails, NymNetworkDetails};
 use nym_types::{currency::DecCoin, error::TypesError};
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Not, str::FromStr};
 use strum_macros::EnumIter;
-
-mod sandbox;
 
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -78,8 +76,4 @@ impl FromStr for Network {
             _ => Err(TypesError::UnknownNetwork(s.to_string())),
         }
     }
-}
-
-fn parse_optional_str(raw: &str) -> Option<String> {
-    raw.is_empty().not().then(|| raw.into())
 }

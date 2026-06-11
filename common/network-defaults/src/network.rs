@@ -61,6 +61,7 @@ pub struct NymNetworkDetails {
     pub nym_vpn_api_url: Option<String>,
     pub nym_api_urls: Option<Vec<ApiUrl>>,
     pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
+    pub networking: NetworkingSpecifics,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
@@ -102,6 +103,30 @@ impl From<ApiUrlConst<'_>> for ApiUrl {
     }
 }
 
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct DnsFallback {
+    pub url: String,
+    pub addresses: Vec<String>,
+}
+
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+pub struct NetworkingSpecifics {
+    pub nym_api_urls: Vec<ApiUrl>,
+    pub nym_vpn_api_urls: Vec<ApiUrl>,
+    pub dns_fallbacks: Vec<DnsFallback>,
+    // pub internal_nameservers: std::any::Any,
+    // pub covert channels: std::any::Any,
+}
+
+// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
+impl Default for NetworkingSpecifics {
+    fn default() -> Self {
+        NymNetworkDetails::mainnet_specifics()
+    }
+}
+
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
 impl Default for NymNetworkDetails {
     fn default() -> Self {
@@ -131,6 +156,7 @@ impl NymNetworkDetails {
             nym_vpn_api_url: Default::default(),
             nym_api_urls: Default::default(),
             nym_vpn_api_urls: Default::default(),
+            networking: Default::default(),
         }
     }
 
@@ -241,6 +267,19 @@ impl NymNetworkDetails {
                     .map(Into::into)
                     .collect(),
             ),
+            networking: Self::mainnet_specifics(),
+        }
+    }
+
+    pub(crate) fn mainnet_specifics() -> NetworkingSpecifics {
+        NetworkingSpecifics {
+            nym_api_urls: mainnet::NYM_APIS.iter().copied().map(Into::into).collect(),
+            nym_vpn_api_urls: mainnet::NYM_VPN_APIS
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+            dns_fallbacks: Vec::new(),
         }
     }
 

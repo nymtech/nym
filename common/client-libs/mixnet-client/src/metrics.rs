@@ -80,6 +80,12 @@ pub enum MixnetMetric {
         help = "Number of ingress packets the forwarder drained per select! wakeup (batch size)"
     ))]
     ForwarderDrainBatchSize,
+    /// number of expired packets the forwarder drained from the delay queue per wakeup
+    #[strum(to_string = "mixnet_packet_forwarder_delay_drain_batch_size")]
+    #[strum(props(
+        help = "Number of expired delay-queue packets the forwarder drained per select! wakeup (batch size)"
+    ))]
+    ForwarderDelayDrainBatchSize,
     /// per-connection egress buffer occupancy (used/capacity) at send time
     #[strum(to_string = "mixnet_packet_egress_buffer_fill_ratio")]
     #[strum(props(
@@ -92,7 +98,9 @@ impl MixnetMetric {
     /// Histogram bucket layout for this metric.
     fn buckets(&self) -> &'static [f64] {
         match self {
-            MixnetMetric::ForwarderDrainBatchSize => &DRAIN_BATCH_BUCKETS,
+            MixnetMetric::ForwarderDrainBatchSize | MixnetMetric::ForwarderDelayDrainBatchSize => {
+                &DRAIN_BATCH_BUCKETS
+            }
             MixnetMetric::EgressBufferFillRatio => &EGRESS_FILL_BUCKETS,
             // every latency stage shares the seconds buckets
             _ => &STAGE_LATENCY_BUCKETS,
@@ -124,9 +132,17 @@ fn observe(metric: MixnetMetric, value: f64) {
     );
 }
 
-/// Observe how many packets the forwarder drained in a single wakeup.
+/// Observe how many ingress-channel packets the forwarder drained in a single wakeup.
 pub fn observe_drain_batch_size(batch_size: usize) {
     observe(MixnetMetric::ForwarderDrainBatchSize, batch_size as f64);
+}
+
+/// Observe how many expired delay-queue packets the forwarder drained in a single wakeup.
+pub fn observe_delay_drain_batch_size(batch_size: usize) {
+    observe(
+        MixnetMetric::ForwarderDelayDrainBatchSize,
+        batch_size as f64,
+    );
 }
 
 /// Observe how full a per-connection egress buffer was when a packet was queued for it.

@@ -7,7 +7,9 @@ use nym_mixnet_client::SendWithoutResponse;
 use nym_mixnet_client::forwarder::{
     MixForwardingReceiver, MixForwardingSender, PacketToForward, mix_forwarding_channels,
 };
-use nym_mixnet_client::metrics::{MixnetMetric, Traced, observe_drain_batch_size};
+use nym_mixnet_client::metrics::{
+    MixnetMetric, Traced, observe_delay_drain_batch_size, observe_drain_batch_size,
+};
 use nym_node_metrics::NymNodeMetrics;
 use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -16,9 +18,10 @@ use std::io;
 use tokio::time::Instant;
 use tracing::{debug, error, trace, warn};
 
-/// Max ingress packets handled per `select!` wakeup before yielding back to the biased select
-/// (so the delay queue + shutdown get serviced). Per-packet work in `handle_new_packet` is sub-µs
-/// to low-µs, so 256 bounds the worst-case stall before those branches are re-checked to <~1ms.
+/// Max packets handled per `select!` wakeup, per drainable branch (ingress channel and expired
+/// delay-queue items), before yielding back to the biased select so shutdown and the other branch
+/// stay responsive. Per-packet work is sub-µs to low-µs, so 256 bounds the worst-case stall to
+/// <~1ms.
 const MAX_DRAIN_BATCH: usize = 256;
 
 /// The node's single forward-hop egress engine - the last in-node stage of the mixnet pipeline.
@@ -115,6 +118,28 @@ impl<C, F> PacketForwarder<C, F> {
         delayed_packet.record(MixnetMetric::DelayQueue);
         delayed_packet.record_value(MixnetMetric::DelayQueueOverrun, overrun.as_secs_f64());
         self.forward_packet(delayed_packet);
+    }
+
+    /// Handle the just-expired `first` delayed packet, then drain any others whose release deadline
+    /// has also already passed (a burst of simultaneous releases), bounded by [`MAX_DRAIN_BATCH`],
+    /// so the per-wakeup `select!` overhead is amortised across the burst - the delay-queue
+    /// counterpart of `drain_ingress`. `try_next_expired` never blocks, and `run`'s next
+    /// `.next().await` re-arms the timer for idle waits.
+    fn drain_delayed(&mut self, first: Expired<Traced<MixPacket>>) -> usize
+    where
+        C: SendWithoutResponse,
+        F: RoutingFilter,
+    {
+        self.handle_done_delaying(first);
+        let mut drained = 1;
+        while drained < MAX_DRAIN_BATCH {
+            let Some(expired) = self.delay_queue.try_next_expired() else {
+                break;
+            };
+            self.handle_done_delaying(expired);
+            drained += 1;
+        }
+        drained
     }
 
     fn handle_new_packet(&mut self, mut new_packet: PacketToForward)
@@ -249,7 +274,8 @@ impl<C, F> PacketForwarder<C, F> {
                 delayed = self.delay_queue.next() => {
                     // SAFETY: `stream` implementation of `NonExhaustiveDelayQueue` never returns `None`
                     #[allow(clippy::unwrap_used)]
-                    self.handle_done_delaying(delayed.unwrap());
+                    let batch_size = self.drain_delayed(delayed.unwrap());
+                    observe_delay_drain_batch_size(batch_size);
                 }
                 new_packet = self.packet_receiver.next() => {
                     // impossible to panic: the struct holds a sender, so not all senders can drop

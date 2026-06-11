@@ -12,6 +12,7 @@ pub mod ecash;
 #[cfg(all(feature = "env", feature = "network"))]
 pub mod env_setup;
 pub mod mainnet;
+pub mod sandbox;
 #[cfg(feature = "network")]
 pub mod network;
 

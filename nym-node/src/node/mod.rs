@@ -1309,21 +1309,14 @@ impl NymNode {
         );
         let active_connections = mixnet_client.active_connections();
 
-        let packet_forwarder =
+        let mut packet_forwarder =
             PacketForwarder::new(mixnet_client, routing_filter, self.metrics.clone());
         let mix_packet_sender = packet_forwarder.sender();
-        let (packet_router, delay_forwarder) = packet_forwarder.into_tasks();
 
         let shutdown_token = self.shutdown_token();
         self.shutdown_tracker().try_spawn_named(
-            async move { packet_router.run(shutdown_token).await },
-            "PacketRouter",
-        );
-
-        let shutdown_token = self.shutdown_token();
-        self.shutdown_tracker().try_spawn_named(
-            async move { delay_forwarder.run(shutdown_token).await },
-            "DelayForwarder",
+            async move { packet_forwarder.run(shutdown_token).await },
+            "PacketForwarder",
         );
 
         let final_hop_data = SharedFinalHopData::new(

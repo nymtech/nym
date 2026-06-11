@@ -3,7 +3,7 @@
 
 use crate::metrics::{MixnetMetric, Traced};
 use dashmap::DashMap;
-use futures::{SinkExt, StreamExt};
+use futures::{Sink, SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -11,7 +11,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use std::io;
 use std::net::SocketAddr;
-use std::ops::Deref;
+use std::ops::{ControlFlow, Deref};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -274,6 +274,84 @@ const OUTBOUND_FLUSH_BATCH: usize = 1024;
 /// a flush is usually a single frame.
 const OUTBOUND_WRITE_BUFFER: usize = 32 * 1024;
 
+/// Drive the read half solely to notice peer FIN/RST (the connection is send-only). Returns
+/// `Break` when the peer closed the connection or the read errored, `Continue` otherwise.
+fn handle_peer_read<P, E: std::fmt::Display>(
+    msg: Option<Result<P, E>>,
+    address: SocketAddr,
+) -> ControlFlow<()> {
+    match msg {
+        None => {
+            debug!(
+                peer = %address,
+                exit_reason = "peer_closed",
+                "peer closed mixnet connection to {address}"
+            );
+            ControlFlow::Break(())
+        }
+        Some(Err(err)) => {
+            debug!(
+                event = "connection.read_error",
+                peer = %address,
+                error = %err,
+                exit_reason = "read_error",
+                "read error on mixnet connection to {address}: {err}"
+            );
+            ControlFlow::Break(())
+        }
+        Some(Ok(_)) => {
+            trace!(
+                peer = %address,
+                "unexpected inbound packet on mixnet connection to {address}; discarding"
+            );
+            ControlFlow::Continue(())
+        }
+    }
+}
+
+/// Feed a ready batch into the sink and flush it once (far fewer syscalls than per-packet), then
+/// stamp the egress latency stages: `EgressQueue` before each feed, then `SocketWrite` + the
+/// end-to-end total once the batch has hit the wire. Returns `Break` if the write/flush failed
+/// (the connection is dead).
+async fn forward_batch<S>(
+    sink: &mut S,
+    batch: Vec<Traced<FramedNymPacket>>,
+    address: SocketAddr,
+) -> ControlFlow<()>
+where
+    S: Sink<FramedNymPacket> + Unpin,
+    S::Error: std::fmt::Display,
+{
+    let mut traces = Vec::with_capacity(batch.len());
+    let res = async {
+        for mut traced in batch {
+            // time spent waiting in this connection's egress buffer
+            traced.record(MixnetMetric::EgressQueue);
+            sink.feed(traced.inner).await?;
+            traces.push(traced.trace);
+        }
+        sink.flush().await
+    }
+    .await;
+
+    // after the batch hit the wire: socket-write time and end-to-end total
+    for mut trace in traces {
+        trace.record(MixnetMetric::SocketWrite);
+        trace.record_total();
+    }
+    if let Err(err) = res {
+        debug!(
+            event = "connection.forward_error",
+            peer = %address,
+            error = %err,
+            exit_reason = "forward_error",
+            "failed to forward packet batch to {address}: {err}"
+        );
+        return ControlFlow::Break(());
+    }
+    ControlFlow::Continue(())
+}
+
 // The connection is unidirectional (send-only); we read from it solely to
 // notice peer FIN/RST while idle so we can evict the cache entry before the
 // next outbound send finds it stale.
@@ -293,73 +371,21 @@ async fn run_io_loop<T>(
     loop {
         tokio::select! {
             msg = stream.next() => {
-                match msg {
-                    None => {
-                        debug!(
-                            peer = %address,
-                            exit_reason = "peer_closed",
-                            "peer closed mixnet connection to {address}"
-                        );
-                        break;
-                    }
-                    Some(Err(err)) => {
-                        debug!(
-                            event = "connection.read_error",
-                            peer = %address,
-                            error = %err,
-                            exit_reason = "read_error",
-                            "read error on mixnet connection to {address}: {err}"
-                        );
-                        break;
-                    }
-                    Some(Ok(_)) => {
-                        trace!(
-                            peer = %address,
-                            "unexpected inbound packet on mixnet connection to {address}; discarding"
-                        );
-                    }
+                if handle_peer_read(msg, address).is_break() {
+                    break;
                 }
             }
             outgoing = receiver.next() => {
-                match outgoing {
-                    None => {
-                        debug!(
-                            peer = %address,
-                            exit_reason = "sender_dropped",
-                            "connection manager to {address} finished"
-                        );
-                        break;
-                    }
-                    Some(batch) => {
-                        // feed the whole ready batch, then flush once
-                        let mut traces = Vec::with_capacity(batch.len());
-                        let res = async {
-                            for mut traced in batch {
-                                // time spent waiting in this connection's egress buffer
-                                traced.record(MixnetMetric::EgressQueue);
-                                sink.feed(traced.inner).await?;
-                                traces.push(traced.trace);
-                            }
-                            sink.flush().await
-                        }
-                        .await;
-
-                        // after the batch hit the wire: socket-write time and end-to-end total
-                        for mut trace in traces {
-                            trace.record(MixnetMetric::SocketWrite);
-                            trace.record_total();
-                        }
-                        if let Err(err) = res {
-                            debug!(
-                                event = "connection.forward_error",
-                                peer = %address,
-                                error = %err,
-                                exit_reason = "forward_error",
-                                "failed to forward packet batch to {address}: {err}"
-                            );
-                            break;
-                        }
-                    }
+                let Some(batch) = outgoing else {
+                    debug!(
+                        peer = %address,
+                        exit_reason = "sender_dropped",
+                        "connection manager to {address} finished"
+                    );
+                    break;
+                };
+                if forward_batch(&mut sink, batch, address).await.is_break() {
+                    break;
                 }
             }
         }

@@ -21,6 +21,29 @@ use tracing::{debug, error, trace, warn};
 /// to low-µs, so 256 bounds the worst-case stall before those branches are re-checked to <~1ms.
 const MAX_DRAIN_BATCH: usize = 256;
 
+/// The node's single forward-hop egress engine - the last in-node stage of the mixnet pipeline.
+///
+/// **Where it sits.** Inbound packets are accepted by the mixnet listener and processed
+/// per-connection by a `ConnectionHandler`: sphinx unwrap, replay check, and - for *forward* hops -
+/// computation of the intended (Poisson) mix delay. The handler then hands each one off as a
+/// [`PacketToForward`] over the unbounded ingress-to-forwarder channel (via
+/// `SharedData::forward_mix_packet`). This forwarder is the sole consumer of that channel: every
+/// forward-hop packet in the node - plus acks, which are forwarded the same way - funnels through
+/// it. Final-hop packets never reach here; they are delivered to local clients instead.
+///
+/// **What it does**, per packet:
+/// 1. drops it if the [`RoutingFilter`] doesn't recognise the next hop;
+/// 2. holds it in the delay queue until its target release instant (the mix delay), or forwards it
+///    immediately when the delay is zero or has already elapsed;
+/// 3. on release, forwards it to the next hop via the mixnet client (`C: SendWithoutResponse`),
+///    which owns the per-connection egress TCP sockets.
+///
+/// **Design notes.** It runs as one dedicated task and is therefore the serialization point for
+/// all forward traffic, so its [`run`](Self::run) loop drains the ingress channel in bounded
+/// batches ([`MAX_DRAIN_BATCH`]) to amortise per-wakeup scheduling overhead, and a biased `select!`
+/// keeps shutdown and delay-queue release responsive. Along the way it stamps the latency-trace
+/// stages it owns (`ForwarderQueue`, `DelayQueue`, `DelayQueueOverrun`), feeding the
+/// `mixnet_packet_*` metrics family.
 pub struct PacketForwarder<C, F> {
     delay_queue: NonExhaustiveDelayQueue<Traced<MixPacket>>,
     mixnet_client: C,
@@ -141,6 +164,28 @@ impl<C, F> PacketForwarder<C, F> {
         }
     }
 
+    /// Handle the just-received `first` ingress packet, then drain any others already queued,
+    /// bounded by [`MAX_DRAIN_BATCH`], so the per-wakeup `select!`/waker/coop overhead is amortised
+    /// across the burst rather than paid per packet. `try_recv` never blocks - we fall back to the
+    /// idle `.next().await` in `run` once the channel empties. Returns how many packets were handled.
+    fn drain_ingress(&mut self, first: PacketToForward) -> usize
+    where
+        C: SendWithoutResponse,
+        F: RoutingFilter,
+    {
+        self.handle_new_packet(first);
+        let mut batch_size = 1;
+        while batch_size < MAX_DRAIN_BATCH {
+            // Err = channel empty (or closed, which is unreachable since we hold a sender)
+            let Ok(packet) = self.packet_receiver.try_recv() else {
+                break;
+            };
+            self.handle_new_packet(packet);
+            batch_size += 1;
+        }
+        batch_size
+    }
+
     fn update_queue_len_metric(&self) {
         self.metrics
             .process
@@ -151,6 +196,39 @@ impl<C, F> PacketForwarder<C, F> {
         self.metrics
             .process
             .update_packet_forwarder_queue_size(channel_size)
+    }
+
+    /// Log the forwarder's queue depth at a severity reflecting how overloaded it is. Called
+    /// periodically (~every 1000 packets), not per packet.
+    fn log_queue_status(
+        &self,
+        channel_depth: usize,
+        packets_processed: u64,
+        last_drain_batch: usize,
+    ) {
+        let delay_queue_depth = self.delay_queue.len();
+        match channel_depth {
+            n if n > 1000 => error!(
+                event = "forwarder.queue_overload",
+                channel_depth = n,
+                delay_queue_depth,
+                packets_processed,
+                last_drain_batch,
+                "there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"
+            ),
+            n if n > 500 => warn!(
+                event = "forwarder.queue_high",
+                channel_depth = n,
+                delay_queue_depth,
+                packets_processed,
+                last_drain_batch,
+                "there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"
+            ),
+            n => trace!(
+                channel_depth = n,
+                delay_queue_depth, packets_processed, last_drain_batch, "forwarder queue status"
+            ),
+        }
     }
 
     pub async fn run(&mut self, shutdown_token: ShutdownToken)
@@ -174,59 +252,18 @@ impl<C, F> PacketForwarder<C, F> {
                     self.handle_done_delaying(delayed.unwrap());
                 }
                 new_packet = self.packet_receiver.next() => {
-                    // this one is impossible to ever panic - the struct itself contains a sender
-                    // and hence it can't happen that ALL senders are dropped
+                    // impossible to panic: the struct holds a sender, so not all senders can drop
                     #[allow(clippy::unwrap_used)]
-                    self.handle_new_packet(new_packet.unwrap());
-
-                    // drain whatever else is already queued (bounded by MAX_DRAIN_BATCH) so the
-                    // per-wakeup select!/waker/coop overhead is amortised across the burst rather
-                    // than paid per packet. `.next().await` above still parks us when idle;
-                    // `try_recv()` only consumes already-queued packets and never blocks.
-                    let mut batch_size = 1usize;
-                    while batch_size < MAX_DRAIN_BATCH {
-                        // Err = empty (or closed, unreachable since we hold a sender) -> stop
-                        // draining and fall back to the idle `.next().await`
-                        let Ok(packet) = self.packet_receiver.try_recv() else {
-                            break;
-                        };
-                        self.handle_new_packet(packet);
-                        batch_size += 1;
-                    }
+                    let batch_size = self.drain_ingress(new_packet.unwrap());
                     observe_drain_batch_size(batch_size);
                     processed += batch_size as u64;
 
                     let channel_len = self.packet_sender.len();
-                    let delay_queue_len = self.delay_queue.len();
-                    // log roughly every 1000 packets; `processed` now advances in batches, so use
-                    // a crossing test rather than an exact modulo (which a batch could step over)
+                    // log roughly every 1000 packets; `processed` advances in batches, so use a
+                    // crossing test rather than an exact modulo (which a batch could step over)
                     if processed - last_logged >= 1000 {
                         last_logged = processed;
-                        match channel_len {
-                            n if n > 1000 => error!(
-                                event = "forwarder.queue_overload",
-                                channel_depth = n,
-                                delay_queue_depth = delay_queue_len,
-                                packets_processed = processed,
-                                last_drain_batch = batch_size,
-                                "there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"
-                            ),
-                            n if n > 500 => warn!(
-                                event = "forwarder.queue_high",
-                                channel_depth = n,
-                                delay_queue_depth = delay_queue_len,
-                                packets_processed = processed,
-                                last_drain_batch = batch_size,
-                                "there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"
-                            ),
-                            n => trace!(
-                                channel_depth = n,
-                                delay_queue_depth = delay_queue_len,
-                                packets_processed = processed,
-                                last_drain_batch = batch_size,
-                                "forwarder queue status"
-                            ),
-                        }
+                        self.log_queue_status(channel_len, processed, batch_size);
                     }
                     self.update_channel_size_metric(channel_len);
                 }

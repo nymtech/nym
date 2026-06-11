@@ -145,7 +145,7 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
                 .active_ingress_websocket_connections_count() as i64,
         );
         self.prometheus_wrapper.set(
-            NetworkActiveIngressWebSocketConnections,
+            NetworkActiveEgressMixnetConnections,
             self.metrics
                 .network
                 .active_egress_mixnet_connections_count() as i64,

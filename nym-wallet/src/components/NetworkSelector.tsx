@@ -3,13 +3,11 @@ import { Button, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader
 import { ArrowDropDown, Check } from '@mui/icons-material';
 import { Network } from 'src/types';
 import { AppContext } from '../context/main';
-import { config } from '../config';
 import { headerControlPillSx } from './headerControlPillSx';
 
 const networks: { networkName: Network; name: string }[] = [
   { networkName: 'MAINNET', name: 'Nym Mainnet' },
   { networkName: 'SANDBOX', name: 'Testnet Sandbox' },
-  { networkName: 'QA', name: 'QA' },
 ];
 
 const NetworkItem: FCWithChildren<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
@@ -43,7 +41,7 @@ const NetworkItem: FCWithChildren<{ title: string; isSelected: boolean; onSelect
 );
 
 export const NetworkSelector = () => {
-  const { network, switchNetwork, appEnv } = useContext(AppContext);
+  const { network, switchNetwork } = useContext(AppContext);
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -78,16 +76,7 @@ export const NetworkSelector = () => {
       >
         <List>
           <ListSubheader sx={{ backgroundColor: 'transparent' }}>Network selection</ListSubheader>
-          {networks
-            .filter(({ networkName }) => {
-              // show all networks when in dev more or the user wants QA mode enabled
-              if (config.IS_DEV_MODE || appEnv?.ENABLE_QA_MODE) {
-                return true;
-              }
-              // otherwise, filter out QA
-              return networkName !== 'QA';
-            })
-            .map(({ name, networkName }) => (
+          {networks.map(({ name, networkName }) => (
               <NetworkItem
                 key={networkName}
                 title={name}

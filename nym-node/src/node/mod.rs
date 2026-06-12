@@ -31,6 +31,7 @@ use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNo
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
+use crate::node::metrics::handler::tokio_runtime_updater::TokioRuntimeMetricsUpdater;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
@@ -1151,6 +1152,14 @@ impl NymNode {
                 .global_prometheus_counters_update_rate,
         );
 
+        // handler sampling tokio runtime scheduling metrics (run-queue depth, busy ratio) into
+        // the prometheus registry. run-queue depth is a transient gauge, so we sample at the base
+        // aggregator cadence (~5s) rather than the coarse 30s global-prometheus-counters rate.
+        metrics_aggregator.register_handler(
+            TokioRuntimeMetricsUpdater::new(),
+            self.config.metrics.debug.aggregator_update_rate,
+        );
+
         // handler for handling prometheus metrics events
         // metrics_aggregator.register_handler(PrometheusEventsHandler{}, None);
 
@@ -1270,10 +1279,9 @@ impl NymNode {
     {
         let processing_config = ProcessingConfig::new(&self.config);
 
-        // pre-register the per-stage packet-latency histograms so the whole mixnet_packet_* family
-        // is present on the prometheus endpoint at zero from boot (not just after the first
-        // sampled packet)
-        nym_mixnet_client::trace::register_stage_metrics();
+        // pre-register the whole mixnet_packet_* histogram family so it's present on the
+        // prometheus endpoint at zero from boot (not just after the first sampled packet)
+        nym_mixnet_client::metrics::register_all();
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(
@@ -1289,6 +1297,8 @@ impl NymNode {
             self.config.mixnet.debug.initial_connection_timeout,
             self.config.mixnet.debug.maximum_connection_buffer_size,
             self.config.mixnet.debug.use_legacy_packet_encoding,
+            self.config.mixnet.debug.connection_idle_timeout,
+            self.config.mixnet.debug.connection_write_timeout,
         );
         let mixnet_client = nym_mixnet_client::Client::new(
             mixnet_client_config,
@@ -1304,7 +1314,6 @@ impl NymNode {
         let mix_packet_sender = packet_forwarder.sender();
 
         let shutdown_token = self.shutdown_token();
-
         self.shutdown_tracker().try_spawn_named(
             async move { packet_forwarder.run(shutdown_token).await },
             "PacketForwarder",

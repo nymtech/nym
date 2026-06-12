@@ -369,7 +369,7 @@ strum = "0.28.0"
 strum_macros = "0.28.0"
 subtle-encoding = "0.5"
 syn = "2"
-sysinfo = "0.37.0"
+sysinfo = "0.38.4"
 tap = "1.0.1"
 tar = "0.4.45"
 test-with = { version = "0.15.4", default-features = false }

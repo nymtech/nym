@@ -19,7 +19,7 @@ use tracing::{debug, trace, warn};
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;
-pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
+pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId, RewardedSet};
 pub use rewarded_set::CachedEpochRewardedSet;
 
 pub mod error;

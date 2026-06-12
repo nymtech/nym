@@ -4,7 +4,7 @@
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
-use nym_mixnet_client::trace::{PacketTrace, TraceStage, Traced};
+use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
 use nym_noise::upgrade_noise_responder;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -27,6 +27,12 @@ use tracing::{Span, debug, error, instrument, trace, warn};
 
 /// How often (in packets) the stream-level span updates its packet count.
 const SPAN_UPDATE_INTERVAL: u64 = 10_000;
+
+/// Instant at which a connection idle since `last_activity` should be closed, or `None` if idle
+/// reaping is disabled (`timeout` is zero).
+fn idle_deadline(last_activity: Instant, timeout: Duration) -> Option<Instant> {
+    (!timeout.is_zero()).then(|| last_activity + timeout)
+}
 
 struct PendingReplayCheckPackets {
     // map of rotation id used for packet creation to the packets (each carrying the latency
@@ -476,7 +482,7 @@ impl ConnectionHandler {
         };
 
         // close out the Unwrap stage (partial unwrap: shared secret + header MAC)
-        trace.record(TraceStage::Unwrap);
+        trace.record(MixnetMetric::Unwrap);
         self.pending_packets.push(now, partially_unwrapped, trace);
 
         // 2. check for packet replay
@@ -567,7 +573,7 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
-                    trace.record(TraceStage::ReplayCheck);
+                    trace.record(MixnetMetric::ReplayCheck);
                     self.handle_unwrapped_packet(
                         now,
                         Err(PacketProcessingError::PacketReplay),
@@ -581,7 +587,7 @@ impl ConnectionHandler {
                 // finalise the (expensive) full unwrapping, then close out the ReplayCheck stage:
                 // it spans partial-unwrap -> deferral -> replay check -> finalise
                 let unwrapped_packet = packet.finalise_unwrapping();
-                trace.record(TraceStage::ReplayCheck);
+                trace.record(MixnetMetric::ReplayCheck);
                 self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet, trace)
                     .await;
             }
@@ -678,7 +684,7 @@ impl ConnectionHandler {
         let packet = packet.inner;
         let unwrapped_packet = self.try_full_unwrap_packet(packet);
         // no replay batching on this path: the Unwrap stage covers the full unwrapping
-        trace.record(TraceStage::Unwrap);
+        trace.record(MixnetMetric::Unwrap);
 
         let is_network_monitor_packet = self.is_from_authorised_network_monitor_agent();
         self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet, trace)
@@ -757,6 +763,8 @@ impl ConnectionHandler {
         mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>,
     ) {
         let mut packets_processed: u64 = 0;
+        // reset by every received packet; drives the idle-connection reaping below
+        let mut last_activity = Instant::now();
         loop {
             // make sure pending packets are not stuck in the queue if we don't get any more packets
             // from this sender
@@ -764,6 +772,12 @@ impl ConnectionHandler {
                 self.shared
                     .processing_config
                     .maximum_replay_detection_deferral,
+            );
+            // close the connection (freeing the task/socket) if no packets arrive for too long;
+            // ingress is read-only, so without this a silently-gone peer would linger forever
+            let idle_deadline = idle_deadline(
+                last_activity,
+                self.shared.processing_config.connection_idle_timeout,
             );
 
             tokio::select! {
@@ -778,6 +792,7 @@ impl ConnectionHandler {
                 maybe_framed_nym_packet = mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
                         Some(Ok(packet)) => {
+                            last_activity = Instant::now();
                             self.handle_received_nym_packet(packet).await;
                             packets_processed += 1;
                             if packets_processed.is_multiple_of(SPAN_UPDATE_INTERVAL) {
@@ -816,6 +831,25 @@ impl ConnectionHandler {
                     }
                 } => {
                     self.handle_pending_packets_batch(Instant::now()).await;
+                }
+                // 4. reap the connection if it has been idle for too long
+                _ = async move {
+                    match idle_deadline {
+                        Some(d) => tokio::time::sleep_until(d).await,
+                        None => std::future::pending::<()>().await,
+                    }
+                } => {
+                    debug!(
+                        event = "connection.idle_timeout",
+                        remote_addr = %self.remote_address,
+                        packets_processed,
+                        idle_secs = self.shared.processing_config.connection_idle_timeout.as_secs(),
+                        "closing idle ingress mixnet connection"
+                    );
+                    Span::current().record("exit_reason", "idle_timeout");
+                    Span::current().record("packets_processed", packets_processed);
+                    self.shared.metrics.network.ingress_mixnet_idle_closed();
+                    break
                 }
             }
         }
@@ -885,6 +919,18 @@ mod tests {
     fn no_flush_deadline_when_nothing_pending() {
         let pending = PendingReplayCheckPackets::new();
         assert!(pending.flush_deadline(Duration::from_millis(50)).is_none());
+    }
+
+    #[test]
+    fn idle_deadline_disabled_when_timeout_zero() {
+        assert!(idle_deadline(Instant::now(), Duration::ZERO).is_none());
+    }
+
+    #[test]
+    fn idle_deadline_is_last_activity_plus_timeout() {
+        let now = Instant::now();
+        let timeout = Duration::from_secs(300);
+        assert_eq!(idle_deadline(now, timeout), Some(now + timeout));
     }
 
     #[test]

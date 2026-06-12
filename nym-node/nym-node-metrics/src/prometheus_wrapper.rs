@@ -195,6 +195,11 @@ pub enum PrometheusMetric {
     #[strum(props(help = "The number of active egress mixnet connections"))]
     NetworkActiveEgressMixnetConnections,
 
+    #[strum(props(
+        help = "The cumulative number of ingress mixnet connections closed due to the idle timeout"
+    ))]
+    NetworkIdleClosedIngressMixnetConnections,
+
     // # PROCESS
     #[strum(props(help = "The current number of packets being delayed"))]
     ProcessForwardHopPacketsBeingDelayed,
@@ -218,6 +223,26 @@ pub enum PrometheusMetric {
         help = "The current number of forward hop packets stuck in channels waiting to get delivered to appropriate TCP connections"
     ))]
     ProcessForwardHopPacketsPendingDelivery,
+
+    // # TOKIO RUNTIME
+    #[strum(props(help = "Number of tokio worker threads"))]
+    TokioRuntimeNumWorkers,
+
+    #[strum(props(help = "Currently alive (spawned, not yet completed) tokio tasks"))]
+    TokioRuntimeAliveTasks,
+
+    #[strum(props(
+        help = "Tasks waiting in the tokio global run queue (runtime scheduling pressure)"
+    ))]
+    TokioRuntimeGlobalQueueDepth,
+
+    // the per-worker timing below is only exposed by tokio when the binary is built with
+    // `--cfg tokio_unstable`; without that flag the handler can't sample it and these stay at 0.
+    #[strum(props(help = "Fraction of worker-thread time spent busy over the last interval"))]
+    TokioRuntimeBusyRatio,
+
+    #[strum(props(help = "Cumulative tokio worker poll count across all workers"))]
+    TokioRuntimeWorkerPollCount,
 }
 
 impl PrometheusMetric {
@@ -350,6 +375,9 @@ impl PrometheusMetric {
             PrometheusMetric::NetworkActiveEgressMixnetConnections => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::NetworkIdleClosedIngressMixnetConnections => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::ProcessForwardHopPacketsBeingDelayed => {
                 Metric::new_int_gauge(&name, help)
             }
@@ -363,6 +391,11 @@ impl PrometheusMetric {
             PrometheusMetric::ProcessForwardHopPacketsPendingDelivery => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::TokioRuntimeNumWorkers => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::TokioRuntimeAliveTasks => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::TokioRuntimeGlobalQueueDepth => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::TokioRuntimeBusyRatio => Metric::new_float_gauge(&name, help),
+            PrometheusMetric::TokioRuntimeWorkerPollCount => Metric::new_int_gauge(&name, help),
         }
     }
 
@@ -458,7 +491,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(47, PrometheusMetric::COUNT)
+        assert_eq!(53, PrometheusMetric::COUNT)
     }
 
     #[test]

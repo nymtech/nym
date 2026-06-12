@@ -42,7 +42,12 @@ export const addAccount = async ({
 }) => invokeWrapper<AccountEntry>('add_account_for_password', { mnemonic, password, accountId: accountName });
 
 export const removeAccount = async ({ password, accountName }: { password: string; accountName: string }) =>
-  invokeWrapper<void>('remove_account_for_password', { password, innerId: accountName });
+  invokeWrapper<void>('remove_account_for_password', { password, accountId: accountName });
+
+export const getWalletStoragePaths = async () =>
+  invokeWrapper<{ walletFile: string; storageDirectory: string; configDirectory: string }>(
+    'get_wallet_storage_paths',
+  );
 
 export const listAccounts = async () => invokeWrapper<AccountEntry[]>('list_accounts');
 

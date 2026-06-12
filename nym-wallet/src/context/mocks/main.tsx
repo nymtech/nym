@@ -66,6 +66,7 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       handleCloseSendModal: () => undefined,
       handleCloseReceiveModal: () => undefined,
       keepState: async () => undefined,
+      reloadStoredAccounts: async () => [],
       printBalance: '100.0000 NYMT',
       printVestedBalance: undefined,
       mixnetContractParams: undefined,

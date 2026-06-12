@@ -1,13 +1,20 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
-import { addAccount as addAccountRequest, renameAccount, showMnemonicForAccount } from 'src/requests';
+import {
+  addAccount as addAccountRequest,
+  removeAccount,
+  renameAccount,
+  showMnemonicForAccount,
+} from 'src/requests';
 import { useSnackbar } from 'notistack';
+import { performAccountRemoval } from 'src/utils/accountRemovalFlow';
 import { AppContext } from './main';
 
 type TAccounts = {
   accounts?: AccountEntry[];
   selectedAccount?: AccountEntry;
   accountToEdit?: AccountEntry;
+  accountToDelete?: AccountEntry;
   dialogToDisplay?: TAccountsDialog;
   isLoading: boolean;
   error?: string;
@@ -18,6 +25,7 @@ type TAccounts = {
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (data: { accountName: string; password: string }) => Promise<boolean>;
   handleAccountToEdit: (accountId: string | undefined) => void;
+  handleAccountToDelete: (accountId: string | undefined) => void;
   handleEditAccount: ({
     account,
     newAccountName,
@@ -27,11 +35,12 @@ type TAccounts = {
     newAccountName: string;
     password: string;
   }) => Promise<void>;
+  handleRemoveAccount: ({ account, password }: { account: AccountEntry; password: string }) => Promise<void>;
   handleImportAccount: (account: AccountEntry) => void;
   handleGetAccountMnemonic: (data: { password: string; accountName: string }) => void;
 };
 
-export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Import' | 'Mnemonic';
+export type TAccountsDialog = 'Accounts' | 'Add' | 'Edit' | 'Delete' | 'Import' | 'Mnemonic';
 export type TAccountMnemonic = { value?: string; accountName?: string };
 
 export const AccountsContext = createContext({} as TAccounts);
@@ -40,6 +49,7 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<AccountEntry>();
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();
+  const [accountToDelete, setAccountToDelete] = useState<AccountEntry>();
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
   const [accountMnemonic, setAccountMnemonic] = useState<TAccountMnemonic>({
     value: undefined,
@@ -47,7 +57,7 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
   });
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
-  const { onAccountChange, storedAccounts } = useContext(AppContext);
+  const { onAccountChange, storedAccounts, reloadStoredAccounts } = useContext(AppContext);
   const { enqueueSnackbar } = useSnackbar();
 
   const handleAddAccount = async ({
@@ -101,10 +111,25 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
     }
   };
 
+  const handleRemoveAccount = async ({ account, password }: { account: AccountEntry; password: string }) => {
+    setIsLoading(true);
+    try {
+      const updatedAccounts = await performAccountRemoval({ account, password, removeAccount, reloadStoredAccounts });
+      setAccounts(updatedAccounts);
+      enqueueSnackbar('Account removed from saved wallet', { variant: 'success' });
+      setDialogToDisplay('Accounts');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 
   const handleAccountToEdit = (accountName: string | undefined) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
+
+  const handleAccountToDelete = (accountName: string | undefined) =>
+    setAccountToDelete(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async ({ accountName, password }: { accountName: string; password: string }) => {
     try {
@@ -149,6 +174,7 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
           accounts,
           selectedAccount,
           accountToEdit,
+          accountToDelete,
           dialogToDisplay,
           accountMnemonic,
           setDialogToDisplay,
@@ -156,12 +182,14 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
           isLoading,
           handleAddAccount,
           handleEditAccount,
+          handleRemoveAccount,
           handleAccountToEdit,
+          handleAccountToDelete,
           handleSelectAccount,
           handleImportAccount,
           handleGetAccountMnemonic,
         }),
-        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error, accountMnemonic],
+        [accounts, selectedAccount, accountToEdit, accountToDelete, dialogToDisplay, isLoading, error, accountMnemonic],
       )}
     >
       {children}

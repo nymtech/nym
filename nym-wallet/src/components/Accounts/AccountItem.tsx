@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import EditIcon from '@mui/icons-material/Create';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import {
   Box,
@@ -16,6 +17,11 @@ import {
 import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
+import {
+  canRemoveAccount,
+  getAccountRemovalBlockMessage,
+  getAccountRemovalBlockReason,
+} from 'src/utils/accountRemovalPolicy';
 
 export const AccountItem = ({
   name,
@@ -26,11 +32,17 @@ export const AccountItem = ({
   address: string;
   onSelectAccount: () => void;
 }) => {
-  const { selectedAccount, setDialogToDisplay, setAccountMnemonic, handleAccountToEdit } = useContext(AccountsContext);
+  const { selectedAccount, accounts, setDialogToDisplay, setAccountMnemonic, handleAccountToEdit, handleAccountToDelete } =
+    useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   const theme = useTheme();
 
   const isSelected = selectedAccount?.id === name;
+  const removalBlockReason = getAccountRemovalBlockReason(accounts ?? [], selectedAccount?.id, name);
+  const removalAllowed = canRemoveAccount(accounts ?? [], selectedAccount?.id, name);
+  const removalTooltip = removalAllowed
+    ? 'Remove this account from your saved wallet'
+    : getAccountRemovalBlockMessage(removalBlockReason ?? 'active_account');
 
   return (
     <ListItem
@@ -57,6 +69,29 @@ export const AccountItem = ({
               }}
             />
           )}
+          <Tooltip title={removalTooltip}>
+            <span>
+              <IconButton
+                sx={{
+                  color: theme.palette.mode === 'dark' ? 'nym.text.dark' : theme.palette.text.primary,
+                  backgroundColor: alpha(theme.palette.text.primary, 0.05),
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.error.main, 0.12),
+                    color: theme.palette.error.main,
+                  },
+                  width: 30,
+                  height: 30,
+                }}
+                disabled={!removalAllowed}
+                onClick={() => {
+                  handleAccountToDelete(name);
+                  setDialogToDisplay('Delete');
+                }}
+              >
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
           <IconButton
             sx={{
               mr: 1.5,

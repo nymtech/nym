@@ -541,6 +541,45 @@ async fn set_state_with_all_accounts(
     Ok(())
 }
 
+fn resolve_active_account_id(
+    state: &crate::state::WalletStateInner,
+) -> Option<wallet_storage::AccountId> {
+    let client = state.current_client().ok()?;
+    let current_address = client.nyxd.address();
+    let network = state.current_network();
+    state.get_all_accounts().find_map(|account| {
+        if account.addresses.get(&network).map(|a| a.as_ref()) == Some(current_address.as_ref()) {
+            Some(account.id.clone())
+        } else {
+            None
+        }
+    })
+}
+
+fn validate_account_removal_request(
+    stored_login: &wallet_storage::StoredLogin,
+    account_id: &wallet_storage::AccountId,
+    active_account_id: Option<&wallet_storage::AccountId>,
+) -> Result<(), BackendError> {
+    match stored_login {
+        wallet_storage::StoredLogin::Mnemonic(_) => {
+            Err(BackendError::WalletUnexpectedMnemonicAccount)
+        }
+        wallet_storage::StoredLogin::Multiple(accounts) => {
+            if accounts.get_account(account_id).is_none() {
+                return Err(BackendError::WalletNoSuchAccountIdInWalletLogin);
+            }
+            if accounts.len() <= 1 {
+                return Err(BackendError::WalletCannotRemoveLastAccount);
+            }
+            if active_account_id == Some(account_id) {
+                return Err(BackendError::WalletCannotRemoveActiveAccount);
+            }
+            Ok(())
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn remove_account_for_password(
     password: UserPassword,
@@ -551,6 +590,12 @@ pub async fn remove_account_for_password(
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
+    let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
+    let active_account_id = {
+        let r_state = state.read().await;
+        resolve_active_account_id(&r_state)
+    };
+    validate_account_removal_request(&stored_login, &account_id, active_account_id.as_ref())?;
     wallet_storage::remove_account_from_login(&login_id, &account_id, &password)?;
 
     // Load to reset the internal state
@@ -648,6 +693,38 @@ fn _show_mnemonic_for_account_in_password(
     Ok(mnemonic)
 }
 
+#[tauri::command]
+pub fn get_wallet_storage_paths() -> Result<WalletStoragePaths, BackendError> {
+    use crate::platform_constants::CONFIG_DIR_NAME;
+
+    let wallet_file_path = wallet_storage::wallet_login_filepath()?;
+    let storage_directory = wallet_file_path
+        .parent()
+        .ok_or(BackendError::UnknownStorageDirectory)?
+        .to_string_lossy()
+        .into_owned();
+    let wallet_file = wallet_file_path.to_string_lossy().into_owned();
+    let config_directory = dirs::config_dir()
+        .map(|dir| dir.join(CONFIG_DIR_NAME))
+        .ok_or(BackendError::UnknownStorageDirectory)?
+        .to_string_lossy()
+        .into_owned();
+
+    Ok(WalletStoragePaths {
+        wallet_file,
+        storage_directory,
+        config_directory,
+    })
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletStoragePaths {
+    pub wallet_file: String,
+    pub storage_directory: String,
+    pub config_directory: String,
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -736,5 +813,41 @@ mod tests {
                 WalletAccount::new("42".into(), MnemonicAccount::new(expected_mn4, hd_path)),
             ]
         );
+    }
+
+    #[test]
+    fn validate_account_removal_request_blocks_last_and_active_account() {
+        use wallet_storage::account_data::{
+            MnemonicAccount, MultipleAccounts, StoredLogin, WalletAccount,
+        };
+
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let mnemonic = bip39::Mnemonic::generate(12).unwrap();
+        let account_id = wallet_storage::AccountId::new("default".to_string());
+        let single = StoredLogin::Multiple(MultipleAccounts::from(vec![WalletAccount::new(
+            account_id.clone(),
+            MnemonicAccount::new(mnemonic.clone(), hd_path.clone()),
+        )]));
+
+        assert!(matches!(
+            validate_account_removal_request(&single, &account_id, None),
+            Err(BackendError::WalletCannotRemoveLastAccount)
+        ));
+
+        let second_id = wallet_storage::AccountId::new("other".to_string());
+        let mnemonic2 = bip39::Mnemonic::generate(12).unwrap();
+        let multiple = StoredLogin::Multiple(MultipleAccounts::from(vec![
+            WalletAccount::new(
+                account_id.clone(),
+                MnemonicAccount::new(mnemonic, hd_path.clone()),
+            ),
+            WalletAccount::new(second_id.clone(), MnemonicAccount::new(mnemonic2, hd_path)),
+        ]));
+
+        assert!(matches!(
+            validate_account_removal_request(&multiple, &account_id, Some(&account_id)),
+            Err(BackendError::WalletCannotRemoveActiveAccount)
+        ));
+        assert!(validate_account_removal_request(&multiple, &second_id, Some(&account_id)).is_ok());
     }
 }

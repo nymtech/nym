@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::gateway::models::Gateway;
     get,
     path = "",
     context_path = "/api/v1/gateway",
-    tag = "Gateway",
+    tag = "v1 / Gateway",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

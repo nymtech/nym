@@ -10,7 +10,7 @@ use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExit
     get,
     path = "/exit-policy",
     context_path = "/api/v1/network-requester",
-    tag = "Network Requester",
+    tag = "v1 / Network Requester",
     responses(
         (status = 200, content(
             (UsedExitPolicy = "application/json"),

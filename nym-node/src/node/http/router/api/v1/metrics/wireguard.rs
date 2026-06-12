@@ -13,7 +13,7 @@ use nym_node_requests::api::v1::metrics::models::WireguardStats;
     get,
     path = "/wireguard-stats",
     context_path = "/api/v1/metrics",
-    tag = "Metrics",
+    tag = "v1 / Metrics",
     responses(
         (status = 200, content(
             (WireguardStats = "application/json"),

@@ -10,7 +10,6 @@ use crate::node::http::api::v1::node::roles::roles;
 use crate::node::http::state::AppState;
 use axum::Router;
 use axum::routing::get;
-use nym_node_requests::api::v1::node::models;
 use nym_node_requests::routes::api::v1;
 
 pub mod auxiliary;
@@ -20,51 +19,15 @@ pub mod hardware;
 pub mod host_information;
 pub mod roles;
 
-#[derive(Debug, Clone)]
-pub struct Config {
-    pub build_information: models::BinaryBuildInformationOwned,
-    pub system_info: Option<models::HostSystem>,
-    pub roles: models::NodeRoles,
-    pub description: models::NodeDescription,
-    pub auxiliary_details: models::AuxiliaryDetails,
-}
+#[derive(Debug, Clone, Copy)]
+pub struct Config {}
 
-pub(super) fn routes(config: Config) -> Router<AppState> {
+pub(super) fn routes(_config: Config) -> Router<AppState> {
     Router::new()
-        .route(
-            v1::BUILD_INFO,
-            get({
-                let build_info = config.build_information;
-                move |query| build_information(build_info, query)
-            }),
-        )
-        .route(
-            v1::ROLES,
-            get({
-                let node_roles = config.roles;
-                move |query| roles(node_roles, query)
-            }),
-        )
+        .route(v1::BUILD_INFO, get(build_information))
+        .route(v1::ROLES, get(roles))
         .route(v1::HOST_INFO, get(host_information))
-        .route(
-            v1::SYSTEM_INFO,
-            get({
-                let system_info = config.system_info;
-                move |query| host_system(system_info, query)
-            }),
-        )
-        .route(
-            v1::NODE_DESCRIPTION,
-            get({
-                let node_description = config.description;
-                move |query| description(node_description, query)
-            }),
-        )
-        .route(
-            v1::AUXILIARY,
-            get({
-                let auxiliary_details = config.auxiliary_details;
-                move |query| auxiliary(auxiliary_details, query)
-            }),
-        )
+        .route(v1::SYSTEM_INFO, get(host_system))
+        .route(v1::NODE_DESCRIPTION, get(description))
+        .route(v1::AUXILIARY, get(auxiliary))
 }

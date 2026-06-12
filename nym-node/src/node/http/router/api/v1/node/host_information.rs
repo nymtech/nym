@@ -12,7 +12,7 @@ use nym_node_requests::api::{SignedDataHostInfo, v1::node::models::SignedHostInf
     get,
     path = "/host-information",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (SignedDataHostInfo = "application/json"),

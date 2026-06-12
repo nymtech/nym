@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::authenticator::models::Authenticator;
     get,
     path = "",
     context_path = "/api/v1/authenticator",
-    tag = "Authenticator",
+    tag = "v1 / Authenticator",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

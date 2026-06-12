@@ -11,7 +11,7 @@ use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
 use crate::api::v1::node::models::{
-    AuxiliaryDetails, NodeDescription, NodeRoles, SignedHostInformation,
+    AuxiliaryDetailsV1, NodeDescription, NodeRoles, SignedHostInformation,
 };
 use crate::api::v1::node_load::models::NodeLoad;
 use crate::routes;
@@ -55,7 +55,7 @@ pub trait NymNodeApiClientExt: ApiClient {
         self.get_json_from(routes::api::v1::roles_absolute()).await
     }
 
-    async fn get_auxiliary_details(&self) -> Result<AuxiliaryDetails, NymNodeApiClientError> {
+    async fn get_auxiliary_details(&self) -> Result<AuxiliaryDetailsV1, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::auxiliary_absolute())
             .await
     }

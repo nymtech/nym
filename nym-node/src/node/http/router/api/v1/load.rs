@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::node_load::models::NodeLoad;
     get,
     path = "/load",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (NodeLoad = "application/json"),

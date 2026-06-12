@@ -22,6 +22,7 @@ import { createSignInWindow, getReactState, setReactState } from '../requests/ap
 import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
 import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
 import { dedupeInflightByKey } from '../utils/dedupeInflightByKey';
+import { shouldRefreshAccountOnManualNetworkSwitch } from '../utils/networkSwitchPolicy';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -362,7 +363,24 @@ export const AppProvider: FCWithChildren = ({ children }) => {
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
-  const switchNetwork = (_network: Network) => setNetwork(_network);
+  const switchNetwork = async (_network: Network) => {
+    if (_network === network) {
+      return;
+    }
+    setNetwork(_network);
+    if (!shouldRefreshAccountOnManualNetworkSwitch(Boolean(clientDetails))) {
+      return;
+    }
+    userBalance.clearAll();
+    setMixnodeDetails(null);
+    try {
+      await refreshAccount(_network);
+      await keepState();
+    } catch (e) {
+      enqueueSnackbar('Error switching network', { variant: 'error' });
+      Console.error(e as string);
+    }
+  };
   const handleShowSendModal = () => setShowSendModal(true);
   const handleShowReceiveModal = () => setShowReceiveModal(true);
   const handleCloseSendModal = () => setShowSendModal(false);

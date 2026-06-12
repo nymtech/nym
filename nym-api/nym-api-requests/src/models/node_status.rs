@@ -420,8 +420,17 @@ pub struct NodeAnnotationV1 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ChainInteractionCapabilitiesDetailed.ts"
+    )
+)]
 pub struct ChainInteractionCapabilitiesDetailed {
     #[schema(value_type = CoinSchema)]
+    #[cfg_attr(feature = "generate-ts", ts(type = "Coin"))]
     pub on_chain_balance: Coin,
 
     // later to be expanded with information on whether the grant would cover
@@ -430,6 +439,14 @@ pub struct ChainInteractionCapabilitiesDetailed {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeAnnotationV2.ts"
+    )
+)]
 pub struct NodeAnnotationV2 {
     pub current_role: Option<DisplayRole>,
 
@@ -727,6 +744,14 @@ pub struct AnnotationResponseV1 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/AnnotationResponseV2.ts"
+    )
+)]
 pub struct AnnotationResponseV2 {
     #[schema(value_type = u32)]
     pub node_id: NodeId,

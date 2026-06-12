@@ -1,11 +1,13 @@
 #![allow(deprecated)]
 
+use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
+use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
 use nym_api_requests::models::{
-    AnnotationResponseV1, AnnotationResponseV2, DeclaredRolesV1, DescribedNodeTypeV1,
-    GatewayCoreStatusResponse, HistoricalPerformanceResponse, HistoricalUptimeResponse,
-    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1,
-    NodeAnnotationV2, NodeDatePerformanceResponse, NodePerformanceResponse,
-    PerformanceHistoryResponse, StakeSaturationResponse, UptimeHistoryResponse,
+    AnnotationResponseV1, AnnotationResponseV2, GatewayCoreStatusResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1, NodeAnnotationV2,
+    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse,
+    StakeSaturationResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};

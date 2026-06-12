@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::{Context, anyhow, bail};
-use nym_api_requests::models::{
+use nym_api_requests::models::OffsetDateTimeJsonSchemaWrapper;
+use nym_api_requests::models::described::v2::{
     AuthenticatorDetailsV2, DeclaredRolesV2, DescribedNodeTypeV2, HostInformationV2,
-    IpPacketRouterDetailsV2, NetworkRequesterDetailsV2, NymNodeDataV2,
-    OffsetDateTimeJsonSchemaWrapper, WebSocketsV2, WireguardDetailsV2,
+    IpPacketRouterDetailsV2, NetworkRequesterDetailsV2, NymNodeDataV2, NymNodeDescriptionV2,
+    WebSocketsV2, WireguardDetailsV2,
 };
 use nym_authenticator_requests::AuthenticatorVersion;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -20,7 +21,6 @@ use nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1 as NodeAuxiliar
 use nym_sdk::mixnet::NodeIdentity;
 use nym_sdk::mixnet::Recipient;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::NymNodeDescriptionV2;
 use rand::prelude::IteratorRandom;
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, SocketAddr};

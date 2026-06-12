@@ -11,8 +11,6 @@ use cosmrs::tx;
 use cosmrs::tx::SignDoc;
 use nym_config::defaults;
 use std::borrow::Cow;
-use std::ops::Deref;
-use std::sync::Arc;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 

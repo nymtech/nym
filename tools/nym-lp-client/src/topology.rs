@@ -6,7 +6,6 @@
 #![allow(unused)]
 
 use anyhow::{anyhow, bail, Context, Result};
-use nym_api_requests::models::{LPHashFunction, LPKEM};
 use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::ed25519;
 use nym_http_api_client::UserAgent;

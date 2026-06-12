@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 
+use crate::db::models::NymNodeDataDeHelper;
+use crate::monitor::geodata;
+use crate::node_scraper::models::BridgeInformation;
 use crate::{
     http::models::gw_probe::{
         DvpnGwProbe, DvpnProbeOutcome, LastProbeResult, ScoreValue, calc_gateway_visual_score,
@@ -9,15 +12,19 @@ use crate::{
     monitor::ExplorerPrettyBond,
 };
 use cosmwasm_std::{Addr, Coin, Decimal};
+use nym_api_requests::models::described::type_translation::{
+    AuthenticatorDetailsV1, IpPacketRouterDetailsV1,
+    LewesProtocolDetailsDataV1 as LewesProtocolDetailsDataV1Validator,
+    LewesProtocolDetailsV1 as LewesProtocolDetailsV1Validator,
+};
+use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
+use nym_api_requests::models::described::v2::NymNodeDataV2;
 use nym_mixnet_contract_common::{CoinSchema, NodeRewarding};
 use nym_node_requests::api::v1::node::models::NodeDescription;
+pub(crate) use nym_node_status_client::models::TestrunAssignment;
 use nym_validator_client::{
     client::NodeId,
-    models::{
-        AuthenticatorDetailsV1, BinaryBuildInformationOwned, IpPacketRouterDetailsV1,
-        LewesProtocolDetailsDataV1 as LewesProtocolDetailsDataV1Validator,
-        LewesProtocolDetailsV1 as LewesProtocolDetailsV1Validator,
-    },
+    models::BinaryBuildInformationOwned,
     nym_api::SkimmedNodeV1,
     nym_nodes::{BasicEntryInformation, NodeRole},
 };
@@ -25,12 +32,6 @@ use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 use tracing::{error, instrument};
 use utoipa::ToSchema;
-
-use crate::db::models::NymNodeDataDeHelper;
-use crate::node_scraper::models::BridgeInformation;
-
-use crate::monitor::geodata;
-pub(crate) use nym_node_status_client::models::TestrunAssignment;
 
 pub(crate) mod gw_probe;
 
@@ -774,11 +775,11 @@ pub(crate) struct ExtendedNymNode {
     pub(crate) original_pledge: u128,
     pub(crate) bonding_address: Option<String>,
     pub(crate) bonded: bool,
-    pub(crate) node_type: nym_validator_client::models::DescribedNodeTypeV1,
+    pub(crate) node_type: DescribedNodeTypeV1,
     pub(crate) ip_address: String,
     pub(crate) accepted_tnc: bool,
-    pub(crate) self_description: nym_validator_client::models::NymNodeDataV2,
-    pub(crate) rewarding_details: Option<nym_mixnet_contract_common::NodeRewarding>,
+    pub(crate) self_description: NymNodeDataV2,
+    pub(crate) rewarding_details: Option<NodeRewarding>,
     pub(crate) description: NodeDescription,
     pub(crate) geoip: Option<NodeGeoData>,
     pub family_data: Option<NodeFamilyInformation>,

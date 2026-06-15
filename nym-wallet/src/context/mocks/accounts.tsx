@@ -9,6 +9,7 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
     address: 'abc123',
   });
   const [accountToEdit, setAccountToEdit] = useState<AccountEntry>();
+  const [accountToDelete, setAccountToDelete] = useState<AccountEntry>();
   const [dialogToDisplay, setDialogToDisplay] = useState<TAccountsDialog>();
   const [accountMnemonic, setAccountMnemonic] = useState<TAccountMnemonic>({
     value: undefined,
@@ -55,6 +56,14 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
   const handleAccountToEdit = (accountName: string | undefined) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
+  const handleAccountToDelete = (accountName: string | undefined) =>
+    setAccountToDelete(accounts?.find((acc) => acc.id === accountName));
+
+  const handleRemoveAccount = async ({ account }: { account: AccountEntry; password: string }) => {
+    setAccounts((accs) => accs.filter((acc) => acc.id !== account.id));
+    setDialogToDisplay('Accounts');
+  };
+
   const handleSelectAccount = async ({ accountName }: { accountName: string; password: string }) => {
     const match = accounts?.find((acc) => acc.id === accountName);
     setSelectedAccount(match);
@@ -81,6 +90,7 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
           accounts,
           selectedAccount,
           accountToEdit,
+          accountToDelete,
           dialogToDisplay,
           accountMnemonic,
           setDialogToDisplay,
@@ -88,12 +98,14 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
           isLoading,
           handleAddAccount,
           handleEditAccount,
+          handleRemoveAccount,
           handleAccountToEdit,
+          handleAccountToDelete,
           handleSelectAccount,
           handleImportAccount,
           handleGetAccountMnemonic,
         }),
-        [accounts, selectedAccount, accountToEdit, dialogToDisplay, isLoading, error, accountMnemonic],
+        [accounts, selectedAccount, accountToEdit, accountToDelete, dialogToDisplay, isLoading, error, accountMnemonic],
       )}
     >
       {children}

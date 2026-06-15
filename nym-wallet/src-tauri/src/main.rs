@@ -53,6 +53,7 @@ fn main() {
             mixnet::account::create_password,
             mixnet::account::does_password_file_exist,
             mixnet::account::get_balance,
+            mixnet::account::get_wallet_storage_paths,
             mixnet::account::list_accounts,
             mixnet::account::logout,
             mixnet::account::remove_account_for_password,

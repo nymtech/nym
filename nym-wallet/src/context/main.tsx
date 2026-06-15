@@ -22,6 +22,13 @@ import { createSignInWindow, getReactState, setReactState } from '../requests/ap
 import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache } from '../api/networkOverview';
 import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
 import { dedupeInflightByKey } from '../utils/dedupeInflightByKey';
+import { shouldRefreshAccountOnManualNetworkSwitch } from '../utils/networkSwitchPolicy';
+import {
+  didNetworkRefreshSucceed,
+  resolveNetworkSwitchOutcome,
+  selectNetworkForPersistence,
+  shouldClearWalletUiStateOnNetworkSwitchCommit,
+} from '../utils/networkSwitchExecution';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -71,14 +78,15 @@ export type TAppContext = {
   handleCloseReceiveModal: () => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (value?: string) => void;
-  switchNetwork: (network: Network) => void;
+  switchNetwork: (network: Network) => void | Promise<void>;
   getBondDetails: () => Promise<void>;
   handleShowAdmin: () => void;
   logIn: (opts: { type: TLoginType; value: string }) => void;
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-  keepState: () => Promise<void>;
+  keepState: (persistedNetwork?: Network) => Promise<void>;
+  reloadStoredAccounts: () => Promise<AccountEntry[]>;
   printBalance: string;
   printVestedBalance?: string; // spendable vested token
   mixnetContractParams?: TauriContractStateParams;
@@ -145,12 +153,12 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     initFromRustState();
   }, []);
 
-  const keepState = async () => {
+  const keepState = async (persistedNetwork?: Network) => {
     const state: RustState = {
-      network,
+      network: selectNetworkForPersistence(network, persistedNetwork),
       loginType,
     };
-    setReactState(JSON.stringify(state));
+    await setReactState(JSON.stringify(state));
   };
 
   const clearState = () => {
@@ -175,9 +183,10 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       }
     });
 
-  const loadStoredAccounts = async () => {
+  const loadStoredAccounts = async (): Promise<AccountEntry[]> => {
     const accounts = await listAccounts();
     setStoredAccounts(accounts);
+    return accounts;
   };
 
   const getBondDetails = async () => {
@@ -190,11 +199,12 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     }
   };
 
-  const refreshAccount = async (_network: Network) => {
-    await loadAccount(_network);
+  const refreshAccount = async (_network: Network): Promise<Account | undefined> => {
+    const client = await loadAccount(_network);
     if (loginType === 'password') {
       await loadStoredAccounts();
     }
+    return client;
   };
 
   const getModeFromStorage = async () => {
@@ -362,7 +372,32 @@ export const AppProvider: FCWithChildren = ({ children }) => {
 
   const handleShowAdmin = () => setShowAdmin((show) => !show);
   const handleShowTerminal = () => setShowTerminal((show) => !show);
-  const switchNetwork = (_network: Network) => setNetwork(_network);
+  const switchNetwork = async (_network: Network) => {
+    if (_network === network) {
+      return;
+    }
+    const hasActiveSession = shouldRefreshAccountOnManualNetworkSwitch(Boolean(clientDetails));
+    if (!hasActiveSession) {
+      setNetwork(_network);
+      return;
+    }
+    let refreshSucceeded = false;
+    try {
+      // loadAccount swallows backend errors and returns undefined, so a thrown
+      // error alone is not a reliable success signal; require a loaded client.
+      const client = await refreshAccount(_network);
+      refreshSucceeded = didNetworkRefreshSucceed(client);
+    } catch (e) {
+      Console.error(e as string);
+    }
+    const outcome = resolveNetworkSwitchOutcome(network, _network, refreshSucceeded, true);
+    if (shouldClearWalletUiStateOnNetworkSwitchCommit(outcome)) {
+      userBalance.clearAll();
+      setMixnodeDetails(null);
+      setNetwork(outcome.network);
+      await keepState(outcome.network);
+    }
+  };
   const handleShowSendModal = () => setShowSendModal(true);
   const handleShowReceiveModal = () => setShowReceiveModal(true);
   const handleCloseSendModal = () => setShowSendModal(false);
@@ -403,6 +438,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       logIn,
       logOut,
       keepState,
+      reloadStoredAccounts: loadStoredAccounts,
       onAccountChange,
       showSendModal,
       showReceiveModal,

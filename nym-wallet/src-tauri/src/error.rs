@@ -110,6 +110,12 @@ pub enum BackendError {
     WalletDifferentPasswordDetected,
     #[error("Unexpected mnemonic account for login")]
     WalletUnexpectedMnemonicAccount,
+    #[error(
+        "Cannot remove the only stored account. Back up and remove the wallet file to reset entirely."
+    )]
+    WalletCannotRemoveLastAccount,
+    #[error("Switch to another account before removing the active account")]
+    WalletCannotRemoveActiveAccount,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
     #[error("Built-in HD derivation path constant failed to parse (internal error)")]

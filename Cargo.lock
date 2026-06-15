@@ -8662,7 +8662,7 @@ dependencies = [
  "nym-performance-contract-common",
  "nym-serde-helpers",
  "nym-vesting-contract-common",
- "prost 0.13.5",
+ "prost 0.14.3",
  "reqwest 0.13.4",
  "serde",
  "serde_json",
@@ -9041,7 +9041,7 @@ dependencies = [
  "futures",
  "humantime",
  "ibc-proto",
- "prost 0.13.5",
+ "prost 0.14.3",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -9905,7 +9905,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -9918,7 +9918,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.117",

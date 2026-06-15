@@ -1,5 +1,6 @@
 import { AccountEntry } from '@nymproject/types';
 
+/** Advisory UI pre-check only; backend removal rules in `remove_account_for_password` are authoritative. */
 export type AccountRemovalBlockReason = 'active_account' | 'last_account';
 
 export function getAccountRemovalBlockReason(

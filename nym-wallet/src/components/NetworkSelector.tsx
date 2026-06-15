@@ -3,6 +3,7 @@ import { Button, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader
 import { ArrowDropDown, Check } from '@mui/icons-material';
 import { Network } from 'src/types';
 import { AppContext } from '../context/main';
+import { formatNetworkSelectorLabel } from '../utils/networkSelectorLabel';
 import { headerControlPillSx } from './headerControlPillSx';
 
 const networks: { networkName: Network; name: string }[] = [
@@ -63,7 +64,7 @@ export const NetworkSelector = () => {
         disableElevation
         endIcon={<ArrowDropDown sx={{ color: 'text.primary' }} />}
       >
-        {networks.find((n) => n.networkName === network)?.name}
+        {formatNetworkSelectorLabel(network, networks)}
       </Button>
       <Popover
         open={Boolean(anchorEl)}

@@ -24,8 +24,15 @@ import { StyledBackButton } from 'src/components/StyledBackButton';
 import { ConfirmPasswordModal } from './ConfirmPasswordModal';
 
 export const DeleteAccountModal = () => {
-  const { accountToDelete, dialogToDisplay, setDialogToDisplay, handleRemoveAccount, handleAccountToDelete, setError } =
-    useContext(AccountsContext);
+  const {
+    accountToDelete,
+    dialogToDisplay,
+    setDialogToDisplay,
+    handleRemoveAccount,
+    handleAccountToDelete,
+    setError,
+    error,
+  } = useContext(AccountsContext);
 
   const [backupConfirmed, setBackupConfirmed] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -63,10 +70,10 @@ export const DeleteAccountModal = () => {
     }
     try {
       await handleRemoveAccount({ account: accountToDelete, password });
-      setShowConfirmPassword(false);
       handleClose();
     } catch (e) {
       setError(mapAccountRemovalError(e));
+      setShowConfirmPassword(false);
     }
   };
 
@@ -82,10 +89,7 @@ export const DeleteAccountModal = () => {
         modalTitle="Confirm account removal"
         accountName={accountToDelete.id}
         buttonTitle="Remove account permanently"
-        onClose={() => {
-          setShowConfirmPassword(false);
-          setError(undefined);
-        }}
+        onClose={handleClose}
         onConfirm={onConfirmPassword}
       />
     );
@@ -111,6 +115,11 @@ export const DeleteAccountModal = () => {
           </Box>
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 1 }}>
+          {error ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          ) : null}
           <Alert severity="warning" sx={{ mb: 2 }}>
             This permanently removes &quot;{accountToDelete?.id}&quot; from your saved wallet. Your password login and
             other stored accounts are kept, but this action cannot be undone.

@@ -22,7 +22,7 @@ export function clearNodeStatusExplorerCaches(): void {
 }
 
 export function getNodeStatusBaseUrl(network?: Network): string {
-  if (network === 'SANDBOX' || network === 'QA') {
+  if (network === 'SANDBOX') {
     return SANDBOX_BASE;
   }
   return MAINNET_BASE;

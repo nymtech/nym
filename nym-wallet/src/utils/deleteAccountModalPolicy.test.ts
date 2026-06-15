@@ -10,13 +10,13 @@ describe('canProceedToAccountRemovalPassword', () => {
     ).toBe(true);
   });
 
-  it('allows proceed when paths failed to load but backup is acknowledged', () => {
+  it('blocks proceed when backup paths failed to load even if backup is acknowledged', () => {
     expect(
       canProceedToAccountRemovalPassword({
         backupConfirmed: true,
         pathsLoadError: 'IPC unavailable',
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('blocks proceed without backup acknowledgement even if paths errored', () => {

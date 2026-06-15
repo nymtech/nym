@@ -23,7 +23,11 @@ import { fetchNymPriceDeduped, getNetworkOverviewEndpoints, clearNymPriceCache }
 import { signInAndNavigateToBalance } from '../utils/signInAndNavigateToBalance';
 import { dedupeInflightByKey } from '../utils/dedupeInflightByKey';
 import { shouldRefreshAccountOnManualNetworkSwitch } from '../utils/networkSwitchPolicy';
-import { didNetworkRefreshSucceed, resolveNetworkSwitchOutcome } from '../utils/networkSwitchExecution';
+import {
+  didNetworkRefreshSucceed,
+  resolveNetworkSwitchOutcome,
+  selectNetworkForPersistence,
+} from '../utils/networkSwitchExecution';
 import { toDisplay } from '../utils';
 
 export const urls = (networkName?: Network) =>
@@ -80,7 +84,7 @@ export type TAppContext = {
   handleShowTerminal: () => void;
   signInWithPassword: (password: string) => void;
   logOut: () => void;
-  keepState: () => Promise<void>;
+  keepState: (persistedNetwork?: Network) => Promise<void>;
   reloadStoredAccounts: () => Promise<AccountEntry[]>;
   printBalance: string;
   printVestedBalance?: string; // spendable vested token
@@ -148,12 +152,12 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     initFromRustState();
   }, []);
 
-  const keepState = async () => {
+  const keepState = async (persistedNetwork?: Network) => {
     const state: RustState = {
-      network,
+      network: selectNetworkForPersistence(network, persistedNetwork),
       loginType,
     };
-    setReactState(JSON.stringify(state));
+    await setReactState(JSON.stringify(state));
   };
 
   const clearState = () => {
@@ -393,7 +397,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     const outcome = resolveNetworkSwitchOutcome(network, _network, refreshSucceeded, true);
     if (outcome.status === 'committed') {
       setNetwork(outcome.network);
-      await keepState();
+      await keepState(outcome.network);
     }
   };
   const handleShowSendModal = () => setShowSendModal(true);

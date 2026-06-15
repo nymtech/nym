@@ -1,4 +1,8 @@
-import { didNetworkRefreshSucceed, resolveNetworkSwitchOutcome } from './networkSwitchExecution';
+import {
+  didNetworkRefreshSucceed,
+  resolveNetworkSwitchOutcome,
+  selectNetworkForPersistence,
+} from './networkSwitchExecution';
 
 describe('didNetworkRefreshSucceed', () => {
   it('treats a missing loaded client as a failed switch (loadAccount swallows errors)', () => {
@@ -8,6 +12,16 @@ describe('didNetworkRefreshSucceed', () => {
 
   it('treats a loaded client as a successful switch', () => {
     expect(didNetworkRefreshSucceed({ client_address: 'n1abc' })).toBe(true);
+  });
+});
+
+describe('selectNetworkForPersistence', () => {
+  it('prefers the committed network over stale React state when persisting after a switch', () => {
+    expect(selectNetworkForPersistence('MAINNET', 'SANDBOX')).toBe('SANDBOX');
+  });
+
+  it('falls back to React state when no explicit network is provided', () => {
+    expect(selectNetworkForPersistence('MAINNET')).toBe('MAINNET');
   });
 });
 

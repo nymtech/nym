@@ -32,3 +32,11 @@ export function resolveNetworkSwitchOutcome(
   }
   return { status: 'failed', network: previousNetwork ?? targetNetwork };
 }
+
+/** React setState is async; pass the committed network when persisting immediately after a switch. */
+export function selectNetworkForPersistence(
+  reactStateNetwork: Network | undefined,
+  explicitNetwork?: Network,
+): Network | undefined {
+  return explicitNetwork ?? reactStateNetwork;
+}

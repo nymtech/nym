@@ -24,14 +24,8 @@ import { StyledBackButton } from 'src/components/StyledBackButton';
 import { ConfirmPasswordModal } from './ConfirmPasswordModal';
 
 export const DeleteAccountModal = () => {
-  const {
-    accountToDelete,
-    dialogToDisplay,
-    setDialogToDisplay,
-    handleRemoveAccount,
-    handleAccountToDelete,
-    setError,
-  } = useContext(AccountsContext);
+  const { accountToDelete, dialogToDisplay, setDialogToDisplay, handleRemoveAccount, handleAccountToDelete, setError } =
+    useContext(AccountsContext);
 
   const [backupConfirmed, setBackupConfirmed] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -118,14 +112,14 @@ export const DeleteAccountModal = () => {
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 1 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This permanently removes &quot;{accountToDelete?.id}&quot; from your saved wallet. Your password login
-            and other stored accounts are kept, but this action cannot be undone.
+            This permanently removes &quot;{accountToDelete?.id}&quot; from your saved wallet. Your password login and
+            other stored accounts are kept, but this action cannot be undone.
           </Alert>
 
           {pathsLoadError ? (
             <Alert severity="error" sx={{ mb: 2 }}>
-              Could not load wallet file locations: {pathsLoadError}. Do not continue unless you already know where
-              your wallet file is stored.
+              Could not load wallet file locations: {pathsLoadError}. Do not continue unless you already know where your
+              wallet file is stored.
             </Alert>
           ) : (
             <Box

@@ -7,8 +7,8 @@ export function canProceedToAccountRemovalPassword({
   backupReminder?: string;
   pathsLoadError?: string;
 }): boolean {
-  if (!backupConfirmed) {
+  if (!backupConfirmed || pathsLoadError) {
     return false;
   }
-  return Boolean(backupReminder) || Boolean(pathsLoadError);
+  return Boolean(backupReminder);
 }

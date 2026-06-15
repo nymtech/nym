@@ -1,5 +1,12 @@
 export function mapAccountRemovalError(error: unknown): string {
-  const message = typeof error === 'string' ? error : String(error);
+  let message: string;
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  } else {
+    message = String(error);
+  }
 
   if (message.includes('Unexpected mnemonic account') || message.includes('WalletUnexpectedMnemonicAccount')) {
     return 'This wallet uses a legacy single-account format. Add another account first, then try again.';

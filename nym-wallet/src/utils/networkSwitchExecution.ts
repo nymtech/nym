@@ -33,6 +33,16 @@ export function resolveNetworkSwitchOutcome(
   return { status: 'failed', network: previousNetwork ?? targetNetwork };
 }
 
+/** Defer balance/mixnode clears until the switch commits so a failed refresh does not zero the UI. */
+export function shouldClearWalletUiStateOnNetworkSwitchCommit(outcome: NetworkSwitchOutcome): boolean {
+  return outcome.status === 'committed';
+}
+
+/** loadAccount already surfaces load failures; switchNetwork should not enqueue a second toast. */
+export function shouldShowNetworkSwitchFailureToast(): boolean {
+  return false;
+}
+
 /** React setState is async; pass the committed network when persisting immediately after a switch. */
 export function selectNetworkForPersistence(
   reactStateNetwork: Network | undefined,

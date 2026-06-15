@@ -2,6 +2,8 @@ import {
   didNetworkRefreshSucceed,
   resolveNetworkSwitchOutcome,
   selectNetworkForPersistence,
+  shouldClearWalletUiStateOnNetworkSwitchCommit,
+  shouldShowNetworkSwitchFailureToast,
 } from './networkSwitchExecution';
 
 describe('didNetworkRefreshSucceed', () => {
@@ -38,5 +40,18 @@ describe('resolveNetworkSwitchOutcome', () => {
       status: 'committed',
       network: 'SANDBOX',
     });
+  });
+});
+
+describe('shouldClearWalletUiStateOnNetworkSwitchCommit', () => {
+  it('clears wallet UI state only after a committed switch', () => {
+    expect(shouldClearWalletUiStateOnNetworkSwitchCommit({ status: 'failed', network: 'MAINNET' })).toBe(false);
+    expect(shouldClearWalletUiStateOnNetworkSwitchCommit({ status: 'committed', network: 'SANDBOX' })).toBe(true);
+  });
+});
+
+describe('shouldShowNetworkSwitchFailureToast', () => {
+  it('does not duplicate loadAccount error toasts', () => {
+    expect(shouldShowNetworkSwitchFailureToast()).toBe(false);
   });
 });

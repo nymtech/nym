@@ -18,7 +18,10 @@ import { useTheme } from '@mui/material/styles';
 import { AccountsContext } from 'src/context';
 import { getWalletStoragePaths } from 'src/requests';
 import { formatWalletBackupReminder } from 'src/utils/walletBackupReminder';
-import { canProceedToAccountRemovalPassword } from 'src/utils/deleteAccountModalPolicy';
+import {
+  canProceedToAccountRemovalPassword,
+  formatWalletPathsLoadBlockedMessage,
+} from 'src/utils/deleteAccountModalPolicy';
 import { mapAccountRemovalError } from 'src/utils/accountRemovalErrors';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 import { ConfirmPasswordModal } from './ConfirmPasswordModal';
@@ -127,8 +130,7 @@ export const DeleteAccountModal = () => {
 
           {pathsLoadError ? (
             <Alert severity="error" sx={{ mb: 2 }}>
-              Could not load wallet file locations: {pathsLoadError}. Do not continue unless you already know where your
-              wallet file is stored.
+              {formatWalletPathsLoadBlockedMessage(pathsLoadError)}
             </Alert>
           ) : (
             <Box

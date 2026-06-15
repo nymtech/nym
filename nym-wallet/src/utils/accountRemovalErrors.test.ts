@@ -18,4 +18,10 @@ describe('mapAccountRemovalError', () => {
       'Switch to another account',
     );
   });
+
+  it('maps backend errors thrown as Error without an Error: prefix', () => {
+    expect(mapAccountRemovalError(new Error('Switch to another account before removing the active account'))).toBe(
+      'Switch to another account before removing this one.',
+    );
+  });
 });

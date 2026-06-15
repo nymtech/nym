@@ -1,4 +1,4 @@
-import { canProceedToAccountRemovalPassword } from './deleteAccountModalPolicy';
+import { canProceedToAccountRemovalPassword, formatWalletPathsLoadBlockedMessage } from './deleteAccountModalPolicy';
 
 describe('canProceedToAccountRemovalPassword', () => {
   it('requires backup acknowledgement and loaded paths', () => {
@@ -26,5 +26,13 @@ describe('canProceedToAccountRemovalPassword', () => {
         pathsLoadError: 'IPC unavailable',
       }),
     ).toBe(false);
+  });
+});
+
+describe('formatWalletPathsLoadBlockedMessage', () => {
+  it('states that removal is disabled until paths load', () => {
+    expect(formatWalletPathsLoadBlockedMessage('IPC unavailable')).toContain(
+      'disabled until these paths can be loaded',
+    );
   });
 });

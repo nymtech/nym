@@ -27,6 +27,7 @@ import {
   didNetworkRefreshSucceed,
   resolveNetworkSwitchOutcome,
   selectNetworkForPersistence,
+  shouldClearWalletUiStateOnNetworkSwitchCommit,
 } from '../utils/networkSwitchExecution';
 import { toDisplay } from '../utils';
 
@@ -380,8 +381,6 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       setNetwork(_network);
       return;
     }
-    userBalance.clearAll();
-    setMixnodeDetails(null);
     let refreshSucceeded = false;
     try {
       // loadAccount swallows backend errors and returns undefined, so a thrown
@@ -391,11 +390,10 @@ export const AppProvider: FCWithChildren = ({ children }) => {
     } catch (e) {
       Console.error(e as string);
     }
-    if (!refreshSucceeded) {
-      enqueueSnackbar('Error switching network', { variant: 'error' });
-    }
     const outcome = resolveNetworkSwitchOutcome(network, _network, refreshSucceeded, true);
-    if (outcome.status === 'committed') {
+    if (shouldClearWalletUiStateOnNetworkSwitchCommit(outcome)) {
+      userBalance.clearAll();
+      setMixnodeDetails(null);
       setNetwork(outcome.network);
       await keepState(outcome.network);
     }

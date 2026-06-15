@@ -12,3 +12,7 @@ export function canProceedToAccountRemovalPassword({
   }
   return Boolean(backupReminder);
 }
+
+export function formatWalletPathsLoadBlockedMessage(pathsLoadError: string): string {
+  return `Could not load wallet file locations: ${pathsLoadError}. Account removal is disabled until these paths can be loaded.`;
+}

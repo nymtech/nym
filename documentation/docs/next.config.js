@@ -34,6 +34,52 @@ nextra.webpack = (config, options) => {
   //   }),
   // );
 
+  // --- Railgun demo: browser polyfills for the @railgun-community SDK ---
+  // Railgun pulls libp2p / pouchdb / crypto transitively and expects Node-stdlib
+  // globals that webpack 5 no longer auto-polyfills. Client build only; the SSR
+  // build resolves these natively. Mirrors wasm/railgun-demo/webpack.config.js.
+  if (!options.isServer) {
+    newConfig.resolve.fallback = {
+      ...newConfig.resolve.fallback,
+      buffer: require.resolve("buffer/"),
+      crypto: require.resolve("crypto-browserify"),
+      http: require.resolve("stream-http"),
+      https: require.resolve("https-browserify"),
+      stream: require.resolve("stream-browserify"),
+      url: require.resolve("url/"),
+      vm: require.resolve("vm-browserify"),
+      zlib: require.resolve("browserify-zlib"),
+    };
+    // Force single instances of ethers and shared-models. ethers: so Railgun's
+    // global FetchRequest.registerGetUrl shares static state with our import.
+    // shared-models: so our `NETWORK_CONFIG[...].poi = undefined` POI sidestep
+    // mutates the SAME object the engine's loadProvider reads (otherwise an
+    // ESM/CJS split gives two copies and the POI gate still fires).
+    newConfig.resolve.alias = {
+      ...newConfig.resolve.alias,
+      ethers$: require.resolve("ethers"),
+      "@railgun-community/shared-models$":
+        require.resolve("@railgun-community/shared-models"),
+    };
+    newConfig.plugins.push(
+      new options.webpack.ProvidePlugin({
+        Buffer: ["buffer", "Buffer"],
+        process: "process/browser",
+      }),
+    );
+    // Railgun ships its zk-SNARK circuits as async WASM.
+    newConfig.experiments = {
+      ...newConfig.experiments,
+      asyncWebAssembly: true,
+    };
+  }
+  // Silence "Critical dependency" warnings from Railgun's GraphQL subgraph plumbing.
+  newConfig.ignoreWarnings = [
+    ...(newConfig.ignoreWarnings || []),
+    { module: /@graphql-mesh/, message: /Critical dependency/ },
+    { module: /@graphql-tools\/url-loader/, message: /Critical dependency/ },
+  ];
+
   return newConfig;
 };
 
@@ -1484,7 +1530,7 @@ const config = {
         form-action 'self';
         frame-ancestors 'none';
         upgrade-insecure-requests;
-        connect-src 'self' wss://nym-node-cli.devrel.nymte.ch:9001 https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc;
+        connect-src 'self' wss://*:* https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc https://ipinfo.io ipinfo.io;
         frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
         worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;

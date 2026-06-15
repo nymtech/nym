@@ -1,0 +1,123 @@
+---
+title: "Demo: Shielding testnet ETH into Railgun over the Nym mixnet"
+description: "Shield testnet ETH into a Railgun private note with every Ethereum RPC call routed through the Nym mixnet. Shows the global ethers-to-mixFetch routing that covers a whole SDK."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-09"
+---
+
+import dynamic from 'next/dynamic'
+
+export const RailgunDemo = dynamic(
+  () => import('../../../components/demos/railgun/RailgunDemo').then((m) => m.RailgunDemo),
+  { ssr: false },
+)
+
+import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
+import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
+
+# Shielding testnet ETH into Railgun over the mixnet
+
+**Nym** hides the network layer: every Ethereum RPC
+call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
+node and your ISP cannot link you to the query, and **Railgun** hides the
+application layer, as shielded notes break the on-chain link between sender,
+receiver, and amount. This demo covers just the **shield** step on Sepolia:
+depositing testnet ETH into a private note. It does not do private transfers or
+unshielding.
+
+## What you can do here
+
+This page is interactive. You bring up a mixnet tunnel, derive a Railgun wallet,
+and broadcast a **real shield transaction** on the Sepolia testnet, with every
+Ethereum RPC call routed through the mixnet. The shield lands on chain (you can
+open it on Etherscan), but the IP that submitted it is the Nym exit's, not yours.
+
+The network-routing piece is a single ethers shim (shown below). Because the
+Railgun engine talks to the chain through the `ethers` library, routing every
+ethers call through `mixFetch` is enough to put the whole SDK's traffic behind
+the mixnet, and the same routing pattern drops into any `ethers`-based app.
+Railgun itself needs a few extra engine-config workarounds (disabling the POI
+gate and stubbing quick-sync), which live in
+[`components/demos/railgun/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/railgun),
+not in the shim.
+
+## How it works
+
+The [ENS demo](/developers/demos/ens) swapped one provider's transport, but Railgun
+constructs its own providers internally, so routing only our provider would leak
+the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
+transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
+page through `mixFetch`, including the ones the Railgun engine makes.
+
+```ts
+import { FetchRequest } from 'ethers';
+import { mixFetch } from '@nymproject/mix-fetch';
+
+// Every ethers HTTP request in the process now goes through the mixnet.
+FetchRequest.registerGetUrl(async (req) => {
+  const res = await mixFetch(req.url, {
+    method: req.method,
+    headers: req.headers,
+    // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+    body: (req.body ?? undefined) as BodyInit | undefined,
+  });
+  return {
+    statusCode: res.status,
+    statusMessage: res.statusText,
+    headers: Object.fromEntries(res.headers),
+    body: new Uint8Array(await res.arrayBuffer()),
+  };
+});
+```
+
+`registerGetUrl` is global static state on the `FetchRequest` class, so this only
+works if `ethers` is a **single instance** across your bundle. If your app and
+Railgun resolve to different ethers copies, the handler installs on one and the
+engine uses the other. Pin the exact version Railgun peer-depends on.
+
+The block above is the shape of the shim. One caveat the real version adds:
+browser `fetch` decompresses gzip transparently and `mixFetch` does not, so the
+demo runs a `DecompressionStream` over each response before handing it back to
+ethers. The full handler with decompression is in
+[`components/demos/shared/mixfetch.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/shared/mixfetch.ts).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
+
+Shielding is a four-step flow, all over the mixnet: sign a shield key, estimate
+gas, populate the transaction, then sign and broadcast. The broadcast that lands
+on Sepolia is observable on Etherscan, but the IP that submitted it stays hidden.
+
+## Try it
+
+<div className="nx-mt-4" />
+
+The demo auto-loads a funded Sepolia testnet wallet. Connect the tunnel (the
+Railgun address derives once the engine is up), check the balance, then shield a
+small amount. If the wallet is low, top it up at a
+[Sepolia faucet](https://sepoliafaucet.com/) using the public address shown.
+
+**Sepolia testnet only.** The wallet holds test ETH and the mnemonic is
+stored in plain browser storage. Never paste a mainnet mnemonic.
+
+<NetworkTabCallout />
+
+<RailgunDemo />
+
+## What to expect
+
+- **Engine init is the slow part.** `loadProvider`'s first RPC calls hit Sepolia
+  over a cold mixnet route, paying TCP-connect and TLS-handshake time, so the
+  ethers request can time out on the first try; the demo retries and the second
+  attempt finds the connection pool warm.
+- **Shielding makes several RPC calls** (gas estimate, fee data, broadcast,
+  receipt), each a mixnet round trip. The broadcast step retries idempotently:
+  the tx hash is fixed before broadcasting, so a dropped response can be re-sent
+  or detected as already-on-chain.
+- **Rate limiting.** If RPC calls start failing with 403/429 or connection
+  errors, the exit IP is flagged: disconnect, tick **Use random IPR**, reload,
+  and reconnect for a fresh exit.
+
+## Glossary
+
+<MixnetGlossary />

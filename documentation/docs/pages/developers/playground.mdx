@@ -9,6 +9,7 @@ lastUpdated: "2026-06-09"
 import { Callout } from 'nextra/components'
 import { MixPlayground } from '../../components/playground/MixPlayground'
 import { MessagingDemo } from '../../components/playground/messaging-section'
+import { NetworkTabCallout } from '../../components/demos/shared/NetworkTabCallout'
 
 # Mixnet playground
 
@@ -19,18 +20,11 @@ This playground runs Nym's browser TypeScript packages against the live mixnet. 
 
 Some sections send the same request over the tunnel and over the clearnet, so you can compare the two.
 
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns), [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel), [`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket), and [`@nymproject/sdk`](https://www.npmjs.com/package/@nymproject/sdk).
+
 ## HTTPS / DNS / WebSockets
 
-<Callout type="info">
-**Watch the Network tab.** Open DevTools → Network before you connect. Once
-`setupMixTunnel` reports ready, every tunnel operation here (`mixFetch`,
-`mixDNS`, `MixWebSocket`) adds **no new request** to that tab: it is multiplexed
-inside the single WebSocket to the entry gateway. Only the *clearnet* comparison
-buttons add rows. (Setup also fetches the network topology over HTTPS and
-refreshes it periodically, so those nym-api calls and the gateway WebSocket are
-the only clearnet requests you will see.) Your real traffic never leaves the
-browser as an identifiable, per-destination request.
-</Callout>
+<NetworkTabCallout />
 
 <Callout type="info">
 Everything here runs client-side over the live Nym mixnet. The first

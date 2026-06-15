@@ -1,0 +1,116 @@
+---
+title: "Demo: ENS resolution over the Nym mixnet"
+description: "Resolve an ENS name to its address and IPFS contenthash, then fetch the site, with every JSON-RPC and gateway request routed through the mixnet via mix-fetch. Shows the ethers-to-mixFetch adapter."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-09"
+---
+
+import dynamic from 'next/dynamic'
+
+export const EnsDemo = dynamic(
+  () => import('../../../components/demos/ens/EnsDemo').then((m) => m.EnsDemo),
+  { ssr: false },
+)
+
+import { NetworkTabCallout } from '../../../components/demos/shared/NetworkTabCallout'
+import { MixnetGlossary } from '../../../components/demos/shared/MixnetGlossary'
+
+# ENS over the mixnet
+
+A normal ENS lookup (name to address to IPFS website) built with
+[ethers.js](https://docs.ethers.org/v6/), except every network request goes
+through the Nym mixnet instead of leaving over your normal connection. The
+Ethereum RPC node and the IPFS gateway see the [IPR](/network/infrastructure/exit-services#ip-packet-router)
+exit's IP, not yours, and your ISP cannot see which names or sites you reach.
+The trade-off is latency: every packet takes a multi-relay path, so requests are
+slower than a direct route.
+
+## How it works
+
+The whole integration is one adapter. ethers v6 exposes
+`FetchRequest.getUrlFunc` as a settable property, so you replace its HTTP
+transport with a function that calls [`mixFetch`](/developers/mix-fetch). To
+ethers it looks like an ordinary fetch; to the mixnet, ethers looks like any
+other caller.
+
+```ts
+import { JsonRpcProvider, FetchRequest } from 'ethers';
+import { mixFetch } from '@nymproject/mix-fetch';
+
+function buildProvider(rpcUrl: string): JsonRpcProvider {
+  const base = new FetchRequest(rpcUrl);
+
+  // Route every JSON-RPC call through mixFetch, renaming the response
+  // fields ethers expects (status -> statusCode, statusText -> statusMessage).
+  base.getUrlFunc = async (req) => {
+    const res = await mixFetch(req.url, {
+      method: req.method,
+      headers: req.headers,
+      // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+      body: (req.body ?? undefined) as BodyInit | undefined,
+    });
+    return {
+      statusCode: res.status,
+      statusMessage: res.statusText,
+      headers: Object.fromEntries(res.headers),
+      body: new Uint8Array(await res.arrayBuffer()),
+    };
+  };
+
+  // staticNetwork skips the eth_chainId probe: one mixnet round trip saved.
+  return new JsonRpcProvider(base, 'mainnet', { staticNetwork: true });
+}
+```
+
+One caveat: browser `fetch` decompresses gzip transparently and `mixFetch` does
+not, so the demo adds a `DecompressionStream` step after each response (Cloudflare
+gzips RPC replies). The full version with decompression and per-call logging is in
+[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) and [`ethers`](https://www.npmjs.com/package/ethers).
+
+The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
+tunnel:
+
+1. **Resolve address.** `provider.resolveName(name)` under the hood reads the ENS
+   Registry's `resolver(node)` to find the resolver contract, then calls
+   `resolver.addr(node)` for the Ethereum address (ethers may add an EIP-165
+   `supportsInterface` probe in between). `node` is the namehash (recursive
+   keccak256 over the labels).
+2. **Get contenthash.** One more `eth_call`: `resolver.contenthash(node)`. ethers
+   decodes the EIP-1577 multicodec bytes to a URI; this demo handles `ipfs://`.
+3. **Fetch from IPFS.** A plain HTTPS GET to a gateway with the CID as a subdomain
+   or path label. CIDv0 (`Qm...`) is re-encoded as CIDv1 (`bafy...`) for subdomain
+   gateways, since DNS is case-insensitive.
+
+## Try it
+
+Connect to bring the tunnel up (a default IPR exit is pinned; tick **Use random
+IPR** for auto-discovery), click **Verify IP routing** to confirm traffic exits
+through Nym, then run the three steps.
+
+<NetworkTabCallout />
+
+<EnsDemo />
+
+## What to expect
+
+- **The first request is the slow one.** Connecting builds the mixnet client and
+  handshakes with the IPR; no TCP or TLS yet. The first request to a host then
+  runs a TCP and TLS handshake carried as IP packets over the mixnet (several
+  sequential round trips). smolmix keeps that connection warm and reuses it, so
+  later requests to the same host are much quicker. A long pause is handshakes in
+  flight, not a hang.
+- **You will not see the tunnelled requests in DevTools.** The RPC and IPFS
+  requests never touch the browser's `fetch`. They leave the worker as encrypted
+  packets over a single WebSocket to the entry gateway, which is the one
+  connection the Network tab shows. The exception is **Verify IP routing**, which
+  deliberately makes one direct clearnet call to ipinfo.io for comparison.
+- **Rate limiting.** Public IPFS gateways and Ethereum RPCs rate-limit shared IP
+  addresses. If requests start failing with 403, 429, or connection errors, the
+  exit IP is likely flagged: tick **Use random IPR** and reload for a fresh exit.
+
+## Glossary
+
+<MixnetGlossary />

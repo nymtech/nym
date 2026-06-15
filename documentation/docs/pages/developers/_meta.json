@@ -17,6 +17,7 @@
     "title": "TypeScript"
   },
   "playground": "Playground (embedded clients)",
+  "demos": "Demos",
   "mix-tunnel": "mix-tunnel (shared tunnel)",
   "mix-fetch": "mix-fetch (HTTPS requests)",
   "mix-dns": "mix-dns (DNS resolution)",

@@ -2,7 +2,7 @@
 
 @version: 1.20.4
 @generated: 2026-06-09
-@pages: 163
+@pages: 165
 @source: https://github.com/nymtech/nym/tree/develop/documentation/docs
 
 ---
@@ -3671,16 +3671,9 @@ This playground runs Nym's browser TypeScript packages against the live mixnet. 
 
 Some sections send the same request over the tunnel and over the clearnet, so you can compare the two.
 
-## HTTPS / DNS / WebSockets
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns), [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel), [`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket), and [`@nymproject/sdk`](https://www.npmjs.com/package/@nymproject/sdk).
 
-**Watch the Network tab.** Open DevTools → Network before you connect. Once
-`setupMixTunnel` reports ready, every tunnel operation here (`mixFetch`,
-`mixDNS`, `MixWebSocket`) adds **no new request** to that tab: it is multiplexed
-inside the single WebSocket to the entry gateway. Only the *clearnet* comparison
-buttons add rows. (Setup also fetches the network topology over HTTPS and
-refreshes it periodically, so those nym-api calls and the gateway WebSocket are
-the only clearnet requests you will see.) Your real traffic never leaves the
-browser as an identifiable, per-destination request.
+## HTTPS / DNS / WebSockets
 
 Everything here runs client-side over the live Nym mixnet. The first
 `setupMixTunnel` is slow (a few seconds): it loads the WebAssembly client,
@@ -3701,6 +3694,200 @@ The sections above share one smolmix tunnel and exit to the clearnet through an 
 For the API of each package, see
 [mix-tunnel](/developers/mix-tunnel), [mix-fetch](/developers/mix-fetch),
 [mix-dns](/developers/mix-dns), and [mix-websocket](/developers/mix-websocket).
+
+---
+title: Demo: ENS resolution over the Nym mixnet
+description: Resolve an ENS name to its address and IPFS contenthash, then fetch the site, with every JSON-RPC and gateway request routed through the mixnet via mix-fetch. Shows the ethers-to-mixFetch adapter.
+url: https://nym.com/docs/developers/demos/ens
+---
+
+export const EnsDemo = dynamic(
+  () => import('../../../components/demos/ens/EnsDemo').then((m) => m.EnsDemo),
+  { ssr: false },
+)
+
+# ENS over the mixnet
+
+A normal ENS lookup (name to address to IPFS website) built with
+[ethers.js](https://docs.ethers.org/v6/), except every network request goes
+through the Nym mixnet instead of leaving over your normal connection. The
+Ethereum RPC node and the IPFS gateway see the [IPR](/network/infrastructure/exit-services#ip-packet-router)
+exit's IP, not yours, and your ISP cannot see which names or sites you reach.
+The trade-off is latency: every packet takes a multi-relay path, so requests are
+slower than a direct route.
+
+## How it works
+
+The whole integration is one adapter. ethers v6 exposes
+`FetchRequest.getUrlFunc` as a settable property, so you replace its HTTP
+transport with a function that calls [`mixFetch`](/developers/mix-fetch). To
+ethers it looks like an ordinary fetch; to the mixnet, ethers looks like any
+other caller.
+
+```ts
+
+function buildProvider(rpcUrl: string): JsonRpcProvider {
+  const base = new FetchRequest(rpcUrl);
+
+  // Route every JSON-RPC call through mixFetch, renaming the response
+  // fields ethers expects (status -> statusCode, statusText -> statusMessage).
+  base.getUrlFunc = async (req) => {
+    const res = await mixFetch(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body ?? undefined,
+    });
+    return {
+      statusCode: res.status,
+      statusMessage: res.statusText,
+      headers: Object.fromEntries(res.headers),
+      body: new Uint8Array(await res.arrayBuffer()),
+    };
+  };
+
+  // staticNetwork skips the eth_chainId probe: one mixnet round trip saved.
+  return new JsonRpcProvider(base, 'mainnet', { staticNetwork: true });
+}
+```
+
+One caveat: browser `fetch` decompresses gzip transparently and `mixFetch` does
+not, so the demo adds a `DecompressionStream` step after each response (Cloudflare
+gzips RPC replies). The full version with decompression and per-call logging is in
+[`components/demos/ens/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/ens).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) and [`ethers`](https://www.npmjs.com/package/ethers).
+
+The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
+tunnel:
+
+1. **Resolve address.** Two `eth_call`s: the ENS Registry's `resolver(node)`
+   returns the resolver contract for the name, then `resolver.addr(node)` returns
+   the Ethereum address. `node` is the namehash (recursive keccak256 over the
+   labels).
+2. **Get contenthash.** One more `eth_call`: `resolver.contenthash(node)`. ethers
+   decodes the EIP-1577 multicodec bytes to a URI; this demo handles `ipfs://`.
+3. **Fetch from IPFS.** A plain HTTPS GET to a gateway with the CID as a subdomain
+   or path label. CIDv0 (`Qm...`) is re-encoded as CIDv1 (`bafy...`) for subdomain
+   gateways, since DNS is case-insensitive.
+
+## Try it
+
+Connect to bring the tunnel up (a default IPR exit is pinned; tick **Use random
+IPR** for auto-discovery), click **Verify IP routing** to confirm traffic exits
+through Nym, then run the three steps.
+
+## What to expect
+
+- **The first request is the slow one.** Connecting builds the mixnet client and
+  handshakes with the IPR; no TCP or TLS yet. The first request to a host then
+  runs a TCP and TLS handshake carried as IP packets over the mixnet (several
+  sequential round trips). smolmix keeps that connection warm and reuses it, so
+  later requests to the same host are much quicker. A long pause is handshakes in
+  flight, not a hang.
+- **You will not see the tunnelled requests in DevTools.** The RPC and IPFS
+  requests never touch the browser's `fetch`. They leave the worker as encrypted
+  packets over a single WebSocket to the entry gateway, which is the one
+  connection the Network tab shows. The exception is **Verify IP routing**, which
+  deliberately makes one direct clearnet call to ipinfo.io for comparison.
+- **Rate limiting.** Public IPFS gateways and Ethereum RPCs rate-limit shared IP
+  addresses. If requests start failing with 403, 429, or connection errors, the
+  exit IP is likely flagged: tick **Use random IPR** and reload for a fresh exit.
+
+## Glossary
+
+---
+title: Demo: Railgun private payments over the Nym mixnet
+description: Shield testnet ETH into a Railgun private note with every Ethereum RPC call routed through the Nym mixnet. Shows the global ethers-to-mixFetch routing that covers a whole SDK.
+url: https://nym.com/docs/developers/demos/railgun
+---
+
+export const RailgunDemo = dynamic(
+  () => import('../../../components/demos/railgun/RailgunDemo').then((m) => m.RailgunDemo),
+  { ssr: false },
+)
+
+# Railgun over the mixnet
+
+Two privacy layers stacked. **Nym** hides the network layer: every Ethereum RPC
+call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
+node and your ISP cannot link you to the query. **Railgun** hides the
+application layer: shielded notes break the on-chain link between sender,
+receiver, and amount. This demo shields testnet ETH on Sepolia.
+
+## What you can do here
+
+This page is interactive. You bring up a mixnet tunnel, derive a Railgun wallet,
+and broadcast a **real shield transaction** on the Sepolia testnet, with every
+Ethereum RPC call routed through the mixnet. The shield lands on chain (you can
+open it on Etherscan), but the IP that submitted it is the Nym exit's, not yours.
+
+The entire integration is a single ethers shim (shown below). Because the
+Railgun engine talks to the chain through ethers, routing ethers through
+`mixFetch` is enough to put a whole privacy SDK behind the mixnet. The same
+pattern drops into any ethers-based app or library.
+
+## How it works
+
+The [ENS demo](/developers/demos/ens) swapped one provider's transport. Railgun
+constructs its own providers internally, so routing only our provider would leak
+the engine's RPC to clearnet. Instead this demo installs a **global** ethers
+transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
+page through `mixFetch`, including the ones the Railgun engine makes.
+
+```ts
+
+// Every ethers HTTP request in the process now goes through the mixnet.
+FetchRequest.registerGetUrl(async (req) => {
+  const res = await mixFetch(req.url, {
+    method: req.method,
+    headers: req.headers,
+    body: req.body ?? undefined,
+  });
+  return {
+    statusCode: res.status,
+    statusMessage: res.statusText,
+    headers: Object.fromEntries(res.headers),
+    body: new Uint8Array(await res.arrayBuffer()),
+  };
+});
+```
+
+`registerGetUrl` is global static state on the `FetchRequest` class, so this only
+works if ethers is a **single instance** across your bundle. If your app and
+Railgun resolve to different ethers copies, the handler installs on one and the
+engine uses the other. Pin the exact ethers version Railgun peer-depends on (this
+demo aliases ethers to one instance in the bundler).
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
+
+Shielding is a four-step flow, all over the mixnet: sign a shield key, estimate
+gas, populate the transaction, then sign and broadcast. The broadcast that lands
+on Sepolia is observable on Etherscan, but the IP that submitted it stays hidden.
+
+## Try it
+
+The demo auto-loads a funded Sepolia testnet wallet. Connect the tunnel (the
+Railgun address derives once the engine is up), check the balance, then shield a
+small amount. If the wallet is low, top it up at a
+[Sepolia faucet](https://sepoliafaucet.com/) using the public address shown.
+
+**Sepolia testnet only.** The wallet holds only test ETH and the mnemonic is
+stored in plain browser storage. Never paste a mainnet mnemonic.
+
+## What to expect
+
+- **Engine init is the slow part.** `loadProvider` hits Sepolia over a cold
+  mixnet route, which can exceed Railgun's internal timeout on the first try; the
+  demo retries and the second attempt finds the connection pool warm.
+- **Shielding makes several RPC calls** (gas estimate, fee data, broadcast,
+  receipt), each a mixnet round trip. The broadcast step retries idempotently:
+  the tx hash is fixed before broadcasting, so a dropped response can be re-sent
+  or detected as already-on-chain.
+- **Rate limiting.** If RPC calls start failing with 403/429 or connection
+  errors, the exit IP is flagged: disconnect, tick **Use random IPR**, reload,
+  and reconnect for a fresh exit.
+
+## Glossary
 
 ---
 title: mix-tunnel: Shared Mixnet Tunnel for the Browser
@@ -4089,7 +4276,7 @@ Consequences:
 
 - **One WASM module, smaller bundle.** v1's Go runtime accounted for ~6 MB of the full-fat bundle; v2 drops it.
 - **Shared infrastructure with `mix-dns` and `mix-websocket`.** The same tunnel handles all three.
-- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR; pin one with `preferredIpr` if you need a specific exit policy.
+- **IPR exit policies apply.** What was allowed by your previous Network Requester may not be allowed by your default IPR, which applies the current [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).
 
 ---
 title: mix-dns: Hostname Resolution Over the Nym Mixnet
@@ -10096,7 +10283,7 @@ The outcome of [NIP-10: Nym Exit Policy Update – Opening Ports for Dash, SIP, 
 - [New documentation logic to `network/`, `developers/` and `apis/`](https://github.com/nymtech/nym/pull/6494) according to the [diataxis.fr](https://diataxis.fr/) framework, making basis for adding Lewes Protocol documentation. Additionally developer docs now include tutorials for the [Rust SDK modules](/developers/rust), and documentation on the `stream` [Mixnet module](/developers/rust/mixnet). See the pages at:
 
   - [Network docs](/network)
-  - [Developer docs](/developers/integrations)
+  - [Developer docs](/developers)
   - [APIs docs](/apis/introduction)
 
 #### Update Nym exit policy
@@ -10748,7 +10935,7 @@ cargo Profile:      release
 
 - [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes
 
-- [Overhauled **developer integrations** pages](/developers/integrations) explaining the different restrictions for the different SDK options on offer
+- [Overhauled **developer integrations** pages](/developers) explaining the different restrictions for the different SDK options on offer
 
 - [Fixed `mixFetch` and `WASM Client` playground + examples](/developers/typescript): new versions of the Typescript SDK and `mixFetch` have been published, examples and live playground have been updated accordingly
 
@@ -20358,9 +20545,109 @@ ansible-playbook deploy.yml
 
 ###### 2. Bond
 
+Anyone having acces to your account mnemonic can take all your funds and manage manage your node, be careful where you store it!
+
+Bonding can be managed via two playbooks:
+
+1. `bond.yml`: an interactive way, requiring operator to use own wallet (desktop or CLI)
+2. `auto-bond.yml`: automatic bonding flow requiring operator to prepare `nodes.csv` and have `nym-cli` installed
+
+  <Tabs items={[
+    <code>bond.yml</code>,
+    <code>auto-bond.yml</code>,
+    ]} defaultIndex="1">
+
+A playbook to *interactively* register your nodes to Nym network by bonding it to Nyx blockchain accounts.
+This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
+
+**Requirements**
+
+- Nym Wallet or `nym-cli` to be used as a CLI wallet
+- An account per each node
+- At least 101 NYM per account
+
+**Usage**
+
+1. Sign in to the wallet per node
+2. Follow steps in `Bond` section
+3. Run the playbook on a side and follow the prompts
+
+```sh
+cd playbooks
+ansible-playbook bond.yml
+```
+
+Your nodes are bonded and will show in the network in the next epoch (max 60min).
+
+A playbook to *automatically* register your nodes to Nym Network by bonding it to Nyx blockchain accounts.
+This automatic flow is slightly harder to setup in the beginning and it's recommended for operators bonding many nodes, as the initial work is worth it by saving the time of bonding a node at a time.
+
+**Requirements**
+
+- Installed [`nym-cli`](/developers/tools/nym-cli)
+- Python3
+- Nym repository with directory `scripts/nym-node-setup/auto-bond/`, containing:
+  - Python program [`auto_bond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py)
+  - `nodes.csv.example` with correct data
+
+**Usage**
+
+1. Copy `nodes.csv.example` to your prefered location without `.example` suffix
+2. Fill correctly the csv columns for each node you want to bond:
+  - `inventory_node_id`: Your Ansible inventory node ID (ie `node1`)
+  - `hostname`: same like in your `playbooks/inventory/all` (without `https://` !)
+  - `ip`: same like `ansible_host` value in your Ansible inventory
+  - `account`: Nyx account to bond this node with
+  - `mnemonic`: Your nyx acount mnemonic
+  - `identity_key`: node identity key - the easiest way to get it is to navigate to `playbooks/` and run:
+
+```sh
+ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
+```
+
+  - `amount`: Amount to bond in `uNYM` (1 NYM = 1 000 000 uNYM), Make sure to leave extra 1 NYM (1 000 000 uNYM) for fees
+  - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `uNYM` (1 NYM = 1 000 000 uNYM)
+
+3. Save the csv
+4. Run `auto_bond_all.py` with all needed arguments.
+
+- To see help menu:
+
+```sh
+python3 ./auto_bond_all.py --help
+```
+
+- To test your paths run with `--dry-run`
+
+- Argument usage:
+
+```sh
+--ansible-repo ANSIBLE_REPO
+                      Path to ansible playbooks directory (contains auto-bond.yml and inventory/)
+--cli-dir CLI_DIR     Directory containing the nym-cli binary
+--dry-run             Print commands without executing
+```
+
+- Example (note that the `nodes.csv` has no flag as it's a required argument):
+
+```sh
+python ./auto_bond_all.py \
+  --ansible-repo ~/admin/nym-nodes/nym-nodes-ansible/playbooks \
+  --cli-dir ~/repos/nymtech/nym/target/release \
+  ~/admin/nym-nodes/nodes.csv
+```
+
+5. Your nodes should be bonded and come up in the next epoch (max 60min)
+
+**Additional scripts**
+
+Your `nodes.csv` can be used for other operations:
+- [`show_balances.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): Shows all accounts balances if provided with Nyx accounts (`account` column)
+- [`unbond_all.py`](https://github.com/nymtech/nym/tree/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): Unbond all nodes in the csv if provided with mnemonics (`mnemonic` column)
+
 A playbook to interactively register your node to Nym network by bonding it to Nyx blockchain account.
 
-This playbook is intercative as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
+This playbook is interactive as it prompts user for data from Nym wallet to sign a message. It will run roles on one inventory entry at a time by default.
 
 ```sh
 cd playbooks
@@ -20462,6 +20749,20 @@ ansible-playbook <PLAYBOOK>.yml --list-tags
 # for example
 ansible-playbook deploy.yml --list-tags
 ```
+
+###### Arbitrary command output
+
+You can use ansible to read a `STDOUT` from any command, using this logic:
+```sh
+ansible all -i inventory/all -a "<COMMAND>>"
+
+# for example to get all node ID keys
+ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
+```
+
+- Note that the command gets also run, be mindful what you executing 
+
+- This logic can be combined with the arguments above, for example to limit the range of nodes
 
 ###### nocows
 

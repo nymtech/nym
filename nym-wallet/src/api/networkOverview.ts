@@ -10,7 +10,7 @@ export type NetworkOverviewEndpoints = {
 };
 
 export const getNetworkOverviewEndpoints = (network?: Network): NetworkOverviewEndpoints => {
-  if (network === 'SANDBOX' || network === 'QA') {
+  if (network === 'SANDBOX') {
     return {
       mixnodeStats: 'https://sandbox-node-status-api.nymte.ch/v2/mixnodes/stats',
       epochCurrent: 'https://sandbox-nym-api1.nymtech.net/api/v1/epoch/current',

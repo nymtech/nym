@@ -16,9 +16,8 @@ describe('getNodeStatusBaseUrl', () => {
     expect(getNodeStatusBaseUrl(undefined)).toBe('https://mainnet-node-status-api.nymtech.cc');
   });
 
-  it('uses sandbox base for SANDBOX and QA', () => {
+  it('uses sandbox base for SANDBOX', () => {
     expect(getNodeStatusBaseUrl('SANDBOX')).toBe('https://sandbox-node-status-api.nymte.ch');
-    expect(getNodeStatusBaseUrl('QA')).toBe('https://sandbox-node-status-api.nymte.ch');
   });
 });
 

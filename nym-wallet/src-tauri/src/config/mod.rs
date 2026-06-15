@@ -430,7 +430,6 @@ pub struct OptionalValidators {
     // These are separate fields, rather than a map, to force the serialization order.
     mainnet: Option<Vec<ValidatorConfigEntry>>,
     sandbox: Option<Vec<ValidatorConfigEntry>>,
-    qa: Option<Vec<ValidatorConfigEntry>>,
 }
 
 impl OptionalValidators {

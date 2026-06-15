@@ -4,7 +4,7 @@ export type SelectableNetwork = { networkName: Network; name: string };
 
 /** Display label for the header control; legacy persisted values stay readable after options are removed. */
 export function formatNetworkSelectorLabel(
-  network: Network | undefined,
+  network: string | undefined,
   selectableNetworks: readonly SelectableNetwork[],
 ): string {
   const match = selectableNetworks.find((entry) => entry.networkName === network);

@@ -70,6 +70,14 @@ html.dark .dark\:nx-bg-dark {
   background-color: var(--bg-dark) !important;
 }
 
+/* The demo/playground <select>s use a transparent background, so their native
+   option popup falls back to the UA default (white), giving white-on-white text
+   in dark mode. color-scheme tells the browser to paint the native widget and
+   its popup with dark colours. Only the demos/playground use <select>. */
+html.dark select {
+  color-scheme: dark;
+}
+
 /* ── Typography ── */
 
 h1, h2, h3, h4, h5, h6 {

@@ -1,11 +1,6 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
-import {
-  addAccount as addAccountRequest,
-  removeAccount,
-  renameAccount,
-  showMnemonicForAccount,
-} from 'src/requests';
+import { addAccount as addAccountRequest, removeAccount, renameAccount, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
 import { performAccountRemoval } from 'src/utils/accountRemovalFlow';
 import { AppContext } from './main';

@@ -27,14 +27,16 @@ describe('selectNetworkForPersistence', () => {
 
 describe('resolveNetworkSwitchOutcome', () => {
   it('keeps the previous network when refresh fails for a logged-in session', () => {
-    expect(
-      resolveNetworkSwitchOutcome('MAINNET', 'SANDBOX', false, true),
-    ).toEqual({ status: 'failed', network: 'MAINNET' });
+    expect(resolveNetworkSwitchOutcome('MAINNET', 'SANDBOX', false, true)).toStrictEqual({
+      status: 'failed',
+      network: 'MAINNET',
+    });
   });
 
   it('commits the target network after refresh succeeds', () => {
-    expect(
-      resolveNetworkSwitchOutcome('MAINNET', 'SANDBOX', true, true),
-    ).toEqual({ status: 'committed', network: 'SANDBOX' });
+    expect(resolveNetworkSwitchOutcome('MAINNET', 'SANDBOX', true, true)).toStrictEqual({
+      status: 'committed',
+      network: 'SANDBOX',
+    });
   });
 });

@@ -12,7 +12,7 @@ describe('performAccountRemoval', () => {
 
     expect(removeAccount).toHaveBeenCalledWith({ password: 'pw', accountName: 'Account 2' });
     expect(reloadStoredAccounts).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(remaining);
+    expect(result).toStrictEqual(remaining);
   });
 
   it('does not reload the account list when the IPC removal fails', async () => {

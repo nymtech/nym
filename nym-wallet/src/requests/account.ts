@@ -45,9 +45,7 @@ export const removeAccount = async ({ password, accountName }: { password: strin
   invokeWrapper<void>('remove_account_for_password', { password, accountId: accountName });
 
 export const getWalletStoragePaths = async () =>
-  invokeWrapper<{ walletFile: string; storageDirectory: string; configDirectory: string }>(
-    'get_wallet_storage_paths',
-  );
+  invokeWrapper<{ walletFile: string; storageDirectory: string; configDirectory: string }>('get_wallet_storage_paths');
 
 export const listAccounts = async () => invokeWrapper<AccountEntry[]>('list_accounts');
 

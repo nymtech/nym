@@ -1,8 +1,4 @@
-import {
-  canRemoveAccount,
-  getAccountRemovalBlockMessage,
-  getAccountRemovalBlockReason,
-} from './accountRemovalPolicy';
+import { canRemoveAccount, getAccountRemovalBlockMessage, getAccountRemovalBlockReason } from './accountRemovalPolicy';
 
 const accounts = [
   { id: 'Account 1', address: 'addr1' },

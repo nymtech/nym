@@ -4,10 +4,7 @@ export function mapAccountRemovalError(error: unknown): string {
   if (message.includes('Unexpected mnemonic account') || message.includes('WalletUnexpectedMnemonicAccount')) {
     return 'This wallet uses a legacy single-account format. Add another account first, then try again.';
   }
-  if (
-    message.includes('Cannot remove the only stored account') ||
-    message.includes('WalletCannotRemoveLastAccount')
-  ) {
+  if (message.includes('Cannot remove the only stored account') || message.includes('WalletCannotRemoveLastAccount')) {
     return 'You cannot remove your only stored account here. To reset the wallet entirely, sign out and remove your saved wallet file after backing it up.';
   }
   if (

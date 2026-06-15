@@ -16,12 +16,12 @@ import {
 } from '@mui/material';
 import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
-import { AccountAvatar } from './AccountAvatar';
 import {
   canRemoveAccount,
   getAccountRemovalBlockMessage,
   getAccountRemovalBlockReason,
 } from 'src/utils/accountRemovalPolicy';
+import { AccountAvatar } from './AccountAvatar';
 
 export const AccountItem = ({
   name,
@@ -32,8 +32,14 @@ export const AccountItem = ({
   address: string;
   onSelectAccount: () => void;
 }) => {
-  const { selectedAccount, accounts, setDialogToDisplay, setAccountMnemonic, handleAccountToEdit, handleAccountToDelete } =
-    useContext(AccountsContext);
+  const {
+    selectedAccount,
+    accounts,
+    setDialogToDisplay,
+    setAccountMnemonic,
+    handleAccountToEdit,
+    handleAccountToDelete,
+  } = useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   const theme = useTheme();
 

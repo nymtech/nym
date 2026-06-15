@@ -77,16 +77,16 @@ export const NetworkSelector = () => {
         <List>
           <ListSubheader sx={{ backgroundColor: 'transparent' }}>Network selection</ListSubheader>
           {networks.map(({ name, networkName }) => (
-              <NetworkItem
-                key={networkName}
-                title={name}
-                isSelected={networkName === network}
-                onSelect={() => {
-                  handleClose();
-                  switchNetwork(networkName);
-                }}
-              />
-            ))}
+            <NetworkItem
+              key={networkName}
+              title={name}
+              isSelected={networkName === network}
+              onSelect={() => {
+                handleClose();
+                switchNetwork(networkName);
+              }}
+            />
+          ))}
         </List>
       </Popover>
     </>

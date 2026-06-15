@@ -71,6 +71,7 @@ async function loadProviderOnce(rpc: string): Promise<void> {
   // One provider, weight 2 (the validator requires totalWeight >= 2; a single
   // HTTPS endpoint avoids competing TCP handshakes during cold start).
   const fallbackConfig = { chainId: SEPOLIA_CHAIN_ID, providers: [{ provider: rpc, priority: 1, weight: 2 }] };
+  // Third arg is Railgun's provider pollingInterval in ms, not a request timeout.
   await railgun.loadProvider(fallbackConfig, SEPOLIA_NETWORK_NAME, 10000);
   providerLoaded = true;
 }
@@ -79,8 +80,9 @@ export async function ensureRailgunEngine(rpc: string, log: RailgunLog): Promise
   if (engineStarted && providerLoaded) return;
   log('initialising Railgun engine (one-time)...');
   await ensureEngineStarted();
-  // loadProvider hits the network via mixFetch; cold-start can exceed Railgun's
-  // 60s timeout, so retry (the second attempt finds the pool warm).
+  // loadProvider makes its first RPC calls over a cold mixnet route, paying the
+  // TCP-connect and TLS-handshake cost; that first ethers request can time out,
+  // so retry (the second attempt finds the connection pool warm).
   await withRetry(() => loadProviderOnce(rpc), 'loadProvider', { log });
   log('Railgun engine ready', 'green');
 }

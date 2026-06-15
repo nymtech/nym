@@ -58,7 +58,8 @@ nextra.webpack = (config, options) => {
     newConfig.resolve.alias = {
       ...newConfig.resolve.alias,
       ethers$: require.resolve("ethers"),
-      "@railgun-community/shared-models$": require.resolve("@railgun-community/shared-models"),
+      "@railgun-community/shared-models$":
+        require.resolve("@railgun-community/shared-models"),
     };
     newConfig.plugins.push(
       new options.webpack.ProvidePlugin({
@@ -67,7 +68,10 @@ nextra.webpack = (config, options) => {
       }),
     );
     // Railgun ships its zk-SNARK circuits as async WASM.
-    newConfig.experiments = { ...newConfig.experiments, asyncWebAssembly: true };
+    newConfig.experiments = {
+      ...newConfig.experiments,
+      asyncWebAssembly: true,
+    };
   }
   // Silence "Critical dependency" warnings from Railgun's GraphQL subgraph plumbing.
   newConfig.ignoreWarnings = [
@@ -1526,7 +1530,7 @@ const config = {
         form-action 'self';
         frame-ancestors 'none';
         upgrade-insecure-requests;
-        connect-src 'self' wss://* wss://nym-node-cli.devrel.nymte.ch:9001 https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc https://ipinfo.io;
+        connect-src 'self' wss://*:* https://github.com *.vercel.app *.nymtech.net *.nymvpn.com *.nymte.ch *.nyx.network *.nym.com https://nym.com nymvpn.com https://nymvpn.com *.nymtech.cc https://ipinfo.io ipinfo.io;
         frame-src 'self' https://vercel.live *.vercel.app *.nym.com https://nym.com;
         worker-src 'self' blob: https://vercel.live *.vercel.app *.nym.com https://nym.com;
       `;

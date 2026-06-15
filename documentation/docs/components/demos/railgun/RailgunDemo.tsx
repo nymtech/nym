@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { HDNodeWallet, JsonRpcProvider, formatEther } from 'ethers';
 import { MixTunnelSetup, type MixFetchFn } from '../shared/mixTunnel';
-import { Button, LogPanel, useLogs, box, row, input, sub, legend } from '../shared/ui';
+import { Button, LogPanel, Spinner, StatusText, useLogs, box, row, input, sub, legend } from '../shared/ui';
 import { buildProvider, callMixFetch, installGlobalMixFetchRouting, withRetry } from '../shared/mixfetch';
 import {
   DEFAULT_MNEMONIC,
@@ -23,7 +23,9 @@ const RPC_PRESETS = ['https://ethereum-sepolia-rpc.publicnode.com', 'https://rpc
 // wallet can't be drained by an arbitrary amount.
 const SHIELD_AMOUNT = '0.01';
 const IP_ECHO_URL = 'https://ipinfo.io/ip';
-const IP_SHAPE_RE = /^[\d.:a-f]{3,45}$/i;
+// Rough IPv4/IPv6 shape check, to catch an HTML or error body returned in place
+// of an IP address. Not a full validator (it does not range-check octets).
+const IP_SHAPE_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f]{0,4}(?::[0-9a-f]{0,4}){2,7})$/i;
 
 export function RailgunDemo() {
   const { log, lines } = useLogs();
@@ -33,6 +35,10 @@ export function RailgunDemo() {
   const [mnemonic, setMnemonic] = useState('');
   const [publicAddr, setPublicAddr] = useState('(not generated)');
   const [railgunWallet, setRailgunWallet] = useState<RailgunWalletInfo | null>(null);
+  // Engine init is the slow, cold-route step. Surface it as its own status line
+  // under the tunnel; the detailed log lines still flow to the shield console.
+  const [enginePhase, setEnginePhase] = useState<'idle' | 'initialising' | 'ready' | 'error'>('idle');
+  const [engineError, setEngineError] = useState('');
   const [rpc, setRpc] = useState(RPC_PRESETS[0]);
   const [balance, setBalance] = useState('');
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -67,13 +73,18 @@ export function RailgunDemo() {
   }
 
   async function deriveRailgun(phrase: string) {
+    setEnginePhase('initialising');
+    setEngineError('');
     dlog('initialising Railgun engine + deriving shielded address...');
     try {
       await ensureRailgunEngine(rpc.trim(), dlog);
       const result = await createRailgunWalletFromMnemonic(phrase.trim());
       setRailgunWallet(result);
+      setEnginePhase('ready');
       dlog(`Railgun address derived: ${result.railgunAddress}`, 'green');
     } catch (e: any) {
+      setEnginePhase('error');
+      setEngineError(e.message || String(e));
       dlog(`Railgun derivation failed: ${e.message || e}`, 'red');
     }
   }
@@ -89,6 +100,8 @@ export function RailgunDemo() {
     publicWalletRef.current = wallet;
     setPublicAddr(wallet.address);
     setRailgunWallet(null);
+    setEnginePhase('idle');
+    setEngineError('');
     setMnemonic(phrase.trim());
     try {
       localStorage.setItem(STORAGE_KEY, phrase.trim());
@@ -153,6 +166,8 @@ export function RailgunDemo() {
     publicWalletRef.current = null;
     setPublicAddr('(not generated)');
     setRailgunWallet(null);
+    setEnginePhase('idle');
+    setEngineError('');
     setMnemonic('');
     updateStorageStatus();
     dlog('cleared stored wallet; reload to load the funded fallback');
@@ -237,8 +252,10 @@ export function RailgunDemo() {
     dlog(`  what the upstream sees via mixFetch -> Nym: ${nymIp}`, 'green');
     if (!nymIp.startsWith('error') && !directIp.startsWith('error') && nymIp !== directIp) {
       dlog('IPs differ. Every Shield broadcast uses this same Nym-exit path.', 'green');
+    } else if (nymIp.startsWith('error') || directIp.startsWith('error')) {
+      dlog('Could not complete the comparison. Try again, or reconnect with a different IPR.', 'red');
     } else {
-      dlog('Could not confirm a different exit IP. Try again, or reconnect with a different IPR.', 'red');
+      dlog('IPs match: your traffic did NOT route through Nym. The route may not be active, or ipinfo.io is behind a shared CDN. Try again.', 'red');
     }
     setBusy(false);
   }
@@ -256,11 +273,37 @@ export function RailgunDemo() {
       <MixTunnelSetup onReady={onReady} onDisconnect={onDisconnect} clientIdPrefix="railgun-demo" />
 
       <div style={box}>
+        <div style={legend}>Railgun engine</div>
+        <div style={sub}>
+          The first init makes a cold-route call to Sepolia over the mixnet and can take
+          10 seconds or more, sometimes after one internal retry. Detailed progress appears
+          in the Shield console below.
+        </div>
+        <div style={{ ...row, marginTop: '0.6rem' }}>
+          {enginePhase === 'initialising' ? (
+            <Spinner label="initialising engine + deriving shielded address..." />
+          ) : enginePhase === 'ready' ? (
+            <StatusText status={{ text: 'Engine ready', colour: 'green' }} />
+          ) : enginePhase === 'error' ? (
+            <StatusText status={{ text: `Engine init failed: ${engineError}`, colour: 'red' }} />
+          ) : (
+            <StatusText
+              status={{
+                text: connected ? 'Generate or import a wallet to derive the shielded address.' : 'Connect the tunnel to start the engine.',
+                colour: 'gray',
+              }}
+            />
+          )}
+        </div>
+        <div style={sub}>Railgun address: <code>{railgunWallet ? railgunWallet.railgunAddress : connected ? '(deriving...)' : '(connect tunnel to derive)'}</code></div>
+      </div>
+
+      <div style={box}>
         <div style={legend}>Wallet</div>
         <div style={sub}>
-          A testnet wallet is auto-loaded from browser storage. Its mnemonic is not shown here:
-          it holds only Sepolia test ETH, so please don't be cheeky and try to pull the funded
-          testnet key out. Import your own below if you'd rather.
+          A testnet wallet is auto-loaded from browser storage. The fallback mnemonic lives in
+          the demo source, so treat it as shared and public: it holds only Sepolia test ETH.
+          Import your own below if you'd rather keep a separate balance.
         </div>
         <div style={row}>
           <input
@@ -276,7 +319,6 @@ export function RailgunDemo() {
           <Button onClick={clearWallet}>Clear</Button>
         </div>
         <div style={sub}>public address: <code>{publicAddr}</code></div>
-        <div style={sub}>Railgun address: <code>{railgunWallet ? railgunWallet.railgunAddress : connected ? '(deriving...)' : '(connect tunnel to derive)'}</code></div>
         <div style={sub}>{storageStatus}</div>
       </div>
 

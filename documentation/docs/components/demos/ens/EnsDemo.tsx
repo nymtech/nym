@@ -14,7 +14,9 @@ const RPC_PRESETS = ['https://ethereum-rpc.publicnode.com', 'https://rpc.ankr.co
 const GATEWAY_PRESETS = ['https://{cid}.ipfs.dweb.link/', 'https://dweb.link/ipfs/{cid}/'];
 
 const IP_ECHO_URL = 'https://ipinfo.io/ip';
-const IP_SHAPE_RE = /^[\d.:a-f]{3,45}$/i;
+// Rough IPv4/IPv6 shape check, to catch an HTML or error body returned in place
+// of an IP address. Not a full validator (it does not range-check octets).
+const IP_SHAPE_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f]{0,4}(?::[0-9a-f]{0,4}){2,7})$/i;
 
 const preStyle: React.CSSProperties = {
   maxHeight: 240,
@@ -157,7 +159,7 @@ export function EnsDemo() {
   }
 
   async function verifyIp() {
-    if (!mixFetch) return;
+    if (!mixFetch) return ensLog('connect the mixnet tunnel first', 'red');
     setBusy(true);
     ensLog('comparing direct-clearnet IP vs Nym-exit IP...');
     let directIp: string;

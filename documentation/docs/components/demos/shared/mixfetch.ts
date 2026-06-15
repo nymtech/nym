@@ -1,6 +1,7 @@
 // Shared mixnet + ethers helpers for demos that route HTTP through mixFetch.
-// ens has its own copies of the small helpers (it predates this file); railgun
-// uses these. Consolidate ens onto this later.
+// railgun uses these. ens deliberately keeps its own buildProvider: it is the
+// verbose teaching variant that logs per-call timing and the decoded eth_call
+// selector, so it is not a candidate for consolidation onto the quiet one here.
 
 import { FetchRequest, JsonRpcProvider, type Networkish } from 'ethers';
 import type { MixFetchFn } from './mixTunnel';
@@ -94,8 +95,8 @@ export function installGlobalMixFetchRouting(mixFetch: MixFetchFn): void {
 }
 
 // Retry wrapper for mixnet-routed RPC calls: the first request on a cold mixnet
-// path pays TCP-connect + TLS-handshake time, and Railgun's hardcoded timeouts
-// can fire on it; the retry finds the pool warm.
+// path pays TCP-connect + TLS-handshake time, and the underlying ethers request
+// can time out on it; the retry finds the pool warm.
 export async function withRetry<T>(
   fn: () => Promise<T>,
   label: string,

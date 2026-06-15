@@ -47,7 +47,8 @@ function buildProvider(rpcUrl: string): JsonRpcProvider {
     const res = await mixFetch(req.url, {
       method: req.method,
       headers: req.headers,
-      body: req.body ?? undefined,
+      // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+      body: (req.body ?? undefined) as BodyInit | undefined,
     });
     return {
       statusCode: res.status,
@@ -72,10 +73,11 @@ On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-
 The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
 tunnel:
 
-1. **Resolve address.** Two `eth_call`s: the ENS Registry's `resolver(node)`
-   returns the resolver contract for the name, then `resolver.addr(node)` returns
-   the Ethereum address. `node` is the namehash (recursive keccak256 over the
-   labels).
+1. **Resolve address.** `provider.resolveName(name)` under the hood reads the ENS
+   Registry's `resolver(node)` to find the resolver contract, then calls
+   `resolver.addr(node)` for the Ethereum address (ethers may add an EIP-165
+   `supportsInterface` probe in between). `node` is the namehash (recursive
+   keccak256 over the labels).
 2. **Get contenthash.** One more `eth_call`: `resolver.contenthash(node)`. ethers
    decodes the EIP-1577 multicodec bytes to a URI; this demo handles `ipfs://`.
 3. **Fetch from IPFS.** A plain HTTPS GET to a gateway with the CID as a subdomain

@@ -9,8 +9,8 @@ Performance is a value between `0` and `1`. The final performance number has dif
 > **Gateways** <br/>
 > **performance = config_score \* routing_score** <br/><br/>
 > **Mixnodes** <br/>
-> **performance = stress_weight \* stress_score + (1.0 - stress_weight) \* routing_score \* config_score** <br/>
-> **stress_testing_score_weight = 0.3**
+> **performance = stress_weight \* stress_score + ( 1.0 - stress_weight ) \* routing_score \* config_score** <br/>
+> **stress_weight = 0.3**
 </Callout>
 
 Performance value is an average of last 24h.
@@ -121,5 +121,5 @@ This is the calculation formula for mixnodes:
 
 <Callout type="info" emoji="📌">
 > **performance = stress_weight \* stress_score + (1.0 - stress_weight) \* routing_score \* config_score** <br/>
-> **stress_testing_score_weight = 0.3**
+> **stress_weight = 0.3**
 </Callout>

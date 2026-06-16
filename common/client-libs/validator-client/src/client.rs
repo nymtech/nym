@@ -113,31 +113,20 @@ impl Config {
         }
     }
 
+    /// Create a Validator Client configuration from a provided Network Details.
+    /// This uses the included nym api url of the defined validator
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
     ) -> Result<Self, ValidatorClientError> {
-        let mut api_url = details
-            .endpoints
-            .iter()
-            .filter_map(|d| d.api_url.as_ref())
-            .map(|url| Url::parse(url))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        if let Some(nym_api_urls) = details.nym_api_urls.as_ref() {
-            api_url.extend(
-                nym_api_urls
-                    .iter()
-                    .map(|url| url.url.parse())
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        }
-
-        if api_url.is_empty() {
-            return Err(ValidatorClientError::NoAPIUrlAvailable);
-        }
+        let api_url = details.endpoints[0]
+            .api_url
+            .clone()
+            .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
+            .parse()
+            .map_err(ValidatorClientError::MalformedUrlProvided)?;
 
         Ok(Config {
-            api_url: api_url.pop().unwrap(),
+            api_url,
             nyxd_url: details.endpoints[0]
                 .nyxd_url
                 .parse()

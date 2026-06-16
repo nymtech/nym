@@ -31,6 +31,8 @@
     }
   },
 
+  "references": [{ "path": "./tsconfig.test.json" }],
+
   "exclude": [
     "node_modules",
     "dist",
@@ -43,6 +45,9 @@
     "e2e-tauri",
     "playwright.config.ts",
     "wdio.conf.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.test.js",
     ".tsbuild"
   ]
 }

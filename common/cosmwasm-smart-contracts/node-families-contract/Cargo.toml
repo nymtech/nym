@@ -24,9 +24,11 @@ cw-utils = { workspace = true }
 
 nym-contracts-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
+ts-rs = { workspace = true, optional = true }
 
 [features]
 schema = []
+generate-ts = ['ts-rs']
 
 [lints]
 workspace = true

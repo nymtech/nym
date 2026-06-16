@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Divider, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
-import { AccountBalanceWalletOutlined, Description, Settings, VpnKeyOutlined } from '@mui/icons-material';
+import {
+  AccountBalanceWalletOutlined,
+  Description,
+  GroupsOutlined,
+  Settings,
+  VpnKeyOutlined,
+} from '@mui/icons-material';
 import { safeOpenUrl } from 'src/utils/safeOpenUrl';
 import { AppContext } from '../context/main';
 import { Delegate, Bonding } from '../svg-icons';
@@ -39,6 +45,13 @@ export const Nav = () => {
         route: '/bonding',
         Icon: Bonding,
         onClick: () => navigate('/bonding'),
+      },
+      {
+        label: 'Family',
+        description: 'Manage node families',
+        route: '/family',
+        Icon: GroupsOutlined,
+        onClick: () => navigate('/family'),
       },
       {
         label: 'Docs',

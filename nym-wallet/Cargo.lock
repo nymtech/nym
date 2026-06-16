@@ -25,6 +25,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
  "nym-node-requests",
  "nym-store-cipher",
  "nym-types",

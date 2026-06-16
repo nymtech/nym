@@ -7709,6 +7709,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.18",
+ "ts-rs",
 ]
 
 [[package]]
@@ -13090,6 +13091,7 @@ dependencies = [
  "anyhow",
  "nym-api-requests",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
  "nym-types",
  "nym-validator-client",
  "nym-vesting-contract-common",

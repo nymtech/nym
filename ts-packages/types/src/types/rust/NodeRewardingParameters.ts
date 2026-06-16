@@ -3,14 +3,13 @@
 /**
  * Parameters used for rewarding particular node.
  */
-export type NodeRewardingParameters = {
-  /**
-   * Performance of the particular node in the current epoch.
-   */
-  performance: string;
-  /**
-   * Amount of work performed by this node in the current epoch
-   * also known as 'omega' in the paper
-   */
-  work_factor: string;
-};
+export type NodeRewardingParameters = { 
+/**
+ * Performance of the particular node in the current epoch.
+ */
+performance: string, 
+/**
+ * Amount of work performed by this node in the current epoch
+ * also known as 'omega' in the paper
+ */
+work_factor: string, };

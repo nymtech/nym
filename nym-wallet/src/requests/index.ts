@@ -4,6 +4,7 @@ export * from './bond';
 export * from './actions';
 export * from './contract';
 export * from './delegation';
+export * from './families';
 export * from './logging';
 export * from './network';
 export * from './queries';

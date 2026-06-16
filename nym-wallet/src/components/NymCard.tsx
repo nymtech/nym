@@ -19,14 +19,30 @@ export const NymCard: FCWithChildren<{
   borderless?: boolean;
   /** Omit the card header row (use for fully custom headers inside children). */
   hideHeader?: boolean;
+  /** Preferred: standard DOM test id. `dataTestid` (camelCase) is kept for back-compat. */
+  'data-testid'?: string;
   dataTestid?: string;
   sx?: SxProps;
   sxTitle?: SxProps;
   children?: React.ReactNode;
-}> = ({ title, subheader, Action, Icon, noPadding, borderless, hideHeader, children, dataTestid, sx, sxTitle }) => (
+}> = ({
+  title,
+  subheader,
+  Action,
+  Icon,
+  noPadding,
+  borderless,
+  hideHeader,
+  children,
+  dataTestid,
+  'data-testid': dataTestidAttr,
+  sx,
+  sxTitle,
+}) => (
   <Card
     variant="outlined"
-    data-testid={hideHeader ? dataTestid : undefined}
+    // Resolved id on the root element (wraps content, so it can scope children).
+    data-testid={dataTestidAttr ?? dataTestid}
     sx={{
       overflow: 'hidden',
       borderRadius: 4,
@@ -49,7 +65,6 @@ export const NymCard: FCWithChildren<{
         }}
         title={<Title title={title} Icon={Icon} sx={sxTitle} />}
         subheader={subheader}
-        data-testid={dataTestid || (typeof title === 'string' ? title : 'nym-card')}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
         action={Action}
       />

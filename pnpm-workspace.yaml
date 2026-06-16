@@ -15,13 +15,16 @@ packages:
 
 allowBuilds:
   '@biomejs/biome': true
+  '@fission-ai/openspec': false
   '@parcel/watcher': true
   '@swc/core': true
   core-js: true
   core-js-pure: true
+  edgedriver: false
   es5-ext: true
   esbuild: true
   fsevents: true
+  geckodriver: false
   lefthook: true
   lmdb: true
   msgpackr-extract: true

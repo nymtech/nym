@@ -58,8 +58,6 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub nym_api_urls: Option<Vec<ApiUrl>>,
-    pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
     pub networking: NetworkingSpecifics,
 }
 
@@ -152,8 +150,6 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            nym_api_urls: Default::default(),
-            nym_vpn_api_urls: Default::default(),
             networking: Default::default(),
         }
     }
@@ -174,11 +170,8 @@ impl NymNetworkDetails {
             }
         }
 
-        let nym_api = var(var_names::NYM_API).expect("nym api not set");
-        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or(vec![ApiUrl {
-            url: nym_api.clone(),
-            front_hosts: None,
-        }]);
+        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS);
+        let nym_api = nym_api_urls.first().expect("nym api not set");
         let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS);
 
         NymNetworkDetails::new_empty()
@@ -206,7 +199,7 @@ impl NymNetworkDetails {
             })
             .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
-                Some(nym_api.clone()),
+                Some(nym_api.url.clone()),
                 get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
             .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
@@ -255,14 +248,6 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
             },
-            nym_api_urls: Some(mainnet::NYM_APIS.iter().copied().map(Into::into).collect()),
-            nym_vpn_api_urls: Some(
-                mainnet::NYM_VPN_APIS
-                    .iter()
-                    .copied()
-                    .map(Into::into)
-                    .collect(),
-            ),
             networking: Self::mainnet_specifics(),
         }
     }
@@ -291,8 +276,8 @@ impl NymNetworkDetails {
             }
         }
         unsafe {
-            let nym_api_urls = self.nym_api_urls();
-            let nym_vpn_api_urls = self.nym_vpn_api_urls();
+            let nym_api_urls = self.nym_api_urls_str();
+            let nym_vpn_api_urls = self.nym_vpn_api_urls_str();
 
             set_var(var_names::NETWORK_NAME, self.network_name);
             set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
@@ -445,7 +430,7 @@ impl NymNetworkDetails {
     }
 
     pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
-        self.nym_api_urls = Some(urls.into_iter().map(Into::into).collect());
+        self.networking.nym_api_urls = urls.into_iter().map(Into::into).collect();
     }
 
     #[must_use]
@@ -455,32 +440,40 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
-    pub fn with_nym_vpn_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
-        self.nym_vpn_api_urls = urls;
+    pub fn with_nym_vpn_api_urls(mut self, urls: Vec<ApiUrl>) -> Self {
+        self.networking.nym_vpn_api_urls = urls;
         self
     }
 
+    pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
+        self.networking.nym_api_urls.clone()
+    }
+
     #[cfg(feature = "env")]
-    fn nym_api_urls(&self) -> Option<String> {
-        serde_json::to_string(self.nym_api_urls.as_deref()?)
+    fn nym_api_urls_str(&self) -> Option<String> {
+        serde_json::to_string(&self.networking.nym_api_urls)
             .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
             .ok()
     }
 
+    pub fn nym_vpn_api_urls(&self) -> Vec<ApiUrl> {
+        self.networking.nym_vpn_api_urls.clone()
+    }
+
     #[cfg(feature = "env")]
-    fn nym_vpn_api_urls(&self) -> Option<String> {
-        serde_json::to_string(self.nym_vpn_api_urls.as_deref()?)
+    fn nym_vpn_api_urls_str(&self) -> Option<String> {
+        serde_json::to_string(&self.networking.nym_vpn_api_urls)
             .inspect_err(|e| tracing::warn!("failed to serialize nym_vpn_api_urls for env: {e}"))
             .ok()
     }
 }
 
 #[cfg(feature = "env")]
-fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Option<Vec<ApiUrl>> {
-    let raw = var(k).ok()?;
+fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Vec<ApiUrl> {
+    let raw = var(k).ok().unwrap_or_default();
     serde_json::from_str(&raw)
         .inspect_err(|e| tracing::warn!("failed to parse api urls from env \"{raw:?}\": {e}"))
-        .ok()
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]

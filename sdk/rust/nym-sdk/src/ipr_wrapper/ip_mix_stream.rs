@@ -88,7 +88,7 @@ impl IpMixStream {
     pub async fn new() -> Result<Self, Error> {
         let network_defaults = NymNetworkDetails::new_mainnet();
         let api_client =
-            create_nym_api_client(network_defaults.nym_api_urls.ok_or(Error::NoNymAPIUrl)?)?;
+            create_nym_api_client(network_defaults.nym_api_urls().ok_or(Error::NoNymAPIUrl)?)?;
         let (ipr_address, node_version) = get_best_ipr(api_client).await?;
         Self::connect(ipr_address, Some(node_version)).await
     }

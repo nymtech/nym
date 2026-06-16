@@ -58,7 +58,6 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub nym_vpn_api_url: Option<String>,
     pub nym_api_urls: Option<Vec<ApiUrl>>,
     pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
     pub networking: NetworkingSpecifics,
@@ -153,7 +152,6 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            nym_vpn_api_url: Default::default(),
             nym_api_urls: Default::default(),
             nym_vpn_api_urls: Default::default(),
             networking: Default::default(),
@@ -224,7 +222,6 @@ impl NymNetworkDetails {
             .with_network_monitors_contract(get_optional_env(
                 var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
             ))
-            .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
             .with_nym_vpn_api_urls(nym_vpn_api_urls)
             .with_nym_api_urls(nym_api_urls)
     }
@@ -258,7 +255,6 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
             },
-            nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
             nym_api_urls: Some(mainnet::NYM_APIS.iter().copied().map(Into::into).collect()),
             nym_vpn_api_urls: Some(
                 mainnet::NYM_VPN_APIS
@@ -324,7 +320,6 @@ impl NymNetworkDetails {
             set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
             set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
-            set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
             set_optional_var(var_names::NYM_VPN_APIS, nym_vpn_api_urls);
             set_optional_var(var_names::NYM_APIS, nym_api_urls);
 
@@ -449,12 +444,6 @@ impl NymNetworkDetails {
         self
     }
 
-    #[must_use]
-    pub fn with_nym_vpn_api_url<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
-        self.nym_vpn_api_url = endpoint.map(Into::into);
-        self
-    }
-
     pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
         self.nym_api_urls = Some(urls.into_iter().map(Into::into).collect());
     }
@@ -469,13 +458,6 @@ impl NymNetworkDetails {
     pub fn with_nym_vpn_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
         self.nym_vpn_api_urls = urls;
         self
-    }
-
-    pub fn nym_vpn_api_url(&self) -> Option<Url> {
-        self.nym_vpn_api_url.as_ref().map(|url| {
-            url.parse()
-                .expect("the provided nym-vpn api url is invalid!")
-        })
     }
 
     #[cfg(feature = "env")]

@@ -116,7 +116,6 @@ pub fn network_details() -> NymNetworkDetails {
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        nym_vpn_api_url: None,
         nym_vpn_api_urls: None,
         nym_api_urls: None,
         networking: network_specifics(),

@@ -3,10 +3,14 @@ import { Callout } from 'nextra/components';
 
 ## Mixnet: Node Performance Calculation
 
-Performance is a value between `0` and `1`. The final performance number is a result of multiplying [config score](#config-score-calculation) and [routing score](#routing-score-calculation).
+Performance is a value between `0` and `1`. The final performance number has different calculation for nodes serving as gateways and where the result is calculated by multiplying [config score](#config-score-calculation) and [routing score](#routing-score-calculation), where for nodes serving as mixnodes we added a new value [`stress_score`](#stress-testing-score-calculation) with a weight `0.3`. See the formulas below or directly in the code on Github ([here](https://github.com/nymtech/nym/blob/develop/nym-api/src/node_status_api/cache/refresher.rs#L254-L263) and [here](https://github.com/nymtech/nym/blob/develop/nym-api/src/node_status_api/cache/refresher.rs#L378-L390)).
 
 <Callout type="info" emoji="📌">
-> **node_performance = config_score \* routing_score**
+> **Gateways** <br/>
+> **performance = config_score * routing_score** <br/><br/>
+> **Mixnodes** <br/>
+> **performance = config_score * stress_weight * stress_score + (1.0 - stress_weight) * routing_score** <br/>
+> **stress_testing_score_weight = 0.3**
 </Callout>
 
 Performance value is an average of last 24h.
@@ -91,3 +95,31 @@ As you can see above, the algorithm is designed to give maximum selection score 
 ### Routing Score Calculation
 
 Routing score is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned which are then converted into floats bettween `0` and `1`.
+
+###  Stress Testing Score Calculation
+
+<Callout type="info" emoji="ℹ️">
+**This metric concernes only Nym nodes running in the mode `mixnode`.**
+</Callout>
+
+With a growing user base of NymVPN and ongoing SDK releases, there is a requirement to optimize the quality of Nym Mixnet to ensure reliable performance and low packet loss. 
+
+So far [`routing_score`](#routing-score) has been the most essential variable in the calculation of node performance. However, we found out that there are more vectors needed to evaluate quality of mixnode performance. 
+
+There is an additional metric only for mixnodes - *stress testing score*. Stress testing is a performance measurement, calculating how many packets sent together in a burst a node can handle without dropping them. 
+
+Such test is done by sending **1000 packets per second for 30 seconds, once every ~2 hours**.
+
+Not alike `routing_score` going over a whole route, stress testing measures exactly 1 node and therefore the result is exact for the given node. The route is simple:
+```
+nym_testing_agent -> mixnode -> nym_testing_agent
+```
+
+The value of stress testing score is denoted as `stress__score` and it's a float between 0-1 displaying percentage success of packets returning back to the agent. 
+
+This is the calculation formula for mixnodes:
+
+<Callout type="info" emoji="📌">
+> **performance = config_score * stress_weight * stress_score + (1.0 - stress_weight) * routing_score** <br/>
+> **stress_testing_score_weight = 0.3**
+</Callout>

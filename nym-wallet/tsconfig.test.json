@@ -12,7 +12,10 @@
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "types": ["jest", "node"],
-    "noEmit": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "./.tsbuild-test",
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["../assets/*"],

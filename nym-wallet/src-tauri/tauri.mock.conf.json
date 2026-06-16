@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Nym Wallet (mock e2e)",
+        "url": "main.mock.html",
+        "width": 1268,
+        "height": 768,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "useHttpsScheme": false,
+        "backgroundColor": "#242b2d"
+      }
+    ]
+  }
+}

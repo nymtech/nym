@@ -14,11 +14,30 @@ const muiSystemDir = path.dirname(
 );
 const muiStyledEngineV5 = path.dirname(require.resolve('@mui/styled-engine/package.json', { paths: [muiSystemDir] }));
 
+// Mock-wired build for e2e (design D2): gated by `WALLET_MOCK_FAMILIES=on`. When off (the
+// default, and always in production) the mock entry + its HTML are never registered.
+const MOCK_FAMILIES = process.env.WALLET_MOCK_FAMILIES === 'on';
+
 const entry = {
   auth: path.resolve(__dirname, 'src/auth.tsx'), // JS bundle for sign up/sign in
   main: path.resolve(__dirname, 'src/main.tsx'), // JS bundle for main app
   log: path.resolve(__dirname, 'src/log.tsx'), // JS bundle for logging window
+  ...(MOCK_FAMILIES ? { mainMock: path.resolve(__dirname, 'src/main.mock.tsx') } : {}), // mock-wired app (e2e only)
 };
+
+const htmlPages = [
+  { filename: 'index.html', chunks: ['auth'], template: path.resolve(__dirname, 'public/index.html') }, // the starting point is index.html (sign up/sign in)
+  { filename: 'main.html', chunks: ['main'], template: path.resolve(__dirname, 'public/index.html') }, // main app (loaded after sign in in a new window)
+  { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') }, // the user can open a separate logging window
+];
+if (MOCK_FAMILIES) {
+  // Served at /main.mock.html on the dev server; the e2e suite navigates here.
+  htmlPages.push({
+    filename: 'main.mock.html',
+    chunks: ['mainMock'],
+    template: path.resolve(__dirname, 'public/index.html'),
+  });
+}
 
 module.exports = mergeWithRules({
   module: {
@@ -28,11 +47,7 @@ module.exports = mergeWithRules({
     },
   },
 })(
-  webpackCommon(__dirname, [
-    { filename: 'index.html', chunks: ['auth'], template: path.resolve(__dirname, 'public/index.html') }, // the starting point is index.html (sign up/sign in)
-    { filename: 'main.html', chunks: ['main'], template: path.resolve(__dirname, 'public/index.html') }, // main app (loaded after sign in in a new window)
-    { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') }, // the user can open a separate logging window
-  ]),
+  webpackCommon(__dirname, htmlPages),
   {
     entry,
     resolve: {
@@ -71,6 +86,7 @@ module.exports = mergeWithRules({
     plugins: [
       new webpack.EnvironmentPlugin({
         NYM_WALLET_INTERNAL_DOCS: '',
+        WALLET_MOCK_FAMILIES: 'off',
       }),
     ],
   },

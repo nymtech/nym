@@ -4,6 +4,11 @@ const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin'
 const ReactRefreshTypeScript = require('react-refresh-typescript');
 const commonConfig = require('./webpack.common');
 
+// The mock-wired e2e build (WALLET_MOCK_FAMILIES=on) is driven by Playwright, which reloads
+// pages itself — it doesn't need (or want) React Fast Refresh / HMR. Skipping it also avoids
+// the HMR client's `core-js-pure` polyfill requirement. See e2e/README.md.
+const MOCK_FAMILIES = process.env.WALLET_MOCK_FAMILIES === 'on';
+
 module.exports = mergeWithRules({
   module: {
     rules: {
@@ -14,6 +19,11 @@ module.exports = mergeWithRules({
 })(commonConfig, {
   mode: 'development',
   devtool: 'inline-source-map',
+  // The mock e2e build runs in development mode, where some deps (e.g. prop-types) use a
+  // `require('object-assign')`-style transitive. webpack.common sets `resolve.modules` to
+  // absolute dirs only, which disables the normal per-module node_modules walk and breaks
+  // pnpm's nested symlinks. Re-add the relative walk so those resolve. (Merged/appended.)
+  ...(MOCK_FAMILIES ? { resolve: { modules: ['node_modules'] } } : {}),
   module: {
     rules: [
       {
@@ -22,7 +32,7 @@ module.exports = mergeWithRules({
         exclude: /node_modules/,
         options: {
           getCustomTransformers: () => ({
-            before: [ReactRefreshTypeScript()],
+            before: MOCK_FAMILIES ? [] : [ReactRefreshTypeScript()],
           }),
           // `ts-loader` does not work with HMR unless `transpileOnly` is used.
           // If you need type checking, `ForkTsCheckerWebpackPlugin` is an alternative.
@@ -31,12 +41,14 @@ module.exports = mergeWithRules({
       },
     ],
   },
-  plugins: [
-    new ReactRefreshWebpackPlugin(),
+  plugins: MOCK_FAMILIES
+    ? []
+    : [
+        new ReactRefreshWebpackPlugin(),
 
-    // this can be included automatically by the dev server, however build mode fails if missing
-    new webpack.HotModuleReplacementPlugin(),
-  ],
+        // this can be included automatically by the dev server, however build mode fails if missing
+        new webpack.HotModuleReplacementPlugin(),
+      ],
 
   // recommended for faster rebuild
   optimization: {
@@ -58,9 +70,11 @@ module.exports = mergeWithRules({
     port: 9000,
     compress: true,
     historyApiFallback: true,
-    hot: true,
-    client: {
-      overlay: false,
-    },
+    // Mock e2e: serve a static bundle only — no HMR, no live-reload client injection
+    // (Playwright drives reloads). This also avoids the dev-server client's transitive deps.
+    hot: !MOCK_FAMILIES,
+    liveReload: !MOCK_FAMILIES,
+    webSocketServer: MOCK_FAMILIES ? false : undefined,
+    client: MOCK_FAMILIES ? false : { overlay: false },
   },
 });

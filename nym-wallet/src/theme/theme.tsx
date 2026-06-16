@@ -12,10 +12,10 @@ const LIGHT_MODE_PRIMARY_GREEN = 'rgb(18, 149, 96)';
 
 const nymPalette = {
   /** emphasises important elements */
-  highlight: 'rgb(20, 231, 111)',
+  highlight: '#5BF0A0',
   success: 'rgb(20, 231, 111)',
-  info: '#60D7EF',
-  red: '#E33B5A',
+  info: '#485ECA',
+  red: '#E73E14',
   fee: '#967FF0',
   background: {
     light: '#242B2D',
@@ -27,7 +27,7 @@ const nymPalette = {
     muted: '#938F99',
     grey: '#79747E',
   },
-  linkHover: 'rgb(20, 231, 111)',
+  linkHover: '#5BF0A0',
   border: {
     menu: '#49454F',
   },
@@ -36,8 +36,8 @@ const nymPalette = {
 const darkMode = {
   mode: 'dark' as const,
   background: {
-    main: '#242B2D',
-    paper: '#32373D',
+    main: '#0A0A0A',
+    paper: '#1A1A1C',
     warn: '#F97316',
     grey: '#3A373F',
     greyStroke: '#49454F',
@@ -52,7 +52,7 @@ const darkMode = {
     contrast: '#242B2D',
     grey: '#79747E',
     blue: '#60D7EF',
-    subdued: '#B8B5BD',
+    subdued: '#AEACB1',
   },
   topNav: {
     background: '#1C1B1F',

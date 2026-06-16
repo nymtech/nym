@@ -11,6 +11,7 @@ use tauri_plugin_updater::Builder as UpdaterBuilder;
 
 use crate::menu::SHOW_LOG_WINDOW;
 use crate::operations::app;
+use crate::operations::families;
 use crate::operations::help;
 use crate::operations::mixnet;
 use crate::operations::nym_api;
@@ -110,6 +111,24 @@ fn main() {
             mixnet::rewards::get_current_rewarding_parameters,
             mixnet::send::send,
             mixnet::bond::get_mixnode_uptime,
+            families::execute::create_family,
+            families::execute::update_family,
+            families::execute::disband_family,
+            families::execute::invite_to_family,
+            families::execute::revoke_family_invitation,
+            families::execute::kick_from_family,
+            families::execute::accept_family_invitation,
+            families::execute::reject_family_invitation,
+            families::execute::leave_family,
+            families::query::get_family_by_id,
+            families::query::get_family_by_owner,
+            families::query::get_family_membership,
+            families::query::get_family_config,
+            families::query::get_family_members_paged,
+            families::query::get_pending_invitations_for_family_paged,
+            families::query::get_pending_invitations_for_node_paged,
+            families::query::get_past_invitations_for_family_paged,
+            families::query::get_past_members_for_family_paged,
             network_config::add_validator,
             network_config::get_nym_api_urls,
             network_config::get_nyxd_urls,

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node Families e2e — visual flow report</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.5 system-ui, sans-serif; background: #0a0a0a; color: #eee; }
+  h1 { font-size: 20px; }
+  section { margin: 32px 0; }
+  h2 { font-size: 16px; color: #5bf0a0; text-transform: capitalize; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  .strip { display: flex; gap: 16px; overflow-x: auto; padding: 12px 0; }
+  figure { margin: 0; flex: 0 0 auto; width: 320px; }
+  img { width: 320px; border: 1px solid #333; border-radius: 6px; background: #1a1a1c; cursor: zoom-in; }
+  img:target, img:active { transform: scale(2.4); transform-origin: top left; position: relative; z-index: 10; }
+  figcaption { font-size: 12px; color: #aaa; margin-top: 6px; text-transform: capitalize; }
+</style>
+</head>
+<body>
+<h1>Node Families e2e — visual flow report</h1>
+<p style="color:#888">Per-step screenshots from the mock-wired Playwright journeys (design D1/D2). Hover/scroll each filmstrip; click an image to zoom.</p>
+<section><h2>operator lifecycle accept leave then reject</h2><div class="strip"><figure><img loading="lazy" src="screenshots/operator-lifecycle-accept-leave-then-reject/01-pending-node-invites.png" alt="pending node invites"><figcaption>pending node invites</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/operator-lifecycle-accept-leave-then-reject/02-invite-accepted.png" alt="invite accepted"><figcaption>invite accepted</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/operator-lifecycle-accept-leave-then-reject/03-family-left.png" alt="family left"><figcaption>family left</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/operator-lifecycle-accept-leave-then-reject/04-invite-rejected.png" alt="invite rejected"><figcaption>invite rejected</figcaption></figure></div></section>
+<section><h2>operator page shows multi node invite states</h2><div class="strip"><figure><img loading="lazy" src="screenshots/operator-page-shows-multi-node-invite-states/01-multi-node-invite-states.png" alt="multi node invite states"><figcaption>multi node invite states</figcaption></figure></div></section>
+<section><h2>owner lifecycle create invite accept kick disband</h2><div class="strip"><figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/01-create-family-entry.png" alt="create family entry"><figcaption>create family entry</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/02-family-created.png" alt="family created"><figcaption>family created</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/03-node-invited-pending.png" alt="node invited pending"><figcaption>node invited pending</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/04-member-joined.png" alt="member joined"><figcaption>member joined</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/05-member-kicked.png" alt="member kicked"><figcaption>member kicked</figcaption></figure>
+<figure><img loading="lazy" src="screenshots/owner-lifecycle-create-invite-accept-kick-disband/06-family-disbanded.png" alt="family disbanded"><figcaption>family disbanded</figcaption></figure></div></section>
+</body>
+</html>

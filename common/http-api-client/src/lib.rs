@@ -652,7 +652,7 @@ impl ClientBuilder {
     pub fn from_network(
         network: &nym_network_defaults::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
-        let urls = network.nym_api_urls.as_ref().cloned().unwrap_or_default();
+        let urls = network.networking.nym_api_urls.clone();
         Self::new_with_fronted_urls(urls.clone())
     }
 

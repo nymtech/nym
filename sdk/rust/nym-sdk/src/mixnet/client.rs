@@ -811,12 +811,7 @@ where
 
         tracing::debug!(
             "SDK: Passing nym_api_urls to BaseClientBuilder (has {} nym_api_urls)",
-            self.config
-                .network_details
-                .nym_api_urls
-                .as_ref()
-                .map(|urls| urls.len())
-                .unwrap_or(0)
+            self.config.network_details.nym_api_urls().len()
         );
 
         let mut base_builder: BaseClientBuilder<_, _> =
@@ -825,12 +820,8 @@ where
                 .with_wait_for_initial_topology(self.wait_for_initial_topology)
                 .with_forget_me(&self.forget_me)
                 .with_remember_me(&self.remember_me)
-                .with_derivation_material(self.derivation_material);
-
-        // Add nym_api_urls if available in network_details
-        if let Some(nym_api_urls) = self.config.network_details.nym_api_urls.clone() {
-            base_builder = base_builder.with_nym_api_urls(nym_api_urls);
-        }
+                .with_derivation_material(self.derivation_material)
+                .with_nym_api_urls(self.config.network_details.nym_api_urls());
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

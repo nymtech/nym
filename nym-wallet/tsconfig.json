@@ -43,9 +43,6 @@
     "e2e-tauri",
     "playwright.config.ts",
     "wdio.conf.ts",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.test.js",
     ".tsbuild"
   ]
 }

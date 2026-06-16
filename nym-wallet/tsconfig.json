@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "ES2022"],
@@ -10,6 +11,7 @@
     "skipLibCheck": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "resolveJsonModule": true,
     "isolatedModules": false,
     "jsx": "react-jsx",
@@ -19,6 +21,7 @@
     // erroring "would overwrite input file". Redirect that emit to a throwaway dir.
     // (`tsc --noEmit` and ts-loader/ts-jest ignore this; webpack controls its own output.)
     "outDir": "./.tsbuild",
+    "rootDir": ".",
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["../assets/*"],

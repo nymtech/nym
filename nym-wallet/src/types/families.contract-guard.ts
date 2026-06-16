@@ -12,17 +12,16 @@
 // / retyped on a 1:1 type below breaks the build here, forcing a conscious
 // reconciliation of `families.ts` (and the mock, which mirrors it).
 //
-// Imports are by relative path on purpose: the wallet resolves `@nymproject/types`
-// to the package's built `dist`, but the generated source is the source of truth
-// for drift, so we read it directly.
+// Import contract types from the built package path so the wallet compiler
+// can resolve them within the nym-wallet `rootDir`.
 
-import type { NodeFamily as ContractNodeFamily } from '../../../ts-packages/types/src/types/rust/NodeFamily';
-import type { FamilyConfig as ContractFamilyConfig } from '../../../ts-packages/types/src/types/rust/FamilyConfig';
-import type { FamilyMembership as ContractFamilyMembership } from '../../../ts-packages/types/src/types/rust/FamilyMembership';
-import type { FamilyInvitation as ContractFamilyInvitation } from '../../../ts-packages/types/src/types/rust/FamilyInvitation';
-import type { NodeFamilyMembershipResponse as ContractMembershipResponse } from '../../../ts-packages/types/src/types/rust/NodeFamilyMembershipResponse';
-import type { PendingFamilyInvitationDetails as ContractPendingDetails } from '../../../ts-packages/types/src/types/rust/PendingFamilyInvitationDetails';
-import type { PastFamilyMember as ContractPastMember } from '../../../ts-packages/types/src/types/rust/PastFamilyMember';
+import type { NodeFamily as ContractNodeFamily } from '@nymproject/types/dist/types/rust/NodeFamily';
+import type { FamilyConfig as ContractFamilyConfig } from '@nymproject/types/dist/types/rust/FamilyConfig';
+import type { FamilyMembership as ContractFamilyMembership } from '@nymproject/types/dist/types/rust/FamilyMembership';
+import type { FamilyInvitation as ContractFamilyInvitation } from '@nymproject/types/dist/types/rust/FamilyInvitation';
+import type { NodeFamilyMembershipResponse as ContractMembershipResponse } from '@nymproject/types/dist/types/rust/NodeFamilyMembershipResponse';
+import type { PendingFamilyInvitationDetails as ContractPendingDetails } from '@nymproject/types/dist/types/rust/PendingFamilyInvitationDetails';
+import type { PastFamilyMember as ContractPastMember } from '@nymproject/types/dist/types/rust/PastFamilyMember';
 
 import type {
   NodeFamily,

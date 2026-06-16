@@ -4,7 +4,7 @@
 use nym_config::defaults::{mainnet, sandbox, DenomDetails, NymNetworkDetails};
 use nym_types::{currency::DecCoin, error::TypesError};
 use serde::{Deserialize, Serialize};
-use std::{fmt, ops::Not, str::FromStr};
+use std::{fmt, str::FromStr};
 use strum_macros::EnumIter;
 
 #[allow(clippy::upper_case_acronyms)]

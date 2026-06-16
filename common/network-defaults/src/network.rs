@@ -445,6 +445,10 @@ impl NymNetworkDetails {
         self
     }
 
+    pub fn set_nym_vpn_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
+        self.networking.nym_vpn_api_urls = urls.into_iter().map(Into::into).collect();
+    }
+
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
         self.networking.nym_api_urls.clone()
     }

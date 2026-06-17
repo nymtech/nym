@@ -7756,7 +7756,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "2.0.1"
+version = "2.0.2-test"
 dependencies = [
  "anyhow",
  "clap",

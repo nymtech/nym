@@ -35,7 +35,7 @@ jobs:
         run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 11.1.2
       - uses: actions/setup-node@v4

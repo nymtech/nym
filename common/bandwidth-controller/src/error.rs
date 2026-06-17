@@ -28,9 +28,6 @@ pub enum BandwidthControllerError {
     #[error("No verification key for epoch : {epoch_id}")]
     MissingVerificationKey { epoch_id: EpochId },
 
-    #[error("No credential fetcher available")]
-    MissingCredentialFetcher,
-
     #[error("retrieved upgrade mode token is not a valid String")]
     MalformedUpgradeModeToken,
 

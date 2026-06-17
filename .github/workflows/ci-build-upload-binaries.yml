@@ -31,6 +31,10 @@ on:
   schedule:
     - cron: "14 0 * * *"
 
+env:
+  S3_ENDPOINT: https://s3.nymte.ch
+  S3_BUCKET: builds
+
 jobs:
   publish-nym:
     strategy:
@@ -139,14 +143,13 @@ jobs:
             cp target/debian/*.deb "$OUTPUT_DIR"
           fi
 
-      - name: Deploy branch to CI www
+      - name: Publish builds to S3
         continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-avzr"
-          SOURCE: "ci-builds/"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
-          EXCLUDE: "/dist/, /node_modules/"
+        uses: ./.github/actions/push-to-s3
+        with:
+          source_path: ci-builds/
+          destination: ""
+          endpoint: ${{ env.S3_ENDPOINT }}
+          bucket: ${{ env.S3_BUCKET }}
+          aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}

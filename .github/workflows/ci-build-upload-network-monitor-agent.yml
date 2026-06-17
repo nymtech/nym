@@ -3,6 +3,10 @@ name: ci-build-upload-network-monitor-agent
 on:
   workflow_dispatch:
 
+env:
+  S3_ENDPOINT: https://s3.nymte.ch
+  S3_BUCKET: builds
+
 jobs:
   build-and-upload:
     strategy:
@@ -51,13 +55,12 @@ jobs:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: cp target/release/nym-network-monitor-agent "$OUTPUT_DIR"
 
-      - name: Deploy to CI www
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-avzr"
-          SOURCE: "ci-builds/"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
-          EXCLUDE: "/dist/, /node_modules/"
+      - name: Publish agent build to S3
+        uses: ./.github/actions/push-to-s3
+        with:
+          source_path: ci-builds/
+          destination: ""
+          endpoint: ${{ env.S3_ENDPOINT }}
+          bucket: ${{ env.S3_BUCKET }}
+          aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}

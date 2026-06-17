@@ -16,7 +16,7 @@ pub const CONTAINER_NETWORK_NAME: &str = "nym-localnet";
 // this value is quite arbitrary
 pub const MIN_MASTER_UNYM_BALANCE: u128 = 10_000_000_000;
 
-pub const CI_BUILD_SERVER: &str = "https://builds.ci.nymte.ch";
+pub const CI_BUILD_SERVER: &str = "https://builds.cdn.nymte.ch";
 
 pub const CARGO_REGISTRY_CACHE_VOLUME: &str = "registry_cache";
 pub const CONTRACTS_CACHE_VOLUME: &str = "nym_contracts_cache";

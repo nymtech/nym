@@ -40,8 +40,8 @@ pub(crate) struct Args {
 
     /// Provide a branch name to be used for attempting to retrieve .wasm files from the ci build server,
     /// e.g. for branch `feature/my-amazing-feature`, the following urls will be used:
-    /// - `https://builds.ci.nymte.ch/feature/my-amazing-feature/mixnet_contract.wasm`
-    /// - `https://builds.ci.nymte.ch/feature/my-amazing-feature/nym_performance_contract.wasm`
+    /// - `https://builds.cdn.nymte.ch/feature/my-amazing-feature/mixnet_contract.wasm`
+    /// - `https://builds.cdn.nymte.ch/feature/my-amazing-feature/nym_performance_contract.wasm`
     /// - ...
     /// - etc.
     #[clap(long, group = "built-contracts")]

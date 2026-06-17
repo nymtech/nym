@@ -125,7 +125,7 @@ Upload and initialise all Nym cosmwasm contracts as described above
 - `monorepo-root` - specify path to the monorepo root if the current working directory is different from the root
 - `reproducible-builds` - ensure contract builds are fully reproducible by removing additional source of
   non-determinism. note that this slows down the build process significantly
-- `ci-build-branch` - use prebuilt contracts from the `build.ci.nymte.ch` server
+- `ci-build-branch` - use prebuilt contracts from the `builds.cdn.nymte.ch` server
 - `cosmwasm-optimizer-image` - cosmwasm optimizer image used for building and optimising the contracts
 - `allow-cached-build` - allow using pre-built contracts from previous localnet runs
 

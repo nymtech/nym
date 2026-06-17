@@ -13,6 +13,10 @@ on:
       - "sdk/typescript/packages/mix-websocket/src/**"
       - ".github/workflows/ci-docs.yml"
 
+env:
+  S3_ENDPOINT: https://s3.nymte.ch
+  S3_BUCKET: builds
+
 jobs:
   build:
     runs-on: arc-linux-latest
@@ -81,14 +85,14 @@ jobs:
       - name: Move files to /dist/
         run: ../scripts/move-to-dist.sh
 
-      - name: Deploy branch to CI www
+      - name: Publish docs to S3
         continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "dist/docs/"
-          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-nextra-${{ env.GITHUB_REF_SLUG }}
-          EXCLUDE: "/node_modules/"
+        uses: ./.github/actions/push-to-s3
+        with:
+          source_path: dist/docs/
+          destination: docs-nextra-${{ env.GITHUB_REF_SLUG }}/
+          args: "--delete --exclude '*/node_modules/*'"
+          endpoint: ${{ env.S3_ENDPOINT }}
+          bucket: ${{ env.S3_BUCKET }}
+          aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}

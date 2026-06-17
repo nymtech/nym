@@ -11,16 +11,12 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
-use nym_client_core::client::base_client::storage::GatewaysDetailsStore;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
-use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::types::GatewaySetup;
-use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::{ShutdownManager, ShutdownTracker};
@@ -70,11 +66,6 @@ pub struct NymClient<S> {
 impl<S> NymClient<S>
 where
     S: MixnetClientStorage + 'static,
-    S::ReplyStore: Send + Sync,
-    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
     pub fn config(&self) -> Config {
         self.config.clone()

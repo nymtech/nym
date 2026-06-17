@@ -40,7 +40,6 @@ pub async fn generate_new_client_keys<K, R>(
 where
     R: RngCore + CryptoRng,
     K: KeyStore,
-    K::StorageError: Send + Sync + 'static,
 {
     ClientKeys::generate_new(rng)
         .persist_keys(key_store)
@@ -60,8 +59,6 @@ async fn setup_new_gateway<K, D>(
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
-    K::StorageError: Send + Sync + 'static,
-    D::StorageError: Send + Sync + 'static,
 {
     tracing::trace!("Setting up new gateway");
 
@@ -165,7 +162,6 @@ pub async fn refresh_gateway_published_data<D>(
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     let gateway_id = registration.gateway_id().to_base58_string();
     tracing::trace!("Updating gateway details : {gateway_id}");
@@ -204,8 +200,6 @@ async fn use_loaded_gateway_details<K, D>(
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
-    K::StorageError: Send + Sync + 'static,
-    D::StorageError: Send + Sync + 'static,
 {
     let loaded_details = if let Some(gateway_id) = gateway_id {
         load_gateway_details(details_store, &gateway_id).await?
@@ -245,8 +239,6 @@ pub async fn setup_gateway<K, D>(
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
-    K::StorageError: Send + Sync + 'static,
-    D::StorageError: Send + Sync + 'static,
 {
     tracing::debug!("Setting up gateway");
     match setup {

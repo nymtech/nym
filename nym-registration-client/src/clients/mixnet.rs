@@ -19,7 +19,7 @@ pub struct MixnetBasedRegistrationClient {
     pub(crate) mixnet_client: MixnetClient,
     pub(crate) config: RegistrationClientConfig,
     pub(crate) mixnet_client_address: Recipient,
-    pub(crate) bandwidth_controller: Box<dyn BandwidthTicketProvider>,
+    pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
     pub(crate) cancel_token: CancellationToken,
     pub(crate) event_rx: EventReceiver,
 }
@@ -149,9 +149,9 @@ impl MixnetBasedRegistrationClient {
         );
 
         let entry_fut = entry_auth_client
-            .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardEntry);
+            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardEntry);
         let exit_fut = exit_auth_client
-            .register_wireguard(&*self.bandwidth_controller, TicketType::V1WireguardExit);
+            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardExit);
 
         let (entry, exit) = match Box::pin(
             self.cancel_token
@@ -204,7 +204,7 @@ impl MixnetBasedRegistrationClient {
             entry,
             exit,
             mixnet_listener,
-            self.bandwidth_controller,
+            self.bandwidth_provider,
         ))
     }
 

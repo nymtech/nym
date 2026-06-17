@@ -22,12 +22,10 @@ use nym_ecash_time::Date;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
-pub use event::BandwidthStatusMessage;
 pub use traits::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 
 pub mod acquire;
 pub mod error;
-mod event;
 pub mod mock;
 mod traits;
 mod utils;
@@ -72,10 +70,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         &self,
         ticketbook_type: TicketType,
         tickets: u32,
-    ) -> Result<RetrievedTicketbook, BandwidthControllerError>
-    where
-        <St as Storage>::StorageError: Send + Sync + 'static,
-    {
+    ) -> Result<RetrievedTicketbook, BandwidthControllerError> {
         let Some(ticketbook) = self
             .storage
             .get_next_unspent_usable_ticketbook(ticketbook_type.to_string(), tickets)
@@ -91,10 +86,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     pub async fn attempt_revert_ticket_usage(
         &self,
         info: PreparedCredentialMetadata,
-    ) -> Result<bool, BandwidthControllerError>
-    where
-        <St as Storage>::StorageError: Send + Sync + 'static,
-    {
+    ) -> Result<bool, BandwidthControllerError> {
         self.storage
             .attempt_revert_ticketbook_withdrawal(
                 info.ticketbook_id,
@@ -111,8 +103,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<VerificationKeyAuth, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
-        <St as Storage>::StorageError: Send + Sync + 'static,
+        C: DkgQueryClient,
     {
         get_aggregate_verification_key(&self.storage, epoch_id, ecash_apis).await
     }
@@ -123,8 +114,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<Vec<AnnotatedCoinIndexSignature>, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
-        <St as Storage>::StorageError: Send + Sync + 'static,
+        C: DkgQueryClient,
     {
         get_coin_index_signatures(&self.storage, epoch_id, ecash_apis).await
     }
@@ -136,8 +126,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         ecash_apis: &mut ApiClientsWrapper<'_, C>,
     ) -> Result<Vec<AnnotatedExpirationDateSignature>, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
-        <St as Storage>::StorageError: Send + Sync + 'static,
+        C: DkgQueryClient,
     {
         get_expiration_date_signatures(&self.storage, epoch_id, expiration_date, ecash_apis).await
     }
@@ -149,8 +138,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         mut retrieved_ticketbook: RetrievedTicketbook,
     ) -> Result<CredentialSpendingData, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
-        <St as Storage>::StorageError: Send + Sync + 'static,
+        C: DkgQueryClient,
     {
         let epoch_id = retrieved_ticketbook.ticketbook.epoch_id();
         let expiration_date = retrieved_ticketbook.ticketbook.expiration_date();
@@ -187,8 +175,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         tickets_to_spend: u32,
     ) -> Result<PreparedCredential, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
-        <St as Storage>::StorageError: Send + Sync + 'static,
+        C: DkgQueryClient,
     {
         let retrieved_ticketbook = self
             .get_next_usable_ticketbook(ticketbook_type, tickets_to_spend)
@@ -225,10 +212,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     pub async fn get_emergency_credential(
         &self,
         typ: &str,
-    ) -> Result<Option<EmergencyCredential>, BandwidthControllerError>
-    where
-        <St as Storage>::StorageError: Send + Sync + 'static,
-    {
+    ) -> Result<Option<EmergencyCredential>, BandwidthControllerError> {
         self.storage
             .get_emergency_credential(typ)
             .await

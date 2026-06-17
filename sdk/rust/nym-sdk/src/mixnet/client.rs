@@ -4,7 +4,7 @@
 use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use crate::mixnet::socks5_client::Socks5MixnetClient;
-use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
+use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
@@ -17,11 +17,9 @@ use nym_client_core::client::base_client::storage::helpers::{
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
+use nym_client_core::client::base_client::BaseClientBuilder;
 use nym_client_core::client::base_client::{BaseClient, EventSender};
 use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::client::{
-    base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
-};
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
@@ -141,12 +139,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
 impl<S> MixnetClientBuilder<S>
 where
     S: MixnetClientStorage + Clone + 'static,
-    S::ReplyStore: Send + Sync,
-    S::GatewaysDetailsStore: Sync,
-    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
@@ -485,12 +477,6 @@ where
 impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + Clone + 'static,
-    S::ReplyStore: Send + Sync,
-    S::GatewaysDetailsStore: Sync,
-    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at

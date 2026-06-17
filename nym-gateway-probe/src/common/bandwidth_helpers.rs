@@ -29,7 +29,6 @@ pub(crate) fn build_bandwidth_controller<S>(
 ) -> anyhow::Result<Box<dyn BandwidthTicketProvider>>
 where
     S: CredentialStorage + 'static,
-    S::StorageError: Send + Sync + 'static,
 {
     if !use_mock_ecash {
         let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(network)?;

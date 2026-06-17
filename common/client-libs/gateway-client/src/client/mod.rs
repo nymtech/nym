@@ -94,7 +94,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     shared_key: Option<Arc<SharedSymmetricKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
-    bandwidth_controller: Option<BandwidthController<C, St>>,
+    bandwidth_provider: Option<BandwidthController<C, St>>,
     stats_reporter: ClientStatsSender,
 
     negotiated_protocol: Option<GatewayProtocolVersion>,
@@ -116,7 +116,7 @@ impl<C, St> GatewayClient<C, St> {
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedSymmetricKey>>,
         packet_router: PacketRouter,
-        bandwidth_controller: Option<BandwidthController<C, St>>,
+        bandwidth_provider: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_token: ShutdownToken,
@@ -131,7 +131,7 @@ impl<C, St> GatewayClient<C, St> {
             shared_key,
             connection: SocketState::NotConnected,
             packet_router,
-            bandwidth_controller,
+            bandwidth_provider,
             stats_reporter,
             negotiated_protocol: None,
             #[cfg(unix)]
@@ -775,14 +775,13 @@ impl<C, St> GatewayClient<C, St> {
     fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
         // this is an unchecked method
         #[allow(clippy::unwrap_used)]
-        self.bandwidth_controller.as_ref().unwrap()
+        self.bandwidth_provider.as_ref().unwrap()
     }
 
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient + Send + Sync,
+        C: DkgQueryClient,
         St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         // TODO: make it configurable
         const TICKETS_TO_SPEND: u32 = 1;
@@ -794,7 +793,7 @@ impl<C, St> GatewayClient<C, St> {
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
-        if self.bandwidth_controller.is_none() && self.cfg.bandwidth.require_tickets {
+        if self.bandwidth_provider.is_none() && self.cfg.bandwidth.require_tickets {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
@@ -879,9 +878,8 @@ impl<C, St> GatewayClient<C, St> {
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient + Send + Sync,
+        C: DkgQueryClient,
         St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         debug!("Sending {} mix packets", packets.len());
 
@@ -950,9 +948,8 @@ impl<C, St> GatewayClient<C, St> {
     // TODO: possibly make responses optional
     pub async fn send_mix_packet(&mut self, mix_packet: MixPacket) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient + Send + Sync,
+        C: DkgQueryClient,
         St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -1060,9 +1057,8 @@ impl<C, St> GatewayClient<C, St> {
 
     pub async fn claim_initial_bandwidth(&mut self) -> Result<(), GatewayClientError>
     where
-        C: DkgQueryClient + Send + Sync,
+        C: DkgQueryClient,
         St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -1114,7 +1110,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
-            bandwidth_controller: None,
+            bandwidth_provider: None,
             stats_reporter: ClientStatsSender::new(None, shutdown_token.clone()),
             negotiated_protocol: None,
             #[cfg(unix)]
@@ -1126,7 +1122,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     pub fn upgrade<C, St>(
         self,
         packet_router: PacketRouter,
-        bandwidth_controller: Option<BandwidthController<C, St>>,
+        bandwidth_provider: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
         shutdown_token: ShutdownToken,
     ) -> GatewayClient<C, St> {
@@ -1146,7 +1142,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             shared_key: self.shared_key,
             connection: self.connection,
             packet_router,
-            bandwidth_controller,
+            bandwidth_provider,
             stats_reporter,
             negotiated_protocol: self.negotiated_protocol,
             #[cfg(unix)]

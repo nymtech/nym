@@ -6,8 +6,8 @@ use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519,
+        MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, StoragePaths,
+        x25519,
     },
 };
 
@@ -150,12 +150,6 @@ impl BuilderConfig {
     ) -> Result<MixnetClient, RegistrationClientError>
     where
         S: MixnetClientStorage + Clone + 'static,
-        S::ReplyStore: Send + Sync,
-        S::GatewaysDetailsStore: Sync,
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
     {
         let debug_config = self.mixnet_client_debug_config();
         let remember_me = match self.mode {

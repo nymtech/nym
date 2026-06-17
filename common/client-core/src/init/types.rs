@@ -141,8 +141,6 @@ impl InitialisationResult {
     where
         K: KeyStore,
         D: GatewaysDetailsStore,
-        K::StorageError: Send + Sync + 'static,
-        D::StorageError: Send + Sync + 'static,
     {
         use_loaded_gateway_details(key_store, details_store, None).await
     }
@@ -331,8 +329,6 @@ impl GatewaySetup {
     where
         K: KeyStore,
         D: GatewaysDetailsStore,
-        K::StorageError: Send + Sync + 'static,
-        D::StorageError: Send + Sync + 'static,
     {
         setup_gateway(self, key_store, details_store).await
     }

@@ -37,7 +37,7 @@ impl EcashClientsProvider for Vec<EcashApiClient> {
 
 impl<C> EcashClientsProvider for &mut ApiClientsWrapper<'_, C>
 where
-    C: DkgQueryClient + Sync + Send,
+    C: DkgQueryClient,
 {
     async fn try_get_ecash_clients(
         &mut self,
@@ -66,7 +66,7 @@ impl<'a, C> ApiClientsWrapper<'a, C> {
 
     async fn clients(&mut self) -> Result<Vec<EcashApiClient>, BandwidthControllerError>
     where
-        C: DkgQueryClient + Sync + Send,
+        C: DkgQueryClient,
     {
         match self {
             ApiClientsWrapper::Uninitialised {
@@ -117,7 +117,6 @@ pub(crate) async fn get_aggregate_verification_key<St>(
 ) -> Result<VerificationKeyAuth, BandwidthControllerError>
 where
     St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     if let Some(stored) = storage
         .get_master_verification_key(epoch_id)
@@ -158,7 +157,6 @@ pub(crate) async fn get_coin_index_signatures<St>(
 ) -> Result<Vec<AnnotatedCoinIndexSignature>, BandwidthControllerError>
 where
     St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     if let Some(stored) = storage
         .get_coin_index_signatures(epoch_id)
@@ -204,7 +202,6 @@ pub(crate) async fn get_expiration_date_signatures<St>(
 ) -> Result<Vec<AnnotatedExpirationDateSignature>, BandwidthControllerError>
 where
     St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     if let Some(stored) = storage
         .get_expiration_date_signatures(expiration_date, epoch_id)

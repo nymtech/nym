@@ -15,7 +15,6 @@ pub(crate) async fn import_master_verification_key<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     debug!(
         "attempting to import master verification key for epoch {}",
@@ -37,7 +36,6 @@ pub(crate) async fn import_expiration_date_signatures<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     debug!(
         "attempting to import expiration date signatures with expiration date at {} (epoch: {})",
@@ -59,7 +57,6 @@ pub(crate) async fn import_coin_index_signatures<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     debug!(
         "attempting to import coin index signatures for epoch {}",
@@ -81,7 +78,6 @@ pub(crate) async fn import_ticketbook<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     debug!(
         "attempting to import ticketbook with expiration date at {}",

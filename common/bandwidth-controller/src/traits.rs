@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -33,9 +32,8 @@ pub trait BandwidthTicketProvider: Send + Sync {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C, St> BandwidthTicketProvider for BandwidthController<C, St>
 where
-    C: DkgQueryClient + Sync + Send,
+    C: DkgQueryClient,
     St: nym_credential_storage::storage::Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     async fn get_ecash_ticket(
         &self,

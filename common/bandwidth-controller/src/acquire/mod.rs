@@ -65,7 +65,6 @@ pub async fn query_and_persist_required_global_data<S>(
 ) -> Result<(), BandwidthControllerError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     log::info!("Getting master verification key");
     // this will also persist the key in the storage if was not there already
@@ -88,9 +87,8 @@ pub async fn get_ticket_book<C, St>(
     apis: Option<Vec<EcashApiClient>>,
 ) -> Result<IssuedTicketBook, BandwidthControllerError>
 where
-    C: DkgQueryClient + Send + Sync,
+    C: DkgQueryClient,
     St: Storage,
-    <St as Storage>::StorageError: Send + Sync + 'static,
 {
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client

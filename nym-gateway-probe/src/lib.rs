@@ -429,7 +429,7 @@ impl Probe {
         let mixnet_client = if self.config.test_mode.needs_mixnet() {
             Some(
                 tokio::time::timeout(
-                    std::time::Duration::from_secs(30),
+                    std::time::Duration::from_secs(90),
                     disconnected_mixnet_client.connect_to_mixnet(),
                 )
                 .await

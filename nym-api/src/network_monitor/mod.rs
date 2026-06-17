@@ -19,7 +19,8 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::nyxd;
 use futures::channel::mpsc;
-use nym_bandwidth_controller::BandwidthController;
+use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
+use nym_bandwidth_controller::{BandwidthController, NyxdGlobalDataFetcher};
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
@@ -119,15 +120,19 @@ impl<'a> NetworkMonitorBuilder<'a> {
                         .credentials_database_path,
                 )
                 .await,
-                self.nyxd_client.clone(),
             )
+            .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(
+                self.nyxd_client.clone(),
+            ))
         };
+
+        let bandwidth_request_sender = bandwidth_controller.get_request_sender();
 
         let packet_sender = new_packet_sender(
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
-            bandwidth_controller,
+            bandwidth_request_sender,
             shutdown_token,
         );
 
@@ -156,6 +161,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         NetworkMonitorRunnables {
             monitor,
             packet_receiver,
+            bandwidth_controller,
         }
     }
 }
@@ -163,6 +169,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 pub(crate) struct NetworkMonitorRunnables<R: MessageReceiver + Send + Sync + 'static> {
     monitor: Monitor<R>,
     packet_receiver: PacketReceiver,
+    bandwidth_controller: BandwidthController<PersistentStorage>,
 }
 
 impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
@@ -172,6 +179,10 @@ impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
     pub(crate) fn spawn_tasks(self, shutdown: &ShutdownManager) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
+        let bandwidth_controller = self.bandwidth_controller;
+
+        let shutdown_listener = shutdown.clone_shutdown_token();
+        tokio::spawn(async move { bandwidth_controller.run(shutdown_listener).await });
         let shutdown_listener = shutdown.clone_shutdown_token();
         tokio::spawn(async move { packet_receiver.run(shutdown_listener).await });
         let shutdown_listener = shutdown.clone_shutdown_token();
@@ -203,14 +214,14 @@ fn new_packet_sender(
     config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<ed25519::KeyPair>,
-    bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+    bandwidth_request_sender: BandwidthControllerRequestSender,
     shutdown_token: ShutdownToken,
 ) -> PacketSender {
     PacketSender::new(
         config,
         gateways_status_updater,
         local_identity,
-        bandwidth_controller,
+        bandwidth_request_sender,
         shutdown_token,
     )
 }

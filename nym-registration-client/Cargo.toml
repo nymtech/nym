@@ -19,6 +19,7 @@ bytes.workspace = true
 futures.workspace = true
 rand09.workspace = true
 thiserror.workspace = true
+time.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
@@ -34,7 +35,6 @@ nym-lp = { path = "../common/nym-lp" }
 nym-lp-data.workspace = true
 nym-registration-common = { workspace = true }
 nym-sdk = { workspace = true }
-nym-validator-client = { workspace = true }
 nym-wireguard-types = { path = "../common/wireguard-types" }
 
 [dev-dependencies]

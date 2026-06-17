@@ -14,7 +14,7 @@ use nym_ecash_time::EcashTime;
 use nym_validator_client::nym_api::EpochId;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use time::Date;
+use time::{Date, OffsetDateTime};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const CURRENT_SERIALIZATION_REVISION: u8 = 1;
@@ -119,8 +119,12 @@ impl IssuedTicketBook {
         &self.signatures_wallet
     }
 
-    pub fn generate_pay_info(&self, provider_pk: [u8; 32]) -> NymPayInfo {
-        NymPayInfo::generate(provider_pk)
+    pub fn generate_pay_info(
+        &self,
+        provider_pk: [u8; 32],
+        spend_time: OffsetDateTime,
+    ) -> NymPayInfo {
+        NymPayInfo::generate(provider_pk, spend_time)
     }
 
     pub fn prepare_for_spending<BI, BE>(

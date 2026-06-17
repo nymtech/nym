@@ -8,6 +8,7 @@ use nym_registration_common::WireguardConfiguration;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tracing::{debug, error, trace, warn};
 
 use crate::error::Result;
@@ -208,12 +209,12 @@ impl AuthenticatorClient {
 
     async fn produce_bandwidth_claim(
         &self,
-        controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         upgrade_mode_enabled: bool,
         ticketbook_type: TicketType,
     ) -> Result<BandwidthClaim> {
         if upgrade_mode_enabled {
-            match controller
+            match bandwidth_provider
                 .get_upgrade_mode_token()
                 .await
                 .map_err(|source| AuthenticationClientError::UpgradeModeToken { source })?
@@ -233,17 +234,19 @@ impl AuthenticatorClient {
             }
         }
 
-        let credential = controller
+        let credential = bandwidth_provider
             .get_ecash_ticket(
                 ticketbook_type,
                 self.auth_recipient.gateway(),
                 DEFAULT_TICKETS_TO_SPEND,
+                OffsetDateTime::now_utc(),
             )
             .await
             .map_err(|source| AuthenticationClientError::GetTicket {
                 ticketbook_type,
                 source,
             })?
+            .ok_or(AuthenticationClientError::NoTicketsAvailable { ticketbook_type })?
             .data;
 
         let credential = credential
@@ -259,7 +262,7 @@ impl AuthenticatorClient {
 
     pub async fn register_wireguard(
         &mut self,
-        controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticketbook_type: TicketType,
     ) -> std::result::Result<WireguardConfiguration, RegistrationError> {
         debug!("Registering with the wg gateway...");
@@ -314,7 +317,11 @@ impl AuthenticatorClient {
                     .is_enabled();
 
                 let bandwidth_claim = self
-                    .produce_bandwidth_claim(controller, upgrade_mode_enabled, ticketbook_type)
+                    .produce_bandwidth_claim(
+                        bandwidth_provider,
+                        upgrade_mode_enabled,
+                        ticketbook_type,
+                    )
                     .await
                     .map_err(|source| RegistrationError::CredentialSent { source })?;
 

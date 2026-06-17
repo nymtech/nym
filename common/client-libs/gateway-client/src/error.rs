@@ -59,9 +59,6 @@ pub enum GatewayClientError {
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
 
-    #[error("No bandwidth controller provided")]
-    NoBandwidthControllerAvailable,
-
     #[error("Bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 

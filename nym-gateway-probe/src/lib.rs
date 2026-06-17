@@ -27,6 +27,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use tracing::*;
 
@@ -177,10 +178,21 @@ impl Probe {
 
             let credential = match bandwidth
                 .provider
-                .get_ecash_ticket(bandwidth.ticket_type, bandwidth.credential_provider, 1)
+                .get_ecash_ticket(
+                    bandwidth.ticket_type,
+                    bandwidth.credential_provider,
+                    1,
+                    OffsetDateTime::now_utc(),
+                )
                 .await
             {
-                Ok(ticket) => ticket.data,
+                Ok(Some(ticket)) => ticket.data,
+                Ok(None) => {
+                    error!("Failed to get ecash ticket: No tickets available");
+                    last_error =
+                        Some("Failed to get ecash ticket: No tickets available".to_string());
+                    break;
+                }
                 Err(e) => {
                     error!("Failed to get ecash ticket: {e}");
                     last_error = Some(format!("Failed to get ecash ticket: {e}"));
@@ -848,8 +860,14 @@ impl Probe {
                     };
 
                     let credential = bandwith_provider
-                        .get_ecash_ticket(wg_ticket_type, credential_provider, 1)
+                        .get_ecash_ticket(
+                            wg_ticket_type,
+                            credential_provider,
+                            1,
+                            OffsetDateTime::now_utc(),
+                        )
                         .await?
+                        .ok_or(anyhow::anyhow!("No tickets available"))?
                         .data;
 
                     let outcome = wg_probe(

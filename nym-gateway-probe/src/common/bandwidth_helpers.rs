@@ -1,9 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{Context, bail};
+use anyhow::bail;
 use nym_bandwidth_controller::BandwidthTicketProvider;
-use nym_bandwidth_controller::error::BandwidthControllerError;
 use nym_bandwidth_controller::mock::MockBandwidthController;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_credentials::{
@@ -14,7 +13,6 @@ use nym_credentials_interface::TicketType;
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::bandwidth::BandwidthImporter;
 use nym_sdk::mixnet::{CredentialStorage, DisconnectedMixnetClient, EphemeralCredentialStorage};
-use nym_validator_client::nyxd::error::NyxdError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -31,8 +29,9 @@ where
     S: CredentialStorage + 'static,
 {
     if !use_mock_ecash {
+        // the controller owns the storage; it fetches any missing global ecash data from the
+        // nym-apis via a nyxd-backed public data fetcher.
         let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(network)?;
-
         let nyxd_url = network
             .endpoints
             .first()
@@ -42,7 +41,10 @@ where
             nym_validator_client::nyxd::NyxdClient::connect(config, nyxd_url.as_str())?;
 
         Ok(Box::new(
-            nym_bandwidth_controller::BandwidthController::new(storage, rpc_client),
+            nym_bandwidth_controller::BandwidthController::new(storage)
+                .with_credential_public_data_fetcher(
+                    nym_bandwidth_controller::NyxdGlobalDataFetcher::new(rpc_client),
+                ),
         ))
     } else {
         Ok(Box::new(MockBandwidthController::default()))

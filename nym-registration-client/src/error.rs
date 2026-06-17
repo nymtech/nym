@@ -26,15 +26,6 @@ pub enum RegistrationClientError {
     )]
     AuthenticationNotPossible { node_id: String },
 
-    #[error("Failed to create nyxd client config")]
-    FailedToCreateNyxdClientConfig(nym_validator_client::nyxd::error::NyxdError),
-
-    #[error("failed to parse nyxd_url")]
-    InvalidNyxdUrl,
-
-    #[error("Failed to connect using nyxd client")]
-    FailedToConnectUsingNyxdClient(nym_validator_client::nyxd::error::NyxdError),
-
     #[error("connection cancelled")]
     Cancelled,
 

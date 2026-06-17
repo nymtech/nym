@@ -11,6 +11,7 @@ use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials_interface::TicketType;
 use std::path::PathBuf;
+use time::OffsetDateTime;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -105,7 +106,9 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
     let next_ticket = args
         .ticket_index
         .unwrap_or(next_ticketbook.ticketbook.spent_tickets());
-    let pay_info = next_ticketbook.ticketbook.generate_pay_info(provider_arr);
+    let pay_info = next_ticketbook
+        .ticketbook
+        .generate_pay_info(provider_arr, OffsetDateTime::now_utc());
 
     println!("{}", "TICKETBOOK DATA:".bold());
     println!("{}", bs58::encode(&ticketbook_data.data).into_string());

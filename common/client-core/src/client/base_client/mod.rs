@@ -36,10 +36,11 @@ use crate::init::{
     types::{GatewaySetup, InitialisationResult},
 };
 use futures::channel::mpsc;
-use nym_bandwidth_controller::BandwidthController;
+use nym_bandwidth_controller::{
+    BandwidthController, BandwidthTicketProvider, NyxdGlobalDataFetcher,
+};
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::GatewayDetails;
-use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
@@ -214,6 +215,7 @@ impl From<bool> for CredentialsToggle {
 pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     config: Config,
     client_store: S,
+    // when present, used to build a nyxd-backed public data fetcher for the bandwidth controller
     dkg_query_client: Option<C>,
 
     // Optional API URLs for domain fronting support
@@ -223,6 +225,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
     wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
+    custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
     shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
     user_agent: Option<UserAgent>,
@@ -254,6 +257,7 @@ where
             wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            custom_bandwidth_provider: None,
             shutdown: None,
             event_tx: None,
             user_agent: None,
@@ -325,6 +329,15 @@ where
     #[must_use]
     pub fn with_gateway_transceiver(mut self, sender: Box<dyn GatewayTransceiver + Send>) -> Self {
         self.custom_gateway_transceiver = Some(sender);
+        self
+    }
+
+    #[must_use]
+    pub fn with_custom_bandwidth_provider(
+        mut self,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
+    ) -> Self {
+        self.custom_bandwidth_provider = Some(bandwidth_provider);
         self
     }
 
@@ -536,12 +549,12 @@ where
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,
-        bandwidth_provider: Option<BandwidthController<C, S::CredentialStore>>,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError> {
+    ) -> Result<GatewayClient, ClientCoreError> {
         let managed_keys = initialisation_result.client_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
         else {
@@ -611,7 +624,7 @@ where
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
         initialisation_result: InitialisationResult,
-        bandwidth_provider: Option<BandwidthController<C, S::CredentialStore>>,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
@@ -782,6 +795,34 @@ where
             input_sender.clone(),
             shutdown_tracker,
         )
+    }
+
+    fn start_bandwidth_controller(
+        custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
+        public_data_fetcher_client: Option<C>,
+        credential_store: S::CredentialStore,
+        shutdown_tracker: &ShutdownTracker,
+    ) -> Box<dyn BandwidthTicketProvider> {
+        // if an externally managed bandwidth controller was provided, use it as-is and
+        // don't spin up our own.
+        if let Some(provider) = custom_bandwidth_provider {
+            return provider;
+        }
+
+        let mut bandwidth_controller = BandwidthController::new(credential_store);
+        // if a dkg query client is available, attach a nyxd-backed public data fetcher so the
+        // controller can fetch any missing global ecash data itself.
+        if let Some(client) = public_data_fetcher_client {
+            bandwidth_controller = bandwidth_controller
+                .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(client));
+        }
+        let request_sender = bandwidth_controller.get_request_sender();
+        let shutdown_token = shutdown_tracker.clone_shutdown_token();
+        shutdown_tracker.try_spawn_named(
+            async move { bandwidth_controller.run(shutdown_token).await },
+            "BandwidthController",
+        );
+        Box::new(request_sender)
     }
 
     fn start_mix_traffic_controller(
@@ -998,21 +1039,8 @@ where
         let encryption_keys = init_res.client_keys.encryption_keypair();
         let identity_keys = init_res.client_keys.identity_keypair();
 
-        let credential_store_for_close = credential_store.clone();
-        let close_credential_token = shutdown_tracker.clone_shutdown_token();
-        shutdown_tracker.try_spawn_named(
-            async move {
-                close_credential_token.cancelled().await;
-                credential_store_for_close.close().await;
-            },
-            "CredentialStorage::close_on_shutdown",
-        );
-
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        let bandwidth_provider = self
-            .dkg_query_client
-            .map(|client| BandwidthController::new(credential_store, client));
 
         let nym_api_client = Self::construct_nym_api_client(
             self.nym_api_urls.as_ref(),
@@ -1034,6 +1062,13 @@ where
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
             &shutdown_tracker.clone(),
+        );
+
+        let bandwidth_provider = Self::start_bandwidth_controller(
+            self.custom_bandwidth_provider,
+            self.dkg_query_client,
+            credential_store,
+            &shutdown_tracker,
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway

@@ -26,7 +26,7 @@ impl BandwidthControllerRequestSender {
         Self { command_tx }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), level = "debug")]
     pub async fn get_ecash_ticket(
         &self,
         ticket_type: TicketType,

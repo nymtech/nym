@@ -49,7 +49,7 @@ impl BandwidthControllerRequestSender {
         rx.await.map_err(BandwidthControllerError::internal)?
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), level = "debug")]
     pub async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
@@ -58,7 +58,7 @@ impl BandwidthControllerRequestSender {
         rx.await.map_err(BandwidthControllerError::internal)?
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), level = "debug")]
     pub async fn attempt_revert_spending(
         &self,
         metadata: PreparedCredentialMetadata,

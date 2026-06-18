@@ -58,7 +58,7 @@ pub const NYM_COM_DOMAIN: &str = "nym.com";
 pub const NYM_COM_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(76, 76, 21, 22))];
 
 pub const NYM_STATS_API_DOMAIN: &str = "nym-statistics-api.nymtech.cc";
-pub const NYM_STATS_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(195, 19, 29, 32))];
+pub const NYM_STATS_API_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(185, 19, 29, 32))];
 
 pub const NYM_RPC_DOMAIN: &str = "rpc.nymtech.net";
 pub const NYM_RPC_IPS: &[IpAddr] = &[

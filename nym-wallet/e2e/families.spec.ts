@@ -55,7 +55,9 @@ test.describe('Families flows (mock-wired app shell)', () => {
     await expect(page.getByTestId(TID.memberJoined(ownerFlow))).toHaveCount(0);
     await shot(page, testInfo, 'member kicked');
 
-    // disband the now-empty family
+    // disband the now-empty family via settings
+    await page.getByTestId(TID.familySettingsButton).click();
+    await expect(page.getByTestId(TID.familySettingsPage)).toBeVisible();
     await page.getByTestId(TID.deleteButton).click();
     await page.getByTestId(TID.deleteConfirm).click();
     await expect(page.getByTestId(TID.createFamilyName)).toBeVisible();
@@ -72,16 +74,18 @@ test.describe('Families flows (mock-wired app shell)', () => {
     const acceptSection = page.getByTestId(TID.operatorNodeSection(operatorAccept));
     await acceptSection.getByTestId(TID.acceptCard(fid)).click();
     await page.getByTestId(TID.acceptConfirm(fid)).click();
-    // joined → a Leave action appears for that node
-    await expect(acceptSection.getByTestId(TID.leaveButton)).toBeVisible();
+    // joined → Leave appears on the My family tab
+    await page.getByTestId(TID.tabOwner).click();
+    await expect(page.getByTestId(TID.myNodeFamily(operatorAccept))).toBeVisible();
     await shot(page, testInfo, 'invite accepted');
 
     // leave the family
-    await acceptSection.getByTestId(TID.leaveButton).click();
+    await page.getByTestId(TID.leaveButton).click();
     await page.getByTestId(TID.leaveConfirm).click();
     await shot(page, testInfo, 'family left');
 
     // reject the invite on the reject-node → its group ends empty
+    await openOperatorTab(page);
     await page.getByTestId(TID.operatorNodeSection(operatorReject)).getByTestId(TID.rejectCard(fid)).click();
     await page.getByTestId(TID.rejectConfirm(fid)).click();
     await expect(page.getByTestId(TID.inviteGroupEmpty(operatorReject))).toBeVisible();

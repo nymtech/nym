@@ -8,6 +8,7 @@ import { ErrorFallback } from './components';
 import { ApplicationLayout } from './layouts';
 import { NymWalletTheme } from './theme';
 import { FamilyPage } from './pages/families/FamilyPage';
+import { FamilySettingsPage } from './pages/families/FamilySettingsPage';
 import { MockMainContextProvider } from './context/mocks/main';
 import { MockFamiliesContextProvider } from './context/mocks/families';
 import {
@@ -48,6 +49,12 @@ if (!window.location.hash || window.location.hash === '#' || window.location.has
 // Deterministic client for e2e: no retries, no cache carry-over between runs.
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
+const FamiliesMockShell = ({ children }: { children: React.ReactNode }) => (
+  <MockFamiliesContextProvider store={store} sender={sender} latencyMs={0}>
+    {children}
+  </MockFamiliesContextProvider>
+);
+
 const MockApp = () => (
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <HashRouter>
@@ -61,9 +68,17 @@ const MockApp = () => (
                   <Route
                     path="/family"
                     element={
-                      <MockFamiliesContextProvider store={store} sender={sender} latencyMs={0}>
+                      <FamiliesMockShell>
                         <FamilyPage />
-                      </MockFamiliesContextProvider>
+                      </FamiliesMockShell>
+                    }
+                  />
+                  <Route
+                    path="/family/settings"
+                    element={
+                      <FamiliesMockShell>
+                        <FamilySettingsPage />
+                      </FamiliesMockShell>
                     }
                   />
                 </Routes>

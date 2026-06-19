@@ -1,19 +1,16 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Divider, Stack, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useFamiliesContext, useFamilyById, useFamilyMembership, useOperatorNodeInvites } from 'src/context/families';
-import { LeaveFamilyButton, NodeInviteGroup, familyErrorMessage } from 'src/components/Families';
-import { NymCard } from 'src/components/NymCard';
+import { FamilyContentPanel, NodeInviteGroup, familyErrorMessage } from 'src/components/Families';
 
 const OperatorNodeSection = ({ nodeId }: { nodeId: number }) => {
   const ctx = useFamiliesContext();
   const invites = useOperatorNodeInvites(nodeId);
   const membership = useFamilyMembership(nodeId);
+  const memberFamily = useFamilyById(membership.data?.family_id ?? undefined);
   const { enqueueSnackbar } = useSnackbar();
-
-  const familyId = membership.data?.family_id ?? undefined;
-  const family = useFamilyById(familyId);
 
   const handleAccept = async (fid: number) => {
     try {
@@ -33,32 +30,20 @@ const OperatorNodeSection = ({ nodeId }: { nodeId: number }) => {
     }
   };
 
-  const handleLeave = async () => {
-    try {
-      await ctx.leaveFamily({ node_id: nodeId });
-      enqueueSnackbar('Left family', { variant: 'success' });
-    } catch (e) {
-      enqueueSnackbar(familyErrorMessage(e), { variant: 'error' });
-    }
-  };
+  const actionBusy = ctx.executingAction === 'accept' || ctx.executingAction === 'reject';
 
   return (
     <Stack spacing={2} data-testid={`operator-node-${nodeId}`}>
-      {familyId !== undefined && family.data && (
-        <NymCard title="Current family" data-testid={`operator-node-${nodeId}-family`}>
-          <Stack spacing={2}>
-            <Typography variant="body2">
-              Node {nodeId} is a member of <strong>{family.data.name}</strong>.
-            </Typography>
-            <LeaveFamilyButton familyName={family.data.name} isBusy={ctx.isExecuting} onLeave={handleLeave} />
-          </Stack>
-        </NymCard>
-      )}
+      <Typography variant="subtitle1" fontWeight={600}>
+        Node {nodeId}
+      </Typography>
       <NodeInviteGroup
+        embedded
         nodeId={nodeId}
         invites={invites.data ?? []}
+        memberFamilyName={memberFamily.data?.name}
         nowSecs={ctx.nowSecs}
-        isBusy={ctx.isExecuting}
+        isBusy={actionBusy}
         onAccept={handleAccept}
         onReject={handleReject}
       />
@@ -66,25 +51,28 @@ const OperatorNodeSection = ({ nodeId }: { nodeId: number }) => {
   );
 };
 
-/** Operator surface — pending invites per controlled node, plus leave for member nodes. */
+/** Operator surface: pending invites per controlled node. */
 export const OperatorInvitesPage = () => {
   const { controlledNodeIds } = useFamiliesContext();
 
   if (controlledNodeIds.length === 0) {
     return (
-      <NymCard title="Node invites" data-testid="operator-invites-empty">
+      <FamilyContentPanel data-testid="operator-invites-empty">
         <Typography variant="body2" color="text.secondary">
           You do not control any bonded nodes, so there are no family invites to show.
         </Typography>
-      </NymCard>
+      </FamilyContentPanel>
     );
   }
 
   return (
-    <Stack spacing={3} data-testid="operator-invites-page">
-      {controlledNodeIds.map((nodeId) => (
-        <OperatorNodeSection key={nodeId} nodeId={nodeId} />
+    <FamilyContentPanel data-testid="operator-invites-page">
+      {controlledNodeIds.map((nodeId, index) => (
+        <React.Fragment key={nodeId}>
+          {index > 0 && <Divider />}
+          <OperatorNodeSection nodeId={nodeId} />
+        </React.Fragment>
       ))}
-    </Stack>
+    </FamilyContentPanel>
   );
 };

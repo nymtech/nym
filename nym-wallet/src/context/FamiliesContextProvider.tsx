@@ -5,8 +5,9 @@ import * as familyRequests from 'src/requests/families';
 import { Console } from 'src/utils/console';
 import { FamilyTxResult, NodeId } from 'src/types/families';
 import { isMixnode, isNymNode } from 'src/types/global';
+import { useNowSecs } from 'src/hooks/useNowSecs';
 import { AppContext } from './main';
-import { FamiliesContext, TFamiliesContext, defaultQueries } from './families';
+import { FamiliesContext, FamilyExecutingAction, TFamiliesContext, defaultQueries } from './families';
 import { useBondingContext } from './bonding';
 import { familyQueryKeys } from './familyQueryKeys';
 
@@ -20,13 +21,13 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
   const { clientDetails } = useContext(AppContext);
   const ownerAddress = clientDetails?.client_address;
 
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [executingAction, setExecutingAction] = useState<FamilyExecutingAction>(null);
   const [error, setError] = useState<string>();
 
   // The operator persona is "nodes I control". An account bonds at most one node,
-  // so this is the bonded node's id (the unified mixnet node id — `nodeId` for a
-  // nym-node, `mixId` for a legacy mixnode), or none for a gateway / no bond
-  // (design D3). Sourced from the `BondingContext` the families route now wraps.
+  // so this is the bonded node's id (the unified mixnet node id: `nodeId` for a
+  // nym-node, `mixId` for a legacy mixnode), or none for a gateway / no bond.
+  // Sourced from the `BondingContext` the families route now wraps.
   const { bondedNode } = useBondingContext();
   const controlledNodeIds = useMemo<NodeId[]>(() => {
     if (!bondedNode) return [];
@@ -35,7 +36,7 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
     return [];
   }, [bondedNode]);
 
-  const nowSecs = useMemo(() => Math.floor(Date.now() / 1000), []);
+  const nowSecs = useNowSecs();
 
   const refreshAll = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: familyQueryKeys.all });
@@ -45,8 +46,8 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
 
   /** Run an execute call: toggle flag, surface + rethrow errors, refresh reads on success. */
   const run = useCallback(
-    async (op: () => Promise<FamilyTxResult>): Promise<FamilyTxResult> => {
-      setIsExecuting(true);
+    async (action: NonNullable<FamilyExecutingAction>, op: () => Promise<FamilyTxResult>): Promise<FamilyTxResult> => {
+      setExecutingAction(action);
       setError(undefined);
       try {
         const result = await op();
@@ -58,11 +59,13 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
         Console.error(e);
         throw e;
       } finally {
-        setIsExecuting(false);
+        setExecutingAction(null);
       }
     },
     [refreshAll],
   );
+
+  const isExecuting = executingAction !== null;
 
   const memoizedValue = useMemo<TFamiliesContext>(
     () => ({
@@ -71,20 +74,21 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
       nowSecs,
       queries: defaultQueries,
       isExecuting,
+      executingAction,
       error,
       clearError,
       refreshAll,
-      createFamily: (args) => run(() => familyRequests.createFamily(args)),
-      updateFamily: (args) => run(() => familyRequests.updateFamily(args)),
-      disbandFamily: () => run(() => familyRequests.disbandFamily()),
-      inviteToFamily: (args) => run(() => familyRequests.inviteToFamily(args)),
-      revokeFamilyInvitation: (args) => run(() => familyRequests.revokeFamilyInvitation(args)),
-      kickFromFamily: (args) => run(() => familyRequests.kickFromFamily(args)),
-      acceptFamilyInvitation: (args) => run(() => familyRequests.acceptFamilyInvitation(args)),
-      rejectFamilyInvitation: (args) => run(() => familyRequests.rejectFamilyInvitation(args)),
-      leaveFamily: (args) => run(() => familyRequests.leaveFamily(args)),
+      createFamily: (args) => run('create', () => familyRequests.createFamily(args)),
+      updateFamily: (args) => run('update', () => familyRequests.updateFamily(args)),
+      disbandFamily: () => run('disband', () => familyRequests.disbandFamily()),
+      inviteToFamily: (args) => run('invite', () => familyRequests.inviteToFamily(args)),
+      revokeFamilyInvitation: (args) => run('revoke', () => familyRequests.revokeFamilyInvitation(args)),
+      kickFromFamily: (args) => run('kick', () => familyRequests.kickFromFamily(args)),
+      acceptFamilyInvitation: (args) => run('accept', () => familyRequests.acceptFamilyInvitation(args)),
+      rejectFamilyInvitation: (args) => run('reject', () => familyRequests.rejectFamilyInvitation(args)),
+      leaveFamily: (args) => run('leave', () => familyRequests.leaveFamily(args)),
     }),
-    [ownerAddress, controlledNodeIds, nowSecs, isExecuting, error, clearError, refreshAll, run],
+    [ownerAddress, controlledNodeIds, nowSecs, isExecuting, executingAction, error, clearError, refreshAll, run],
   );
 
   return <FamiliesContext.Provider value={memoizedValue}>{children}</FamiliesContext.Provider>;

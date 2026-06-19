@@ -1,35 +1,37 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useState } from 'react';
-import { alpha, Theme, useTheme } from '@mui/material/styles';
-import { Box, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { SettingsOutlined } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { NodeFamily, PendingMemberRow } from 'src/types/families';
 import {
   useFamiliesContext,
   useFamilyConfig,
   useFamilyMemberList,
+  useFamilyMembership,
   usePendingInvitationsForFamily,
 } from 'src/context/families';
 import {
   CreateFamilyForm,
-  DeleteFamilyButton,
-  EditFamilyForm,
+  FamilyContentPanel,
   familyErrorMessage,
+  FamilyMembersTable,
   InviteNodeForm,
   InviteWarning,
   inviteWarningFromError,
-  MemberList,
-  PendingInvitesList,
+  MyNodeFamilySection,
 } from 'src/components/Families';
-import { NymCard } from 'src/components/NymCard';
 import { formatCoin } from 'src/components/Families/helpers';
+import { alpha, Theme } from '@mui/material/styles';
 
 export interface OwnerManagementPageProps {
   family: NodeFamily;
 }
 
 const StatTile = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <Box
+  <Stack
+    spacing={0.5}
     sx={{
       flex: 1,
       minWidth: 120,
@@ -43,28 +45,50 @@ const StatTile = ({ label, value }: { label: string; value: React.ReactNode }) =
     <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
       {label}
     </Typography>
-    <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
+    <Typography variant="h6" fontWeight={600}>
       {value}
     </Typography>
-  </Box>
+  </Stack>
 );
 
-/** Composed owner management surface (Family Detail) — shown when the account owns a family. */
+const ControlledNodeSections = ({
+  onLeave,
+  managedFamily,
+}: {
+  onLeave: (nodeId: number) => void;
+  managedFamily?: NodeFamily;
+}) => {
+  const { controlledNodeIds } = useFamiliesContext();
+  if (controlledNodeIds.length === 0) return null;
+
+  return (
+    <>
+      {controlledNodeIds.map((nodeId) => (
+        <MyNodeFamilySection
+          key={nodeId}
+          nodeId={nodeId}
+          managedFamilyId={managedFamily?.id}
+          managedFamilyName={managedFamily?.name}
+          onLeave={() => onLeave(nodeId)}
+        />
+      ))}
+    </>
+  );
+};
+
+/** Composed owner management surface (Family Detail), shown when the account owns a family. */
 export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
-  const theme = useTheme();
+  const navigate = useNavigate();
   const ctx = useFamiliesContext();
   const config = useFamilyConfig();
   const memberList = useFamilyMemberList(family.id);
   const pending = usePendingInvitationsForFamily(family.id);
   const { enqueueSnackbar } = useSnackbar();
 
-  const [editError, setEditError] = useState<string>();
   const [inviteWarning, setInviteWarning] = useState<InviteWarning>();
   const [inviteError, setInviteError] = useState<string>();
-  const [deleteError, setDeleteError] = useState<string>();
 
-  const nameLimit = config.data?.family_name_length_limit ?? 30;
-  const descLimit = config.data?.family_description_length_limit ?? 120;
+  const actionBusy = ctx.executingAction !== null;
 
   const pendingRows: PendingMemberRow[] = (pending.data ?? []).map((d) => ({
     section: 'pending',
@@ -73,21 +97,15 @@ export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
     expired: d.expired,
   }));
 
-  const handleEdit = async (updatedName: string | null, updatedDescription: string | null) => {
-    setEditError(undefined);
-    try {
-      await ctx.updateFamily({ updated_name: updatedName, updated_description: updatedDescription });
-      enqueueSnackbar('Family updated', { variant: 'success' });
-    } catch (e) {
-      setEditError(familyErrorMessage(e));
-    }
-  };
-
   const handleInvite = async (nodeId: number) => {
     setInviteWarning(undefined);
     setInviteError(undefined);
     try {
-      await ctx.inviteToFamily({ node_id: nodeId });
+      await ctx.inviteToFamily({
+        node_id: nodeId,
+        validity_secs: config.data?.default_invitation_validity_secs,
+      });
+      await pending.refetch();
       enqueueSnackbar(`Invite sent to node ${nodeId}`, { variant: 'success' });
     } catch (e) {
       const warning = inviteWarningFromError(e);
@@ -114,92 +132,105 @@ export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
     }
   };
 
-  const handleDelete = async () => {
-    setDeleteError(undefined);
+  const handleLeave = async (nodeId: number) => {
     try {
-      await ctx.disbandFamily();
-      enqueueSnackbar('Family dissolved', { variant: 'success' });
+      await ctx.leaveFamily({ node_id: nodeId });
+      enqueueSnackbar('Left family', { variant: 'success' });
     } catch (e) {
-      setDeleteError(familyErrorMessage(e));
+      enqueueSnackbar(familyErrorMessage(e), { variant: 'error' });
     }
   };
 
   return (
-    <Stack spacing={3} data-testid="owner-management-page">
-      <NymCard title={family.name} subheader={family.description} data-testid="family-summary">
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <StatTile label="Members" value={family.members} />
-          <StatTile label="Family ID" value={`#${family.id}`} />
-          <StatTile label="Refundable bond" value={formatCoin(family.paid_fee)} />
+    <Stack spacing={3}>
+      <ControlledNodeSections onLeave={handleLeave} managedFamily={family} />
+
+      <FamilyContentPanel data-testid="owner-management-page">
+        <Stack spacing={1} data-testid="family-summary">
+          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={2}>
+            <Stack spacing={1} sx={{ minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={600}>
+                {family.name}
+              </Typography>
+              {family.description && (
+                <Typography variant="body2" color="text.secondary">
+                  {family.description}
+                </Typography>
+              )}
+            </Stack>
+            <Button
+              variant="text"
+              color="secondary"
+              startIcon={<SettingsOutlined />}
+              onClick={() => navigate('/family/settings')}
+              data-testid="family-settings-button"
+              sx={{ flexShrink: 0 }}
+            >
+              Family Settings
+            </Button>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ pt: 1 }}>
+            <StatTile label="Members" value={family.members} />
+            <StatTile label="Family ID" value={`#${family.id}`} />
+            <StatTile label="Refundable bond" value={formatCoin(family.paid_fee)} />
+          </Stack>
         </Stack>
-      </NymCard>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <EditFamilyForm
-            initialName={family.name}
-            initialDescription={family.description}
-            nameLimit={nameLimit}
-            descriptionLimit={descLimit}
-            isSubmitting={ctx.isExecuting}
-            errorMessage={editError}
-            onSubmit={handleEdit}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InviteNodeForm
-            isSubmitting={ctx.isExecuting}
-            warning={inviteWarning}
-            errorMessage={inviteError}
-            onSubmit={handleInvite}
-          />
-        </Grid>
-      </Grid>
+        <Divider />
 
-      <PendingInvitesList
-        invites={pendingRows}
-        nowSecs={ctx.nowSecs}
-        isBusy={ctx.isExecuting}
-        onRevoke={handleRevoke}
-        onClearExpired={handleRevoke}
-      />
-
-      <MemberList
-        sections={memberList.sections}
-        nowSecs={ctx.nowSecs}
-        isLoading={memberList.isLoading}
-        isError={memberList.isError}
-        isBusy={ctx.isExecuting}
-        onKick={handleKick}
-        onRefresh={memberList.refetch}
-      />
-
-      <NymCard
-        title="Dissolve family"
-        data-testid="dissolve-family-card"
-        sx={{ borderColor: alpha(theme.palette.error.main, 0.4) }}
-      >
-        <DeleteFamilyButton
-          memberCount={family.members}
-          isBusy={ctx.isExecuting}
-          errorMessage={deleteError}
-          onDelete={handleDelete}
+        <InviteNodeForm
+          embedded
+          invitationValiditySecs={config.data?.default_invitation_validity_secs}
+          isSubmitting={ctx.executingAction === 'invite'}
+          isBlocked={actionBusy && ctx.executingAction !== 'invite'}
+          warning={inviteWarning}
+          errorMessage={inviteError}
+          onSubmit={handleInvite}
         />
-      </NymCard>
+
+        <Divider />
+
+        <FamilyMembersTable
+          sections={memberList.sections}
+          pending={pendingRows}
+          nowSecs={ctx.nowSecs}
+          isLoading={memberList.isLoading}
+          isError={memberList.isError}
+          kicking={ctx.executingAction === 'kick'}
+          revoking={ctx.executingAction === 'revoke'}
+          onKick={handleKick}
+          onRevoke={handleRevoke}
+          onClearExpired={handleRevoke}
+          onRefresh={memberList.refetch}
+        />
+      </FamilyContentPanel>
     </Stack>
   );
 };
 
-/** Create entry point — shown when the account owns no family. */
+/** Create entry point, shown when the account owns no family. */
 export const CreateFamilyEntry = () => {
   const ctx = useFamiliesContext();
   const config = useFamilyConfig();
   const { enqueueSnackbar } = useSnackbar();
   const [error, setError] = useState<string>();
 
+  const bondedNodeId = ctx.controlledNodeIds[0];
+  const nodeMembership = useFamilyMembership(bondedNodeId);
+  const nodeInFamily = bondedNodeId !== undefined && nodeMembership.data?.family_id != null;
+
+  const handleLeave = async (nodeId: number) => {
+    try {
+      await ctx.leaveFamily({ node_id: nodeId });
+      enqueueSnackbar('Left family', { variant: 'success' });
+    } catch (e) {
+      enqueueSnackbar(familyErrorMessage(e), { variant: 'error' });
+    }
+  };
+
   const handleCreate = async (name: string, description: string) => {
     setError(undefined);
-    if (!config.data) return;
+    if (!config.data || nodeInFamily) return;
     try {
       await ctx.createFamily({ name, description, fee: config.data.create_family_fee });
       enqueueSnackbar('Family created', { variant: 'success' });
@@ -210,22 +241,31 @@ export const CreateFamilyEntry = () => {
 
   if (!config.data) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }} data-testid="create-family-loading">
-        <Typography color="text.secondary">Loading…</Typography>
-      </Box>
+      <FamilyContentPanel>
+        <Typography color="text.secondary" data-testid="create-family-loading">
+          Loading…
+        </Typography>
+      </FamilyContentPanel>
     );
   }
 
+  // The node belongs to another wallet's family: MyNodeFamilySection brings its own panel.
+  if (nodeInFamily) {
+    return <ControlledNodeSections onLeave={handleLeave} />;
+  }
+
   return (
-    <Box sx={{ maxWidth: 560, mx: 'auto', width: '100%' }}>
+    <FamilyContentPanel>
       <CreateFamilyForm
+        embedded
         fee={config.data.create_family_fee}
         nameLimit={config.data.family_name_length_limit}
         descriptionLimit={config.data.family_description_length_limit}
-        isSubmitting={ctx.isExecuting}
+        isSubmitting={ctx.executingAction === 'create'}
+        isBlocked={ctx.executingAction !== null && ctx.executingAction !== 'create'}
         errorMessage={error}
         onSubmit={handleCreate}
       />
-    </Box>
+    </FamilyContentPanel>
   );
 };

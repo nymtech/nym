@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { within, screen, userEvent, waitFor, expect } from 'storybook/test';
 import { withFamiliesMock } from 'src/components/Families/withFamiliesMock';
 import {
@@ -12,6 +13,7 @@ import {
   MOCK_OWNER_FLOW_NODE,
 } from 'src/context/mocks/families.fixtures';
 import { FamilyPage } from './FamilyPage';
+import { FamilySettingsPage } from './FamilySettingsPage';
 import { OperatorInvitesPage } from './OperatorInvitesPage';
 
 /**
@@ -30,10 +32,22 @@ type Story = StoryObj<typeof FamilyPage>;
 
 const NODE = MOCK_OWNER_FLOW_NODE;
 
+const withFamilyRoutes = (Story: React.ComponentType) => (
+  <MemoryRouter initialEntries={['/family']}>
+    <Routes>
+      <Route path="/family" element={<Story />} />
+      <Route path="/family/settings" element={<FamilySettingsPage />} />
+    </Routes>
+  </MemoryRouter>
+);
+
 /** Owner lifecycle: create → invite → accept → kick → disband (single self-controlled account). */
 export const OwnerLifecycle: Story = {
   name: 'Owner Lifecycle (auto-run)',
-  decorators: [withFamiliesMock({ sender: MOCK_OWNER_ADDRESS, makeStore: buildOwnerFlowStore, latencyMs: 0 })],
+  decorators: [
+    withFamiliesMock({ sender: MOCK_OWNER_ADDRESS, makeStore: buildOwnerFlowStore, latencyMs: 0 }),
+    withFamilyRoutes,
+  ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
@@ -54,7 +68,10 @@ export const OwnerLifecycle: Story = {
     const group = await canvas.findByTestId(`node-invite-group-${NODE}`);
     await userEvent.click(await within(group).findByTestId('invite-card-1-accept'));
     await userEvent.click(await screen.findByTestId('invite-card-1-accept-confirm'));
-    await canvas.findByTestId(`operator-node-${NODE}-family`);
+
+    // membership is shown on the management page once the node has joined
+    await userEvent.click(canvas.getByTestId('family-tab-owner'));
+    await canvas.findByTestId(`member-joined-${NODE}`);
 
     // kick it from the owner tab
     await userEvent.click(canvas.getByTestId('family-tab-owner'));
@@ -62,7 +79,9 @@ export const OwnerLifecycle: Story = {
     await userEvent.click(await screen.findByTestId(`member-joined-${NODE}-kick-confirm`));
     await waitFor(() => expect(canvas.queryByTestId(`member-joined-${NODE}`)).toBeNull());
 
-    // disband the now-empty family
+    // disband the now-empty family via settings
+    await userEvent.click(await canvas.findByTestId('family-settings-button'));
+    await canvas.findByTestId('family-settings-page');
     await userEvent.click(await canvas.findByTestId('delete-family-button'));
     await userEvent.click(await screen.findByTestId('delete-family-button-confirm'));
     await canvas.findByTestId('create-family-name');
@@ -81,13 +100,17 @@ export const OperatorLifecycle: Story = {
     const acceptGroup = await canvas.findByTestId(`node-invite-group-${MOCK_OPERATOR_FLOW_ACCEPT_NODE}`);
     await userEvent.click(await within(acceptGroup).findByTestId('invite-card-1-accept'));
     await userEvent.click(await screen.findByTestId('invite-card-1-accept-confirm'));
-    await canvas.findByTestId(`operator-node-${MOCK_OPERATOR_FLOW_ACCEPT_NODE}-family`);
+
+    // leave lives on the My family tab
+    await userEvent.click(canvas.getByTestId('family-tab-owner'));
+    await canvas.findByTestId(`my-node-family-${MOCK_OPERATOR_FLOW_ACCEPT_NODE}`);
 
     // leave the family
     await userEvent.click(await canvas.findByTestId('leave-family-button'));
     await userEvent.click(await screen.findByTestId('leave-family-button-confirm'));
 
     // reject the invite on the reject-node
+    await userEvent.click(canvas.getByTestId('family-tab-operator'));
     const rejectGroup = await canvas.findByTestId(`node-invite-group-${MOCK_OPERATOR_FLOW_REJECT_NODE}`);
     await userEvent.click(await within(rejectGroup).findByTestId('invite-card-1-reject'));
     await userEvent.click(await screen.findByTestId('invite-card-1-reject-confirm'));
@@ -96,14 +119,13 @@ export const OperatorLifecycle: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Manual variants — same seeded scenarios, NO play function, so you can click
+// Manual variants: same seeded scenarios, NO play function, so you can click
 // through the steps yourself (accept / reject / leave) and watch state change.
 // ---------------------------------------------------------------------------
 
 /**
  * Operator lifecycle, driven by hand. Two controlled nodes each hold an active
- * invite: accept node {ACCEPT}'s invite (a "Current family" card with Leave then
- * appears) and reject node {REJECT}'s invite. Nothing runs automatically.
+ * invite: accept node {ACCEPT}'s invite (membership + Leave appear on My family tab) and reject node {REJECT}'s invite.
  */
 export const OperatorLifecycleManual: Story = {
   name: 'Operator Lifecycle (manual)',

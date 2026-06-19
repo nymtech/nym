@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useState } from 'react';
 import { Box, CircularProgress, Stack, Tab, Tabs, Typography } from '@mui/material';
-import { useFamiliesContext, useFamilyByOwner } from 'src/context/families';
+import { useFamiliesContext, useOwnedFamily } from 'src/context/families';
 import { PageLayout } from 'src/layouts';
 import { CreateFamilyEntry, OwnerManagementPage } from './OwnerManagementPage';
 import { OperatorInvitesPage } from './OperatorInvitesPage';
 
 const OwnerTab = () => {
-  const familyByOwner = useFamilyByOwner();
+  const { family, isPending } = useOwnedFamily();
 
-  if (familyByOwner.isPending) {
+  if (isPending) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }} data-testid="family-owner-loading">
         <CircularProgress />
@@ -17,10 +17,10 @@ const OwnerTab = () => {
     );
   }
 
-  return familyByOwner.data ? <OwnerManagementPage family={familyByOwner.data} /> : <CreateFamilyEntry />;
+  return family ? <OwnerManagementPage family={family} /> : <CreateFamilyEntry />;
 };
 
-/** The Family tab content — always visible; adapts to ownership and exposes operator invites. */
+/** The Family tab content. Always visible; adapts to ownership and exposes operator invites. */
 export const FamilyPage = () => {
   const [tab, setTab] = useState(0);
   // touch the context so the tab is meaningful even before reads resolve

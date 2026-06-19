@@ -2,9 +2,10 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { TransactionExecuteResult } from '@nymproject/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { FamiliesContext, FamilyQueries, TFamiliesContext } from 'src/context/families';
+import { FamiliesContext, FamilyExecutingAction, FamilyQueries, TFamiliesContext } from 'src/context/families';
 import { familyQueryKeys } from 'src/context/familyQueryKeys';
 import { FamilyEvent, FamilyTxResult, NodeId } from 'src/types/families';
+import { useNowSecs } from 'src/hooks/useNowSecs';
 import { mockSleep } from './utils';
 import { buildSeededStore, MOCK_OWNER_ADDRESS } from './families.fixtures';
 import {
@@ -63,8 +64,9 @@ export const MockFamiliesContextProvider = ({
 }: MockFamiliesProviderProps): React.JSX.Element => {
   const queryClient = useQueryClient();
   const storeRef = useRef<MockStore>(storeProp ?? buildSeededStore());
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [executingAction, setExecutingAction] = useState<FamilyExecutingAction>(null);
   const [error, setError] = useState<string>();
+  const nowSecs = useNowSecs();
 
   const controlledNodeIds = useMemo(() => controlledFor(storeRef.current, sender), [sender]);
 
@@ -117,8 +119,8 @@ export const MockFamiliesContextProvider = ({
   );
 
   const run = useCallback(
-    async (mutate: (store: MockStore) => FamilyEvent[]): Promise<FamilyTxResult> => {
-      setIsExecuting(true);
+    async (action: NonNullable<FamilyExecutingAction>, mutate: (store: MockStore) => FamilyEvent[]): Promise<FamilyTxResult> => {
+      setExecutingAction(action);
       setError(undefined);
       await mockSleep(latencyMs);
       try {
@@ -130,33 +132,36 @@ export const MockFamiliesContextProvider = ({
         setError(message);
         throw e;
       } finally {
-        setIsExecuting(false);
+        setExecutingAction(null);
       }
     },
     [latencyMs, refreshAll],
   );
 
+  const isExecuting = executingAction !== null;
+
   const value = useMemo<TFamiliesContext>(
     () => ({
       ownerAddress: sender,
       controlledNodeIds,
-      nowSecs: storeRef.current.nowSecs,
+      nowSecs,
       queries,
       isExecuting,
+      executingAction,
       error,
       clearError,
       refreshAll,
-      createFamily: (args) => run((s) => mockCreateFamily(s, sender, args)),
-      updateFamily: (args) => run((s) => mockUpdateFamily(s, sender, args)),
-      disbandFamily: () => run((s) => mockDisbandFamily(s, sender)),
-      inviteToFamily: (args) => run((s) => mockInviteToFamily(s, sender, args)),
-      revokeFamilyInvitation: (args) => run((s) => mockRevokeFamilyInvitation(s, sender, args)),
-      kickFromFamily: (args) => run((s) => mockKickFromFamily(s, sender, args)),
-      acceptFamilyInvitation: (args) => run((s) => mockAcceptFamilyInvitation(s, sender, args)),
-      rejectFamilyInvitation: (args) => run((s) => mockRejectFamilyInvitation(s, sender, args)),
-      leaveFamily: (args) => run((s) => mockLeaveFamily(s, sender, args)),
+      createFamily: (args) => run('create', (s) => mockCreateFamily(s, sender, args)),
+      updateFamily: (args) => run('update', (s) => mockUpdateFamily(s, sender, args)),
+      disbandFamily: () => run('disband', (s) => mockDisbandFamily(s, sender)),
+      inviteToFamily: (args) => run('invite', (s) => mockInviteToFamily(s, sender, args)),
+      revokeFamilyInvitation: (args) => run('revoke', (s) => mockRevokeFamilyInvitation(s, sender, args)),
+      kickFromFamily: (args) => run('kick', (s) => mockKickFromFamily(s, sender, args)),
+      acceptFamilyInvitation: (args) => run('accept', (s) => mockAcceptFamilyInvitation(s, sender, args)),
+      rejectFamilyInvitation: (args) => run('reject', (s) => mockRejectFamilyInvitation(s, sender, args)),
+      leaveFamily: (args) => run('leave', (s) => mockLeaveFamily(s, sender, args)),
     }),
-    [sender, controlledNodeIds, queries, isExecuting, error, clearError, refreshAll, run],
+    [sender, controlledNodeIds, nowSecs, queries, isExecuting, executingAction, error, clearError, refreshAll, run],
   );
 
   return <FamiliesContext.Provider value={value}>{children}</FamiliesContext.Provider>;

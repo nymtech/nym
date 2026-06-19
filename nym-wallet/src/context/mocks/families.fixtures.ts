@@ -82,25 +82,25 @@ export const buildSeededStore = (): MockStore => {
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 102 });
   mockAcceptFamilyInvitation(s, ctrl(102), { family_id: 1, node_id: 102 });
 
-  // Removed — kicked (103)
+  // Removed, kicked (103)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 103 });
   mockAcceptFamilyInvitation(s, ctrl(103), { family_id: 1, node_id: 103 });
   mockKickFromFamily(s, MOCK_OWNER_ADDRESS, { node_id: 103 });
 
-  // Removed — left (104)
+  // Removed, left (104)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 104 });
   mockAcceptFamilyInvitation(s, ctrl(104), { family_id: 1, node_id: 104 });
   mockLeaveFamily(s, ctrl(104), { node_id: 104 });
 
-  // Past invitation — Rejected (105)
+  // Past invitation, Rejected (105)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 105 });
   mockRejectFamilyInvitation(s, ctrl(105), { family_id: 1, node_id: 105 });
 
-  // Past invitation — Revoked (106)
+  // Past invitation, Revoked (106)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 106 });
   mockRevokeFamilyInvitation(s, MOCK_OWNER_ADDRESS, { node_id: 106 });
 
-  // Pending — active (107) and expired (108)
+  // Pending, active (107) and expired (108)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 107 }); // expires NOW + 3600 (active)
   mockInviteToFamily(s, MOCK_OWNER_ADDRESS, { node_id: 108 });
   s.pending.get('1:108')!.expires_at = s.nowSecs - 1; // force expired

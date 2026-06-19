@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Stack, Typography } from '@mui/material';
+import { Alert, Box, Stack, Typography } from '@mui/material';
 import { ConfirmActionButton } from './ConfirmActionButton';
 
 export interface DeleteFamilyButtonProps {
@@ -29,16 +29,18 @@ export const DeleteFamilyButton = ({ memberCount, isBusy, errorMessage, onDelete
           {errorMessage}
         </Alert>
       )}
-      <ConfirmActionButton
-        label="Dissolve family"
-        color="error"
-        title="Dissolve this family?"
-        body="This permanently removes the family and refunds your creation fee. This cannot be undone."
-        confirmLabel="Dissolve family"
-        disabled={blocked || isBusy}
-        onConfirm={onDelete}
-        dataTestid="delete-family-button"
-      />
+      <Box sx={{ alignSelf: 'flex-start' }}>
+        <ConfirmActionButton
+          label="Dissolve family"
+          color="error"
+          title="Dissolve this family?"
+          body="This permanently removes the family and refunds your creation fee. This cannot be undone."
+          confirmLabel="Dissolve family"
+          disabled={blocked || isBusy}
+          onConfirm={onDelete}
+          dataTestid="delete-family-button"
+        />
+      </Box>
     </Stack>
   );
 };

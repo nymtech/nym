@@ -66,6 +66,18 @@ export interface FamilyQueries {
   ) => Promise<FamilyPagedResponse<PastFamilyMember>>;
 }
 
+export type FamilyExecutingAction =
+  | 'create'
+  | 'update'
+  | 'disband'
+  | 'invite'
+  | 'revoke'
+  | 'kick'
+  | 'accept'
+  | 'reject'
+  | 'leave'
+  | null;
+
 export interface TFamiliesContext {
   /** Connected wallet address (the prospective/actual family owner). */
   ownerAddress?: string;
@@ -73,10 +85,12 @@ export interface TFamiliesContext {
   controlledNodeIds: NodeId[];
   /** Current chain time (unix seconds) used for TTL/expiry display. */
   nowSecs: number;
-  /** Read seam — consumed by the read hooks below. */
+  /** Read seam, consumed by the read hooks below. */
   queries: FamilyQueries;
   /** True while an execute call is in flight. */
   isExecuting: boolean;
+  /** Which execute call is in flight, so we can show per-button loading states. */
+  executingAction: FamilyExecutingAction;
   /** Last execute error message (cleared via `clearError`). */
   error?: string;
   clearError: () => void;
@@ -115,6 +129,7 @@ export const FamiliesContext = createContext<TFamiliesContext>({
   nowSecs: 0,
   queries: defaultQueries,
   isExecuting: false,
+  executingAction: null,
   clearError: () => undefined,
   createFamily: notImplemented,
   updateFamily: notImplemented,
@@ -131,8 +146,8 @@ export const FamiliesContext = createContext<TFamiliesContext>({
 export const useFamiliesContext = () => useContext<TFamiliesContext>(FamiliesContext);
 
 // ---------------------------------------------------------------------------
-// Pagination helper — walks the contract's exclusive `start_after` cursor to the
-// end of a section, exercising start_after/start_next_after page-by-page.
+// Pagination helper that walks the contract's exclusive `start_after` cursor to
+// the end of a section, exercising start_after/start_next_after page-by-page.
 // ---------------------------------------------------------------------------
 
 const PAGE_SAFETY_BOUND = 1000;
@@ -153,6 +168,7 @@ async function fetchAllPages<T>(
 }
 
 const READ_STALE_TIME = 60 * 1000;
+const PENDING_STALE_TIME = 0;
 
 // ---------------------------------------------------------------------------
 // Read hooks (TanStack Query)
@@ -176,6 +192,39 @@ export const useFamilyByOwner = (owner?: string) => {
     enabled: Boolean(addr),
     staleTime: READ_STALE_TIME,
   });
+};
+
+const sameOwner = (a?: string, b?: string): boolean =>
+  a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
+
+/**
+ * The family this wallet owns, from `getFamilyByOwner`, with a fallback via the
+ * bonded node's membership when the node belongs to a family this wallet created.
+ */
+export const useOwnedFamily = () => {
+  const { ownerAddress, controlledNodeIds } = useFamiliesContext();
+  const byOwner = useFamilyByOwner();
+  const nodeId = controlledNodeIds[0];
+  const membership = useFamilyMembership(nodeId);
+  const membershipFamilyId = membership.data?.family_id ?? undefined;
+  const needsMembershipLookup = byOwner.data === undefined && membershipFamilyId !== undefined;
+  const byMembership = useFamilyById(needsMembershipLookup ? membershipFamilyId : undefined);
+
+  const family = useMemo((): NodeFamily | null => {
+    if (byOwner.data) return byOwner.data;
+    const candidate = byMembership.data;
+    if (candidate && sameOwner(candidate.owner, ownerAddress)) return candidate;
+    return null;
+  }, [byOwner.data, byMembership.data, ownerAddress]);
+
+  const isPending =
+    byOwner.isPending || (needsMembershipLookup && byMembership.isPending && byOwner.data === undefined);
+
+  return {
+    family,
+    isPending,
+    isError: byOwner.isError || byMembership.isError,
+  };
 };
 
 export const useFamilyById = (familyId?: NodeFamilyId) => {
@@ -249,7 +298,7 @@ export const usePendingInvitationsForFamily = (familyId?: NodeFamilyId) => {
         queries.getPendingInvitationsForFamilyPaged(familyId as NodeFamilyId, startAfter, limit),
       ),
     enabled: familyId !== undefined,
-    staleTime: READ_STALE_TIME,
+    staleTime: PENDING_STALE_TIME,
   });
 };
 
@@ -293,9 +342,10 @@ export const usePendingInvitationsForNode = (nodeId?: NodeId) => {
 };
 
 // ---------------------------------------------------------------------------
-// Member-list aggregator (D4): four sections, each 1:1 with a contract query.
-// No cross-section dedup, no priority cascade. Revoked past invitations are
-// NOT surfaced — only Rejected ones populate the Rejected section.
+// Member-list aggregator: one section per contract query. Revoked past
+// invitations are not surfaced (only Rejected ones populate the Rejected
+// section), and any node that's currently joined is dropped from the
+// rejected/removed history so stale rows don't stick around.
 // ---------------------------------------------------------------------------
 
 export interface UseFamilyMemberListResult {
@@ -306,7 +356,6 @@ export interface UseFamilyMemberListResult {
 }
 
 export const useFamilyMemberList = (familyId?: NodeFamilyId): UseFamilyMemberListResult => {
-  const pending = usePendingInvitationsForFamily(familyId);
   const joined = useFamilyMembers(familyId);
   const pastInvitations = usePastInvitationsForFamily(familyId);
   const pastMembers = usePastMembersForFamily(familyId);
@@ -314,20 +363,27 @@ export const useFamilyMemberList = (familyId?: NodeFamilyId): UseFamilyMemberLis
   const sections = useMemo<FamilyMemberSections>(
     () =>
       deriveMemberSections({
-        pending: pending.data ?? [],
+        pending: [],
         joined: joined.data ?? [],
         pastInvitations: pastInvitations.data ?? [],
         pastMembers: pastMembers.data ?? [],
       }),
-    [pending.data, joined.data, pastInvitations.data, pastMembers.data],
+    [joined.data, pastInvitations.data, pastMembers.data],
   );
+
+  // A refetch (e.g. the invalidate-all after sending an invite) can transiently
+  // fail without clearing the last good `data`. Only surface the hard error state
+  // when there is genuinely nothing cached to show, so the list doesn't flash
+  // "Failed to load" over data that is still present.
+  const hasAnyData =
+    joined.data !== undefined || pastInvitations.data !== undefined || pastMembers.data !== undefined;
+  const anyError = joined.isError || pastInvitations.isError || pastMembers.isError;
 
   return {
     sections,
-    isLoading: pending.isPending || joined.isPending || pastInvitations.isPending || pastMembers.isPending,
-    isError: pending.isError || joined.isError || pastInvitations.isError || pastMembers.isError,
+    isLoading: joined.isPending || pastInvitations.isPending || pastMembers.isPending,
+    isError: anyError && !hasAnyData,
     refetch: () => {
-      pending.refetch();
       joined.refetch();
       pastInvitations.refetch();
       pastMembers.refetch();

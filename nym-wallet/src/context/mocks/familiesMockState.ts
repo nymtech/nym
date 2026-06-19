@@ -30,8 +30,8 @@ import {
  * Pure, framework-free in-memory model of the `node-families-contract`.
  *
  * Mutators throw `FamilyError` and return the emitted events; queries are
- * read-only. The React mock provider (and Jest, once §8 lands) drive this engine
- * — keeping the contract logic in one testable place (design D3).
+ * read-only. The React mock provider and Jest drive this engine, which keeps the
+ * contract logic in one testable place.
  */
 
 interface BondedNode {

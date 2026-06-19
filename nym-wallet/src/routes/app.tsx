@@ -15,6 +15,7 @@ import {
   BuyPage,
   Settings,
   FamilyPageWithProvider,
+  FamilySettingsPageWithProvider,
 } from '../pages';
 
 export const AppRoutes = () => (
@@ -30,6 +31,7 @@ export const AppRoutes = () => (
       <Route path="/bonding/node-settings" element={<NodeSettingsPage />} />
       <Route path="/delegation" element={<DelegationPage />} />
       <Route path="/family" element={<FamilyPageWithProvider />} />
+      <Route path="/family/settings" element={<FamilySettingsPageWithProvider />} />
       {config.INTERNAL_DOCS_ENABLED && <Route path="/docs" element={<InternalDocs />} />}
       <Route path="/admin" element={<Admin />} />
       <Route path="/buy" element={<BuyPage />} />

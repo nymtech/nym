@@ -42,6 +42,8 @@ export const TID = {
   createFamilyDescription: 'create-family-description',
   createFamilySubmit: 'create-family-submit',
   ownerManagementPage: 'owner-management-page',
+  familySettingsButton: 'family-settings-button',
+  familySettingsPage: 'family-settings-page',
   inviteNodeId: 'invite-node-id',
   inviteNodeSubmit: 'invite-node-submit',
   inviteNodeConfirm: 'invite-node-confirm',
@@ -51,12 +53,14 @@ export const TID = {
   memberJoined: (node: number) => `member-joined-${node}`,
   memberJoinedKick: (node: number) => `member-joined-${node}-kick`,
   memberJoinedKickConfirm: (node: number) => `member-joined-${node}-kick-confirm`,
+  myNodeFamily: (node: number) => `my-node-family-${node}`,
   // tabs
   tabOwner: 'family-tab-owner',
   tabOperator: 'family-tab-operator',
   // operator: per-node section wrapper (Stack — renders) used for scoping
   operatorNodeSection: (node: number) => `operator-node-${node}`,
   inviteGroupEmpty: (node: number) => `node-invite-group-${node}-empty`,
+  inviteGroupMember: (node: number) => `node-invite-group-${node}-member`,
   leaveButton: 'leave-family-button',
   leaveConfirm: 'leave-family-button-confirm',
   // invite cards: keyed by FAMILY id (ConfirmActionButton dataTestid — renders)

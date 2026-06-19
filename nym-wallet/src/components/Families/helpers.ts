@@ -16,14 +16,39 @@ export const formatCoin = (coin?: DecCoin): string => (coin ? `${coin.amount} ${
 export const truncateAddress = (addr: string, head = 8, tail = 6): string =>
   addr.length <= head + tail + 1 ? addr : `${addr.slice(0, head)}…${addr.slice(-tail)}`;
 
+/** Human-readable duration from seconds (for config-driven invitation TTL). */
+export const formatDurationSecs = (secs: number): string => {
+  if (secs < 60) return `${secs} second${secs === 1 ? '' : 's'}`;
+  if (secs < 3600) {
+    const mins = Math.floor(secs / 60);
+    return `${mins} minute${mins === 1 ? '' : 's'}`;
+  }
+  if (secs < 86400) {
+    const hours = Math.floor(secs / 3600);
+    return `${hours} hour${hours === 1 ? '' : 's'}`;
+  }
+  const days = Math.floor(secs / 86400);
+  return `${days} day${days === 1 ? '' : 's'}`;
+};
+
 /** Human-readable remaining TTL, or "Expired". */
 export const formatExpiry = (expiresAt: number, nowSecs: number): string => {
   const remaining = expiresAt - nowSecs;
   if (remaining <= 0) return 'Expired';
   if (remaining < 60) return `in ${remaining}s`;
-  if (remaining < 3600) return `in ${Math.floor(remaining / 60)} min`;
-  if (remaining < 86400) return `in ${Math.floor(remaining / 3600)}h`;
-  return `in ${Math.floor(remaining / 86400)}d`;
+  if (remaining < 3600) {
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return secs > 0 ? `in ${mins}m ${secs}s` : `in ${mins} min`;
+  }
+  if (remaining < 86400) {
+    const hours = Math.floor(remaining / 3600);
+    const mins = Math.floor((remaining % 3600) / 60);
+    return mins > 0 ? `in ${hours}h ${mins}m` : `in ${hours}h`;
+  }
+  const days = Math.floor(remaining / 86400);
+  const hours = Math.floor((remaining % 86400) / 3600);
+  return hours > 0 ? `in ${days}d ${hours}h` : `in ${days}d`;
 };
 
 /** True when balance is below fee + a gas headroom (best-effort, pre-submit). */
@@ -73,14 +98,31 @@ export const inviteWarningFromError = (e: unknown): InviteWarning | undefined =>
   const kind: FamilyErrorKind | undefined = isFamilyError(e) ? (e as FamilyError).kind : undefined;
   switch (kind) {
     case 'NodeAlreadyInFamily':
+    case 'AlreadyInFamily':
       return 'already-in-family';
     case 'NodeDoesntExist':
       return 'non-existent';
     case 'PendingInvitationAlreadyExists':
       return 'duplicate-pending';
     default:
-      return undefined;
+      break;
   }
+
+  // Fallback: the backend often surfaces the contract failure as a raw RPC/CosmWasm
+  // string (e.g. "node 52 is already a member of family 6") rather than a typed
+  // FamilyError. Match those so the user still sees a clean warning, not a stack trace.
+  const msg = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase();
+  if (!msg) return undefined;
+  if (msg.includes('already a member of') || msg.includes('already in a family') || msg.includes('already in family')) {
+    return 'already-in-family';
+  }
+  if (msg.includes('pending invitation') && msg.includes('already')) {
+    return 'duplicate-pending';
+  }
+  if (msg.includes('does not exist') || msg.includes("doesn't exist") || msg.includes('unbonding')) {
+    return 'non-existent';
+  }
+  return undefined;
 };
 
 export const INVITE_WARNING_MESSAGES: Record<InviteWarning, string> = {

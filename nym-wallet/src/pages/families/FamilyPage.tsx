@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Box, CircularProgress, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useFamiliesContext, useFamilyByOwner } from 'src/context/families';
+import { PageLayout } from 'src/layouts';
 import { CreateFamilyEntry, OwnerManagementPage } from './OwnerManagementPage';
 import { OperatorInvitesPage } from './OperatorInvitesPage';
 
@@ -10,7 +11,7 @@ const OwnerTab = () => {
 
   if (familyByOwner.isPending) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }} data-testid="family-owner-loading">
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }} data-testid="family-owner-loading">
         <CircularProgress />
       </Box>
     );
@@ -26,19 +27,35 @@ export const FamilyPage = () => {
   useFamiliesContext();
 
   return (
-    <Stack spacing={3} sx={{ p: 4 }} data-testid="family-page">
-      <Typography variant="h5">Family</Typography>
-      <Typography variant="body2" color="text.secondary">
-        Coordinate your nodes under a family wallet. Operators stay sovereign; owners delegate, never seize.
-      </Typography>
+    <PageLayout>
+      <Stack spacing={3} data-testid="family-page">
+        <Stack spacing={0.5}>
+          <Typography variant="h5" fontWeight={600}>
+            Family
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Group your nodes under a family wallet. Owners coordinate membership; operators keep full control of their
+            own nodes.
+          </Typography>
+        </Stack>
 
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)} aria-label="family tabs">
-        <Tab label="My family" data-testid="family-tab-owner" />
-        <Tab label="Node invites" data-testid="family-tab-operator" />
-      </Tabs>
+        <Tabs
+          value={tab}
+          onChange={(_e, v) => setTab(v)}
+          aria-label="family tabs"
+          sx={{
+            minHeight: 0,
+            borderBottom: (t) => `1px solid ${t.palette.divider}`,
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 14, minHeight: 44, px: 0, mr: 3 },
+          }}
+        >
+          <Tab label="My family" data-testid="family-tab-owner" />
+          <Tab label="Node invites" data-testid="family-tab-operator" />
+        </Tabs>
 
-      <Box hidden={tab !== 0}>{tab === 0 && <OwnerTab />}</Box>
-      <Box hidden={tab !== 1}>{tab === 1 && <OperatorInvitesPage />}</Box>
-    </Stack>
+        <Box hidden={tab !== 0}>{tab === 0 && <OwnerTab />}</Box>
+        <Box hidden={tab !== 1}>{tab === 1 && <OperatorInvitesPage />}</Box>
+      </Stack>
+    </PageLayout>
   );
 };

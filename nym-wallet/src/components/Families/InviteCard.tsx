@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React from 'react';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { OperatorInviteView } from 'src/types/families';
 import { NymCard } from '../NymCard';
 import { ConfirmActionButton } from './ConfirmActionButton';
+import { StatusChip } from './StatusChip';
 import { formatExpiry, truncateAddress } from './helpers';
 
 export type InviteCardData = OperatorInviteView;
@@ -24,9 +25,9 @@ export const InviteCard = ({ invite, nowSecs, isBusy, onAccept, onReject }: Invi
           Invited by {truncateAddress(invite.owner_address)}
         </Typography>
         {invite.expired ? (
-          <Chip size="small" label="Expired" data-testid={`invite-card-${invite.family_id}-expired`} />
+          <StatusChip status="expired" data-testid={`invite-card-${invite.family_id}-expired`} />
         ) : (
-          <Chip size="small" color="primary" variant="outlined" label={formatExpiry(invite.expires_at, nowSecs)} />
+          <StatusChip status="active" label={formatExpiry(invite.expires_at, nowSecs)} />
         )}
       </Stack>
 

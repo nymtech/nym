@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React from 'react';
-import { Box, Button, Chip, Stack, Table, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { Box, Button, Stack, Table, TableBody, TableCell, TableRow, Typography } from '@mui/material';
+import { Theme } from '@mui/material/styles';
 import { FamilyMemberSections, MemberListSectionKey } from 'src/types/families';
 import { NymCard } from '../NymCard';
 import { ConfirmActionButton } from './ConfirmActionButton';
+import { StatusChip } from './StatusChip';
 import { formatExpiry } from './helpers';
 
 export interface MemberListProps {
@@ -23,6 +25,14 @@ const SECTION_TITLES: Record<MemberListSectionKey, string> = {
   removed: 'Removed',
 };
 
+const NodeId = ({ id }: { id: number }) => (
+  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+    Node {id}
+  </Typography>
+);
+
+const rowSx = (t: Theme) => ({ '& td': { borderBottom: `1px solid ${t.palette.divider}`, py: 1.25 } });
+
 const Section = ({
   sectionKey,
   count,
@@ -33,7 +43,7 @@ const Section = ({
   children: React.ReactNode;
 }) => (
   <Box data-testid={`member-section-${sectionKey}`}>
-    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+    <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
       {SECTION_TITLES[sectionKey]} ({count})
     </Typography>
     {count === 0 ? (
@@ -84,13 +94,15 @@ export const MemberList = ({ sections, nowSecs, isLoading, isError, isBusy, onKi
         <Stack spacing={3}>
           <Section sectionKey="pending" count={sections.pending.length}>
             {sections.pending.map((r) => (
-              <TableRow key={`pending-${r.node_id}`} data-testid={`member-pending-${r.node_id}`}>
-                <TableCell>{r.node_id}</TableCell>
+              <TableRow key={`pending-${r.node_id}`} data-testid={`member-pending-${r.node_id}`} sx={rowSx}>
+                <TableCell>
+                  <NodeId id={r.node_id} />
+                </TableCell>
                 <TableCell align="right">
                   {r.expired ? (
-                    <Chip size="small" label="Expired" />
+                    <StatusChip status="expired" />
                   ) : (
-                    <Typography variant="body2">{formatExpiry(r.expires_at, nowSecs)}</Typography>
+                    <StatusChip status="pending" label={formatExpiry(r.expires_at, nowSecs)} />
                   )}
                 </TableCell>
               </TableRow>
@@ -99,8 +111,10 @@ export const MemberList = ({ sections, nowSecs, isLoading, isError, isBusy, onKi
 
           <Section sectionKey="joined" count={sections.joined.length}>
             {sections.joined.map((r) => (
-              <TableRow key={`joined-${r.node_id}`} data-testid={`member-joined-${r.node_id}`}>
-                <TableCell>{r.node_id}</TableCell>
+              <TableRow key={`joined-${r.node_id}`} data-testid={`member-joined-${r.node_id}`} sx={rowSx}>
+                <TableCell>
+                  <NodeId id={r.node_id} />
+                </TableCell>
                 <TableCell align="right">
                   <ConfirmActionButton
                     label="Remove"
@@ -119,10 +133,12 @@ export const MemberList = ({ sections, nowSecs, isLoading, isError, isBusy, onKi
 
           <Section sectionKey="rejected" count={sections.rejected.length}>
             {sections.rejected.map((r) => (
-              <TableRow key={`rejected-${r.node_id}`} data-testid={`member-rejected-${r.node_id}`}>
-                <TableCell>{r.node_id}</TableCell>
+              <TableRow key={`rejected-${r.node_id}`} data-testid={`member-rejected-${r.node_id}`} sx={rowSx}>
+                <TableCell>
+                  <NodeId id={r.node_id} />
+                </TableCell>
                 <TableCell align="right">
-                  <Chip size="small" label="Rejected" />
+                  <StatusChip status="rejected" />
                 </TableCell>
               </TableRow>
             ))}
@@ -130,10 +146,12 @@ export const MemberList = ({ sections, nowSecs, isLoading, isError, isBusy, onKi
 
           <Section sectionKey="removed" count={sections.removed.length}>
             {sections.removed.map((r) => (
-              <TableRow key={`removed-${r.node_id}`} data-testid={`member-removed-${r.node_id}`}>
-                <TableCell>{r.node_id}</TableCell>
+              <TableRow key={`removed-${r.node_id}`} data-testid={`member-removed-${r.node_id}`} sx={rowSx}>
+                <TableCell>
+                  <NodeId id={r.node_id} />
+                </TableCell>
                 <TableCell align="right">
-                  <Chip size="small" label="Removed" />
+                  <StatusChip status="removed" />
                 </TableCell>
               </TableRow>
             ))}

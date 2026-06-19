@@ -1,4 +1,5 @@
 export * from './helpers';
+export * from './StatusChip';
 export * from './ConfirmActionButton';
 export * from './CreateFamilyForm';
 export * from './EditFamilyForm';

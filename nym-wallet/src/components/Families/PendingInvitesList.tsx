@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React from 'react';
-import { Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
+import { Theme } from '@mui/material/styles';
 import { PendingMemberRow } from 'src/types/families';
 import { NymCard } from '../NymCard';
 import { ConfirmActionButton } from './ConfirmActionButton';
+import { StatusChip } from './StatusChip';
 import { formatExpiry } from './helpers';
 
 export interface PendingInvitesListProps {
@@ -16,6 +18,13 @@ export interface PendingInvitesListProps {
   onClearExpired: (nodeId: number) => void;
 }
 
+const headCellSx = (t: Theme) => ({
+  color: t.palette.text.secondary,
+  fontWeight: 600,
+  borderBottom: `1px solid ${t.palette.divider}`,
+});
+const rowSx = (t: Theme) => ({ '& td': { borderBottom: `1px solid ${t.palette.divider}`, py: 1.25 } });
+
 export const PendingInvitesList = ({ invites, nowSecs, isBusy, onRevoke, onClearExpired }: PendingInvitesListProps) => (
   <NymCard title="Pending invites" data-testid="pending-invites-list">
     {invites.length === 0 ? (
@@ -26,28 +35,27 @@ export const PendingInvitesList = ({ invites, nowSecs, isBusy, onRevoke, onClear
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>Node</TableCell>
-            <TableCell>Expiry</TableCell>
-            <TableCell align="right">Action</TableCell>
+            <TableCell sx={headCellSx}>Node</TableCell>
+            <TableCell sx={headCellSx}>Status</TableCell>
+            <TableCell sx={headCellSx} align="right">
+              Action
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {invites.map((inv) => (
-            <TableRow key={inv.node_id} data-testid={`pending-invite-${inv.node_id}`}>
-              <TableCell>{inv.node_id}</TableCell>
+            <TableRow key={inv.node_id} data-testid={`pending-invite-${inv.node_id}`} sx={rowSx}>
               <TableCell>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  {inv.expired ? (
-                    <Chip
-                      size="small"
-                      color="default"
-                      label="Expired"
-                      data-testid={`pending-invite-${inv.node_id}-expired`}
-                    />
-                  ) : (
-                    <Typography variant="body2">{formatExpiry(inv.expires_at, nowSecs)}</Typography>
-                  )}
-                </Stack>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  Node {inv.node_id}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {inv.expired ? (
+                  <StatusChip status="expired" data-testid={`pending-invite-${inv.node_id}-expired`} />
+                ) : (
+                  <StatusChip status="pending" label={formatExpiry(inv.expires_at, nowSecs)} />
+                )}
               </TableCell>
               <TableCell align="right">
                 {inv.expired ? (

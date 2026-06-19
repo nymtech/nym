@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useState } from 'react';
+import { alpha, Theme, useTheme } from '@mui/material/styles';
 import { Box, Grid, Stack, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { NodeFamily, PendingMemberRow } from 'src/types/families';
@@ -27,8 +28,30 @@ export interface OwnerManagementPageProps {
   family: NodeFamily;
 }
 
+const StatTile = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <Box
+    sx={{
+      flex: 1,
+      minWidth: 120,
+      p: 2,
+      borderRadius: 2,
+      border: (t: Theme) => `1px solid ${t.palette.divider}`,
+      bgcolor: (t: Theme) =>
+        t.palette.mode === 'dark' ? alpha(t.palette.common.white, 0.04) : alpha(t.palette.common.black, 0.02),
+    }}
+  >
+    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      {label}
+    </Typography>
+    <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
 /** Composed owner management surface (Family Detail) — shown when the account owns a family. */
 export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
+  const theme = useTheme();
   const ctx = useFamiliesContext();
   const config = useFamilyConfig();
   const memberList = useFamilyMemberList(family.id);
@@ -104,9 +127,11 @@ export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
   return (
     <Stack spacing={3} data-testid="owner-management-page">
       <NymCard title={family.name} subheader={family.description} data-testid="family-summary">
-        <Typography variant="body2" color="text.secondary">
-          {family.members} member{family.members === 1 ? '' : 's'} · bond {formatCoin(family.paid_fee)}
-        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <StatTile label="Members" value={family.members} />
+          <StatTile label="Family ID" value={`#${family.id}`} />
+          <StatTile label="Refundable bond" value={formatCoin(family.paid_fee)} />
+        </Stack>
       </NymCard>
 
       <Grid container spacing={3}>
@@ -149,7 +174,11 @@ export const OwnerManagementPage = ({ family }: OwnerManagementPageProps) => {
         onRefresh={memberList.refetch}
       />
 
-      <NymCard title="Dissolve family" data-testid="dissolve-family-card">
+      <NymCard
+        title="Dissolve family"
+        data-testid="dissolve-family-card"
+        sx={{ borderColor: alpha(theme.palette.error.main, 0.4) }}
+      >
         <DeleteFamilyButton
           memberCount={family.members}
           isBusy={ctx.isExecuting}
@@ -181,20 +210,22 @@ export const CreateFamilyEntry = () => {
 
   if (!config.data) {
     return (
-      <Box data-testid="create-family-loading">
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }} data-testid="create-family-loading">
         <Typography color="text.secondary">Loading…</Typography>
       </Box>
     );
   }
 
   return (
-    <CreateFamilyForm
-      fee={config.data.create_family_fee}
-      nameLimit={config.data.family_name_length_limit}
-      descriptionLimit={config.data.family_description_length_limit}
-      isSubmitting={ctx.isExecuting}
-      errorMessage={error}
-      onSubmit={handleCreate}
-    />
+    <Box sx={{ maxWidth: 560, mx: 'auto', width: '100%' }}>
+      <CreateFamilyForm
+        fee={config.data.create_family_fee}
+        nameLimit={config.data.family_name_length_limit}
+        descriptionLimit={config.data.family_description_length_limit}
+        isSubmitting={ctx.isExecuting}
+        errorMessage={error}
+        onSubmit={handleCreate}
+      />
+    </Box>
   );
 };

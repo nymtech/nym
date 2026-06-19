@@ -46,4 +46,8 @@ pub struct ProbeConfig {
     /// Arguments to configure socks5 probe
     #[command(flatten)]
     pub socks5_args: Socks5Args,
+
+    /// Agent mixnet client connection timeout (seconds). Unset = no probe-level timeout.
+    #[arg(long, hide = true, env = "PROBE_MIXNET_CONNECT_TIMEOUT_SEC")]
+    pub mixnet_connect_timeout_sec: Option<u64>,
 }

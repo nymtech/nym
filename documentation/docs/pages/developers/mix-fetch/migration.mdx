@@ -6,6 +6,13 @@ section: "Developers"
 lastUpdated: "2026-05-29"
 ---
 
+import { Callout } from 'nextra/components'
+
+<Callout type="info">
+    For the moment, manually pull version 2.0.0 into your `package.json`; it is not tagged as `latest` on `npm`. This will be updated shortly.
+</Callout>
+
+
 # Migrating from v1.x
 
 v2 is a clean break. The package no longer ships a Go-WASM HTTP/TLS client or a SOCKS5-shaped Network Requester request; it routes through the shared [`mix-tunnel`](/developers/mix-tunnel) and exits at an IPR. If you're starting fresh, you don't need this page; see [mix-fetch](/developers/mix-fetch).

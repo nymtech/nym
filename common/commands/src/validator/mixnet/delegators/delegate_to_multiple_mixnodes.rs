@@ -168,14 +168,12 @@ async fn fetch_delegation_data(
                 node_id,
                 amount,
                 ..
-            } => {
-                if owner.as_str() == address.as_ref() {
-                    let mut amount = Coin::from(amount);
-                    if let Some(pending_record) = pending_delegation_map.get(&node_id.to_string()) {
-                        amount.amount += pending_record.amount;
-                    }
-                    pending_delegation_map.insert(node_id.to_string(), amount);
+            } if owner.as_str() == address.as_ref() => {
+                let mut amount = Coin::from(amount);
+                if let Some(pending_record) = pending_delegation_map.get(&node_id.to_string()) {
+                    amount.amount += pending_record.amount;
                 }
+                pending_delegation_map.insert(node_id.to_string(), amount);
             }
             _ => {}
         };

@@ -64,17 +64,21 @@ pub async fn fetch_topology(
 ) -> Result<NymTopology, String> {
     // get Nym API URLs from network_details
     let nym_api_urls: Vec<Url> = network_details
-        .nym_api_urls
-        .as_ref()
-        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
-        .or_else(|| {
-            network_details
-                .endpoints
-                .first()
-                .and_then(|e| e.api_url())
-                .map(|url| vec![url])
-        })
-        .unwrap_or_default();
+        .nym_api_urls()
+        .iter()
+        .filter_map(|u| u.url.parse().ok())
+        .collect();
+
+    let nym_api_urls = if nym_api_urls.is_empty() {
+        network_details
+            .endpoints
+            .first()
+            .and_then(|e| e.api_url())
+            .map(|url| vec![url])
+            .unwrap_or_default()
+    } else {
+        nym_api_urls
+    };
 
     let Some(nym_api_url) = nym_api_urls.first() else {
         return Err(String::from("No nym-api URLs available to fetch topology"));

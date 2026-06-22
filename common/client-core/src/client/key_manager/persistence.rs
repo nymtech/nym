@@ -23,7 +23,7 @@ use nym_sphinx::acknowledgements::AckKey;
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait KeyStore {
-    type StorageError: Error;
+    type StorageError: Error + Send + Sync + 'static;
 
     async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError>;
 

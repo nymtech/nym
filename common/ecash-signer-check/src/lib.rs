@@ -63,7 +63,7 @@ pub struct DkgDetails {
 
 pub async fn check_signers_with_client<C>(client: &C) -> Result<SignersTestResult, SignerCheckError>
 where
-    C: DkgQueryClient + Sync,
+    C: DkgQueryClient,
 {
     let dkg_details = dkg_details_with_client(client).await?;
     check_known_dealers(dkg_details, None).await
@@ -71,7 +71,7 @@ where
 
 pub async fn dkg_details_with_client<C>(client: &C) -> Result<DkgDetails, SignerCheckError>
 where
-    C: DkgQueryClient + Sync,
+    C: DkgQueryClient,
 {
     // 2. retrieve current dkg epoch
     let dkg_epoch = client

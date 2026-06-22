@@ -22,7 +22,7 @@ use tracing::warn;
 
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
-    pub(crate) bandwidth_controller: Box<dyn BandwidthTicketProvider>,
+    pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
     pub(crate) cancel_token: CancellationToken,
 }
 
@@ -109,7 +109,7 @@ impl LpBasedRegistrationClient {
                 rng,
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
-                &*self.bandwidth_controller,
+                &*self.bandwidth_provider,
                 TicketType::V1WireguardExit,
             )
             .await
@@ -128,7 +128,7 @@ impl LpBasedRegistrationClient {
                 rng,
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
-                &*self.bandwidth_controller,
+                &*self.bandwidth_provider,
                 TicketType::V1WireguardEntry,
             )
             .await
@@ -151,7 +151,7 @@ impl LpBasedRegistrationClient {
             exit_gateway_data,
             entry_lp_keypair,
             exit_lp_keypair,
-            self.bandwidth_controller,
+            self.bandwidth_provider,
         ))
     }
 

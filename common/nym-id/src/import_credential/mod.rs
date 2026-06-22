@@ -22,7 +22,6 @@ pub async fn import_master_verification_key<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     let key = EpochVerificationKey::try_unpack(&raw_key, key_version)
         .map_err(|source| NymIdError::VerificationKeyDeserializationFailure { source })?;
@@ -37,7 +36,6 @@ pub async fn import_expiration_date_signatures<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     let signatures =
         AggregatedExpirationDateSignatures::try_unpack(&raw_signatures, signatures_version)
@@ -55,7 +53,6 @@ pub async fn import_coin_index_signatures<S>(
 ) -> Result<(), NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     let signatures =
         AggregatedCoinIndicesSignatures::try_unpack(&raw_signatures, signatures_version)
@@ -71,7 +68,6 @@ pub async fn import_standalone_ticketbook<S>(
 ) -> Result<OffsetDateTime, NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     let raw_credential = Zeroizing::new(raw_credential);
 
@@ -90,7 +86,6 @@ pub async fn import_full_ticketbook<S>(
 ) -> Result<OffsetDateTime, NymIdError>
 where
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     let raw_credential = Zeroizing::new(raw_credential);
 

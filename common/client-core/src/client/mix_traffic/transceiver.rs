@@ -130,9 +130,8 @@ impl<C, St> RemoteGateway<C, St> {
 #[async_trait]
 impl<C, St> GatewayTransceiver for RemoteGateway<C, St>
 where
-    C: DkgQueryClient + Send + Sync,
+    C: DkgQueryClient,
     St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     fn gateway_identity(&self) -> ed25519::PublicKey {
         self.gateway_client.gateway_identity()
@@ -153,9 +152,8 @@ where
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C, St> GatewaySender for RemoteGateway<C, St>
 where
-    C: DkgQueryClient + Send + Sync,
+    C: DkgQueryClient,
     St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
         self.gateway_client

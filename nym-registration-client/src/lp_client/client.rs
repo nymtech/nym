@@ -432,13 +432,13 @@ where
     async fn finalise_dvpn_registration(
         &mut self,
         gateway_identity: ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // 1. Get bandwidth credential from controller
-        let credential_spending = bandwidth_controller
+        let credential_spending = bandwidth_provider
             .get_ecash_ticket(ticket_type, gateway_identity, DEFAULT_TICKETS_TO_SPEND)
             .await
             .map_err(|e| {
@@ -532,7 +532,7 @@ where
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -586,12 +586,8 @@ where
                 // we're registering for the first time with this gateway - we need to attach a credential
 
                 // 8. retrieve credential from the controller
-                self.finalise_dvpn_registration(
-                    *gateway_identity,
-                    bandwidth_controller,
-                    ticket_type,
-                )
-                .await?
+                self.finalise_dvpn_registration(*gateway_identity, bandwidth_provider, ticket_type)
+                    .await?
             }
         };
 
@@ -640,7 +636,7 @@ where
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -682,7 +678,7 @@ where
             rng,
             wg_keypair,
             gateway_identity,
-            bandwidth_controller,
+            bandwidth_provider,
             ticket_type,
         )
         .await

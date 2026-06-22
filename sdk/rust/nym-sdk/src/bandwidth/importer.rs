@@ -59,7 +59,6 @@ pub struct BandwidthImporter<'a, St> {
 impl<'a, St> BandwidthImporter<'a, St>
 where
     St: CredentialStorage,
-    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     pub(crate) fn new(storage: &'a St) -> Self {
         BandwidthImporter { storage }

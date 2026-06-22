@@ -115,7 +115,7 @@ pub async fn all_ecash_api_clients<C>(
     epoch_id: EpochId,
 ) -> Result<Vec<EcashApiClient>, EcashApiError>
 where
-    C: DkgQueryClient + Sync + Send,
+    C: DkgQueryClient,
 {
     // TODO: this will error out if there's an invalid share out there. is that what we want?
     client

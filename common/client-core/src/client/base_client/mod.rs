@@ -22,7 +22,7 @@ use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::key_rotation_helpers::KeyRotationConfig;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
-    CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
+    CombinedReplyStorage, PersistentReplyStorage, SentReplyKeys,
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
@@ -38,8 +38,8 @@ use crate::init::{
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
-use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
-use nym_credential_storage::storage::Storage as CredentialStorage;
+use nym_client_core_gateways_storage::GatewayDetails;
+use nym_credential_storage::storage::Storage;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::hkdf::DerivationMaterial;
 use nym_gateway_client::client::config::GatewayClientConfig;
@@ -238,7 +238,7 @@ pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
 impl<C, S> BaseClientBuilder<C, S>
 where
     S: MixnetClientStorage + 'static,
-    C: DkgQueryClient + Send + Sync + 'static,
+    C: DkgQueryClient + 'static,
 {
     pub fn new(
         base_config: Config,
@@ -536,17 +536,12 @@ where
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,
-        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        bandwidth_provider: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
-    where
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
-        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
-    {
+    ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError> {
         let managed_keys = initialisation_result.client_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
         else {
@@ -557,7 +552,7 @@ where
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
                 existing_client.upgrade(
                     packet_router,
-                    bandwidth_controller,
+                    bandwidth_provider,
                     stats_reporter,
                     shutdown_tracker.clone_shutdown_token(),
                 )
@@ -573,7 +568,7 @@ where
                     managed_keys.identity_keypair(),
                     Some(details.shared_key),
                     packet_router,
-                    bandwidth_controller,
+                    bandwidth_provider,
                     stats_reporter,
                     #[cfg(unix)]
                     connection_fd_callback,
@@ -616,17 +611,12 @@ where
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
         initialisation_result: InitialisationResult,
-        bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        bandwidth_provider: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
-    where
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
-        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
-    {
+    ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError> {
         // if we have setup custom gateway sender and persisted details agree with it, return it
         if let Some(mut custom_gateway_transceiver) = custom_gateway_transceiver {
             return if !initialisation_result
@@ -646,7 +636,7 @@ where
         let gateway_client = Self::start_gateway_client(
             config,
             initialisation_result,
-            bandwidth_controller,
+            bandwidth_provider,
             packet_router,
             stats_reporter,
             #[cfg(unix)]
@@ -822,11 +812,7 @@ where
         backend: S::ReplyStore,
         key_rotation_config: KeyRotationConfig,
         shutdown_tracker: &ShutdownTracker,
-    ) -> Result<CombinedReplyStorage, ClientCoreError>
-    where
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-        S::ReplyStore: Send + Sync,
-    {
+    ) -> Result<CombinedReplyStorage, ClientCoreError> {
         tracing::trace!("Setup persistent reply storage");
         let now = OffsetDateTime::now_utc();
         let expected_current_key_rotation_start =
@@ -864,11 +850,7 @@ where
         key_store: &S::KeyStore,
         details_store: &S::GatewaysDetailsStore,
         derivation_material: Option<DerivationMaterial>,
-    ) -> Result<InitialisationResult, ClientCoreError>
-    where
-        <S::KeyStore as KeyStore>::StorageError: Sync + Send,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
-    {
+    ) -> Result<InitialisationResult, ClientCoreError> {
         // if client keys do not exist already, create and persist them
         if key_store.load_keys().await.is_err() {
             tracing::info!("could not find valid client keys - a new set will be generated");
@@ -956,14 +938,7 @@ where
         Ok(client.get_key_rotation_info().await?.into())
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
-    where
-        S::ReplyStore: Send + Sync,
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
-    {
+    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError> {
         tracing::info!("Starting nym client");
         #[cfg(debug_assertions)]
         #[cfg(target_arch = "wasm32")]
@@ -1035,7 +1010,7 @@ where
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        let bandwidth_controller = self
+        let bandwidth_provider = self
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
@@ -1083,7 +1058,7 @@ where
             self.custom_gateway_transceiver,
             &self.config,
             init_res,
-            bandwidth_controller,
+            bandwidth_provider,
             gateway_packet_router,
             stats_reporter.clone(),
             #[cfg(unix)]

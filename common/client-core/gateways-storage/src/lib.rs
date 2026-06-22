@@ -22,8 +22,8 @@ pub use backend::fs_backend::{error::StorageError, OnDiskGatewaysDetails};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewaysDetailsStore {
-    type StorageError: Error + From<error::BadGateway>;
+pub trait GatewaysDetailsStore: Send + Sync {
+    type StorageError: Error + From<error::BadGateway> + Send + Sync + 'static;
 
     /// Returns details of the currently active gateway, if available.
     async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError>;

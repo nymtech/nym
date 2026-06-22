@@ -20,6 +20,7 @@ Key constraints:
 - Owner's nym-node is auto-joined at family creation (NYM-1558)
 - Freshly-invited node appears in Pending immediately, not in Joined/Rejected (NYM-1559)
 - Removed/Rejected member sections are collapsed to 3 entries with "See all (N)" (NYM-1560)
+- Family nav item shows a badge/dot when the user's controlled node has pending invitations
 
 **Non-Goals:**
 - Pagination or server-side truncation of member lists
@@ -87,6 +88,20 @@ Fix will be in the status mapping or by ensuring no optimistic update writes a w
 **Decision:** Add a `COLLAPSED_LIMIT = 3` constant. For the Removed and Rejected sections only, render the first 3 entries when collapsed and show a "See all ({n})" MUI `Button` (variant="text", size="small") when there are more. Pending and Joined sections are not truncated (they are actionable, so full visibility matters).
 
 State: `const [rejectedExpanded, setRejectedExpanded] = useState(false)` and equivalent for Removed, local to `MemberList`. No persistence needed.
+
+### D10 — Nav invite badge via standalone query hook, not FamiliesContext
+**Problem:** `Nav` renders at `ApplicationLayout` level, which is *outside* the `FamiliesContextProvider` hierarchy. The families context provider only activates on the `/family` route. Calling `useFamiliesContext()` from Nav would throw.
+
+**Decision:** Create a new hook `usePendingFamilyInviteCount()` in `src/hooks/` that:
+1. Calls `useBondingContext()` to get the controlled node ID (bonding context is already available app-wide)
+2. Directly calls `useOperatorNodeInvites(nodeId)` — this is a pure TanStack Query hook that does NOT require `FamiliesContext`, only the node ID
+3. Returns `count: number` (number of non-expired pending invites for that node, 0 if no bonded node)
+
+**Nav change:** In `Nav.tsx`, call `usePendingFamilyInviteCount()`. Wrap the `Family` nav item's `Icon` in a MUI `Badge` component with `variant="dot"` when `count > 0`. A dot (not a number) is sufficient — the exact count is visible inside the page.
+
+**Why not lift FamiliesContextProvider to app level:** It wraps Tauri-specific IPC code. Moving it above the route boundary would cause it to initialise on every page load, including pages that have no families logic. The standalone hook is the minimal change.
+
+**Why not use AppContext:** AppContext currently holds account/client details only. Adding families data there would couple unrelated concerns.
 
 ## Risks / Trade-offs
 

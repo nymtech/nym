@@ -65,3 +65,11 @@
 - [ ] 10.2 Update Storybook stories for `MemberList`, `EditFamilyForm`, `InviteNodeForm` if their props changed
 - [ ] 10.3 Manually verify alignment against Figma wireframe (node 1859-981): cards should align to the wallet content edge with no extra horizontal gaps
 - [ ] 10.4 Manually test the dual-persona edge case: owner account that controls a node already in their own family — "Current family" card renders in My family tab correctly
+
+## 11. Nav pending invite badge (D10)
+
+- [ ] 11.1 Verify that `useOperatorNodeInvites(nodeId)` can be called without `FamiliesContext` — check its implementation in `src/context/families.tsx` to confirm it is a pure TanStack Query hook
+- [ ] 11.2 Create `src/hooks/usePendingFamilyInviteCount.ts`: call `useBondingContext()` to get `controlledNodeIds[0]`, call `useOperatorNodeInvites(nodeId)`, return `count` (number of non-expired invites, 0 if no bonded node or query pending)
+- [ ] 11.3 In `Nav.tsx`, import `usePendingFamilyInviteCount` and MUI `Badge`; call the hook at the top of the component
+- [ ] 11.4 Wrap the Family nav item's `Icon` render with `<Badge variant="dot" color="primary" invisible={count === 0}>` so the dot appears only when there are pending invites
+- [ ] 11.5 Verify the badge appears on load (before visiting `/family`) when a pending invite exists, and disappears after the invite is accepted/rejected

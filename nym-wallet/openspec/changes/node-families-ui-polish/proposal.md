@@ -13,6 +13,7 @@ QA testing of the Node Families wallet feature against Figma wireframes (node 18
 - **NYM-1558: Auto-add owner's node on family creation** — when the creating account controls a bonded nym-node, include it as an initial member at creation time; surface this in the UI ("Your node X will be added automatically"); owner must still be able to leave their own node from the family
 - **NYM-1559: Invited node appears in wrong Members section** — investigate and fix the status mapping / query cache issue that causes a freshly-invited node to show in Joined or Rejected instead of Pending
 - **NYM-1560: "See all" truncation for Removed/Rejected** — limit Removed and Rejected sections in `MemberList` to 3 entries by default with a "See all (N)" expansion; never auto-hide entries
+- **Nav invite badge** — when the wallet loads, if the user's controlled node has pending family invitations, show a visual indicator on the "Family" nav item so users know to check it
 
 ## Capabilities
 
@@ -27,6 +28,7 @@ QA testing of the Node Families wallet feature against Figma wireframes (node 18
 - `family-auto-add-owner-node`: Owner's nym-node automatically joined at family creation time (NYM-1558)
 - `family-invite-tab-routing`: Freshly-invited nodes routed to Pending section immediately (NYM-1559)
 - `family-member-list-truncation`: Removed/Rejected sections collapsed to 3 with "See all" expansion (NYM-1560)
+- `family-nav-invite-badge`: Visual indicator on the Family nav item when the user's node has pending invitations
 
 ### Modified Capabilities
 
@@ -42,3 +44,5 @@ _(No existing spec-level capabilities are changing — all affected code is new 
 - `nym-wallet/src/components/Families/MemberList.tsx` — truncated Removed/Rejected sections
 - `nym-wallet/src/components/Families/PendingInvitesList.tsx` — removed or repurposed
 - `nym-wallet/src/context/families.ts` — extended context type if new flags needed
+- `nym-wallet/src/hooks/usePendingFamilyInviteCount.ts` — new standalone hook (no FamiliesContext dependency)
+- `nym-wallet/src/components/Nav.tsx` — add MUI Badge to the Family nav item

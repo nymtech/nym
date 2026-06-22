@@ -1228,7 +1228,7 @@ mod tests {
     fn test_network_details_with_multiple_urls() {
         // Verify that network details can be configured with multiple API URLs
         let mut network_details = NymNetworkDetails::new_empty();
-        network_details.nym_api_urls = Some(vec![
+        network_details.set_nym_api_urls(vec![
             ApiUrl {
                 url: "https://validator.nymtech.net/api/".to_string(),
                 front_hosts: None,
@@ -1239,12 +1239,8 @@ mod tests {
             },
         ]);
 
-        assert_eq!(network_details.nym_api_urls.as_ref().unwrap().len(), 2);
-        assert!(
-            network_details.nym_api_urls.as_ref().unwrap()[1]
-                .front_hosts
-                .is_some()
-        );
+        assert_eq!(network_details.nym_api_urls().len(), 2);
+        assert!(network_details.nym_api_urls()[1].front_hosts.is_some());
     }
 
     #[test]

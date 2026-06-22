@@ -50,7 +50,7 @@ export const FamilyPage = () => {
           }}
         >
           <Tab label="My family" data-testid="family-tab-owner" />
-          <Tab label="Node invites" data-testid="family-tab-operator" />
+          <Tab label="Invites" data-testid="family-tab-operator" />
         </Tabs>
 
         <Box hidden={tab !== 0}>{tab === 0 && <OwnerTab />}</Box>

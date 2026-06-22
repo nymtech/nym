@@ -49,7 +49,7 @@ const darkMode = {
     main: '#FFFFFF',
     muted: '#938F99',
     warn: '#F97316',
-    contrast: '#242B2D',
+    contrast: '#0A0A0A',
     grey: '#79747E',
     blue: '#60D7EF',
     subdued: '#AEACB1',
@@ -71,7 +71,7 @@ const darkMode = {
   },
   // New additions for modern look
   gradients: {
-    primary: 'linear-gradient(45deg, rgba(20, 231, 111, 0.9), rgba(20, 231, 111, 0.7))',
+    primary: 'linear-gradient(45deg, #5BF0A0, #4AD88C)',
     subtle: 'linear-gradient(180deg, rgba(50, 55, 61, 0.8), rgba(36, 43, 45, 0.8))',
   },
   shadows: {
@@ -265,16 +265,16 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
       // Use different approach for overriding MUI styles that have type issues
       containedPrimary: () => ({
         background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
-        color: '#FFFFFF',
+        color: mode === 'dark' ? '#0A0A0A' : '#FFFFFF',
         '&:hover': {
           background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
-          color: '#FFFFFF',
+          color: mode === 'dark' ? '#0A0A0A' : '#FFFFFF',
         },
         '&.Mui-disabled': {
           opacity: 1,
           backgroundImage: 'none',
           backgroundColor: mode === 'dark' ? alpha(nymPalette.highlight, 0.35) : alpha(LIGHT_MODE_PRIMARY_GREEN, 0.35),
-          color: alpha('#FFFFFF', 0.8),
+          color: mode === 'dark' ? alpha('#0A0A0A', 0.6) : alpha('#FFFFFF', 0.8),
         },
       }),
       outlined: {

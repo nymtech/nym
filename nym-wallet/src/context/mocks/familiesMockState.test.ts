@@ -398,17 +398,3 @@ describe('queries & pagination', () => {
     expect(mockGetPendingInvitationsForNodePaged(s, 71).items).toHaveLength(0);
   });
 });
-// Delegate to the global test framework's expect (e.g. Jest) to avoid
-// shadowing built-ins while keeping existing call sites working.
-function expect(fn: () => void) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const g: any = globalThis || (global as any);
-  if (typeof g.expect === 'function') return g.expect(fn);
-  // Fallback: run the function so tests will surface errors if any.
-  try {
-    fn();
-  } catch (e) {
-    throw e;
-  }
-}
-

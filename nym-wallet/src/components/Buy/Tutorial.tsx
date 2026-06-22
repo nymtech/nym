@@ -109,7 +109,7 @@ export const Tutorial = () => {
     {
       name: 'Osmosis',
       tokenType: 'Native NYM (DEX)',
-      url: 'https://app.osmosis.zone/assets/ibc/498A0751C798A0D9A389AA3691123DADA57DAA4FE165D5C75894505B876BA6E4',
+      url: 'https://app.osmosis.zone/assets/ibc/37CB3078432510EE57B9AFA8DBE028B33AE3280A144826FEAC5F2334CF2C5539',
       icon: <Box component="img" src={OsmosisLogo} alt="Osmosis" sx={{ width: 24, height: 24 }} />,
     },
     {

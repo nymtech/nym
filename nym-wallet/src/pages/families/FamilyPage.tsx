@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useState } from 'react';
 import { Box, CircularProgress, Stack, Tab, Tabs, Typography } from '@mui/material';
-import { useFamiliesContext, useOwnedFamily } from 'src/context/families';
+import { useFamiliesContext, useOwnedFamily, usePendingInviteCountForNodes } from 'src/context/families';
+import { InviteNotificationBadge } from 'src/components/Families';
 import { PageLayout } from 'src/layouts';
 import { CreateFamilyEntry, OwnerManagementPage } from './OwnerManagementPage';
 import { OperatorInvitesPage } from './OperatorInvitesPage';
@@ -23,8 +24,9 @@ const OwnerTab = () => {
 /** The Family tab content. Always visible; adapts to ownership and exposes operator invites. */
 export const FamilyPage = () => {
   const [tab, setTab] = useState(0);
-  // touch the context so the tab is meaningful even before reads resolve
-  useFamiliesContext();
+  const { controlledNodeIds } = useFamiliesContext();
+  // Live count of invites awaiting a decision, used to flag the Invites tab.
+  const inviteCount = usePendingInviteCountForNodes(controlledNodeIds);
 
   return (
     <PageLayout>
@@ -50,7 +52,18 @@ export const FamilyPage = () => {
           }}
         >
           <Tab label="My family" data-testid="family-tab-owner" />
-          <Tab label="Invites" data-testid="family-tab-operator" />
+          <Tab
+            data-testid="family-tab-operator"
+            label={
+              <InviteNotificationBadge
+                badgeContent={inviteCount}
+                data-testid="family-invites-badge"
+                sx={{ pr: inviteCount > 0 ? 1.5 : 0 }}
+              >
+                Invites
+              </InviteNotificationBadge>
+            }
+          />
         </Tabs>
 
         <Box hidden={tab !== 0}>{tab === 0 && <OwnerTab />}</Box>

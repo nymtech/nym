@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { createContext, useContext, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import {
   AcceptFamilyInvitationArgs,
   CreateFamilyArgs,
@@ -339,6 +339,26 @@ export const usePendingInvitationsForNode = (nodeId?: NodeId) => {
     enabled: nodeId !== undefined,
     staleTime: READ_STALE_TIME,
   });
+};
+
+/**
+ * How many invites are still waiting on a decision across the given nodes. We only
+ * count live ones (expired invites can't be accepted, so they don't "need
+ * addressing"). Shares the `pendingForNode` query cache so the notification badge
+ * stays in lockstep with the invites view and refreshes on the same invalidation.
+ */
+export const usePendingInviteCountForNodes = (nodeIds: NodeId[]): number => {
+  const { queries } = useFamiliesContext();
+  const results = useQueries({
+    queries: nodeIds.map((nodeId) => ({
+      queryKey: familyQueryKeys.pendingForNode(nodeId),
+      queryFn: () =>
+        fetchAllPages((startAfter, limit) => queries.getPendingInvitationsForNodePaged(nodeId, startAfter, limit)),
+      staleTime: PENDING_STALE_TIME,
+    })),
+  });
+
+  return results.reduce((total, result) => total + (result.data?.filter((d) => !d.expired).length ?? 0), 0);
 };
 
 // ---------------------------------------------------------------------------

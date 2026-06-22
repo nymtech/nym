@@ -353,6 +353,7 @@ pub(crate) struct MnemonicAccount {
     #[serde(with = "display_hd_path")]
     // there's nothing secret about our derivation path
     #[zeroize(skip)]
+    #[allow(unused_assignments)]
     hd_path: DerivationPath,
 }
 

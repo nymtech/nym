@@ -1,6 +1,7 @@
 export * from './helpers';
 export * from './StatusChip';
 export * from './FamilyContentPanel';
+export * from './InviteNotificationBadge';
 export * from './MyNodeFamilySection';
 export * from './ConfirmActionButton';
 export * from './CreateFamilyForm';

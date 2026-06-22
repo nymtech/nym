@@ -1,4 +1,4 @@
-// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
@@ -78,8 +78,8 @@ impl<St: Storage> BandwidthController<St> {
         self.storage
             .attempt_revert_ticketbook_withdrawal(
                 info.ticketbook_id,
-                info.used_tickets,
                 info.tickets_withdrawn,
+                info.used_tickets,
             )
             .await
             .map_err(BandwidthControllerError::credential_storage_error)

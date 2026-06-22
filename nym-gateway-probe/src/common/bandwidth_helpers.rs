@@ -1,8 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::bail;
+use anyhow::{Context, bail};
 use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_bandwidth_controller::error::BandwidthControllerError;
 use nym_bandwidth_controller::mock::MockBandwidthController;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_credentials::{
@@ -13,6 +14,7 @@ use nym_credentials_interface::TicketType;
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::bandwidth::BandwidthImporter;
 use nym_sdk::mixnet::{CredentialStorage, DisconnectedMixnetClient, EphemeralCredentialStorage};
+use nym_validator_client::nyxd::error::NyxdError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

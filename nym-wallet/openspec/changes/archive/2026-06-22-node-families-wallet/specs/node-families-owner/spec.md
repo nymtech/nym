@@ -2,7 +2,7 @@
 
 <!-- Design source: Figma file `moIK1E6AaXhFz8lI1pZVrI`, board `1859:981`. Canonical = `2474:*` set; reference = `1861:*` ticket composite. See design.md "Design Source (Figma)". Per-requirement frame IDs are noted as _Design:_ lines below; open via ?node-id=<id> (dash form). -->
 
-### Requirement: Family Tab is always visible and exposes create or management based on ownership
+### Requirement: Family Tab SHALL always be visible and expose create or management based on ownership
 
 _Design: `2474:1935` (4 user states) → `2474:1945` No family yet, `2474:1980` Owner; `2474:1449` Balance — Family tab; ref `1861:393` (SECTION 1)._
 
@@ -16,7 +16,7 @@ The wallet SHALL display the **Family** tab for every connected wallet account, 
 - **WHEN** the connected address already owns a family
 - **THEN** the Family tab renders the family management surface (member list, invite, edit, delete) and not the create entry point
 
-### Requirement: Family owner can create a family with the creation fee
+### Requirement: Family owner SHALL create a family with the creation fee
 
 _Design: ref `1861:638` (SECTION 2 · Create Family · NYM-1210); canonical entry point `2474:1945` (No family yet)._
 
@@ -57,7 +57,7 @@ When the creating account controls a bonded nym-node, that node SHALL be automat
 - **WHEN** the creating account does not control any bonded node
 - **THEN** no auto-add occurs and the family is created normally without a helper message
 
-### Requirement: Family owner can add and edit the family name and description
+### Requirement: Family owner SHALL add and edit the family name and description
 
 _Design: ref `1861:794` (SECTION 3 · NYM-1211 edit); canonical `2474:1980` (Owner state)._
 
@@ -79,7 +79,7 @@ The wallet SHALL let the owner set a name and description on creation and edit e
 - **WHEN** the owner edits the name and/or description of an existing family with valid input
 - **THEN** the updated values are persisted and reflected in the family management surface
 
-### Requirement: Family owner can invite a node by node ID
+### Requirement: Family owner SHALL invite a node by node ID
 
 _Design: ref `1861:1150` (SECTION 4 · Invite Node · NYM-1212), incl. the three warning states; canonical `2474:1980` (Owner state)._
 
@@ -101,7 +101,7 @@ The wallet SHALL let the owner invite a node by entering its node ID, triggering
 - **WHEN** the owner enters a malformed node ID
 - **THEN** the wallet shows a clear validation error and does not submit
 
-### Requirement: Family owner can withdraw pending invites and clear expired ones
+### Requirement: Family owner SHALL withdraw pending invites and clear expired ones
 
 _Design: ref `1861:794` (SECTION 3 · roster/invite management) and `1861:1150` (SECTION 4 · pending invite + expired states)._
 
@@ -119,7 +119,7 @@ The wallet SHALL list the family's pending invitations with their expiry state (
 - **WHEN** the owner clears an expired invite
 - **THEN** a confirmation prompt is shown, and on confirm the invite is removed from the pending list and the state refreshes
 
-### Requirement: Family owner can view the member list grouped by status
+### Requirement: Family owner SHALL view the member list grouped by status
 
 _Design: ref `1861:794` (SECTION 3 · view roster · NYM-1213); canonical `2474:1980` (Owner state)._
 
@@ -149,7 +149,7 @@ The wallet SHALL display the family's records grouped into four sections: **Pend
 - **WHEN** the underlying contract state changes (invite accepted, member kicked, etc.) and the list refreshes
 - **THEN** the new record appears in its corresponding section, while any pre-existing records for the same node remain in their own sections
 
-### Requirement: Family owner can remove a node from the family
+### Requirement: Family owner SHALL remove a node from the family
 
 _Design: ref `1861:794` (SECTION 3 · remove member · NYM-1214); canonical `2474:1311` (Member remove state)._
 
@@ -163,7 +163,7 @@ The wallet SHALL let the owner remove (kick) a Joined member via `KickFromFamily
 - **WHEN** the owner opens the removal confirmation prompt and cancels
 - **THEN** no contract call is made and the member remains Joined
 
-### Requirement: Family owner can delete an empty family
+### Requirement: Family owner SHALL delete an empty family
 
 _Design: ref `1861:794` (SECTION 3 · dissolve empty family · NYM-1215); canonical `2474:1305` (Dissolve)._
 

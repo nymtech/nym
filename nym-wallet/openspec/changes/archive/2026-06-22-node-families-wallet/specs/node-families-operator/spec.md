@@ -2,7 +2,7 @@
 
 <!-- Design source: Figma file `moIK1E6AaXhFz8lI1pZVrI`, board `1859:981`. Canonical = `2474:*` set; reference = `1861:*` ticket composite. See design.md "Design Source (Figma)". Per-requirement frame IDs are noted as _Design:_ lines below; open via ?node-id=<id> (dash form). -->
 
-### Requirement: Node operator can view family invites per node
+### Requirement: Node operator SHALL view family invites per node
 
 _Design: canonical `2474:2063` (Member, pending invite); ref `1861:1349` (SECTION 5 · Incoming Invite popups · NYM-1216)._
 
@@ -20,7 +20,7 @@ The wallet SHALL display, in the Family tab, the pending family invitations addr
 - **WHEN** the operator controls more than one node, each with different invitations
 - **THEN** the wallet groups invitations under their respective node and shows each node's distinct invite state
 
-### Requirement: Node operator can accept an invite
+### Requirement: Node operator SHALL accept an invite
 
 _Design: ref `1861:1349` (SECTION 5 · accept · NYM-1218), incl. on-chain-consequences confirm; canonical `2474:2063` (Member, pending invite)._
 
@@ -34,7 +34,7 @@ The wallet SHALL let the operator accept a pending, not-yet-expired invitation f
 - **WHEN** the operator attempts to accept an invitation whose `expired` flag is true
 - **THEN** the wallet prevents acceptance and surfaces an expired error
 
-### Requirement: Node operator can reject an invite
+### Requirement: Node operator SHALL reject an invite
 
 _Design: ref `1861:1349` (SECTION 5 · reject · NYM-1217/1218)._
 
@@ -48,7 +48,7 @@ The wallet SHALL let the operator reject a pending invitation from the invite vi
 - **WHEN** an invitation has been rejected
 - **THEN** it is not shown again in the operator's pending invite list and the node shows as Rejected in the family member list
 
-### Requirement: Node operator can leave a family
+### Requirement: Node operator SHALL leave a family
 
 _Design: ref `1861:1711` (SECTION 6 · Leave family · NYM-1219); canonical `2474:2134` (Member, active)._
 

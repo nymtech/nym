@@ -91,3 +91,5 @@ scripts/nym-node-setup/auto-bond/nodes.csv
 
 *storybook.log
 >>>>>>> dea01ef63 (NYM-1199: integrate OpenSpec AI for Node Families UI)
+
+nym-wallet/.tsbuild-test/tsconfig.test.tsbuildinfo

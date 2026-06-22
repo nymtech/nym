@@ -11,16 +11,16 @@ Key constraints:
 ## Goals / Non-Goals
 
 **Goals:**
-- Countdown timers tick live (1-second interval, cleaned up on unmount)
-- Each form button reflects only its own in-flight operation
-- Operator membership ("Current family" + Leave) surfaces in My family tab, not Node invites
-- Pending invitations appear exactly once (in MemberList, not twice)
-- Create form blocks with a clear warning when the owner's node is already in a family
-- Page horizontal padding matches the wallet's standard layout
-- Owner's nym-node is auto-joined at family creation (NYM-1558)
+- Countdown timers tick live (1-second interval, cleaned up on unmount), via a shared `useNowSecs` hook
+- Each family action's button reflects only its own in-flight operation (single `executingAction` discriminant)
+- Operator membership (current family + Leave) surfaces in the My family tab, not the Invites tab
+- Pending invitations appear exactly once (in the unified members table, not twice)
+- Create form is hidden (replaced by the membership panel) when the owner's node is already in a family
+- Page layout aligns with the wallet's standard `PageLayout`
+- Owner's nym-node is auto-joined at family creation, handled atomically by the contract (NYM-1558)
 - Freshly-invited node appears in Pending immediately, not in Joined/Rejected (NYM-1559)
-- Removed/Rejected member sections are collapsed to 3 entries with "See all (N)" (NYM-1560)
-- Family nav item shows a badge/dot when the user's controlled node has pending invitations
+- Members, invites and history are shown in one delegations-style table with joined/history de-duplication (supersedes NYM-1560 "See all")
+- Family nav item and the Invites sub-tab show a count badge when the controlled node has active pending invitations
 
 **Non-Goals:**
 - Pagination or server-side truncation of member lists
@@ -30,91 +30,66 @@ Key constraints:
 
 ## Decisions
 
-### D1 — Live `nowSecs` via `useEffect` interval, not `useMemo`
-**Decision:** Replace `const nowSecs = useMemo(() => Math.floor(Date.now() / 1000), [])` in `FamiliesContextProvider` with a `useState` initialized to `Math.floor(Date.now() / 1000)` and a `useEffect` that runs `setInterval(() => setNowSecs(Math.floor(Date.now() / 1000)), 1000)` with cleanup.
+### D1 — Live `nowSecs` via a shared `useNowSecs` hook
+**Decision (as built):** Extract the ticking clock into `useNowSecs` (`src/hooks/useNowSecs.ts`): a `useState` initialized to `Math.floor(Date.now() / 1000)` plus a `useEffect` running `setInterval(..., 1000)` with cleanup. The provider feeds its value out as `ctx.nowSecs`, so every countdown consumer shares one ticking source rather than the old `useMemo(() => ..., [])` that only computed once on mount.
 
 **Why over alternatives:**
 - *Prop drilling `Date.now()` from each display site* — duplicates timers, no single source of truth
 - *`useReducer` tick* — unnecessarily complex for a scalar value
 - The existing pattern already distributes `nowSecs` through context to all consumers; changing just the source is the minimal diff
 
-### D2 — Per-action loading via two local `useState` flags in `OwnerManagementPage`
-**Decision:** Add `const [editBusy, setEditBusy] = useState(false)` and `const [inviteBusy, setInviteBusy] = useState(false)` in `OwnerManagementPage`. Wrap `handleEdit` / `handleInvite` to set/clear their respective flag, independent of `ctx.isExecuting`. Pass `editBusy` to `EditFamilyForm.isSubmitting` and `inviteBusy` to `InviteNodeForm.isSubmitting`.
+### D2 — Per-action loading via a single `executingAction` discriminant on the context
+**Decision (as built):** Replace the global `isExecuting` boolean with `executingAction: FamilyExecutingAction | null` on `FamiliesContext` (values like `create`, `invite`, `kick`, `revoke`, `leave`, `accept`, `reject`). Each button shows its loading label only when `ctx.executingAction` equals its own action, and is otherwise disabled (greyed) while a different action is in flight. The provider's `run(action, fn)` helper sets/clears the discriminant around each IPC call.
 
-**Why not split `isExecuting` in the context:** The context's `isExecuting` is also used by delete, kick, revoke, leave — all of which correctly want to disable their own button. The dual-button bleed is only in `OwnerManagementPage` where two forms sit side-by-side. Local state is the minimal, correct fix.
+**Why a discriminant rather than two local `useState` flags (the earlier plan):** More than two actions share the owner surface (invite, kick, revoke, leave, plus create on the empty state). A single discriminant keeps them all consistent and avoids scattering busy flags across components. Note also that "Edit family" / "Save changes" was moved to the separate `FamilySettingsPage`, so the original "two forms side-by-side" framing no longer applies.
 
-**Why not a single `executingOp: string | null` discriminant:** Unnecessary generality — only two forms share a screen.
+### D3 — Membership surfaced via `MyNodeFamilySection` in the My family tab
+**Decision (as built):** The "Current family" block was removed from the Invites surface and replaced by `MyNodeFamilySection`, rendered through `ControlledNodeSections`. On the owner surface it sits in its own bordered `FamilyContentPanel` above the owned-family management panel; on the empty/create surface it stands in for the create form when the controlled node belongs to another wallet's family. This keeps an owned family visually distinct from membership in someone else's family.
 
-### D3 — Operator membership card moved into `OwnerManagementPage` / `FamilyPage` owner tab
-**Decision:** In `OperatorInvitesPage`, remove the "Current family" `NymCard` block. In `FamilyPage` (or `OwnerManagementPage`), add an `OperatorMembershipCard` that renders when `controlledNodeIds` has a node that is already a member of a family. This requires reading `useFamilyMembership(nodeId)` from within the My family tab.
+**Leave button:** Rendered compact (not `fullWidth`) and labelled with the family name (e.g. "Leave {family}") so the user knows exactly which family they are leaving.
 
-**Placement:** Rendered between the family summary card and the Edit/Invite grid, so it is visible immediately when the owner lands on the tab.
+### D4 — Single `FamilyMembersTable` replaces `MemberList` + `PendingInvitesList`
+**Decision (as built):** Both `MemberList` and the standalone `PendingInvitesList` were replaced by one delegations-style `FamilyMembersTable` (columns: Node, Status, Actions). It receives joined/rejected/removed rows from the member-list query and pending rows from the live invitations query, merges them in order (joined → pending → rejected → removed), and renders the row-appropriate action (Remove / Withdraw / Clear / none). Pending invitations therefore appear exactly once, with a Withdraw (or Clear, if expired) action inline.
 
-**Leave button:** Render as a standard MUI `Button` without `fullWidth`, wrapped in a `Box` (left-aligned), matching the pattern used by "Save changes" and "Send invite".
+### D5 — Pre-validate node membership in `CreateFamilyEntry` by hiding the form
+**Decision (as built):** In `CreateFamilyEntry`, call `useFamilyMembership(controlledNodeIds[0])`. When it resolves with a `family_id`, do not render the create form at all — render `ControlledNodeSections` (`MyNodeFamilySection`, with its Leave action) instead, so the screen stays clean and the next step (leave the existing family) is obvious. `handleCreate` also short-circuits if `nodeInFamily`, as defence-in-depth. The check never blocks while the query is still loading.
 
-### D4 — Remove `PendingInvitesList`; pending rows stay in `MemberList`
-**Decision:** Remove the `<PendingInvitesList>` from `OwnerManagementPage`. The `MemberList` component already renders a "Pending" subsection with node ID and expiry. Add a Withdraw action to the pending row in `MemberList` (currently missing) so the owner can still revoke from there. The `PendingInvitesList` component file can remain for Storybook but is no longer rendered.
+**Why hide rather than warn+disable (the earlier plan):** A disabled form with an inline alert still shows create fields the user can't use. Hiding the fields and showing the existing-membership panel is cleaner and matches the "screens should always be clean" feedback.
 
-**Why not remove `MemberList`'s pending section:** `MemberList` is the single source of truth for all member states; it already receives the pending rows. Removing it from `MemberList` would split state representation.
+### D6 — Page layout aligned with the wallet standard
+**Decision (as built):** `FamilyPage` uses the shared `PageLayout` wrapper instead of an ad-hoc `p: 4`, so its cards align to the same content gutter as Balance/Bonding/Delegation and vertical spacing is preserved.
 
-### D5 — Pre-validate node membership in `CreateFamilyEntry`
-**Decision:** In `CreateFamilyEntry`, call `useFamilyMembership(nodeId)` for each `controlledNodeIds[0]`. If the membership query returns a `family_id`, render an `Alert severity="warning"` above the form ("Node {id} is already a member of family {name}. Leave that family before creating a new one.") and set `disabled` on the Create button.
+### D7 — NYM-1558: Auto-add owner node — done atomically in the contract
+**Decision (as built):** The owner's bonded node enrolment was implemented in the node-families contract's `CreateFamily` handler (PR #6891), not in the wallet. When the sender controls a bonded, not-unbonding node that isn't already in a family, the contract writes its `FamilyMembership` and persists the family with `members = 1`. See the contract spec at `openspec/specs/node-families-contract/spec.md`.
 
-Show the alert only when the query has settled (not loading) to avoid flash. This is a UI-only guard; the backend will still reject if somehow submitted.
+**Why over the earlier FE invite+accept plan:** Doing it in the contract is atomic — there is no intermediate "stuck in Pending" state and no extra Tauri round-trips. The wallet just calls `createFamily`; the owner's node shows up in the Joined rows after the data refreshes. Consequently `CreateFamilyForm` has no "your node will be added automatically" hint and `handleCreate` does no follow-up invite/accept.
 
-### D6 — Page padding: remove horizontal padding from `FamilyPage`, keep vertical
-**Decision:** Change `sx={{ p: 4 }}` to `sx={{ pt: 3, pb: 4 }}` (or match whatever `px` value the Balance/Bonding pages use — verify during implementation). The wallet's main content area already provides its own left/right gutter; the inner `p: 4` double-pads horizontally.
+### D8 — NYM-1559: invited node routed to Pending (resolved)
+**Decision (as built):** Pending rows are sourced from the live invitations query (`usePendingInvitationsForFamily`) rather than inferred from the member-list, and `deriveMemberSections` (`familyMemberSections.ts`) owns the status-to-section mapping for joined/rejected/removed. A freshly-invited node therefore appears in Pending immediately, and a node that is currently joined is dropped from the rejected/removed buckets so it is never duplicated in history.
 
-**Verification step:** During implementation, compare with `src/pages/balance/` or `src/pages/bonding/` to confirm the standard.
+### D9 — NYM-1560: superseded by the unified table + history de-duplication
+**Decision (as built):** The planned "See all (N)" truncation of Removed/Rejected was dropped. Instead all records live in the single `FamilyMembersTable`, and `deriveMemberSections` removes any node from the rejected/removed buckets if it is currently joined. The clutter NYM-1560 targeted (stale history entries for nodes that came back) is handled by de-duplication rather than collapsing, so no expand/collapse state is needed.
 
-### D7 — NYM-1558: Auto-add owner node — sequential invite+accept after create
-**Decision:** After `createFamily` resolves successfully, if `controlledNodeIds[0]` exists, immediately call `ctx.inviteToFamily({ node_id })` then `ctx.acceptFamilyInvitation({ family_id: newFamily.id, node_id })` in sequence. This uses the existing IPC calls; no backend changes required.
+### D10 — Nav + Invites sub-tab count badge via shared query, not FamiliesContext
+**Problem:** `Nav` renders above the `/family` route, *outside* the `FamiliesContextProvider` hierarchy, so it can't call `useFamiliesContext()`.
 
-**UI change:** In `CreateFamilyForm`, if `ownerNodeId` prop is provided, add a helper line: "Your node {id} will be added automatically."
+**Decision (as built):**
+1. `useControlledNodeIds()` (`src/hooks/useControlledNodeIds.ts`) resolves the controlled node ids app-wide without the Bonding/Families providers — it reads `AppContext` + `useGetNodeDetails` and returns `[]` until the bonded node resolves (so it degrades cleanly, including in the no-Tauri mock harness).
+2. `usePendingInviteCountForNodes(nodeIds)` (`src/context/families.tsx`) sums **non-expired** pending invites across those nodes using `useQueries`, sharing the `pendingForNode` query cache so the badge and the invites view refresh together.
+3. `InviteNotificationBadge` (`src/components/Families/InviteNotificationBadge.tsx`) is a styled mint MUI `Badge` that shows the **count** and hides itself at 0.
 
-**Risk:** The invite+accept is two extra transactions. If `inviteToFamily` succeeds but `acceptFamilyInvitation` fails, the node will be in Pending, not Joined. Surface this to the user (snackbar error) and leave recovery to the user (they can accept from Node invites tab). Do not silently ignore.
+**Placements:** the sidebar "Family" entry in `Nav.tsx`, and the "Invites" sub-tab label in `FamilyPage.tsx`. We show the count (not a bare dot) because the user asked to see how many invites need addressing; expired invites are excluded since they can't be acted on.
 
-### D8 — NYM-1559: Investigate + fix wrong-tab routing of invited node
-**Decision:** The root cause is most likely that `useFamilyMemberList` maps the member status field incorrectly, OR that `refreshAll()` causes an optimistic cache write that puts the node in the wrong bucket before the server response arrives.
-
-**Investigation path during implementation:**
-1. Log the raw API response after `inviteToFamily` + `refreshAll()` in dev
-2. Check the status value returned for a freshly-invited node in `useFamilyMemberList`
-3. Verify the bucket mapping in the hook against the contract enum
-
-Fix will be in the status mapping or by ensuring no optimistic update writes a wrong status.
-
-### D9 — NYM-1560: Client-side truncation with expand toggle in `MemberList`
-**Decision:** Add a `COLLAPSED_LIMIT = 3` constant. For the Removed and Rejected sections only, render the first 3 entries when collapsed and show a "See all ({n})" MUI `Button` (variant="text", size="small") when there are more. Pending and Joined sections are not truncated (they are actionable, so full visibility matters).
-
-State: `const [rejectedExpanded, setRejectedExpanded] = useState(false)` and equivalent for Removed, local to `MemberList`. No persistence needed.
-
-### D10 — Nav invite badge via standalone query hook, not FamiliesContext
-**Problem:** `Nav` renders at `ApplicationLayout` level, which is *outside* the `FamiliesContextProvider` hierarchy. The families context provider only activates on the `/family` route. Calling `useFamiliesContext()` from Nav would throw.
-
-**Decision:** Create a new hook `usePendingFamilyInviteCount()` in `src/hooks/` that:
-1. Calls `useBondingContext()` to get the controlled node ID (bonding context is already available app-wide)
-2. Directly calls `useOperatorNodeInvites(nodeId)` — this is a pure TanStack Query hook that does NOT require `FamiliesContext`, only the node ID
-3. Returns `count: number` (number of non-expired pending invites for that node, 0 if no bonded node)
-
-**Nav change:** In `Nav.tsx`, call `usePendingFamilyInviteCount()`. Wrap the `Family` nav item's `Icon` in a MUI `Badge` component with `variant="dot"` when `count > 0`. A dot (not a number) is sufficient — the exact count is visible inside the page.
-
-**Why not lift FamiliesContextProvider to app level:** It wraps Tauri-specific IPC code. Moving it above the route boundary would cause it to initialise on every page load, including pages that have no families logic. The standalone hook is the minimal change.
-
-**Why not use AppContext:** AppContext currently holds account/client details only. Adding families data there would couple unrelated concerns.
+**Why not lift FamiliesContextProvider to app level:** it wraps Tauri-specific IPC and would initialise on every page. The standalone hook is the minimal change.
 
 ## Risks / Trade-offs
 
-- **D2 (per-action loading) vs. context refactor** — Local state in `OwnerManagementPage` is correct but means the context `isExecuting` still gates delete/kick/revoke/leave buttons globally. That is the desired behaviour for those actions (they are destructive and should lock the whole page). The risk is that a future developer re-uses `ctx.isExecuting` for the edit/invite forms again. Mitigation: leave a comment in context explaining the distinction.
+- **D2 (`executingAction` discriminant)** — A single in-flight discriminant means starting one action greys out the others; this is intentional (avoids overlapping family transactions). Risk: a future developer reintroduces a global `isExecuting` boolean. Mitigation: the discriminant is documented on the context type.
 
-- **D7 (two-step invite+accept)** — Adds latency at family creation (two extra Tauri calls). Acceptable since creation is infrequent. The failure-in-the-middle state (node stuck in Pending) is visible and recoverable via the Node invites tab.
+- **D5 (pre-validation by hiding the form)** — Relies on `useFamilyMembership` having resolved; while loading, the create form remains visible. `handleCreate` short-circuits as defence-in-depth and the contract rejects anyway, so the worst case is a harmless no-op rather than a bad transaction.
 
-- **D5 (pre-validation)** — Relies on `useFamilyMembership` having resolved. If the query is slow or fails, the create form may be accessible when it shouldn't be. Mitigation: treat query loading as "unknown" and leave the button enabled (do not block on a loading indicator); the backend will reject anyway.
-
-- **D8 (NYM-1559 investigation)** — Root cause is unknown until dev logging is added. If the bug is in the backend (contract returns wrong status), the fix falls outside FE scope and must be escalated.
+- **D7 (contract-side auto-add)** — The wallet depends on the contract enrolling the owner's node; the owner's node only shows as Joined after the create tx settles and the queries refresh, so there may be a brief gap before it appears. No partial-failure window though, since enrolment is atomic in the create transaction.
 
 ## Open Questions
 
-1. **D6 — exact page padding values**: Confirm what `px` the Balance/Bonding/Delegation pages use before writing the code.
-2. **D7 — does `createFamily` return the new family's ID?** Verify the `FamilyTxResult` type includes the created family ID so we can pass it to `acceptFamilyInvitation`. If not, an extra query is needed.
-3. **D3 — dual persona (owner + operator on same account)**: If the owner's account also controls a node that is in *their own* family, should "Current family" still render in My family tab? Likely yes — they might want to leave their own node. This edge case should be tested.
+_None outstanding — D6 (layout), D7 (auto-add ownership of the change) and D3 (dual persona) were resolved during implementation: layout uses the shared `PageLayout`, auto-add is owned by the contract, and the dual-persona case renders the membership panel above the owned-family panel._

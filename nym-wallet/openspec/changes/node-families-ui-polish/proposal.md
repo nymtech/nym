@@ -4,45 +4,50 @@ QA testing of the Node Families wallet feature against Figma wireframes (node 18
 
 ## What Changes
 
-- **Fix countdown timer** — `nowSecs` is currently computed once on mount via `useMemo` with empty deps; replace with a live interval so pending-invite expiry countdowns actually tick
-- **Fix per-action loading state** — the global `isExecuting` flag causes both "Save changes" and "Send invite" buttons to enter loading state simultaneously; split into per-action flags
-- **Move "Current family" to My family tab** — the card showing current membership + Leave button currently renders in the "Node invites" tab; move it to the "My family" tab where it belongs, and make the Leave button compact (not full-width)
-- **Remove duplicate pending invitations** — both `PendingInvitesList` (standalone card) and `MemberList` (Pending subsection) render the same data; consolidate into `MemberList` only
-- **Pre-validate node-in-family before creating** — when the owner's controlled node is already a member of another family, block the create form with an inline warning instead of letting the CosmWasm error surface after submission
-- **Fix page padding alignment** — `FamilyPage` uses `p: 4` on all sides; align with other wallet page padding so cards reach the correct horizontal extent per Figma
-- **NYM-1558: Auto-add owner's node on family creation** — when the creating account controls a bonded nym-node, include it as an initial member at creation time; surface this in the UI ("Your node X will be added automatically"); owner must still be able to leave their own node from the family
-- **NYM-1559: Invited node appears in wrong Members section** — investigate and fix the status mapping / query cache issue that causes a freshly-invited node to show in Joined or Rejected instead of Pending
-- **NYM-1560: "See all" truncation for Removed/Rejected** — limit Removed and Rejected sections in `MemberList` to 3 entries by default with a "See all (N)" expansion; never auto-hide entries
-- **Nav invite badge** — when the wallet loads, if the user's controlled node has pending family invitations, show a visual indicator on the "Family" nav item so users know to check it
+- **Fix countdown timer** — `nowSecs` was computed once on mount via `useMemo`; extracted into a live `useNowSecs` hook so pending-invite expiry countdowns actually tick
+- **Fix per-action loading state** — the global `isExecuting` flag made unrelated buttons enter loading together; replaced with a single `executingAction` discriminant so each button reflects only its own in-flight action
+- **Move "Current family" to My family tab** — current membership + Leave moved out of the Invites tab into the My family tab via `MyNodeFamilySection`, in its own bordered panel; the Leave button is compact and names the family
+- **Remove duplicate pending invitations** — `MemberList` + standalone `PendingInvitesList` replaced by one delegations-style `FamilyMembersTable`; pending invites appear exactly once, with an inline Withdraw/Clear action
+- **Pre-validate node-in-family before creating** — when the owner's controlled node is already in a family, hide the create form entirely and show the existing-membership panel instead of letting the CosmWasm error surface
+- **Fix page alignment** — `FamilyPage` now uses the shared `PageLayout` so cards align with the rest of the wallet
+- **NYM-1558: Auto-add owner's node on family creation** — implemented atomically in the node-families contract (PR #6891): the owner's bonded, not-unbonding node is enrolled as the founding member; the wallet just creates the family and the node appears as Joined. Owner can still leave their own node
+- **NYM-1559: Invited node appears in wrong Members section** — fixed the status-to-section derivation so a freshly-invited node shows in Pending (and a re-joined node isn't duplicated in history)
+- **NYM-1560: clean member history** — superseded the planned "See all" truncation with the unified `FamilyMembersTable` plus joined/history de-duplication, so stale history entries don't clutter the list
+- **Invite notification badge** — count badge (active invites only) on both the sidebar "Family" entry and the Family page's "Invites" sub-tab, so users know how many invites need addressing
 
 ## Capabilities
 
 ### New Capabilities
 
-- `family-countdown-timer`: Live ticking countdown for pending invite expiry, updated on a 1-second interval
-- `family-per-action-loading`: Per-action loading state so individual form buttons reflect only their own in-flight operation
-- `family-membership-surface`: Operator membership status (current family + Leave action) surfaced in the My family tab, not Node invites
-- `family-pending-dedup`: Single authoritative pending-invites display consolidated into the Members card
-- `family-create-prevalidation`: Pre-submission validation that blocks creation when the owner's node is already in a family
-- `family-page-alignment`: Page layout padding aligned to Figma and wallet-wide conventions
-- `family-auto-add-owner-node`: Owner's nym-node automatically joined at family creation time (NYM-1558)
-- `family-invite-tab-routing`: Freshly-invited nodes routed to Pending section immediately (NYM-1559)
-- `family-member-list-truncation`: Removed/Rejected sections collapsed to 3 with "See all" expansion (NYM-1560)
-- `family-nav-invite-badge`: Visual indicator on the Family nav item when the user's node has pending invitations
+- `family-countdown-timer`: Live ticking countdown for pending invite expiry, via a shared `useNowSecs` hook
+- `family-per-action-loading`: Single `executingAction` discriminant so each action button reflects only its own in-flight operation
+- `family-membership-surface`: Controlled-node membership (current family + Leave action) surfaced in the My family tab, not Invites
+- `family-pending-dedup`: Pending invites shown exactly once, as rows in the unified members table
+- `family-create-prevalidation`: Create form hidden (replaced by the membership panel) when the owner's node is already in a family
+- `family-page-alignment`: Page layout aligned to the wallet-wide `PageLayout`
+- `family-auto-add-owner-node`: Owner's nym-node auto-enrolled at family creation, atomically by the contract (NYM-1558)
+- `family-invite-tab-routing`: Freshly-invited nodes routed to Pending immediately (NYM-1559)
+- `family-members-table`: Single delegations-style members table (Node / Status / Actions) with joined/history de-duplication (supersedes NYM-1560 "See all")
+- `family-nav-invite-badge`: Count badge (active invites only) on the Family nav entry and the Invites sub-tab
 
 ### Modified Capabilities
 
-_(No existing spec-level capabilities are changing — all affected code is new from the NYM-1199 branch.)_
+- The NYM-1558 auto-enrolment is a contract-side change and modifies the `node-families-contract` capability (the `CreateFamily` requirement). That delta lives in `openspec/specs/node-families-contract/spec.md` (PR #6891); the wallet's `family-auto-add-owner-node` capability documents how the wallet relies on it.
 
 ## Impact
 
-- `nym-wallet/src/context/FamiliesContextProvider.tsx` — nowSecs interval, per-action loading flags
-- `nym-wallet/src/pages/families/FamilyPage.tsx` — page padding
-- `nym-wallet/src/pages/families/OwnerManagementPage.tsx` — remove PendingInvitesList, per-action loading, membership pre-check, operator membership card, NYM-1558 auto-add
-- `nym-wallet/src/pages/families/OperatorInvitesPage.tsx` — remove "Current family" card (moved to My family tab)
-- `nym-wallet/src/components/Families/LeaveFamilyButton.tsx` — compact (non-full-width) button
-- `nym-wallet/src/components/Families/MemberList.tsx` — truncated Removed/Rejected sections
-- `nym-wallet/src/components/Families/PendingInvitesList.tsx` — removed or repurposed
-- `nym-wallet/src/context/families.ts` — extended context type if new flags needed
-- `nym-wallet/src/hooks/usePendingFamilyInviteCount.ts` — new standalone hook (no FamiliesContext dependency)
-- `nym-wallet/src/components/Nav.tsx` — add MUI Badge to the Family nav item
+- `nym-wallet/src/context/families.tsx` — `executingAction` discriminant, `nowSecs`, `usePendingInviteCountForNodes`, resilient member-list query
+- `nym-wallet/src/context/familyMemberSections.ts` — `deriveMemberSections` drops currently-joined nodes from rejected/removed
+- `nym-wallet/src/hooks/useNowSecs.ts` — new ticking-clock hook
+- `nym-wallet/src/hooks/useControlledNodeIds.ts` — new provider-free controlled-node-ids hook (for the always-on nav)
+- `nym-wallet/src/pages/families/FamilyPage.tsx` — `PageLayout`, "Invites" tab rename, Invites sub-tab count badge
+- `nym-wallet/src/pages/families/OwnerManagementPage.tsx` — membership panel, create pre-check (hide form), single members table, per-action loading
+- `nym-wallet/src/pages/families/OperatorInvitesPage.tsx` — "Current family" block removed (moved to My family tab)
+- `nym-wallet/src/pages/families/FamilySettingsPage.tsx` — Edit + Dissolve moved here
+- `nym-wallet/src/components/Families/FamilyMembersTable.tsx` — new unified members table (replaces MemberList + PendingInvitesList)
+- `nym-wallet/src/components/Families/MyNodeFamilySection.tsx` — membership panel (own vs another wallet's family)
+- `nym-wallet/src/components/Families/LeaveFamilyButton.tsx` — compact, names the family
+- `nym-wallet/src/components/Families/InviteNotificationBadge.tsx` — new styled mint count badge
+- `nym-wallet/src/components/Families/helpers.ts` — `inviteWarningFromError` maps raw contract errors to clean warnings
+- `nym-wallet/src/components/Nav.tsx` — count badge on the Family nav entry
+- `nym/contracts/node-families/` — auto-enrol owner's node at creation (NYM-1558, PR #6891); specced in `openspec/specs/node-families-contract/spec.md`

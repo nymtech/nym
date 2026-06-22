@@ -22,6 +22,10 @@ _Design: ref `1861:638` (SECTION 2 · Create Family · NYM-1210); canonical entr
 
 The wallet SHALL allow an eligible user to create a family by submitting a name and description and attaching the contract's configured creation fee (`Config::create_family_fee`, read from chain — NOT a hardcoded amount). The wallet MUST display the required fee before submission, deduct it on success, and show a success confirmation that surfaces the new family. The wallet MUST surface an insufficient-balance error before submitting when the balance is below fee + estimated gas, and MUST surface contract fee errors (`InvalidFamilyCreationFee`, `InvalidDeposit`) clearly.
 
+The wallet MUST also block creation (inline warning, Create button disabled) when the account's controlled nym-node is already a member of another family — this is a pre-submission guard to avoid a raw contract error. The warning SHALL identify the node and its current family. The guard SHALL be silent while the membership query is loading and SHALL NOT activate when the account has no bonded node.
+
+When the creating account controls a bonded nym-node, that node SHALL be automatically added as a member of the new family at creation time — no separate invite step is required. The create form SHALL display a helper message ("Your node {id} will be added automatically") when this applies. If the auto-add (invite + accept) partially fails after family creation succeeds, the wallet MUST surface an error notification and the node will appear in Pending (recoverable via the Node invites tab).
+
 #### Scenario: Successful creation
 - **WHEN** a user with sufficient balance submits a valid name and description with the correct fee attached
 - **THEN** the family is created, the fee is deducted, and a success confirmation referencing the new family is shown
@@ -33,6 +37,25 @@ The wallet SHALL allow an eligible user to create a family by submitting a name 
 #### Scenario: Contract fee error is surfaced
 - **WHEN** creation fails with `InvalidFamilyCreationFee` or `InvalidDeposit`
 - **THEN** the wallet shows a clear fee error and the family is not created
+
+#### Scenario: Creation blocked when owner's node is already in a family
+- **WHEN** the account controls a node that is currently a member of another family
+- **THEN** the create form displays an inline warning identifying the node and its current family
+- **THEN** the Create button is disabled
+
+#### Scenario: Node auto-added after creation (NYM-1558)
+- **WHEN** an account that controls a bonded nym-node successfully creates a family
+- **THEN** that node appears in the Joined section of the Members card immediately after creation
+- **THEN** the owner does not need to send a separate invite to their own node
+
+#### Scenario: Auto-add partial failure surfaced
+- **WHEN** family creation succeeds but the subsequent invite or accept call for the owner's node fails
+- **THEN** the wallet shows an error notification describing the partial failure
+- **THEN** the node appears in Pending (the owner can complete acceptance from the Node invites tab)
+
+#### Scenario: No auto-add when account has no bonded node
+- **WHEN** the creating account does not control any bonded node
+- **THEN** no auto-add occurs and the family is created normally without a helper message
 
 ### Requirement: Family owner can add and edit the family name and description
 

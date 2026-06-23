@@ -244,6 +244,11 @@ impl Client {
         Ok(time)
     }
 
+    /// Latest committed block (height + timestamp) in a single RPC call.
+    pub(crate) async fn current_block_info(&self) -> Result<BlockResponse, NyxdError> {
+        Ok(nyxd_query!(self, latest_block().await?))
+    }
+
     /// Obtains the hash of a block specified by the provided height.
     /// If the resulting digest is empty, a `None` is returned instead.
     ///

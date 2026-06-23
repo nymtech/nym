@@ -56,6 +56,10 @@ const DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL: Duration = Duration::from_se
 /// Maximum number of `block_timestamp` lookups in flight in parallel during a
 /// single refresh tick.
 const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
+
+/// Number of blocks to look back when bootstrapping an average block time for
+/// estimating timestamps of pruned (no longer servable) heights.
+const DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK: u32 = 100;
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
 const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
@@ -457,6 +461,10 @@ pub struct NodeFamiliesCacheDebug {
     pub caching_interval: Duration,
 
     pub node_families_block_timestamp_fetch_concurrency: usize,
+
+    /// Blocks to look back when bootstrapping an average block time for
+    /// estimating timestamps of pruned heights.
+    pub node_families_block_time_estimation_lookback: u32,
 }
 
 impl Default for NodeFamiliesCacheDebug {
@@ -465,6 +473,8 @@ impl Default for NodeFamiliesCacheDebug {
             caching_interval: DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL,
             node_families_block_timestamp_fetch_concurrency:
                 DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY,
+            node_families_block_time_estimation_lookback:
+                DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK,
         }
     }
 }

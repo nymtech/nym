@@ -34,9 +34,12 @@ pub enum BandwidthControllerError {
     #[error("Credential error - {0}")]
     CredentialError(#[from] CredentialsError),
 
-    // Internal error that should not happen, e.g. channel comms failing
+    // Internal error that should not happen
     #[error("internal error: {0}")]
     Internal(String),
+
+    #[error("A channel we were using is closed")]
+    ChannelClosed,
 
     #[error("Threshold not set yet")]
     NoThreshold,

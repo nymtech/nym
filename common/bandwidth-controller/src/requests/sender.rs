@@ -45,8 +45,9 @@ impl BandwidthControllerRequestSender {
                     spend_time,
                 },
             ))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     #[instrument(skip(self), level = "debug")]
@@ -54,8 +55,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::UpgradeModeToken(tx))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     #[instrument(skip(self), level = "debug")]
@@ -68,8 +70,9 @@ impl BandwidthControllerRequestSender {
             .send(BandwidthControllerRequest::AttemptRevertSpending(
                 tx, metadata,
             ))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 }
 

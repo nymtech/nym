@@ -1,10 +1,9 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
 use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::{ed25519, x25519};
-pub use nym_mixnet_contract_common::LegacyMixLayer;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
@@ -12,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
+
+pub use nym_mixnet_contract_common::LegacyMixLayer;
 
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {

@@ -392,6 +392,7 @@ pub(super) async fn register_with_gateway(
     );
 
     init_gateway_client
+        .inner_mut()
         .establish_connection()
         .await
         .map_err(|err| {
@@ -402,6 +403,7 @@ pub(super) async fn register_with_gateway(
             }
         })?;
     let auth_response = init_gateway_client
+        .inner_mut()
         .perform_initial_authentication()
         .await
         .map_err(|err| {

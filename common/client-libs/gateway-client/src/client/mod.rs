@@ -28,7 +28,6 @@ use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
-use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -1132,18 +1131,8 @@ impl InitGatewayClient {
             shutdown_token,
         }
     }
-}
 
-impl Deref for InitGatewayClient {
-    type Target = GatewayClient;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for InitGatewayClient {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn inner_mut(&mut self) -> &mut GatewayClient {
         &mut self.0
     }
 }

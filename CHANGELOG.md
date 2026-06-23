@@ -13,6 +13,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - bugfix: restore and fix node throughput tester ([#6849])
 - chore: add retries for retrieving chain data ([#6847])
 - feat: expose node's chain address on self-described API ([#6815])
+- change mixnet timeout to be an env var ([#6897])
 
 [#6889]: https://github.com/nymtech/nym/pull/6889
 [#6874]: https://github.com/nymtech/nym/pull/6874
@@ -21,6 +22,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#6849]: https://github.com/nymtech/nym/pull/6849
 [#6847]: https://github.com/nymtech/nym/pull/6847
 [#6815]: https://github.com/nymtech/nym/pull/6815
+[#6897]: https://github.com/nymtech/nym/pull/6897
 
 ## [2026.11-xynomizithra] (2026-06-08)
 

@@ -221,7 +221,9 @@ impl UpgradeModeState {
 
         // ensure that the attestation had been signed with the expected key
         if let Some(attestation) = expected_attestation.as_ref() {
-            if attestation.content.attester_public_key != self.inner.expected_attester_public_key {
+            if attestation.content.attester_public_key != self.inner.expected_attester_public_key
+                || !attestation.verify()
+            {
                 self.update_last_queried(OffsetDateTime::now_utc());
                 return;
             }

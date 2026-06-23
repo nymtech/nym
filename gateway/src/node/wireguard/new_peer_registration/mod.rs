@@ -160,6 +160,8 @@ impl PeerRegistrator {
             }
             BandwidthCredential::UpgradeModeJWT { token } => {
                 // if we're already in the upgrade mode, don't bother validating the token
+                // (we have already received valid information about the upgrade mode,
+                // so even if we received total rubbish now, it wouldn't influence the current state)
                 if self.upgrade_mode_enabled() {
                     return Ok(());
                 }

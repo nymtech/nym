@@ -245,6 +245,7 @@ pub(crate) async fn master_verification_key(
             (AggregatedExpirationDateSignaturesResponse = "application/json"),
             (AggregatedExpirationDateSignaturesResponse = "application/yaml"),
         )),
+        (status = 400, body = String, description = "expiration_date is not a valid RFC3339 date"),
         (status = 401, description = "authentication token is missing or is invalid"),
         (status = 500, body = String, description = "failed to obtain current epoch information"),
         (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),

@@ -88,14 +88,23 @@ A given owner address SHALL own at most one family at any time, enforced by the 
 - **WHEN** any of `DisbandFamily`, `InviteToFamily`, `RevokeFamilyInvitation`, or `KickFromFamily` is sent by an address that owns no family
 - **THEN** the call fails with `SenderDoesntOwnAFamily { address }`
 
-### Requirement: Family creation requires the configured fee and is rejected if the owner's bonded node is already in a family
+### Requirement: Family creation requires the configured fee, enrols the owner's bonded node as the founding member, and is rejected if that node is already in a family
 
-`ExecuteMsg::CreateFamily` SHALL require the sender to attach exactly one coin matching `Config::create_family_fee` in both denom and amount. Payment validation MUST go through `cw_utils::must_pay`; mismatches in amount MUST surface as `InvalidFamilyCreationFee { expected, received }`. The handler MUST additionally check that any bonded node the sender controls (as reported by the mixnet contract via `query_nymnode_ownership`) is not currently a member of any family, failing with `AlreadyInFamily { address, node_id, family_id }` otherwise. The handler MUST validate the description length against `Config::family_description_length_limit` and reject overlong descriptions with `FamilyDescriptionTooLong { length, limit }`. On success the handler SHALL emit a `family_creation` event with attributes `family_name`, `owner_address`, `family_id`, `paid_fee`.
+`ExecuteMsg::CreateFamily` SHALL require the sender to attach exactly one coin matching `Config::create_family_fee` in both denom and amount. Payment validation MUST go through `cw_utils::must_pay`; mismatches in amount MUST surface as `InvalidFamilyCreationFee { expected, received }`. The handler MUST additionally check that any bonded node the sender controls (as reported by the mixnet contract via `query_nymnode_ownership`) is not currently a member of any family, failing with `AlreadyInFamily { address, node_id, family_id }` otherwise. The handler MUST validate the description length against `Config::family_description_length_limit` and reject overlong descriptions with `FamilyDescriptionTooLong { length, limit }`. When the sender controls a bonded, not-unbonding node that is not already in a family, the handler MUST enrol that node as the new family's founding member; writing its `FamilyMembership { family_id, joined_at = env.block.time.seconds() }` and persisting the family with `members = 1`. A sender that controls no bonded node, or whose controlled node has entered the unbonding state, leaves the family at `members = 0`. On success the handler SHALL emit a `family_creation` event with attributes `family_name`, `owner_address`, `family_id`, `paid_fee`.
 
 #### Scenario: Successful family creation persists the family and emits the event
-- **WHEN** a sender with no bonded family-member node and no existing-owned family sends `CreateFamily { name, description }` with the correct fee attached
+- **WHEN** a sender that controls no bonded node and owns no family sends `CreateFamily { name, description }` with the correct fee attached
 - **THEN** a new family is persisted with monotonically increasing `id`, the supplied `name` and `description`, the computed `normalised_name`, `members = 0`, `created_at = env.block.time.seconds()`, and `paid_fee` equal to the configured fee
 - **AND** the response carries an event named `family_creation` with attributes `family_name`, `owner_address`, `family_id`, `paid_fee`
+
+#### Scenario: The owner's bonded node is enrolled as the founding member
+- **WHEN** a sender that controls a bonded, not-unbonding node which is not a member of any family sends `CreateFamily` with the correct fee attached
+- **THEN** the new family is persisted with `members = 1` and a `FamilyMembership { family_id, joined_at = env.block.time.seconds() }` is recorded for the controlled node
+- **AND** the response carries the `family_creation` event as above
+
+#### Scenario: An unbonding node is not auto-enrolled
+- **WHEN** the sender controls a bonded node that has entered the unbonding state and is not a member of any family
+- **THEN** the family is created with `members = 0` and no `FamilyMembership` is recorded for that node
 
 #### Scenario: Wrong fee denom or missing funds is rejected
 - **WHEN** `CreateFamily` is sent with no funds, with multiple denoms, or with a denom different from `Config::create_family_fee.denom`

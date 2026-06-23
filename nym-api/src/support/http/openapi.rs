@@ -24,9 +24,8 @@ use utoipauto::utoipauto;
 #[openapi(
     info(title = "Nym API"),
     servers(
-        (url = "/api", description = "Main Nym Api Server"),
-        (url = "/", description = "Auxiliary Nym Api Instances"),
-        (url = "/", description = "Local Development Server")
+        (url = "/", description = "Default (direct nym-api)"),
+        (url = "/api", description = "Main Nym Api Server")
     ),
     tags(),
     components(schemas(

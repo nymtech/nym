@@ -4,6 +4,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.12-yaroslavsky] (2026-06-23)
+
+- update env details and fix swagger ([#6889])
+- feat: additional mixnet improvements and metrics ([#6874])
+- feat: introduce node families contract query for Config retrieval ([#6870])
+- feat(nym-node): mixnet packet latency instrumentation ([#6852])
+- bugfix: restore and fix node throughput tester ([#6849])
+- chore: add retries for retrieving chain data ([#6847])
+- feat: expose node's chain address on self-described API ([#6815])
+- change mixnet timeout to be an env var ([#6897])
+
+[#6889]: https://github.com/nymtech/nym/pull/6889
+[#6874]: https://github.com/nymtech/nym/pull/6874
+[#6870]: https://github.com/nymtech/nym/pull/6870
+[#6852]: https://github.com/nymtech/nym/pull/6852
+[#6849]: https://github.com/nymtech/nym/pull/6849
+[#6847]: https://github.com/nymtech/nym/pull/6847
+[#6815]: https://github.com/nymtech/nym/pull/6815
+[#6897]: https://github.com/nymtech/nym/pull/6897
+
 ## [2026.11-xynomizithra] (2026-06-08)
 
 - bugfix: allow re-inviting expired members ([#6863])

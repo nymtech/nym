@@ -4,8 +4,8 @@
 //! State-mutating execute handlers
 
 use crate::helpers::{
-    ensure_address_holds_no_family_membership, ensure_has_bonded_node, ensure_node_is_bonded,
-    ensure_node_not_in_family, ensure_normalised_name_unique, validate_family_description,
+    ensure_has_bonded_node, ensure_node_is_bonded, ensure_node_not_in_family,
+    ensure_normalised_name_unique, resolve_founding_node, validate_family_description,
     validate_family_name,
 };
 use crate::storage::NodeFamiliesStorage;
@@ -40,6 +40,9 @@ pub(crate) fn try_update_config(
 /// bonded node (if any) isn't already in a family. The unique indexes on
 /// `owner` and `normalised_name` provide defence-in-depth, but pre-checking
 /// yields typed errors with useful context.
+///
+/// If the sender controls a bonded, not-unbonding node that is not already in
+/// a family, that node is enrolled as the new family's founding member.
 pub(crate) fn try_create_family(
     deps: DepsMut,
     env: Env,
@@ -81,8 +84,9 @@ pub(crate) fn try_create_family(
         None,
     )?;
 
-    // check whether this owner has a bonded node which belongs to a family
-    ensure_address_holds_no_family_membership(&storage, deps.as_ref(), &info.sender)?;
+    // a bonded node controlled by the owner becomes the family's founding
+    // member.
+    let founding_node = resolve_founding_node(&storage, deps.as_ref(), &info.sender)?;
 
     let family = storage.register_new_family(
         deps.storage,
@@ -92,6 +96,10 @@ pub(crate) fn try_create_family(
         validated_name,
         description,
     )?;
+
+    if let Some(node_id) = founding_node {
+        storage.add_family_member(deps.storage, &env, family.id, node_id)?;
+    }
 
     Ok(Response::new().add_event(
         Event::new(events::FAMILY_CREATION_EVENT_NAME)
@@ -625,6 +633,77 @@ mod tests {
         }
 
         #[test]
+        fn adds_owners_bonded_node_as_founding_member() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let fee = tester.family_fee();
+            let alice = tester.generate_account_with_balance();
+            let node_id = tester.bond_dummy_nymnode_for(&alice)?;
+            let env = tester.env();
+
+            let alice = message_info(&alice, &[fee]);
+            let deps = tester.deps_mut();
+            try_create_family(
+                deps,
+                env.clone(),
+                alice.clone(),
+                "My Family!".to_string(),
+                "description".to_string(),
+            )?;
+
+            let storage = NodeFamiliesStorage::new();
+            let family = storage.families.load(tester.deps().storage, 1)?;
+            assert_eq!(family.owner, alice.sender);
+            assert_eq!(family.members, 1);
+
+            // the owner's node is the founding member, joined at creation time
+            let membership = storage
+                .family_members
+                .load(tester.deps().storage, node_id)?;
+            assert_eq!(membership.family_id, family.id);
+            assert_eq!(membership.joined_at, env.block.time.seconds());
+
+            Ok(())
+        }
+
+        #[test]
+        fn does_not_enrol_owners_unbonding_node() -> anyhow::Result<()> {
+            let mut tester = init_contract_tester();
+            let fee = tester.family_fee();
+            let alice = tester.generate_account_with_balance();
+            let node_id = tester.bond_dummy_nymnode_for(&alice)?;
+
+            // start unbonding without advancing the epoch: the node stays bonded
+            // but is now flagged `is_unbonding`, mirroring a node on its way out
+            tester.execute_mixnet_contract(
+                message_info(&alice, &[]),
+                &nym_mixnet_contract_common::ExecuteMsg::UnbondNymNode {},
+            )?;
+
+            let env = tester.env();
+            let alice = message_info(&alice, &[fee]);
+            let deps = tester.deps_mut();
+            try_create_family(
+                deps,
+                env,
+                alice.clone(),
+                "My Family!".to_string(),
+                "description".to_string(),
+            )?;
+
+            // the family is created, but the departing node is not auto-enrolled
+            let storage = NodeFamiliesStorage::new();
+            let family = storage.families.load(tester.deps().storage, 1)?;
+            assert_eq!(family.owner, alice.sender);
+            assert_eq!(family.members, 0);
+            assert!(storage
+                .family_members
+                .may_load(tester.deps().storage, node_id)?
+                .is_none());
+
+            Ok(())
+        }
+
+        #[test]
         fn rejects_when_no_funds_attached() {
             let mut tester = init_contract_tester();
             let alice = tester.make_sender_with_funds("alice", &[]);
@@ -843,23 +922,9 @@ mod tests {
 
             let other_family = tester.make_family(&tester.addr_make("bob"));
             let node_id = tester.bond_dummy_nymnode_for(&alice)?;
-
-            let alice = message_info(&alice, &[fee]);
-
-            // has node which is not in a family - that's still allowed!
-            let deps = tester.deps_mut();
-            try_create_family(
-                deps,
-                env.clone(),
-                alice.clone(),
-                "My Family!".to_string(),
-                "description".to_string(),
-            )?;
-            tester.disband_family(2);
-
-            // after joining family we error out
             tester.add_to_family(other_family.id, node_id);
 
+            let alice = message_info(&alice, &[fee]);
             let deps = tester.deps_mut();
             let err = try_create_family(
                 deps,
@@ -883,8 +948,8 @@ mod tests {
             let deps = tester.deps_mut();
             try_create_family(
                 deps,
-                env.clone(),
-                alice.clone(),
+                env,
+                alice,
                 "My Family!".to_string(),
                 "description".to_string(),
             )?;

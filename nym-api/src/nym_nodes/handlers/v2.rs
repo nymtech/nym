@@ -22,6 +22,7 @@ pub(crate) fn routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
+    operation_id = "v2_get_described_nodes",
     path = "/described",
     context_path = "/v2/nym-nodes",
     responses(
@@ -57,6 +58,7 @@ async fn get_described_nodes(
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
+    operation_id = "v2_get_node_annotation",
     path = "/annotation/{node_id}",
     context_path = "/v2/nym-nodes",
     responses(

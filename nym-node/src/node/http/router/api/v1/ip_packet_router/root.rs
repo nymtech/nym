@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
     get,
     path = "",
     context_path = "/api/v1/ip-packet-router",
-    tag = "IP Packet Router",
+    tag = "v1 / IP Packet Router",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(

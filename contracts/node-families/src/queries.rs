@@ -7,17 +7,22 @@ use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_families_contract_common::{
-    AllFamilyMembersPagedResponse, AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse,
-    FamilyMemberRecord, FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor,
-    NodeFamiliesContractError, NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
-    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitationCursor,
-    PastFamilyInvitationForNodeCursor, PastFamilyInvitationsForNodePagedResponse,
-    PastFamilyInvitationsPagedResponse, PastFamilyMemberCursor, PastFamilyMemberForNodeCursor,
-    PastFamilyMembersForNodePagedResponse, PastFamilyMembersPagedResponse,
-    PendingFamilyInvitationDetails, PendingFamilyInvitationResponse,
-    PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
-    PendingInvitationsPagedResponse,
+    AllFamilyMembersPagedResponse, AllPastFamilyInvitationsPagedResponse, Config,
+    FamiliesPagedResponse, FamilyMemberRecord, FamilyMembersPagedResponse,
+    GlobalPastFamilyInvitationCursor, NodeFamiliesContractError, NodeFamilyByNameResponse,
+    NodeFamilyByOwnerResponse, NodeFamilyId, NodeFamilyMembershipResponse, NodeFamilyResponse,
+    PastFamilyInvitationCursor, PastFamilyInvitationForNodeCursor,
+    PastFamilyInvitationsForNodePagedResponse, PastFamilyInvitationsPagedResponse,
+    PastFamilyMemberCursor, PastFamilyMemberForNodeCursor, PastFamilyMembersForNodePagedResponse,
+    PastFamilyMembersPagedResponse, PendingFamilyInvitationDetails,
+    PendingFamilyInvitationResponse, PendingFamilyInvitationsPagedResponse,
+    PendingInvitationsForNodePagedResponse, PendingInvitationsPagedResponse,
 };
+
+/// Retrieve current contract configuration values
+pub fn query_config(deps: Deps) -> Result<Config, NodeFamiliesContractError> {
+    Ok(NodeFamiliesStorage::new().config.load(deps.storage)?)
+}
 
 /// Resolve a single family by its id. Returns `family: None` if no family
 /// with that id exists.

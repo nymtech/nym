@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::network::models::UpgradeModeStatus;
     get,
     path = "/upgrade-mode-status",
     context_path = "/api/v1/network",
-    tag = "Network",
+    tag = "v1 / Network",
     responses(
         (status = 200, content(
             (UpgradeModeStatus = "application/json"),

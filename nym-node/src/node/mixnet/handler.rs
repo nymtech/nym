@@ -4,6 +4,7 @@
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
 use futures::StreamExt;
+use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
 use nym_noise::upgrade_noise_responder;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -27,9 +28,16 @@ use tracing::{Span, debug, error, instrument, trace, warn};
 /// How often (in packets) the stream-level span updates its packet count.
 const SPAN_UPDATE_INTERVAL: u64 = 10_000;
 
+/// Instant at which a connection idle since `last_activity` should be closed, or `None` if idle
+/// reaping is disabled (`timeout` is zero).
+fn idle_deadline(last_activity: Instant, timeout: Duration) -> Option<Instant> {
+    (!timeout.is_zero()).then(|| last_activity + timeout)
+}
+
 struct PendingReplayCheckPackets {
-    // map of rotation id used for packet creation to the packets
-    packets: HashMap<u32, Vec<PartiallyUnwrappedPacket>>,
+    // map of rotation id used for packet creation to the packets (each carrying the latency
+    // trace started at receive, so the deferral wait is attributed to the ReplayCheck stage)
+    packets: HashMap<u32, Vec<Traced<PartiallyUnwrappedPacket>>>,
     last_acquired_mutex: Instant,
 }
 
@@ -41,19 +49,24 @@ impl PendingReplayCheckPackets {
         }
     }
 
-    fn reset(&mut self, now: Instant) -> HashMap<u32, Vec<PartiallyUnwrappedPacket>> {
+    fn reset(&mut self, now: Instant) -> HashMap<u32, Vec<Traced<PartiallyUnwrappedPacket>>> {
         self.last_acquired_mutex = now;
         mem::take(&mut self.packets)
     }
 
-    fn push(&mut self, now: Instant, packet: PartialyUnwrappedPacketWithKeyRotation) {
+    fn push(
+        &mut self,
+        now: Instant,
+        packet: PartialyUnwrappedPacketWithKeyRotation,
+        trace: PacketTrace,
+    ) {
         if self.packets.is_empty() {
             self.last_acquired_mutex = now;
         }
         self.packets
             .entry(packet.used_key_rotation)
             .or_default()
-            .push(packet.packet)
+            .push(Traced::new(packet.packet, trace))
     }
 
     fn total_count(&self) -> usize {
@@ -70,7 +83,7 @@ impl PendingReplayCheckPackets {
         'outer: for (rotation_id, packets) in &self.packets {
             let mut rotation_replay_tags = Vec::with_capacity(packets.len());
             for packet in packets {
-                let Some(replay_tag) = packet.replay_tag() else {
+                let Some(replay_tag) = packet.inner.replay_tag() else {
                     error!(
                         "corrupted batch of {} packets - replay tag was missing",
                         self.packets.len()
@@ -92,6 +105,9 @@ pub(crate) struct ConnectionHandler {
 
     // packets pending for replay detection
     pending_packets: PendingReplayCheckPackets,
+
+    // per-connection monotonic counter driving 1-in-N latency-trace sampling
+    trace_sampler: u64,
 }
 
 impl Drop for ConnectionHandler {
@@ -121,7 +137,20 @@ impl ConnectionHandler {
             },
             remote_address,
             pending_packets: PendingReplayCheckPackets::new(),
+            trace_sampler: 0,
         }
+    }
+
+    /// Start a latency trace for a freshly received packet, sampling 1-in-N (rate from config,
+    /// 0 disables). Sampling is per-connection, which still yields ~1/N of total traffic.
+    fn start_trace(&mut self, packet: FramedNymPacket) -> Traced<FramedNymPacket> {
+        let rate = self.shared.processing_config.egress_trace_sample_rate;
+        let sampled = rate != 0 && {
+            let n = self.trace_sampler;
+            self.trace_sampler = n.wrapping_add(1);
+            n.is_multiple_of(rate)
+        };
+        Traced::new(packet, PacketTrace::start(sampled))
     }
 
     /// Check if the current connection is from an authorised Network Monitor agent.
@@ -174,7 +203,7 @@ impl ConnectionHandler {
 
     #[instrument(
         name = "mixnode.forward_packet",
-        skip(self, mix_packet, delay),
+        skip(self, mix_packet, delay, trace),
         level = "debug",
         fields(
             remote_addr = %self.remote_address,
@@ -187,6 +216,7 @@ impl ConnectionHandler {
         mix_packet: MixPacket,
         delay: Option<Delay>,
         network_monitor_packet: bool,
+        trace: PacketTrace,
     ) {
         if !self.shared.processing_config.forward_hop_processing_enabled {
             warn!(
@@ -206,12 +236,12 @@ impl ConnectionHandler {
             );
         }
         self.shared
-            .forward_mix_packet(mix_packet, forward_instant, network_monitor_packet);
+            .forward_mix_packet(mix_packet, forward_instant, network_monitor_packet, trace);
     }
 
     #[instrument(
         name = "mixnode.final_hop",
-        skip(self, final_hop_data),
+        skip(self, final_hop_data, trace),
         level = "debug",
         fields(
             remote_addr = %self.remote_address,
@@ -224,6 +254,7 @@ impl ConnectionHandler {
         &self,
         final_hop_data: ProcessedFinalHop,
         network_monitor_packet: bool,
+        trace: PacketTrace,
     ) {
         if !self.shared.processing_config.final_hop_processing_enabled {
             warn!(
@@ -281,7 +312,8 @@ impl ConnectionHandler {
 
         // if we managed to either push message directly to the [online] client or store it at
         // disk, forward the ack
-        self.shared.forward_ack_packet(final_hop_data.forward_ack);
+        self.shared
+            .forward_ack_packet(final_hop_data.forward_ack, trace);
         if has_ack {
             Span::current().record("ack_forwarded", true);
         }
@@ -424,8 +456,11 @@ impl ConnectionHandler {
     async fn handle_received_packet_with_replay_detection(
         &mut self,
         now: Instant,
-        packet: FramedNymPacket,
+        packet: Traced<FramedNymPacket>,
     ) {
+        let mut trace = packet.trace;
+        let packet = packet.inner;
+
         // 1. derive and expand shared secret
         // also check the header integrity
         let partially_unwrapped = match self.try_partially_unwrap_packet(packet) {
@@ -446,7 +481,9 @@ impl ConnectionHandler {
             }
         };
 
-        self.pending_packets.push(now, partially_unwrapped);
+        // close out the Unwrap stage (partial unwrap: shared secret + header MAC)
+        trace.record(MixnetMetric::Unwrap);
+        self.pending_packets.push(now, partially_unwrapped, trace);
 
         // 2. check for packet replay
         // 2.1 first try it without locking
@@ -468,6 +505,7 @@ impl ConnectionHandler {
         now: Instant,
         unwrapped_packet: Result<MixProcessingResult, PacketProcessingError>,
         network_monitor_packet: bool,
+        trace: PacketTrace,
     ) {
         // 2. increment our favourite metrics stats
         self.shared
@@ -480,10 +518,10 @@ impl ConnectionHandler {
             }
             Ok(processed_packet) => match processed_packet.processing_data {
                 MixProcessingResultData::ForwardHop { packet, delay } => {
-                    self.handle_forward_packet(now, packet, delay, network_monitor_packet);
+                    self.handle_forward_packet(now, packet, delay, network_monitor_packet, trace);
                 }
                 MixProcessingResultData::FinalHop { final_hop_data } => {
-                    self.handle_final_hop(final_hop_data, network_monitor_packet)
+                    self.handle_final_hop(final_hop_data, network_monitor_packet, trace)
                         .await;
                 }
             },
@@ -493,7 +531,7 @@ impl ConnectionHandler {
     async fn handle_post_replay_detection_packets(
         &self,
         now: Instant,
-        packets: HashMap<u32, Vec<PartiallyUnwrappedPacket>>,
+        packets: HashMap<u32, Vec<Traced<PartiallyUnwrappedPacket>>>,
         replay_check_results: HashMap<u32, Vec<bool>>,
     ) {
         let mut replays_detected: u64 = 0;
@@ -503,7 +541,11 @@ impl ConnectionHandler {
                 error!("inconsistent replay check result - no values for rotation {rotation_id}");
                 continue;
             };
-            for (packet, &replayed) in packets.into_iter().zip(replay_checks) {
+            for (traced, &replayed) in packets.into_iter().zip(replay_checks) {
+                let Traced {
+                    inner: packet,
+                    mut trace,
+                } = traced;
                 // CRITICAL SECURITY DECISION POINT: Replay Protection Bypass for Network Monitors
                 //
                 // This is where we decide whether to enforce replay protection for this packet.
@@ -531,17 +573,22 @@ impl ConnectionHandler {
                         rotation_id,
                         "dropping replayed packet"
                     );
+                    trace.record(MixnetMetric::ReplayCheck);
                     self.handle_unwrapped_packet(
                         now,
                         Err(PacketProcessingError::PacketReplay),
                         network_monitor_packet,
+                        trace,
                     )
                     .await;
                     continue;
                 }
 
+                // finalise the (expensive) full unwrapping, then close out the ReplayCheck stage:
+                // it spans partial-unwrap -> deferral -> replay check -> finalise
                 let unwrapped_packet = packet.finalise_unwrapping();
-                self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet)
+                trace.record(MixnetMetric::ReplayCheck);
+                self.handle_unwrapped_packet(now, unwrapped_packet, network_monitor_packet, trace)
                     .await;
             }
         }
@@ -631,28 +678,33 @@ impl ConnectionHandler {
     async fn handle_received_packet_with_no_replay_detection(
         &mut self,
         now: Instant,
-        packet: FramedNymPacket,
+        packet: Traced<FramedNymPacket>,
     ) {
+        let mut trace = packet.trace;
+        let packet = packet.inner;
         let unwrapped_packet = self.try_full_unwrap_packet(packet);
+        // no replay batching on this path: the Unwrap stage covers the full unwrapping
+        trace.record(MixnetMetric::Unwrap);
 
         let is_network_monitor_packet = self.is_from_authorised_network_monitor_agent();
-        self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet)
+        self.handle_unwrapped_packet(now, unwrapped_packet, is_network_monitor_packet, trace)
             .await;
     }
 
     #[instrument(skip(self, packet), level = "debug")]
     async fn handle_received_nym_packet(&mut self, packet: FramedNymPacket) {
         let now = Instant::now();
+        let traced = self.start_trace(packet);
 
         // 1. attempt to unwrap the packet
         // if it's a sphinx packet attempt to do pre-processing and replay detection
-        if packet.is_sphinx() && !self.shared.replay_protection_filter.disabled() {
-            self.handle_received_packet_with_replay_detection(now, packet)
+        if traced.inner.is_sphinx() && !self.shared.replay_protection_filter.disabled() {
+            self.handle_received_packet_with_replay_detection(now, traced)
                 .await;
         } else {
             // otherwise just skip that whole procedure and go straight to payload unwrapping
             // (assuming the basic framing is valid)
-            self.handle_received_packet_with_no_replay_detection(now, packet)
+            self.handle_received_packet_with_no_replay_detection(now, traced)
                 .await;
         };
     }
@@ -711,6 +763,8 @@ impl ConnectionHandler {
         mut mixnet_connection: Framed<Connection<TcpStream>, NymCodec>,
     ) {
         let mut packets_processed: u64 = 0;
+        // reset by every received packet; drives the idle-connection reaping below
+        let mut last_activity = Instant::now();
         loop {
             // make sure pending packets are not stuck in the queue if we don't get any more packets
             // from this sender
@@ -718,6 +772,12 @@ impl ConnectionHandler {
                 self.shared
                     .processing_config
                     .maximum_replay_detection_deferral,
+            );
+            // close the connection (freeing the task/socket) if no packets arrive for too long;
+            // ingress is read-only, so without this a silently-gone peer would linger forever
+            let idle_deadline = idle_deadline(
+                last_activity,
+                self.shared.processing_config.connection_idle_timeout,
             );
 
             tokio::select! {
@@ -732,6 +792,7 @@ impl ConnectionHandler {
                 maybe_framed_nym_packet = mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
                         Some(Ok(packet)) => {
+                            last_activity = Instant::now();
                             self.handle_received_nym_packet(packet).await;
                             packets_processed += 1;
                             if packets_processed.is_multiple_of(SPAN_UPDATE_INTERVAL) {
@@ -770,6 +831,25 @@ impl ConnectionHandler {
                     }
                 } => {
                     self.handle_pending_packets_batch(Instant::now()).await;
+                }
+                // 4. reap the connection if it has been idle for too long
+                _ = async move {
+                    match idle_deadline {
+                        Some(d) => tokio::time::sleep_until(d).await,
+                        None => std::future::pending::<()>().await,
+                    }
+                } => {
+                    debug!(
+                        event = "connection.idle_timeout",
+                        remote_addr = %self.remote_address,
+                        packets_processed,
+                        idle_secs = self.shared.processing_config.connection_idle_timeout.as_secs(),
+                        "closing idle ingress mixnet connection"
+                    );
+                    Span::current().record("exit_reason", "idle_timeout");
+                    Span::current().record("packets_processed", packets_processed);
+                    self.shared.metrics.network.ingress_mixnet_idle_closed();
+                    break
                 }
             }
         }
@@ -842,12 +922,25 @@ mod tests {
     }
 
     #[test]
+    fn idle_deadline_disabled_when_timeout_zero() {
+        assert!(idle_deadline(Instant::now(), Duration::ZERO).is_none());
+    }
+
+    #[test]
+    fn idle_deadline_is_last_activity_plus_timeout() {
+        let now = Instant::now();
+        let timeout = Duration::from_secs(300);
+        assert_eq!(idle_deadline(now, timeout), Some(now + timeout));
+    }
+
+    #[test]
     fn flush_deadline_is_batch_start_plus_deferral() {
         let key = PrivateKey::random();
         let mut pending = PendingReplayCheckPackets::new();
 
         let batch_start = Instant::now();
-        pending.push(batch_start, pending_packet(&key));
+        // the trace is irrelevant to flush scheduling
+        pending.push(batch_start, pending_packet(&key), PacketTrace::Off);
 
         let deferral = Duration::from_millis(50);
         assert_eq!(

@@ -1,0 +1,52 @@
+{
+  "name": "@nymproject/mix-dns",
+  "version": "0.1.0",
+  "description": "Hostname-to-IP resolution over the Nym mixnet (DNS over UDP/IPR, no TCP/TLS).",
+  "license": "Apache-2.0",
+  "author": "Nym Technologies SA",
+  "homepage": "https://nym.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nymtech/nym",
+    "directory": "sdk/typescript/packages/mix-dns"
+  },
+  "bugs": {
+    "url": "https://github.com/nymtech/nym/issues"
+  },
+  "keywords": ["nym", "mixnet", "privacy", "dns"],
+  "sideEffects": false,
+  "files": [
+    "dist/**/*"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "browser": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "docs:generate": "typedoc",
+    "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/mix-dns/",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "start": "tsc -w",
+    "tsc": "tsc --noEmit true"
+  },
+  "dependencies": {
+    "@nymproject/mix-tunnel": "workspace:*"
+  },
+  "devDependencies": {
+    "@nymproject/eslint-config-react-typescript": "workspace:*",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "eslint": "^8.10.0",
+    "rimraf": "catalog:",
+    "tslib": "catalog:",
+    "typescript": "^4.8.4"
+  },
+  "private": false,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}

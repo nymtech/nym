@@ -31,6 +31,7 @@ use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNo
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
+use crate::node::metrics::handler::tokio_runtime_updater::TokioRuntimeMetricsUpdater;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
@@ -44,12 +45,10 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
-use nym_bin_common::bin_info;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-pub use nym_gateway::node::ActiveClientsStore;
-pub use nym_gateway::node::GatewayStorage;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -68,15 +67,18 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
 use nym_node_requests::api::SignedData;
 use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
-use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription, NodeRoles};
 use nym_noise::config::{NetworkMonitorAgentNode, NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use nym_validator_client::{QueryHttpRpcNyxdClient, UserAgent};
+use nym_validator_client::signing::signer::OfflineSigner;
+use nym_validator_client::{DirectSecp256k1HdWallet, QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
@@ -93,6 +95,9 @@ use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
+
+pub use nym_gateway::node::ActiveClientsStore;
+pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
@@ -891,12 +896,27 @@ impl NymNode {
             .collect()
     }
 
+    fn node_chain_address(&self) -> Result<AccountId, NymNodeError> {
+        let network_details = NymNetworkDetails::new_from_env();
+
+        // derive the address (annoyingly, this will derive our private keys that we will rederive
+        // when starting the gateway, but changing this behaviour requires too much refactoring)
+        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(
+            &network_details.chain_details.bech32_account_prefix,
+            (**self.entry_gateway.mnemonic).clone(),
+        )
+        .map_err(NyxdError::from)?;
+
+        Ok(wallet.get_accounts()[0].address.clone())
+    }
+
     pub(crate) async fn build_http_server(
         &self,
         shutdown: WaitForCancellationFutureOwned,
     ) -> Result<NymNodeHttpServer, NymNodeError> {
-        let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
+        let auxiliary_data = api_requests::v2::node::models::AuxiliaryDetailsV2 {
             location: self.config.host.location,
+            address: self.node_chain_address()?.to_string(),
             announce_ports: AnnouncePorts {
                 verloc_port: self.config.verloc.announce_port,
                 mix_port: self.config.mixnet.announce_port,
@@ -981,7 +1001,7 @@ impl NymNode {
         let signed_lewes_protocol =
             SignedData::new(lewes_protocol, self.ed25519_identity_keys.private_key()).unwrap();
 
-        let mut config = HttpServerConfig::new(signed_lewes_protocol)
+        let mut config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
             .with_gateway_details(gateway_details)
@@ -989,28 +1009,16 @@ impl NymNode {
             .with_ip_packet_router_details(ipr_details)
             .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
-            .with_description(self.description.clone())
-            .with_auxiliary_details(auxiliary_details)
             .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
-        if self.config.http.expose_system_info {
-            config = config.with_system_info(get_system_info(
+        let system_info = if self.config.http.expose_system_info {
+            Some(get_system_info(
                 self.config.http.expose_system_hardware,
                 self.config.http.expose_crypto_hardware,
             ))
-        }
-        if self.config.modes.mixnode {
-            config.api.v1_config.node.roles.mixnode_enabled = true;
-        }
-
-        if self.config.modes.entry {
-            config.api.v1_config.node.roles.gateway_enabled = true
-        }
-
-        if self.config.modes.exit {
-            config.api.v1_config.node.roles.network_requester_enabled = true;
-            config.api.v1_config.node.roles.ip_packet_router_enabled = true;
-        }
+        } else {
+            None
+        };
 
         if let Some(path) = &self.config.gateway_tasks.storage_paths.bridge_client_params {
             config = config.with_bridge_client_params_file(path);
@@ -1031,6 +1039,17 @@ impl NymNode {
                 x25519_versioned_noise_key,
                 ip_addresses: self.config.host.public_ips.clone(),
                 hostname: self.config.host.hostname.clone(),
+                build_information: bin_info_owned!(),
+                system_info,
+                roles: NodeRoles {
+                    mixnode_enabled: self.config.modes.mixnode,
+                    gateway_enabled: self.config.modes.entry,
+                    network_requester_enabled: self.config.modes.exit,
+                    ip_packet_router_enabled: self.config.modes.exit,
+                },
+                description: self.description.clone(),
+                auxiliary_data,
+                lewes_protocol: signed_lewes_protocol,
             },
             self.active_sphinx_keys()?.clone(),
             self.metrics.clone(),
@@ -1149,6 +1168,14 @@ impl NymNode {
                 .metrics
                 .debug
                 .global_prometheus_counters_update_rate,
+        );
+
+        // handler sampling tokio runtime scheduling metrics (run-queue depth, busy ratio) into
+        // the prometheus registry. run-queue depth is a transient gauge, so we sample at the base
+        // aggregator cadence (~5s) rather than the coarse 30s global-prometheus-counters rate.
+        metrics_aggregator.register_handler(
+            TokioRuntimeMetricsUpdater::new(),
+            self.config.metrics.debug.aggregator_update_rate,
         );
 
         // handler for handling prometheus metrics events
@@ -1270,6 +1297,10 @@ impl NymNode {
     {
         let processing_config = ProcessingConfig::new(&self.config);
 
+        // pre-register the whole mixnet_packet_* histogram family so it's present on the
+        // prometheus endpoint at zero from boot (not just after the first sampled packet)
+        nym_mixnet_client::metrics::register_all();
+
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
         info!(
             "Starting the mixnet listener... on {} (forward: {}, final hop: {}))",
@@ -1284,6 +1315,8 @@ impl NymNode {
             self.config.mixnet.debug.initial_connection_timeout,
             self.config.mixnet.debug.maximum_connection_buffer_size,
             self.config.mixnet.debug.use_legacy_packet_encoding,
+            self.config.mixnet.debug.connection_idle_timeout,
+            self.config.mixnet.debug.connection_write_timeout,
         );
         let mixnet_client = nym_mixnet_client::Client::new(
             mixnet_client_config,
@@ -1299,7 +1332,6 @@ impl NymNode {
         let mix_packet_sender = packet_forwarder.sender();
 
         let shutdown_token = self.shutdown_token();
-
         self.shutdown_tracker().try_spawn_named(
             async move { packet_forwarder.run(shutdown_token).await },
             "PacketForwarder",

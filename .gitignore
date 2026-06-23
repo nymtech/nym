@@ -83,3 +83,6 @@ test-tutorials/
 # pnpm
 .pnpm-store/
 
+tmp/
+# operator tools
+scripts/nym-node-setup/auto-bond/nodes.csv

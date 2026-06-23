@@ -15,7 +15,7 @@ use nym_node_requests::api::v1::metrics::models::packets::{
     get,
     path = "/packets-stats",
     context_path = "/api/v1/metrics",
-    tag = "Metrics",
+    tag = "v1 / Metrics",
     responses(
         (status = 200, content(
             (PacketsStats = "application/json"),

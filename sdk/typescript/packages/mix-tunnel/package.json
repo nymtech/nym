@@ -1,0 +1,60 @@
+{
+  "name": "@nymproject/mix-tunnel",
+  "version": "0.1.0",
+  "description": "Shared mixnet tunnel lifecycle for smolmix-based SDKs (mix-fetch, mix-dns, mix-websocket).",
+  "license": "Apache-2.0",
+  "author": "Nym Technologies SA",
+  "homepage": "https://nym.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nymtech/nym",
+    "directory": "sdk/typescript/packages/mix-tunnel"
+  },
+  "bugs": {
+    "url": "https://github.com/nymtech/nym/issues"
+  },
+  "keywords": ["nym", "mixnet", "privacy", "wasm", "webworker"],
+  "sideEffects": false,
+  "files": [
+    "dist/**/*"
+  ],
+  "main": "dist/esm/index.js",
+  "module": "dist/esm/index.js",
+  "browser": "dist/esm/index.js",
+  "scripts": {
+    "build": "scripts/build.sh",
+    "build:worker": "rollup -c rollup-worker.config.mjs",
+    "clean": "rimraf dist",
+    "docs:generate": "typedoc",
+    "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/mix-tunnel/",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "start": "tsc -w",
+    "tsc": "tsc --noEmit true"
+  },
+  "devDependencies": {
+    "@nymproject/smolmix-wasm": "workspace:*",
+    "@nymproject/eslint-config-react-typescript": "workspace:*",
+    "@rollup/plugin-commonjs": "^24.0.1",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-replace": "^5.0.2",
+    "@rollup/plugin-typescript": "^10.0.1",
+    "@rollup/plugin-wasm": "^6.1.1",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
+    "comlink": "^4.3.1",
+    "eslint": "^8.10.0",
+    "rimraf": "catalog:",
+    "rollup": "^3.9.1",
+    "rollup-plugin-base64": "^1.0.1",
+    "rollup-plugin-web-worker-loader": "^1.6.1",
+    "tslib": "catalog:",
+    "typescript": "^4.8.4"
+  },
+  "private": false,
+  "type": "module",
+  "types": "./dist/esm/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -24,9 +24,8 @@ use utoipauto::utoipauto;
 #[openapi(
     info(title = "Nym API"),
     servers(
-        (url = "/api", description = "Main Nym Api Server"),
-        (url = "/", description = "Auxiliary Nym Api Instances"),
-        (url = "/", description = "Local Development Server")
+        (url = "/", description = "Default (direct nym-api)"),
+        (url = "/api", description = "Main Nym Api Server")
     ),
     tags(),
     components(schemas(
@@ -41,7 +40,7 @@ use utoipauto::utoipauto;
         nym_config::defaults::NymContracts,
         ContractVersionSchemaResponse,
         nym_bin_common::build_information::BinaryBuildInformationOwned,
-        nym_node_requests::api::v1::node::models::AuxiliaryDetails,
+        nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1,
         nym_contracts_common::ContractBuildInformation
     ))
 )]

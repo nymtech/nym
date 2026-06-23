@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
@@ -45,7 +46,7 @@ impl From<DeclaredRolesV1> for SupportedRoles {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct RoutingNode {
     pub node_id: NodeId,
 
@@ -56,6 +57,19 @@ pub struct RoutingNode {
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
+}
+
+impl Debug for RoutingNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RoutingNode")
+            .field("node_id", &self.node_id)
+            .field("mix_host", &self.mix_host)
+            .field("entry", &self.entry)
+            .field("identity_key", &self.identity_key.to_base58_string())
+            .field("sphinx_key", &self.sphinx_key.to_base58_string())
+            .field("supported_roles", &self.supported_roles)
+            .finish()
+    }
 }
 
 impl RoutingNode {

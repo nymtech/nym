@@ -73,6 +73,27 @@ impl<T> NonExhaustiveDelayQueue<T> {
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
+
+    /// Pop the next *already-expired* item without awaiting, or `None` if nothing is ready right
+    /// now (the queue is empty, or its earliest item has not reached its deadline yet). Lets a
+    /// caller drain a burst of simultaneously-expired items in a tight loop without yielding.
+    ///
+    /// It polls the inner queue with a **no-op waker**, so a not-yet-due (`None`) result registers
+    /// no real wakeup. This is therefore sound ONLY when the caller subsequently polls the
+    /// [`Stream`] impl (`.next().await`) before parking the task - that re-arms the timer against
+    /// the task's real waker, superseding the no-op one. The intended use is "drain the extra ready
+    /// items right after `.next()` yielded one, in a loop that returns to `.next().await`". Calling
+    /// it as the last thing before suspending would drop the wakeup (same caveat as
+    /// `futures::FutureExt::now_or_never`).
+    pub fn try_next_expired(&mut self) -> Option<Expired<T>> {
+        let mut cx = Context::from_waker(Waker::noop());
+        match Pin::new(&mut self.inner).poll_expired(&mut cx) {
+            // a ready-expired item, or `None` because the queue is empty
+            Poll::Ready(maybe_item) => maybe_item,
+            // queue is non-empty but nothing is due yet
+            Poll::Pending => None,
+        }
+    }
 }
 
 impl<T> Default for NonExhaustiveDelayQueue<T> {

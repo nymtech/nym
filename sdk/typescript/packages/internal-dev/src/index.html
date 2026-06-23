@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>smolmix TS SDK dev</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23333'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%23c8f7c5'/%3E%3C/svg%3E">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 16px auto; padding: 0 12px; }
+    fieldset { margin-bottom: 12px; }
+    legend { font-weight: bold; }
+    .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .status { font-size: 0.85em; color: gray; }
+    .local-log {
+      background: #f5f5f5; border: 1px solid #ddd; padding: 6px;
+      margin: 8px 0 0; max-height: 140px; overflow-y: auto;
+      font-size: 0.82em; white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+    }
+  </style>
+  <!-- HtmlWebpackPlugin injects <script src="index.js"> at build time. -->
+</head>
+
+<body>
+  <h1>smolmix TS SDK dev</h1>
+  <p class="status">
+    Drives <code>@nymproject/mix-tunnel</code>, <code>mix-fetch</code>,
+    <code>mix-dns</code>, <code>mix-websocket</code> against a live mixnet.
+    Mirrors <code>wasm/smolmix/internal-dev</code> so you can A/B the SDK
+    layer against the raw WASM.
+  </p>
+
+  <!-- Connection -->
+  <fieldset id="startup-controls">
+    <legend>Connection</legend>
+    <div>
+      <label>IPR address: </label>
+      <input type="text" size="80" id="ipr-address" disabled
+        value="HEpAyUwqTeYQ6sxrL8Pbp6UNVPG6ta1CcbzP9q7vBggp.2byzbUSC6J5t9gpFFXPPnB7tZKW3c6cX1QSfmzYRq3wp@FQBbq1crAkCrjVBnEN85VqgZgGRMLJV65NJk8bPADdw"
+        placeholder="<nym-address of IPR exit node>" />
+      <label style="margin-left: 8px">
+        <input type="checkbox" id="opt-random-ipr" checked /> Use random IPR
+      </label>
+    </div>
+    <details style="margin-top: 8px" open>
+      <summary style="cursor: pointer; font-size: 0.9em; color: #555">Advanced Options</summary>
+      <div style="margin-top: 6px; padding: 8px; background: #f9f9f9; font-size: 0.9em">
+        <div>
+          <label><input type="checkbox" id="opt-force-tls" checked /> Force TLS</label>
+        </div>
+        <div style="margin-top: 4px">
+          <label>Client ID: <input type="text" id="opt-client-id" size="20" /></label>
+          <span class="status">(randomised on load for clean state)</span>
+        </div>
+        <div style="margin-top: 4px">
+          <label><input type="checkbox" id="opt-disable-poisson" /> Disable Poisson traffic</label>
+        </div>
+        <div style="margin-top: 4px">
+          <label><input type="checkbox" id="opt-disable-cover" /> Disable cover traffic</label>
+        </div>
+        <div style="margin-top: 4px">
+          <label>Open reply SURBs:
+            <input type="number" id="opt-open-surbs" value="10" min="1" max="50" style="width: 60px" />
+          </label>
+          <label style="margin-left: 8px">Data reply SURBs:
+            <input type="number" id="opt-data-surbs" value="10" min="0" max="50" style="width: 60px" />
+          </label>
+        </div>
+        <div style="margin-top: 4px">
+          <label>Primary DNS:
+            <input type="text" id="opt-primary-dns" placeholder="8.8.8.8:53" size="18" />
+          </label>
+          <label style="margin-left: 8px">Fallback DNS:
+            <input type="text" id="opt-fallback-dns" placeholder="1.1.1.1:53" size="18" />
+          </label>
+        </div>
+        <div style="margin-top: 4px">
+          <label>User-Agent override:
+            <input type="text" id="opt-user-agent" size="40" placeholder="(empty → wasm-shim default)" />
+          </label>
+        </div>
+      </div>
+    </details>
+    <div style="margin-top: 8px">
+      <button id="btn-setup">setupMixTunnel</button>
+      <button id="btn-disconnect" disabled>disconnectMixTunnel</button>
+      <label style="margin-left: 16px">
+        <input type="checkbox" id="opt-debug-logging" checked /> Debug logging
+      </label>
+      <span id="tunnel-status" class="status" style="margin-left: 10px">Not started</span>
+    </div>
+  </fieldset>
+
+  <!-- DNS Resolve: tunnel (mixDNS) vs clearnet (DoH JSON) -->
+  <fieldset id="dns-controls">
+    <legend>DNS Resolve</legend>
+    <div class="row">
+      <input type="text" size="40" id="dns-host" value="example.com" />
+      <button id="btn-dns-tunnel" disabled>via tunnel</button>
+      <button id="btn-dns-clearnet">via DoH (clearnet)</button>
+    </div>
+    <pre class="local-log" id="dns-log"></pre>
+  </fieldset>
+
+  <!-- GET: tunnel vs clearnet, same URL. Preset buttons fill the URL field. -->
+  <fieldset id="get-controls">
+    <legend>GET</legend>
+    <div class="row">
+      <input type="text" size="60" id="get-url" value="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt" />
+      <button id="btn-get-tunnel" disabled>via tunnel</button>
+      <button id="btn-get-clearnet">via window.fetch (clearnet)</button>
+    </div>
+    <div class="row" style="margin-top: 4px">
+      <span class="status">presets:</span>
+      <button class="preset" data-url="https://upload.wikimedia.org/wikipedia/commons/8/80/Wikipedia-logo-v2.svg" data-render="image">Wikimedia logo (image)</button>
+      <button class="preset" data-url="https://www.cloudflare.com/cdn-cgi/trace">Cloudflare trace</button>
+      <button class="preset" data-url="https://httpbin.org/get">httpbin /get</button>
+    </div>
+    <pre class="local-log" id="get-log"></pre>
+    <div id="get-image-output"></div>
+  </fieldset>
+
+  <!-- WebSocket -->
+  <fieldset id="ws-controls" disabled>
+    <legend>WebSocket</legend>
+    <div class="row">
+      <input type="text" size="60" id="ws-url" value="wss://echo.websocket.org" />
+      <button id="btn-ws-connect">Connect</button>
+      <button id="btn-ws-close" disabled>Close</button>
+      <span id="ws-status" class="status">Not connected</span>
+    </div>
+    <div class="row" style="margin-top: 4px">
+      <input type="text" size="50" id="ws-message" value="Hello from mix-websocket!" />
+      <button id="btn-ws-send" disabled>Send</button>
+    </div>
+    <div class="row" style="margin-top: 4px">
+      <label>Echo burst:</label>
+      <input type="number" id="ws-burst-count" value="10" min="1" max="500" style="width: 60px" />
+      <label>Size:</label>
+      <input type="number" id="ws-burst-min" value="64" min="1" max="1048576" style="width: 80px" />
+      <span>&ndash;</span>
+      <input type="number" id="ws-burst-max" value="1024" min="1" max="1048576" style="width: 80px" />
+      <span class="status">bytes</span>
+      <button id="btn-ws-burst" disabled>Send Burst</button>
+    </div>
+    <pre class="local-log" id="ws-log"></pre>
+  </fieldset>
+
+  <!-- Stress Test -->
+  <fieldset id="stress-controls" disabled>
+    <legend>Stress Test</legend>
+    <div class="row">
+      <label>Requests:</label>
+      <input type="number" id="stress-count" value="10" min="1" max="200" style="width: 60px" />
+      <label>Mode:</label>
+      <select id="stress-mode">
+        <option value="uniform">Uniform</option>
+        <option value="mixed" selected>Mixed sizes</option>
+        <option value="drip">Slow drip</option>
+      </select>
+    </div>
+
+    <div id="stress-uniform-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+      <label>Base URL:</label>
+      <input type="text" size="50" id="stress-url" value="https://jsonplaceholder.typicode.com/posts/" />
+    </div>
+
+    <div id="stress-mixed-opts" style="margin-top: 8px; padding: 8px; background: #f9f9f9">
+      <table style="font-size: 0.9em; border-collapse: collapse">
+        <tr><td style="padding: 1px 10px 1px 0"><b>tiny</b></td><td>128 B</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>small</b></td><td>1 KB</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>medium</b></td><td>10 KB</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>large</b></td><td>100 KB</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>xlarge</b></td><td>1 MB</td></tr>
+      </table>
+    </div>
+
+    <div id="stress-drip-opts" style="display: none; margin-top: 8px; padding: 8px; background: #f9f9f9">
+      <table style="font-size: 0.9em; border-collapse: collapse">
+        <tr><td style="padding: 1px 10px 1px 0"><b>safe</b></td><td>~50% of timeout</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>boundary</b></td><td>~92% of timeout</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>over</b></td><td>~108% of timeout</td></tr>
+        <tr><td style="padding: 1px 10px 1px 0"><b>slow-start</b></td><td>~17% delay + ~83% drip</td></tr>
+      </table>
+      <div style="margin-top: 6px">
+        <label>Request timeout (s):</label>
+        <input type="number" id="stress-timeout" value="60" min="5" max="300" style="width: 60px" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top: 8px">
+      <button id="btn-stress">Run Stress Test</button>
+      <span id="stress-status" class="status"></span>
+    </div>
+    <pre class="local-log" id="stress-log"></pre>
+  </fieldset>
+
+  <!-- File Download -->
+  <fieldset id="download-controls" disabled>
+    <legend>File Download</legend>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap">
+      <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
+        <b>UTF-8 Demo</b>
+        <div class="status">Unicode text (Cambridge CS)</div>
+        <button id="btn-verify-text">Fetch</button>
+        <span id="verify-text-status" class="status"></span>
+        <pre id="verify-text-output" style="margin-top: 6px; max-height: 200px; overflow-y: auto; font-size: 0.8em; white-space: pre-wrap; display: none; background: #fff; padding: 6px; border: 1px solid #eee"></pre>
+      </div>
+      <div style="flex: 1; min-width: 220px; padding: 8px; background: #f9f9f9; border: 1px solid #ddd">
+        <b>File Download</b>
+        <div style="margin: 4px 0 6px">
+          <input type="text" size="50" id="download-url"
+            value="https://nymtech.net/uploads/Nym_WFP_Paper_5_58a1105679.pdf" />
+        </div>
+        <button id="btn-verify-pdf">Fetch</button>
+        <button id="btn-save-pdf" disabled>Save</button>
+        <span id="verify-pdf-status" class="status"></span>
+        <div id="verify-pdf-output" style="margin-top: 6px; font-size: 0.8em; display: none">
+          <div>Size: <code id="verify-pdf-size"></code></div>
+          <div>SHA-256: <code id="verify-pdf-sha"></code></div>
+        </div>
+      </div>
+    </div>
+    <pre class="local-log" id="download-log"></pre>
+  </fieldset>
+
+  <!-- Master timeline -->
+  <fieldset>
+    <legend>Output (master timeline)</legend>
+    <pre id="output" style="background: #f5f5f5; padding: 8px; max-height: 300px; overflow-y: auto; font-size: 0.85em; white-space: pre-wrap"></pre>
+  </fieldset>
+</body>
+</html>

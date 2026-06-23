@@ -17,6 +17,7 @@ publish = true
 [dependencies]
 dashmap = { workspace = true }
 futures = { workspace = true }
+strum = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["time", "sync"] }
 tokio-util = { workspace = true, features = ["codec"], optional = true }
@@ -26,12 +27,13 @@ tokio-stream = { workspace = true }
 nym-noise = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-task = { workspace = true, optional = true }
+nym-metrics = { workspace = true, optional = true }
 
 [features]
 default = ["client"]
-client = ["tokio-util", "nym-task", "tokio/net", "tokio/rt"]
+client = ["tokio-util", "nym-task", "nym-metrics", "tokio/net", "tokio/rt"]
 
 [dev-dependencies]
 nym-crypto = { workspace = true }
 rand = { workspace = true }
-tokio = { workspace = true, features = ["macros", "io-util", "rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "io-util", "rt", "rt-multi-thread", "test-util"] }

@@ -24,6 +24,9 @@ pub struct NetworkStats {
 
     // outgoing LP control connections to nodes
     active_lp_egress_node_connections: AtomicUsize,
+
+    // cumulative count of ingress mixnet connections closed due to the idle timeout
+    idle_closed_ingress_mixnet_connections: AtomicUsize,
 }
 
 impl NetworkStats {
@@ -35,6 +38,16 @@ impl NetworkStats {
     pub fn disconnected_ingress_mixnet_client(&self) {
         self.active_ingress_mixnet_connections
             .fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn ingress_mixnet_idle_closed(&self) {
+        self.idle_closed_ingress_mixnet_connections
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn idle_closed_ingress_mixnet_connections_count(&self) -> usize {
+        self.idle_closed_ingress_mixnet_connections
+            .load(Ordering::Relaxed)
     }
 
     pub fn new_ingress_websocket_client(&self) {

@@ -15,6 +15,31 @@ use hyper::client::conn::http1;
 
 use crate::error::FetchError;
 
+// Browser-shape header shim defaults.
+//
+// `mixFetch` ships these as fallbacks when the caller didn't set the header
+// itself; caller-supplied values always win. Many CDNs (cloudflare bot
+// management) and host policies (wikimedia's UA policy) reject requests
+// that lack browser-canonical headers. See README "Browser-shape header
+// shim" for the rationale, limits, and fingerprinting caveats.
+//
+// `DEFAULT_USER_AGENT` is pinned to a recent Chrome-on-Linux UA. Bump it
+// when the Chrome major in the wild drifts far enough that this string
+// starts looking suspicious (heuristic: more than 6 majors stale).
+pub(crate) const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
+     (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+pub(crate) const DEFAULT_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
+     image/avif,image/webp,*/*;q=0.8";
+
+pub(crate) const DEFAULT_ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+
+// `identity` rather than `gzip, deflate, br` because hyper 1.x in our wasm
+// build doesn't carry a decompressor; advertising compression would surface
+// gzip bytes to the caller un-decoded. Trade slightly less browser-shape
+// for body-correctness.
+pub(crate) const DEFAULT_ACCEPT_ENCODING: &str = "identity";
+
 /// Parsed HTTP response.
 pub struct HttpResponse {
     pub status: u16,
@@ -108,11 +133,26 @@ where
         .header("Host", host)
         .header("Connection", "keep-alive");
 
+    // Track which browser-shape headers the caller has already set so the
+    // shim below doesn't clobber explicit intent.
     let mut has_content_length = false;
+    let mut has_user_agent = false;
+    let mut has_accept = false;
+    let mut has_accept_language = false;
+    let mut has_accept_encoding = false;
+
     for (name, value) in headers {
         builder = builder.header(name.as_str(), value.as_str());
         if name.eq_ignore_ascii_case("content-length") {
             has_content_length = true;
+        } else if name.eq_ignore_ascii_case("user-agent") {
+            has_user_agent = true;
+        } else if name.eq_ignore_ascii_case("accept") {
+            has_accept = true;
+        } else if name.eq_ignore_ascii_case("accept-language") {
+            has_accept_language = true;
+        } else if name.eq_ignore_ascii_case("accept-encoding") {
+            has_accept_encoding = true;
         }
     }
 
@@ -120,9 +160,35 @@ where
         builder = builder.header("Content-Length", body_bytes.len().to_string());
     }
 
+    // Browser-shape header shim. Definitions + rationale at the top of
+    // this file.
+    if !has_user_agent {
+        builder = builder.header("User-Agent", DEFAULT_USER_AGENT);
+    }
+    if !has_accept {
+        builder = builder.header("Accept", DEFAULT_ACCEPT);
+    }
+    if !has_accept_language {
+        builder = builder.header("Accept-Language", DEFAULT_ACCEPT_LANGUAGE);
+    }
+    if !has_accept_encoding {
+        builder = builder.header("Accept-Encoding", DEFAULT_ACCEPT_ENCODING);
+    }
+
     let req = builder
         .body(Full::new(body_bytes))
         .map_err(|e| FetchError::Http(format!("failed to build request: {e}")))?;
+
+    // Dump request headers (debug-only) so we can verify the shim and any
+    // caller-supplied headers actually made it onto the wire. Matches the
+    // response-header dump below for symmetry.
+    for (k, v) in req.headers().iter() {
+        crate::util::debug_log!(
+            "[http] -> {}: {}",
+            k.as_str(),
+            v.to_str().unwrap_or("<non-ascii>")
+        );
+    }
 
     // Perform HTTP/1 handshake; hyper takes ownership of the IO
     let (mut sender, conn) = http1::handshake(HyperIoAdapter(stream))

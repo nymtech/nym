@@ -395,8 +395,8 @@ impl From<nym_node_requests::api::v1::node::models::AnnouncePorts> for AnnounceP
     }
 }
 
-impl From<nym_node_requests::api::v1::node::models::AuxiliaryDetails> for AuxiliaryDetailsV1 {
-    fn from(value: nym_node_requests::api::v1::node::models::AuxiliaryDetails) -> Self {
+impl From<nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1> for AuxiliaryDetailsV1 {
+    fn from(value: nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1) -> Self {
         AuxiliaryDetailsV1 {
             location: value.location,
             announce_ports: value.announce_ports.into(),

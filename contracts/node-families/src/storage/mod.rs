@@ -246,6 +246,46 @@ impl NodeFamiliesStorage<'_> {
         Ok(family)
     }
 
+    /// Enrol `node_id` as a member of `family_id`, stamping `joined_at` from
+    /// `env` (unix seconds) and incrementing the family's `members` counter.
+    ///
+    /// Shared by [`Self::accept_invitation`] (an invitee joining via the
+    /// invitation flow) and the create path (the owner's own bonded node
+    /// joining as the founding member). Errors with [`FamilyNotFound`] if
+    /// `family_id` does not exist.
+    ///
+    /// The caller is responsible for verifying that `node_id` is controlled by
+    /// the transaction sender and is not already a member of any family.
+    ///
+    /// Returns the updated [`NodeFamily`] (with the bumped `members` count).
+    ///
+    /// [`FamilyNotFound`]: NodeFamiliesContractError::FamilyNotFound
+    pub(crate) fn add_family_member(
+        &self,
+        store: &mut dyn Storage,
+        env: &Env,
+        family_id: NodeFamilyId,
+        node_id: NodeId,
+    ) -> Result<NodeFamily, NodeFamiliesContractError> {
+        self.family_members.save(
+            store,
+            node_id,
+            &FamilyMembership {
+                family_id,
+                joined_at: env.block.time.seconds(),
+            },
+        )?;
+
+        let mut family = self
+            .families
+            .may_load(store, family_id)?
+            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
+        family.members += 1;
+        self.families.save(store, family_id, &family)?;
+
+        Ok(family)
+    }
+
     /// Apply name and/or description updates to an existing family, leaving
     /// every other field (id, owner, members, paid_fee, created_at)
     /// untouched. Each argument follows `None = keep` / `Some = replace`
@@ -402,21 +442,7 @@ impl NodeFamiliesStorage<'_> {
 
         self.pending_family_invitations.remove(store, key)?;
 
-        self.family_members.save(
-            store,
-            node_id,
-            &FamilyMembership {
-                family_id,
-                joined_at: now,
-            },
-        )?;
-
-        let mut family = self
-            .families
-            .may_load(store, family_id)?
-            .ok_or(NodeFamiliesContractError::FamilyNotFound { family_id })?;
-        family.members += 1;
-        self.families.save(store, family_id, &family)?;
+        let family = self.add_family_member(store, env, family_id, node_id)?;
 
         let counter = self.next_past_invitation_counter(store, key)?;
         self.past_family_invitations.save(

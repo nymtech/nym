@@ -11,7 +11,7 @@ use nym_node_requests::api::v1::health::models::NodeHealth;
     get,
     path = "/health",
     context_path = "/api/v1",
-    tag = "Health",
+    tag = "v1 / Health",
     responses(
         (status = 200, content(
             (NodeHealth = "application/json"),

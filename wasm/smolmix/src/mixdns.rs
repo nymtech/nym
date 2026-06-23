@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! `mixResolve`: hostname lookup over the mixnet tunnel (UDP / IPR path only).
+//! `mixDNS`: hostname lookup over the mixnet tunnel (UDP / IPR path only).
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -11,8 +11,8 @@ use crate::dns;
 /// Resolve a hostname to an IP address through the mixnet tunnel.
 ///
 /// Returns the IP as a string (e.g. `"93.184.216.34"`).
-#[wasm_bindgen(js_name = "mixResolve")]
-pub fn mix_resolve(hostname: String) -> js_sys::Promise {
+#[wasm_bindgen(js_name = "mixDNS")]
+pub fn mix_dns(hostname: String) -> js_sys::Promise {
     future_to_promise(async move {
         let tunnel = crate::ready_tunnel()?;
         let ip = dns::resolve(tunnel, &hostname).await?;

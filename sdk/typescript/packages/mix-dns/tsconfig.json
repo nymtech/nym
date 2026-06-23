@@ -1,0 +1,20 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "lib": ["es2021", "dom", "esnext"],
+    "outDir": "./dist/",
+    "module": "esnext",
+    "target": "esnext",
+    "allowJs": false,
+    "strict": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "downlevelIteration": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "**/node_modules", "dist", "**/dist"]
+}

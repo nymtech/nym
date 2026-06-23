@@ -18,7 +18,7 @@ The event emitted when the nodetester is ready to be used.
 
 #### Source
 
-[mixnet/wasm/types.ts:206](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L206)
+[mixnet/wasm/types.ts:206](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L206)
 
 ***
 
@@ -30,7 +30,7 @@ The event emitted when connection to the gateway is established.
 
 #### Source
 
-[mixnet/wasm/types.ts:211](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L211)
+[mixnet/wasm/types.ts:211](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L211)
 
 ***
 
@@ -42,7 +42,7 @@ The event for when a message is received and interpreted as a string.
 
 #### Source
 
-[mixnet/wasm/types.ts:216](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L216)
+[mixnet/wasm/types.ts:216](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L216)
 
 ***
 
@@ -54,7 +54,7 @@ The event for when a binary message is received. BinaryMessage is a type of mess
 
 #### Source
 
-[mixnet/wasm/types.ts:221](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L221)
+[mixnet/wasm/types.ts:221](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L221)
 
 ***
 
@@ -66,4 +66,4 @@ The event for when a raw message is received. RawMessage represents the bytes th
 
 #### Source
 
-[mixnet/wasm/types.ts:226](https://github.com/nymtech/nym/blob/5065c5579e2c961211276dcdfd8aaa127f29bf26/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L226)
+[mixnet/wasm/types.ts:226](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L226)

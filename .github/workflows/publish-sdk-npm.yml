@@ -1,6 +1,19 @@
 name: publish-sdk-npm
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Rehearse the publish (pnpm publish --dry-run, no tarballs uploaded). Untick to publish for real."
+        type: boolean
+        default: true
+      dist_tag:
+        description: "Tag mode. 'auto' picks per package: new packages and same-major releases -> latest; a breaking major (e.g. mix-fetch v2 over v1) -> next, promote later with `npm dist-tag add`. 'next'/'latest' force that tag on all four."
+        type: choice
+        options:
+          - auto
+          - next
+          - latest
+        default: auto
 
 jobs:
   publish:
@@ -33,14 +46,6 @@ jobs:
       - name: Install wasm-opt
         run: cargo install wasm-opt
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.24.6"
-
-      - name: Update root CA certificate bundle
-        run: ./wasm/mix-fetch/go-mix-conn/scripts/update-root-certs.sh
-
       - name: Install dependencies
         run: pnpm i
 
@@ -50,4 +55,6 @@ jobs:
       - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
         run: ./sdk/typescript/scripts/publish.sh

@@ -92,19 +92,30 @@ pub(crate) fn ensure_normalised_name_unique(
     Ok(())
 }
 
-/// Ensure no node controlled by `address` is currently a member of any family.
-pub(crate) fn ensure_address_holds_no_family_membership(
+/// Resolve the bonded node (if any) that should be enrolled as the founding
+/// member of a family `address` is about to create.
+///
+/// Returns `Ok(Some(node_id))` when `address` controls a bonded, not-unbonding
+/// node that is not yet a member of any family. The caller enrols it as the
+/// family's first member. Returns `Ok(None)` when `address` controls no bonded
+/// node, or controls one that has already entered the unbonding state (a node
+/// on its way out of the network is not auto-enrolled). Errors with
+/// [`AlreadyInFamily`] if the controlled node already belongs to a family,
+/// since an address cannot create a family around a node committed elsewhere.
+///
+/// [`AlreadyInFamily`]: NodeFamiliesContractError::AlreadyInFamily
+pub(crate) fn resolve_founding_node(
     storage: &NodeFamiliesStorage,
     deps: Deps,
     address: &Addr,
-) -> Result<(), NodeFamiliesContractError> {
+) -> Result<Option<NodeId>, NodeFamiliesContractError> {
     let mixnet_contract = storage.mixnet_contract_address.load(deps.storage)?;
     let Some(nym_node) = deps
         .querier
         .query_nymnode_ownership(&mixnet_contract, address)?
     else {
         // if the owner has no nym-node, it can't possibly be in a family
-        return Ok(());
+        return Ok(None);
     };
 
     // check if that node is in a family
@@ -119,7 +130,12 @@ pub(crate) fn ensure_address_holds_no_family_membership(
         });
     }
 
-    Ok(())
+    // a node leaving the network is not auto-added
+    if nym_node.is_unbonding {
+        return Ok(None);
+    }
+
+    Ok(Some(nym_node.node_id))
 }
 
 /// Cross-contract query: ensure `node_id` is a currently-bonded node in the

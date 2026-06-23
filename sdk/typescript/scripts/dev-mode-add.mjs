@@ -2,11 +2,17 @@ import fs from 'fs';
 
 const WORKSPACE_FILE = 'pnpm-workspace.yaml';
 
+// Order matters only for human readability; the script appends missing
+// entries to the yaml's `packages:` block. The `wasm/smolmix/pkg` entry
+// requires `make -C wasm/smolmix` to have produced pkg/package.json first;
+// otherwise `pnpm install` bails with ERR_PNPM_WORKSPACE_PKG_NOT_FOUND from
+// mix-tunnel's `workspace:*` lookup.
 const devWorkspace = [
   'dist/**',
   'sdk/typescript/packages/**',
   'sdk/typescript/examples/**',
   'sdk/typescript/codegen/**',
+  'wasm/smolmix/pkg',
 ];
 
 const content = fs.readFileSync(WORKSPACE_FILE, 'utf-8');

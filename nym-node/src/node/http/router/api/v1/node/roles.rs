@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use axum::extract::Query;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::node::models::NodeRoles;
 
@@ -10,7 +11,7 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
     get,
     path = "/roles",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (NodeRoles = "application/json"),
@@ -20,11 +21,11 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
     params(OutputParams)
 )]
 pub(crate) async fn roles(
-    node_roles: NodeRoles,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> RolesResponse {
     let output = output.output.unwrap_or_default();
-    output.to_response(node_roles)
+    output.to_response(state.static_information.roles)
 }
 
 pub type RolesResponse = FormattedResponse<NodeRoles>;

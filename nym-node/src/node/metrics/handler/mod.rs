@@ -14,6 +14,7 @@ pub(crate) mod legacy_packet_data;
 pub(crate) mod mixnet_data_cleaner;
 pub(crate) mod pending_egress_packets_updater;
 pub(crate) mod prometheus_events_handler;
+pub(crate) mod tokio_runtime_updater;
 
 pub(crate) trait RegistrableHandler:
     Downcast + OnStartMetricsHandler + OnUpdateMetricsHandler + Send + Sync + 'static

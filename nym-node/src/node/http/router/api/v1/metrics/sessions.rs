@@ -14,7 +14,7 @@ use time::macros::time;
     get,
     path = "/sessions",
     context_path = "/api/v1/metrics",
-    tag = "Metrics",
+    tag = "v1 / Metrics",
     responses(
         (status = 200, content(
             (SessionStats = "application/json"),

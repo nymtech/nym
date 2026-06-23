@@ -23,7 +23,7 @@ use crate::reactor::{ReactorNotify, SmoltcpStack};
 pub(crate) const EPHEMERAL_PORT_START: u16 = 49152;
 
 /// A pooled connection (TLS or plain TCP). Delegates `AsyncRead + AsyncWrite`.
-/// The `Tls` variant compiles in only when `fetch` or `socket` features are
+/// The `Tls` variant compiles in only when `fetch` or `websocket` features are
 /// enabled, since plaintext-only builds (the `dns`-only TS SDK package) don't
 /// need a TLS stack at all.
 ///
@@ -33,7 +33,7 @@ pub(crate) const EPHEMERAL_PORT_START: u16 = 49152;
 /// arm into a `Box`-deref dance for no real benefit at typical usage.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum PooledConn {
-    #[cfg(any(feature = "fetch", feature = "socket"))]
+    #[cfg(any(feature = "fetch", feature = "websocket"))]
     Tls(crate::tls::MaybeCloseNotify<futures_rustls::client::TlsStream<WasmTcpStream>>),
     Plain(WasmTcpStream),
 }
@@ -81,9 +81,10 @@ impl AsyncRead for WasmTcpStream {
                 Poll::Ready(Ok(0))
             } else {
                 crate::util::debug_log!(
-                    "[tcp:read] Pending (state={:?}, buf={})",
+                    "[tcp:read] Pending (state={:?}, buf={}, recv_queue={})",
                     socket.state(),
                     buf.len(),
+                    socket.recv_queue(),
                 );
                 // smoltcp wakes this waker on any state change affecting `recv`,
                 // including FIN/CloseWait transitions that produce EOF.
@@ -176,7 +177,7 @@ impl AsyncRead for PooledConn {
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
-            #[cfg(any(feature = "fetch", feature = "socket"))]
+            #[cfg(any(feature = "fetch", feature = "websocket"))]
             PooledConn::Tls(s) => Pin::new(s).poll_read(cx, buf),
             PooledConn::Plain(s) => Pin::new(s).poll_read(cx, buf),
         }
@@ -190,7 +191,7 @@ impl AsyncWrite for PooledConn {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
-            #[cfg(any(feature = "fetch", feature = "socket"))]
+            #[cfg(any(feature = "fetch", feature = "websocket"))]
             PooledConn::Tls(s) => Pin::new(s).poll_write(cx, buf),
             PooledConn::Plain(s) => Pin::new(s).poll_write(cx, buf),
         }
@@ -198,7 +199,7 @@ impl AsyncWrite for PooledConn {
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.get_mut() {
-            #[cfg(any(feature = "fetch", feature = "socket"))]
+            #[cfg(any(feature = "fetch", feature = "websocket"))]
             PooledConn::Tls(s) => Pin::new(s).poll_flush(cx),
             PooledConn::Plain(s) => Pin::new(s).poll_flush(cx),
         }
@@ -206,7 +207,7 @@ impl AsyncWrite for PooledConn {
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match self.get_mut() {
-            #[cfg(any(feature = "fetch", feature = "socket"))]
+            #[cfg(any(feature = "fetch", feature = "websocket"))]
             PooledConn::Tls(s) => Pin::new(s).poll_close(cx),
             PooledConn::Plain(s) => Pin::new(s).poll_close(cx),
         }

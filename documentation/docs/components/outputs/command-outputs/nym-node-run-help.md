@@ -48,14 +48,16 @@ Options:
           Specify whether basic system hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_SYSTEM_HARDWARE=] [possible values: true, false]
       --expose-crypto-hardware <EXPOSE_CRYPTO_HARDWARE>
           Specify whether detailed system crypto hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE=] [possible values: true, false]
+      --nyxd-urls <NYXD_URLS>
+          Addresses to nyxd chain endpoint which the node will use for chain interactions [env: NYMNODE_NYXD=]
+      --nyxd-websocket-url <NYXD_WEBSOCKET_URL>
+          Url to the websocket endpoint of a nyx validator, for example `wss://rpc.nymtech.net/websocket`. It is used for subscribing to new block events [env: NYMNODE_NYXD_WEBSOCKET=]
       --mixnet-bind-address <MIXNET_BIND_ADDRESS>
           Address this node will bind to for listening for mixnet packets default: `[::]:1789` [env: NYMNODE_MIXNET_BIND_ADDRESS=]
       --mixnet-announce-port <MIXNET_ANNOUNCE_PORT>
           If applicable, custom port announced in the self-described API that other clients and nodes will use. Useful when the node is behind a proxy [env: NYMNODE_MIXNET_ANNOUNCE_PORT=]
       --nym-api-urls <NYM_API_URLS>
           Addresses to nym APIs from which the node gets the view of the network [env: NYMNODE_NYM_APIS=]
-      --nyxd-urls <NYXD_URLS>
-          Addresses to nyxd chain endpoint which the node will use for chain interactions [env: NYMNODE_NYXD=]
       --enable-console-logging <ENABLE_CONSOLE_LOGGING>
           Specify whether running statistics of this node should be logged to the console [env: NYMNODE_ENABLE_CONSOLE_LOGGING=] [possible values: true, false]
       --wireguard-enabled <WIREGUARD_ENABLED>

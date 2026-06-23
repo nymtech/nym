@@ -1,0 +1,6 @@
+# Build artefact emitted by the first rollup pass (scripts/build.sh:13) and
+# moved here for the second pass to inline. ~9 MB and changes every wasm
+# rebuild; tracking it in git pollutes every diff that touches the wasm.
+src/worker/worker.js
+src/worker/*.wasm
+dist/

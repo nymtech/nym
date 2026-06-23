@@ -1,0 +1,110 @@
+---
+title: "mix-fetch guides"
+description: "Request shape, default headers, drop-in caveats, and tunnel configuration for mix-fetch."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-05"
+---
+
+import { Callout } from 'nextra/components'
+
+# Reference
+
+## Request shape
+
+The `init` argument is the standard [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit). Headers, method, and body all work. `AbortController` (`signal`) is not supported: an in-flight request cannot be cancelled.
+
+```ts
+const res = await mixFetch('https://httpbin.org/post', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ hello: 'mixnet' }),
+});
+console.log(await res.json());
+```
+
+Binary responses come back via the standard `Response.arrayBuffer()` / `Response.blob()` methods:
+
+```ts
+const res = await mixFetch('https://example.com/image.png');
+const blob = await res.blob();
+```
+
+Repeated headers (`Set-Cookie`, `Vary`, `Link`, `WWW-Authenticate`) are preserved. The wasm side returns headers as a `[name, value]` pair sequence, which `Headers` reconstructs verbatim.
+
+## Default request headers
+
+When the caller doesn't set them, `mixFetch` injects four browser-shape headers before the request leaves the tunnel. The shim exists because many CDNs (cloudflare's bot management) and host policies (wikimedia's User-Agent policy) reject requests that look unlike a real browser. Caller-supplied values always win.
+
+| Header | Injected default |
+|--------|------------------|
+| `User-Agent` | `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36` |
+| `Accept` | `text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8` |
+| `Accept-Language` | `en-US,en;q=0.9` |
+| `Accept-Encoding` | `identity` |
+
+`Accept-Encoding` is forced to `identity` rather than `gzip, deflate, br` because the wasm build has no decompressor. Advertising compression would let the server return a compressed body the wasm build cannot decode, so `Response.text()` or `.json()` would see raw compressed bytes. Responses therefore arrive uncompressed, so large text or JSON bodies transfer more bytes over the slower mixnet path.
+
+To override any of these, set the header in the `init.headers` bag like normal:
+
+```ts
+const res = await mixFetch('https://example.com', {
+  headers: { 'User-Agent': 'my-app/1.0' },
+});
+```
+
+<Callout type="info">
+The shim does not attempt full browser impersonation. TLS fingerprint (JA3), HTTP/2, and header ordering are still distinguishable from a real Chrome request. If you need stronger blend-in, you'll need to handle that at the application or destination layer.
+</Callout>
+
+## Drop-in caveats
+
+`mixFetch` matches the `fetch()` call signature but is not a perfect substitute. The differences are intentional and follow from running outside the browser's networking stack:
+
+| Difference | What it means | What to do |
+|---|---|---|
+| **No same-origin restriction** | Requests aren't subject to browser CORS preflight. The IPR honours its exit policy regardless of `Origin`. | Don't rely on CORS as an access-control mechanism for `mixFetch` requests; treat them as you would server-to-server calls. |
+| **No cookies / credentials** | The browser cookie jar is not shared with the WASM instance. `credentials: 'include'` has no effect. | Pass auth tokens via `Authorization` or other explicit headers. |
+| **No HTTP cache** | The browser HTTP cache is not consulted. Every call hits the network. | Cache responses at the application layer if needed. |
+| **No service-worker interception** | Requests don't pass through any `fetch` event handlers registered by service workers. | n/a |
+| **HTTPS only in practice** | The IPR sees plaintext HTTP in full. | Always target `https://` URLs. |
+
+## Errors
+
+`mixFetch` follows `fetch` semantics for HTTP status: a 4xx or 5xx response **resolves** with a `Response` carrying that status, so check `response.ok` or `response.status` yourself. The promise **rejects** only on a transport-level failure: a connection or TLS failure, a DNS failure, or the IPR refusing the destination under its exit policy. A rejection is a plain `Error` whose message describes the cause; there is no typed error class, so match on the message if you need to branch.
+
+## Timeouts and cancellation
+
+There is no per-request timeout, and `AbortController` / `signal` is ignored: an in-flight `mixFetch` cannot be cancelled. To bound how long you wait, race it against a timer. This stops you waiting but does not cancel the underlying request:
+
+```ts
+const res = await Promise.race([
+  mixFetch(url),
+  new Promise<Response>((_, reject) =>
+    setTimeout(() => reject(new Error('mixFetch timeout')), 30_000),
+  ),
+]);
+```
+
+Connection and DNS timeouts at the tunnel level are set once via `connectTimeoutMs` and `dnsTimeoutMs` in [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
+
+## Configuration
+
+`setupMixTunnel(opts)` (and `createMixFetch(opts)`) accept the shared tunnel options from [`@nymproject/mix-tunnel`](/developers/mix-tunnel/guides#configuration). The most commonly touched are:
+
+```ts
+await setupMixTunnel({
+  // Pin a specific IPR (otherwise auto-discovered from the topology).
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+
+  // Lower latency and bandwidth at the cost of traffic-analysis resistance.
+  disableCoverTraffic: true,
+  disablePoissonTraffic: true,
+});
+```
+
+The full option surface is documented under [`SetupMixTunnelOpts`](/developers/mix-tunnel/api/interfaces/SetupMixTunnelOpts).
+
+<Callout type="info">
+The first `mixFetch` call after `setupMixTunnel()` may take a few seconds: gateway handshake, IPR discovery, and the first DNS resolution all happen on demand. Subsequent calls reuse the tunnel and complete in roughly the time of a normal HTTPS request plus mixnet latency.
+</Callout>

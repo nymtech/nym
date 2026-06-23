@@ -5,15 +5,20 @@ use crate::node::http::state::AppState;
 use axum::Router;
 use nym_node_requests::routes;
 
+pub mod openapi;
 pub mod v1;
+pub mod v2;
 
 pub use nym_node_requests::api as api_requests;
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub v1_config: v1::Config,
+    pub v2_config: v2::Config,
 }
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
-    Router::new().nest(routes::api::V1, v1::routes(config.v1_config))
+    Router::new()
+        .nest(routes::api::V1, v1::routes(config.v1_config))
+        .nest(routes::api::V2, v2::routes(config.v2_config))
 }

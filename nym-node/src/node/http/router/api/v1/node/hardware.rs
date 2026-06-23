@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::router::types::RequestError;
-use axum::extract::Query;
+use crate::node::http::state::AppState;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::node::models::HostSystem;
@@ -12,7 +13,7 @@ use nym_node_requests::api::v1::node::models::HostSystem;
     get,
     path = "/system-info",
     context_path = "/api/v1",
-    tag = "Node",
+    tag = "v1 / Node",
     responses(
         (status = 200, content(
             (HostSystem = "application/json"),
@@ -23,12 +24,12 @@ use nym_node_requests::api::v1::node::models::HostSystem;
     params(OutputParams)
 )]
 pub(crate) async fn host_system(
-    system_info: Option<HostSystem>,
     Query(output): Query<OutputParams>,
+    State(state): State<AppState>,
 ) -> Result<HostSystemResponse, RequestError> {
     let output = output.output.unwrap_or_default();
 
-    let Some(system_info) = system_info else {
+    let Some(system_info) = state.static_information.system_info.clone() else {
         return Err(RequestError::new(
             "this nym-node does not wish to expose the system information",
             StatusCode::FORBIDDEN,

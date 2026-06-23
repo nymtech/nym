@@ -1,12 +1,15 @@
 - name: Download quic_bridge_deployment.sh
-  tags: quic bridge deployment
-  get_url:
-    url: "{{ quic_bridge_deployment_url }}"
-    dest: "/root/nym-binaries/quic_bridge_deployment.sh"
+  command:
+    cmd: "curl -fsSL {{ quic_bridge_deployment_url }} -o /root/nym-binaries/quic_bridge_deployment.sh"
+  tags: quic
+
+- name: Set quic_bridge_deployment permissions
+  file:
+    path: /root/nym-binaries/quic_bridge_deployment.sh
     mode: "0755"
+  tags: quic
 
 - name: Configure tunnel manager
-  tags: quic bridge deployment
   become: true
   command:
     cmd: "/root/nym-binaries/quic_bridge_deployment.sh {{ item }}"
@@ -14,3 +17,4 @@
     NONINTERACTIVE: "1"
   loop:
     - full_bridge_setup
+  tags: quic

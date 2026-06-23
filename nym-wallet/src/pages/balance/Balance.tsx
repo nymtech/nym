@@ -39,18 +39,17 @@ export const BalanceCard = ({
     usdPerNym !== undefined && nymFloat !== undefined ? usdFormatter.format(nymFloat * usdPerNym) : undefined;
 
   const showUsdRow = Boolean(userBalance?.amount?.amount && userBalance.amount.amount.length > 0);
+  const reserveUsdRow = network === 'MAINNET' && !userBalanceError;
+  const awaitingBalance = Boolean(clientAddress && !userBalance && !userBalanceError);
+  const showBalanceLoading = Boolean(isLoading || awaitingBalance);
 
   let usdApproximationRow: React.ReactNode = null;
-  if (showUsdRow) {
+  if (showUsdRow || (reserveUsdRow && priceLoading)) {
     if (priceLoading) {
-      usdApproximationRow = <Skeleton width={140} height={22} sx={{ mt: 0.5 }} />;
+      usdApproximationRow = <Skeleton width={140} height={22} />;
     } else if (usdApproxLabel) {
       usdApproximationRow = (
-        <Typography
-          variant="body2"
-          sx={{ color: 'nym.text.muted', fontWeight: 500, mt: 0.25 }}
-          data-testid="balance-usd-approx"
-        >
+        <Typography variant="body2" sx={{ color: 'nym.text.muted', fontWeight: 500 }} data-testid="balance-usd-approx">
           {`≈ ${usdApproxLabel}`}
         </Typography>
       );
@@ -75,8 +74,17 @@ export const BalanceCard = ({
               {userBalanceError}
             </Alert>
           )}
-          {isLoading ? (
-            <Skeleton width={160} height={42} />
+          {showBalanceLoading ? (
+            <Stack spacing={1}>
+              <Typography
+                variant="caption"
+                sx={{ color: 'nym.text.muted', textTransform: 'uppercase', letterSpacing: 1 }}
+              >
+                Available now
+              </Typography>
+              <Skeleton width={160} height={42} />
+              {reserveUsdRow ? <Skeleton width={140} height={22} /> : null}
+            </Stack>
           ) : (
             !userBalanceError && (
               <Stack spacing={1}>
@@ -99,7 +107,9 @@ export const BalanceCard = ({
                 >
                   {userBalance?.printable_balance || '-'}
                 </Typography>
-                {usdApproximationRow}
+                {usdApproximationRow ? (
+                  <Box sx={{ minHeight: 22, display: 'flex', alignItems: 'center' }}>{usdApproximationRow}</Box>
+                ) : null}
               </Stack>
             )
           )}

@@ -10,8 +10,10 @@ const os = require('os');
 /**
  * Creates the default Webpack config
  * @param baseDir The base directory path, e.g. pass `__dirname` of the webpack config file using this method
+ * @param htmlPath Path or array of HtmlWebpackPlugin opts
+ * @param opts Optional flags: `{ skipFavicon: true }` to omit the WebpackFavicons plugin
  */
-const webpackCommon = (baseDir, htmlPath) => ({
+const webpackCommon = (baseDir, htmlPath, opts = {}) => ({
   module: {
     rules: [
       {
@@ -80,9 +82,13 @@ const webpackCommon = (baseDir, htmlPath) => ({
       },
     }),
 
-    new WebpackFavicons({
-      src: path.resolve(__dirname, '../../assets/favicon/favicon.png'), // the asset directory is relative to THIS file
-    }),
+    ...(opts.skipFavicon
+      ? []
+      : [
+          new WebpackFavicons({
+            src: path.resolve(__dirname, '../../../../assets/favicon/favicon.png'), // repo-root /assets/favicon/favicon.png
+          }),
+        ]),
 
     new Dotenv(),
   ],

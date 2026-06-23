@@ -1,22 +1,32 @@
 {
   "index": "Overview",
-  "integrations": "Choosing an Approach",
   "concepts": "Key Concepts",
 
+  "sep-intro": {
+    "type": "separator"
+  },
   "--": {
     "type": "separator",
     "title": "Rust"
   },
-  "smolmix": "smolmix",
+  "smolmix": "smolmix (TCP/UDP tunnel)",
   "rust": "nym-sdk",
 
   "-": {
     "type": "separator",
     "title": "TypeScript"
   },
-  "mix-fetch": "mix-fetch",
-  "typescript": "TypeScript SDK",
+  "playground": "Playground (embedded clients)",
+  "mix-tunnel": "mix-tunnel (shared tunnel)",
+  "mix-fetch": "mix-fetch (HTTPS requests)",
+  "mix-dns": "mix-dns (DNS resolution)",
+  "mix-websocket": "mix-websocket (ws / wss)",
+  "mix-architecture": "mix-* Family Architecture",
+  "typescript": "Raw Messaging SDK",
 
+  "sep-extras": {
+    "type": "separator"
+  },
   "---": {
     "type": "separator",
     "title": "Extras"

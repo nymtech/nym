@@ -7,12 +7,12 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_mixnet_contract_common::NodeId;
 use serde::Deserialize;
 
-use nym_mixnet_contract_common::NodeId;
 pub use nym_node_families_contract_common::{
     msg::QueryMsg as NodeFamiliesQueryMsg, AllFamilyMembersPagedResponse,
-    AllPastFamilyInvitationsPagedResponse, FamiliesPagedResponse, FamilyMemberRecord,
+    AllPastFamilyInvitationsPagedResponse, Config, FamiliesPagedResponse, FamilyMemberRecord,
     FamilyMembersPagedResponse, GlobalPastFamilyInvitationCursor, NodeFamily,
     NodeFamilyByNameResponse, NodeFamilyByOwnerResponse, NodeFamilyId,
     NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitation,
@@ -34,6 +34,11 @@ pub trait NodeFamiliesQueryClient {
     ) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>;
+
+    async fn get_config(&self) -> Result<Config, NyxdError> {
+        self.query_node_families_contract(NodeFamiliesQueryMsg::GetConfig {})
+            .await
+    }
 
     async fn get_family_by_id(
         &self,
@@ -360,6 +365,7 @@ mod tests {
         msg: NodeFamiliesQueryMsg,
     ) {
         match msg {
+            NodeFamiliesQueryMsg::GetConfig {} => client.get_config().ignore(),
             NodeFamiliesQueryMsg::GetFamilyById { family_id } => {
                 client.get_family_by_id(family_id).ignore()
             }

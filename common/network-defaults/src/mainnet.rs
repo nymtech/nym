@@ -185,6 +185,10 @@ pub fn export_to_env() {
         NETWORK_MONITORS_CONTRACT_ADDRESS,
     );
     set_var_to_default(
+        var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
+        NODE_FAMILIES_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
@@ -236,6 +240,10 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::COCONUT_DKG_CONTRACT_ADDRESS,
         COCONUT_DKG_CONTRACT_ADDRESS,
+    );
+    set_var_conditionally_to_default(
+        var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
+        NODE_FAMILIES_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,

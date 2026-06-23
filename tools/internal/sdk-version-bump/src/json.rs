@@ -22,6 +22,18 @@ fn update_dependencies(
 ) -> anyhow::Result<()> {
     for (package, version) in deps.iter_mut() {
         if names.contains(package) {
+            // Locally-linked specifiers (`workspace:*`, `file:..`, `link:..`)
+            // are managed by pnpm at publish time, not by this tool. Skip them
+            // so we don't try to parse them as semver ranges and bail.
+            if version.starts_with("workspace:")
+                || version.starts_with("file:")
+                || version.starts_with("link:")
+                || version.starts_with("npm:")
+            {
+                println!("\t\t>>> skipping '{package}' (locally linked: {version})");
+                continue;
+            }
+
             let updated = if pre_release {
                 try_bump_prerelease_version_req(version)?
             } else {

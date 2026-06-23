@@ -50,7 +50,6 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
 
@@ -722,12 +721,31 @@ pub struct NodeStatusAPIDebug {
     // port: u16,
     #[serde(with = "humantime_serde")]
     pub caching_interval: Duration,
+
+    // base amount (in unym)
+    pub minimum_on_chain_balance_amount: u128,
+
+    pub chain_capabilities_retrieval_concurrency: usize,
+
+    #[serde(with = "humantime_serde")]
+    pub chain_capabilities_refresh_interval: Duration,
+}
+
+impl NodeStatusAPIDebug {
+    const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
+    const DEFAULT_CHAIN_CAPABILITIES_RETRIEVAL_CONCURRENCY: usize = 8;
+    const DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // once a day is more than enough
+    const DEFAULT_MINIMUM_ON_CHAIN_BALANCE: u128 = 1_000000; // 1 nym is enough for all tx fees for quite some time
 }
 
 impl Default for NodeStatusAPIDebug {
     fn default() -> Self {
         NodeStatusAPIDebug {
-            caching_interval: DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
+            caching_interval: Self::DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
+            minimum_on_chain_balance_amount: Self::DEFAULT_MINIMUM_ON_CHAIN_BALANCE,
+            chain_capabilities_retrieval_concurrency:
+                Self::DEFAULT_CHAIN_CAPABILITIES_RETRIEVAL_CONCURRENCY,
+            chain_capabilities_refresh_interval: Self::DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL,
         }
     }
 }

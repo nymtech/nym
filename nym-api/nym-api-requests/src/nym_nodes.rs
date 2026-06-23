@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{
-    DeclaredRolesV1, LewesProtocolDetailsV1, NymNodeDataV1, OffsetDateTimeJsonSchemaWrapper,
-};
+use crate::models::described::type_translation::{DeclaredRolesV1, LewesProtocolDetailsV1};
+use crate::models::described::v1::NymNodeDataV1;
+use crate::models::OffsetDateTimeJsonSchemaWrapper;
 use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;

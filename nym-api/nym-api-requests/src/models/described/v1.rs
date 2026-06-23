@@ -1,11 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{
-    AuthenticatorDetailsV1, AuxiliaryDetailsV1, BinaryBuildInformationOwned, DeclaredRolesV1,
-    HostInformationV1, IpPacketRouterDetailsV1, NetworkRequesterDetailsV1,
-    OffsetDateTimeJsonSchemaWrapper, WebSocketsV1, WireguardDetailsV1,
+use crate::models::described::type_translation::{
+    AuthenticatorDetailsV1, DeclaredRolesV1, HostInformationV1, IpPacketRouterDetailsV1,
+    NetworkRequesterDetailsV1, NymNodeAuxiliaryDetailsV1, WebSocketsV1, WireguardDetailsV1,
 };
+use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SkimmedNodeV1};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::reward_params::Performance;
@@ -160,7 +160,7 @@ pub struct NymNodeDataV1 {
     pub declared_role: DeclaredRolesV1,
 
     #[serde(default)]
-    pub auxiliary_details: AuxiliaryDetailsV1,
+    pub auxiliary_details: NymNodeAuxiliaryDetailsV1,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,

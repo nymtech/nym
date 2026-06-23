@@ -103,6 +103,16 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn chain_details(&self) -> &ChainDetails {
+        &self.chain_details
+    }
+
+    pub fn contracts(&self) -> &TypedNymContracts {
+        &self.contracts
+    }
+}
+
+impl Config {
     pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NyxdError> {
         Ok(Config {
             chain_details: details.chain_details.clone(),
@@ -314,6 +324,10 @@ impl<C, S> NyxdClient<C, S> {
 
     pub fn get_nym_contracts(&self) -> TypedNymContracts {
         self.config.contracts.clone()
+    }
+
+    pub fn get_chain_details(&self) -> ChainDetails {
+        self.config.chain_details.clone()
     }
 }
 

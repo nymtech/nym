@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Context;
-use nym_api_requests::models::network_monitor::StressTestResult;
+use nym_api_requests::models::v3::StressTestResult;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,

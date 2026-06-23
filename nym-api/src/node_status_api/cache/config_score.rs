@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::mixnet_contract_cache::cache::data::ConfigScoreData;
-use nym_api_requests::models::{ConfigScore, NymNodeDescriptionV2};
+use cosmwasm_std::Coin;
+use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
+use nym_api_requests::models::{
+    ChainInteractionCapabilities, ChainInteractionCapabilitiesDetailed, ConfigScoreV2,
+};
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::VersionScoreFormulaParams;
 
@@ -17,17 +21,36 @@ fn versions_behind_factor_to_config_score(
     penalty.powf((versions_behind as f64).powf(scaling))
 }
 
+fn has_sufficient_tokens(
+    minimum_balance: &Coin,
+    capabilities: &Option<ChainInteractionCapabilitiesDetailed>,
+) -> bool {
+    let Some(capabilities) = capabilities else {
+        return false;
+    };
+    let chain_balance = &capabilities.on_chain_balance;
+
+    // this should never happen because we have queried for this specific balance,
+    // but some defensive coding never hurt
+    if chain_balance.denom != minimum_balance.denom {
+        return false;
+    }
+    chain_balance.amount >= minimum_balance.amount
+}
+
 pub(crate) fn calculate_config_score(
+    minimum_balance: &Coin,
     config_score_data: &ConfigScoreData,
-    described_data: Option<&NymNodeDescriptionV2>,
-) -> ConfigScore {
+    described_data: Option<&NymNodeDescriptionV3>,
+    chain_capabilities: &Option<ChainInteractionCapabilitiesDetailed>,
+) -> ConfigScoreV2 {
     let Some(described) = described_data else {
-        return ConfigScore::unavailable();
+        return ConfigScoreV2::unavailable();
     };
 
     let node_version = &described.description.build_information.build_version;
     let Ok(reported_semver) = node_version.parse::<semver::Version>() else {
-        return ConfigScore::bad_semver();
+        return ConfigScoreV2::bad_semver();
     };
     let versions_behind = config_score_data
         .config_score_params
@@ -54,10 +77,19 @@ pub(crate) fn calculate_config_score(
         )
     };
 
-    ConfigScore::new(
+    let chain_interaction = ChainInteractionCapabilities {
+        has_sufficient_tokens: has_sufficient_tokens(minimum_balance, chain_capabilities),
+        is_fee_grant_grantee: chain_capabilities
+            .as_ref()
+            .map(|c| c.is_feegrant_grantee)
+            .unwrap_or_default(),
+    };
+
+    ConfigScoreV2::new(
         version_score,
         versions_behind,
         accepted_terms_and_conditions,
         runs_nym_node,
+        chain_interaction,
     )
 }

@@ -225,12 +225,14 @@ mod db_tests {
             node_role: serde_json::json!(nym_validator_client::nym_nodes::NodeRole::Mixnode {
                 layer: 1
             }),
-            supported_roles: serde_json::json!(nym_validator_client::models::DeclaredRolesV1 {
-                entry: false,
-                mixnode: true,
-                exit_nr: false,
-                exit_ipr: false,
-            }),
+            supported_roles: serde_json::json!(
+                nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
+                    entry: false,
+                    mixnode: true,
+                    exit_nr: false,
+                    exit_ipr: false,
+                }
+            ),
             entry: None,
             performance: "1.0".to_string(),
             self_described: None,
@@ -278,7 +280,7 @@ fn test_nym_node_insert_record_new() {
         mix_port: 1789,
         x25519_sphinx_pubkey: x25519_pk,
         role: nym_validator_client::nym_nodes::NodeRole::Mixnode { layer: 1 },
-        supported_roles: nym_validator_client::models::DeclaredRolesV1 {
+        supported_roles: nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
             entry: false,
             mixnode: true,
             exit_nr: false,
@@ -305,12 +307,14 @@ fn test_nym_node_insert_record_new() {
     );
     assert_eq!(
         record.supported_roles,
-        serde_json::json!(nym_validator_client::models::DeclaredRolesV1 {
-            entry: false,
-            mixnode: true,
-            exit_nr: false,
-            exit_ipr: false,
-        })
+        serde_json::json!(
+            nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
+                entry: false,
+                mixnode: true,
+                exit_nr: false,
+                exit_ipr: false,
+            }
+        )
     );
     assert_eq!(record.performance, "1");
     assert!(record.entry.is_none());
@@ -330,7 +334,7 @@ fn test_nym_node_insert_record_with_entry() {
         mix_port: 1789,
         x25519_sphinx_pubkey: x25519_pk,
         role: nym_validator_client::nym_nodes::NodeRole::EntryGateway,
-        supported_roles: nym_validator_client::models::DeclaredRolesV1 {
+        supported_roles: nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
             entry: true,
             mixnode: false,
             exit_nr: true,
@@ -524,12 +528,14 @@ fn test_nym_node_dto_with_invalid_keys() {
         node_role: serde_json::json!(nym_validator_client::nym_nodes::NodeRole::Mixnode {
             layer: 1
         }),
-        supported_roles: serde_json::json!(nym_validator_client::models::DeclaredRolesV1 {
-            entry: false,
-            mixnode: true,
-            exit_nr: false,
-            exit_ipr: false,
-        }),
+        supported_roles: serde_json::json!(
+            nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
+                entry: false,
+                mixnode: true,
+                exit_nr: false,
+                exit_ipr: false,
+            }
+        ),
         entry: None,
         performance: "1.0".to_string(),
         self_described: None,
@@ -562,12 +568,14 @@ fn test_nym_node_dto_with_invalid_performance() {
         node_role: serde_json::json!(nym_validator_client::nym_nodes::NodeRole::Mixnode {
             layer: 1
         }),
-        supported_roles: serde_json::json!(nym_validator_client::models::DeclaredRolesV1 {
-            entry: false,
-            mixnode: true,
-            exit_nr: false,
-            exit_ipr: false,
-        }),
+        supported_roles: serde_json::json!(
+            nym_api_requests::models::described::type_translation::DeclaredRolesV1 {
+                entry: false,
+                mixnode: true,
+                exit_nr: false,
+                exit_ipr: false,
+            }
+        ),
         entry: None,
         performance: "invalid_percent".to_string(),
         self_described: None,

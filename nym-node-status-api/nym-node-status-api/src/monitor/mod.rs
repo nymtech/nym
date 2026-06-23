@@ -12,7 +12,6 @@ use crate::utils::{LogError, NumericalCheckedCast};
 use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::{NodeId, NymApiClientExt, NymNodeDetails};
-use nym_validator_client::models::NymNodeDescriptionV2;
 use nym_validator_client::{
     QueryHttpRpcNyxdClient,
     nym_nodes::{NodeRole, SkimmedNodeV1},
@@ -23,6 +22,7 @@ use tracing::instrument;
 
 pub(crate) use geodata::{ExplorerPrettyBond, IpInfoClient, Location};
 pub(crate) use node_delegations::DelegationsCache;
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 
 pub(crate) mod geodata;
 mod node_delegations;

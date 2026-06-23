@@ -1,7 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::{StressTestResult, StressTestingScore, TestNode};
+use nym_api_requests::models::v3::StressTestResult;
+use nym_api_requests::models::{StressTestingScore, TestNode};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;

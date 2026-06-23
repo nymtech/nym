@@ -1,7 +1,7 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_api_requests::models::DeclaredRolesV1;
+use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
 use nym_api_requests::nym_nodes::SkimmedNodeV1;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;

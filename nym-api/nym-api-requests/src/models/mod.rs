@@ -23,7 +23,6 @@ pub mod utility;
 // don't break existing imports
 pub use api_status::*;
 pub use circulating_supply::*;
-pub use described::*;
 pub use legacy::*;
 pub use mixnet::*;
 pub use network::*;

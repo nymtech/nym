@@ -10,9 +10,9 @@ use crate::{
     node_scraper::helpers::NodeDescriptionResponse,
 };
 use futures_util::TryStreamExt;
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::client::{NodeId, NymNodeDetails};
-use nym_validator_client::models::NymNodeDescriptionV2;
 use std::collections::HashMap;
 use tracing::{error, instrument, warn};
 

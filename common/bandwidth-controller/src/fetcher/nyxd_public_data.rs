@@ -44,7 +44,7 @@ impl<C: DkgQueryClient + Send + Sync> NyxdGlobalDataFetcher<C> {
     async fn ecash_api_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>, Error> {
         // fast path: atomic load, return if cached for this epoch
         if let Some(cache) = self.ecash_api_clients.load_full() {
-            if cache.epoch_id == epoch_id {
+            if cache.epoch_id == epoch_id && !cache.is_stale() {
                 return Ok(cache.clients.clone());
             }
         }

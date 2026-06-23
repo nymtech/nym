@@ -28,6 +28,7 @@ use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -1055,12 +1056,12 @@ impl GatewayClient {
     }
 }
 
-// type alias to make it clear it's incomplete
-pub type InitGatewayClient = GatewayClient;
+// wrapper to make it clear it's incomplete
+pub struct InitGatewayClient(GatewayClient);
 
-impl GatewayClient {
+impl InitGatewayClient {
     // for initialisation we do not need all the pieces. Some of them can be dummies
-    pub fn new_init(
+    pub fn new(
         gateway_listeners: GatewayListeners,
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
@@ -1080,7 +1081,7 @@ impl GatewayClient {
         let (bc_tx, _) = tokio::sync::mpsc::unbounded_channel();
         let bandwidth_provider = Box::new(BandwidthControllerRequestSender::new(bc_tx));
 
-        GatewayClient {
+        Self(GatewayClient {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
@@ -1096,7 +1097,7 @@ impl GatewayClient {
             #[cfg(unix)]
             connection_fd_callback,
             shutdown_token,
-        }
+        })
     }
 
     pub fn upgrade(
@@ -1106,28 +1107,43 @@ impl GatewayClient {
         stats_reporter: ClientStatsSender,
         shutdown_token: ShutdownToken,
     ) -> GatewayClient {
+        let inner = self.0;
         // invariants that can't be broken
         // (unless somebody decided to expose some field that wasn't meant to be exposed)
-        assert!(self.authenticated);
-        assert!(self.connection.is_available());
-        assert!(self.shared_key.is_some());
+        assert!(inner.authenticated);
+        assert!(inner.connection.is_available());
+        assert!(inner.shared_key.is_some());
 
         GatewayClient {
-            cfg: self.cfg,
-            authenticated: self.authenticated,
-            bandwidth: self.bandwidth,
-            gateway_addresses: self.gateway_addresses,
-            gateway_identity: self.gateway_identity,
-            local_identity: self.local_identity,
-            shared_key: self.shared_key,
-            connection: self.connection,
+            cfg: inner.cfg,
+            authenticated: inner.authenticated,
+            bandwidth: inner.bandwidth,
+            gateway_addresses: inner.gateway_addresses,
+            gateway_identity: inner.gateway_identity,
+            local_identity: inner.local_identity,
+            shared_key: inner.shared_key,
+            connection: inner.connection,
             packet_router,
             bandwidth_provider,
             stats_reporter,
-            negotiated_protocol: self.negotiated_protocol,
+            negotiated_protocol: inner.negotiated_protocol,
             #[cfg(unix)]
-            connection_fd_callback: self.connection_fd_callback,
+            connection_fd_callback: inner.connection_fd_callback,
             shutdown_token,
         }
+    }
+}
+
+impl Deref for InitGatewayClient {
+    type Target = GatewayClient;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for InitGatewayClient {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

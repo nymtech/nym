@@ -13,38 +13,30 @@ mod sender;
 
 #[derive(strum::Display)]
 pub enum BandwidthControllerRequest {
-    EcashTicket(
-        ReturnSender<Option<PreparedCredential>, BandwidthControllerError>,
-        EcashTicketRequest,
-    ),
+    EcashTicket(ReturnSender<Option<PreparedCredential>>, EcashTicketRequest),
 
-    UpgradeModeToken(ReturnSender<Option<String>, BandwidthControllerError>),
+    UpgradeModeToken(ReturnSender<Option<String>>),
 
-    AttemptRevertSpending(
-        ReturnSender<bool, BandwidthControllerError>,
-        PreparedCredentialMetadata,
-    ),
+    AttemptRevertSpending(ReturnSender<bool>, PreparedCredentialMetadata),
 }
 
 #[derive(Debug)]
-pub struct ReturnSender<T, E> {
-    sender: oneshot::Sender<Result<T, E>>,
+pub struct ReturnSender<T> {
+    sender: oneshot::Sender<Result<T, BandwidthControllerError>>,
 }
 
-impl<T, E> ReturnSender<T, E>
+impl<T> ReturnSender<T>
 where
     T: std::fmt::Debug,
-    E: std::fmt::Debug,
 {
-    pub fn new() -> (Self, oneshot::Receiver<Result<T, E>>) {
+    pub fn new() -> (Self, oneshot::Receiver<Result<T, BandwidthControllerError>>) {
         let (sender, receiver) = oneshot::channel();
         (Self { sender }, receiver)
     }
 
-    pub fn send(self, response: Result<T, E>)
+    pub fn send(self, response: Result<T, BandwidthControllerError>)
     where
         T: Send,
-        E: Send,
     {
         self.sender
             .send(response)

@@ -17,13 +17,12 @@ use uuid::Uuid;
 #[cfg(feature = "query-types")]
 use nym_http_api_common::Output;
 
+use nym_http_api_common::OutputV2;
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 #[cfg(feature = "tsify")]
 use tsify::Tsify;
-
 #[cfg(feature = "tsify")]
 use wasm_bindgen::prelude::wasm_bindgen;
-
-pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
 #[derive(JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -286,6 +285,23 @@ pub struct WebhookTicketbookWalletShares {
 pub struct WebhookTicketbookWalletSharesRequest {
     pub ticketbook_wallet_shares: WebhookTicketbookWalletShares,
     pub secret: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[serde(default, rename_all = "kebab-case")]
+pub struct EpochIdParams {
+    pub epoch_id: Option<u64>,
+    pub output: Option<OutputV2>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[serde(default, rename_all = "kebab-case")]
+pub struct ExpirationDateParams {
+    pub expiration_date: Option<String>,
+    pub epoch_id: Option<u64>,
+    pub output: Option<OutputV2>,
 }
 
 #[serde_as]

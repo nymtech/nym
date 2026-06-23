@@ -166,6 +166,8 @@ impl TicketbookManager {
         &self,
         epoch_id: Option<EpochId>,
     ) -> Result<AggregatedCoinIndicesSignaturesResponse, CredentialProxyError> {
+        self.state.ensure_credentials_issuable().await?;
+
         let signatures = self.state.master_coin_index_signatures(epoch_id).await?;
 
         Ok(AggregatedCoinIndicesSignaturesResponse {
@@ -178,6 +180,8 @@ impl TicketbookManager {
         epoch_id: Option<EpochId>,
         expiration_date: Option<Date>,
     ) -> Result<AggregatedExpirationDateSignaturesResponse, CredentialProxyError> {
+        self.state.ensure_credentials_issuable().await?;
+
         let epoch_id = match epoch_id {
             Some(id) => id,
             None => self.state.current_epoch_id().await?,

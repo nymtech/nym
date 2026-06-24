@@ -1,13 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
-use nym_credentials_interface::CompactEcashError;
-use nym_crypto::asymmetric::ed25519::Ed25519RecoveryError;
-use nym_crypto::asymmetric::x25519::KeyRecoveryError;
-use nym_validator_client::coconut::EcashApiError;
-use nym_validator_client::error::ValidatorClientError;
+use nym_validator_client::{coconut::EcashApiError, nym_api::EpochId};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,39 +16,33 @@ pub enum BandwidthControllerError {
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),
 
+    #[error("a credential/global-data fetcher failed - {0}")]
+    FetcherError(Box<dyn std::error::Error + Send + Sync>),
+
+    #[error("No expiration date signatures for epoch : {epoch_id}")]
+    MissingExpirationDateSignatures { epoch_id: EpochId },
+
+    #[error("No coin index signatures for epoch : {epoch_id}")]
+    MissingCoinIndexSignatures { epoch_id: EpochId },
+
+    #[error("No verification key for epoch : {epoch_id}")]
+    MissingVerificationKey { epoch_id: EpochId },
+
     #[error("retrieved upgrade mode token is not a valid String")]
     MalformedUpgradeModeToken,
-
-    #[error("the credential storage does not contain any usable credentials")]
-    NoCredentialsAvailable,
-
-    // this should really be fully incorporated into the above, but messing with coconut is the last thing I want to do now
-    #[error(transparent)]
-    StorageError(#[from] StorageError),
-
-    #[error("Ecash error - {0}")]
-    EcashError(#[from] CompactEcashError),
-
-    #[error("Validator client error - {0}")]
-    ValidatorError(#[from] ValidatorClientError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] CredentialsError),
 
-    #[error("Could not parse Ed25519 data")]
-    Ed25519ParseError(#[from] Ed25519RecoveryError),
+    // Internal error that should not happen
+    #[error("internal error: {0}")]
+    Internal(String),
 
-    #[error("Could not parse X25519 data")]
-    X25519ParseError(#[from] KeyRecoveryError),
-
-    #[error("The tx hash provided is not valid")]
-    InvalidTxHash,
+    #[error("A channel we were using is closed")]
+    ChannelClosed,
 
     #[error("Threshold not set yet")]
     NoThreshold,
-
-    #[error("can't handle recovering storage with revision {stored}. {expected} was expected")]
-    UnsupportedCredentialStorageRevision { stored: u8, expected: u8 },
 
     #[error("did not receive a valid response for aggregated data ({typ}) from ANY nym-api")]
     ExhaustedApiQueries { typ: String },
@@ -64,5 +53,13 @@ impl BandwidthControllerError {
         source: impl std::error::Error + Send + Sync + 'static,
     ) -> Self {
         BandwidthControllerError::CredentialStorageError(Box::new(source))
+    }
+
+    pub fn fetcher_error(source: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        BandwidthControllerError::FetcherError(source)
+    }
+
+    pub fn internal(message: impl ToString) -> Self {
+        BandwidthControllerError::Internal(message.to_string())
     }
 }

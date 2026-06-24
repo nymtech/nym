@@ -17,6 +17,7 @@ bincode.workspace = true
 futures.workspace = true
 semver.workspace = true
 thiserror.workspace = true
+time.workspace = true
 tokio-util.workspace = true
 tokio.workspace = true
 tracing.workspace = true

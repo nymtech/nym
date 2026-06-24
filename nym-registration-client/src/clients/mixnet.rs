@@ -204,7 +204,6 @@ impl MixnetBasedRegistrationClient {
             entry,
             exit,
             mixnet_listener,
-            self.bandwidth_provider,
         ))
     }
 

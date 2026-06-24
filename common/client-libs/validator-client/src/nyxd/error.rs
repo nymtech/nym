@@ -248,7 +248,60 @@ impl NyxdError {
         }
     }
 
+    /// Returns `true` if the error indicates the queried block height has been
+    /// pruned by the RPC node (its history no longer reaches that low).
+    pub fn is_block_pruned(&self) -> bool {
+        match &self {
+            NyxdError::TendermintErrorRpc(TendermintRpcError(
+                TendermintRpcErrorDetail::Response(err),
+                _,
+            )) => {
+                let response = &err.source;
+                if response.code() == Code::InternalError {
+                    // e.g. "height 14862522 is not available, lowest height is 16853136"
+                    if let Some(data) = response.data() {
+                        data.contains("is not available") && data.contains("lowest height")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
     pub fn unavailable_contract_address<S: Into<String>>(contract_type: S) -> Self {
         NyxdError::NoContractAddressAvailable(contract_type.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rpc_internal_error(data: &str) -> NyxdError {
+        let response = ResponseError::new(Code::InternalError, Some(data.to_string()));
+        NyxdError::TendermintErrorRpc(TendermintRpcError::response(response))
+    }
+
+    #[test]
+    fn detects_pruned_block_error() {
+        let err = rpc_internal_error("height 14862522 is not available, lowest height is 16853136");
+        assert!(err.is_block_pruned());
+    }
+
+    #[test]
+    fn ignores_other_internal_errors() {
+        assert!(
+            !rpc_internal_error("timed out waiting for tx to be included in a block")
+                .is_block_pruned()
+        );
+    }
+
+    #[test]
+    fn ignores_non_rpc_errors() {
+        assert!(!NyxdError::NoContractAddressAvailable("mixnet".to_string()).is_block_pruned());
     }
 }

@@ -5,8 +5,7 @@ use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::GatewayClient;
-use nym_gateway_client::client::GatewayListeners;
+use nym_gateway_client::client::{GatewayListeners, InitGatewayClient};
 use nym_topology::node::RoutingNode;
 use nym_validator_client::UserAgent;
 use nym_validator_client::client::{IdentityKeyRef, NymApiClientExt};
@@ -384,7 +383,7 @@ pub(super) async fn register_with_gateway(
     our_identity: Arc<ed25519::KeyPair>,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<RegistrationResult, ClientCoreError> {
-    let mut gateway_client = GatewayClient::new_init(
+    let mut init_gateway_client = InitGatewayClient::new(
         gateway_listeners,
         gateway_id,
         our_identity.clone(),
@@ -392,14 +391,19 @@ pub(super) async fn register_with_gateway(
         connection_fd_callback,
     );
 
-    gateway_client.establish_connection().await.map_err(|err| {
-        tracing::warn!("Failed to establish connection with gateway!");
-        ClientCoreError::GatewayClientError {
-            gateway_id: gateway_id.to_base58_string(),
-            source: Box::new(err),
-        }
-    })?;
-    let auth_response = gateway_client
+    init_gateway_client
+        .inner_mut()
+        .establish_connection()
+        .await
+        .map_err(|err| {
+            tracing::warn!("Failed to establish connection with gateway!");
+            ClientCoreError::GatewayClientError {
+                gateway_id: gateway_id.to_base58_string(),
+                source: Box::new(err),
+            }
+        })?;
+    let auth_response = init_gateway_client
+        .inner_mut()
         .perform_initial_authentication()
         .await
         .map_err(|err| {
@@ -412,7 +416,7 @@ pub(super) async fn register_with_gateway(
 
     Ok(RegistrationResult {
         shared_keys: auth_response.initial_shared_key,
-        authenticated_ephemeral_client: gateway_client,
+        authenticated_ephemeral_client: init_gateway_client,
     })
 }
 

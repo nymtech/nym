@@ -12,9 +12,7 @@ use nym_credentials_interface::{
     AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, VerificationKeyAuth,
 };
 use nym_ecash_time::Date;
-use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::{EpochId, NymApiClientExt};
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::EcashApiClient;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
@@ -32,56 +30,6 @@ impl EcashClientsProvider for Vec<EcashApiClient> {
         &mut self,
     ) -> Result<Vec<EcashApiClient>, BandwidthControllerError> {
         Ok(self.clone())
-    }
-}
-
-impl<C> EcashClientsProvider for &mut ApiClientsWrapper<'_, C>
-where
-    C: DkgQueryClient,
-{
-    async fn try_get_ecash_clients(
-        &mut self,
-    ) -> Result<Vec<EcashApiClient>, BandwidthControllerError> {
-        self.clients().await
-    }
-}
-
-pub(crate) enum ApiClientsWrapper<'a, C> {
-    Uninitialised {
-        query_client: &'a C,
-        epoch_id: EpochId,
-    },
-    Cached {
-        clients: Vec<EcashApiClient>,
-    },
-}
-
-impl<'a, C> ApiClientsWrapper<'a, C> {
-    pub(crate) fn new(query_client: &'a C, epoch_id: EpochId) -> Self {
-        ApiClientsWrapper::Uninitialised {
-            query_client,
-            epoch_id,
-        }
-    }
-
-    async fn clients(&mut self) -> Result<Vec<EcashApiClient>, BandwidthControllerError>
-    where
-        C: DkgQueryClient,
-    {
-        match self {
-            ApiClientsWrapper::Uninitialised {
-                query_client,
-                epoch_id,
-            } => {
-                let clients = all_ecash_api_clients(*query_client, *epoch_id).await?;
-                *self = ApiClientsWrapper::Cached {
-                    clients: clients.clone(),
-                };
-
-                Ok(clients)
-            }
-            ApiClientsWrapper::Cached { clients } => Ok(clients.clone()),
-        }
     }
 }
 

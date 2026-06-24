@@ -12,9 +12,8 @@ use crate::socket_state::{ws_fd, PartiallyDelegatedHandle, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
-use nym_bandwidth_controller::BandwidthController;
-use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
-use nym_credential_storage::storage::Storage as CredentialStorage;
+use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
@@ -28,9 +27,9 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::ShutdownToken;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::instrument;
 use tracing::*;
 use tungstenite::protocol::Message;
@@ -83,7 +82,7 @@ pub struct AuthenticationResponse {
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
-pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
+pub struct GatewayClient {
     pub cfg: GatewayClientConfig,
 
     authenticated: bool,
@@ -94,7 +93,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     shared_key: Option<Arc<SharedSymmetricKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
-    bandwidth_provider: Option<BandwidthController<C, St>>,
+    bandwidth_provider: Box<dyn BandwidthTicketProvider>,
     stats_reporter: ClientStatsSender,
 
     negotiated_protocol: Option<GatewayProtocolVersion>,
@@ -107,7 +106,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     shutdown_token: ShutdownToken,
 }
 
-impl<C, St> GatewayClient<C, St> {
+impl GatewayClient {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         cfg: GatewayClientConfig,
@@ -116,7 +115,7 @@ impl<C, St> GatewayClient<C, St> {
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedSymmetricKey>>,
         packet_router: PacketRouter,
-        bandwidth_provider: Option<BandwidthController<C, St>>,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
         stats_reporter: ClientStatsSender,
         #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown_token: ShutdownToken,
@@ -772,17 +771,7 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
-        // this is an unchecked method
-        #[allow(clippy::unwrap_used)]
-        self.bandwidth_provider.as_ref().unwrap()
-    }
-
-    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
-    where
-        C: DkgQueryClient,
-        St: CredentialStorage,
-    {
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         // TODO: make it configurable
         const TICKETS_TO_SPEND: u32 = 1;
         const MIXNET_TICKET: TicketType = TicketType::V1MixnetEntry;
@@ -792,9 +781,6 @@ impl<C, St> GatewayClient<C, St> {
         }
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
-        }
-        if self.bandwidth_provider.is_none() && self.cfg.bandwidth.require_tickets {
-            return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
         let Some(_claim_guard) = self.bandwidth.begin_bandwidth_claim() else {
@@ -820,13 +806,15 @@ impl<C, St> GatewayClient<C, St> {
             });
         }
         let prepared_credential = self
-            .unchecked_bandwidth_controller()
-            .prepare_ecash_ticket(
+            .bandwidth_provider
+            .get_ecash_ticket(
                 MIXNET_TICKET,
-                self.gateway_identity.to_bytes(),
+                self.gateway_identity,
                 TICKETS_TO_SPEND,
+                OffsetDateTime::now_utc(),
             )
-            .await?;
+            .await?
+            .ok_or(GatewayClientError::NoMoreBandwidthCredentials)?;
 
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
             Ok(_) => {
@@ -846,8 +834,8 @@ impl<C, St> GatewayClient<C, St> {
                 } else {
                     // TODO: tracing span
                     info!("attempting to revert ticket withdrawal...");
-                    self.unchecked_bandwidth_controller()
-                        .attempt_revert_ticket_usage(prepared_credential.metadata)
+                    self.bandwidth_provider
+                        .attempt_revert_spending(prepared_credential.metadata)
                         .await?;
                 }
 
@@ -876,11 +864,7 @@ impl<C, St> GatewayClient<C, St> {
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
-    ) -> Result<(), GatewayClientError>
-    where
-        C: DkgQueryClient,
-        St: CredentialStorage,
-    {
+    ) -> Result<(), GatewayClientError> {
         debug!("Sending {} mix packets", packets.len());
 
         if !self.authenticated {
@@ -946,11 +930,10 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     // TODO: possibly make responses optional
-    pub async fn send_mix_packet(&mut self, mix_packet: MixPacket) -> Result<(), GatewayClientError>
-    where
-        C: DkgQueryClient,
-        St: CredentialStorage,
-    {
+    pub async fn send_mix_packet(
+        &mut self,
+        mix_packet: MixPacket,
+    ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -1055,11 +1038,7 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    pub async fn claim_initial_bandwidth(&mut self) -> Result<(), GatewayClientError>
-    where
-        C: DkgQueryClient,
-        St: CredentialStorage,
-    {
+    pub async fn claim_initial_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -1076,15 +1055,12 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
-// type alias for an ease of use
-pub type InitGatewayClient = GatewayClient<InitOnly>;
+// wrapper to make it clear it's incomplete
+pub struct InitGatewayClient(GatewayClient);
 
-#[derive(Debug)]
-pub struct InitOnly;
-
-impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
-    // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
-    pub fn new_init(
+impl InitGatewayClient {
+    // for initialisation we do not need all the pieces. Some of them can be dummies
+    pub fn new(
         gateway_listeners: GatewayListeners,
         gateway_identity: ed25519::PublicKey,
         local_identity: Arc<ed25519::KeyPair>,
@@ -1100,7 +1076,11 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         let shutdown_token = ShutdownToken::default();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown_token.clone());
 
-        GatewayClient {
+        // same comment as above
+        let (bc_tx, _) = tokio::sync::mpsc::unbounded_channel();
+        let bandwidth_provider = Box::new(BandwidthControllerRequestSender::new(bc_tx));
+
+        Self(GatewayClient {
             cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
             bandwidth: ClientBandwidth::new_empty(),
@@ -1110,44 +1090,49 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
-            bandwidth_provider: None,
+            bandwidth_provider,
             stats_reporter: ClientStatsSender::new(None, shutdown_token.clone()),
             negotiated_protocol: None,
             #[cfg(unix)]
             connection_fd_callback,
             shutdown_token,
-        }
+        })
     }
 
-    pub fn upgrade<C, St>(
+    pub fn upgrade(
         self,
         packet_router: PacketRouter,
-        bandwidth_provider: Option<BandwidthController<C, St>>,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
         stats_reporter: ClientStatsSender,
         shutdown_token: ShutdownToken,
-    ) -> GatewayClient<C, St> {
+    ) -> GatewayClient {
+        let inner = self.0;
         // invariants that can't be broken
         // (unless somebody decided to expose some field that wasn't meant to be exposed)
-        assert!(self.authenticated);
-        assert!(self.connection.is_available());
-        assert!(self.shared_key.is_some());
+        assert!(inner.authenticated);
+        assert!(inner.connection.is_available());
+        assert!(inner.shared_key.is_some());
 
         GatewayClient {
-            cfg: self.cfg,
-            authenticated: self.authenticated,
-            bandwidth: self.bandwidth,
-            gateway_addresses: self.gateway_addresses,
-            gateway_identity: self.gateway_identity,
-            local_identity: self.local_identity,
-            shared_key: self.shared_key,
-            connection: self.connection,
+            cfg: inner.cfg,
+            authenticated: inner.authenticated,
+            bandwidth: inner.bandwidth,
+            gateway_addresses: inner.gateway_addresses,
+            gateway_identity: inner.gateway_identity,
+            local_identity: inner.local_identity,
+            shared_key: inner.shared_key,
+            connection: inner.connection,
             packet_router,
             bandwidth_provider,
             stats_reporter,
-            negotiated_protocol: self.negotiated_protocol,
+            negotiated_protocol: inner.negotiated_protocol,
             #[cfg(unix)]
-            connection_fd_callback: self.connection_fd_callback,
+            connection_fd_callback: inner.connection_fd_callback,
             shutdown_token,
         }
+    }
+
+    pub fn inner_mut(&mut self) -> &mut GatewayClient {
+        &mut self.0
     }
 }

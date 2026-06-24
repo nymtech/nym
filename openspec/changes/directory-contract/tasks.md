@@ -6,11 +6,11 @@
 
 ## 2. LtHash common library
 
-- [ ] 2.1 Create a small `no_std` `lthash` crate at `common/lthash` (NOT under common/cosmwasm-smart-contracts), generic over `digest::ExtendableOutput` (digest 0.11); deps: `digest` 0.11 (trait bound) + `blake3` with `traits-preview` (prod XOF, already a workspace dep); usable from wasm (contract) and native (client); MSRV 1.86. Rationale: `lthash-rs` is unmaintained (old traits) and `commonware-cryptography` cannot be feature-scoped to just the multiset hash
-- [ ] 2.2 Implement generic `LtHash<X: ExtendableOutput>` (1024 x 16-bit lanes = 2 KB): `insert`/`remove`/`combine`/`Add`/`Sub`/`to_bytes`/`from_bytes`; expand each element via the XOF, component-wise wrapping add/sub mod 2^16. Ship a concrete `LtHash16 = LtHash<blake3::Hasher>`
-- [ ] 2.3 Tests: homomorphic invariants (insert/remove round-trip = identity; order-independence; combine == sequential inserts), empty digest, byte round-trip
-- [ ] 2.4 Differential-test the lane math against `sha3 0.11` (Shake256) as a dev-only XOF (same digest 0.11 trait); document the multiset-collision caveat (multiplicity bounded to 0/1 in our use)
-- [ ] 2.5 Confirm the crate + a contract using it build under rustc 1.86 and pass `cosmwasm-check`. NOTE: blake3-via-digest-0.11 already validated; digest 0.11 coexists with the workspace's digest 0.10 (no workspace upgrade needed - that is upstream-gated by cosmwasm-crypto/tendermint/dalek/arkworks/nym-crypto)
+- [x] 2.1 Created `no_std` `nym-lthash` crate at `common/lthash`, generic over `digest::ExtendableOutput` (digest 0.10 - the workspace pins blake3 `<1.8.4` to stay on digest 0.10). Deps: `digest` (workspace) + `blake3` declared directly (`<1.8.4`, `default-features=false` + `traits-preview` - cargo forbids overriding default-features on an inherited dep). Registered in root members; `rust-version` pinned 1.86 (contracts MSRV). Rationale: `lthash-rs` unmaintained, `commonware-cryptography` not feature-scopable
+- [x] 2.2 Implemented generic `LtHash<X: ExtendableOutput>` (1024 x 16-bit lanes = 2 KB): `insert`/`remove`/`Add`/`Sub`/`to_bytes`/`from_bytes` + Default/Clone/PartialEq/Debug; concrete `LtHash16 = LtHash<blake3::Hasher>`
+- [x] 2.3 Tests: homomorphic invariants (insert+remove = identity, order-independence, Add == union, Sub undoes Add), empty = zero, byte round-trip
+- [x] 2.4 Differential-tested the lane math against `sha3 0.10` (Shake256) as a dev-only XOF (same digest 0.10 trait); multiset-collision caveat documented in the crate docs
+- [x] 2.5 `cargo test -p nym-lthash` green (3 tests); blake3-via-digest-0.10 + a contract using it validated to pass `cosmwasm-check`. Workspace stays on digest 0.10 (a full 0.11 upgrade is upstream-gated and unneeded)
 
 ## 3. Storage model
 
@@ -18,7 +18,7 @@
 - [ ] 3.2 `NodeEntry { data, updated_at, signature }` and `CuratedEntry { data }`; entry payloads encoded with prost (`BTreeMap` maps only)
 - [ ] 3.3 Persistent per-node `sequence` map (`u64`), surviving entry deletion
 - [ ] 3.4 Allowed-labels map (`label -> LabelConfig { max_size }`) + 128 KiB ceiling constant
-- [ ] 3.5 Global digest `Item`; canonical leaf encoder `canonical(namespace, id, label, value)` (length-prefixed) - in the shared crate alongside the LtHash so contract and client agree byte-for-byte
+- [ ] 3.5 Store the full `LtHash16` state as the accumulator `Item` (~2 KB, mutated O(1) per write); expose & ICS23-prove the compact 32-byte `LtHash16::out()` (blake3 collapse) as the public digest (comparison-only, not homomorphic). Canonical leaf encoder `canonical(namespace, id, label, value)` (length-prefixed) lives in/alongside `nym-lthash` so contract and client agree byte-for-byte
 - [ ] 3.6 Instantiate config: admin, mixnet contract address, initial label set
 
 ## 4. Digest

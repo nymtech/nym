@@ -944,7 +944,7 @@ apply_port_allowlist() {
     ["TeamSpeak"]="8767"
     ["MQTTS"]="8883"
     ["HTTPProxy"]="8888"
-    ["WebSocket"]="9000"
+    ["WebSocketNym"]="9000"
     ["TorORPort"]="9001"
     ["TorDirPort"]="9030"
     ["Tari"]="9053"

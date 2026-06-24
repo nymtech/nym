@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [v1.2.23] (2026-06-24)
+
+- Add Node Families tab and behaviour ([#6900])
+- Update app icon and green theme  ([#6900])
+- Fix alignment and add Osmosis ([#6900])
+
+[#6900]: https://github.com/nymtech/nym/pull/6900
+
+
 ## [v1.2.22] (2026-06-15)
 
 - Remove individual saved accounts from password-protected wallets, with backup reminders, password confirmation, and backend checks that block removing the active or last account ([#6878])

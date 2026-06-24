@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "NymWallet"
-version = "1.2.22"
+version = "1.2.23"
 dependencies = [
  "async-trait",
  "base64 0.13.1",

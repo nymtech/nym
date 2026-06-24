@@ -2,7 +2,8 @@
   "setup": "Setup & Run",
   "configuration": "Configuration",
   "bonding": "Bonding",
-  "families": "Node Family"
+  "families": "Node Family",
+
   "bak-setup": {
 	  "display": "hidden"
   },

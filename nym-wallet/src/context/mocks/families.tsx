@@ -119,7 +119,10 @@ export const MockFamiliesContextProvider = ({
   );
 
   const run = useCallback(
-    async (action: NonNullable<FamilyExecutingAction>, mutate: (store: MockStore) => FamilyEvent[]): Promise<FamilyTxResult> => {
+    async (
+      action: NonNullable<FamilyExecutingAction>,
+      mutate: (store: MockStore) => FamilyEvent[],
+    ): Promise<FamilyTxResult> => {
       setExecutingAction(action);
       setError(undefined);
       await mockSleep(latencyMs);

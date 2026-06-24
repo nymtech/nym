@@ -47,7 +47,8 @@ export const EditFamilyForm = ({
   const nameChanged = name !== initialName;
   const descChanged = description !== initialDescription;
   const nothingChanged = !nameChanged && !descChanged;
-  const canSubmit = !nothingChanged && !nameTooLong && !descTooLong && name.trim().length > 0 && !isSubmitting && !isBlocked;
+  const canSubmit =
+    !nothingChanged && !nameTooLong && !descTooLong && name.trim().length > 0 && !isSubmitting && !isBlocked;
 
   const handleSubmit = () => {
     if (!canSubmit) return;

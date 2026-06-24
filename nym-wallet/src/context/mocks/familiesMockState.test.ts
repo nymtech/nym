@@ -220,6 +220,16 @@ describe('inviteToFamily', () => {
     expectError(() => mockInviteToFamily(s, OWNER, { node_id: 11 }), 'PendingInvitationAlreadyExists');
   });
 
+  it('re-invites after expiry, archiving the stale invitation as Expired', () => {
+    const s = seeded();
+    mockInviteToFamily(s, OWNER, { node_id: 11, validity_secs: 100 });
+    s.pending.get('1:11')!.expires_at = NOW - 1;
+    const events = mockInviteToFamily(s, OWNER, { node_id: 11, validity_secs: 200 });
+    expect(s.pending.get('1:11')!.expires_at).toBe(NOW + 200);
+    expect(mockGetPastInvitationsForFamilyPaged(s, 1).items[0].status.kind).toBe('Expired');
+    expect(events[0].ty).toBe('family_invitation');
+  });
+
   it('rejects inviting a node already in a family', () => {
     const s = seeded();
     mockInviteToFamily(s, OWNER, { node_id: 10 });

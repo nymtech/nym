@@ -11,10 +11,6 @@ import { FamilyPage } from './FamilyPage';
 // Publish (Tier-1 gate, needs Hux approval before running):
 //   FIGMA_ACCESS_TOKEN=<pat-with-code-connect-write> npx figma connect publish
 
-figma.connect(
-  FamilyPage,
-  'https://www.figma.com/design/moIK1E6AaXhFz8lI1pZVrI/Nym.2.0?node-id=1861-1889',
-  {
-    example: () => <FamilyPage />,
-  },
-);
+figma.connect(FamilyPage, 'https://www.figma.com/design/moIK1E6AaXhFz8lI1pZVrI/Nym.2.0?node-id=1861-1889', {
+  example: () => <FamilyPage />,
+});

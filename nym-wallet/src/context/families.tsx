@@ -197,36 +197,6 @@ export const useFamilyByOwner = (owner?: string) => {
 const sameOwner = (a?: string, b?: string): boolean =>
   a !== undefined && b !== undefined && a.toLowerCase() === b.toLowerCase();
 
-/**
- * The family this wallet owns, from `getFamilyByOwner`, with a fallback via the
- * bonded node's membership when the node belongs to a family this wallet created.
- */
-export const useOwnedFamily = () => {
-  const { ownerAddress, controlledNodeIds } = useFamiliesContext();
-  const byOwner = useFamilyByOwner();
-  const nodeId = controlledNodeIds[0];
-  const membership = useFamilyMembership(nodeId);
-  const membershipFamilyId = membership.data?.family_id ?? undefined;
-  const needsMembershipLookup = byOwner.data === undefined && membershipFamilyId !== undefined;
-  const byMembership = useFamilyById(needsMembershipLookup ? membershipFamilyId : undefined);
-
-  const family = useMemo((): NodeFamily | null => {
-    if (byOwner.data) return byOwner.data;
-    const candidate = byMembership.data;
-    if (candidate && sameOwner(candidate.owner, ownerAddress)) return candidate;
-    return null;
-  }, [byOwner.data, byMembership.data, ownerAddress]);
-
-  const isPending =
-    byOwner.isPending || (needsMembershipLookup && byMembership.isPending && byOwner.data === undefined);
-
-  return {
-    family,
-    isPending,
-    isError: byOwner.isError || byMembership.isError,
-  };
-};
-
 export const useFamilyById = (familyId?: NodeFamilyId) => {
   const { queries } = useFamiliesContext();
   return useQuery({
@@ -276,6 +246,36 @@ export const useFamilyMembership = (nodeId?: NodeId) => {
     enabled: nodeId !== undefined,
     staleTime: READ_STALE_TIME,
   });
+};
+
+/**
+ * The family this wallet owns, from `getFamilyByOwner`, with a fallback via the
+ * bonded node's membership when the node belongs to a family this wallet created.
+ */
+export const useOwnedFamily = () => {
+  const { ownerAddress, controlledNodeIds } = useFamiliesContext();
+  const byOwner = useFamilyByOwner();
+  const nodeId = controlledNodeIds[0];
+  const membership = useFamilyMembership(nodeId);
+  const membershipFamilyId = membership.data?.family_id ?? undefined;
+  const needsMembershipLookup = byOwner.data === undefined && membershipFamilyId !== undefined;
+  const byMembership = useFamilyById(needsMembershipLookup ? membershipFamilyId : undefined);
+
+  const family = useMemo((): NodeFamily | null => {
+    if (byOwner.data) return byOwner.data;
+    const candidate = byMembership.data;
+    if (candidate && sameOwner(candidate.owner, ownerAddress)) return candidate;
+    return null;
+  }, [byOwner.data, byMembership.data, ownerAddress]);
+
+  const isPending =
+    byOwner.isPending || (needsMembershipLookup && byMembership.isPending && byOwner.data === undefined);
+
+  return {
+    family,
+    isPending,
+    isError: byOwner.isError || byMembership.isError,
+  };
 };
 
 export const useFamilyMembers = (familyId?: NodeFamilyId) => {
@@ -395,8 +395,7 @@ export const useFamilyMemberList = (familyId?: NodeFamilyId): UseFamilyMemberLis
   // fail without clearing the last good `data`. Only surface the hard error state
   // when there is genuinely nothing cached to show, so the list doesn't flash
   // "Failed to load" over data that is still present.
-  const hasAnyData =
-    joined.data !== undefined || pastInvitations.data !== undefined || pastMembers.data !== undefined;
+  const hasAnyData = joined.data !== undefined || pastInvitations.data !== undefined || pastMembers.data !== undefined;
   const anyError = joined.isError || pastInvitations.isError || pastMembers.isError;
 
   return {

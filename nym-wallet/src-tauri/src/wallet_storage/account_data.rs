@@ -14,6 +14,8 @@
 // In the future we might want to simplify by dropping the support for a single account entry,
 // instead treating as muliple accounts with one entry.
 
+#![allow(unused_assignments)]
+
 use super::encryption::EncryptedData;
 use super::password::{AccountId, LoginId};
 use super::UserPassword;
@@ -353,7 +355,6 @@ pub(crate) struct MnemonicAccount {
     #[serde(with = "display_hd_path")]
     // there's nothing secret about our derivation path
     #[zeroize(skip)]
-    #[allow(unused_assignments)]
     hd_path: DerivationPath,
 }
 

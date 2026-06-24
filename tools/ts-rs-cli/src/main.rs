@@ -3,7 +3,7 @@
 use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
 use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
 use nym_api_requests::models::{
-    AnnotationResponseV1, AnnotationResponseV2, ConfigScore,
+    AnnotationResponseV1, AnnotationResponseV2, ConfigScoreV1, ConfigScoreV2,
     DetailedNodePerformanceV1, DetailedNodePerformanceV2, DisplayRole, GatewayCoreStatusResponse,
     HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
     MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1, NodeAnnotationV2,
@@ -190,7 +190,8 @@ fn main() -> anyhow::Result<()> {
     do_export!(DetailedNodePerformanceV1);
     do_export!(DetailedNodePerformanceV2);
     do_export!(RoutingScore);
-    do_export!(ConfigScore);
+    do_export!(ConfigScoreV1);
+    do_export!(ConfigScoreV2);
     do_export!(StressTestingScore);
     do_export!(NodePerformanceResponse);
     do_export!(NodeDatePerformanceResponse);

@@ -58,9 +58,9 @@ export interface PendingFamilyInvitationDetails {
   expired: boolean;
 }
 
-export type PastInvitationStatusKind = 'Accepted' | 'Rejected' | 'Revoked';
+export type PastInvitationStatusKind = 'Accepted' | 'Rejected' | 'Revoked' | 'Expired';
 
-/** Terminal status of an archived invitation. `Revoked` is owner-side only. */
+/** Terminal status of an archived invitation. `Revoked` is owner-side only; `Expired` is set when a stale invite is superseded by re-invite. */
 export interface PastInvitationStatus {
   kind: PastInvitationStatusKind;
   at: UnixSeconds;

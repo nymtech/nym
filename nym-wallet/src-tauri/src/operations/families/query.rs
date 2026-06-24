@@ -93,6 +93,7 @@ fn normalise_status(status: FamilyInvitationStatus) -> PastInvitationStatus {
         FamilyInvitationStatus::Accepted { at } => ("Accepted", at),
         FamilyInvitationStatus::Rejected { at } => ("Rejected", at),
         FamilyInvitationStatus::Revoked { at } => ("Revoked", at),
+        FamilyInvitationStatus::Expired { at } => ("Expired", at),
     };
     PastInvitationStatus {
         kind: kind.to_string(),

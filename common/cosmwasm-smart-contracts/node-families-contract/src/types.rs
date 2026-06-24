@@ -199,6 +199,13 @@ pub enum FamilyInvitationStatus {
         #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
         at: u64,
     },
+    /// The invitation timed out and was superseded by a fresh invitation for the
+    /// same node. Archived only when re-inviting; timed-out invites otherwise
+    /// stay inert in the pending map.
+    Expired {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
 }
 
 /// Historical record of an invitation that has reached a terminal state

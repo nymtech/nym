@@ -44,7 +44,8 @@ export const CreateFamilyForm = ({
   const nameTooLong = nameBytes > nameLimit;
   const descTooLong = descBytes > descriptionLimit;
   const insufficient = isInsufficientBalance(balance, fee);
-  const canSubmit = name.trim().length > 0 && !nameTooLong && !descTooLong && !insufficient && !isSubmitting && !isBlocked;
+  const canSubmit =
+    name.trim().length > 0 && !nameTooLong && !descTooLong && !insufficient && !isSubmitting && !isBlocked;
 
   const handleSubmit = () => {
     if (!canSubmit) return;

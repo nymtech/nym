@@ -6,12 +6,12 @@ import { nym2Dark, nym2Light } from './nym2-tokens';
 
 // Applied to theme.tsx (dark mode):
 export const walletPaletteUpdates = {
-  highlight:       nym2Dark.primary,          // #5BF0A0 — primary green
-  backgroundMain:  nym2Dark.background,       // #0A0A0A — near-black
-  backgroundPaper: nym2Dark.surface,          // #1A1A1C
-  info:            nym2Dark.info,             // #485ECA — teal → indigo
-  error:           nym2Dark.error,            // #E73E14
-  textSubdued:     nym2Dark.textSecondary,    // #AEACB1
+  highlight: nym2Dark.primary, // #5BF0A0 — primary green
+  backgroundMain: nym2Dark.background, // #0A0A0A — near-black
+  backgroundPaper: nym2Dark.surface, // #1A1A1C
+  info: nym2Dark.info, // #485ECA — teal → indigo
+  error: nym2Dark.error, // #E73E14
+  textSubdued: nym2Dark.textSecondary, // #AEACB1
 } as const;
 
 // Light mode equivalents — not yet applied (wallet is dark-mode-only for MVP).

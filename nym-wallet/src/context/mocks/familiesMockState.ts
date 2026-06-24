@@ -296,11 +296,16 @@ export function mockInviteToFamily(store: MockStore, sender: string, args: Invit
     });
   }
   const key = pendingKey(fam.id, args.node_id);
-  if (store.pending.has(key)) {
-    throw new FamilyError('PendingInvitationAlreadyExists', 'A pending invitation already exists', {
-      family_id: fam.id,
-      node_id: args.node_id,
-    });
+  const existing = store.pending.get(key);
+  if (existing) {
+    if (store.nowSecs < existing.expires_at) {
+      throw new FamilyError('PendingInvitationAlreadyExists', 'A pending invitation already exists', {
+        family_id: fam.id,
+        node_id: args.node_id,
+      });
+    }
+    archiveInvitation(store, existing, 'Expired');
+    store.pending.delete(key);
   }
   const expires_at = store.nowSecs + validity;
   store.pending.set(key, { family_id: fam.id, node_id: args.node_id, expires_at });

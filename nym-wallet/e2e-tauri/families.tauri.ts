@@ -18,6 +18,29 @@ const inSection = (node: number, id: string) => byId(TID.operatorNodeSection(nod
 
 const { ownerFlow, operatorAccept, operatorReject } = FAMILY_NODES;
 
+/** WebKitGTK webdriver often reports "click intercepted" without scroll / clickable waits. */
+const clickTestId = async (id: string) => {
+  const el = byId(id);
+  await el.waitForDisplayed({ timeout: 30_000 });
+  await el.scrollIntoView();
+  await el.waitForClickable({ timeout: 15_000 });
+  await el.click();
+};
+
+const clickInSection = async (node: number, id: string) => {
+  const el = inSection(node, id);
+  await el.waitForDisplayed({ timeout: 30_000 });
+  await el.scrollIntoView();
+  await el.waitForClickable({ timeout: 15_000 });
+  await el.click();
+};
+
+/** Confirm modals portal to `document.body`; wait for the confirm control to unmount before the next click. */
+const confirmAction = async (confirmTestId: string) => {
+  await clickTestId(confirmTestId);
+  await byId(confirmTestId).waitForExist({ reverse: true, timeout: 15_000 });
+};
+
 describe('Families flows — native webview', () => {
   it('owner lifecycle: create → invite → accept → kick → disband', async () => {
     const fid = FAMILY_IDS.ownerFlow;
@@ -25,26 +48,29 @@ describe('Families flows — native webview', () => {
     await byId(TID.createFamilyName).waitForDisplayed({ timeout: 30_000 });
     await byId(TID.createFamilyName).setValue('Flow Family');
     await byId(TID.createFamilyDescription).setValue('A family created in a flow test.');
-    await byId(TID.createFamilySubmit).click();
+    await clickTestId(TID.createFamilySubmit);
     await byId(TID.ownerManagementPage).waitForDisplayed();
 
     await byId(TID.inviteNodeId).setValue(String(ownerFlow));
-    await byId(TID.inviteNodeSubmit).click();
-    await byId(TID.inviteNodeConfirm).click();
+    await clickTestId(TID.inviteNodeSubmit);
+    await confirmAction(TID.inviteNodeConfirm);
     await byId(TID.pendingInvite(ownerFlow)).waitForDisplayed();
 
-    await byId(TID.tabOperator).click();
-    await inSection(ownerFlow, TID.acceptCard(fid)).click();
-    await byId(TID.acceptConfirm(fid)).click();
+    await clickTestId(TID.tabOperator);
+    await clickInSection(ownerFlow, TID.acceptCard(fid));
+    await confirmAction(TID.acceptConfirm(fid));
 
-    await byId(TID.tabOwner).click();
-    await byId(TID.memberJoined(ownerFlow)).waitForDisplayed();
-    await byId(TID.memberJoinedKick(ownerFlow)).click();
-    await byId(TID.memberJoinedKickConfirm(ownerFlow)).click();
+    await clickTestId(TID.tabOwner);
+    await byId(TID.memberJoined(ownerFlow)).waitForDisplayed({ timeout: 15_000 });
+    await clickTestId(TID.memberJoinedKick(ownerFlow));
+    await confirmAction(TID.memberJoinedKickConfirm(ownerFlow));
     await byId(TID.memberJoined(ownerFlow)).waitForExist({ reverse: true });
 
-    await byId(TID.deleteButton).click();
-    await byId(TID.deleteConfirm).click();
+    // Match Playwright: dissolve via Family Settings (delete is not on the management page).
+    await clickTestId(TID.familySettingsButton);
+    await byId(TID.familySettingsPage).waitForDisplayed();
+    await clickTestId(TID.deleteButton);
+    await confirmAction(TID.deleteConfirm);
     await byId(TID.createFamilyName).waitForDisplayed();
   });
 
@@ -52,16 +78,19 @@ describe('Families flows — native webview', () => {
     const fid = FAMILY_IDS.operatorFlow;
     await browser.url(appUrl('operator'));
 
-    await byId(TID.tabOperator).click();
-    await inSection(operatorAccept, TID.acceptCard(fid)).click();
-    await byId(TID.acceptConfirm(fid)).click();
-    await inSection(operatorAccept, TID.leaveButton).waitForDisplayed();
+    await clickTestId(TID.tabOperator);
+    await clickInSection(operatorAccept, TID.acceptCard(fid));
+    await confirmAction(TID.acceptConfirm(fid));
 
-    await inSection(operatorAccept, TID.leaveButton).click();
-    await byId(TID.leaveConfirm).click();
+    // Leave lives on the My family tab (MyNodeFamilySection), not inside the operator invite group.
+    await clickTestId(TID.tabOwner);
+    await byId(TID.myNodeFamily(operatorAccept)).waitForDisplayed({ timeout: 15_000 });
+    await clickTestId(TID.leaveButton);
+    await confirmAction(TID.leaveConfirm);
 
-    await inSection(operatorReject, TID.rejectCard(fid)).click();
-    await byId(TID.rejectConfirm(fid)).click();
+    await clickTestId(TID.tabOperator);
+    await clickInSection(operatorReject, TID.rejectCard(fid));
+    await confirmAction(TID.rejectConfirm(fid));
     await byId(TID.inviteGroupEmpty(operatorReject)).waitForDisplayed();
   });
 });

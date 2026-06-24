@@ -4,14 +4,12 @@
 use crate::network_monitor::monitor::gateway_client_handle::GatewayClientHandle;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use crate::support::config::Config;
-use crate::support::nyxd;
 use dashmap::DashMap;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
-use nym_bandwidth_controller::BandwidthController;
-use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::client::{GatewayConfig, GatewayListeners};
@@ -98,7 +96,7 @@ struct FreshGatewayClientData {
     local_identity: Arc<ed25519::KeyPair>,
     shutdown_token: ShutdownToken,
     gateway_response_timeout: Duration,
-    bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+    bandwidth_request_sender: BandwidthControllerRequestSender,
     disabled_credentials_mode: bool,
     gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedSymmetricKey>>,
 }
@@ -132,7 +130,7 @@ impl PacketSender {
         config: &Config,
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<ed25519::KeyPair>,
-        bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+        bandwidth_request_sender: BandwidthControllerRequestSender,
         shutdown_token: ShutdownToken,
     ) -> Self {
         PacketSender {
@@ -141,7 +139,7 @@ impl PacketSender {
                 local_identity,
                 shutdown_token,
                 gateway_response_timeout: config.network_monitor.debug.gateway_response_timeout,
-                bandwidth_controller,
+                bandwidth_request_sender,
                 disabled_credentials_mode: config.network_monitor.debug.disabled_credentials_mode,
                 gateways_key_cache: Default::default(),
             }),
@@ -187,7 +185,7 @@ impl PacketSender {
             Arc::clone(&fresh_gateway_client_data.local_identity),
             shared_keys,
             gateway_packet_router,
-            Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            Box::new(fresh_gateway_client_data.bandwidth_request_sender.clone()),
             nym_statistics_common::clients::ClientStatsSender::new(
                 None,
                 fresh_gateway_client_data.shutdown_token.clone(),
@@ -207,7 +205,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
+        client: &mut GatewayClient,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -346,7 +344,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
+        client: &mut GatewayClient,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < client.cfg.bandwidth.remaining_bandwidth_threshold {
             Err(GatewayClientError::NotEnoughBandwidth(

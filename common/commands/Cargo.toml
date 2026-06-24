@@ -44,8 +44,8 @@ zeroize = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
-nym-validator-client = { workspace = true}
-nym-http-api-client = { workspace = true}
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }

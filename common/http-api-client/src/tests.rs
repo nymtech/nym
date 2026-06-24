@@ -1,4 +1,7 @@
 use super::*;
+use rustls::lock::Mutex;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[test]
 fn sanitizing_urls() {
@@ -305,4 +308,59 @@ fn from_network_configures_multiple_urls_and_retries() {
         "https://nym-frontdoor.global.ssl.fastly.net/api/"
     );
     assert!(client.base_urls()[2].front_str().is_some());
+}
+
+/// Tests that network reconfiguration timestamp tempers host rotation / fronting activation.
+///
+/// If a network reconfiguration happened after request start we avoid rotating and avoid enabling
+/// fronting. Otherwise, a network error should rotate host and enable fronting (for `OnRetry`).
+#[tokio::test]
+#[cfg(feature = "tunneling")]
+async fn host_rotation_tempered_by_net_reconfigure() {
+    let url1 = Url::new("http://nym-api.test", Some(vec!["http://cdn1.test"])).unwrap();
+    let url2 = Url::new("http://nym-api2.test", Some(vec!["http://cdn2.test"])).unwrap();
+    let urls = vec![url1.clone(), url2.clone()];
+
+    let last_net_reconfigured = Arc::new(Mutex::new(Instant::now()));
+
+    let client = ClientBuilder::new_with_urls(urls)
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
+        .with_last_net_reconfiguration(last_net_reconfigured.clone())
+        .build()
+        .unwrap();
+
+    let request_host = |client: &Client| {
+        client
+            .create_get_request(&["health"], NO_PARAMS)
+            .unwrap()
+            .build()
+            .unwrap()
+            .url()
+            .host_str()
+            .unwrap()
+            .to_string()
+    };
+
+    // fronting starts disabled for OnRetry policy.
+    assert_eq!(request_host(&client), "nym-api.test");
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+
+    // Simulate a network reconfiguration happening during the request. This should suppress both
+    // host rotation and fronting activation.
+    *last_net_reconfigured.lock().unwrap() = Instant::now() + Duration::from_secs(60);
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let _ = client.send(req).await;
+
+    assert_eq!(client.current_url().as_str(), "http://nym-api.test/");
+    assert_eq!(request_host(&client), "nym-api.test");
+
+    // Simulate no recent network reconfiguration. Now the same network error should rotate to the
+    // next host and enable fronting for OnRetry.
+    *last_net_reconfigured.lock().unwrap() = Instant::now() - Duration::from_secs(60);
+    let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
+    let _ = client.send(req).await;
+
+    assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
+    assert_eq!(request_host(&client), "cdn2.test");
 }

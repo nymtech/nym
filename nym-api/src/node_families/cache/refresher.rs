@@ -236,10 +236,10 @@ impl NodeFamiliesDataProvider {
         result
     }
 
-    /// Estimate timestamps for pruned heights by extrapolating backward from a
-    /// base anchor at the chain's average block time. Returns an empty map when
-    /// no block time can be established (those heights then stay unresolved -
-    /// no worse than dropping them).
+    /// Estimate timestamps for pruned heights by extrapolating from each
+    /// height's nearest anchor at the chain's average block time. Returns an
+    /// empty map when no block time can be established (those heights then stay
+    /// unresolved - no worse than dropping them).
     async fn estimate_block_times(
         &self,
         pruned: &[u64],
@@ -256,54 +256,40 @@ impl NodeFamiliesDataProvider {
             .collect();
         anchors.sort_by_key(|a| a.height);
 
-        let Some(estimate) = self.resolve_block_time_and_base(&anchors).await else {
+        let Some(model) = self.resolve_block_time_model(&anchors).await else {
             return HashMap::new();
         };
 
-        // pruned heights are always below the lowest available height, hence the
-        // backward extrapolation; guard against the degenerate case regardless.
-        pruned
-            .iter()
-            .filter(|h| **h < estimate.base.height)
-            .map(|&h| {
-                (
-                    h,
-                    extrapolate_timestamp(estimate.base, h, estimate.block_time_secs),
-                )
-            })
-            .collect()
+        estimate_from_anchors(pruned, &model.anchors, model.block_time_secs)
     }
 
-    /// Establish the average block time and base anchor for backward
-    /// extrapolation. `anchors` must be sorted ascending by height.
-    async fn resolve_block_time_and_base(
-        &self,
-        anchors: &[BlockAnchor],
-    ) -> Option<BlockTimeEstimate> {
-        // >= 2 anchors: derive block time from their span and extrapolate from
-        // the oldest (closest to the pruned region). No RPC needed.
+    /// Establish the average block time and the anchor set to extrapolate from.
+    /// `anchors` must be sorted ascending by height.
+    async fn resolve_block_time_model(&self, anchors: &[BlockAnchor]) -> Option<BlockTimeModel> {
+        // >= 2 anchors: derive block time from their span; each pruned height is
+        // later extrapolated from its *nearest* anchor. No RPC needed.
         if let Some(block_time_secs) = average_block_time_secs(anchors) {
-            return Some(BlockTimeEstimate {
+            return Some(BlockTimeModel {
                 block_time_secs,
-                base: anchors[0],
+                anchors: anchors.to_vec(),
             });
         }
 
-        // fewer than 2 usable anchors: we need the current block as a reference.
+        // fewer than 2 usable anchors: bring in the current block as a reference.
         let tip = self.current_block().await?;
 
         match anchors.first() {
-            // exactly one anchor: pair it with the chain tip for block time, and
-            // keep the anchor as the base (closer to the pruned region).
+            // exactly one anchor: pair it with the chain tip for block time; both
+            // become anchors (the tip is always above any pruned height).
             Some(&anchor) => {
                 let block_time_secs = average_block_time_secs(&[anchor, tip])?;
-                Some(BlockTimeEstimate {
+                Some(BlockTimeModel {
                     block_time_secs,
-                    base: anchor,
+                    anchors: vec![anchor, tip],
                 })
             }
-            // no anchors: prefer the current block as the base anchor, pairing it
-            // with a block `lookback` heights earlier to derive the block time.
+            // no anchors: use the current block plus a block `lookback` heights
+            // earlier to derive the block time.
             None => {
                 let earlier_height = tip
                     .height
@@ -313,9 +299,9 @@ impl NodeFamiliesDataProvider {
                     self.block_timestamp_at(earlier_height).await?,
                 );
                 let block_time_secs = average_block_time_secs(&[earlier, tip])?;
-                Some(BlockTimeEstimate {
+                Some(BlockTimeModel {
                     block_time_secs,
-                    base: tip,
+                    anchors: vec![earlier, tip],
                 })
             }
         }
@@ -368,10 +354,11 @@ struct FetchedTimestamps {
     pruned: Vec<u64>,
 }
 
-/// Average block time plus the anchor to extrapolate backward from.
-struct BlockTimeEstimate {
+/// Average block time plus the (sorted, non-empty) anchor set to extrapolate
+/// each pruned height from.
+struct BlockTimeModel {
     block_time_secs: f64,
-    base: BlockAnchor,
+    anchors: Vec<BlockAnchor>,
 }
 
 /// Average seconds per block across the given anchors. Needs at least 2 anchors
@@ -393,15 +380,46 @@ fn average_block_time_secs(anchors: &[BlockAnchor]) -> Option<f64> {
     Some(elapsed / height_span as f64)
 }
 
-/// Extrapolate the timestamp of `target_height` backward from a base anchor at
-/// the given average block time.
+/// Map each pruned height to an estimated timestamp, extrapolating from its
+/// nearest anchor. `anchors` must be sorted ascending; heights with no anchor
+/// (empty set) are skipped.
+fn estimate_from_anchors(
+    pruned: &[u64],
+    anchors: &[BlockAnchor],
+    block_time_secs: f64,
+) -> HashMap<u64, OffsetDateTime> {
+    pruned
+        .iter()
+        .filter_map(|&h| {
+            let base = nearest_anchor(anchors, h)?;
+            Some((h, extrapolate_timestamp(base, h, block_time_secs)))
+        })
+        .collect()
+}
+
+/// Anchor closest in height to `target_height`. `anchors` must be sorted
+/// ascending by height; `None` only if empty. Ties favour the lower anchor.
+fn nearest_anchor(anchors: &[BlockAnchor], target_height: u64) -> Option<BlockAnchor> {
+    let idx = anchors.partition_point(|a| a.height < target_height);
+    // the nearest is one of the neighbours straddling the target: `idx - 1`
+    // (highest below) or `idx` (lowest at-or-above).
+    [idx.checked_sub(1), Some(idx)]
+        .into_iter()
+        .flatten()
+        .filter_map(|i| anchors.get(i).copied())
+        .min_by_key(|a| a.height.abs_diff(target_height))
+}
+
+/// Extrapolate the timestamp of `target_height` from a base anchor at the given
+/// average block time. Signed: targets above the anchor land later in time,
+/// targets below land earlier.
 fn extrapolate_timestamp(
     base: BlockAnchor,
     target_height: u64,
     block_time_secs: f64,
 ) -> OffsetDateTime {
-    let delta_blocks = base.height.saturating_sub(target_height) as f64;
-    base.time - time::Duration::seconds_f64(delta_blocks * block_time_secs)
+    let delta_blocks = base.height as i64 - target_height as i64;
+    base.time - time::Duration::seconds_f64(delta_blocks as f64 * block_time_secs)
 }
 
 /// Average member age: for each member with a known bonding
@@ -486,5 +504,49 @@ mod tests {
         assert_eq!(extrapolate_timestamp(base, target_h, block_time), expected);
         // and the estimate must be strictly older than the anchor
         assert!(extrapolate_timestamp(base, target_h, block_time) < base.time);
+    }
+
+    #[test]
+    fn extrapolate_forward_when_target_above_base() {
+        // target above the base anchor => later in time (signed extrapolation)
+        assert_eq!(extrapolate_timestamp(anchor(100, 1000), 110, 6.0), dt(1060));
+    }
+
+    #[test]
+    fn nearest_anchor_picks_closest_by_height() {
+        let anchors = [anchor(100, 0), anchor(200, 0), anchor(400, 0)];
+        assert_eq!(nearest_anchor(&anchors, 90).unwrap().height, 100); // below all
+        assert_eq!(nearest_anchor(&anchors, 140).unwrap().height, 100); // closer to 100
+        assert_eq!(nearest_anchor(&anchors, 160).unwrap().height, 200); // closer to 200
+        assert_eq!(nearest_anchor(&anchors, 200).unwrap().height, 200); // exact match
+        assert_eq!(nearest_anchor(&anchors, 500).unwrap().height, 400); // above all
+        assert!(nearest_anchor(&[], 100).is_none());
+    }
+
+    #[test]
+    fn estimates_pruned_height_above_oldest_cached_anchor() {
+        // regression: a Fetched anchor cached from an earlier run (14_000_000)
+        // persists below a newly-pruned referenced height (14_500_000); the prune
+        // boundary has since advanced to 16_853_136 (also fetched). The old code
+        // dropped any pruned height >= the oldest anchor; it must now be estimated
+        // from its nearest anchor instead.
+        let block_time = 6.0;
+        let old = anchor(14_000_000, 1_000_000_000);
+        let boundary = anchor(16_853_136, 1_000_000_000 + (16_853_136 - 14_000_000) * 6);
+        let anchors = [old, boundary]; // sorted ascending
+        let pruned = [14_500_000u64];
+
+        let estimates = estimate_from_anchors(&pruned, &anchors, block_time);
+        let estimated = estimates
+            .get(&14_500_000)
+            .copied()
+            .expect("pruned height above the oldest anchor must still be estimated");
+
+        // nearest anchor is `old` (Δ 500_000) not `boundary` (Δ 2_353_136);
+        // 14_500_000 is 500_000 blocks *after* `old`.
+        let expected = old.time + time::Duration::seconds_f64(500_000.0 * block_time);
+        assert_eq!(estimated, expected);
+        // and it lands between the two anchors in time
+        assert!(estimated > old.time && estimated < boundary.time);
     }
 }

@@ -42,6 +42,11 @@ impl UpgradeModeState {
             return;
         }
 
+        if !attestation.verify() {
+            error!("the retrieved attestation is invalid!");
+            return;
+        }
+
         match guard.as_mut() {
             None => {
                 // no existing state - it's the first time we're going into upgrade mode,

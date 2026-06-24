@@ -8,18 +8,27 @@ use axum::{Json, Router};
 use nym_credential_proxy_lib::helpers::random_uuid;
 use nym_credential_proxy_lib::http_helpers::RequestError;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
-    CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse,
-    ObtainTicketBookSharesAsyncResponse, PartialVerificationKeysResponse, TicketbookAsyncRequest,
-    TicketbookObtainQueryParams, TicketbookRequest, TicketbookWalletSharesResponse,
+    AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
+    CurrentEpochResponse, DepositResponse, EpochIdParams, ExpirationDateParams,
+    MasterVerificationKeyResponse, ObtainTicketBookSharesAsyncResponse,
+    PartialVerificationKeysResponse, TicketbookAsyncRequest, TicketbookObtainQueryParams,
+    TicketbookRequest, TicketbookWalletSharesResponse,
 };
 use nym_credential_proxy_requests::routes::api::v1::ticketbook;
 use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_validator_client::nym_api::rfc_3339_date;
+use reqwest::StatusCode;
+use time::Date;
 
 pub(crate) mod shares;
 
 pub type FormattedDepositResponse = FormattedResponse<DepositResponse>;
 pub type FormattedCurrentEpochResponse = FormattedResponse<CurrentEpochResponse>;
 pub type FormattedMasterVerificationKeyResponse = FormattedResponse<MasterVerificationKeyResponse>;
+pub type FormattedExpirationDateSignaturesResponse =
+    FormattedResponse<AggregatedExpirationDateSignaturesResponse>;
+pub type FormattedCoinIndexSignaturesResponse =
+    FormattedResponse<AggregatedCoinIndicesSignaturesResponse>;
 pub type FormattedPartialVerificationKeysResponse =
     FormattedResponse<PartialVerificationKeysResponse>;
 pub type FormattedTicketbookWalletSharesResponse =
@@ -190,7 +199,7 @@ pub(crate) async fn partial_verification_keys(
     Ok(output.to_response(response))
 }
 
-/// Obtain the master verification key for the current epoch.
+/// Obtain the master verification key for the given or current epoch.
 #[utoipa::path(
     get,
     path = "/master-verification-key",
@@ -205,20 +214,102 @@ pub(crate) async fn partial_verification_keys(
         (status = 500, body = String, description = "failed to obtain current epoch information"),
         (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
     ),
-    params(OutputParams),
+    params(EpochIdParams),
     security(
         ("auth_token" = [])
     )
 )]
 pub(crate) async fn master_verification_key(
-    Query(output): Query<OutputParams>,
+    Query(EpochIdParams { epoch_id, output }): Query<EpochIdParams>,
     State(state): State<ApiState>,
 ) -> Result<FormattedMasterVerificationKeyResponse, RequestError> {
-    let output = output.output.unwrap_or_default();
+    let output = output.unwrap_or_default();
 
     let response = state
         .ticketbooks()
-        .master_verification_key()
+        .master_verification_key(epoch_id)
+        .await
+        .map_err(RequestError::new_plain_error)?;
+
+    Ok(output.to_response(response))
+}
+
+/// Obtain the expiration date signatures for the given or current epoch and expiration date.
+#[utoipa::path(
+    get,
+    path = "/aggregated-expiration-date-signatures",
+    context_path = "/api/v1/ticketbook",
+    tag = "Ticketbook",
+    responses(
+        (status = 200, content(
+            (AggregatedExpirationDateSignaturesResponse = "application/json"),
+            (AggregatedExpirationDateSignaturesResponse = "application/yaml"),
+        )),
+        (status = 400, body = String, description = "expiration_date is not a valid RFC3339 date"),
+        (status = 401, description = "authentication token is missing or is invalid"),
+        (status = 500, body = String, description = "failed to obtain current epoch information"),
+        (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
+    ),
+    params(ExpirationDateParams),
+    security(
+        ("auth_token" = [])
+    )
+)]
+pub(crate) async fn expiration_date_signatures(
+    Query(ExpirationDateParams {
+        expiration_date,
+        epoch_id,
+        output,
+    }): Query<ExpirationDateParams>,
+    State(state): State<ApiState>,
+) -> Result<FormattedExpirationDateSignaturesResponse, RequestError> {
+    let output = output.unwrap_or_default();
+
+    let expiration_date = expiration_date
+        .map(|raw| {
+            Date::parse(&raw, &rfc_3339_date())
+                .map_err(|err| RequestError::from_err(err, StatusCode::BAD_REQUEST))
+        })
+        .transpose()?;
+
+    let response = state
+        .ticketbooks()
+        .master_expiration_date_signatures(epoch_id, expiration_date)
+        .await
+        .map_err(RequestError::new_plain_error)?;
+
+    Ok(output.to_response(response))
+}
+
+/// Obtain the coin index signatures for the given or current epoch.
+#[utoipa::path(
+    get,
+    path = "/aggregated-coin-indices-signatures",
+    context_path = "/api/v1/ticketbook",
+    tag = "Ticketbook",
+    responses(
+        (status = 200, content(
+            (AggregatedCoinIndicesSignaturesResponse = "application/json"),
+            (AggregatedCoinIndicesSignaturesResponse = "application/yaml"),
+        )),
+        (status = 401, description = "authentication token is missing or is invalid"),
+        (status = 500, body = String, description = "failed to obtain current epoch information"),
+        (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
+    ),
+    params(EpochIdParams),
+    security(
+        ("auth_token" = [])
+    )
+)]
+pub(crate) async fn coin_index_signatures(
+    Query(EpochIdParams { epoch_id, output }): Query<EpochIdParams>,
+    State(state): State<ApiState>,
+) -> Result<FormattedCoinIndexSignaturesResponse, RequestError> {
+    let output = output.unwrap_or_default();
+
+    let response = state
+        .ticketbooks()
+        .master_coin_index_signatures(epoch_id)
         .await
         .map_err(RequestError::new_plain_error)?;
 
@@ -265,6 +356,14 @@ pub(crate) fn routes() -> Router<ApiState> {
     Router::new()
         .route(ticketbook::DEPOSIT_AMOUNT, get(current_deposit))
         .route(ticketbook::MASTER_KEY, get(master_verification_key))
+        .route(
+            ticketbook::AGGREGATED_EXPIRATION_DATE_SIGNATURES,
+            get(expiration_date_signatures),
+        )
+        .route(
+            ticketbook::AGGREGATED_COIN_INDICES_SIGNATURES,
+            get(coin_index_signatures),
+        )
         .route(ticketbook::PARTIAL_KEYS, get(partial_verification_keys))
         .route(ticketbook::CURRENT_EPOCH, get(current_epoch))
         .route(ticketbook::OBTAIN, post(obtain_ticketbook_shares))

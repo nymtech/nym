@@ -25,6 +25,7 @@ pub(crate) fn build_refresher(
     CacheRefresher::new_with_initial_value(
         Box::new(NodeFamiliesDataProvider::new(
             config.debug.node_families_block_timestamp_fetch_concurrency,
+            config.debug.node_families_block_time_estimation_lookback,
             nyxd_client,
             mixnet_contract_cache.clone(),
             node_families_cache.clone(),

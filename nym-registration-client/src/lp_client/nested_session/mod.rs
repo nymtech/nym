@@ -43,6 +43,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::{debug, warn};
 
 pub(crate) mod connection;
@@ -236,12 +237,20 @@ impl NestedLpSession {
 
         // Step 1: Get bandwidth credential from controller
         let credential_spending = bandwidth_provider
-            .get_ecash_ticket(ticket_type, gateway_identity, DEFAULT_TICKETS_TO_SPEND)
+            .get_ecash_ticket(
+                ticket_type,
+                gateway_identity,
+                DEFAULT_TICKETS_TO_SPEND,
+                OffsetDateTime::now_utc(),
+            )
             .await
             .map_err(|e| {
                 LpClientError::SendRegistrationRequest(format!(
                     "Failed to acquire bandwidth credential: {e}",
                 ))
+            })?
+            .ok_or(LpClientError::NoTicketsAvailable {
+                ticketbook_type: ticket_type,
             })?
             .data;
 

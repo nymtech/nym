@@ -24,7 +24,8 @@ impl BandwidthTicketProvider for MockBandwidthController {
         ticket_type: TicketType,
         _gateway_id: PublicKey,
         tickets_to_spend: u32,
-    ) -> Result<PreparedCredential, BandwidthControllerError> {
+        _spend_time: OffsetDateTime,
+    ) -> Result<Option<PreparedCredential>, BandwidthControllerError> {
         assert_eq!(tickets_to_spend, 1);
 
         // This is a valid serialized CredentialSpendingData taken from integration tests
@@ -107,7 +108,7 @@ impl BandwidthTicketProvider for MockBandwidthController {
         // Update spend_date to today to pass validation
         credential.spend_date = OffsetDateTime::now_utc().date();
 
-        Ok(PreparedCredential {
+        Ok(Some(PreparedCredential {
             data: credential,
             epoch_id: 0,
             metadata: PreparedCredentialMetadata {
@@ -115,10 +116,19 @@ impl BandwidthTicketProvider for MockBandwidthController {
                 tickets_withdrawn: 1,
                 used_tickets: 0,
             },
-        })
+        }))
     }
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         Ok(None)
     }
+
+    async fn attempt_revert_spending(
+        &self,
+        _: PreparedCredentialMetadata,
+    ) -> Result<bool, BandwidthControllerError> {
+        Ok(true)
+    }
+
+    async fn close(&self) {}
 }

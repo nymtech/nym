@@ -217,11 +217,11 @@ impl NymPayInfo {
     ///
     /// A new `NymPayInfo` instance.
     ///
-    pub fn generate(provider_pk: [u8; 32]) -> Self {
+    pub fn generate(provider_pk: [u8; 32], spend_time: OffsetDateTime) -> Self {
         let mut randomness = [0u8; 32];
         rand::thread_rng().fill(&mut randomness[..32]);
 
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        let timestamp = spend_time.unix_timestamp();
 
         NymPayInfo {
             randomness,

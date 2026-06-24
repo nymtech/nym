@@ -39,6 +39,10 @@ pub mod routes {
                 pub const OBTAIN_ASYNC: &str = "/obtain-async";
                 pub const DEPOSIT_AMOUNT: &str = "/deposit-amount";
                 pub const MASTER_KEY: &str = "/master-verification-key";
+                pub const AGGREGATED_EXPIRATION_DATE_SIGNATURES: &str =
+                    "/aggregated-expiration-date-signatures";
+                pub const AGGREGATED_COIN_INDICES_SIGNATURES: &str =
+                    "/aggregated-coin-indices-signatures";
                 pub const PARTIAL_KEYS: &str = "/partial-verification-keys";
                 pub const CURRENT_EPOCH: &str = "/current-epoch";
                 pub const SHARES: &str = "/shares";
@@ -55,6 +59,16 @@ pub mod routes {
                     DEPOSIT_AMOUNT
                 );
                 absolute_route!(master_key_absolute, ticketbook_absolute(), MASTER_KEY);
+                absolute_route!(
+                    aggregated_expiration_date_signatures_absolute,
+                    ticketbook_absolute(),
+                    AGGREGATED_EXPIRATION_DATE_SIGNATURES
+                );
+                absolute_route!(
+                    aggregated_coin_indices_signatures_absolute,
+                    ticketbook_absolute(),
+                    AGGREGATED_COIN_INDICES_SIGNATURES
+                );
                 absolute_route!(partial_keys_absolute, ticketbook_absolute(), PARTIAL_KEYS);
                 absolute_route!(current_epoch_absolute, ticketbook_absolute(), CURRENT_EPOCH);
                 absolute_route!(shares_absolute, ticketbook_absolute(), SHARES);

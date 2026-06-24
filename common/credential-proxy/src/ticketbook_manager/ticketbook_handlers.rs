@@ -6,12 +6,15 @@ use crate::nym_api_helpers::ensure_sane_expiration_date;
 use crate::ticketbook_manager::TicketbookManager;
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
+    AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
     CurrentEpochResponse, DepositResponse, GlobalDataParams, MasterVerificationKeyResponse,
     ObtainTicketBookSharesAsyncResponse, PartialVerificationKey, PartialVerificationKeysResponse,
     TicketbookAsyncRequest, TicketbookObtainParams, TicketbookRequest,
     TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
 };
-use time::OffsetDateTime;
+use nym_credentials::ecash::utils::ecash_default_expiration_date;
+use nym_validator_client::nym_api::EpochId;
+use time::{Date, OffsetDateTime};
 use tracing::{Instrument, Level, error, info, span, warn};
 use uuid::Uuid;
 
@@ -145,14 +148,57 @@ impl TicketbookManager {
 
     pub async fn master_verification_key(
         &self,
+        epoch_id: Option<EpochId>,
     ) -> Result<MasterVerificationKeyResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
 
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = match epoch_id {
+            Some(epoch_id) => epoch_id,
+            None => self.state.current_epoch_id().await?,
+        };
         let key = self.state.master_verification_key(Some(epoch_id)).await?;
         Ok(MasterVerificationKeyResponse {
             epoch_id,
             bs58_encoded_key: key.to_bs58(),
+        })
+    }
+    pub async fn master_coin_index_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<AggregatedCoinIndicesSignaturesResponse, CredentialProxyError> {
+        self.state.ensure_credentials_issuable().await?;
+
+        let signatures = self.state.master_coin_index_signatures(epoch_id).await?;
+
+        Ok(AggregatedCoinIndicesSignaturesResponse {
+            signatures: signatures.clone(),
+        })
+    }
+
+    pub async fn master_expiration_date_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+        expiration_date: Option<Date>,
+    ) -> Result<AggregatedExpirationDateSignaturesResponse, CredentialProxyError> {
+        self.state.ensure_credentials_issuable().await?;
+
+        let epoch_id = match epoch_id {
+            Some(id) => id,
+            None => self.state.current_epoch_id().await?,
+        };
+
+        let expiration_date = match expiration_date {
+            Some(date) => date,
+            None => ecash_default_expiration_date(),
+        };
+
+        let signatures = self
+            .state
+            .master_expiration_date_signatures(epoch_id, expiration_date)
+            .await?;
+
+        Ok(AggregatedExpirationDateSignaturesResponse {
+            signatures: signatures.clone(),
         })
     }
 

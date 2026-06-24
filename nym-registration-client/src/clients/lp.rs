@@ -151,7 +151,6 @@ impl LpBasedRegistrationClient {
             exit_gateway_data,
             entry_lp_keypair,
             exit_lp_keypair,
-            self.bandwidth_provider,
         ))
     }
 

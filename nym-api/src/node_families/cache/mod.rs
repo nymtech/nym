@@ -14,6 +14,22 @@ use time::OffsetDateTime;
 
 pub(crate) mod refresher;
 
+/// A block-height -> block-time entry: either fetched directly from the chain,
+/// or estimated for a pruned (no longer servable) height.
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub(crate) enum BlockTime {
+    Fetched(#[serde(with = "time::serde::rfc3339")] OffsetDateTime),
+    Estimated(#[serde(with = "time::serde::rfc3339")] OffsetDateTime),
+}
+
+impl BlockTime {
+    pub(crate) fn time(&self) -> OffsetDateTime {
+        match self {
+            BlockTime::Fetched(t) | BlockTime::Estimated(t) => *t,
+        }
+    }
+}
+
 /// Cached view of a single family member, joining the contract membership
 /// record with mixnet-contract node details (bond height + stake).
 #[derive(Serialize, Deserialize, Debug)]
@@ -123,9 +139,11 @@ pub(crate) struct NodeFamiliesCacheData {
     /// × members) scan.
     pub(crate) family_by_member: HashMap<NodeId, NodeFamilyId>,
 
-    /// Persistent block-height → block-time cache used by the refresher when
-    /// computing per-member age. Survives restarts via the on-disk cache file.
-    pub(crate) block_timestamps: HashMap<u64, OffsetDateTime>,
+    /// Persistent block-height -> block-time cache used by the refresher when
+    /// computing per-member age. Entries are either fetched from the chain or
+    /// estimated for pruned heights. Survives restarts via the on-disk cache
+    /// file.
+    pub(crate) block_timestamps: HashMap<u64, BlockTime>,
 }
 
 /// Intermediate accumulator used while folding contract data into a

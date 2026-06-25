@@ -601,10 +601,7 @@ pub(crate) fn delegation_node_identity(
 pub(crate) fn delegation_mixnode_is_unbonding(
     node_details: &Option<NodeInformation>,
 ) -> Option<bool> {
-    match node_details {
-        Some(node) => Some(node.is_unbonding),
-        None => None,
-    }
+    node_details.as_ref().map(|node| node.is_unbonding)
 }
 
 #[cfg(test)]

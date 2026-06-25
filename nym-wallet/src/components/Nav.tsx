@@ -3,8 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Divider, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
-import { AccountBalanceWalletOutlined, Description, Settings, VpnKeyOutlined } from '@mui/icons-material';
+import {
+  AccountBalanceWalletOutlined,
+  Description,
+  GroupsOutlined,
+  Settings,
+  VpnKeyOutlined,
+} from '@mui/icons-material';
 import { safeOpenUrl } from 'src/utils/safeOpenUrl';
+import { usePendingInviteCountForNodes } from 'src/context/families';
+import { useControlledNodeIds } from 'src/hooks/useControlledNodeIds';
+import { InviteNotificationBadge } from 'src/components/Families/InviteNotificationBadge';
 import { AppContext } from '../context/main';
 import { Delegate, Bonding } from '../svg-icons';
 
@@ -16,6 +25,11 @@ export const Nav = () => {
   const navigate = useNavigate();
 
   const { isAdminAddress } = useContext(AppContext);
+
+  // Pending family invites that still need a decision, surfaced as a badge on the
+  // Family nav entry so operators notice them from anywhere in the wallet.
+  const controlledNodeIds = useControlledNodeIds();
+  const familyInviteCount = usePendingInviteCountForNodes(controlledNodeIds);
 
   const routesSchema = useMemo(
     () => [
@@ -39,6 +53,13 @@ export const Nav = () => {
         route: '/bonding',
         Icon: Bonding,
         onClick: () => navigate('/bonding'),
+      },
+      {
+        label: 'Family',
+        description: 'Manage node families',
+        route: '/family',
+        Icon: GroupsOutlined,
+        onClick: () => navigate('/family'),
       },
       {
         label: 'Docs',
@@ -143,12 +164,17 @@ export const Nav = () => {
                     color: isActive ? 'primary.main' : 'text.primary',
                   }}
                 >
-                  <Icon
-                    sx={{
-                      fontSize: 20,
-                      color: 'inherit',
-                    }}
-                  />
+                  {label === 'Family' ? (
+                    <InviteNotificationBadge
+                      badgeContent={familyInviteCount}
+                      overlap="circular"
+                      data-testid="nav-family-invite-badge"
+                    >
+                      <Icon sx={{ fontSize: 20, color: 'inherit' }} />
+                    </InviteNotificationBadge>
+                  ) : (
+                    <Icon sx={{ fontSize: 20, color: 'inherit' }} />
+                  )}
                 </ListItemIcon>
                 <ListItemText
                   sx={{

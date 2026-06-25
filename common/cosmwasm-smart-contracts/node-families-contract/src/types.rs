@@ -13,8 +13,21 @@ pub type NodeFamilyId = u32;
 
 /// Runtime configuration of the node families contract.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyConfig.ts",
+        rename = "FamilyConfig"
+    )
+)]
 pub struct Config {
     /// Fee charged on each successful `create_family` execution.
+    #[cfg_attr(
+        feature = "generate-ts",
+        ts(type = "{ denom: string, amount: string }")
+    )]
     pub create_family_fee: Coin,
 
     /// Maximum allowed length, in characters, of a family name.
@@ -26,11 +39,17 @@ pub struct Config {
     /// Default lifetime, in seconds, used by `invite_to_family` when the
     /// sender doesn't supply an explicit value. Senders may override this
     /// per-invitation via the optional `validity_secs` argument.
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub default_invitation_validity_secs: u64,
 }
 
 /// On-chain representation of a node family.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export, export_to = "ts-packages/types/src/types/rust/NodeFamily.ts")
+)]
 pub struct NodeFamily {
     /// The id of the node family
     pub id: NodeFamilyId,
@@ -45,17 +64,24 @@ pub struct NodeFamily {
     pub description: String,
 
     /// The owner of the node family
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
 
     /// Records the fee paid when the family was created,
     /// so that the appropriate amount could be returned upon it getting disbanded.
+    #[cfg_attr(
+        feature = "generate-ts",
+        ts(type = "{ denom: string, amount: string }")
+    )]
     pub paid_fee: Coin,
 
     /// Memoized value of the current number of members in the node family
     /// Used to detect if the family is empty
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub members: u64,
 
     /// Timestamp of the creation of the node family
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub created_at: u64,
 }
 
@@ -68,6 +94,14 @@ pub struct NodeFamily {
 /// issues a fresh invitation for the same node, which archives the stale one as
 /// `Expired` and supersedes it.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyInvitation.ts"
+    )
+)]
 pub struct FamilyInvitation {
     /// The family that issued the invitation.
     pub family_id: NodeFamilyId,
@@ -76,6 +110,7 @@ pub struct FamilyInvitation {
     pub node_id: NodeId,
 
     /// Block timestamp (unix seconds) after which the invitation is no longer valid.
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub expires_at: u64,
 }
 
@@ -85,18 +120,35 @@ pub struct FamilyInvitation {
 /// `NodeId` alone — `family_id` is carried in the value to support reverse
 /// lookups (all nodes in a given family) via a secondary index.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyMembership.ts"
+    )
+)]
 pub struct FamilyMembership {
     /// The family the node is currently a member of.
     pub family_id: NodeFamilyId,
 
     /// Block timestamp (unix seconds) at which the node accepted its
     /// invitation and joined the family.
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub joined_at: u64,
 }
 
 /// Historical record of a node that used to be part of a family but has since been
 /// removed (kicked, left voluntarily, or because the family was disbanded).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PastFamilyMember.ts"
+    )
+)]
 pub struct PastFamilyMember {
     /// The family the node used to belong to.
     pub family_id: NodeFamilyId,
@@ -105,6 +157,7 @@ pub struct PastFamilyMember {
     pub node_id: NodeId,
 
     /// Block timestamp (unix seconds) at which the membership was terminated.
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub removed_at: u64,
 }
 
@@ -115,21 +168,44 @@ pub struct PastFamilyMember {
 /// reaches `Expired` if the family issues a fresh invitation for the same node, which
 /// supersedes and archives the stale one.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyInvitationStatus.ts"
+    )
+)]
 pub enum FamilyInvitationStatus {
     /// Still awaiting a response. Recorded with a timestamp for completeness even
     /// though pending invitations live in a separate map.
-    Pending { at: u64 },
+    Pending {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
     /// The invitee accepted and joined the family at the given timestamp.
-    Accepted { at: u64 },
+    Accepted {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
     /// The invitee explicitly rejected the invitation at the given timestamp.
-    Rejected { at: u64 },
+    Rejected {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
     /// The family revoked the invitation at the given timestamp before it could
     /// be accepted or rejected.
-    Revoked { at: u64 },
-    /// The invitation had already expired and was superseded by a fresh invitation
-    /// for the same node from the same family, issued at the given timestamp. This is
-    /// the only path that archives a timed-out invitation.
-    Expired { at: u64 },
+    Revoked {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
+    /// The invitation timed out and was superseded by a fresh invitation for the
+    /// same node. Archived only when re-inviting; timed-out invites otherwise
+    /// stay inert in the pending map.
+    Expired {
+        #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
+        at: u64,
+    },
 }
 
 /// Historical record of an invitation that has reached a terminal state
@@ -137,6 +213,14 @@ pub enum FamilyInvitationStatus {
 /// archived here only when a fresh invitation for the same node supersedes it
 /// (status `Expired`); otherwise it stays in the pending map until explicitly cleared.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PastFamilyInvitation.ts"
+    )
+)]
 pub struct PastFamilyInvitation {
     /// The original invitation as it was issued.
     pub invitation: FamilyInvitation,
@@ -147,6 +231,14 @@ pub struct PastFamilyInvitation {
 
 /// Response to [`QueryMsg::GetFamilyById`](crate::QueryMsg::GetFamilyById).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeFamilyResponse.ts"
+    )
+)]
 pub struct NodeFamilyResponse {
     /// The id that was queried, echoed back so paginated callers can correlate.
     pub family_id: NodeFamilyId,
@@ -157,9 +249,18 @@ pub struct NodeFamilyResponse {
 
 /// Response to [`QueryMsg::GetFamilyByOwner`](crate::QueryMsg::GetFamilyByOwner).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeFamilyByOwnerResponse.ts"
+    )
+)]
 pub struct NodeFamilyByOwnerResponse {
     /// The (validated) owner address that was queried, echoed back so callers
     /// can correlate.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
 
     /// The matching family, or `None` if `owner` does not currently own one.
@@ -178,6 +279,14 @@ pub struct NodeFamilyByNameResponse {
 
 /// Response to [`QueryMsg::GetFamilyMembership`](crate::QueryMsg::GetFamilyMembership).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeFamilyMembershipResponse.ts"
+    )
+)]
 pub struct NodeFamilyMembershipResponse {
     /// The node that was queried.
     pub node_id: NodeId,
@@ -190,6 +299,14 @@ pub struct NodeFamilyMembershipResponse {
 /// A pending [`FamilyInvitation`] paired with whether it has already timed
 /// out at the time the query was served.
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingFamilyInvitationDetails.ts"
+    )
+)]
 pub struct PendingFamilyInvitationDetails {
     /// The stored invitation as it was issued.
     pub invitation: FamilyInvitation,
@@ -201,6 +318,14 @@ pub struct PendingFamilyInvitationDetails {
 
 /// Response to [`QueryMsg::GetPendingInvitation`](crate::QueryMsg::GetPendingInvitation).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingFamilyInvitationResponse.ts"
+    )
+)]
 pub struct PendingFamilyInvitationResponse {
     /// The family component of the queried `(family_id, node_id)` key.
     pub family_id: NodeFamilyId,
@@ -216,6 +341,14 @@ pub struct PendingFamilyInvitationResponse {
 /// One entry in a [`FamilyMembersPagedResponse`] page — pairs a node id with
 /// its [`FamilyMembership`] record (notably its `joined_at` timestamp).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyMemberRecord.ts"
+    )
+)]
 pub struct FamilyMemberRecord {
     /// The node currently in the family.
     pub node_id: NodeId,
@@ -226,6 +359,14 @@ pub struct FamilyMemberRecord {
 
 /// Response to [`QueryMsg::GetFamilyMembersPaged`](crate::QueryMsg::GetFamilyMembersPaged).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/FamilyMembersPagedResponse.ts"
+    )
+)]
 pub struct FamilyMembersPagedResponse {
     /// The family whose members were queried, echoed back so paginated
     /// callers can correlate.
@@ -253,6 +394,14 @@ pub struct AllFamilyMembersPagedResponse {
 
 /// Response to [`QueryMsg::GetPendingInvitationsForFamilyPaged`](crate::QueryMsg::GetPendingInvitationsForFamilyPaged).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingFamilyInvitationsPagedResponse.ts"
+    )
+)]
 pub struct PendingFamilyInvitationsPagedResponse {
     /// The family whose pending invitations were queried, echoed back so
     /// paginated callers can correlate.
@@ -270,6 +419,14 @@ pub struct PendingFamilyInvitationsPagedResponse {
 
 /// Response to [`QueryMsg::GetPendingInvitationsForNodePaged`](crate::QueryMsg::GetPendingInvitationsForNodePaged).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingInvitationsForNodePagedResponse.ts"
+    )
+)]
 pub struct PendingInvitationsForNodePagedResponse {
     /// The node whose pending invitations were queried, echoed back so
     /// paginated callers can correlate.
@@ -316,6 +473,14 @@ pub type GlobalPastFamilyInvitationCursor = ((NodeFamilyId, NodeId), u64);
 
 /// Response to [`QueryMsg::GetPastInvitationsForFamilyPaged`](crate::QueryMsg::GetPastInvitationsForFamilyPaged).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PastFamilyInvitationsPagedResponse.ts"
+    )
+)]
 pub struct PastFamilyInvitationsPagedResponse {
     /// The family whose archived invitations were queried, echoed back so
     /// paginated callers can correlate.
@@ -327,6 +492,7 @@ pub struct PastFamilyInvitationsPagedResponse {
 
     /// Cursor to pass as `start_after` on the next call, or `None` if this
     /// page is empty (treat as end-of-list).
+    #[cfg_attr(feature = "generate-ts", ts(type = "[number, number] | null"))]
     pub start_next_after: Option<PastFamilyInvitationCursor>,
 }
 
@@ -371,6 +537,14 @@ pub type PastFamilyMemberForNodeCursor = (NodeFamilyId, u64);
 
 /// Response to [`QueryMsg::GetPastMembersForFamilyPaged`](crate::QueryMsg::GetPastMembersForFamilyPaged).
 #[cw_serde]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PastFamilyMembersPagedResponse.ts"
+    )
+)]
 pub struct PastFamilyMembersPagedResponse {
     /// The family whose archived memberships were queried, echoed back so
     /// paginated callers can correlate.
@@ -382,6 +556,7 @@ pub struct PastFamilyMembersPagedResponse {
 
     /// Cursor to pass as `start_after` on the next call, or `None` if this
     /// page is empty (treat as end-of-list).
+    #[cfg_attr(feature = "generate-ts", ts(type = "[number, number] | null"))]
     pub start_next_after: Option<PastFamilyMemberCursor>,
 }
 

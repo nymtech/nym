@@ -1,0 +1,6 @@
+{
+  "codeConnect": {
+    "include": ["src/**/*.figma.tsx"],
+    "exclude": ["**/*.test.*", "**/*.stories.*"]
+  }
+}

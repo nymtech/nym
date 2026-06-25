@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "ES2022"],
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "types": ["jest", "node"],
+    "composite": true,
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "./.tsbuild-test",
+    "baseUrl": ".",
+    "paths": {
+      "@assets/*": ["../assets/*"],
+      "@tauri-apps/plugin-process": ["../node_modules/@tauri-apps/plugin-process"],
+      "src/*": ["src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

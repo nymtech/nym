@@ -4,23 +4,23 @@ import { useTheme } from '@mui/material/styles';
 import { useSnackbar } from 'notistack';
 import { safeOpenUrl } from 'src/utils/safeOpenUrl';
 import BitfinexIcon from 'src/svg-icons/bitfinex.svg';
-import KrakenIcon from 'src/svg-icons/kraken.svg';
 import BybitIcon from 'src/svg-icons/bybit.svg';
 import GateIcon from 'src/svg-icons/gate22.svg';
 import HTXIcon from 'src/svg-icons/htx.svg';
 import { NymCard } from '..';
+import OsmosisLogo from './osmosis.png';
 
 const ExchangeCard = ({
   name,
   tokenType,
   url,
-  IconComponent,
+  icon,
   onOpenExchange,
 }: {
   name: string;
   tokenType: string;
   url: string;
-  IconComponent: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
+  icon: React.ReactNode;
   onOpenExchange: (name: string, url: string) => void;
 }) => (
   <Card
@@ -47,7 +47,7 @@ const ExchangeCard = ({
             bgcolor: 'background.paper',
           }}
         >
-          <IconComponent width={24} height={24} />
+          {icon}
         </Box>
         <Stack spacing={1} sx={{ flex: 1 }}>
           <Typography variant="h6" fontWeight={600}>
@@ -104,31 +104,31 @@ export const Tutorial = () => {
       name: 'Bitfinex',
       tokenType: 'Native NYM, ERC-20',
       url: 'https://www.bitfinex.com/',
-      IconComponent: BitfinexIcon,
+      icon: <BitfinexIcon width={24} height={24} />,
     },
     {
-      name: 'Kraken',
-      tokenType: 'Native NYM',
-      url: 'https://www.kraken.com/',
-      IconComponent: KrakenIcon,
+      name: 'Osmosis',
+      tokenType: 'Native NYM (DEX)',
+      url: 'https://app.osmosis.zone/assets/ibc/37CB3078432510EE57B9AFA8DBE028B33AE3280A144826FEAC5F2334CF2C5539',
+      icon: <Box component="img" src={OsmosisLogo} alt="Osmosis" sx={{ width: 24, height: 24 }} />,
     },
     {
       name: 'Bybit',
       tokenType: 'ERC-20',
       url: 'https://www.bybit.com/en/',
-      IconComponent: BybitIcon,
+      icon: <BybitIcon width={24} height={24} />,
     },
     {
       name: 'Gate.io',
       tokenType: 'ERC-20',
       url: 'https://www.gate.io/',
-      IconComponent: GateIcon,
+      icon: <GateIcon width={24} height={24} />,
     },
     {
       name: 'HTX',
       tokenType: 'ERC-20',
       url: 'https://www.htx.com/',
-      IconComponent: HTXIcon,
+      icon: <HTXIcon width={24} height={24} />,
     },
   ];
 
@@ -143,7 +143,7 @@ export const Tutorial = () => {
       }}
     >
       <Typography mb={3} fontSize={14} sx={{ color: 'text.secondary' }}>
-        You can get NYM tokens from these exchanges
+        You can get NYM tokens from these exchanges and DEXs
       </Typography>
 
       <Grid container spacing={3}>

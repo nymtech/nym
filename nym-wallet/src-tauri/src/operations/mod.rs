@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod app;
+pub mod families;
 pub mod help;
 pub(crate) mod helpers;
 pub mod mixnet;

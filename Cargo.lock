@@ -6842,6 +6842,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-contract-common"
+version = "1.21.5"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "nym-dkg"
 version = "1.21.5"
 dependencies = [

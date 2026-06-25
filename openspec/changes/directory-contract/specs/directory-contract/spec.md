@@ -34,15 +34,15 @@ A write or self-delete SHALL be authorized solely by an ed25519 signature from t
 - **THEN** the contract rejects it and makes no state change
 
 ### Requirement: Per-node replay protection
-The contract SHALL maintain a strictly-monotonic sequence per `node_id` and SHALL reject any write or delete whose signed sequence is not greater than the stored sequence. The signed payload SHALL bind `node_id`, `label`, and `sequence` so a signature cannot be replayed or moved to another slot. The sequence SHALL persist independently of whether any entry currently exists.
+The contract SHALL maintain a per-`node_id` expected next sequence (gap-free) and SHALL reject any write or delete whose signed sequence does not exactly equal it. The expected sequence SHALL advance by one only on a successful operation, so a rejected operation does not consume a sequence. The signed payload SHALL bind `node_id`, `label`, and `sequence` so a signature cannot be replayed or moved to another slot. The expected sequence SHALL persist independently of whether any entry currently exists.
 
-#### Scenario: Stale sequence rejected
-- **WHEN** a write carries a sequence less than or equal to the node's stored sequence
+#### Scenario: Non-matching sequence rejected
+- **WHEN** a write carries a sequence that is not exactly the node's expected next sequence (whether lower or higher)
 - **THEN** the contract rejects it
 
 #### Scenario: Replay after delete rejected
-- **WHEN** a node deletes an entry and an old signed write for that slot (with a now-stale sequence) is replayed
-- **THEN** the contract rejects it because the sequence did not increase
+- **WHEN** a node deletes an entry and an old signed write for that slot (carrying an already-used sequence) is replayed
+- **THEN** the contract rejects it because the sequence no longer matches the expected value
 
 ### Requirement: Bonded-and-not-unbonding precondition
 The contract SHALL accept node writes and self-deletes only when the node is bonded and not unbonding, as reported by the mixnet contract.

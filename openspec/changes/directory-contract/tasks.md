@@ -1,6 +1,6 @@
 ## 1. Crate scaffolding
 
-- [ ] 1.1 Create `common/cosmwasm-smart-contracts/directory-contract` (msg, types, error, constants, lib), mirroring `node-families-contract`
+- [x] 1.1 Created `nym-directory-contract-common` (msg, types, error, constants, lib) mirroring node-families; builds default + `schema`. Has `Namespace` enum, `NodeEntry`/`CuratedEntry`/`LabelConfig`/`Config`, query responses, and the canonical `node_signing_payload` + `digest_leaf` encoders; sequence model is gap-free exact-match
 - [ ] 1.2 Create `contracts/directory` (contract, transactions, queries, storage, helpers, lib, schema bin), mirroring `contracts/node-families`
 - [ ] 1.3 Add `prost` dep and depend on the in-house `lthash` crate (group 2, not `lthash-rs`); pin `rust-version` for MSRV 1.86; confirm a minimal `cargo wasm` build passes `cosmwasm-check` (with the `wasm-opt` lowering)
 
@@ -14,11 +14,11 @@
 
 ## 3. Storage model
 
-- [ ] 3.1 Define the extensible namespace discriminant and distinct cw-storage-plus maps for the `node` and `curated` classes (raw keys must not collide)
-- [ ] 3.2 `NodeEntry { data, updated_at, signature }` and `CuratedEntry { data }`; entry payloads encoded with prost (`BTreeMap` maps only)
+- [ ] 3.1 ONE namespaced raw-bytes entry store (not two maps). Key = length-prefixed `(namespace_tag: u8, id_bytes, label)` - node id = `node_id.to_be_bytes()` (numeric order), curated id = handle bytes; equivalent to a cw-storage-plus composite `(u8, Vec<u8>, String)`. NOT a `:`-delimited string. Use the `StoredDeposits` pattern: keep `Path`/`Prefix`/`range_with_prefix`/`KeyDeserialize` for keys, `storage.set/get` raw bytes for values
+- [ ] 3.2 `NodeEntry { data, updated_at_height, signature }` and `CuratedEntry { data }` with compact `to_bytes`/`try_from_bytes` value codecs in `nym-directory-contract-common` (raw bytes, no JSON/base64; `data` stays opaque) - removes ~33-42% storage overhead. (The node's `data` payload format is a consumer concern, e.g. prost+BTreeMap.)
 - [ ] 3.3 Persistent per-node `sequence` map (`u64`), surviving entry deletion
 - [ ] 3.4 Allowed-labels map (`label -> LabelConfig { max_size }`) + 128 KiB ceiling constant
-- [ ] 3.5 Store the full `LtHash16` state as the accumulator `Item` (~2 KB, mutated O(1) per write); expose & ICS23-prove the compact 32-byte `LtHash16::out()` (blake3 collapse) as the public digest (comparison-only, not homomorphic). Canonical leaf encoder `canonical(namespace, id, label, value)` (length-prefixed) lives in/alongside `nym-lthash` so contract and client agree byte-for-byte
+- [ ] 3.5 Store the full `LtHash16` state as the accumulator `Item` (~2 KB, mutated O(1) per write, stored RAW not base64); expose & ICS23-prove the compact 32-byte `LtHash16::out()` (blake3 collapse) as the public digest (comparison-only, not homomorphic). Canonical leaf encoder `canonical(namespace, id, label, value)` (length-prefixed) lives in/alongside `nym-lthash` so contract and client agree byte-for-byte
 - [ ] 3.6 Instantiate config: admin, mixnet contract address, initial label set
 
 ## 4. Digest

@@ -6345,7 +6345,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy"
-version = "0.3.2-rc"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "axum",

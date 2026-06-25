@@ -10,7 +10,12 @@
     "title": "Rust"
   },
   "smolmix": "smolmix (TCP/UDP tunnel)",
-  "rust": "nym-sdk",
+  "rust": {
+    "title": "nym-sdk",
+    "theme": {
+      "collapsed": false
+    }
+  },
 
   "-": {
     "type": "separator",

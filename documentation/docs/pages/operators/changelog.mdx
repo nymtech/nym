@@ -56,7 +56,107 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
-<VarInfo />
+## `v2026.12-yaroslavsky`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.12-yaroslavsky)
+- [`nym-node`](nodes/nym-node.mdx) version `1.34.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-06-23T07:29:08.069552735Z
+Build Version:      1.34.0
+Commit SHA:         821381fb1baac73fe85fecca550246db6ec30296
+Commit Date:        2026-06-23T09:10:37.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.92.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Tools
+
+- **[Node Families](/operators/nodes/nym-node/families) are live!**
+  - **New [Nym wallet `v1.2.23`](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.23) with family management menu**
+  - **[SpectreDAO Explorer](https://explorer.nym.spectredao.net/families) family overview is out**
+
+- [Operators Cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) cap is raised to 10000 NYM, DP and SGP max cap is 5000 NYM.
+
+- [**NIP-12 - NTM updated: More services for NymVPN users are opened!**](https://github.com/nymtech/nym-websites/pull/344) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
+
+
+### Features
+
+- [Mixnet performance & observability improvements](https://github.com/nymtech/nym/pull/6874): Expanded mixnet observability with additional runtime, queue, packet forwarding, latency, and buffer metrics, improving visibility into node performance and packet processing behaviour.
+
+- [Mixnet packet latency instrumentation](https://github.com/nymtech/nym/pull/6852): Added end-to-end packet latency tracing with per-stage Prometheus metrics and configurable packet sampling, allowing operators to better analyse mixnet performance.
+
+- [Node Families improvements](https://github.com/nymtech/nym/pull/6891) [contract configuration queries](https://github.com/nymtech/nym/pull/6870): Added automatic association of the creating wallet's node with newly created families and introduced contract configuration queries for retrieving current family settings.
+
+- [API v2 enhancements](https://github.com/nymtech/nym/pull/6815): Introduced API v2 auxiliary details endpoint exposing node on-chain addresses and improved Swagger/OpenAPI versioning, routing, and documentation.
+
+- [Wallet improvements](https://github.com/nymtech/nym/pull/6865) [delegation management improvements](https://github.com/nymtech/nym/pull/6864): Improved bonding and unbonding workflows, added clearer unbonded delegation visibility, enhanced sign-in and recovery flows, and improved wallet UX across node management and delegation features.
+
+### Bugfixes
+
+- [Restore node throughput tester](https://github.com/nymtech/nym/pull/6849): Restored and fixed node throughput testing functionality, improving reliability of performance measurements.
+
+- [More reliable chain data retrieval](https://github.com/nymtech/nym/pull/6847): Added automatic RPC retry handling and improved transaction data retrieval reliability.
+
+### Refactors & Maintenance
+
+- [Wallet update](https://github.com/nymtech/nym/pull/6867): Updated the wallet to version 1.2.21 with interface improvements, maintenance updates, and compatibility enhancements.
 
 ## `v2026.11-xynomizithra`
 

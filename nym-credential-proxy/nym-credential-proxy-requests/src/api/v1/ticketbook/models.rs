@@ -9,20 +9,22 @@ use schemars::JsonSchema;
 use schemars::r#gen::SchemaGenerator;
 use schemars::schema::Schema;
 use serde::{Deserialize, Serialize};
-use serde_with::{DisplayFromStr, serde_as};
 use std::ops::{Deref, DerefMut};
 use time::{Date, OffsetDateTime};
 use uuid::Uuid;
 
 #[cfg(feature = "query-types")]
-use nym_http_api_common::Output;
+use serde_with::{DisplayFromStr, serde_as};
 
-use nym_http_api_common::OutputV2;
-pub use nym_upgrade_mode_check::UpgradeModeAttestation;
+#[cfg(feature = "query-types")]
+use nym_http_api_common::{Output, OutputV2};
+
 #[cfg(feature = "tsify")]
 use tsify::Tsify;
 #[cfg(feature = "tsify")]
 use wasm_bindgen::prelude::wasm_bindgen;
+
+pub use nym_upgrade_mode_check::UpgradeModeAttestation;
 
 #[derive(JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -290,6 +292,7 @@ pub struct WebhookTicketbookWalletSharesRequest {
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[serde(default, rename_all = "kebab-case")]
+#[cfg(feature = "query-types")]
 pub struct EpochIdParams {
     pub epoch_id: Option<u64>,
     pub output: Option<OutputV2>,
@@ -298,6 +301,7 @@ pub struct EpochIdParams {
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
 #[serde(default, rename_all = "kebab-case")]
+#[cfg(feature = "query-types")]
 pub struct ExpirationDateParams {
     pub expiration_date: Option<String>,
     pub epoch_id: Option<u64>,

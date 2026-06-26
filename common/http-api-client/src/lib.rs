@@ -233,6 +233,14 @@ static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     }
 });
 
+pub(crate) static SHARED_NETWORK_RECONFIGURATION: LazyLock<Arc<Mutex<Instant>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(Instant::now())));
+
+/// Indicate to the shared marker that a network reconfiguration happened.
+pub fn network_reconfigured() {
+    *SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Instant::now();
+}
+
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
 /// Collection of HTTP Request Parameters
@@ -618,7 +626,6 @@ pub struct ClientBuilder {
 
     retry_limit: usize,
     serialization: SerializationFormat,
-    last_net_reconfiguration: Option<Arc<Mutex<Instant>>>,
 
     error: Option<HttpClientError>,
 }
@@ -719,7 +726,6 @@ impl ClientBuilder {
 
             retry_limit: 0,
             serialization: SerializationFormat::Json,
-            last_net_reconfiguration: None,
             error: None,
         })
     }
@@ -808,15 +814,6 @@ impl ClientBuilder {
         self.with_serialization(SerializationFormat::Bincode)
     }
 
-    /// Configure a shared marker for the most recent network reconfiguration time.
-    pub fn with_last_net_reconfiguration(
-        mut self,
-        last_net_reconfiguration: Arc<Mutex<Instant>>,
-    ) -> Self {
-        self.last_net_reconfiguration = Some(last_net_reconfiguration);
-        self
-    }
-
     /// Returns a Client that uses this ClientBuilder configuration.
     pub fn build(self) -> Result<Client, HttpClientError> {
         if let Some(err) = self.error {
@@ -854,7 +851,6 @@ impl ClientBuilder {
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
             retry_limit: self.retry_limit,
             serialization: self.serialization,
-            last_net_reconfiguration: self.last_net_reconfiguration,
         };
 
         Ok(client)
@@ -875,7 +871,6 @@ pub struct Client {
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
 
-    last_net_reconfiguration: Option<Arc<Mutex<Instant>>>,
     retry_limit: usize,
     serialization: SerializationFormat,
 }
@@ -935,8 +930,6 @@ impl Client {
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.request_timeout,
             serialization: self.serialization,
-
-            last_net_reconfiguration: self.last_net_reconfiguration.clone(),
         }
     }
 
@@ -958,19 +951,6 @@ impl Client {
     /// Change the currently configured limit on the number of retries for a request.
     pub fn change_retry_limit(&mut self, limit: usize) {
         self.retry_limit = limit;
-    }
-
-    /// Set a shared marker for the most recent network reconfiguration time.
-    pub fn set_last_net_reconfiguration(
-        &mut self,
-        last_net_reconfiguration: Option<Arc<Mutex<Instant>>>,
-    ) {
-        self.last_net_reconfiguration = last_net_reconfiguration;
-    }
-
-    /// Get a clone of the shared marker for the most recent network reconfiguration time.
-    pub fn last_net_reconfiguration(&self) -> Option<Arc<Mutex<Instant>>> {
-        self.last_net_reconfiguration.clone()
     }
 
     #[cfg(feature = "tunneling")]
@@ -1216,10 +1196,10 @@ impl ApiClientCore for Client {
                     return Ok(resp);
                 }
                 Err(err) => {
-                    let network_reconfigured = self
-                        .last_net_reconfiguration
-                        .as_ref()
-                        .is_some_and(|t_reconf| t_reconf.lock().unwrap().gt(&request_start));
+                    let network_reconfigured = SHARED_NETWORK_RECONFIGURATION
+                        .lock()
+                        .unwrap()
+                        .gt(&request_start);
 
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();

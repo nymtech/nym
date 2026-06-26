@@ -1,6 +1,4 @@
 use super::*;
-use rustls::lock::Mutex;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[test]
@@ -321,12 +319,10 @@ async fn host_rotation_tempered_by_net_reconfigure() {
     let url2 = Url::new("http://nym-api2.test", Some(vec!["http://cdn2.test"])).unwrap();
     let urls = vec![url1.clone(), url2.clone()];
 
-    let last_net_reconfigured = Arc::new(Mutex::new(Instant::now()));
 
     let client = ClientBuilder::new_with_urls(urls)
         .unwrap()
         .with_fronting(Some(crate::fronted::FrontPolicy::OnRetry))
-        .with_last_net_reconfiguration(last_net_reconfigured.clone())
         .build()
         .unwrap();
 
@@ -348,7 +344,7 @@ async fn host_rotation_tempered_by_net_reconfigure() {
 
     // Simulate a network reconfiguration happening during the request. This should suppress both
     // host rotation and fronting activation.
-    *last_net_reconfigured.lock().unwrap() = Instant::now() + Duration::from_secs(60);
+    *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Instant::now() + Duration::from_secs(60);
     let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
     let _ = client.send(req).await;
 
@@ -357,7 +353,7 @@ async fn host_rotation_tempered_by_net_reconfigure() {
 
     // Simulate no recent network reconfiguration. Now the same network error should rotate to the
     // next host and enable fronting for OnRetry.
-    *last_net_reconfigured.lock().unwrap() = Instant::now() - Duration::from_secs(60);
+    *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Instant::now() - Duration::from_secs(60);
     let req = client.create_get_request(&["health"], NO_PARAMS).unwrap();
     let _ = client.send(req).await;
 

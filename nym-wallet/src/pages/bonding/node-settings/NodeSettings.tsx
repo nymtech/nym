@@ -1,10 +1,11 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Box, Typography, Stack, IconButton, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
+import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { Node as NodeIcon } from 'src/svg-icons/node';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';
@@ -22,31 +23,24 @@ import { NavItems, makeNavItems } from './node-settings.constant';
 export const NodeSettings = () => {
   const theme = useTheme();
   const { network } = useContext(AppContext);
-  const { bondedNode, unbond, updateCostParameters, isLoading } = useBondingContext();
+  const { bondedNode, unbond, isLoading, error, refresh } = useBondingContext();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps | undefined>();
   const [value, setValue] = React.useState<NavItems>('General');
 
-  // Add state to store cost parameters values
-  const [costParametersData, setCostParametersData] = useState<{
-    profitMarginPercent: string;
-    intervalOperatingCost: string;
-    fee?: FeeDetails;
-  }>({
-    profitMarginPercent: '',
-    intervalOperatingCost: '',
-  });
-
-  // Define handleError before using it
-  const handleError = (error: string) => {
-    setConfirmationDetails({
-      status: 'error',
-      title: 'An error occurred',
-      subtitle: error,
-    });
-  };
+  const handleError = useCallback(
+    (errorMessage: string) => {
+      refresh();
+      setConfirmationDetails({
+        status: 'error',
+        title: 'An error occurred',
+        subtitle: errorMessage,
+      });
+    },
+    [refresh],
+  );
 
   const handleChange = (_: React.SyntheticEvent, tab: string) => {
     setValue(tab as NavItems);
@@ -63,43 +57,28 @@ export const NodeSettings = () => {
 
   const handleUnbond = async (fee?: FeeDetails) => {
     const tx = await unbond(fee);
+    if (!tx) {
+      return;
+    }
     const { nextEpoch } = await getIntervalAsDate();
     setConfirmationDetails({
       status: 'success',
       title: 'Unbond successful',
       subtitle: `This operation will complete when the new epoch starts at: ${nextEpoch}`,
-      txUrl: `${urls(network).blockExplorer}/tx/${tx?.transaction_hash}`,
+      txUrl: `${urls(network).blockExplorer}/tx/${tx.transaction_hash}`,
     });
   };
 
-  // Function to update state from NodeCostParametersPage
-  const handleCostParametersUpdate = (profitMarginPercent: string, intervalOperatingCost: string, fee?: FeeDetails) => {
-    setCostParametersData({
-      profitMarginPercent,
-      intervalOperatingCost,
-      fee,
+  const handleUpdateCostParameters = async (txHash?: string) => {
+    setConfirmationDetails({
+      status: 'success',
+      title: 'Cost Parameters Updated',
+      subtitle: 'Your cost parameters have been successfully updated',
+      txUrl: txHash ? `${urls(network).blockExplorer}/tx/${txHash}` : undefined,
     });
   };
 
-  const handleUpdateCostParameters = async () => {
-    try {
-      const { profitMarginPercent, intervalOperatingCost, fee } = costParametersData;
-
-      const uNymAmount = String(Math.floor(Number(intervalOperatingCost || '0') * 1000000));
-
-      const tx = await updateCostParameters(profitMarginPercent, uNymAmount, fee);
-
-      setConfirmationDetails({
-        status: 'success',
-        title: 'Cost Parameters Updated',
-        subtitle: 'Your cost parameters have been successfully updated',
-        txUrl: tx?.transaction_hash ? `${urls(network).blockExplorer}/tx/${tx.transaction_hash}` : undefined,
-      });
-    } catch (error) {
-      handleError(String(error));
-    }
-  };
-
+  const showBondingError = error && !confirmationDetails;
   if (isLoading) return <LoadingModal />;
 
   if (!bondedNode) {
@@ -170,7 +149,6 @@ export const NodeSettings = () => {
             bondedNode={bondedNode}
             onConfirm={handleUpdateCostParameters}
             onError={handleError}
-            onUpdateData={handleCostParametersUpdate}
           />
         )}
         {value === 'Unbond' && bondedNode && (
@@ -183,9 +161,12 @@ export const NodeSettings = () => {
             status={confirmationDetails.status}
             txUrl={confirmationDetails.txUrl}
             onClose={() => {
+              const wasSuccess = confirmationDetails.status === 'success';
               setConfirmationDetails(undefined);
-              if (confirmationDetails.status === 'success') {
+              if (wasSuccess) {
                 navigate('/bonding');
+              } else {
+                refresh();
               }
             }}
           >
@@ -195,6 +176,14 @@ export const NodeSettings = () => {
               </Typography>
             )}
           </ConfirmationDetailsModal>
+        )}
+        {showBondingError && (
+          <ErrorModal
+            open
+            title="An error occurred, please check logs for details"
+            message={error}
+            onClose={() => refresh()}
+          />
         )}
       </NymCard>
     </PageLayout>

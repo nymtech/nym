@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import * as familyRequests from 'src/requests/families';
 import { Console } from 'src/utils/console';
@@ -23,6 +23,8 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
 
   const [executingAction, setExecutingAction] = useState<FamilyExecutingAction>(null);
   const [error, setError] = useState<string>();
+  /** Bumped on `clearError()` so late async handlers cannot re-surface a dismissed error. */
+  const operationEpochRef = useRef(0);
 
   // The operator persona is "nodes I control". An account bonds at most one node,
   // so this is the bonded node's id (the unified mixnet node id: `nodeId` for a
@@ -42,24 +44,36 @@ export const FamiliesContextProvider: FCWithChildren = ({ children }): React.JSX
     await queryClient.invalidateQueries({ queryKey: familyQueryKeys.all });
   }, [queryClient]);
 
-  const clearError = useCallback(() => setError(undefined), []);
+  const clearError = useCallback(() => {
+    operationEpochRef.current += 1;
+    setError(undefined);
+    setExecutingAction(null);
+  }, []);
 
   /** Run an execute call: toggle flag, surface + rethrow errors, refresh reads on success. */
   const run = useCallback(
     async (action: NonNullable<FamilyExecutingAction>, op: () => Promise<FamilyTxResult>): Promise<FamilyTxResult> => {
+      const epoch = operationEpochRef.current;
       setExecutingAction(action);
       setError(undefined);
       try {
         const result = await op();
+        if (epoch !== operationEpochRef.current) {
+          return result;
+        }
         await refreshAll();
         return result;
       } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        setError(message);
+        if (epoch === operationEpochRef.current) {
+          const message = e instanceof Error ? e.message : String(e);
+          setError(message);
+        }
         Console.error(e);
         throw e;
       } finally {
-        setExecutingAction(null);
+        if (epoch === operationEpochRef.current) {
+          setExecutingAction(null);
+        }
       }
     },
     [refreshAll],

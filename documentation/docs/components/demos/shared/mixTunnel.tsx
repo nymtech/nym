@@ -36,13 +36,7 @@ const clampSurbs = (n: number, min: number) => Math.min(50, Math.max(min, n));
 const DEFAULT_IPR =
   '6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
 
-// Entry gateway, pinned unconditionally. The browser opens exactly one
-// WebSocket (to this gateway), so its hostname is the only thing the host
-// CSP must allowlist; random selection would hit arbitrary gateway hostnames
-// that a single-host CSP entry cannot cover. This is the same node as
-// DEFAULT_IPR, so by default entry and exit share q2A2 (accepted for the
-// demo); ticking 'Use random IPR' moves the exit to a different node.
-const PINNED_GATEWAY = 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
+// const PINNED_GATEWAY = 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
 
 export function MixTunnelSetup({
   onReady,

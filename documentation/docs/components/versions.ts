@@ -22,10 +22,10 @@
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
-export const NYM_SDK_VERSION = "1.21.1";
+export const NYM_SDK_VERSION = "1.21.2";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "1.21.1";
+export const SMOLMIX_VERSION = "1.21.2";
 
 // TypeScript SDK packages (published to npm). mix-fetch is on its own 2.x track
 // after the v1 to v2 break; the tunnel + mix-dns + mix-websocket facades share

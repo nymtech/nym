@@ -8050,6 +8050,7 @@ dependencies = [
  "bip39",
  "bytecodec",
  "bytes",
+ "celes",
  "clap",
  "dashmap",
  "dirs",

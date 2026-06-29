@@ -59,6 +59,7 @@ nym-bin-common = { workspace = true, features = [
 bytecodec = { workspace = true }
 httpcodec = { workspace = true }
 bytes = { workspace = true }
+celes = { workspace = true }
 http = { workspace = true }
 zeroize = { workspace = true }
 

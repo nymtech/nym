@@ -8,22 +8,23 @@
 //!
 //! Run with: cargo run --example socks5_autodiscover
 
-use nym_sdk::mixnet::Socks5MixnetClient;
+use nym_sdk::mixnet::{NetworkRequester, Socks5MixnetClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Discover a network requester in Switzerland or Germany and connect to it.
-    // Drop `.countries(...)` to accept any country. The SOCKS5 listener binds
-    // 127.0.0.1:1080 by default; `.port()` overrides it (1081 here to avoid
-    // colliding with any proxy already on 1080).
+    // Pick how to choose the requester. Three options:
+    //   NetworkRequester::any()                         -> any, weighted by performance
+    //   NetworkRequester::in_countries(["CH", "DE"])?   -> restricted to those countries
+    //   NetworkRequester::exact("address...")?          -> a specific known requester
+    let requester = NetworkRequester::in_countries(["CH", "DE"])?;
+
+    // Connect. `None` binds the SOCKS5 listener to 127.0.0.1:1080; here we pass
+    // 1081 to avoid colliding with any proxy already on the default port.
     println!("Discovering a network requester in CH/DE and connecting");
-    let client = Socks5MixnetClient::discover()
-        .countries(["CH", "DE"])?
-        .port(1081)
-        .connect()
-        .await?;
+    let bind = Some("127.0.0.1:1081".parse()?);
+    let client = Socks5MixnetClient::connect_with(requester, bind).await?;
     println!("SOCKS5 proxy listening at {}", client.socks5_url());
 
     // Point an HTTP client at the proxy and make a request through the mixnet.

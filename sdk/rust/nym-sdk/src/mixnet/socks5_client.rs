@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use nym_client_core::client::base_client::ClientState;
@@ -8,13 +8,11 @@ use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
 use tokio::sync::RwLockReadGuard;
 
-use celes::Country;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 
-use crate::ip_packet_client::discovery::create_nym_api_client;
 use crate::mixnet::client::MixnetClientBuilder;
-use crate::mixnet::socks5_discovery::get_best_network_requester_in;
-use crate::{Error, NymNetworkDetails, Result};
+use crate::mixnet::socks5_discovery::NetworkRequester;
+use crate::Result;
 
 /// A SOCKS5 proxy client connected to the Nym mixnet.
 ///
@@ -96,42 +94,52 @@ impl Socks5MixnetClient {
             .await
     }
 
-    /// Start building a client that connects to an automatically discovered
-    /// network requester. Restrict the requester's physical location with
-    /// [`country`](Socks5DiscoveryBuilder::country) /
-    /// [`countries`](Socks5DiscoveryBuilder::countries), then
-    /// [`connect`](Socks5DiscoveryBuilder::connect).
+    /// Create a new client and connect to a network requester chosen per the
+    /// given [`NetworkRequester`]: auto-discovered ([`Any`](NetworkRequester::Any)),
+    /// country-restricted ([`InCountries`](NetworkRequester::InCountries)), or a
+    /// known address ([`Exact`](NetworkRequester::Exact)).
+    ///
+    /// Discovery always targets mainnet. The discovered requester enforces the
+    /// Nym exit policy, so destinations outside that policy are refused at the
+    /// exit regardless of which requester is selected.
+    ///
+    /// `bind` sets the local SOCKS5 listener address; pass `None` for the default
+    /// `127.0.0.1:1080`, or `Some(addr)` to move it (for example when 1080 is
+    /// already taken, or to run more than one client at once).
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use nym_sdk::mixnet::Socks5MixnetClient;
+    /// use nym_sdk::mixnet::{NetworkRequester, Socks5MixnetClient};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     // Any country:
-    ///     let any = Socks5MixnetClient::discover().connect().await?;
+    ///     // Any requester, weighted by performance, on the default port:
+    ///     let any = Socks5MixnetClient::connect_with(NetworkRequester::any(), None).await?;
     ///
-    ///     // Pinned to Switzerland or Germany:
-    ///     let pinned = Socks5MixnetClient::discover()
-    ///         .countries(["CH", "DE"])?
-    ///         .connect()
-    ///         .await?;
+    ///     // Pinned to Switzerland or Germany, listening on 127.0.0.1:1081:
+    ///     let pinned = Socks5MixnetClient::connect_with(
+    ///         NetworkRequester::in_countries(["CH", "DE"])?,
+    ///         Some("127.0.0.1:1081".parse()?),
+    ///     )
+    ///     .await?;
     ///     Ok(())
     /// }
     /// ```
-    pub fn discover() -> Socks5DiscoveryBuilder {
-        Socks5DiscoveryBuilder::default()
-    }
-
-    /// Create a new client and connect to an automatically discovered network
-    /// requester in any country. Shorthand for `discover().connect()`.
-    ///
-    /// Discovery always targets mainnet. The discovered requester enforces the
-    /// Nym exit policy, so destinations outside that policy will be refused at
-    /// the exit regardless of which requester is selected.
-    pub async fn connect_new_with_discovery() -> Result<Self> {
-        Self::discover().connect().await
+    pub async fn connect_with(
+        requester: NetworkRequester,
+        bind: Option<SocketAddr>,
+    ) -> Result<Self> {
+        let provider = requester.resolve().await?;
+        let mut socks5_config = Socks5::new(provider.to_string());
+        if let Some(addr) = bind {
+            socks5_config.bind_address = addr;
+        }
+        MixnetClientBuilder::new_ephemeral()
+            .socks5_config(socks5_config)
+            .build()?
+            .connect_to_mixnet_via_socks5()
+            .await
     }
 
     /// Get the nym address for this client, if it is available. The nym address is composed of the
@@ -193,90 +201,5 @@ impl Socks5MixnetClient {
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-    }
-}
-
-/// Builder for connecting a [`Socks5MixnetClient`] to an automatically
-/// discovered network requester, optionally restricted by country.
-///
-/// Create one with [`Socks5MixnetClient::discover`]. With no country set,
-/// discovery selects from any country; otherwise the chosen requester must be
-/// physically located in one of the requested countries.
-#[derive(Debug, Default, Clone)]
-#[must_use]
-pub struct Socks5DiscoveryBuilder {
-    countries: Vec<Country>,
-    bind_address: Option<SocketAddr>,
-}
-
-impl Socks5DiscoveryBuilder {
-    /// Require the discovered network requester to be located in the given
-    /// country, identified by its ISO 3166 alpha-2 code (e.g. `"CH"`).
-    /// Case-insensitive. Call repeatedly to allow several countries.
-    ///
-    /// Returns [`Error::InvalidCountryCode`] if the code is not a valid alpha-2
-    /// country code.
-    #[allow(clippy::result_large_err)]
-    pub fn country(mut self, code: impl AsRef<str>) -> Result<Self> {
-        let country = Country::from_alpha2(code.as_ref())
-            .map_err(|_| Error::InvalidCountryCode(code.as_ref().to_string()))?;
-        self.countries.push(country);
-        Ok(self)
-    }
-
-    /// Require the discovered network requester to be located in one of the
-    /// given countries, each an ISO 3166 alpha-2 code. Case-insensitive.
-    ///
-    /// Returns [`Error::InvalidCountryCode`] on the first invalid code.
-    #[allow(clippy::result_large_err)]
-    pub fn countries<I, S>(mut self, codes: I) -> Result<Self>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        for code in codes {
-            self = self.country(code)?;
-        }
-        Ok(self)
-    }
-
-    /// Bind the local SOCKS5 listener to a specific address instead of the
-    /// default `127.0.0.1:1080`. Set this to run more than one SOCKS5 client at
-    /// once, or to avoid a port already in use.
-    pub fn bind_address(mut self, address: SocketAddr) -> Self {
-        self.bind_address = Some(address);
-        self
-    }
-
-    /// Bind the local SOCKS5 listener to `127.0.0.1:<port>` instead of the
-    /// default port 1080. Shorthand for the loopback case of
-    /// [`bind_address`](Self::bind_address); this resets the host to loopback,
-    /// overriding any address previously set with `bind_address`.
-    pub fn port(mut self, port: u16) -> Self {
-        self.bind_address = Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port));
-        self
-    }
-
-    /// Discover a matching network requester on mainnet and connect to it.
-    ///
-    /// If a country filter is set and no requester matches, returns
-    /// [`Error::NoGatewayInCountries`].
-    pub async fn connect(self) -> Result<Socks5MixnetClient> {
-        let nym_api_urls = NymNetworkDetails::new_mainnet()
-            .nym_api_urls
-            .ok_or(Error::NoNymAPIUrl)?;
-        let api_client = create_nym_api_client(nym_api_urls)?;
-        let provider = get_best_network_requester_in(api_client, &self.countries).await?;
-
-        let mut socks5_config = Socks5::new(provider.to_string());
-        if let Some(bind_address) = self.bind_address {
-            socks5_config.bind_address = bind_address;
-        }
-
-        MixnetClientBuilder::new_ephemeral()
-            .socks5_config(socks5_config)
-            .build()?
-            .connect_to_mixnet_via_socks5()
-            .await
     }
 }

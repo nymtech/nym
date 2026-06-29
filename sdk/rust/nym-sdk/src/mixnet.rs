@@ -93,11 +93,8 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
-pub use socks5_client::{Socks5DiscoveryBuilder, Socks5MixnetClient};
-pub use socks5_discovery::{
-    get_best_network_requester, get_best_network_requester_in,
-    retrieve_network_requesters_with_performance, NetworkRequesterWithPerformance,
-};
+pub use socks5_client::Socks5MixnetClient;
+pub use socks5_discovery::NetworkRequester;
 pub use stream::{MixnetListener, MixnetStream, StreamId};
 pub use traits::MixnetMessageSender;
 

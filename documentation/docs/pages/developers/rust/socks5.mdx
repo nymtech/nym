@@ -81,32 +81,34 @@ let client = mixnet::MixnetClientBuilder::new_ephemeral()
 
 ## Automatic discovery
 
-You do not have to hardcode a network requester address. The SDK can find one from the Nym API and connect in a single call:
+You do not have to hardcode a network requester address. [`connect_with`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html) takes a `NetworkRequester` describing how to pick one plus an optional listener address, and connects in a single call. There are three ways to choose:
 
 ```rust
-use nym_sdk::mixnet::Socks5MixnetClient;
+use nym_sdk::mixnet::{NetworkRequester, Socks5MixnetClient};
 
-// Pick any available network requester:
-let client = Socks5MixnetClient::connect_new_with_discovery().await?;
+// Any available requester, weighted by performance (None = default 127.0.0.1:1080):
+let client = Socks5MixnetClient::connect_with(NetworkRequester::any(), None).await?;
+
+// A specific requester you already know:
+let client = Socks5MixnetClient::connect_with(NetworkRequester::exact("address...")?, None).await?;
 ```
 
-Discovery queries mainnet for Exit Gateways that advertise a network requester and selects one weighted by performance.
+For `any`, discovery queries mainnet for Exit Gateways that advertise a network requester and selects one weighted by performance.
 
 ### Selecting by country
 
-To constrain where your traffic leaves the mixnet, use the discovery builder and pass one or more [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes. The chosen requester must be physically located in one of them:
+To constrain where your traffic leaves the mixnet, build the requester with [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes. The chosen requester must be physically located in one of them:
 
 ```rust
-use nym_sdk::mixnet::Socks5MixnetClient;
+use nym_sdk::mixnet::{NetworkRequester, Socks5MixnetClient};
 
-let client = Socks5MixnetClient::discover()
-    .countries(["CH", "DE"])?   // Switzerland or Germany
-    .port(1081)                 // optional: bind off the default 1080
-    .connect()
-    .await?;
+let requester = NetworkRequester::in_countries(["CH", "DE"])?;   // Switzerland or Germany
+
+// Listen on 127.0.0.1:1081 instead of the default 1080:
+let client = Socks5MixnetClient::connect_with(requester, Some("127.0.0.1:1081".parse()?)).await?;
 ```
 
-Codes are case-insensitive and validated up front, so a typo fails immediately rather than at connect time. Pass a list to `.countries([...])`, or call `.country("CH")` repeatedly; several countries are treated as "any of these". Use `.port()` or `.bind_address()` to move the local listener off the default `127.0.0.1:1080`, for example to run more than one client at once.
+Codes are case-insensitive and validated up front, so a typo fails immediately rather than at connect time. Several countries are treated as "any of these". Pass `Some(addr)` as the second argument to move the local listener off the default `127.0.0.1:1080`, for example when that port is taken or to run more than one client at once.
 
 <Callout type="warning">
 A requester's location is **self-reported by its operator and optional**. Requesters that have not declared a location are excluded once you set a country filter, so a narrow filter can return `NoGatewayInCountries` even when requesters exist there but have not advertised it. Discovery does not silently fall back to another country: an empty result is an error, since routing through an unintended jurisdiction would defeat the point of asking.

@@ -145,6 +145,12 @@ pub enum Error {
     #[error("no available gateway in the requested countries")]
     NoGatewayInCountries,
 
+    #[error("no countries specified; use NetworkRequester::any() to accept any country")]
+    NoCountriesSpecified,
+
+    #[error("invalid network requester address: {0}")]
+    InvalidRecipientAddress(String),
+
     #[error("tunnel disconnected by IPR")]
     IprTunnelDisconnected,
 

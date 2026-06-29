@@ -20,7 +20,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_validator_client::nym_api::NymApiClientExt;
 use rand::seq::SliceRandom;
-use tracing::info;
+use tracing::{debug, info, warn};
 
 use crate::Error;
 
@@ -53,18 +53,34 @@ pub async fn retrieve_network_requesters_with_performance(
 
     for exit in exit_gateways {
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
+            // The skimmed and described sets come from two separate API calls
+            // and can be momentarily out of sync, so a node present in one but
+            // not the other is expected churn rather than an error; log at debug.
+            debug!(
+                "{} has no described-node record; skipping",
+                exit.ed25519_identity_pubkey
+            );
             continue;
         };
 
-        if let Some(nr_info) = node.description.network_requester.clone() {
-            if let Ok(parsed_address) = nr_info.address.parse() {
-                requesters.push(NetworkRequesterWithPerformance {
-                    address: parsed_address,
-                    identity: exit.ed25519_identity_pubkey,
-                    performance: exit.performance.round_to_integer(),
-                    country: node.description.auxiliary_details.location,
-                })
-            }
+        let Some(nr_info) = node.description.network_requester.clone() else {
+            continue;
+        };
+
+        match nr_info.address.parse() {
+            Ok(parsed_address) => requesters.push(NetworkRequesterWithPerformance {
+                address: parsed_address,
+                identity: exit.ed25519_identity_pubkey,
+                performance: exit.performance.round_to_integer(),
+                country: node.description.auxiliary_details.location,
+            }),
+            // A node that advertises a requester but with an unparseable address
+            // is malformed metadata. Drop it from the pool, but say which node
+            // and why rather than shrinking the pool silently.
+            Err(err) => warn!(
+                "{} advertises an unparseable network requester address {:?}: {err}; skipping",
+                exit.ed25519_identity_pubkey, nr_info.address
+            ),
         }
     }
 

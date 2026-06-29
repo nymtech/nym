@@ -60,10 +60,15 @@ Because the exit gateway removes the Sphinx layers, whatever is inside is visibl
 ## Trust boundaries
 
 - You trust the mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary that can observe a large fraction of the network.
-- You trust the Exit Gateway (whether IPR or Network Requester) in the same way you trust a VPN exit or Tor exit node: it can inspect whatever leaves the mixnet (raw IP packets for the IPR, the SOCKS request for the NR). The difference is that the exit doesn't know who is sending the traffic (the mixnet hides your identity).
+- You trust the Exit Gateway in the same way you trust a VPN exit or Tor exit node: it can inspect whatever leaves the mixnet, but it does not know who is sending the traffic (the mixnet hides your identity). What it can inspect, and the shape of the trust, differs between the two exit types:
+  - **IP Packet Router (IPR).** A packet forwarder, like a VPN exit. It receives raw IP packets, so it sees the destination IP and port and reads any packet payload you did not encrypt. It works at the network layer and does not parse your application protocol. This is the exit used by `smolmix` and the `mix-*` packages ([`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)).
+  - **Network Requester (NR).** A SOCKS proxy that makes the request on your behalf, so your trust in it is exactly the trust you place in any SOCKS5 proxy. With the `socks5h` URL the SDK hands it the destination *hostname* (not just an IP) plus the byte stream, and the NR opens the TCP connection itself and relays bytes back. It therefore sees the destination hostname and port, and any payload you did not encrypt, just as a SOCKS proxy you ran your traffic through would. This is the exit used by the [SOCKS5 module](/developers/rust/socks5) and the standalone [`nym-socks5-client`](/developers/clients/socks5).
 
 <Callout type="warning">
-Treat the Exit Gateway exactly as you would a VPN exit or a Tor exit node: it can inspect whatever you send past it. The difference Nym adds is that the exit doesn't know who's sending the traffic. Protect the payload with TLS or equivalent, and pin a trusted exit (`preferredIpr`) if the exit operator matters to you.
+Treat the Exit Gateway exactly as you would a VPN exit or a Tor exit node: it can inspect whatever you send past it. The difference Nym adds is that the exit doesn't know who's sending the traffic. Protect the payload with TLS or equivalent. If the exit operator matters to you, pin one, but the control depends on the exit type:
+
+- **IPR-backed clients** (`smolmix` and the `mix-*` packages): set the preferred IPR (`preferredIpr` in the TypeScript and wasm packages; see each package page for the native equivalent).
+- **SOCKS5 module (network requester):** pass a fixed requester address to `Socks5MixnetClient::connect_new(...)`, or constrain the jurisdiction with the discovery builder (`discover().countries([...])`).
 </Callout>
 
 ## What the mixnet does not protect

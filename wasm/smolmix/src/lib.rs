@@ -94,6 +94,14 @@ pub struct SetupOpts {
     /// Nym API directory.
     #[serde(default)]
     pub preferred_ipr: Option<String>,
+    /// Identity key (base58) of the entry gateway to register with. Omit (or
+    /// pass `null`) for performance-weighted random selection. Only consulted
+    /// on the first registration for a given `clientId`; a client that already
+    /// has a stored gateway keeps it, so randomise `clientId` to force a fresh
+    /// pick. Pinning this lets a host CSP allowlist a single gateway hostname
+    /// instead of `wss://*`.
+    #[serde(default)]
+    pub preferred_gateway: Option<String>,
     /// Client storage namespace; randomise per session for clean state.
     #[serde(default)]
     pub client_id: Option<String>,
@@ -211,6 +219,9 @@ pub fn setup_mix_tunnel(opts: SetupOpts) -> js_sys::Promise {
 
             if let Some(ipr) = ipr_address {
                 builder = builder.ipr_address(ipr);
+            }
+            if let Some(gw) = opts.preferred_gateway {
+                builder = builder.preferred_gateway(gw);
             }
             if let Some(addr) = parse_dns(opts.primary_dns)? {
                 builder = builder.primary_dns(addr);

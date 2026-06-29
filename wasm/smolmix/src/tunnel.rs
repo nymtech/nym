@@ -47,6 +47,12 @@ use crate::stream::{self, PooledConn, WasmTcpStream, WasmUdpSocket};
 pub struct TunnelOpts {
     /// `None` triggers performance-weighted auto-discovery via `ipr::discover_ipr`.
     pub ipr_address: Option<Recipient>,
+    /// Identity key (base58) of the entry gateway to register with. `None`
+    /// triggers performance-weighted random selection. Only consulted on the
+    /// first registration for a `client_id`; an already-registered client keeps
+    /// its stored gateway (registration derives a shared key, so it cannot be
+    /// repointed without re-registering).
+    pub preferred_gateway: Option<String>,
     /// Client storage ID. Randomise per session to get a clean client.
     pub client_id: String,
     /// Use `wss://` for gateway connections (default: `true`).
@@ -112,6 +118,7 @@ impl TunnelOpts {
 #[derive(Default)]
 pub struct TunnelOptsBuilder {
     ipr_address: Option<Recipient>,
+    preferred_gateway: Option<String>,
     client_id: Option<String>,
     force_tls: Option<bool>,
     disable_poisson_traffic: Option<bool>,
@@ -130,6 +137,10 @@ pub struct TunnelOptsBuilder {
 impl TunnelOptsBuilder {
     pub fn ipr_address(mut self, v: Recipient) -> Self {
         self.ipr_address = Some(v);
+        self
+    }
+    pub fn preferred_gateway(mut self, v: impl Into<String>) -> Self {
+        self.preferred_gateway = Some(v.into());
         self
     }
     pub fn client_id(mut self, v: impl Into<String>) -> Self {
@@ -189,6 +200,7 @@ impl TunnelOptsBuilder {
         let defaults = TuningOpts::default();
         TunnelOpts {
             ipr_address: self.ipr_address,
+            preferred_gateway: self.preferred_gateway,
             client_id: self.client_id.unwrap_or_else(|| "smolmix-wasm".to_string()),
             force_tls: self.force_tls.unwrap_or(true),
             disable_poisson_traffic: self.disable_poisson_traffic.unwrap_or(false),
@@ -368,7 +380,7 @@ impl WasmTunnel {
         if !has_gateway {
             let user_agent = nym_bin_common::bin_info!().into();
             add_gateway(
-                None, // preferred_gateway
+                opts.preferred_gateway.clone(),
                 None, // latency_based_selection
                 opts.force_tls,
                 &config.client.nym_api_urls,

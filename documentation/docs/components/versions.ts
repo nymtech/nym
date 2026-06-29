@@ -8,11 +8,14 @@
  * When bumping versions here, also update the Cargo.toml snippets in:
  *
  *   pages/developers/rust/importing.mdx
- *   pages/developers/rust/tcpproxy.mdx
  *   pages/developers/rust/mixnet/tutorial.mdx
  *   pages/developers/rust/stream/tutorial.mdx
  *   pages/developers/rust/client-pool/tutorial.mdx
- *   public/llms.txt
+ *   pages/developers/smolmix.mdx          (SMOLMIX_VERSION)
+ *
+ * public/llms-full.txt is generated from these pages by generate-llms-txt.mjs
+ * at build time, so it picks up the bumps automatically. (public/llms.txt is a
+ * static index with no version snippets.)
  *
  * RUST_MSRV is imported directly by all pages that display the Rust version,
  * so no manual file edits are needed for MSRV bumps:

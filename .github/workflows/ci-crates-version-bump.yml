@@ -70,9 +70,10 @@ jobs:
             --yes
 
       - name: Bump docs version constants and Cargo.toml snippets
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ inputs.version }}"
           DOCS=documentation/docs
 
           # Rust crate constants in the centralised versions file. The TypeScript

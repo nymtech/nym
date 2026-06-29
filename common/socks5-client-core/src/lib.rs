@@ -23,6 +23,7 @@ use nym_task::{ShutdownManager, ShutdownTracker};
 use nym_validator_client::UserAgent;
 use std::error::Error;
 use std::path::PathBuf;
+use tokio::net::TcpListener;
 
 pub mod config;
 pub mod error;
@@ -95,6 +96,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn start_socks5_listener(
         socks5_config: &config::Socks5,
+        listener: TcpListener,
         base_debug: DebugConfig,
         client_input: ClientInput,
         client_output: ClientOutput,
@@ -104,6 +106,7 @@ where
         packet_type: PacketType,
     ) {
         info!("Starting socks5 listener...");
+        info!("Listening on {}", socks5_config.bind_address);
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
 
@@ -129,7 +132,6 @@ where
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.bind_address,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,
@@ -147,6 +149,7 @@ where
         nym_task::spawn_future(async move {
             sphinx_socks
                 .serve(
+                    listener,
                     input_sender,
                     received_buffer_request_sender,
                     connection_command_sender,
@@ -208,6 +211,10 @@ where
     }
 
     pub async fn start(self) -> Result<StartedSocks5Client, Socks5ClientCoreError> {
+        // Bind the listener before starting the base client so a port collision
+        // fails here, before we spin up (and would have to tear down) the mixnet.
+        let listener = TcpListener::bind(self.config.socks5.bind_address).await?;
+
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if self.config.base.client.disabled_credentials_mode {
             None
@@ -236,6 +243,7 @@ where
 
         Self::start_socks5_listener(
             &self.config.socks5,
+            listener,
             self.config.base().debug,
             client_input,
             client_output,

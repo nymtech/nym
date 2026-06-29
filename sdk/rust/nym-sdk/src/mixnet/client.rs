@@ -38,6 +38,7 @@ use std::path::Path;
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -905,6 +906,10 @@ where
             .socks5_config
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
+        // Bind the local listener before starting the mixnet client: a port
+        // collision then fails here, loudly, without spinning up (and leaking) a
+        // mixnet client we would immediately discard.
+        let listener = TcpListener::bind(socks5_config.bind_address).await?;
         let debug_config = self.config.debug_config;
         let packet_type = self.config.debug_config.traffic.packet_type;
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
@@ -915,6 +920,7 @@ where
 
         nym_socks5_client_core::NymClient::<S>::start_socks5_listener(
             &socks5_config,
+            listener,
             debug_config,
             client_input,
             client_output,

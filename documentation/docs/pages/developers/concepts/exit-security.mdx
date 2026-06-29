@@ -14,13 +14,13 @@ Every tool that reaches an external service through the Nym mixnet shares the sa
 
 ## The one-sentence version
 
-In **proxy mode** the mixnet hides **who** you are from the destination and **where** you're going from the network, but the exit gateway sees your **destination** and any payload you didn't encrypt yourself. In **end-to-end** mode there is no exit gateway: traffic stays Sphinx-encrypted the whole way.
+In **proxy mode** the mixnet hides **who** you are from the destination and **where** you're going from the network, but the Exit Gateway sees your **destination** and any payload you didn't encrypt yourself. In **end-to-end** mode there is no Exit Gateway: traffic stays Sphinx-encrypted the whole way.
 
 ## Proxy mode or end-to-end?
 
 Most of this page is about **proxy mode**: your traffic leaves the mixnet at an Exit Gateway, via either the IP Packet Router (raw IP packets) or the SOCKS-based Network Requester (which sees the destination hostname), and continues to a third-party server over clearnet, where the security trade-offs apply.
 
-If both ends run a Nym client (**end-to-end**), traffic never exits the mixnet. It stays Sphinx-encrypted from your client to the other client, there is no exit gateway, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
+If both ends run a Nym client (**end-to-end**), traffic never exits the mixnet. It stays Sphinx-encrypted from your client to the other client, there is no Exit Gateway, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
 
 ## What each hop sees
 
@@ -45,14 +45,14 @@ The table below is the proxy-mode path. In end-to-end mode there is no exit and 
 |---|---|---|
 | Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
 | Inside the mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
-| Exit gateway (IPR or NR) | Sphinx removed; raw IP packet (IPR) or SOCKS request (NR) exposed | The IPR sees the destination IP and port; the NR sees the destination hostname. Either way the payload depends on your application layer (see below). |
-| Exit gateway → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the exit gateway's IP, not yours |
+| Exit Gateway (IPR or NR) | Sphinx removed; raw IP packet (IPR) or SOCKS request (NR) exposed | The IPR sees the destination IP and port; the NR sees the destination hostname. Either way the payload depends on your application layer (see below). |
+| Exit Gateway → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the Exit Gateway's IP, not yours |
 
-The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. In proxy mode the exit gateway strips the Sphinx layers and forwards the request to the destination, analogous to how a Tor exit node or VPN endpoint unwraps its tunnel. In end-to-end mode the Sphinx layers are only removed at the receiving Nym client, so nothing is ever exposed on clearnet.
+The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. In proxy mode the Exit Gateway strips the Sphinx layers and forwards the request to the destination, analogous to how a Tor exit node or VPN endpoint unwraps its tunnel. In end-to-end mode the Sphinx layers are only removed at the receiving Nym client, so nothing is ever exposed on clearnet.
 
 ## Encrypt your own payload
 
-Because the exit gateway removes the Sphinx layers, whatever is inside is visible to the exit unless you encrypted it yourself.
+Because the Exit Gateway removes the Sphinx layers, whatever is inside is visible to the exit unless you encrypted it yourself.
 
 - **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the exit. It still sees the destination, but not the content. Over TLS the exit only ever handles ciphertext bound for that destination; the bytes inside stay opaque to it.
 - **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.

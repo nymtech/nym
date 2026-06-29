@@ -233,12 +233,12 @@ static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     }
 });
 
-pub(crate) static SHARED_NETWORK_RECONFIGURATION: LazyLock<Arc<Mutex<Instant>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(Instant::now())));
+pub(crate) static SHARED_NETWORK_RECONFIGURATION: LazyLock<Arc<Mutex<Option<Instant>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(None)));
 
 /// Indicate to the shared marker that a network reconfiguration happened.
 pub fn network_reconfigured() {
-    *SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Instant::now();
+    *SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Some(Instant::now());
 }
 
 /// Collection of URL Path Segments
@@ -1196,10 +1196,10 @@ impl ApiClientCore for Client {
                     return Ok(resp);
                 }
                 Err(err) => {
-                    let network_reconfigured = SHARED_NETWORK_RECONFIGURATION
-                        .lock()
-                        .unwrap()
-                        .gt(&request_start);
+                    let last_network_reconfiguration =
+                        *SHARED_NETWORK_RECONFIGURATION.lock().unwrap();
+                    let network_reconfigured =
+                        last_network_reconfiguration.is_some_and(|last| last > request_start);
 
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();

@@ -36,7 +36,10 @@ const clampSurbs = (n: number, min: number) => Math.min(50, Math.max(min, n));
 const DEFAULT_IPR =
   '6B6iuWX4bQP4GVA4Yq7XmZencaaGw6BaPY6xJWYSwsbF.6g6LRx1fgU2Q2A4ZPKonYHtfBARh1GPMe1LtXk6vpRR8@q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
 
-// const PINNED_GATEWAY = 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1';
+// Optional gateway pin. Empty = let the client pick a gateway at random. Set it
+// to an identity (e.g. 'q2A2cbooyC16YJzvdYaSMH9X3cSiieZNtfBr8cE8Fi1') to force a
+// known entry gateway for debugging.
+const PINNED_GATEWAY = '';
 
 export function MixTunnelSetup({
   onReady,
@@ -106,7 +109,7 @@ export function MixTunnelSetup({
       } else {
         await m.setupMixTunnel({
           ...(useRandomIpr ? {} : { preferredIpr: iprAddress.trim() }),
-          preferredGateway: PINNED_GATEWAY,
+          ...(PINNED_GATEWAY ? { preferredGateway: PINNED_GATEWAY } : {}),
           clientId,
           forceTls,
           disablePoissonTraffic: disablePoisson,

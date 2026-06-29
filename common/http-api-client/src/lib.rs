@@ -142,8 +142,8 @@
 use http::header::USER_AGENT;
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
-use rustls::lock::Mutex;
 use std::error::Error;
+use std::sync::Mutex;
 use std::time::Instant;
 
 pub mod registry;

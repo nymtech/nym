@@ -32,7 +32,7 @@ Because it operates at the application layer, the NR:
 - Can enforce allow/deny lists on destination hosts and ports
 - Sees the destination hostname and port, but not the contents if TLS is used
 
-**Used by:** the [SDK's SOCKS5 module](/developers/rust/socks5) and the [standalone SOCKS5 client](/developers/clients/socks5).
+**Used by:** the [SDK's SOCKS client](/developers/rust/mixnet), [standalone SOCKS5 client](/developers/clients/socks5), and [mixFetch](/developers/mix-fetch) (which wraps SOCKS requests in a browser-friendly `fetch` API).
 
 ## IP Packet Router
 
@@ -59,7 +59,7 @@ Because it operates at the IP layer, the IPR:
 In both services, traffic between the Exit Gateway and the destination travels over the public internet, exactly as it would from any other server. The mixnet protects sender anonymity (the destination sees the gateway's IP, not yours), but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher to protect payload confidentiality, just as you would on a direct connection.
 </Callout>
 
-**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK), and the browser `mix-*` packages built on `smolmix`: [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket).
+**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), and [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK).
 
 ## Comparison
 
@@ -70,7 +70,7 @@ In both services, traffic between the Exit Gateway and the destination travels o
 | **DNS** | Resolved by the NR | Client resolves its own |
 | **Client gets** | Proxied connections | An allocated IP address |
 | **Connection model** | Per-request | Persistent tunnel |
-| **Used by** | SDK SOCKS5 module, standalone SOCKS5 client | NymVPN (anonymous mode), smolmix, mix-* packages |
+| **Used by** | SDK SOCKS client, mixFetch | NymVPN (anonymous mode), smolmix |
 
 ## Trust model
 

@@ -12,8 +12,7 @@ Commands:
 
 Options:
   -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file that configures the nymvisor and overrides any
-          preconfigured values
+          Path pointing to an env file that configures the nymvisor and overrides any preconfigured values
   -h, --help
           Print help
   -V, --version

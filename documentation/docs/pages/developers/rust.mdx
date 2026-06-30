@@ -37,7 +37,6 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 |---|---|---|
 | [**Stream**](./rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
 | [**Mixnet**](./rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
-| [**SOCKS5**](./rust/socks5) | Local SOCKS5 proxy that routes any SOCKS-capable application through the Mixnet to a network requester (proxy mode, exits to clearnet). | Stable |
 | [**Client Pool**](./rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
 | [**TcpProxy**](./rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
 | [**FFI**](./rust/ffi) | Go and C/C++ bindings. | Stable |
@@ -51,4 +50,4 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
 
 - [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
-- [**SOCKS5 module**](./rust/socks5): SOCKS4/4a/5 proxy via the Exit Gateway's network requester. Works with any SOCKS-capable application without code changes.
+- [**SOCKS Client**](./rust/mixnet): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.

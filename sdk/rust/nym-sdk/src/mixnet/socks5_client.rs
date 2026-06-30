@@ -6,13 +6,13 @@ use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
-use tokio::sync::RwLockReadGuard;
-
-use celes::Country;
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 
 use crate::mixnet::client::MixnetClientBuilder;
 use crate::{Error, Result};
+
+use celes::Country;
+use tokio::sync::RwLockReadGuard;
 
 /// A SOCKS5 proxy client connected to the Nym mixnet.
 ///

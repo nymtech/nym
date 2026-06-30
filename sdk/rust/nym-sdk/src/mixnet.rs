@@ -82,7 +82,6 @@ mod native_client;
 mod paths;
 mod sink;
 mod socks5_client;
-mod socks5_discovery;
 pub mod stream;
 mod traits;
 
@@ -93,8 +92,7 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use paths::StoragePaths;
 pub use sink::{MixnetMessageSink, MixnetMessageSinkTranslator};
-pub use socks5_client::Socks5MixnetClient;
-pub use socks5_discovery::NetworkRequester;
+pub use socks5_client::{NetworkRequester, Socks5MixnetClient};
 pub use stream::{MixnetListener, MixnetStream, StreamId};
 pub use traits::MixnetMessageSender;
 

@@ -54,6 +54,12 @@ pub enum DirectoryContractError {
     #[error("malformed entry value: {0}")]
     MalformedEntryValue(String),
 
+    /// The persisted LtHash digest accumulator was not the expected length, so it
+    /// could not be loaded (state corruption - the contract always writes exactly
+    /// `nym_lthash::DIGEST_LEN` bytes).
+    #[error("the stored digest accumulator is corrupt (unexpected length)")]
+    CorruptDigestState,
+
     /// `migrate` could not bring the on-chain state forward.
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },

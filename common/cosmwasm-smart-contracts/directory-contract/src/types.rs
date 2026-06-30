@@ -314,6 +314,14 @@ pub enum EntryKey {
 }
 
 impl EntryKey {
+    pub fn new_node(node_id: NodeId, label: String) -> Self {
+        EntryKey::Node { node_id, label }
+    }
+
+    pub fn new_curated(key: String) -> Self {
+        EntryKey::Curated { key }
+    }
+
     /// The key-class tag for this entry.
     pub fn namespace(&self) -> Namespace {
         match self {

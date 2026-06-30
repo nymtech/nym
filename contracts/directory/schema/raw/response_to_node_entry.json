@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NodeEntryResponse",
+  "description": "Response for [`crate::QueryMsg::NodeEntry`]; `None` if the slot is empty.",
+  "type": "object",
+  "properties": {
+    "entry": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NodeEntry"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "NodeEntry": {
+      "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+      "type": "object",
+      "required": [
+        "data",
+        "signature",
+        "updated_at_height"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        },
+        "signature": {
+          "$ref": "#/definitions/Binary"
+        },
+        "updated_at_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

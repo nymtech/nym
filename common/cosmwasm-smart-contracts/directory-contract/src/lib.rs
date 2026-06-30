@@ -20,5 +20,6 @@ pub mod types;
 pub mod helpers;
 
 pub use error::*;
+pub use helpers::node_signing_payload;
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 pub use types::*;

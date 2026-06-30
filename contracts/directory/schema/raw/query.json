@@ -1,0 +1,283 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Contract configuration and current admin.",
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "A single node entry.",
+      "type": "object",
+      "required": [
+        "node_entry"
+      ],
+      "properties": {
+        "node_entry": {
+          "type": "object",
+          "required": [
+            "label",
+            "node_id"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "A single curated entry.",
+      "type": "object",
+      "required": [
+        "curated_entry"
+      ],
+      "properties": {
+        "curated_entry": {
+          "type": "object",
+          "required": [
+            "id",
+            "label"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "All entries for one node.",
+      "type": "object",
+      "required": [
+        "node_entries"
+      ],
+      "properties": {
+        "node_entries": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Paginated enumeration of all curated entries.",
+      "type": "object",
+      "required": [
+        "all_curated_entries"
+      ],
+      "properties": {
+        "all_curated_entries": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Paginated enumeration of ALL entries (both namespaces) - the global pull a client uses to recompute and verify the digest.",
+      "type": "object",
+      "required": [
+        "all_entries"
+      ],
+      "properties": {
+        "all_entries": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/EntryKey"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The next sequence a node must sign with.",
+      "type": "object",
+      "required": [
+        "sequence"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The compact 32-byte global digest.",
+      "type": "object",
+      "required": [
+        "digest"
+      ],
+      "properties": {
+        "digest": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The label whitelist with per-label sizes.",
+      "type": "object",
+      "required": [
+        "allowed_labels"
+      ],
+      "properties": {
+        "allowed_labels": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "EntryKey": {
+      "description": "The fully-qualified key of a directory entry in the unified store: its [`Namespace`], the raw id bytes (big-endian `node_id` for the node namespace, handle bytes for curated), and the label.",
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "namespace"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Binary"
+        },
+        "label": {
+          "type": "string"
+        },
+        "namespace": {
+          "$ref": "#/definitions/Namespace"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Namespace": {
+      "description": "Key-class / trust-tier discriminant for a directory entry. Extensible: new entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).",
+      "oneOf": [
+        {
+          "description": "Self-published node entry, authorised by the node's identity key.",
+          "type": "string",
+          "enum": [
+            "node"
+          ]
+        },
+        {
+          "description": "Admin-curated entry (e.g. a nym-api identity key).",
+          "type": "string",
+          "enum": [
+            "curated"
+          ]
+        }
+      ]
+    }
+  }
+}

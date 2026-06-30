@@ -1227,6 +1227,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+]
+
+[[package]]
+name = "nym-directory-contract-common"
+version = "1.21.2"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-ecash"
 version = "0.1.0"
 dependencies = [

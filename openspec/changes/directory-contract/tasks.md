@@ -1,8 +1,8 @@
 ## 1. Crate scaffolding
 
-- [x] 1.1 Created `nym-directory-contract-common` (msg, types, error, constants, lib) mirroring node-families; builds default + `schema`. Has `Namespace` enum, `NodeEntry`/`CuratedEntry`/`LabelConfig`/`Config`, query responses, and the canonical `node_signing_payload` + `digest_leaf` encoders; sequence model is gap-free exact-match
-- [ ] 1.2 Create `contracts/directory` (contract, transactions, queries, storage, helpers, lib, schema bin), mirroring `contracts/node-families`
-- [ ] 1.3 Add `prost` dep and depend on the in-house `lthash` crate (group 2, not `lthash-rs`); pin `rust-version` for MSRV 1.86; confirm a minimal `cargo wasm` build passes `cosmwasm-check` (with the `wasm-opt` lowering)
+- [x] 1.1 Created `nym-directory-contract-common` (msg, types, error, constants, helpers, lib) mirroring node-families; builds default + `schema` (14 tests). Has the `Namespace` tag, the `EntryKey` enum (`Node { node_id, label }` | `Curated { label, suffix }`) with its manual key codec (`storage_key`/`from_storage_key` + `namespace_prefix`/`node_prefix`/`curated_label_prefix` + `prefix_upper_bound`), `NodeEntry { data, updated_at_height, sequence, signature }` / `CuratedEntry` / `CuratedKey` / `LabelConfig` / `KnownLabel`, query responses, and the canonical `node_signing_payload` + per-variant `digest_leaf` encoders (node commits data+signature+sequence; curated commits data; height excluded). No `Config` struct. Sequence model is gap-free exact-match
+- [ ] 1.2 Create `contracts/directory` (contract, transactions, queries, storage, helpers, lib, schema bin), mirroring `contracts/node-families`. Scaffolded: lib + contract entry points (instantiate + migrate done; execute/query stubbed to match arms) + storage definitions/`initialise`; execute/query handlers, queued migrations, and the testing-harness mixnet patch remain
+- [ ] 1.3 Depend on the in-house `nym-lthash` crate (group 2, not `lthash-rs`); pin `rust-version` for MSRV 1.86; confirm a minimal `cargo wasm` build passes `cosmwasm-check` (with the `wasm-opt` lowering). (`prost` is NOT a contract dep - it is only for consumer payloads inside `data`, per D-serde.)
 
 ## 2. LtHash common library
 
@@ -14,12 +14,12 @@
 
 ## 3. Storage model
 
-- [ ] 3.1 ONE namespaced raw-bytes entry store (not two maps). Key = length-prefixed `(namespace_tag: u8, id_bytes, label)` - node id = `node_id.to_be_bytes()` (numeric order), curated id = handle bytes; equivalent to a cw-storage-plus composite `(u8, Vec<u8>, String)`. NOT a `:`-delimited string. Use the `StoredDeposits` pattern: keep `Path`/`Prefix`/`range_with_prefix`/`KeyDeserialize` for keys, `storage.set/get` raw bytes for values
-- [ ] 3.2 `NodeEntry { data, updated_at_height, signature }` and `CuratedEntry { data }` with compact `to_bytes`/`try_from_bytes` value codecs in `nym-directory-contract-common` (raw bytes, no JSON/base64; `data` stays opaque) - removes ~33-42% storage overhead. (The node's `data` payload format is a consumer concern, e.g. prost+BTreeMap.)
-- [ ] 3.3 Persistent per-node `sequence` map (`u64`), surviving entry deletion
-- [ ] 3.4 Allowed-labels map (`label -> LabelConfig { max_size }`) + 128 KiB ceiling constant
-- [ ] 3.5 Store the full `LtHash16` state as the accumulator `Item` (~2 KB, mutated O(1) per write, stored RAW not base64); expose & ICS23-prove the compact 32-byte `LtHash16::out()` (blake3 collapse) as the public digest (comparison-only, not homomorphic). Canonical leaf encoder `canonical(namespace, id, label, value)` (length-prefixed) lives in/alongside `nym-lthash` so contract and client agree byte-for-byte
-- [ ] 3.6 Instantiate config: admin, mixnet contract address, initial label set
+- [ ] 3.1 ONE namespaced raw-bytes entry store (not two maps), keyed by the `EntryKey` enum via its MANUAL codec - NOT a cw-storage-plus composite tuple and NOT `PrimaryKey`. Key bytes = `tag ++ len_prefixed(leading) ++ trailing` where `(leading, trailing)` = `(node_id.to_be_bytes(), label)` for a node and `(label, suffix)` for a curated entry. Use raw `Storage::set/get/range` with `EntryKey::storage_key()`/`from_storage_key()` + `node_prefix`/`curated_label_prefix`/`namespace_prefix` + `prefix_upper_bound`; NOT `Map<EntryKey, _>`/`Path`/`KeyDeserialize`. NOT a `:`-delimited string. (Note: the scaffold currently declares `Map<EntryKey, DirectoryEntry>` as a placeholder - replace it with the raw-ops store.)
+- [ ] 3.2 `NodeEntry { data, updated_at_height, sequence, signature }` and `CuratedEntry { data }` with compact `to_bytes`/`try_from_bytes` value codecs in `nym-directory-contract-common` (raw bytes, no JSON/base64; `data` stays opaque) - removes ~33-42% storage overhead. (The structs exist; the value codecs still need adding. The node's `data` payload format is a consumer concern, e.g. prost+BTreeMap.)
+- [x] 3.3 Persistent per-node `sequence` map (`u64`), surviving entry deletion - declared in `storage.rs` (`sequences` + `current_sequence`/`increment_account_sequence`)
+- [x] 3.4 Allowed-labels map (`label -> LabelConfig { max_size }`) + 128 KiB ceiling constant (`MAX_LABEL_SIZE_CEILING`) - declared in `storage.rs` + `constants.rs`
+- [ ] 3.5 Store the full `LtHash16` state as the accumulator `Item` (~2 KB, mutated O(1) per write, stored RAW not base64; `digest_state` Item declared); expose & ICS23-prove the compact 32-byte `LtHash16::out()` (blake3 collapse) as the public digest (comparison-only, not homomorphic). The per-variant leaf encoder is `EntryKey::digest_leaf(&DirectoryEntry)` in `nym-directory-contract-common` (node commits data+signature+sequence; curated commits data; `updated_at_height` excluded) - already implemented - so contract and client agree byte-for-byte
+- [x] 3.6 Instantiate: admin = the instantiator (`Admin::set(info.sender)`, not an `InstantiateMsg` field); params = mixnet contract address + initial label set; seeds the whitelist from `KnownLabel::ALL` (each `default_config`) then applies `initial_labels` - implemented in `storage.rs::initialise`
 
 ## 4. Digest
 
@@ -31,7 +31,7 @@
 
 - [ ] 5.1 Cross-query mixnet (`MixnetContractQuerier`) for existence (bonded and not unbonding) and the base58 identity key; decode to 32 bytes
 - [ ] 5.2 Verify the ed25519 signature over `node_id || label || sequence || data` via `deps.api.ed25519_verify`
-- [ ] 5.3 Enforce strict per-node sequence increase; reject stale/replayed/cross-slot-lifted signatures (including replay-after-delete)
+- [ ] 5.3 Enforce gap-free exact-match per-node sequence (signed sequence must equal the expected next; advance only on success); reject stale/replayed/jumped-ahead/cross-slot-lifted signatures (including replay-after-delete)
 - [ ] 5.4 Validate label allowed + `data` within `max_size`; store entry (+ signature + `updated_at`); update digest
 - [ ] 5.5 Node self-delete handler (signed, sequence-advancing); update digest
 
@@ -49,7 +49,7 @@
 
 ## 8. Queries
 
-- [ ] 8.1 `entry`, `entries_for`, paginated `all_entries` (both namespaces), `digest`, `sequence`, `allowed_labels`, `config`
+- [ ] 8.1 `Admin`, `NodeEntry`, `CuratedEntry`, `NodeEntries`, paginated `AllCuratedEntries`, paginated `AllEntries` (both namespaces), `Sequence`, `Digest`, `AllowedLabels` (no `config` query)
 - [ ] 8.2 Confirm provable reads: the digest `Item` and individual entries at deterministic raw keys (document the key layout for clients)
 
 ## 9. Tests

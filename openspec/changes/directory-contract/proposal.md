@@ -6,13 +6,13 @@ nym-nodes today publish their configuration (identity and sphinx public keys, IP
 
 - Introduce a new CosmWasm `directory-contract` that stores opaque, deterministically-encoded bytes in a key-value map under two key-classes:
   - **node entries** keyed `(node_id, label)`, authored by the node itself - authorized by an ed25519 signature from the node's identity key (fetched from the mixnet bond) bound to a per-node monotonic sequence;
-  - **curated entries** keyed `(curated_id, label)`, managed by the contract admin (governance) - e.g. nym-api identity keys and endpoints - so off-chain aggregators are authenticatable on-chain.
+  - **curated entries** keyed `(label, suffix)` (an optional instance discriminator; `None` = singleton under the label), managed by the contract admin (governance) - e.g. nym-api identity keys and endpoints - so off-chain aggregators are authenticatable on-chain.
 - Invert distribution from PULL to PUSH. Writes are authorized by the signature, so **anyone may relay** the transaction (the tx sender is unchecked).
-- Maintain a single **global incremental multiset digest** (LtHash16, ~2 KB) over all entries in contract state (`leaf = canonical(key, value)`), so a consumer can verify it holds the complete, untampered directory at a given height with a single chain proof.
+- Maintain a single **global incremental multiset digest** (LtHash16, ~2 KB) over all entries in contract state (each leaf commits the entry's key and value - for node entries including the `signature` and `sequence`, so authorship is committed, not just content), so a consumer can verify it holds the complete, untampered directory at a given height with a single chain proof.
 - Manage an **admin-mutable label whitelist** with a per-label maximum byte size (hard ceiling 128 KiB). `RemoveLabel` is non-destructive (blocks new writes only; never cascade-deletes).
 - Lifecycle: writes require the node **bonded and not unbonding**; on unbond the mixnet contract notifies the directory via a **best-effort callback** that deletes that node's entries (bounded; reply-on-error so a directory fault cannot block unbonding).
-- Deterministic encoding: `prost` (derive macro, no `.proto`/`protoc`) with `BTreeMap` map fields; the digest hashes the stored bytes.
-- Persist the ed25519 signature alongside each node entry (enables chain-free offline authorship verification).
+- Encoding: entry values use a compact hand-rolled raw-bytes codec (`to_bytes`/`try_from_bytes`), not JSON/base64; the digest hashes those stored bytes. The opaque payload inside `data` is a consumer concern - `prost` (derive macro, no `.proto`/`protoc`) with `BTreeMap` map fields is recommended there for deterministic, forward-compatible payloads.
+- Persist the ed25519 signature **and the sequence** alongside each node entry and commit both to the digest, so each entry is self-authenticating and the whole directory is auditable from current state alone (not merely an offline-verification bonus).
 - Out of scope for this change (separate future work): the retrieval/verification client (light-client bootstrap, root key, paranoid vs normal routes, cross-check). There is **no merkle tree** and **no per-node digest** in v1.
 
 ## Capabilities

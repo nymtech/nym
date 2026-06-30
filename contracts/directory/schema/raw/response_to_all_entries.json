@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AllEntriesPagedResponse",
+  "description": "A page of the global entry enumeration across both namespaces - the input from which a client recomputes and verifies the digest.",
+  "type": "object",
+  "required": [
+    "entries"
+  ],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DirectoryEntryRecord"
+      }
+    },
+    "start_next_after": {
+      "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EntryKey"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "CuratedEntry": {
+      "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DirectoryEntry": {
+      "description": "A directory entry of either key-class - the unified in-memory / response type for the single entry store and mixed enumeration; the active variant matches the entry's [`Namespace`]. On-chain the concrete variant is determined by the key's namespace tag, so the raw-bytes value codec stores no redundant discriminant - this `cw_serde` enum is for JSON responses and in-memory use.",
+      "oneOf": [
+        {
+          "description": "A self-published node entry.",
+          "type": "object",
+          "required": [
+            "node_entry"
+          ],
+          "properties": {
+            "node_entry": {
+              "$ref": "#/definitions/NodeEntry"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "An admin-curated entry.",
+          "type": "object",
+          "required": [
+            "curated_entry"
+          ],
+          "properties": {
+            "curated_entry": {
+              "$ref": "#/definitions/CuratedEntry"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DirectoryEntryRecord": {
+      "description": "One entry together with its key, as yielded by the global enumeration.",
+      "type": "object",
+      "required": [
+        "entry",
+        "key"
+      ],
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/DirectoryEntry"
+        },
+        "key": {
+          "$ref": "#/definitions/EntryKey"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EntryKey": {
+      "description": "The fully-qualified key of a directory entry in the unified store: its [`Namespace`], the raw id bytes (big-endian `node_id` for the node namespace, handle bytes for curated), and the label.",
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "namespace"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Binary"
+        },
+        "label": {
+          "type": "string"
+        },
+        "namespace": {
+          "$ref": "#/definitions/Namespace"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Namespace": {
+      "description": "Key-class / trust-tier discriminant for a directory entry. Extensible: new entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).",
+      "oneOf": [
+        {
+          "description": "Self-published node entry, authorised by the node's identity key.",
+          "type": "string",
+          "enum": [
+            "node"
+          ]
+        },
+        {
+          "description": "Admin-curated entry (e.g. a nym-api identity key).",
+          "type": "string",
+          "enum": [
+            "curated"
+          ]
+        }
+      ]
+    },
+    "NodeEntry": {
+      "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+      "type": "object",
+      "required": [
+        "data",
+        "signature",
+        "updated_at_height"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        },
+        "signature": {
+          "$ref": "#/definitions/Binary"
+        },
+        "updated_at_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

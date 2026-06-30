@@ -1,0 +1,7 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MigrateMsg",
+  "description": "Message passed to the contract's `migrate` entry point.",
+  "type": "object",
+  "additionalProperties": false
+}

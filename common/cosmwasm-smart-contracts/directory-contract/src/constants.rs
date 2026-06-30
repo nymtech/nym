@@ -12,11 +12,15 @@ pub const MAX_LABEL_SIZE_CEILING: u32 = 128 * 1024;
 /// `cw_storage_plus` storage-key namespaces. Kept here (not in the contract crate)
 /// so clients can derive raw keys for proofs.
 pub mod storage_keys {
-    /// `Item<Config>`.
-    pub const CONFIG: &str = "config";
+    /// `Admin` (cw-controllers): admin allowed to perform privileged operations.
+    pub const CONTRACT_ADMIN: &str = "contract-admin";
 
-    /// The single entry store for both classes. Key = `(namespace_tag: u8,
-    /// id_bytes, label)`; values are compact raw bytes (see the storage codec).
+    /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
+    pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";
+
+    /// The single entry store for both classes. Keyed by the `EntryKey` enum via
+    /// its manual codec (`tag ++ len_prefixed(leading) ++ trailing`); values are
+    /// compact raw bytes (see the storage codec).
     pub const ENTRIES: &str = "entries";
 
     /// `Map<NodeId, u64>` - the per-node monotonic anti-replay sequence.

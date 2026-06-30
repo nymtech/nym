@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "coconut-dkg",
+    "directory",
     "ecash",
     "mixnet",
     "multisig/cw3-flex-multisig",
@@ -10,7 +11,8 @@ members = [
     "nym-pool",
     "performance",
     "network-monitors",
-    "vesting", "geolocation",
+    "vesting",
+    "geolocation",
 ]
 
 [workspace.package]
@@ -66,6 +68,7 @@ nym-coconut-dkg-common = "1.21.5"
 nym-contracts-common = "1.21.5"
 nym-contracts-common-testing = "1.21.5"
 nym-crypto = { version = "1.21.5", default-features = false }
+nym-directory-contract-common = "1.21.5"
 nym-ecash-contract-common = "1.21.5"
 nym-group-contract-common = "1.21.5"
 nym-geolocation-contract-common = "1.21.5"
@@ -107,8 +110,10 @@ unreachable = "deny"
 nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-crypto = { path = "../common/crypto" }
+nym-lthash = { path = "../common/lthash" }
 nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-directory-contract-common = { path = "../common/cosmwasm-smart-contracts/directory-contract" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }

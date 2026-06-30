@@ -5,14 +5,29 @@
 //! (so a client can reproduce the exact bytes the contract signs and hashes).
 //! `node_id` is always encoded big-endian, matching the storage key's ordering.
 
-use crate::Namespace;
 use nym_mixnet_contract_common::NodeId;
 
 /// Append `bytes` prefixed with its u64 little-endian length, so adjacent
-/// variable-length fields cannot be confused with one another.
-fn push_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
+/// variable-length fields cannot be confused with one another. Shared with
+/// [`crate::EntryKey`]'s storage-key / digest-leaf encoders.
+pub(crate) fn push_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
     buf.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
     buf.extend_from_slice(bytes);
+}
+
+/// The smallest byte string strictly greater than every key beginning with
+/// `prefix` - the exclusive upper bound for a prefix range scan (`Storage::range`).
+/// Returns `None` (meaning "scan to the end") when `prefix` is empty or all `0xff`.
+pub fn prefix_upper_bound(prefix: &[u8]) -> Option<Vec<u8>> {
+    let mut bound = prefix.to_vec();
+    while let Some(last) = bound.last_mut() {
+        if *last < u8::MAX {
+            *last += 1;
+            return Some(bound);
+        }
+        bound.pop();
+    }
+    None
 }
 
 /// The exact bytes a node signs (and the contract verifies via `ed25519_verify`)
@@ -24,18 +39,6 @@ pub fn node_signing_payload(node_id: NodeId, label: &str, sequence: u64, data: &
     push_len_prefixed(&mut buf, label.as_bytes());
     buf.extend_from_slice(&sequence.to_le_bytes());
     push_len_prefixed(&mut buf, data);
-    buf
-}
-
-/// The canonical leaf folded into the global LtHash digest. The namespace tag and
-/// length-prefixing keep leaves unambiguous across key-classes. `id` is the
-/// big-endian `node_id` for the node namespace, or the raw id bytes otherwise.
-pub fn digest_leaf(namespace: Namespace, id: &[u8], label: &str, value: &[u8]) -> Vec<u8> {
-    let mut buf = Vec::new();
-    buf.push(namespace.tag());
-    push_len_prefixed(&mut buf, id);
-    push_len_prefixed(&mut buf, label.as_bytes());
-    push_len_prefixed(&mut buf, value);
     buf
 }
 
@@ -59,22 +62,6 @@ mod tests {
         assert_ne!(
             node_signing_payload(1, "ab", 0, b"c"),
             node_signing_payload(1, "a", 0, b"bc"),
-        );
-    }
-
-    #[test]
-    fn digest_leaf_namespace_separates_classes() {
-        let node = digest_leaf(Namespace::Node, &1u32.to_be_bytes(), "x", b"v");
-        let curated = digest_leaf(Namespace::Curated, &1u32.to_be_bytes(), "x", b"v");
-        assert_ne!(node, curated, "namespace tag must separate the classes");
-    }
-
-    #[test]
-    fn digest_leaf_length_prefix_disambiguates() {
-        // (id "ab", label "c") vs (id "a", label "bc") - same namespace and value
-        assert_ne!(
-            digest_leaf(Namespace::Node, b"ab", "c", b""),
-            digest_leaf(Namespace::Node, b"a", "bc", b""),
         );
     }
 }

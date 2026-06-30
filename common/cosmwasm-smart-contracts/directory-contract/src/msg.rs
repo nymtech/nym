@@ -1,14 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{EntryKey, LabelConfig};
+use crate::types::{CuratedKey, EntryKey, LabelConfig};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use nym_mixnet_contract_common::NodeId;
 
 #[cfg(feature = "schema")]
 use crate::types::{
-    AllEntriesPagedResponse, AllowedLabelsResponse, Config, CuratedEntriesPagedResponse,
+    AllEntriesPagedResponse, AllowedLabelsResponse, CuratedEntriesPagedResponse,
     CuratedEntryResponse, DigestResponse, NodeEntriesResponse, NodeEntryResponse, SequenceResponse,
 };
 
@@ -51,15 +51,19 @@ pub enum ExecuteMsg {
         signature: Binary,
     },
 
-    /// Create or replace a curated entry. Admin only.
+    /// Create or replace a curated entry. Admin only. `suffix`, when present, must
+    /// be non-empty (an empty suffix is indistinguishable from a singleton).
     SetCuratedEntry {
-        id: String,
         label: String,
+        suffix: Option<String>,
         data: Binary,
     },
 
     /// Delete a curated entry. Admin only.
-    RemoveCuratedEntry { id: String, label: String },
+    RemoveCuratedEntry {
+        label: String,
+        suffix: Option<String>,
+    },
 
     /// Add or update a whitelisted label and its `max_size`. Admin only;
     /// `max_size` must not exceed [`crate::constants::MAX_LABEL_SIZE_CEILING`].
@@ -84,26 +88,25 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(cw_controllers::AdminResponse))]
     Admin {},
 
-    /// Contract configuration and current admin.
-    #[cfg_attr(feature = "schema", returns(Config))]
-    Config {},
-
     /// A single node entry.
     #[cfg_attr(feature = "schema", returns(NodeEntryResponse))]
     NodeEntry { node_id: NodeId, label: String },
 
     /// A single curated entry.
     #[cfg_attr(feature = "schema", returns(CuratedEntryResponse))]
-    CuratedEntry { id: String, label: String },
+    CuratedEntry {
+        label: String,
+        suffix: Option<String>,
+    },
 
     /// All entries for one node.
     #[cfg_attr(feature = "schema", returns(NodeEntriesResponse))]
     NodeEntries { node_id: NodeId },
 
-    /// Paginated enumeration of all curated entries.
+    /// Paginated enumeration of all curated entries, ordered `(label, suffix)`.
     #[cfg_attr(feature = "schema", returns(CuratedEntriesPagedResponse))]
     AllCuratedEntries {
-        start_after: Option<(String, String)>,
+        start_after: Option<CuratedKey>,
         limit: Option<u32>,
     },
 

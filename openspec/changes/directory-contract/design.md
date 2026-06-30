@@ -36,6 +36,8 @@ The `EntryKey` enum (`Node { node_id, label }` | `Curated { key }`) is a logical
 
 Each node entry stores BOTH its ed25519 `signature` (~64 bytes) AND the `sequence` it was signed at. Storing the sequence is what makes the signature independently re-verifiable (the signed message is `node_id || label || sequence || data`), so an entry is self-authenticating offline and the whole directory is auditable from current state alone (no transaction-history replay). Replay protection is a **per-node monotonic sequence** (one `u64` per `node_id`), not per-slot: the contract requires the signed sequence to **exactly equal** the node's expected next sequence (gap-free; a too-high value is rejected just like a stale one) and advances the expected value by one only on a successful operation. Per-node (rather than per-`(node,label)`) bounds the sequence state to O(1) per node so unbond cleanup is fully bounded, at the cost of globally ordering a node's writes (acceptable: writes are rare). This prevents replay including replay-after-delete.
 
+Set vs delete are kept on disjoint signature spaces WITHOUT an operation tag in the payload: a write signs `node_id || label || sequence || data` and a delete signs the same with empty `data`, and the contract **rejects empty `data` on writes** - so a write signature (data length >= 1) can never equal a delete signature (data length 0) for the same slot+sequence, and neither can be replayed as the other. (Considered and rejected: a leading op-tag byte; the empty-data prohibition is simpler and needs no signing-format change.)
+
 ### D3. Admin-mutable label whitelist (non-destructive removal)
 
 Allowed labels live in contract state as `Map<label, LabelConfig { max_size }>`, evolved by admin-only `AddLabel`/`SetLabel`/`RemoveLabel` (no code migration). Writes validate `label` is allowed. `RemoveLabel` is **non-destructive**: it blocks new writes/updates under that label but leaves existing entries readable and in the digest (cascade-delete would be unbounded iteration). The contract stays category-governed but schema-agnostic.
@@ -102,6 +104,7 @@ Resolved since first draft:
 - Curated key scheme: a single admin-chosen path `String` (no label/suffix structure, no separate curated-id); the admin sets a sensible path.
 - Mixnet identity-key query: `MixnetContractQuerier::query_nymnode_bond(addr, node_id) -> NymNodeBond` (carries the base58 `identity_key` and `is_unbonding`).
 - Instantiate parameters: `{ mixnet_contract_address, initial_labels }`; admin = the instantiator (`Admin::set(info.sender)`); the 128 KiB ceiling is a contract constant, not an instantiate parameter. Whether the deploy-time admin is a governance multisig is an operational choice, not a contract concern.
+- Admin role transfer: `UpdateAdmin` takes a REQUIRED new admin (`{ admin: String }`, not `Option`) - the admin is always set and can never be cleared, so `assert_admin` always has an authority to check. Delegated to `cw-controllers::Admin::execute_update_admin` (asserts the caller is the current admin, validates + sets the new one).
 
 Still open:
 - The exact SphinxKeys payload format (the wrapper of two rotation-tagged sphinx keys) and the full initial label taxonomy beyond `sphinx_key`.

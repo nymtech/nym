@@ -40,6 +40,14 @@ pub enum DirectoryContractError {
     #[error("data for label {label:?} is {len} bytes, exceeding its {max} byte limit")]
     DataTooLarge { label: String, len: usize, max: u32 },
 
+    /// A node `SetNodeEntry` carried empty `data`. Empty data is disallowed so a set
+    /// signature (over non-empty `data`) can never coincide with a delete signature
+    /// (which signs the canonical payload with empty `data`) for the same
+    /// `(node_id, label, sequence)` - this keeps the set and delete signature spaces
+    /// disjoint without a separate operation tag.
+    #[error("node entry data for label {label:?} must not be empty")]
+    EmptyNodeData { label: String },
+
     /// An admin tried to set a label `max_size` above the contract ceiling.
     #[error("requested max_size {requested} exceeds the contract ceiling of {ceiling} bytes")]
     MaxSizeAboveCeiling { requested: u32, ceiling: u32 },

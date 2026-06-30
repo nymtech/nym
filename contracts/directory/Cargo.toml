@@ -27,6 +27,7 @@ cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
 cw-utils = { workspace = true }
+bs58 = { workspace = true }
 
 nym-lthash = { workspace = true }
 nym-contracts-common = { workspace = true }

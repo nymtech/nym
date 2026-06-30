@@ -12,11 +12,15 @@ The contract SHALL partition stored entries into distinct classes (initially `no
 - **THEN** the contract applies identity-key-signature authorization for node entries and admin authorization for curated entries
 
 ### Requirement: Node configuration entries
-The contract SHALL store node-published configuration as opaque bytes keyed by `(node_id, label)` within the node store, where each entry records the data, the block height it was last updated, the `sequence` it was signed at, and the authoring ed25519 signature. The contract SHALL NOT interpret the byte payload.
+The contract SHALL store node-published configuration as opaque bytes keyed by `(node_id, label)` within the node store, where each entry records the data, the block height it was last updated, the `sequence` it was signed at, and the authoring ed25519 signature. The contract SHALL NOT interpret the byte payload. Node `data` SHALL be non-empty: an empty-data write is rejected. This keeps a set signature (over non-empty `data`) disjoint from a delete signature (which signs the canonical payload with empty `data`), so neither can be replayed as the other without a separate operation tag.
 
 #### Scenario: Node publishes an entry
 - **WHEN** a transaction carries data for `(node_id, label)` with a valid ed25519 signature over `node_id || label || sequence || data` by the node's identity key, the node is bonded and not unbonding, `label` is allowed, and `data` is within the label's `max_size`
 - **THEN** the contract stores `{ data, updated_at_height = current height, sequence, signature }`, advances the node's expected sequence, updates the global digest, and the entry is returned verbatim by a later query
+
+#### Scenario: Empty data rejected
+- **WHEN** a node write carries empty `data`
+- **THEN** the contract rejects it and makes no state change
 
 #### Scenario: Opaque payload preserved
 - **WHEN** a node publishes arbitrary bytes under an allowed label
@@ -56,7 +60,7 @@ The contract SHALL accept node writes and self-deletes only when the node is bon
 - **THEN** the contract rejects it
 
 ### Requirement: Node self-deletion
-A node SHALL be able to delete its own entry via a signed, sequence-advancing operation, and the deletion SHALL update the global digest.
+A node SHALL be able to delete its own entry via a signed, sequence-advancing operation, and the deletion SHALL update the global digest. The deletion SHALL be authorised by a signature over the canonical payload with empty `data`; combined with the non-empty-data rule on writes, this keeps the set and delete signature spaces disjoint. The operation SHALL advance the node's sequence even when the targeted entry does not exist, so a delete signature cannot be replayed.
 
 #### Scenario: Entry deleted and digest updated
 - **WHEN** a node submits a valid signed delete for `(node_id, label)`

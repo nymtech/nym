@@ -66,8 +66,9 @@ pub enum ExecuteMsg {
     /// the label stay readable; only new writes are blocked. Admin only.
     RemoveLabel { label: String },
 
-    /// Transfer or clear the admin role. Admin only.
-    UpdateAdmin { admin: Option<String> },
+    /// Transfer the admin role to `admin`. Admin only. The admin can never be
+    /// cleared - there must always be exactly one.
+    UpdateAdmin { admin: String },
 
     /// Cross-contract callback from the mixnet contract when `node_id` unbonds;
     /// deletes all of that node's entries. Sender must be the configured mixnet

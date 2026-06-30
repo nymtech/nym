@@ -4,6 +4,10 @@
 //! CosmWasm entry points for the nym directory contract.
 
 use crate::storage::NYM_DIRECTORY_CONTRACT_STORAGE;
+use crate::transactions::{
+    try_delete_node_entry, try_handle_node_unbonding, try_remove_curated_entry, try_remove_label,
+    try_set_curated_entry, try_set_label, try_set_node_entry, try_update_admin,
+};
 use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use nym_contracts_common::set_build_information;
 use nym_directory_contract_common::{
@@ -49,17 +53,28 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, DirectoryContractError> {
     match msg {
-        ExecuteMsg::SetNodeEntry { .. } => {}
-        ExecuteMsg::DeleteNodeEntry { .. } => {}
-        ExecuteMsg::SetCuratedEntry { .. } => {}
-        ExecuteMsg::RemoveCuratedEntry { .. } => {}
-        ExecuteMsg::SetLabel { .. } => {}
-        ExecuteMsg::RemoveLabel { .. } => {}
-        ExecuteMsg::UpdateAdmin { .. } => {}
-        ExecuteMsg::OnNymNodeUnbond { .. } => {}
+        ExecuteMsg::SetNodeEntry {
+            node_id,
+            label,
+            data,
+            sequence,
+            signature,
+        } => try_set_node_entry(deps, env, node_id, label, data, sequence, signature),
+        ExecuteMsg::DeleteNodeEntry {
+            node_id,
+            label,
+            sequence,
+            signature,
+        } => try_delete_node_entry(deps, node_id, label, sequence, signature),
+        ExecuteMsg::SetCuratedEntry { key, data } => {
+            try_set_curated_entry(deps, info, key, data)
+        }
+        ExecuteMsg::RemoveCuratedEntry { key } => try_remove_curated_entry(deps, info, key),
+        ExecuteMsg::SetLabel { label, max_size } => try_set_label(deps, info, label, max_size),
+        ExecuteMsg::RemoveLabel { label } => try_remove_label(deps, info, label),
+        ExecuteMsg::UpdateAdmin { admin } => try_update_admin(deps, info, admin),
+        ExecuteMsg::OnNymNodeUnbond { node_id } => try_handle_node_unbonding(deps, info, node_id),
     }
-
-    Ok(Response::default())
 }
 
 /// Read-only dispatcher. Concrete handlers live in [`crate::queries`] and are

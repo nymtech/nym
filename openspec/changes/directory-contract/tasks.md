@@ -1,8 +1,8 @@
 ## 1. Crate scaffolding
 
 - [x] 1.1 Created `nym-directory-contract-common` (msg, types, error, constants, helpers, lib) mirroring node-families; builds default + `schema` (14 tests). Has the `Namespace` tag, the `EntryKey` enum (`Node { node_id, label }` | `Curated { key }`) used ONLY as the `AllEntries` cursor/response key and to derive the canonical `digest_leaf` (no storage-key codec - the per-class stores own keys, see 3.1), `NodeEntry { data, updated_at_height, sequence, signature }` / `CuratedEntry` (each with `to_bytes`/`try_from_bytes`) / `LabelConfig` / `KnownLabel`, query responses, and the canonical `node_signing_payload` + per-variant `digest_leaf` encoders (node commits node_id+label+data+signature+sequence; curated commits key+data; height excluded). No `Config` struct, no `CuratedKey` struct (curated key is a plain `String`). Sequence model is gap-free exact-match
-- [ ] 1.2 Create `contracts/directory` (contract, transactions, queries, storage, helpers, lib, schema bin), mirroring `contracts/node-families`. Scaffolded: lib + contract entry points (instantiate + migrate done; execute/query stubbed to match arms) + storage definitions/`initialise`; execute/query handlers, queued migrations, and the testing-harness mixnet patch remain
-- [ ] 1.3 Depend on the in-house `nym-lthash` crate (group 2, not `lthash-rs`); pin `rust-version` for MSRV 1.86; confirm a minimal `cargo wasm` build passes `cosmwasm-check` (with the `wasm-opt` lowering). (`prost` is NOT a contract dep - it is only for consumer payloads inside `data`, per D-serde.)
+- [x] 1.2 Created & scaffolded `contracts/directory` (package `nym-directory`), mirroring `contracts/node-families`: `lib.rs` (module wiring + `testable-directory-contract` feature), `contract.rs` entry points (instantiate + migrate DONE; execute/query dispatch present but match arms still stubbed), `storage.rs` (full storage layer - see §3/§4), `bin/schema.rs` (`write_api!` wired), and the `testing.rs` harness skeleton (`DirectoryContract` + `init()` instantiating a mock mixnet). `transactions.rs`/`queries.rs`/`queued_migrations.rs` exist as empty stubs. No separate `helpers.rs` (not needed - shared encoders live in the common crate). Builds default + `schema-gen`. The remaining handler/migration/testing-patch work is tracked in §5-§9, not here
+- [ ] 1.3 Depend on the in-house `nym-lthash` crate (group 2, not `lthash-rs`); pin `rust-version` for MSRV 1.86; confirm a minimal `cargo wasm` build passes `cosmwasm-check` (with the `wasm-opt` lowering). (`prost` is NOT a contract dep - it is only for consumer payloads inside `data`, per D-serde.) DONE: `nym-lthash = { workspace = true }` dep added + used (`LtHash16` in `storage.rs`), `rust-version.workspace = true` inherits the contracts-workspace MSRV 1.86, and `prost` is correctly absent. REMAINING: the `cargo wasm` + `cosmwasm-check` confirmation (overlaps §9.5)
 
 ## 2. LtHash common library
 
@@ -29,21 +29,21 @@
 
 ## 5. Node write / auth path
 
-- [ ] 5.1 Cross-query mixnet (`MixnetContractQuerier`) for existence (bonded and not unbonding) and the base58 identity key; decode to 32 bytes
-- [ ] 5.2 Verify the ed25519 signature over `node_id || label || sequence || data` via `deps.api.ed25519_verify`
-- [ ] 5.3 Enforce gap-free exact-match per-node sequence (signed sequence must equal the expected next; advance only on success); reject stale/replayed/jumped-ahead/cross-slot-lifted signatures (including replay-after-delete)
-- [ ] 5.4 Validate label allowed + `data` within `max_size`; store entry (+ signature + `updated_at`); update digest
-- [ ] 5.5 Node self-delete handler (signed, sequence-advancing); update digest
+- [x] 5.1 `transactions::bonded_node_identity_key`: loads the mixnet address, `deps.querier.query_nymnode_bond(&mixnet, node_id)` (one query gives both existence + key), rejects `None`/`is_unbonding` as `NodeNotBonded`, `bs58::decode`s `bond.identity()` and length-checks 32 bytes (else `InvalidIdentityKey`)
+- [x] 5.2 `verify_node_signature` calls `deps.api.ed25519_verify(payload, signature, identity_key)` over `node_signing_payload(node_id, label, sequence, data)`; a false result or verifier error both map to `InvalidSignature`
+- [x] 5.3 `ensure_expected_sequence` enforces signed `sequence == current_sequence` exactly (too-low or too-high both rejected as `InvalidSequence`); `increment_account_sequence` advances by one only after a successful op (so a rejected op consumes nothing; replay-after-delete is rejected since the sequence has moved on)
+- [x] 5.4 `try_set_node_entry`: rejects empty `data` (new `EmptyNodeData` - see design note), checks label whitelisted (`LabelNotAllowed`) + `data.len() <= max_size` (`DataTooLarge`), then stores via `set_node_entry` (digest-maintaining, records data+sequence+signature+`updated_at_height = env.block.height`) and advances the sequence; emits a `set_node_entry` event. Any account may relay (`info` unused). DESIGN DECISION (this session): instead of a set-vs-delete operation tag in the signing payload, **empty node data is disallowed** so a set signature (over non-empty `data`) can never coincide with a delete signature (which signs the payload with empty `data`) - keeping the two signature spaces disjoint with no payload-format change
+- [x] 5.5 `try_delete_node_entry`: same bonded+identity+sequence+signature checks, signing `node_signing_payload(node_id, label, sequence, &[])` (empty `data`); removes via `remove_node_entry` (digest-maintaining, idempotent) and advances the sequence so the signed delete cannot be replayed. (Deps-level unit test covers the empty-data guard; the signed valid/invalid/stale/unbonding/relayer paths are §9.1 and need the harness signing support - see §1.2/testing.rs TODO.)
 
 ## 6. Admin path
 
-- [ ] 6.1 `AddLabel` / `SetLabel` / `RemoveLabel` (admin-only; ceiling enforced; removal non-destructive)
-- [ ] 6.2 `SetCuratedEntry { key, data }` / `RemoveCuratedEntry { key }` (admin-only; `key` is a single admin-chosen path string, no label/suffix structure); update digest
+- [x] 6.1 `try_set_label` (add OR update; admin-gated via `contract_admin.assert_admin`; rejects `max_size > MAX_LABEL_SIZE_CEILING` as `MaxSizeAboveCeiling`) + `try_remove_label` (admin-gated; non-destructive - only `allowed_storage_labels.remove`, never touches node entries). There is no separate `AddLabel` - `SetLabel` serves add+update. Also wired `try_update_admin` (admin role transfer via `cw-controllers` `execute_update_admin`; the admin can NEVER be cleared - `UpdateAdmin { admin: String }` is required, not `Option`, per the design decision below). Events `set_label`/`remove_label`. Tests: add/update, ceiling, non-admin, non-destructive (planted entry survives), admin transfer + non-admin rejected
+- [x] 6.2 `try_set_curated_entry { key, data }` / `try_remove_curated_entry { key }` (admin-gated; `key` is a single admin-chosen path string, no label/suffix structure; no whitelist applies - admin is the gate) calling the digest-maintaining `set_curated_entry`/`remove_curated_entry`. Events `set_curated_entry`/`remove_curated_entry`. Tests: admin set/remove (asserting the digest is updated then returns to empty), non-admin rejected. DESIGN DECISION (this session): the admin is always set and can never be cleared (`UpdateAdmin` takes a required `String`, not `Option<String>`)
 
 ## 7. Unbond callback (cross-contract)
 
-- [ ] 7.1 Directory `OnNymNodeUnbond { node_id }` handler gated by `UnauthorisedMixnetCallback` (sender must be the configured mixnet contract)
-- [ ] 7.2 Delete the node's entries via bounded prefix iteration + digest deltas; make it idempotent. Storage primitive DONE: `NymDirectoryContractStorage::remove_all_node_entries(node_id)` (bounded `node_range` scan, single digest load/save, idempotent on an empty node); the 7.1 handler just calls it
+- [x] 7.1 `try_handle_node_unbonding(deps, info, node_id)` (in `transactions.rs`, wired into `execute` for `ExecuteMsg::OnNymNodeUnbond`): loads the configured mixnet address and rejects `info.sender != mixnet` as `UnauthorisedMixnetCallback { sender }`; emits an `on_nym_node_unbond` event. Tests: non-mixnet caller rejected
+- [x] 7.2 The handler deletes the node's entries via `NymDirectoryContractStorage::remove_all_node_entries(node_id)` - bounded `node_range` scan, single digest load/save, idempotent on an empty node. Tests: a mixnet-authorised callback clears exactly that node's entries (others survive) and moves the digest; a callback for a node with no entries is a no-op (digest + state unchanged). (Exact digest math is covered by the §4.3 storage-level `remove_all_node_entries` test.)
 - [ ] 7.3 Mixnet contract: add `directory_contract_address` to `State` + `InstantiateMsg` + a queued migration
 - [ ] 7.4 Mixnet contract: emit a best-effort (reply-on-error, non-fatal) `OnNymNodeUnbond` sub-message in the unbond handler
 
@@ -56,11 +56,11 @@
 
 - [ ] 9.1 Write/auth: valid write, invalid signature, stale/replayed sequence, replay-after-delete, unknown/unbonding node, disallowed label, oversized data, any-relayer
 - [ ] 9.2 Admin: label add/ceiling/non-admin/non-destructive-remove; curated set/remove/non-admin
-- [ ] 9.3 Digest: update on write/delete, identical-data no-op, recompute-equals-stored, cross-namespace non-collision
+- [ ] 9.3 Digest: update on write/delete, identical-data no-op, recompute-equals-stored, cross-namespace non-collision. NOTE: already covered at the storage level by the §4.3 `storage.rs` tests (update on set/remove, overwrite retires old leaf, multiset recompute-equals-stored, batched cleanup) plus the `nym-directory-contract-common` digest-leaf tag/length-prefix tests (cross-class + intra-class non-collision). Remaining here = the identical-data no-op assertion and, once handlers exist, a recompute-from-`AllEntries` integration check
 - [ ] 9.4 App-level test for the mixnet unbond -> directory callback (deps-level handler tests do not dispatch sub-messages)
 - [ ] 9.5 `cosmwasm-check` the optimized artifact
 
 ## 10. Schema + client wiring
 
-- [ ] 10.1 Generate the JSON schema (schema-gen bin)
+- [ ] 10.1 Generate the JSON schema (schema-gen bin). Bin DONE: `contracts/directory/src/bin/schema.rs` has the `write_api!` for `InstantiateMsg`/`ExecuteMsg`/`QueryMsg`/`MigrateMsg` and builds under `--features schema-gen`. REMAINING: actually run it to emit/commit the `schema/*.json` (and re-run after the message surface settles)
 - [ ] 10.2 validator-client: directory query/signing traits (mirroring the dkg/node-families patterns)

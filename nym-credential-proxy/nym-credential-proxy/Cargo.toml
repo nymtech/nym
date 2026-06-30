@@ -16,33 +16,18 @@ publish = false
 axum.workspace = true
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
-bs58.workspace = true
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
-futures.workspace = true
 humantime.workspace = true
-rand.workspace = true
 reqwest = { workspace = true, features = ["rustls"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
-    "sqlite",
-    "macros",
-    "migrate",
-    "time",
-] }
-strum = { workspace = true, features = ["derive"] }
-strum_macros.workspace = true
 time.workspace = true
-thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tower-http = { workspace = true, features = ["cors"], optional = true }
 tracing.workspace = true
 url.workspace = true
-uuid = { workspace = true, features = ["serde"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipauto = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 zeroize.workspace = true
 

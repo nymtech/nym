@@ -13,10 +13,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // How to choose the requester. `any()` auto-discovers one from the directory,
     // weighted by performance, and is the most robust default. The alternatives:
-    //   NetworkRequester::in_countries(["CH", "DE"])?  -> discovery pinned to those countries
-    //   NetworkRequester::exact("address...")?         -> a specific known requester
-    // If you already have the address, Socks5MixnetClient::connect_new("address...")
-    // is the one-line shorthand for the `exact` case.
+    //   NetworkRequester::in_countries(["CH", "DE"])? -> discovery pinned to those countries
+    //   NetworkRequester::exact(Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf)? -> a specific known requester
+    // If you already have the address, Socks5MixnetClient::connect_new(Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf) is the one-line shorthand for the `exact` case.
     let requester = NetworkRequester::any();
 
     // Passing `None` binds the SOCKS5 listener to the default 127.0.0.1:1080. Pass Some(addr)

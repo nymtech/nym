@@ -18,13 +18,21 @@ use crate::{Error, Result};
 ///
 /// `Socks5MixnetClient` provides a SOCKS5 proxy interface to the Nym mixnet,
 /// allowing HTTP(S) clients and other SOCKS5-compatible applications to route
-/// their traffic through the mixnet for enhanced privacy.
+/// their traffic through the mixnet without having to modify their networking
+/// code.
+///
+/// Traffic leaves the mixnet through a network requester: a service running on
+/// an Exit Gateway that makes requests on the client's behalf and enforces the
+/// Nym exit policy. You can let the client discover one for you or name a specific
+/// one; see [`connect_with`](Self::connect_with) and [`NetworkRequester`].
 ///
 /// ## Usage
 ///
-/// 1. Connect to a service provider via [`connect_new`](Self::connect_new)
+/// 1. Connect, either by discovering a requester with
+///    [`connect_with`](Self::connect_with) or naming a known one with
+///    [`connect_new`](Self::connect_new)
 /// 2. Get the SOCKS5 URL via [`socks5_url`](Self::socks5_url)
-/// 3. Configure your HTTP client to use this SOCKS5 proxy
+/// 3. Point your HTTP client at that SOCKS5 proxy
 ///
 /// ## Example
 ///
@@ -33,7 +41,7 @@ use crate::{Error, Result};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Connect to a network requester service provider
+///     // Connect to a known network requester by address
 ///     let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
 ///
 ///     // Get the SOCKS5 proxy URL
@@ -49,12 +57,7 @@ use crate::{Error, Result};
 ///     Ok(())
 /// }
 /// ```
-///
-/// ## Service Providers
-///
-/// The SOCKS5 client connects to a "network requester" service provider that
-/// makes HTTP requests on behalf of the client. The service provider's Nym
-/// address must be provided when creating the client.
+
 pub struct Socks5MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
@@ -63,7 +66,7 @@ pub struct Socks5MixnetClient {
     /// current message send queue length.
     pub(crate) client_state: ClientState,
 
-    /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
+    /// The task manager controlling all the spawned tasks the client uses to do its job.
     pub(crate) task_handle: ShutdownTracker,
 
     /// SOCKS5 configuration parameters.
@@ -71,7 +74,7 @@ pub struct Socks5MixnetClient {
 }
 
 impl Socks5MixnetClient {
-    /// Create a new client and connect to a service provider over the mixnet via SOCKS5 using
+    /// Create a new client and connect to a network requester over the mixnet via SOCKS5 using
     /// ephemeral in-memory keys that are discarded at application close.
     ///
     /// This is the zero-ceremony path when you already know the requester's
@@ -146,7 +149,7 @@ impl Socks5MixnetClient {
             .await
     }
 
-    /// Get the nym address for this client, if it is available. The nym address is composed of the
+    /// Get the nym address of this client. The nym address is composed of the
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address

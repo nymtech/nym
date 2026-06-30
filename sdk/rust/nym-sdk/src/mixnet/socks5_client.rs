@@ -275,7 +275,7 @@ impl NetworkRequester {
     /// weighted by performance.
     pub async fn resolve(&self) -> Result<Recipient, Error> {
         match self {
-            Self::Exact(addr) => Ok((**addr).clone()),
+            Self::Exact(addr) => Ok(**addr),
             Self::Any => discovery::discover(&[]).await,
             Self::InCountries(countries) => discovery::discover(countries).await,
         }

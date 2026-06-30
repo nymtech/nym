@@ -56,8 +56,7 @@ use crate::{Error, Result};
 ///     client.disconnect().await;
 ///     Ok(())
 /// }
-/// ```
-
+// ```
 pub struct Socks5MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
@@ -106,9 +105,9 @@ impl Socks5MixnetClient {
     /// country-restricted ([`InCountries`](NetworkRequester::InCountries)), or a
     /// known address ([`Exact`](NetworkRequester::Exact)).
     ///
-    /// Discovery always targets mainnet. The discovered requester enforces the
-    /// Nym exit policy, so destinations outside that policy are refused at the
-    /// exit regardless of which requester is selected.
+    /// The discovered requester enforces the Nym exit policy, so destinations
+    /// outside that policy are refused at the  exit regardless of which
+    /// requester is selected.
     ///
     /// `bind` sets the local SOCKS5 listener address; pass `None` for the default
     /// `127.0.0.1:1080`, or `Some(addr)` to move it (for example when 1080 is
@@ -215,7 +214,7 @@ impl Socks5MixnetClient {
 /// behalf) a SOCKS5 client routes through. Three ways, increasing specificity.
 #[derive(Debug, Clone, Default)]
 pub enum NetworkRequester {
-    /// Auto-discover one from the directory, weighted by performance. (default)
+    /// Auto-discover one from the current topology, weighted by performance. (default)
     #[default]
     Any,
     /// Auto-discover, restricted to requesters physically located in one of

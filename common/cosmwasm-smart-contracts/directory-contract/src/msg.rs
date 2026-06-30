@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{CuratedKey, EntryKey, LabelConfig};
+use crate::types::{EntryKey, LabelConfig};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use nym_mixnet_contract_common::NodeId;
@@ -51,19 +51,12 @@ pub enum ExecuteMsg {
         signature: Binary,
     },
 
-    /// Create or replace a curated entry. Admin only. `suffix`, when present, must
-    /// be non-empty (an empty suffix is indistinguishable from a singleton).
-    SetCuratedEntry {
-        label: String,
-        suffix: Option<String>,
-        data: Binary,
-    },
+    /// Create or replace a curated entry. Admin only. `key` is an arbitrary path
+    /// chosen by the admin (the contract imposes no label/suffix structure on it).
+    SetCuratedEntry { key: String, data: Binary },
 
     /// Delete a curated entry. Admin only.
-    RemoveCuratedEntry {
-        label: String,
-        suffix: Option<String>,
-    },
+    RemoveCuratedEntry { key: String },
 
     /// Add or update a whitelisted label and its `max_size`. Admin only;
     /// `max_size` must not exceed [`crate::constants::MAX_LABEL_SIZE_CEILING`].
@@ -94,19 +87,16 @@ pub enum QueryMsg {
 
     /// A single curated entry.
     #[cfg_attr(feature = "schema", returns(CuratedEntryResponse))]
-    CuratedEntry {
-        label: String,
-        suffix: Option<String>,
-    },
+    CuratedEntry { key: String },
 
     /// All entries for one node.
     #[cfg_attr(feature = "schema", returns(NodeEntriesResponse))]
     NodeEntries { node_id: NodeId },
 
-    /// Paginated enumeration of all curated entries, ordered `(label, suffix)`.
+    /// Paginated enumeration of all curated entries, ordered by their key string.
     #[cfg_attr(feature = "schema", returns(CuratedEntriesPagedResponse))]
     AllCuratedEntries {
-        start_after: Option<CuratedKey>,
+        start_after: Option<String>,
         limit: Option<u32>,
     },
 

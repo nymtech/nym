@@ -49,15 +49,6 @@ pub enum DirectoryContractError {
     #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
     UnauthorisedMixnetCallback { sender: Addr },
 
-    /// Attempted to deserialise an invalid namespace tag
-    #[error("{0} is not a valid namespace tag")]
-    InvalidNamespace(u8),
-
-    /// A raw entry storage key could not be parsed back into an `EntryKey`
-    /// (empty, truncated, a wrong-width node id, or a non-UTF-8 label/suffix).
-    #[error("malformed entry storage key: {0}")]
-    MalformedStorageKey(String),
-
     /// A stored entry value could not be decoded by its `try_from_bytes` codec
     /// (truncated, or a length prefix that overruns the buffer).
     #[error("malformed entry value: {0}")]

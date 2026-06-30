@@ -18,10 +18,14 @@ pub mod storage_keys {
     /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
     pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";
 
-    /// The single entry store for both classes. Keyed by the `EntryKey` enum via
-    /// its manual codec (`tag ++ len_prefixed(leading) ++ trailing`); values are
-    /// compact raw bytes (see the storage codec).
-    pub const ENTRIES: &str = "entries";
+    /// Node-entry store, keyed `(node_id, label)`. Not a `cw_storage_plus::Map`:
+    /// the key is built with `Path`/`Prefix` (so a client can derive raw keys for
+    /// proofs) but the value is the compact `NodeEntry` raw-bytes codec, not JSON.
+    pub const NODE_ENTRIES: &str = "node_entries";
+
+    /// Curated-entry store, keyed by a single admin-chosen `String` path. Same
+    /// `Path`/`Prefix` key handling + raw-bytes value codec as [`NODE_ENTRIES`].
+    pub const CURATED_ENTRIES: &str = "curated_entries";
 
     /// `Map<NodeId, u64>` - the per-node monotonic anti-replay sequence.
     pub const SEQUENCES: &str = "sequences";

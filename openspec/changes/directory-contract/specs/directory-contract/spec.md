@@ -1,18 +1,18 @@
 ## ADDED Requirements
 
-### Requirement: Namespaced key space
-The contract SHALL partition stored entries into explicitly-namespaced classes (initially `node` entries and `curated` entries), with the namespace discriminant forming part of both the storage key and the digest leaf. The namespace SHALL be extensible to future entry types. Keys from different namespaces SHALL NOT collide, and the contract SHALL route write authorization by namespace.
+### Requirement: Separate entry classes
+The contract SHALL partition stored entries into distinct classes (initially `node` entries and `curated` entries) held in separate stores, with a class tag forming part of the digest leaf. The set of classes SHALL be extensible to future entry types. Keys from different classes SHALL NOT collide, and the contract SHALL route write authorization by class.
 
-#### Scenario: Cross-namespace keys do not collide
+#### Scenario: Cross-class keys do not collide
 - **WHEN** a node entry and a curated entry have key parts that would otherwise coincide
 - **THEN** they remain distinct entries with distinct storage keys and distinct digest leaves
 
-#### Scenario: Authorization routed by namespace
-- **WHEN** a write targets the node namespace versus the curated namespace
+#### Scenario: Authorization routed by class
+- **WHEN** a write targets the node class versus the curated class
 - **THEN** the contract applies identity-key-signature authorization for node entries and admin authorization for curated entries
 
 ### Requirement: Node configuration entries
-The contract SHALL store node-published configuration as opaque bytes keyed by `(node_id, label)` within the node namespace, where each entry records the data, the block height it was last updated, the `sequence` it was signed at, and the authoring ed25519 signature. The contract SHALL NOT interpret the byte payload.
+The contract SHALL store node-published configuration as opaque bytes keyed by `(node_id, label)` within the node store, where each entry records the data, the block height it was last updated, the `sequence` it was signed at, and the authoring ed25519 signature. The contract SHALL NOT interpret the byte payload.
 
 #### Scenario: Node publishes an entry
 - **WHEN** a transaction carries data for `(node_id, label)` with a valid ed25519 signature over `node_id || label || sequence || data` by the node's identity key, the node is bonded and not unbonding, `label` is allowed, and `data` is within the label's `max_size`
@@ -89,7 +89,7 @@ The contract SHALL reject a write whose `data` length exceeds the `max_size` con
 - **THEN** the contract rejects the write
 
 ### Requirement: Curated entries
-The contract SHALL store admin-managed curated entries keyed by `(label, suffix)` within the curated namespace over opaque bytes, where `suffix` is an optional instance discriminator (`None` is a singleton under the label; a `Some` suffix MUST be non-empty), writable and removable only by the admin, and SHALL fold them into the same global digest as node entries.
+The contract SHALL store admin-managed curated entries keyed by a single admin-chosen path string within the curated store over opaque bytes, writable and removable only by the admin, and SHALL fold them into the same global digest as node entries. The contract SHALL impose no further structure on the curated key (the admin chooses a sensible path).
 
 #### Scenario: Admin sets a curated entry
 - **WHEN** the admin sets a curated entry (for example a nym-api identity key)
@@ -100,7 +100,7 @@ The contract SHALL store admin-managed curated entries keyed by `(label, suffix)
 - **THEN** the contract rejects it
 
 ### Requirement: Global integrity digest
-The contract SHALL maintain a single global incremental multiset digest (LtHash) over all entries (node and curated), updated on every write and delete using a secure (non-linear) multiset hash. Each leaf SHALL be `tag || len_prefixed(leading) || len_prefixed(trailing) || committed_value` (the namespace tag and full length-prefixing so cross-class entries cannot collide), where `(leading, trailing)` is the key parts and `committed_value` is `(data, signature, sequence)` for a node entry and `(data)` for a curated entry; `updated_at_height` SHALL NOT be committed. Recomputing the digest over the full set of stored entries SHALL equal the stored digest.
+The contract SHALL maintain a single global incremental multiset digest (LtHash) over all entries (node and curated), updated on every write and delete using a secure (non-linear) multiset hash. Each leaf SHALL be led by the class tag byte and fully length-frame its variable components so neither cross-class nor intra-class entries can collide: a node leaf commits `(node_id, label, data, signature, sequence)` and a curated leaf commits `(key, data)`; `updated_at_height` SHALL NOT be committed. The leaf encoding SHALL be independent of how each store lays out its on-chain key, so the contract and an off-chain client derive identical leaves. Recomputing the digest over the full set of stored entries SHALL equal the stored digest.
 
 #### Scenario: Digest updated on write
 - **WHEN** an entry is added, changed, or removed
@@ -126,11 +126,11 @@ The contract SHALL expose an `OnNymNodeUnbond { node_id }` handler callable only
 - **THEN** the contract rejects it with an unauthorized-callback error
 
 ### Requirement: Directory queries
-The contract SHALL provide queries for the admin, a single node entry, a single curated entry, all entries of a node, a paginated enumeration of all curated entries, a paginated enumeration of all entries across both namespaces, the global digest, a node's current sequence, and the label whitelist. Provable reads SHALL be available via raw store reads of the digest item and of individual entries at their deterministic keys.
+The contract SHALL provide queries for the admin, a single node entry, a single curated entry (by its key string), all entries of a node, a paginated enumeration of all curated entries, a paginated enumeration of all entries across both classes, the global digest, a node's current sequence, and the label whitelist. Provable reads SHALL be available via raw store reads of the digest item and of individual entries at their deterministic keys.
 
 #### Scenario: Enumerate the whole directory
 - **WHEN** a consumer calls the paginated `all_entries` query
-- **THEN** the contract returns entries in deterministic order across pages, covering node and curated entries
+- **THEN** the contract returns all entries deterministically across pages (node entries first, then curated), which suffices to recompute the order-independent multiset digest
 
 #### Scenario: Query a node's sequence
 - **WHEN** a relayer queries a node's current sequence

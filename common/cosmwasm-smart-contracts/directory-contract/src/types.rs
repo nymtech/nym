@@ -21,23 +21,11 @@ pub enum Namespace {
 }
 
 impl Namespace {
-    /// Stable byte tag identifying the key-class. Used both as the leading byte of
-    /// the storage key and in the canonical digest leaf. Never renumber existing
-    /// variants (it would re-key/re-hash every existing entry).
+    /// Stable byte tag identifying the key-class, used as the leading byte of the
+    /// canonical digest leaf so node and curated leaves can never collide. Never
+    /// renumber existing variants (it would re-hash every existing entry).
     pub const fn tag(self) -> u8 {
         self as u8
-    }
-}
-
-impl TryFrom<u8> for Namespace {
-    type Error = DirectoryContractError;
-
-    fn try_from(v: u8) -> Result<Self, Self::Error> {
-        match v {
-            n if n == Namespace::Node as u8 => Ok(Namespace::Node),
-            n if n == Namespace::Curated as u8 => Ok(Namespace::Curated),
-            _ => Err(DirectoryContractError::InvalidNamespace(v)),
-        }
     }
 }
 
@@ -62,6 +50,29 @@ impl DirectoryEntry {
             DirectoryEntry::NodeEntry(e) => e.data.as_slice(),
             DirectoryEntry::CuratedEntry(e) => e.data.as_slice(),
         }
+    }
+
+    /// The compact stored-value encoding for the active variant (see
+    /// [`NodeEntry::to_bytes`] / [`CuratedEntry::to_bytes`]). Carries no class
+    /// discriminant - the key's [`Namespace`] selects the decoder.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            DirectoryEntry::NodeEntry(e) => e.to_bytes(),
+            DirectoryEntry::CuratedEntry(e) => e.to_bytes(),
+        }
+    }
+
+    /// Decode a stored value, choosing the variant from the key's `namespace`.
+    pub fn try_from_bytes(
+        namespace: Namespace,
+        bytes: &[u8],
+    ) -> Result<Self, DirectoryContractError> {
+        Ok(match namespace {
+            Namespace::Node => DirectoryEntry::NodeEntry(NodeEntry::try_from_bytes(bytes)?),
+            Namespace::Curated => {
+                DirectoryEntry::CuratedEntry(CuratedEntry::try_from_bytes(bytes)?)
+            }
+        })
     }
 
     /// Append this entry's committed value bytes to a digest-leaf buffer. A node
@@ -95,10 +106,54 @@ pub struct NodeEntry {
     pub signature: Binary,
 }
 
+impl NodeEntry {
+    /// Compact value encoding: `updated_at_height || sequence || lp(signature) || data`.
+    /// Fixed-width fields first, the variable `signature` length-prefixed, and the
+    /// variable `data` as the unframed tail - so no class discriminant is needed
+    /// (the storage key's [`Namespace`] tag selects this decoder).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(8 + 8 + 8 + self.signature.len() + self.data.len());
+        buf.extend_from_slice(&self.updated_at_height.to_le_bytes());
+        buf.extend_from_slice(&self.sequence.to_le_bytes());
+        crate::helpers::push_len_prefixed(&mut buf, self.signature.as_slice());
+        buf.extend_from_slice(self.data.as_slice());
+        buf
+    }
+
+    /// Decode the [`Self::to_bytes`] layout.
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
+        let mut reader = crate::helpers::ValueReader::new(bytes);
+        let updated_at_height = reader.read_u64_le()?;
+        let sequence = reader.read_u64_le()?;
+        let signature = Binary::new(reader.read_len_prefixed()?.to_vec());
+        let data = Binary::new(reader.rest().to_vec());
+        Ok(NodeEntry {
+            data,
+            updated_at_height,
+            sequence,
+            signature,
+        })
+    }
+}
+
 /// An admin-curated entry: opaque bytes (the authority is the contract admin).
 #[cw_serde]
 pub struct CuratedEntry {
     pub data: Binary,
+}
+
+impl CuratedEntry {
+    /// Compact value encoding: the raw `data` bytes (its only field).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.data.to_vec()
+    }
+
+    /// Decode the [`Self::to_bytes`] layout (the whole buffer is `data`).
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
+        Ok(CuratedEntry {
+            data: Binary::new(bytes.to_vec()),
+        })
+    }
 }
 
 /// Per-label policy.
@@ -229,50 +284,33 @@ pub struct NodeEntriesResponse {
     pub entries: Vec<NodeLabelEntry>,
 }
 
-/// The key of a curated entry: its label plus an optional instance `suffix`.
-#[cw_serde]
-pub struct CuratedKey {
-    pub label: String,
-    pub suffix: Option<String>,
-}
-
 /// A page of curated entries.
 #[cw_serde]
 pub struct CuratedEntriesPagedResponse {
     /// `(key, entry)` pairs in ascending key order.
-    pub entries: Vec<(CuratedKey, CuratedEntry)>,
+    pub entries: Vec<(String, CuratedEntry)>,
     /// Cursor to pass as the next `start_after`, or `None` when exhausted.
-    pub start_next_after: Option<CuratedKey>,
+    pub start_next_after: Option<String>,
 }
 
-/// The fully-qualified key of a directory entry in the unified store. Each class
-/// orders its key for its own access pattern, so the byte layout is per-variant
-/// (but always tagged and fully length-prefixed in the digest leaf, so leaves can
-/// never collide):
+/// The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`]
+/// cursor / response key and to derive the canonical digest leaf; the on-chain
+/// storage key is handled separately by each per-class store (via `cw-storage-plus`
+/// `Path`/`Prefix`), so this type carries no storage-codec logic.
 ///
-/// - [`EntryKey::Node`] is keyed `(node_id, label)` - the node leads, so all of one
-///   node's entries form a contiguous range (used by the unbond cleanup and the
-///   per-node query). `node_id` is mandatory.
-/// - [`EntryKey::Curated`] is keyed `(label, suffix)` - the label leads, so all
-///   instances of a label (e.g. every `nym-api`) form a contiguous range. `suffix`
-///   is optional (`None` is a singleton under the label).
-///
-/// The canonical encodings (storage key and digest leaf) are derived here so the
-/// contract and any off-chain client cannot disagree on them.
+/// - [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under
+///   one namespace, so all of a node's entries form a contiguous range (per-node
+///   query + unbond cleanup).
+/// - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a
+///   separate namespace; the admin is responsible for choosing a sensible path
+///   (there is no label/suffix structure imposed by the contract).
 #[cw_serde]
 pub enum EntryKey {
     /// A self-published node entry, keyed `(node_id, label)`.
     Node { node_id: NodeId, label: String },
 
-    /// An admin-curated entry, keyed `(label, suffix)`. `suffix` distinguishes
-    /// multiple instances of one label (e.g. label `"nym-api"`, suffix `"foo"`);
-    /// `None` is a singleton keyed by the label alone. When `Some`, the suffix MUST
-    /// be non-empty - an empty suffix is indistinguishable from `None` in the key
-    /// and is rejected by the contract.
-    Curated {
-        label: String,
-        suffix: Option<String>,
-    },
+    /// An admin-curated entry, keyed by a single admin-chosen path string.
+    Curated { key: String },
 }
 
 impl EntryKey {
@@ -284,124 +322,24 @@ impl EntryKey {
         }
     }
 
-    /// The label component, common to every class.
-    pub fn label(&self) -> &str {
-        match self {
-            EntryKey::Node { label, .. } | EntryKey::Curated { label, .. } => label,
-        }
-    }
-
-    /// The `(leading, trailing)` key components in canonical order: `(node_id,
-    /// label)` for a node, `(label, suffix)` for a curated entry. The leading part
-    /// is length-prefixed (in both the storage key and the digest leaf); the
-    /// trailing part is the final segment, so the leading group is a contiguous
-    /// range.
-    fn key_parts(&self) -> (Vec<u8>, Vec<u8>) {
+    /// The canonical LtHash leaf for this entry: a class tag, the length-framed key
+    /// components, then the entry's committed value. A node leaf commits
+    /// `(data, signature, sequence)` so it is self-authenticating; a curated leaf
+    /// commits `data`. The leading tag plus length-prefixing make every distinct
+    /// `(key, value)` map to distinct leaf bytes, within and across classes.
+    pub fn digest_leaf(&self, entry: &DirectoryEntry) -> Vec<u8> {
+        let mut buf = vec![self.namespace().tag()];
         match self {
             EntryKey::Node { node_id, label } => {
-                (node_id.to_be_bytes().to_vec(), label.as_bytes().to_vec())
+                // `node_id` is fixed-width, so it needs no length prefix before the
+                // variable, length-prefixed `label`.
+                buf.extend_from_slice(&node_id.to_be_bytes());
+                crate::helpers::push_len_prefixed(&mut buf, label.as_bytes());
             }
-            EntryKey::Curated { label, suffix } => (
-                label.as_bytes().to_vec(),
-                suffix
-                    .as_deref()
-                    .map(|s| s.as_bytes().to_vec())
-                    .unwrap_or_default(),
-            ),
-        }
-    }
-
-    /// `tag || len_prefixed(leading)` - the prefix shared by every entry with the
-    /// same `(namespace, leading)`. Every full [`Self::storage_key`] begins with it,
-    /// so it doubles as the range-scan prefix for that group.
-    fn class_leading_prefix(namespace: Namespace, leading: &[u8]) -> Vec<u8> {
-        let mut buf = vec![namespace.tag()];
-        crate::helpers::push_len_prefixed(&mut buf, leading);
-        buf
-    }
-
-    /// The raw storage key: `tag || len_prefixed(leading) || trailing`.
-    pub fn storage_key(&self) -> Vec<u8> {
-        let (leading, trailing) = self.key_parts();
-        let mut buf = Self::class_leading_prefix(self.namespace(), &leading);
-        buf.extend_from_slice(&trailing);
-        buf
-    }
-
-    /// Parse a raw key produced by [`Self::storage_key`] back into an `EntryKey`.
-    /// Off-chain clients use this to decode keys returned in ICS23 proofs.
-    pub fn from_storage_key(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
-        fn malformed(m: &str) -> DirectoryContractError {
-            DirectoryContractError::MalformedStorageKey(m.to_owned())
-        }
-        fn utf8(b: &[u8]) -> Result<String, DirectoryContractError> {
-            String::from_utf8(b.to_vec()).map_err(|_| malformed("non-UTF-8 label or suffix"))
-        }
-
-        let (&tag, rest) = bytes.split_first().ok_or_else(|| malformed("empty key"))?;
-        let namespace = Namespace::try_from(tag)?;
-
-        if rest.len() < 8 {
-            return Err(malformed("truncated length prefix"));
-        }
-        let (len_bytes, rest) = rest.split_at(8);
-
-        // SAFETY: we have checked we have at least 8 bytes
-        #[allow(clippy::unwrap_used)]
-        let len = u64::from_le_bytes(len_bytes.try_into().unwrap()) as usize;
-        if rest.len() < len {
-            return Err(malformed("leading length exceeds key"));
-        }
-        let (leading, trailing) = rest.split_at(len);
-
-        match namespace {
-            Namespace::Node => {
-                let id: [u8; 4] = leading
-                    .try_into()
-                    .map_err(|_| malformed("node id must be 4 bytes"))?;
-                Ok(EntryKey::Node {
-                    node_id: NodeId::from_be_bytes(id),
-                    label: utf8(trailing)?,
-                })
+            EntryKey::Curated { key } => {
+                crate::helpers::push_len_prefixed(&mut buf, key.as_bytes());
             }
-            Namespace::Curated => Ok(EntryKey::Curated {
-                label: utf8(leading)?,
-                suffix: (!trailing.is_empty()).then(|| utf8(trailing)).transpose()?,
-            }),
         }
-    }
-
-    /// Range-scan prefix for an entire key-class.
-    pub fn namespace_prefix(namespace: Namespace) -> Vec<u8> {
-        vec![namespace.tag()]
-    }
-
-    /// Range-scan prefix for all of one node's entries (per-node query + unbond
-    /// cleanup). Guaranteed to be a prefix of every node `storage_key`.
-    pub fn node_prefix(node_id: NodeId) -> Vec<u8> {
-        Self::class_leading_prefix(Namespace::Node, &node_id.to_be_bytes())
-    }
-
-    /// Range-scan prefix for every instance under one curated label. Guaranteed to
-    /// be a prefix of every curated `storage_key` with that label.
-    pub fn curated_label_prefix(label: &str) -> Vec<u8> {
-        Self::class_leading_prefix(Namespace::Curated, label.as_bytes())
-    }
-
-    /// The committed key bytes: `tag || len_prefixed(leading) || len_prefixed(trailing)`.
-    fn digest_key_prefix(&self) -> Vec<u8> {
-        let (leading, trailing) = self.key_parts();
-        let mut buf = Self::class_leading_prefix(self.namespace(), &leading);
-        crate::helpers::push_len_prefixed(&mut buf, &trailing);
-        buf
-    }
-
-    /// The canonical LtHash leaf for this entry: the committed key bytes followed by
-    /// the entry's committed value. A node leaf commits `(data, signature, sequence)`
-    /// so it is self-authenticating; a curated leaf commits `data`.
-    /// Fully length-prefixed, so no two distinct entries can hash to the same leaf.
-    pub fn digest_leaf(&self, entry: &DirectoryEntry) -> Vec<u8> {
-        let mut buf = self.digest_key_prefix();
         entry.push_digest_value(&mut buf);
         buf
     }
@@ -479,15 +417,12 @@ mod tests {
 
     #[test]
     fn digest_leaf_classes_differ() {
-        // same label + data, different class -> different leaf (the tag separates them)
+        // same string + data, different class -> different leaf (the tag separates them)
         let node_key = EntryKey::Node {
             node_id: 1,
             label: "x".into(),
         };
-        let curated_key = EntryKey::Curated {
-            label: "x".into(),
-            suffix: Some("1".into()),
-        };
+        let curated_key = EntryKey::Curated { key: "x".into() };
         assert_ne!(
             node_key.digest_leaf(&node_entry(b"v", 0, b"sig")),
             curated_key.digest_leaf(&curated_entry(b"v")),
@@ -496,36 +431,25 @@ mod tests {
 
     #[test]
     fn digest_leaf_length_prefix_disambiguates() {
-        // (label "ab", suffix "c") vs (label "a", suffix "bc") must not collide
-        let ab_c = EntryKey::Curated {
-            label: "ab".into(),
-            suffix: Some("c".into()),
-        };
-        let a_bc = EntryKey::Curated {
-            label: "a".into(),
-            suffix: Some("bc".into()),
-        };
+        // curated (key "ab", data "c") vs (key "a", data "bc") must not collide
+        let ab_c = EntryKey::Curated { key: "ab".into() };
+        let a_bc = EntryKey::Curated { key: "a".into() };
         assert_ne!(
-            ab_c.digest_leaf(&curated_entry(b"")),
-            a_bc.digest_leaf(&curated_entry(b"")),
+            ab_c.digest_leaf(&curated_entry(b"c")),
+            a_bc.digest_leaf(&curated_entry(b"bc")),
         );
-    }
-
-    #[test]
-    fn curated_singleton_and_instance_differ() {
-        // a singleton (None) and a suffixed instance under the same label are distinct
-        let singleton = EntryKey::Curated {
-            label: "x".into(),
-            suffix: None,
+        // and likewise for a node's (label, data) framing
+        let node_ab = EntryKey::Node {
+            node_id: 1,
+            label: "ab".into(),
         };
-        let instance = EntryKey::Curated {
-            label: "x".into(),
-            suffix: Some("foo".into()),
+        let node_a = EntryKey::Node {
+            node_id: 1,
+            label: "a".into(),
         };
-        assert_ne!(singleton.storage_key(), instance.storage_key());
         assert_ne!(
-            singleton.digest_leaf(&curated_entry(b"v")),
-            instance.digest_leaf(&curated_entry(b"v")),
+            node_ab.digest_leaf(&node_entry(b"c", 0, b"s")),
+            node_a.digest_leaf(&node_entry(b"bc", 0, b"s")),
         );
     }
 
@@ -579,102 +503,60 @@ mod tests {
     }
 
     #[test]
-    fn storage_key_round_trips() {
-        for key in [
-            EntryKey::Node {
-                node_id: 42,
-                label: "sphinx_key".into(),
-            },
-            EntryKey::Node {
-                node_id: 0,
-                label: String::new(),
-            },
-            EntryKey::Curated {
-                label: "nym-api".into(),
-                suffix: Some("foo".into()),
-            },
-            EntryKey::Curated {
-                label: "singleton".into(),
-                suffix: None,
-            },
-        ] {
-            let bytes = key.storage_key();
-            assert_eq!(EntryKey::from_storage_key(&bytes), Ok(key));
+    fn node_entry_value_round_trips() {
+        let entry = NodeEntry {
+            data: b"opaque payload".to_vec().into(),
+            updated_at_height: 123_456,
+            sequence: 7,
+            signature: vec![9u8; 64].into(),
+        };
+        let bytes = entry.to_bytes();
+        assert_eq!(NodeEntry::try_from_bytes(&bytes), Ok(entry));
+    }
+
+    #[test]
+    fn node_entry_value_handles_empty_data_and_signature() {
+        let entry = NodeEntry {
+            data: Binary::default(),
+            updated_at_height: 0,
+            sequence: 0,
+            signature: Binary::default(),
+        };
+        let bytes = entry.to_bytes();
+        assert_eq!(NodeEntry::try_from_bytes(&bytes), Ok(entry));
+    }
+
+    #[test]
+    fn curated_entry_value_round_trips() {
+        for data in [b"".as_slice(), b"x", b"a longer curated payload"] {
+            let entry = CuratedEntry {
+                data: data.to_vec().into(),
+            };
+            assert_eq!(CuratedEntry::try_from_bytes(&entry.to_bytes()), Ok(entry));
         }
     }
 
     #[test]
-    fn from_storage_key_rejects_garbage() {
-        assert!(EntryKey::from_storage_key(&[]).is_err()); // empty
-        assert!(EntryKey::from_storage_key(&[9]).is_err()); // unknown namespace tag
-        assert!(EntryKey::from_storage_key(&[Namespace::Node.tag(), 0, 0]).is_err()); // truncated length
-        // node leading must be exactly 4 bytes
-        let mut k = vec![Namespace::Node.tag()];
-        k.extend_from_slice(&3u64.to_le_bytes());
-        k.extend_from_slice(b"abc");
-        assert!(EntryKey::from_storage_key(&k).is_err());
+    fn directory_entry_value_dispatches_on_namespace() {
+        let node = node_entry(b"d", 3, b"sig");
+        let decoded = DirectoryEntry::try_from_bytes(Namespace::Node, &node.to_bytes());
+        assert_eq!(decoded, Ok(node));
+
+        let curated = curated_entry(b"c");
+        let decoded = DirectoryEntry::try_from_bytes(Namespace::Curated, &curated.to_bytes());
+        assert_eq!(decoded, Ok(curated));
     }
 
     #[test]
-    fn scan_prefixes_are_prefixes_of_their_keys() {
-        let node = EntryKey::Node {
-            node_id: 7,
-            label: "l".into(),
-        };
-        assert!(node.storage_key().starts_with(&EntryKey::node_prefix(7)));
-        assert!(
-            node.storage_key()
-                .starts_with(&EntryKey::namespace_prefix(Namespace::Node))
-        );
-        // a different node is not under node 7's prefix
-        let other = EntryKey::Node {
-            node_id: 8,
-            label: "l".into(),
-        };
-        assert!(!other.storage_key().starts_with(&EntryKey::node_prefix(7)));
-
-        let curated = EntryKey::Curated {
-            label: "nym-api".into(),
-            suffix: Some("foo".into()),
-        };
-        assert!(
-            curated
-                .storage_key()
-                .starts_with(&EntryKey::curated_label_prefix("nym-api"))
-        );
-        // a different label is not under "nym-api"'s prefix
-        let elsewhere = EntryKey::Curated {
-            label: "nym-apiz".into(),
-            suffix: None,
-        };
-        assert!(
-            !elsewhere
-                .storage_key()
-                .starts_with(&EntryKey::curated_label_prefix("nym-api"))
-        );
-    }
-
-    #[test]
-    fn prefix_upper_bound_brackets_the_prefix() {
-        use crate::helpers::prefix_upper_bound;
-        let prefix = EntryKey::node_prefix(7);
-        let upper = prefix_upper_bound(&prefix).expect("prefix is not all-0xff");
-        // node 7's keys fall within [prefix, upper)
-        let in_range = EntryKey::Node {
-            node_id: 7,
-            label: "z".into(),
-        }
-        .storage_key();
-        assert!(prefix.as_slice() <= in_range.as_slice());
-        assert!(in_range.as_slice() < upper.as_slice());
-        // node 8 sits at or beyond the upper bound
-        let beyond = EntryKey::Node {
-            node_id: 8,
-            label: String::new(),
-        }
-        .storage_key();
-        assert!(beyond.as_slice() >= upper.as_slice());
-        // an all-0xff prefix has no upper bound
-        assert_eq!(prefix_upper_bound(&[0xff, 0xff]), None);
+    fn node_entry_value_rejects_truncation() {
+        // a 10-byte buffer cannot hold the two u64 fields + a length prefix
+        assert!(NodeEntry::try_from_bytes(&[0u8; 10]).is_err());
+        assert!(NodeEntry::try_from_bytes(&[]).is_err());
+        // a length prefix that overruns the remaining bytes is rejected
+        let mut bad = Vec::new();
+        bad.extend_from_slice(&0u64.to_le_bytes()); // updated_at_height
+        bad.extend_from_slice(&0u64.to_le_bytes()); // sequence
+        bad.extend_from_slice(&99u64.to_le_bytes()); // signature length (overruns)
+        assert!(NodeEntry::try_from_bytes(&bad).is_err());
     }
 }

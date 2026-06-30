@@ -126,7 +126,6 @@ The same proxy logic ships two ways. They are interchangeable on the wire; choos
 ## Further reading
 
 - [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): all methods, configuration, and types
-- [Example: fixed provider](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/socks5.rs): connect to a known network requester
-- [Example: autodiscovery](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/socks5_autodiscover.rs): discover a requester by country and proxy a request
+- [Example: SOCKS5 proxy](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/socks5.rs): select a requester (auto-discover, pin by country, or a known address) and proxy a request
 - [Standalone SOCKS5 client](/developers/clients/socks5): the language-agnostic binary form
 - [Exit security](/developers/concepts/exit-security): what an Exit Gateway can observe in proxy mode

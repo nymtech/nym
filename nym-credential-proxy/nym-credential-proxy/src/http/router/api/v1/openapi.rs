@@ -8,46 +8,40 @@ use nym_credential_proxy_requests::routes::api::{v1, v1_absolute};
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
+use utoipauto::utoipauto;
 
+// `#[utoipa::path]` handlers in this crate are autodiscovered, so the `paths(...)` list no
+// longer needs maintaining by hand. The schemas below cannot be: both the
+// `nym-credential-proxy-requests` models and `Output`/`OutputParams` derive `ToSchema` behind a
+// feature flag with `cfg_attr`, and proc macros run before feature flags so utoipauto can't see
+// them. Tracking issue: https://github.com/ProbablyClem/utoipauto/issues/13
+#[utoipauto(paths = "./nym-credential-proxy/nym-credential-proxy/src")]
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym Credential Proxy Api"),
-    paths(
-        api::v1::ticketbook::obtain_ticketbook_shares,
-        api::v1::ticketbook::obtain_ticketbook_shares_async,
-        api::v1::ticketbook::current_deposit,
-        api::v1::ticketbook::partial_verification_keys,
-        api::v1::ticketbook::master_verification_key,
-        api::v1::ticketbook::current_epoch,
-        api::v1::ticketbook::shares::query_for_shares_by_id,
-        api::v1::ticketbook::shares::query_for_shares_by_device_id_and_credential_id,
-    ),
-    components(
-        schemas(
-            api::Output,
-            api::OutputParams,
-            api_requests::v1::ticketbook::models::DepositResponse,
-            api_requests::v1::ticketbook::models::PartialVerificationKeysResponse,
-            api_requests::v1::ticketbook::models::CurrentEpochResponse,
-            api_requests::v1::ticketbook::models::PartialVerificationKey,
-            api_requests::v1::ticketbook::models::MasterVerificationKeyResponse,
-            api_requests::v1::ticketbook::models::TicketbookRequest,
-            api_requests::v1::ticketbook::models::TicketbookAsyncRequest,
-            api_requests::v1::ticketbook::models::WithdrawalRequestBs58Wrapper,
-            api_requests::v1::ticketbook::models::PartialVerificationKey,
-            api_requests::v1::ticketbook::models::AggregatedExpirationDateSignaturesResponse,
-            api_requests::v1::ticketbook::models::AggregatedCoinIndicesSignaturesResponse,
-            api_requests::v1::ticketbook::models::WalletShare,
-            api_requests::v1::ticketbook::models::TicketbookWalletSharesResponse,
-            api_requests::v1::ticketbook::models::TicketbookWalletSharesAsyncResponse,
-            api_requests::v1::ticketbook::models::WebhookTicketbookWalletShares,
-            api_requests::v1::ticketbook::models::WebhookTicketbookWalletSharesRequest,
-            api_requests::v1::ticketbook::models::TicketbookObtainQueryParams,
-            api_requests::v1::ticketbook::models::SharesQueryParams,
-            api_requests::v1::ticketbook::models::PlaceholderJsonSchemaImpl,
-        ),
-    ),
     modifiers(&SecurityAddon),
+    components(schemas(
+        api::Output,
+        api::OutputParams,
+        api_requests::v1::ticketbook::models::DepositResponse,
+        api_requests::v1::ticketbook::models::PartialVerificationKeysResponse,
+        api_requests::v1::ticketbook::models::CurrentEpochResponse,
+        api_requests::v1::ticketbook::models::PartialVerificationKey,
+        api_requests::v1::ticketbook::models::MasterVerificationKeyResponse,
+        api_requests::v1::ticketbook::models::TicketbookRequest,
+        api_requests::v1::ticketbook::models::TicketbookAsyncRequest,
+        api_requests::v1::ticketbook::models::WithdrawalRequestBs58Wrapper,
+        api_requests::v1::ticketbook::models::AggregatedExpirationDateSignaturesResponse,
+        api_requests::v1::ticketbook::models::AggregatedCoinIndicesSignaturesResponse,
+        api_requests::v1::ticketbook::models::WalletShare,
+        api_requests::v1::ticketbook::models::TicketbookWalletSharesResponse,
+        api_requests::v1::ticketbook::models::TicketbookWalletSharesAsyncResponse,
+        api_requests::v1::ticketbook::models::WebhookTicketbookWalletShares,
+        api_requests::v1::ticketbook::models::WebhookTicketbookWalletSharesRequest,
+        api_requests::v1::ticketbook::models::TicketbookObtainQueryParams,
+        api_requests::v1::ticketbook::models::SharesQueryParams,
+        api_requests::v1::ticketbook::models::PlaceholderJsonSchemaImpl
+    ))
 )]
 pub(crate) struct ApiDoc;
 

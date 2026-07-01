@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "nym-directory-contract-common"
-version = "1.21.2"
+version = "1.21.5"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1324,7 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "nym-geolocation-contract-common"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1348,7 +1348,7 @@ dependencies = [
 
 [[package]]
 name = "nym-lthash"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "blake3",
  "digest",

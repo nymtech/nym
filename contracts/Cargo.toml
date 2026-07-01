@@ -110,7 +110,6 @@ unreachable = "deny"
 nym-network-monitors-contract-common = { path = "../common/cosmwasm-smart-contracts/network-monitors-contract" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-crypto = { path = "../common/crypto" }
-nym-lthash = { path = "../common/lthash" }
 nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-directory-contract-common = { path = "../common/cosmwasm-smart-contracts/directory-contract" }

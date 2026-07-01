@@ -680,4 +680,270 @@ mod tests {
                 .is_some());
         }
     }
+
+    mod node_write_auth {
+        use super::*;
+        use crate::testing::{init_contract_tester, sign_node_payload};
+        use cosmwasm_std::testing::message_info;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
+        use nym_contracts_common_testing::{ContractOpts, RandExt};
+        use nym_directory_contract_common::ExecuteMsg;
+
+        // seeded at instantiation from `KnownLabel::SphinxKeys`, max_size 256
+        const LABEL: &str = "sphinx_key";
+
+        #[test]
+        fn valid_signed_write_is_stored_and_advances_the_sequence() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = b"payload".to_vec();
+            let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+
+            let env = tester.env();
+            try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data),
+                0,
+                sig,
+            )
+            .unwrap();
+
+            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
+                .node_entries
+                .may_load(tester.deps().storage, node_id, LABEL)
+                .unwrap()
+                .is_some());
+            // the sequence advanced, so the same signature cannot be replayed
+            assert_eq!(
+                NYM_DIRECTORY_CONTRACT_STORAGE
+                    .current_sequence(tester.deps().storage, node_id)
+                    .unwrap(),
+                1
+            );
+        }
+
+        #[test]
+        fn any_account_may_relay_a_signed_write() {
+            // the tx sender is unchecked - drive it through the execute entry point
+            // with an unrelated relayer
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = b"payload".to_vec();
+            let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+            let relayer = tester.generate_account();
+
+            let env = tester.env();
+            crate::contract::execute(
+                tester.deps_mut(),
+                env,
+                message_info(&relayer, &[]),
+                ExecuteMsg::SetNodeEntry {
+                    node_id,
+                    label: LABEL.to_string(),
+                    data: Binary::from(data),
+                    sequence: 0,
+                    signature: sig,
+                },
+            )
+            .unwrap();
+
+            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
+                .node_entries
+                .may_load(tester.deps().storage, node_id, LABEL)
+                .unwrap()
+                .is_some());
+        }
+
+        #[test]
+        fn invalid_signature_is_rejected() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            // the signature is over different data than what is submitted
+            let sig = sign_node_payload(&kp, node_id, LABEL, 0, b"something else");
+
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(b"payload".to_vec()),
+                0,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(err, DirectoryContractError::InvalidSignature);
+        }
+
+        #[test]
+        fn wrong_sequence_is_rejected() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = b"payload".to_vec();
+            // correctly signed, but for a sequence that isn't the expected next (0)
+            let sig = sign_node_payload(&kp, node_id, LABEL, 5, &data);
+
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data),
+                5,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                DirectoryContractError::InvalidSequence {
+                    node_id,
+                    expected: 0,
+                    provided: 5,
+                }
+            );
+        }
+
+        #[test]
+        fn unknown_node_is_rejected() {
+            let mut tester = init_contract_tester();
+            // a real keypair, but the node id is not bonded
+            let (_, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let unknown = 999;
+            let data = b"payload".to_vec();
+            let sig = sign_node_payload(&kp, unknown, LABEL, 0, &data);
+
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                unknown,
+                LABEL.to_string(),
+                Binary::from(data),
+                0,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(err, DirectoryContractError::NodeNotBonded { node_id: unknown });
+        }
+
+        // TODO(§9.1): `unbonding_node_is_rejected` - the directory rejects a node
+        // flagged `is_unbonding` (the `bond.is_unbonding` branch of
+        // `bonded_node_identity_key`). It can't be exercised via the mixnet's
+        // `UnbondNymNode` yet: that handler emits a HARD `wasm_execute` sub-message to
+        // its stored `node_families_contract_address`, which isn't dispatchable in the
+        // directory test env. Unblocks once §7.3/7.4 (mixnet-side directory wiring) +
+        // the `testing.rs` mixnet-state patch land, or via a direct storage write of
+        // `is_unbonding`.
+
+        #[test]
+        fn disallowed_label_is_rejected() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = b"payload".to_vec();
+            let sig = sign_node_payload(&kp, node_id, "not-whitelisted", 0, &data);
+
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                "not-whitelisted".to_string(),
+                Binary::from(data),
+                0,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                DirectoryContractError::LabelNotAllowed {
+                    label: "not-whitelisted".to_string()
+                }
+            );
+        }
+
+        #[test]
+        fn oversized_data_is_rejected() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = vec![0u8; 257]; // sphinx_key max_size is 256
+            let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data),
+                0,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                DirectoryContractError::DataTooLarge {
+                    label: LABEL.to_string(),
+                    len: 257,
+                    max: 256,
+                }
+            );
+        }
+
+        #[test]
+        fn signed_delete_removes_the_entry_and_replay_after_delete_is_rejected() {
+            let mut tester = init_contract_tester();
+            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
+            let data = b"payload".to_vec();
+
+            // write @ seq 0 (advances to 1)
+            let set_sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+            let env = tester.env();
+            try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data.clone()),
+                0,
+                set_sig,
+            )
+            .unwrap();
+
+            // delete @ seq 1 (advances to 2), signing the empty-data payload
+            let delete_sig = sign_node_payload(&kp, node_id, LABEL, 1, &[]);
+            try_delete_node_entry(tester.deps_mut(), node_id, LABEL.to_string(), 1, delete_sig)
+                .unwrap();
+            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
+                .node_entries
+                .may_load(tester.deps().storage, node_id, LABEL)
+                .unwrap()
+                .is_none());
+
+            // replaying the original seq-0 write is rejected: the sequence moved on
+            let replay_sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data),
+                0,
+                replay_sig,
+            )
+            .unwrap_err();
+            assert_eq!(
+                err,
+                DirectoryContractError::InvalidSequence {
+                    node_id,
+                    expected: 2,
+                    provided: 0,
+                }
+            );
+        }
+    }
 }

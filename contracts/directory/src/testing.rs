@@ -6,17 +6,19 @@
 #![allow(clippy::expect_used)]
 
 use crate::contract::{execute, instantiate, migrate, query};
-use cosmwasm_std::Storage;
+use cosmwasm_std::{Binary, Storage};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
     PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
+use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::constants::storage_keys;
 use nym_directory_contract_common::{
-    DirectoryContractError, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    node_signing_payload, DirectoryContractError, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
+use nym_mixnet_contract_common::NodeId;
 
 pub struct DirectoryContract;
 
@@ -94,6 +96,22 @@ pub fn init_contract_tester() -> ContractTester<DirectoryContract> {
     //     .expect("should be able to patch mixnet contract state");
 
     tester
+}
+
+/// Sign a node-entry write/delete payload with the node's ed25519 identity key,
+/// producing the `signature` a `SetNodeEntry`/`DeleteNodeEntry` message carries.
+/// Pair with [`EmbeddedMixnetContractExt::bond_dummy_nymnode_with_keypair`], whose
+/// returned keypair matches the bonded node's on-chain identity key. A delete signs
+/// the canonical payload with empty `data`.
+pub fn sign_node_payload(
+    keypair: &ed25519::KeyPair,
+    node_id: NodeId,
+    label: &str,
+    sequence: u64,
+    data: &[u8],
+) -> Binary {
+    let payload = node_signing_payload(node_id, label, sequence, data);
+    Binary::from(keypair.private_key().sign(payload).to_bytes().as_ref())
 }
 
 pub trait DirectoryContractTesterExt:

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Button, FormControl, Grid, Stack, Switch, TextField, Typography } from '@mui/material';
+import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { alpha, Theme } from '@mui/material/styles';
 import { useSnackbar } from 'notistack';
 import {
   checkMixnodeOwnership,
@@ -12,8 +13,32 @@ import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
 import { Network } from '../../types';
 
+const RpcEndpointPanel = ({ label, url }: { label: string; url: string | null | undefined }) => (
+  <Box
+    sx={{
+      p: 2,
+      borderRadius: 2,
+      border: (t: Theme) => `1px solid ${t.palette.divider}`,
+      bgcolor: (t: Theme) =>
+        t.palette.mode === 'dark' ? alpha(t.palette.common.white, 0.04) : alpha(t.palette.common.black, 0.02),
+      width: '100%',
+    }}
+  >
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.5 }}
+    >
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all', lineHeight: 1.5 }}>
+      {url ?? '…'}
+    </Typography>
+  </Box>
+);
+
 const SelectValidator = () => {
-  const [customValidatorEnabled, setCustomValidatorEnabled] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [selectedValidatorUrl, setSelectedValidatorUrl] = useState<string | null>();
   const [defaultValidatorUrl, setDefaultValidatorUrl] = useState<string | null>();
   const [validatorUrlInput, setValidatorUrlInput] = useState<string>('');
@@ -21,6 +46,11 @@ const SelectValidator = () => {
   const { network } = useContext(AppContext);
 
   const { enqueueSnackbar } = useSnackbar();
+
+  const usingCustom = Boolean(
+    selectedValidatorUrl && defaultValidatorUrl && selectedValidatorUrl !== defaultValidatorUrl,
+  );
+  const activeUrl = usingCustom ? selectedValidatorUrl : defaultValidatorUrl;
 
   const getDefaultValidator = async (net: Network) => {
     if (!network) {
@@ -52,43 +82,29 @@ const SelectValidator = () => {
       getDefaultValidator(network);
       getSelectedValidator(network);
     }
-  }, [network, customValidatorEnabled]);
+  }, [network]);
 
   useEffect(() => {
-    // on network change, turn off the custom val switch if there is no selected val
-    // for this network
     if (!selectedValidatorUrl) {
-      setCustomValidatorEnabled(false);
       setValidatorUrlInput('');
+      setIsEditing(false);
     }
   }, [network, selectedValidatorUrl]);
 
   useEffect(() => {
-    if (selectedValidatorUrl && selectedValidatorUrl !== defaultValidatorUrl) {
-      setCustomValidatorEnabled(true);
-    }
-
     if (selectedValidatorUrl) {
       setValidatorUrlInput(selectedValidatorUrl);
     }
-  }, [selectedValidatorUrl, defaultValidatorUrl, network]);
+  }, [selectedValidatorUrl]);
 
-  const onToggle = async () => {
-    if (!customValidatorEnabled) {
-      setCustomValidatorEnabled(true);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await resetValidatorUrl(network as Network);
-      setValidatorUrlInput('');
-      setSelectedValidatorUrl(null);
-      setCustomValidatorEnabled(false);
-    } catch (e) {
-      Console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
+  const openEditor = () => {
+    setValidatorUrlInput(selectedValidatorUrl ?? defaultValidatorUrl ?? '');
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setValidatorUrlInput(selectedValidatorUrl ?? '');
+    setIsEditing(false);
   };
 
   const saveValidator = async () => {
@@ -112,6 +128,8 @@ const SelectValidator = () => {
     try {
       await checkMixnodeOwnership();
       enqueueSnackbar('Validator URL saved', { variant: 'success' });
+      setSelectedValidatorUrl(validatorUrlInput);
+      setIsEditing(false);
     } catch (e) {
       Console.error(e);
       enqueueSnackbar('The given validator URL is not valid for the currently selected network', { variant: 'error' });
@@ -122,63 +140,60 @@ const SelectValidator = () => {
     }
   };
 
+  const canSave =
+    validatorUrlInput.length > 0 &&
+    validatorUrlInput !== defaultValidatorUrl &&
+    validatorUrlInput !== selectedValidatorUrl &&
+    !isLoading;
+
   return (
-    <Grid container spacing={2} padding={3}>
-      <Grid item sm={12} md={7} lg={8}>
-        <Stack direction="column" gap={1}>
+    <Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" padding={3} gap={2}>
+        <Stack direction="column" gap={1} sx={{ minWidth: 0 }}>
           <Typography variant="h6">Change validator</Typography>
-          <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
-            You can use the validator of your choice by providing its RPC URL address
+          <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
+            The wallet talks to the chain through an RPC endpoint. The default is recommended for most users.
           </Typography>
-          <Stack direction="row" spacing={3} mt={2} alignItems="center">
-            <Typography>Turn Off</Typography>
-            <Switch checked={customValidatorEnabled} onChange={onToggle} inputProps={{ 'aria-label': 'controlled' }} />
-            <Typography>Turn On</Typography>
-          </Stack>
         </Stack>
-      </Grid>
-      <Grid item sm={12} md={5} lg={4}>
-        <Stack spacing={3} alignItems="flex-end">
-          {customValidatorEnabled ? (
-            <FormControl fullWidth>
-              <Stack spacing={3} mt={2}>
-                <TextField
-                  name="validatorUrl"
-                  label="Validator URL"
-                  value={validatorUrlInput}
-                  onChange={(e) => setValidatorUrlInput(e.target.value)}
-                  error={false}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                  disabled={!customValidatorEnabled}
-                  autoFocus
-                />
-                <Button
-                  size="large"
-                  variant="contained"
-                  disabled={
-                    !validatorUrlInput ||
-                    validatorUrlInput.length === 0 ||
-                    validatorUrlInput === defaultValidatorUrl ||
-                    validatorUrlInput === selectedValidatorUrl ||
-                    isLoading ||
-                    !customValidatorEnabled
-                  }
-                  onClick={saveValidator}
-                >
-                  Use this validator
-                </Button>
-              </Stack>
-            </FormControl>
+        <Box sx={{ flexShrink: 0, alignSelf: 'flex-end' }}>
+          {isEditing ? (
+            <Button variant="text" disabled={isLoading} onClick={cancelEditing}>
+              Cancel
+            </Button>
           ) : (
-            <Stack spacing={2} alignItems="end" mt={3} mr={1}>
-              <Typography variant="body2">Default validator address</Typography>
-              <Typography>{defaultValidatorUrl}</Typography>
-            </Stack>
+            <Button variant="text" disabled={isLoading} onClick={openEditor}>
+              Use custom RPC URL
+            </Button>
           )}
-        </Stack>
-      </Grid>
-    </Grid>
+        </Box>
+      </Stack>
+
+      <Box sx={{ px: 3, pb: 3 }}>
+        {isEditing ? (
+          <Stack spacing={2} sx={{ maxWidth: 560 }}>
+            <TextField
+              name="validatorUrl"
+              label="Validator URL"
+              placeholder="https://"
+              value={validatorUrlInput}
+              onChange={(e) => setValidatorUrlInput(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+              size="small"
+              disabled={isLoading}
+              autoFocus
+            />
+            <Box>
+              <Button variant="contained" size="medium" disabled={!canSave} onClick={saveValidator}>
+                Save
+              </Button>
+            </Box>
+          </Stack>
+        ) : (
+          <RpcEndpointPanel label={usingCustom ? 'Custom RPC endpoint' : 'Default RPC endpoint'} url={activeUrl} />
+        )}
+      </Box>
+    </Box>
   );
 };
 

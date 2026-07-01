@@ -9,12 +9,11 @@ import { useBondingContext } from 'src/context';
 
 interface Props {
   bondedNode: TBondedNode;
-  onConfirm: () => Promise<void>;
+  onConfirm: (txHash?: string) => Promise<void>;
   onError: (e: string) => void;
-  onUpdateData?: (profitMarginPercent: string, intervalOperatingCost: string, fee?: FeeDetails) => void;
 }
 
-export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdateData }: Props) => {
+export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError }: Props) => {
   const { updateCostParameters } = useBondingContext();
   const [intervalOperatingCost, setIntervalOperatingCost] = useState('');
   const [profitMarginPercent, setProfitMarginPercent] = useState('');
@@ -35,10 +34,15 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdat
   }, [bondedNode]);
 
   useEffect(() => {
-    if (onUpdateData && isFormValid) {
-      onUpdateData(profitMarginPercent, intervalOperatingCost, fee);
-    }
-  }, [profitMarginPercent, intervalOperatingCost, fee, isFormValid, onUpdateData]);
+    const isOperatingCostValid = intervalOperatingCost !== '' && !Number.isNaN(Number(intervalOperatingCost));
+    const isProfitMarginValid =
+      profitMarginPercent !== '' &&
+      !Number.isNaN(Number(profitMarginPercent)) &&
+      Number(profitMarginPercent) >= 20 &&
+      Number(profitMarginPercent) <= 50;
+
+    setIsFormValid(isOperatingCostValid && isProfitMarginValid);
+  }, [intervalOperatingCost, profitMarginPercent]);
 
   const handleIntervalOperatingCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
@@ -54,32 +58,23 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdat
     }
   };
 
-  useEffect(() => {
-    const isOperatingCostValid = intervalOperatingCost !== '' && !Number.isNaN(Number(intervalOperatingCost));
-    const isProfitMarginValid =
-      profitMarginPercent !== '' &&
-      !Number.isNaN(Number(profitMarginPercent)) &&
-      Number(profitMarginPercent) >= 20 &&
-      Number(profitMarginPercent) <= 50;
-
-    setIsFormValid(isOperatingCostValid && isProfitMarginValid);
-  }, [intervalOperatingCost, profitMarginPercent]);
-
   const shouldDisplayWarning = isMixnode(bondedNode) || isNymNode(bondedNode);
+
+  const handleModalError = (message: string) => {
+    setIsConfirmed(false);
+    setFee(undefined);
+    onError(message);
+  };
 
   const handleModalConfirm = async () => {
     try {
       const uNymAmount = String(Math.floor(Number(intervalOperatingCost) * 1000000));
 
-      if (onUpdateData) {
-        onUpdateData(profitMarginPercent, intervalOperatingCost, fee);
-      }
-
-      await updateCostParameters(profitMarginPercent, uNymAmount, fee);
+      const tx = await updateCostParameters(profitMarginPercent, uNymAmount, fee);
       setIsConfirmed(false);
-      onConfirm();
+      await onConfirm(tx?.transaction_hash);
     } catch (error) {
-      onError(error as string);
+      handleModalError(String(error));
     }
   };
 
@@ -158,7 +153,7 @@ export const NodeCostParametersPage = ({ bondedNode, onConfirm, onError, onUpdat
           profitMarginPercent={profitMarginPercent}
           onConfirm={handleModalConfirm}
           onClose={() => setIsConfirmed(false)}
-          onError={onError}
+          onError={handleModalError}
           onFeeUpdate={setFee}
         />
       )}

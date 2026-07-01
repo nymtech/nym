@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
@@ -52,10 +52,19 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   const { mixnetContractParams } = useContext(AppContext);
 
-  const defaultValues = {
-    operatorCost: bondedNode.operatorCost,
-    profitMargin: bondedNode.profitMargin,
-  };
+  const validationSchema = useMemo(
+    () => bondedNodeParametersValidationSchema(mixnetContractParams),
+    [mixnetContractParams],
+  );
+  const resolver = useMemo(() => yupResolver(validationSchema), [validationSchema]);
+
+  const defaultValues = useMemo(
+    () => ({
+      operatorCost: bondedNode.operatorCost,
+      profitMargin: bondedNode.profitMargin,
+    }),
+    [bondedNode.operatorCost, bondedNode.profitMargin],
+  );
 
   const {
     register,
@@ -64,7 +73,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     setValue,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
-    resolver: yupResolver(bondedNodeParametersValidationSchema(mixnetContractParams)),
+    resolver,
     mode: 'onChange',
     defaultValues,
   });
@@ -184,7 +193,6 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             <Grid item xs={12} md={6}>
               <TextField
                 {...register('profitMargin')}
-                name="profitMargin"
                 label="Profit margin"
                 fullWidth
                 error={!!errors.profitMargin}

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CurrencyDenom,
   FeeDetails,
@@ -90,6 +90,8 @@ export const BondingContext = createContext<TBondingContext>({
 export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
+  /** Bumped on `refresh()` so late async handlers cannot re-surface a dismissed error. */
+  const operationEpochRef = useRef(0);
 
   const [isVestingAccount, setIsVestingAccount] = useState(false);
 
@@ -117,12 +119,27 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
   };
 
   const refresh = () => {
+    operationEpochRef.current += 1;
     resetState();
   };
 
+  const setErrorIfCurrent = (epoch: number, message: string) => {
+    if (epoch === operationEpochRef.current) {
+      setError(message);
+    }
+  };
+
+  const setLoadingIfCurrent = (epoch: number, loading: boolean) => {
+    if (epoch === operationEpochRef.current) {
+      setIsLoading(loading);
+    }
+  };
+
   const bond = async (data: TBondNymNodeArgs) => {
+    const epoch = operationEpochRef.current;
     let tx;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
 
     try {
       tx = await bondNymNode({
@@ -137,16 +154,18 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
       }
     } catch (e) {
       Console.warn(e);
-      setError(`an error occurred: ${e as string}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e as string}`);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
     return tx;
   };
 
   const unbond = async (fee?: FeeDetails) => {
+    const epoch = operationEpochRef.current;
     let tx;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       if (bondedNode && isNymNode(bondedNode)) tx = await unbondNymNodeRequest(fee?.fee);
       if (bondedNode && isMixnode(bondedNode) && !bondedNode.proxy) tx = await unbondMixnodeRequest(fee?.fee);
@@ -154,16 +173,18 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
       return tx;
     } catch (e) {
       Console.warn(e);
-      setError(`an error occurred: ${e as string}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e as string}`);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
     return undefined;
   };
 
   const updateNymNodeConfig = async (data: NodeConfigUpdate, fee?: FeeDetails) => {
+    const epoch = operationEpochRef.current;
     let tx;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       tx = await updateNymNodeConfigReq(data, fee?.fee);
       if (clientDetails?.client_address) {
@@ -173,31 +194,35 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
     } catch (e) {
       Console.warn(e);
       const message = `an error occurred: ${e}`;
-      setError(message);
+      setErrorIfCurrent(epoch, message);
       throw new Error(message);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
   };
 
   const redeemRewards = async (fee?: FeeDetails) => {
+    const epoch = operationEpochRef.current;
     let tx;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       if (bondedNode && !isNymNode(bondedNode)) tx = await vestingClaimOperatorReward(fee?.fee);
       else tx = await claimOperatorReward(fee?.fee);
       return tx;
     } catch (e: any) {
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
     return undefined;
   };
 
   const updateBondAmount = async (data: TUpdateBondArgs) => {
+    const epoch = operationEpochRef.current;
     let tx: TransactionExecuteResult | undefined;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       tx = await updateBondReq(data);
       await userBalance.fetchBalance();
@@ -205,15 +230,17 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
       return tx;
     } catch (e: any) {
       Console.warn(e);
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
     return undefined;
   };
 
   const generateNymNodeMsgPayload = async (data: TNymNodeSignatureArgs) => {
-    setIsLoading(true);
+    const epoch = operationEpochRef.current;
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
 
     try {
       const message = await generateNymNodeMsgPayloadReq({
@@ -227,28 +254,33 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
       return message;
     } catch (e) {
       Console.warn(e);
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
     return undefined;
   };
 
   const migrateVestedMixnode = async () => {
-    setIsLoading(true);
+    const epoch = operationEpochRef.current;
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       const tx = await tauriMigrateVestedMixnode();
-      setIsLoading(false);
       return tx;
     } catch (e) {
       Console.error(e);
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
+    } finally {
+      setLoadingIfCurrent(epoch, false);
     }
     return undefined;
   };
 
   const migrateLegacyNode = async () => {
-    setIsLoading(true);
+    const epoch = operationEpochRef.current;
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       let tx: TransactionExecuteResult | undefined;
 
@@ -261,9 +293,10 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
       return tx;
     } catch (e) {
       Console.error(e);
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
+    } finally {
+      setLoadingIfCurrent(epoch, false);
     }
-    setIsLoading(false);
     return undefined;
   };
 
@@ -272,8 +305,10 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
     intervalOperatingCost: string,
     fee?: FeeDetails,
   ): Promise<TransactionExecuteResult | undefined> => {
+    const epoch = operationEpochRef.current;
     let tx;
-    setIsLoading(true);
+    setError(undefined);
+    setLoadingIfCurrent(epoch, true);
     try {
       // Validate input before proceeding
       if (!profitMarginPercent || parseFloat(profitMarginPercent) < 20 || parseFloat(profitMarginPercent) > 50) {
@@ -301,10 +336,10 @@ export const BondingContextProvider: FCWithChildren = ({ children }): React.JSX.
 
       return tx;
     } catch (e) {
-      setError(`an error occurred: ${e}`);
+      setErrorIfCurrent(epoch, `an error occurred: ${e}`);
       throw e;
     } finally {
-      setIsLoading(false);
+      setLoadingIfCurrent(epoch, false);
     }
   };
 

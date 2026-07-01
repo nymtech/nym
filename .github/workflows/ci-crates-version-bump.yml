@@ -15,6 +15,7 @@ env:
 jobs:
   version-bump:
     runs-on: arc-linux-latest
+    timeout-minutes: 120
     env:
       RUSTUP_PERMIT_COPY_RENAME: 1
     permissions:
@@ -63,6 +64,14 @@ jobs:
           # This catches entries whose version has drifted (e.g. nym-sqlx-pool-guard at 1.2.0).
           sed -i '/path = /s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' Cargo.toml
 
+      - name: Update contracts workspace dependencies
+        run: |
+          # Bump published main-workspace crate pins so contracts stay aligned with the release.
+          sed -i '\|path = "../common/|s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' contracts/Cargo.toml
+          sed -i -E 's/^(nym-[a-z0-9-]+ = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E 's/^(nym-[a-z0-9-]+ = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E 's/^((contracts-common|mixnet-contract-common|vesting-contract-common|nym-node-families-contract-common) = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+
       - name: Bump versions
         run: |
           cargo workspaces version custom ${{ inputs.version }} \
@@ -94,6 +103,36 @@ jobs:
             "$DOCS/pages/developers/rust/client-pool/tutorial.mdx" \
             "$DOCS/pages/developers/smolmix.mdx"
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev \
+            libgtk-3-dev libudev-dev squashfs-tools protobuf-compiler cmake libdbus-1-dev \
+            libmnl-dev libnftnl-dev jq libayatana-appindicator3-dev make libfuse2 unzip \
+            librsvg2-dev file libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+        continue-on-error: true
+
+      - name: Run cargo build (nym-wallet)
+        run: |
+          mkdir -p nym-wallet/dist
+          cargo build --manifest-path nym-wallet/Cargo.toml -p NymWallet
+
+      - name: Install contracts toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.86.0
+          target: wasm32-unknown-unknown
+          override: false
+
+      - name: Run cargo build (contracts)
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
+        run: cargo +1.86.0 build --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
+
+      - name: Run cargo build
+        run: cargo build --workspace --exclude nym-gateway-probe --exclude nym-node-status-api --exclude nym-node-status-agent --exclude nym-node-status-client
+
       - name: Commit and push version bump
         run: |
           set -euo pipefail
@@ -102,7 +141,7 @@ jobs:
 
           git checkout -b "$PR_BRANCH"
           git add -A
-          git commit -m "crates release: bump version to ${{ inputs.version }}"
+          git commit -m "crates release: bump version to ${{ inputs.version }} and update lockfiles"
           git push -u origin "$PR_BRANCH"
 
           cat > /tmp/crates-version-bump-pr-body.md <<'EOF'
@@ -111,6 +150,8 @@ jobs:
           ## Summary
           - Bump workspace crate versions to the requested release version.
           - Update workspace dependency versions accordingly.
+          - Bump `contracts/` workspace dependency versions to match the release.
+          - Run `cargo build` in the main, wallet, and contracts workspaces to refresh their lockfiles.
 
           ## Notes
           - Merge this PR to proceed with crates.io publishing.

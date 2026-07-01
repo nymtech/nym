@@ -83,7 +83,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Create or replace a curated entry. Admin only.",
+      "description": "Create or replace a curated entry. Admin only. `key` is an arbitrary path chosen by the admin (the contract imposes no label/suffix structure on it).",
       "type": "object",
       "required": [
         "set_curated_entry"
@@ -93,17 +93,13 @@
           "type": "object",
           "required": [
             "data",
-            "id",
-            "label"
+            "key"
           ],
           "properties": {
             "data": {
               "$ref": "#/definitions/Binary"
             },
-            "id": {
-              "type": "string"
-            },
-            "label": {
+            "key": {
               "type": "string"
             }
           },
@@ -122,14 +118,10 @@
         "remove_curated_entry": {
           "type": "object",
           "required": [
-            "id",
-            "label"
+            "key"
           ],
           "properties": {
-            "id": {
-              "type": "string"
-            },
-            "label": {
+            "key": {
               "type": "string"
             }
           },
@@ -189,7 +181,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Transfer or clear the admin role. Admin only.",
+      "description": "Transfer the admin role to `admin`. Admin only. The admin can never be cleared - there must always be exactly one.",
       "type": "object",
       "required": [
         "update_admin"
@@ -197,12 +189,12 @@
       "properties": {
         "update_admin": {
           "type": "object",
+          "required": [
+            "admin"
+          ],
           "properties": {
             "admin": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           "additionalProperties": false

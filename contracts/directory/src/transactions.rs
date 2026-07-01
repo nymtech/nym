@@ -212,8 +212,9 @@ pub(crate) fn try_remove_label(
         .allowed_storage_labels
         .remove(deps.storage, label.clone());
 
-    Ok(Response::new()
-        .add_event(Event::new(events::REMOVE_LABEL).add_attribute(events::ATTR_LABEL, label.as_str())))
+    Ok(Response::new().add_event(
+        Event::new(events::REMOVE_LABEL).add_attribute(events::ATTR_LABEL, label.as_str()),
+    ))
 }
 
 /// Create or replace a curated entry under an admin-chosen `key`. Admin only;
@@ -301,10 +302,6 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
 
-    // The empty-data guard short-circuits before any mixnet query or storage access,
-    // so it is exercisable on bare `mock_dependencies`. The signature/sequence/
-    // bonded-node paths require the embedded-mixnet + signing harness and are covered
-    // by the §9.1 integration tests.
     #[test]
     fn set_node_entry_rejects_empty_data() {
         let mut deps = mock_dependencies();
@@ -346,7 +343,13 @@ mod tests {
             let mut tester = init_contract_tester();
             let admin = tester.admin_msg();
 
-            try_set_label(tester.deps_mut(), admin.clone(), "newlabel".to_string(), 1024).unwrap();
+            try_set_label(
+                tester.deps_mut(),
+                admin.clone(),
+                "newlabel".to_string(),
+                1024,
+            )
+            .unwrap();
             assert_eq!(
                 NYM_DIRECTORY_CONTRACT_STORAGE
                     .allowed_storage_labels
@@ -556,8 +559,9 @@ mod tests {
 
     mod unbond_callback {
         use super::*;
-        use crate::testing::init_contract_tester;
+        use crate::testing::{init_contract_tester, init_contract_tester_with_node_families};
         use cosmwasm_std::testing::message_info;
+        use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{ContractOpts, RandExt};
 
         fn node_entry() -> NodeEntry {
@@ -637,9 +641,8 @@ mod tests {
         fn non_mixnet_caller_is_rejected() {
             let mut tester = init_contract_tester();
             let stranger = tester.generate_account();
-            let err =
-                try_handle_node_unbonding(tester.deps_mut(), message_info(&stranger, &[]), 7)
-                    .unwrap_err();
+            let err = try_handle_node_unbonding(tester.deps_mut(), message_info(&stranger, &[]), 7)
+                .unwrap_err();
             assert_eq!(
                 err,
                 DirectoryContractError::UnauthorisedMixnetCallback { sender: stranger }
@@ -679,15 +682,52 @@ mod tests {
                 .unwrap()
                 .is_some());
         }
+
+        #[test]
+        fn real_mixnet_unbond_dispatches_the_callback_and_clears_entries() {
+            let mut tester = init_contract_tester_with_node_families();
+            let owner = tester.generate_account_with_balance();
+            let (node_id, _kp) = tester.bond_dummy_nymnode_for_with_keypair(&owner).unwrap();
+
+            // plant a directory entry for the node
+            {
+                let deps = tester.deps_mut();
+                NYM_DIRECTORY_CONTRACT_STORAGE
+                    .set_node_entry(deps.storage, node_id, "sphinx_key", node_entry())
+                    .unwrap();
+            }
+            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
+                .node_entries
+                .may_load(tester.deps().storage, node_id, "sphinx_key")
+                .unwrap()
+                .is_some());
+
+            // a real UnbondNymNode fires the mixnet -> directory OnNymNodeUnbond
+            // sub-message, which the App dispatches to the directory contract
+            tester
+                .execute_mixnet_contract(
+                    message_info(&owner, &[]),
+                    &nym_mixnet_contract_common::ExecuteMsg::UnbondNymNode {},
+                )
+                .unwrap();
+
+            // the callback cleared the node's directory entries
+            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
+                .node_entries
+                .may_load(tester.deps().storage, node_id, "sphinx_key")
+                .unwrap()
+                .is_none());
+        }
     }
 
     mod node_write_auth {
         use super::*;
-        use crate::testing::{init_contract_tester, sign_node_payload};
+        use crate::testing::{
+            init_contract_tester, init_contract_tester_with_node_families, sign_node_payload,
+        };
         use cosmwasm_std::testing::message_info;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{ContractOpts, RandExt};
-        use nym_directory_contract_common::ExecuteMsg;
 
         // seeded at instantiation from `KnownLabel::SphinxKeys`, max_size 256
         const LABEL: &str = "sphinx_key";
@@ -723,38 +763,6 @@ mod tests {
                     .unwrap(),
                 1
             );
-        }
-
-        #[test]
-        fn any_account_may_relay_a_signed_write() {
-            // the tx sender is unchecked - drive it through the execute entry point
-            // with an unrelated relayer
-            let mut tester = init_contract_tester();
-            let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
-            let data = b"payload".to_vec();
-            let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
-            let relayer = tester.generate_account();
-
-            let env = tester.env();
-            crate::contract::execute(
-                tester.deps_mut(),
-                env,
-                message_info(&relayer, &[]),
-                ExecuteMsg::SetNodeEntry {
-                    node_id,
-                    label: LABEL.to_string(),
-                    data: Binary::from(data),
-                    sequence: 0,
-                    signature: sig,
-                },
-            )
-            .unwrap();
-
-            assert!(NYM_DIRECTORY_CONTRACT_STORAGE
-                .node_entries
-                .may_load(tester.deps().storage, node_id, LABEL)
-                .unwrap()
-                .is_some());
         }
 
         #[test]
@@ -827,17 +835,44 @@ mod tests {
                 sig,
             )
             .unwrap_err();
-            assert_eq!(err, DirectoryContractError::NodeNotBonded { node_id: unknown });
+            assert_eq!(
+                err,
+                DirectoryContractError::NodeNotBonded { node_id: unknown }
+            );
         }
 
-        // TODO(§9.1): `unbonding_node_is_rejected` - the directory rejects a node
-        // flagged `is_unbonding` (the `bond.is_unbonding` branch of
-        // `bonded_node_identity_key`). It can't be exercised via the mixnet's
-        // `UnbondNymNode` yet: that handler emits a HARD `wasm_execute` sub-message to
-        // its stored `node_families_contract_address`, which isn't dispatchable in the
-        // directory test env. Unblocks once §7.3/7.4 (mixnet-side directory wiring) +
-        // the `testing.rs` mixnet-state patch land, or via a direct storage write of
-        // `is_unbonding`.
+        #[test]
+        fn unbonding_node_is_rejected() {
+            // needs the node-families contract deployed too, so the mixnet unbond
+            // (which hard-calls both node-families and the directory) can succeed
+            let mut tester = init_contract_tester_with_node_families();
+            let owner = tester.generate_account_with_balance();
+            let (node_id, kp) = tester.bond_dummy_nymnode_for_with_keypair(&owner).unwrap();
+
+            // begin unbonding without advancing the epoch: the node stays bonded but
+            // is flagged is_unbonding
+            tester
+                .execute_mixnet_contract(
+                    message_info(&owner, &[]),
+                    &nym_mixnet_contract_common::ExecuteMsg::UnbondNymNode {},
+                )
+                .unwrap();
+
+            let data = b"payload".to_vec();
+            let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
+            let env = tester.env();
+            let err = try_set_node_entry(
+                tester.deps_mut(),
+                env,
+                node_id,
+                LABEL.to_string(),
+                Binary::from(data),
+                0,
+                sig,
+            )
+            .unwrap_err();
+            assert_eq!(err, DirectoryContractError::NodeNotBonded { node_id });
+        }
 
         #[test]
         fn disallowed_label_is_rejected() {

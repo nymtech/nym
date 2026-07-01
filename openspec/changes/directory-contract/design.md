@@ -22,9 +22,11 @@ This design covers the CONTRACT and the small mixnet-side callback wiring. The r
 
 ## Decisions
 
-### D1. Unbond cleanup via a best-effort mixnet callback
+### D1. Unbond cleanup via a mixnet callback
 
-When a node unbonds, the mixnet contract sends the directory an `OnNymNodeUnbond { node_id }` sub-message (mirroring the existing node-families wiring: a stored `directory_contract_address`, set via a queued migration, plus a `wasm_execute` in the unbond handler). The directory handler is gated by an `UnauthorisedMixnetCallback` check and deletes the node's entries by prefix-iterating `entries.prefix(node_id)` (bounded - see D4) and applying the digest delta. The sub-message is **best-effort (reply-on-error, non-fatal)** so a directory fault cannot block node unbonding. Alternative considered: a permissionless `PruneUnbonded` (no mixnet change, lazy). Rejected in favor of eager atomic cleanup; the best-effort wrapper neutralizes the main downside (blast radius on the mixnet unbond path). Trade-off: with no prune backstop, a callback failure leaves orphans, acceptable because they are harmless to consumers (filtered by the bonded set) and the bounded callback should reliably succeed.
+When a node unbonds, the mixnet contract sends the directory an `OnNymNodeUnbond { node_id }` sub-message (mirroring the node-families wiring: a stored `directory_contract_address`, set via a queued migration, plus a `wasm_execute` in the unbond handler). The directory handler is gated by an `UnauthorisedMixnetCallback` check and deletes the node's entries via `remove_all_node_entries` - bounded by the governed label set (see D4) - with a single digest delta.
+
+The sub-message is a **HARD message** (`.add_message`), NOT reply-on-error. This reverses the initial best-effort intent: the directory contract is a required part of every deployment, and a valid node's unbond cleanup must never be silently skipped, so a directory fault should surface as a failed unbond rather than leave stale entries. The invariant "the directory always exists" is upheld everywhere, including test harnesses (node-families and any other consumer deploy the directory contract into their test env). Gas: the callback is label-set-bounded, and out-of-gas is not reply-catchable without a per-submsg `gas_limit`, so a reply wrapper would add no protection and is omitted. Alternative considered: a permissionless `PruneUnbonded` (no mixnet change, lazy) - rejected in favor of eager atomic cleanup.
 
 ### D2. Storage model, stored signature + sequence, and per-node sequence
 

@@ -27,16 +27,22 @@
       "type": "string"
     },
     "NodeEntry": {
-      "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+      "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
       "type": "object",
       "required": [
         "data",
+        "sequence",
         "signature",
         "updated_at_height"
       ],
       "properties": {
         "data": {
           "$ref": "#/definitions/Binary"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
         },
         "signature": {
           "$ref": "#/definitions/Binary"

@@ -1,6 +1,6 @@
 {
-  "contract_name": "nym-directory",
-  "contract_version": "0.1.1",
+  "contract_name": "nym-directory-contract",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -146,7 +146,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Create or replace a curated entry. Admin only.",
+        "description": "Create or replace a curated entry. Admin only. `key` is an arbitrary path chosen by the admin (the contract imposes no label/suffix structure on it).",
         "type": "object",
         "required": [
           "set_curated_entry"
@@ -156,17 +156,13 @@
             "type": "object",
             "required": [
               "data",
-              "id",
-              "label"
+              "key"
             ],
             "properties": {
               "data": {
                 "$ref": "#/definitions/Binary"
               },
-              "id": {
-                "type": "string"
-              },
-              "label": {
+              "key": {
                 "type": "string"
               }
             },
@@ -185,14 +181,10 @@
           "remove_curated_entry": {
             "type": "object",
             "required": [
-              "id",
-              "label"
+              "key"
             ],
             "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
+              "key": {
                 "type": "string"
               }
             },
@@ -252,7 +244,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Transfer or clear the admin role. Admin only.",
+        "description": "Transfer the admin role to `admin`. Admin only. The admin can never be cleared - there must always be exactly one.",
         "type": "object",
         "required": [
           "update_admin"
@@ -260,12 +252,12 @@
         "properties": {
           "update_admin": {
             "type": "object",
+            "required": [
+              "admin"
+            ],
             "properties": {
               "admin": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -323,20 +315,6 @@
         "additionalProperties": false
       },
       {
-        "description": "Contract configuration and current admin.",
-        "type": "object",
-        "required": [
-          "config"
-        ],
-        "properties": {
-          "config": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
         "description": "A single node entry.",
         "type": "object",
         "required": [
@@ -374,14 +352,10 @@
           "curated_entry": {
             "type": "object",
             "required": [
-              "id",
-              "label"
+              "key"
             ],
             "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
+              "key": {
                 "type": "string"
               }
             },
@@ -415,13 +389,13 @@
         "additionalProperties": false
       },
       {
-        "description": "Paginated enumeration of all curated entries.",
+        "description": "Paginated enumeration of all node entries, ordered by their key string.",
         "type": "object",
         "required": [
-          "all_curated_entries"
+          "node_entries_paged"
         ],
         "properties": {
-          "all_curated_entries": {
+          "node_entries_paged": {
             "type": "object",
             "properties": {
               "limit": {
@@ -439,7 +413,9 @@
                 ],
                 "items": [
                   {
-                    "type": "string"
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
                   },
                   {
                     "type": "string"
@@ -447,6 +423,36 @@
                 ],
                 "maxItems": 2,
                 "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Paginated enumeration of all curated entries, ordered by their key string.",
+        "type": "object",
+        "required": [
+          "curated_entries_paged"
+        ],
+        "properties": {
+          "curated_entries_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "additionalProperties": false
@@ -542,47 +548,58 @@
       }
     ],
     "definitions": {
-      "Binary": {
-        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-        "type": "string"
-      },
       "EntryKey": {
-        "description": "The fully-qualified key of a directory entry in the unified store: its [`Namespace`], the raw id bytes (big-endian `node_id` for the node namespace, handle bytes for curated), and the label.",
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "namespace"
-        ],
-        "properties": {
-          "id": {
-            "$ref": "#/definitions/Binary"
-          },
-          "label": {
-            "type": "string"
-          },
-          "namespace": {
-            "$ref": "#/definitions/Namespace"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Namespace": {
-        "description": "Key-class / trust-tier discriminant for a directory entry. Extensible: new entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).",
+        "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
         "oneOf": [
           {
-            "description": "Self-published node entry, authorised by the node's identity key.",
-            "type": "string",
-            "enum": [
+            "description": "A self-published node entry, keyed `(node_id, label)`.",
+            "type": "object",
+            "required": [
               "node"
-            ]
+            ],
+            "properties": {
+              "node": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "node_id"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           },
           {
-            "description": "Admin-curated entry (e.g. a nym-api identity key).",
-            "type": "string",
-            "enum": [
+            "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+            "type": "object",
+            "required": [
               "curated"
-            ]
+            ],
+            "properties": {
+              "curated": {
+                "type": "object",
+                "required": [
+                  "key"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       }
@@ -611,74 +628,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "all_curated_entries": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CuratedEntriesPagedResponse",
-      "description": "A page of curated entries.",
-      "type": "object",
-      "required": [
-        "entries"
-      ],
-      "properties": {
-        "entries": {
-          "description": "`(id, label, entry)` triples in ascending key order.",
-          "type": "array",
-          "items": {
-            "type": "array",
-            "items": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "$ref": "#/definitions/CuratedEntry"
-              }
-            ],
-            "maxItems": 3,
-            "minItems": 3
-          }
-        },
-        "start_next_after": {
-          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "string"
-            }
-          ],
-          "maxItems": 2,
-          "minItems": 2
-        }
-      },
-      "additionalProperties": false,
-      "definitions": {
-        "Binary": {
-          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-          "type": "string"
-        },
-        "CuratedEntry": {
-          "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
-          "type": "object",
-          "required": [
-            "data"
-          ],
-          "properties": {
-            "data": {
-              "$ref": "#/definitions/Binary"
-            }
-          },
-          "additionalProperties": false
-        }
-      }
     },
     "all_entries": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -775,56 +724,77 @@
           "additionalProperties": false
         },
         "EntryKey": {
-          "description": "The fully-qualified key of a directory entry in the unified store: its [`Namespace`], the raw id bytes (big-endian `node_id` for the node namespace, handle bytes for curated), and the label.",
-          "type": "object",
-          "required": [
-            "id",
-            "label",
-            "namespace"
-          ],
-          "properties": {
-            "id": {
-              "$ref": "#/definitions/Binary"
-            },
-            "label": {
-              "type": "string"
-            },
-            "namespace": {
-              "$ref": "#/definitions/Namespace"
-            }
-          },
-          "additionalProperties": false
-        },
-        "Namespace": {
-          "description": "Key-class / trust-tier discriminant for a directory entry. Extensible: new entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).",
+          "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
           "oneOf": [
             {
-              "description": "Self-published node entry, authorised by the node's identity key.",
-              "type": "string",
-              "enum": [
+              "description": "A self-published node entry, keyed `(node_id, label)`.",
+              "type": "object",
+              "required": [
                 "node"
-              ]
+              ],
+              "properties": {
+                "node": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "node_id"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "node_id": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
             },
             {
-              "description": "Admin-curated entry (e.g. a nym-api identity key).",
-              "type": "string",
-              "enum": [
+              "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+              "type": "object",
+              "required": [
                 "curated"
-              ]
+              ],
+              "properties": {
+                "curated": {
+                  "type": "object",
+                  "required": [
+                    "key"
+                  ],
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
             }
           ]
         },
         "NodeEntry": {
-          "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
           "type": "object",
           "required": [
             "data",
+            "sequence",
             "signature",
             "updated_at_height"
           ],
           "properties": {
             "data": {
               "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "signature": {
               "$ref": "#/definitions/Binary"
@@ -891,24 +861,65 @@
         }
       }
     },
-    "config": {
+    "curated_entries_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Config",
-      "description": "Contract runtime configuration.",
+      "title": "CuratedEntriesPagedResponse",
+      "description": "A page of curated entries.",
       "type": "object",
       "required": [
-        "mixnet_contract_address"
+        "entries"
       ],
       "properties": {
-        "mixnet_contract_address": {
-          "$ref": "#/definitions/Addr"
+        "entries": {
+          "description": "Entries in ascending key order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CuratedLabelEntry"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,
       "definitions": {
-        "Addr": {
-          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
           "type": "string"
+        },
+        "CuratedEntry": {
+          "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+          "type": "object",
+          "required": [
+            "data"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "CuratedLabelEntry": {
+          "description": "A `(label, entry)` pair belonging to a curated entry.",
+          "type": "object",
+          "required": [
+            "entry",
+            "label"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/CuratedEntry"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -1000,16 +1011,22 @@
           "type": "string"
         },
         "NodeEntry": {
-          "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
           "type": "object",
           "required": [
             "data",
+            "sequence",
             "signature",
             "updated_at_height"
           ],
           "properties": {
             "data": {
               "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "signature": {
               "$ref": "#/definitions/Binary"
@@ -1041,6 +1058,102 @@
         }
       }
     },
+    "node_entries_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeEntriesPagedResponse",
+      "description": "A page of node entries across all nodes, ordered by `(node_id, label)`.",
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "description": "Entries in ascending `(node_id, label)` order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AnnotatedNodeLabelEntry"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "AnnotatedNodeLabelEntry": {
+          "description": "A node entry carrying its full `(node_id, label)` key - a row in [`NodeEntriesPagedResponse`], where entries from different nodes are interleaved.",
+          "type": "object",
+          "required": [
+            "entry",
+            "label",
+            "node_id"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/NodeEntry"
+            },
+            "label": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "NodeEntry": {
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+          "type": "object",
+          "required": [
+            "data",
+            "sequence",
+            "signature",
+            "updated_at_height"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            },
+            "updated_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "node_entry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "NodeEntryResponse",
@@ -1065,16 +1178,22 @@
           "type": "string"
         },
         "NodeEntry": {
-          "description": "A node-published entry: opaque bytes, the block height of the last write, and the authoring ed25519 signature (retained for chain-free authorship checks).",
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
           "type": "object",
           "required": [
             "data",
+            "sequence",
             "signature",
             "updated_at_height"
           ],
           "properties": {
             "data": {
               "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "signature": {
               "$ref": "#/definitions/Binary"

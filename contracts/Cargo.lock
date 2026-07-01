@@ -1240,6 +1240,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "node-families",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
@@ -1247,6 +1248,7 @@ dependencies = [
  "nym-lthash",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
 ]
 
 [[package]]

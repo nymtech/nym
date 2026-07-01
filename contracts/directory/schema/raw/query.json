@@ -16,20 +16,6 @@
       "additionalProperties": false
     },
     {
-      "description": "Contract configuration and current admin.",
-      "type": "object",
-      "required": [
-        "config"
-      ],
-      "properties": {
-        "config": {
-          "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
       "description": "A single node entry.",
       "type": "object",
       "required": [
@@ -67,14 +53,10 @@
         "curated_entry": {
           "type": "object",
           "required": [
-            "id",
-            "label"
+            "key"
           ],
           "properties": {
-            "id": {
-              "type": "string"
-            },
-            "label": {
+            "key": {
               "type": "string"
             }
           },
@@ -108,13 +90,13 @@
       "additionalProperties": false
     },
     {
-      "description": "Paginated enumeration of all curated entries.",
+      "description": "Paginated enumeration of all node entries, ordered by their key string.",
       "type": "object",
       "required": [
-        "all_curated_entries"
+        "node_entries_paged"
       ],
       "properties": {
-        "all_curated_entries": {
+        "node_entries_paged": {
           "type": "object",
           "properties": {
             "limit": {
@@ -132,7 +114,9 @@
               ],
               "items": [
                 {
-                  "type": "string"
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
                 },
                 {
                   "type": "string"
@@ -140,6 +124,36 @@
               ],
               "maxItems": 2,
               "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Paginated enumeration of all curated entries, ordered by their key string.",
+      "type": "object",
+      "required": [
+        "curated_entries_paged"
+      ],
+      "properties": {
+        "curated_entries_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "additionalProperties": false
@@ -235,47 +249,58 @@
     }
   ],
   "definitions": {
-    "Binary": {
-      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-      "type": "string"
-    },
     "EntryKey": {
-      "description": "The fully-qualified key of a directory entry in the unified store: its [`Namespace`], the raw id bytes (big-endian `node_id` for the node namespace, handle bytes for curated), and the label.",
-      "type": "object",
-      "required": [
-        "id",
-        "label",
-        "namespace"
-      ],
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/Binary"
-        },
-        "label": {
-          "type": "string"
-        },
-        "namespace": {
-          "$ref": "#/definitions/Namespace"
-        }
-      },
-      "additionalProperties": false
-    },
-    "Namespace": {
-      "description": "Key-class / trust-tier discriminant for a directory entry. Extensible: new entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).",
+      "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
       "oneOf": [
         {
-          "description": "Self-published node entry, authorised by the node's identity key.",
-          "type": "string",
-          "enum": [
+          "description": "A self-published node entry, keyed `(node_id, label)`.",
+          "type": "object",
+          "required": [
             "node"
-          ]
+          ],
+          "properties": {
+            "node": {
+              "type": "object",
+              "required": [
+                "label",
+                "node_id"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "node_id": {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         },
         {
-          "description": "Admin-curated entry (e.g. a nym-api identity key).",
-          "type": "string",
-          "enum": [
+          "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+          "type": "object",
+          "required": [
             "curated"
-          ]
+          ],
+          "properties": {
+            "curated": {
+              "type": "object",
+              "required": [
+                "key"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       ]
     }

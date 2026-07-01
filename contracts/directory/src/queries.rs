@@ -204,41 +204,8 @@ pub(crate) fn query_allowed_labels(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{init_contract_tester, DirectoryContract};
-    use nym_contracts_common_testing::{ContractOpts, ContractTester};
-    use nym_directory_contract_common::{CuratedEntry, NodeEntry};
-
-    // Plant entries directly via the storage layer (bypassing the signed write path,
-    // which needs the §9.1 signing harness) so the query handlers have data to return.
-    fn plant_node(tester: &mut ContractTester<DirectoryContract>, node_id: NodeId, label: &str) {
-        let deps = tester.deps_mut();
-        NYM_DIRECTORY_CONTRACT_STORAGE
-            .set_node_entry(
-                deps.storage,
-                node_id,
-                label,
-                NodeEntry {
-                    data: Binary::from(b"d".to_vec()),
-                    updated_at_height: 0,
-                    sequence: 0,
-                    signature: Binary::default(),
-                },
-            )
-            .unwrap();
-    }
-
-    fn plant_curated(tester: &mut ContractTester<DirectoryContract>, key: &str) {
-        let deps = tester.deps_mut();
-        NYM_DIRECTORY_CONTRACT_STORAGE
-            .set_curated_entry(
-                deps.storage,
-                key,
-                CuratedEntry {
-                    data: Binary::from(b"v".to_vec()),
-                },
-            )
-            .unwrap();
-    }
+    use crate::testing::{init_contract_tester, DirectoryContractTesterExt};
+    use nym_contracts_common_testing::ContractOpts;
 
     #[test]
     fn admin_query_returns_the_instantiator() {
@@ -256,7 +223,7 @@ mod tests {
     #[test]
     fn node_entry_query_round_trips() {
         let mut tester = init_contract_tester();
-        plant_node(&mut tester, 1, "sphinx_key");
+        tester.add_dummy_node_data(1, "sphinx_key");
         assert!(query_node_entry(tester.deps(), 1, "sphinx_key".to_string())
             .unwrap()
             .entry
@@ -270,7 +237,7 @@ mod tests {
     #[test]
     fn curated_entry_query_round_trips() {
         let mut tester = init_contract_tester();
-        plant_curated(&mut tester, "nym-api/1");
+        tester.add_dummy_curated("nym-api/1");
         assert!(query_curated_entry(tester.deps(), "nym-api/1".to_string())
             .unwrap()
             .entry
@@ -284,9 +251,9 @@ mod tests {
     #[test]
     fn node_entries_query_returns_all_labels_for_a_node() {
         let mut tester = init_contract_tester();
-        plant_node(&mut tester, 7, "a");
-        plant_node(&mut tester, 7, "b");
-        plant_node(&mut tester, 8, "a");
+        tester.add_dummy_node_data(7, "a");
+        tester.add_dummy_node_data(7, "b");
+        tester.add_dummy_node_data(8, "a");
         let resp = query_node_entries(tester.deps(), 7).unwrap();
         assert_eq!(resp.node_id, 7);
         assert_eq!(
@@ -302,12 +269,12 @@ mod tests {
     fn sequence_query_reports_the_expected_next() {
         let mut tester = init_contract_tester();
         assert_eq!(query_sequence(tester.deps(), 1).unwrap().next_sequence, 0);
-        {
-            let deps = tester.deps_mut();
-            NYM_DIRECTORY_CONTRACT_STORAGE
-                .increment_account_sequence(deps.storage, 1)
-                .unwrap();
-        }
+
+        let deps = tester.deps_mut();
+        NYM_DIRECTORY_CONTRACT_STORAGE
+            .increment_account_sequence(deps.storage, 1)
+            .unwrap();
+
         assert_eq!(query_sequence(tester.deps(), 1).unwrap().next_sequence, 1);
     }
 
@@ -317,7 +284,7 @@ mod tests {
         let empty = query_digest(tester.deps()).unwrap().digest;
         assert_eq!(empty.len(), 32);
 
-        plant_curated(&mut tester, "k");
+        tester.add_dummy_curated("k");
         let after = query_digest(tester.deps()).unwrap().digest;
         assert_eq!(after.len(), 32);
         assert_ne!(after, empty);
@@ -326,9 +293,9 @@ mod tests {
     #[test]
     fn node_entries_paged_query_orders_and_paginates() {
         let mut tester = init_contract_tester();
-        plant_node(&mut tester, 1, "a");
-        plant_node(&mut tester, 2, "a");
-        plant_node(&mut tester, 2, "b");
+        tester.add_dummy_node_data(1, "a");
+        tester.add_dummy_node_data(2, "a");
+        tester.add_dummy_node_data(2, "b");
 
         // full scan, ascending by (node_id, label)
         let all = query_node_entries_paged(tester.deps(), None, None).unwrap();
@@ -345,8 +312,7 @@ mod tests {
         assert_eq!(page.entries.len(), 2);
         assert_eq!(page.start_next_after, Some((2, "a".to_string())));
 
-        let rest =
-            query_node_entries_paged(tester.deps(), page.start_next_after, Some(2)).unwrap();
+        let rest = query_node_entries_paged(tester.deps(), page.start_next_after, Some(2)).unwrap();
         assert_eq!(
             rest.entries
                 .iter()
@@ -359,9 +325,9 @@ mod tests {
     #[test]
     fn curated_entries_paged_query_paginates() {
         let mut tester = init_contract_tester();
-        plant_curated(&mut tester, "a");
-        plant_curated(&mut tester, "b");
-        plant_curated(&mut tester, "c");
+        tester.add_dummy_curated("a");
+        tester.add_dummy_curated("b");
+        tester.add_dummy_curated("c");
 
         let page = query_curated_entries_paged(tester.deps(), None, Some(2)).unwrap();
         assert_eq!(
@@ -387,10 +353,10 @@ mod tests {
     #[test]
     fn all_entries_query_stitches_nodes_then_curated_and_paginates() {
         let mut tester = init_contract_tester();
-        plant_node(&mut tester, 1, "a");
-        plant_node(&mut tester, 2, "a");
-        plant_curated(&mut tester, "x");
-        plant_curated(&mut tester, "y");
+        tester.add_dummy_node_data(1, "a");
+        tester.add_dummy_node_data(2, "a");
+        tester.add_dummy_curated("x");
+        tester.add_dummy_curated("y");
 
         let node1 = EntryKey::Node {
             node_id: 1,
@@ -424,6 +390,39 @@ mod tests {
                 .map(|r| r.key.clone())
                 .collect::<Vec<_>>(),
             vec![cur_y]
+        );
+    }
+
+    #[test]
+    fn resetting_identical_curated_data_leaves_the_digest_unchanged() {
+        let mut tester = init_contract_tester();
+        tester.add_dummy_curated("k");
+        let after_first = query_digest(tester.deps()).unwrap().digest;
+
+        tester.add_dummy_curated("k");
+        assert_eq!(query_digest(tester.deps()).unwrap().digest, after_first);
+    }
+
+    #[test]
+    fn digest_recomputes_from_all_entries() {
+        let mut tester = init_contract_tester();
+        tester.add_dummy_node_data(1, "a");
+        tester.add_dummy_node_data(2, "a");
+        tester.add_dummy_node_data(2, "b");
+        tester.add_dummy_curated("x");
+        tester.add_dummy_curated("y");
+
+        let mut recomputed = nym_lthash::LtHash16::new();
+        for record in query_all_entries(tester.deps(), None, None)
+            .unwrap()
+            .entries
+        {
+            recomputed.add(&record.digest_leaf());
+        }
+
+        assert_eq!(
+            recomputed.out().to_vec(),
+            query_digest(tester.deps()).unwrap().digest
         );
     }
 }

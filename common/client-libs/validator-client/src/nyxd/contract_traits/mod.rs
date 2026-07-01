@@ -8,6 +8,7 @@ use std::str::FromStr;
 // TODO: all of those could/should be derived via a macro
 
 // query clients
+pub mod directory_query_client;
 pub mod dkg_query_client;
 pub mod ecash_query_client;
 pub mod geolocation_query_client;
@@ -20,6 +21,7 @@ pub mod performance_query_client;
 pub mod vesting_query_client;
 
 // signing clients
+pub mod directory_signing_client;
 pub mod dkg_signing_client;
 pub mod ecash_signing_client;
 pub mod geolocation_signing_client;
@@ -32,6 +34,7 @@ pub mod performance_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
+pub use directory_query_client::{DirectoryQueryClient, PagedDirectoryQueryClient};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
 pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
 pub use geolocation_query_client::{GeolocationQueryClient, PagedGeolocationQueryClient};
@@ -46,6 +49,7 @@ pub use performance_query_client::{PagedPerformanceQueryClient, PerformanceQuery
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
+pub use directory_signing_client::DirectorySigningClient;
 pub use dkg_signing_client::DkgSigningClient;
 pub use ecash_signing_client::EcashSigningClient;
 pub use geolocation_signing_client::GeolocationSigningClient;
@@ -65,6 +69,7 @@ pub trait NymContractsProvider {
     fn performance_contract_address(&self) -> Option<&AccountId>;
     fn network_monitors_contract_address(&self) -> Option<&AccountId>;
     fn node_families_contract_address(&self) -> Option<&AccountId>;
+    fn directory_contract_address(&self) -> Option<&AccountId>;
     fn geolocation_contract_address(&self) -> Option<&AccountId>;
 
     // coconut-related
@@ -81,6 +86,7 @@ pub struct TypedNymContracts {
     pub performance_contract_address: Option<AccountId>,
     pub network_monitors_contract_address: Option<AccountId>,
     pub node_families_contract_address: Option<AccountId>,
+    pub directory_contract_address: Option<AccountId>,
     pub geolocation_contract_address: Option<AccountId>,
 
     pub ecash_contract_address: Option<AccountId>,
@@ -112,6 +118,10 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .transpose()?,
             node_families_contract_address: value
                 .node_families_contract_address
+                .map(|addr| addr.parse())
+                .transpose()?,
+            directory_contract_address: value
+                .directory_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
             geolocation_contract_address: value

@@ -9157,6 +9157,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
+ "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",
  "nym-group-contract-common",

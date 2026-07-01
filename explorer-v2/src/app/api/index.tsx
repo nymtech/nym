@@ -174,6 +174,34 @@ export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
   return data;
 };
 
+type RawAmountDetails = {
+  denom: string;
+  amount: string | number;
+};
+
+type RawAccountBalancesInfo = Omit<IAccountBalancesInfo, "balances"> & {
+  balance?: RawAmountDetails;
+  balances?: RawAmountDetails[];
+};
+
+const toAmountDetails = (coin: RawAmountDetails) => ({
+  denom: coin.denom,
+  amount: String(coin.amount),
+});
+
+const normalizeAccountBalancesInfo = (
+  data: RawAccountBalancesInfo,
+): IAccountBalancesInfo => {
+  const balances =
+    data.balances?.map(toAmountDetails) ??
+    (data.balance ? [toAmountDetails(data.balance)] : []);
+
+  return {
+    ...data,
+    balances,
+  };
+};
+
 // Fetch Account Balance
 export const fetchAccountBalance = async (
   address: string,
@@ -188,8 +216,8 @@ export const fetchAccountBalance = async (
     throw new Error("Failed to fetch account balance error from api");
   }
 
-  const data: IAccountBalancesInfo = await res.json();
-  return data;
+  const data: RawAccountBalancesInfo = await res.json();
+  return normalizeAccountBalancesInfo(data);
 };
 
 export const fetchObservatoryNodes = async (): Promise<IObservatoryNode[]> => {

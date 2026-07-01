@@ -27,7 +27,7 @@ export const ConfirmationDetailsModal = ({
   children?: React.ReactNode;
 }) => {
   if (status === 'error') {
-    <ErrorModal open message={subtitle} onClose={onClose} />;
+    return <ErrorModal open title={title} message={subtitle} onClose={onClose} sx={sx} backdropProps={backdropProps} />;
   }
 
   return (

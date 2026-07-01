@@ -3,12 +3,19 @@
 
 //! CosmWasm entry points for the nym directory contract.
 
+use crate::queries::{
+    query_admin, query_all_entries, query_allowed_labels, query_curated_entries_paged,
+    query_curated_entry, query_digest, query_node_entries, query_node_entries_paged,
+    query_node_entry, query_sequence,
+};
 use crate::storage::NYM_DIRECTORY_CONTRACT_STORAGE;
 use crate::transactions::{
     try_delete_node_entry, try_handle_node_unbonding, try_remove_curated_entry, try_remove_label,
     try_set_curated_entry, try_set_label, try_set_node_entry, try_update_admin,
 };
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+};
 use nym_contracts_common::set_build_information;
 use nym_directory_contract_common::{
     DirectoryContractError, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -66,9 +73,7 @@ pub fn execute(
             sequence,
             signature,
         } => try_delete_node_entry(deps, node_id, label, sequence, signature),
-        ExecuteMsg::SetCuratedEntry { key, data } => {
-            try_set_curated_entry(deps, info, key, data)
-        }
+        ExecuteMsg::SetCuratedEntry { key, data } => try_set_curated_entry(deps, info, key, data),
         ExecuteMsg::RemoveCuratedEntry { key } => try_remove_curated_entry(deps, info, key),
         ExecuteMsg::SetLabel { label, max_size } => try_set_label(deps, info, label, max_size),
         ExecuteMsg::RemoveLabel { label } => try_remove_label(deps, info, label),
@@ -80,20 +85,31 @@ pub fn execute(
 /// Read-only dispatcher. Concrete handlers live in [`crate::queries`] and are
 /// wired up here as variants are added to [`QueryMsg`].
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, DirectoryContractError> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, DirectoryContractError> {
     match msg {
-        QueryMsg::Admin { .. } => {}
-        QueryMsg::NodeEntry { .. } => {}
-        QueryMsg::CuratedEntry { .. } => {}
-        QueryMsg::NodeEntries { .. } => {}
-        QueryMsg::AllCuratedEntries { .. } => {}
-        QueryMsg::AllEntries { .. } => {}
-        QueryMsg::Sequence { .. } => {}
-        QueryMsg::Digest { .. } => {}
-        QueryMsg::AllowedLabels { .. } => {}
+        QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
+        QueryMsg::NodeEntry { node_id, label } => {
+            Ok(to_json_binary(&query_node_entry(deps, node_id, label)?)?)
+        }
+        QueryMsg::CuratedEntry { key } => Ok(to_json_binary(&query_curated_entry(deps, key)?)?),
+        QueryMsg::NodeEntries { node_id } => {
+            Ok(to_json_binary(&query_node_entries(deps, node_id)?)?)
+        }
+        QueryMsg::NodeEntriesPaged { start_after, limit } => Ok(to_json_binary(
+            &query_node_entries_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::CuratedEntriesPaged { start_after, limit } => Ok(to_json_binary(
+            &query_curated_entries_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::AllEntries { start_after, limit } => Ok(to_json_binary(&query_all_entries(
+            deps,
+            start_after,
+            limit,
+        )?)?),
+        QueryMsg::Sequence { node_id } => Ok(to_json_binary(&query_sequence(deps, node_id)?)?),
+        QueryMsg::Digest {} => Ok(to_json_binary(&query_digest(deps)?)?),
+        QueryMsg::AllowedLabels {} => Ok(to_json_binary(&query_allowed_labels(deps)?)?),
     }
-
-    Ok(Binary::default())
 }
 
 /// Migration entry point.

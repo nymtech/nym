@@ -49,8 +49,8 @@
 
 ## 8. Queries
 
-- [ ] 8.1 `Admin`, `NodeEntry`, `CuratedEntry { key }`, `NodeEntries`, paginated `AllCuratedEntries { start_after: String }`, paginated `AllEntries` (both classes, node-then-curated via `storage::all_entries`), `Sequence`, `Digest`, `AllowedLabels` (no `config` query)
-- [ ] 8.2 Confirm provable reads: the digest `Item` and individual entries at deterministic raw keys (document the cw-storage-plus `Path` key layout - `length_prefixed(namespace) ++ length_prefix-all-but-last(key)` - for clients)
+- [x] 8.1 All query handlers implemented in `queries.rs` + wired into `contract.rs::query` (`to_json_binary`): `Admin` (`contract_admin.query_admin`), `NodeEntry { node_id, label }`, `CuratedEntry { key }`, `NodeEntries { node_id }` (per-node `node_range`, unpaginated), `AllCuratedEntries { start_after: String, limit }` (curated `range`, exclusive cursor, `retrieval_limits::*_CURATED_ENTRIES` clamp), `AllEntries { start_after: EntryKey, limit }` (stitches node `range` then curated `range` in the handler - the storage-level wrapper was removed; sound because the digest is an order-independent multiset; `*_ALL_ENTRIES` clamp), `Sequence { node_id }`, `Digest {}` (32-byte `LtHash16::out()`), `AllowedLabels {}`. No `config` query. Cursor convention mirrors node-families (`start_next_after = last().map(...)`, unconditional; empty page -> `None`). 9 query unit tests via the harness
+- [x] 8.2 Provable reads confirmed + documented: smart queries produce NO proof (noted in the `queries.rs` module doc); provable reads are RAW store reads of the digest (`storage_keys::DIGEST_STATE`) and individual entries at the cw-storage-plus `Path` layout (`length_prefixed(namespace) ++ length_prefix-all-but-last(key)`), documented in design D10 + `constants.rs::storage_keys`. The client-side ICS23 verification itself is the separate retrieval-client change (out of scope per the proposal)
 
 ## 9. Tests
 

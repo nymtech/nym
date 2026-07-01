@@ -444,11 +444,17 @@ impl StoredCuratedEntries {
 }
 
 pub mod retrieval_limits {
-    pub const DEFAULT_NODE_ENTRIES: usize = 50;
-    pub const MAX_NODE_ENTRIES: usize = 100;
+    /// `AllCuratedEntries` page size (default applied when the caller omits `limit`,
+    /// then clamped to the max).
+    pub const DEFAULT_CURATED_ENTRIES: u32 = 50;
+    pub const MAX_CURATED_ENTRIES: u32 = 100;
 
-    pub const DEFAULT_CURATED_ENTRIES: usize = 50;
-    pub const MAX_CURATED_ENTRIES: usize = 100;
+    pub const DEFAULT_NODE_ENTRIES: u32 = 50;
+    pub const MAX_NODE_ENTRIES: u32 = 100;
+
+    /// `AllEntries` (both classes) page size.
+    pub const DEFAULT_ALL_ENTRIES: u32 = 50;
+    pub const MAX_ALL_ENTRIES: u32 = 100;
 }
 
 #[cfg(test)]

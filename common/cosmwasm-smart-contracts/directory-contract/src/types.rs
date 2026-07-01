@@ -277,6 +277,15 @@ pub struct NodeLabelEntry {
     pub entry: NodeEntry,
 }
 
+/// A node entry carrying its full `(node_id, label)` key - a row in
+/// [`NodeEntriesPagedResponse`], where entries from different nodes are interleaved.
+#[cw_serde]
+pub struct AnnotatedNodeLabelEntry {
+    pub node_id: NodeId,
+    pub label: String,
+    pub entry: NodeEntry,
+}
+
 /// Response for [`crate::QueryMsg::NodeEntries`] - every entry for one node.
 #[cw_serde]
 pub struct NodeEntriesResponse {
@@ -284,13 +293,65 @@ pub struct NodeEntriesResponse {
     pub entries: Vec<NodeLabelEntry>,
 }
 
+/// A `(label, entry)` pair belonging to a curated entry.
+#[cw_serde]
+pub struct CuratedLabelEntry {
+    pub label: String,
+    pub entry: CuratedEntry,
+}
+
 /// A page of curated entries.
 #[cw_serde]
 pub struct CuratedEntriesPagedResponse {
-    /// `(key, entry)` pairs in ascending key order.
-    pub entries: Vec<(String, CuratedEntry)>,
+    /// Entries in ascending key order.
+    pub entries: Vec<CuratedLabelEntry>,
     /// Cursor to pass as the next `start_after`, or `None` when exhausted.
     pub start_next_after: Option<String>,
+}
+
+impl From<CuratedEntriesPagedResponse> for AllEntriesPagedResponse {
+    fn from(res: CuratedEntriesPagedResponse) -> Self {
+        AllEntriesPagedResponse {
+            entries: res
+                .entries
+                .into_iter()
+                .map(|curated_entry| {
+                    DirectoryEntryRecord::new_curated(curated_entry.label, curated_entry.entry)
+                })
+                .collect(),
+            start_next_after: res.start_next_after.map(EntryKey::new_curated),
+        }
+    }
+}
+
+/// A page of node entries across all nodes, ordered by `(node_id, label)`.
+#[cw_serde]
+pub struct NodeEntriesPagedResponse {
+    /// Entries in ascending `(node_id, label)` order.
+    pub entries: Vec<AnnotatedNodeLabelEntry>,
+    /// Cursor to pass as the next `start_after`, or `None` when exhausted.
+    pub start_next_after: Option<(NodeId, String)>,
+}
+
+impl From<NodeEntriesPagedResponse> for AllEntriesPagedResponse {
+    fn from(res: NodeEntriesPagedResponse) -> Self {
+        AllEntriesPagedResponse {
+            entries: res
+                .entries
+                .into_iter()
+                .map(|node_entry| {
+                    DirectoryEntryRecord::new_node(
+                        node_entry.node_id,
+                        node_entry.label,
+                        node_entry.entry,
+                    )
+                })
+                .collect(),
+            start_next_after: res
+                .start_next_after
+                .map(|(node_id, label)| EntryKey::new_node(node_id, label)),
+        }
+    }
 }
 
 /// The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`]
@@ -314,10 +375,12 @@ pub enum EntryKey {
 }
 
 impl EntryKey {
+    /// A node key from its `(node_id, label)`.
     pub fn new_node(node_id: NodeId, label: String) -> Self {
         EntryKey::Node { node_id, label }
     }
 
+    /// A curated key from its path string.
     pub fn new_curated(key: String) -> Self {
         EntryKey::Curated { key }
     }
@@ -361,6 +424,22 @@ pub struct DirectoryEntryRecord {
 }
 
 impl DirectoryEntryRecord {
+    /// A curated record from its key and entry.
+    pub fn new_curated(label: String, entry: CuratedEntry) -> Self {
+        Self {
+            key: EntryKey::new_curated(label),
+            entry: DirectoryEntry::CuratedEntry(entry),
+        }
+    }
+
+    /// A node record from its `(node_id, label)` and entry.
+    pub fn new_node(node_id: NodeId, label: String, entry: NodeEntry) -> Self {
+        Self {
+            key: EntryKey::new_node(node_id, label),
+            entry: DirectoryEntry::NodeEntry(entry),
+        }
+    }
+
     /// The canonical LtHash leaf for this record - its key over its committed value.
     pub fn digest_leaf(&self) -> Vec<u8> {
         self.key.digest_leaf(&self.entry)

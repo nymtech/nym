@@ -9,7 +9,8 @@ use nym_mixnet_contract_common::NodeId;
 #[cfg(feature = "schema")]
 use crate::types::{
     AllEntriesPagedResponse, AllowedLabelsResponse, CuratedEntriesPagedResponse,
-    CuratedEntryResponse, DigestResponse, NodeEntriesResponse, NodeEntryResponse, SequenceResponse,
+    CuratedEntryResponse, DigestResponse, NodeEntriesPagedResponse, NodeEntriesResponse,
+    NodeEntryResponse, SequenceResponse,
 };
 
 /// Defines initial label to be created on contract instantiation.
@@ -94,9 +95,16 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(NodeEntriesResponse))]
     NodeEntries { node_id: NodeId },
 
+    /// Paginated enumeration of all node entries, ordered by their key string.
+    #[cfg_attr(feature = "schema", returns(NodeEntriesPagedResponse))]
+    NodeEntriesPaged {
+        start_after: Option<(NodeId, String)>,
+        limit: Option<u32>,
+    },
+
     /// Paginated enumeration of all curated entries, ordered by their key string.
     #[cfg_attr(feature = "schema", returns(CuratedEntriesPagedResponse))]
-    AllCuratedEntries {
+    CuratedEntriesPaged {
         start_after: Option<String>,
         limit: Option<u32>,
     },

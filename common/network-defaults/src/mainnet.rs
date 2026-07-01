@@ -29,6 +29,11 @@ pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
 // \/ TODO: this has to be updated once the contract is deployed
 pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
+
+// \/ TODO: this has to be updated once the contract is deployed
+pub const DIRECTORY_CONTRACT_ADDRESS: &str = "";
+// /\ TODO: this has to be updated once the contract is deployed
+
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =
@@ -204,6 +209,10 @@ pub fn export_to_env() {
         NODE_FAMILIES_CONTRACT_ADDRESS,
     );
     set_var_to_default(
+        var_names::DIRECTORY_CONTRACT_ADDRESS,
+        DIRECTORY_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
         var_names::GEOLOCATION_CONTRACT_ADDRESS,
         GEOLOCATION_CONTRACT_ADDRESS,
     );
@@ -263,6 +272,10 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
         NODE_FAMILIES_CONTRACT_ADDRESS,
+    );
+    set_var_conditionally_to_default(
+        var_names::DIRECTORY_CONTRACT_ADDRESS,
+        DIRECTORY_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
         var_names::GEOLOCATION_CONTRACT_ADDRESS,

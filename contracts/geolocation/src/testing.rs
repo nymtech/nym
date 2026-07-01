@@ -8,7 +8,9 @@
 use crate::contract::{execute, instantiate, migrate, query};
 use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
 use cosmwasm_std::{Addr, Storage};
-use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
+use mixnet_contract::testable_mixnet_contract::{
+    EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
+};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
@@ -81,7 +83,11 @@ pub fn init_contract_tester() -> ContractTester<GeolocationContract> {
 
     let geolocation_address = tester.contract_address.clone();
     tester
-        .set_mixnet_sibling_contracts(None.into(), Some(geolocation_address).into())
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_geolocation_contract(geolocation_address),
+        )
         .expect("should be able to patch mixnet contract state");
 
     tester

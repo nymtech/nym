@@ -7,7 +7,9 @@
 
 use crate::contract::{execute, instantiate, migrate, query};
 use cosmwasm_std::{Binary, Storage};
-use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
+use mixnet_contract::testable_mixnet_contract::{
+    EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
+};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
@@ -68,32 +70,18 @@ impl TestableNymContract for DirectoryContract {
     }
 }
 
-/// Storage key the mixnet contract uses for its `ContractState` `Item`
-/// (mirrors `mixnet/src/constants.rs::CONTRACT_STATE_KEY`).
-const MIXNET_CONTRACT_STATE_STORAGE_KEY: &str = "state";
-
 pub fn init_contract_tester() -> ContractTester<DirectoryContract> {
     let mut tester = DirectoryContract::init()
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN);
 
-    // TODO: not implemented yet
-
-    // // Chicken-and-egg: the mixnet contract is instantiated first and is given
-    // // a placeholder `directory_contract_address` because the directory
-    // // contract doesn't exist yet. Once the directory contract has been
-    // // instantiated we patch the mixnet's stored `ContractState` so that the
-    // // unbond callback (`OnNymNodeUnbond`) actually dispatches to the right
-    // // contract. In production this fixup happens via a contract migration;
-    // // here we go straight to storage to avoid jumping through cw2 version
-    // // checks that don't apply on a fresh tester.
-    // let directory_address = tester.contract_address.clone();
-    // let mut mixnet_state: ContractState = tester
-    //     .read_from_mixnet_contract_storage(MIXNET_CONTRACT_STATE_STORAGE_KEY)
-    //     .expect("mixnet contract state should be loadable");
-    // mixnet_state.directory_contract_address = directory_address;
-    // tester
-    //     .write_to_mixnet_contract_storage_value(MIXNET_CONTRACT_STATE_STORAGE_KEY, &mixnet_state)
-    //     .expect("should be able to patch mixnet contract state");
+    let directory_address = tester.contract_address.clone();
+    tester
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_directory_contract(directory_address),
+        )
+        .expect("should be able to patch mixnet contract state");
 
     tester
 }

@@ -1098,6 +1098,8 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract",
+ "nym-directory-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
@@ -1227,7 +1229,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-directory"
+name = "nym-directory-contract"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1369,6 +1371,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract-common",
  "nym-geolocation-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",

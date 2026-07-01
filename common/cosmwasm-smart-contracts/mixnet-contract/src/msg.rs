@@ -64,6 +64,7 @@ pub struct InstantiateMsg {
     pub rewarding_validator_address: String,
     pub vesting_contract_address: String,
     pub node_families_contract_address: String,
+    pub directory_contract_address: String,
     pub geolocation_contract_address: String,
 
     pub rewarding_denom: String,
@@ -919,5 +920,6 @@ pub struct MigrateMsg {
     pub unsafe_skip_state_updates: Option<bool>,
     pub vesting_contract_address: Option<String>,
     pub node_families_contract_address: Option<String>,
+    pub directory_contract_address: String,
     pub geolocation_contract_address: String,
 }

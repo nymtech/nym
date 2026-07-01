@@ -5,6 +5,7 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
+use crate::queued_migrations::introduce_directory_contract;
 use crate::queued_migrations::introduce_geolocation_contract;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
@@ -30,6 +31,7 @@ fn default_initial_state(
     vesting_contract_address: Addr,
     node_families_contract_address: Addr,
     geolocation_contract_address: Addr,
+    directory_contract_address: Addr,
 ) -> ContractState {
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
@@ -39,6 +41,7 @@ fn default_initial_state(
         vesting_contract_address,
         node_families_contract_address: Some(node_families_contract_address),
         geolocation_contract_address: Some(geolocation_contract_address),
+        directory_contract_address: Some(directory_contract_address),
         rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
             delegations_params: DelegationsParams {
@@ -97,6 +100,7 @@ pub fn instantiate(
     let node_families_contract_address = deps
         .api
         .addr_validate(&msg.node_families_contract_address)?;
+    let directory_contract_address = deps.api.addr_validate(&msg.directory_contract_address)?;
     let geolocation_contract_address = deps.api.addr_validate(&msg.geolocation_contract_address)?;
     let state = default_initial_state(
         &msg,
@@ -105,6 +109,7 @@ pub fn instantiate(
         vesting_contract_address,
         node_families_contract_address,
         geolocation_contract_address,
+        directory_contract_address,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -654,6 +659,9 @@ pub fn migrate(
     if !skip_state_updates {
         let addr = deps.api.addr_validate(&msg.geolocation_contract_address)?;
         introduce_geolocation_contract(deps.branch(), addr)?;
+
+        let addr = deps.api.addr_validate(&msg.directory_contract_address)?;
+        introduce_directory_contract(deps.branch(), addr)?;
     }
 
     // due to circular dependency on contract addresses (e.g. mixnet contract requiring vesting contract address
@@ -701,6 +709,7 @@ mod tests {
             vesting_contract_address: deps.api.addr_make("bar456").to_string(),
             node_families_contract_address: deps.api.addr_make("baz789").to_string(),
             geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
+            directory_contract_address: deps.api.addr_make("quux012").to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),
@@ -743,6 +752,7 @@ mod tests {
             vesting_contract_address: deps.api.addr_make("bar456"),
             node_families_contract_address: Some(deps.api.addr_make("baz789")),
             geolocation_contract_address: Some(deps.api.addr_make("geolocation")),
+            directory_contract_address: Some(deps.api.addr_make("quux012")),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

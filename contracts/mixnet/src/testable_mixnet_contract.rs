@@ -89,6 +89,7 @@ impl TestableNymContract for MixnetContract {
                 .addr_make("node-families-contract")
                 .to_string(),
             geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
+            directory_contract_address: deps.api.addr_make("directory-contract").to_string(),
             rewarding_denom: TEST_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
@@ -110,6 +111,47 @@ pub enum EmbeddedContractAddressUpdate {
     },
     #[default]
     NoChange,
+}
+
+#[derive(Default)]
+pub struct MixnetContractSiblings {
+    pub directory_contract: EmbeddedContractAddressUpdate,
+    pub geolocation_contract: EmbeddedContractAddressUpdate,
+    pub node_families_contract: EmbeddedContractAddressUpdate,
+}
+
+impl MixnetContractSiblings {
+    #[must_use]
+    pub fn with_directory_contract(mut self, directory_contract_address: Addr) -> Self {
+        self.directory_contract = EmbeddedContractAddressUpdate::Update {
+            new: Some(directory_contract_address),
+        };
+        self
+    }
+
+    #[must_use]
+    pub fn with_geolocation_contract(mut self, geolocation_contract_address: Addr) -> Self {
+        self.geolocation_contract = EmbeddedContractAddressUpdate::Update {
+            new: Some(geolocation_contract_address),
+        };
+        self
+    }
+
+    #[must_use]
+    pub fn with_node_families_contract(mut self, node_families_contract_address: Addr) -> Self {
+        self.node_families_contract = EmbeddedContractAddressUpdate::Update {
+            new: Some(node_families_contract_address),
+        };
+        self
+    }
+
+    #[must_use]
+    pub fn with_clear_all(mut self) -> Self {
+        self.node_families_contract = EmbeddedContractAddressUpdate::Update { new: None };
+        self.directory_contract = EmbeddedContractAddressUpdate::Update { new: None };
+        self.geolocation_contract = EmbeddedContractAddressUpdate::Update { new: None };
+        self
+    }
 }
 
 impl From<Option<Addr>> for EmbeddedContractAddressUpdate {
@@ -167,18 +209,17 @@ pub trait EmbeddedMixnetContractExt:
     /// Test-only fixup for the chicken-and-egg wiring:
     /// the mixnet is instantiated with placeholder addresses before its sibling
     /// contracts exist, and in production a migration backfills them.
-    fn set_mixnet_sibling_contracts(
-        &mut self,
-        node_families_contract_address: EmbeddedContractAddressUpdate,
-        geolocation_contract_address: EmbeddedContractAddressUpdate,
-    ) -> StdResult<()> {
+    fn set_mixnet_sibling_contracts(&mut self, siblings: MixnetContractSiblings) -> StdResult<()> {
         let mut state: ContractState =
             self.read_from_mixnet_contract_storage(crate::constants::CONTRACT_STATE_KEY)?;
-        if let EmbeddedContractAddressUpdate::Update { new } = node_families_contract_address {
+        if let EmbeddedContractAddressUpdate::Update { new } = siblings.node_families_contract {
             state.node_families_contract_address = new;
         }
-        if let EmbeddedContractAddressUpdate::Update { new } = geolocation_contract_address {
+        if let EmbeddedContractAddressUpdate::Update { new } = siblings.geolocation_contract {
             state.geolocation_contract_address = new;
+        }
+        if let EmbeddedContractAddressUpdate::Update { new } = siblings.directory_contract {
+            state.directory_contract_address = new;
         }
         self.write_to_mixnet_contract_storage_value(crate::constants::CONTRACT_STATE_KEY, &state)
     }

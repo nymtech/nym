@@ -37,6 +37,8 @@ nym-mixnet-contract-common = { workspace = true }
 nym-contracts-common-testing = { workspace = true, optional = true }
 nym-mixnet-contract = { workspace = true, optional = true, features = ["testable-mixnet-contract"] }
 nym-crypto = { workspace = true, optional = true }
+nym-directory-contract-common = { workspace = true, optional = true }
+nym-directory-contract = { workspace = true, features = ["testable-directory-contract"], optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -45,6 +47,9 @@ anyhow = { workspace = true }
 # `testable-node-families-contract` feature.
 nym-contracts-common-testing = { workspace = true }
 nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-directory-contract-common = { workspace = true }
+nym-directory-contract = { workspace = true, features = ["testable-directory-contract"] }
+
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [features]
@@ -52,6 +57,8 @@ schema-gen = ["nym-node-families-contract-common/schema", "cosmwasm-schema"]
 testable-node-families-contract = [
     "nym-contracts-common-testing",
     "nym-mixnet-contract",
+    "nym-directory-contract",
+    "nym-directory-contract-common",
     "nym-crypto",
     "nym-crypto/asymmetric",
 ]

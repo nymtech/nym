@@ -12,7 +12,7 @@ This design covers the CONTRACT and the small mixnet-side callback wiring. The r
 - A schema-agnostic, push-based key-value directory over opaque deterministic bytes, under two key-classes: node entries and admin-curated entries.
 - Writes authenticated by the node's ed25519 identity key with per-node replay protection; curated entries managed by the admin.
 - A single O(1)-updatable on-chain integrity digest so a consumer can verify the complete, untampered directory at a height with one chain proof.
-- Bounded, self-cleaning lifecycle (per-label sizes + a best-effort unbond callback) with no unbounded iteration in any handler.
+- Bounded, self-cleaning lifecycle (per-label sizes + a hard unbond callback, per D1) with no unbounded iteration in any handler.
 
 **Non-Goals:**
 - The retrieval client, light client, root-key/DNS bootstrap, and the paranoid/normal verification routes (separate change).
@@ -97,7 +97,7 @@ Entry values are stored as compact RAW BYTES via `NodeEntry`/`CuratedEntry` `to_
 3. Consumers gain a read path (separate change), computing `missing = bonded(mixnet) - published` and falling back to the HTTP pull for missing nodes during migration.
 4. The verification client (separate change) implements the paranoid/normal routes over the digest, with aggregator auth via curated entries + the DKG dealer set.
 
-Rollback: additive and fallback-guarded - disabling the push client and read path reverts to current behavior with no data migration. The mixnet sub-message is best-effort, so it can be left in place harmlessly.
+Rollback: additive and fallback-guarded - disabling the push client and read path reverts to current behavior with no data migration. The mixnet -> directory unbond sub-message is a **hard** callback (`.add_message`, per D1), not best-effort, so a directory fault fails the unbond rather than passing harmlessly; backing out the mixnet-side wiring is therefore a real contract change (re-migrate to drop the directory address/handler), not something that can be left in place safely.
 
 ## Open Questions
 

@@ -5164,7 +5164,7 @@ dependencies = [
 
 [[package]]
 name = "nym-directory-contract-common"
-version = "1.21.2"
+version = "1.21.3"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

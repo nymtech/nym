@@ -4,6 +4,7 @@
   "type": "object",
   "required": [
     "current_nym_node_version",
+    "directory_contract_address",
     "epoch_duration",
     "epochs_in_interval",
     "geolocation_contract_address",
@@ -15,6 +16,9 @@
   ],
   "properties": {
     "current_nym_node_version": {
+      "type": "string"
+    },
+    "directory_contract_address": {
       "type": "string"
     },
     "epoch_duration": {

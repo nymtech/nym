@@ -19,6 +19,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     if !args.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());
     }
+
     setup_tracing_logger();
 
     if let Err(err) = commands::execute(args).await {

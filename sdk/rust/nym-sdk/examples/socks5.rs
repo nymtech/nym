@@ -1,54 +1,41 @@
-//! SOCKS5 proxy client that routes HTTP requests through the mixnet.
+//! SOCKS5 proxy client that routes an HTTPS request through the mixnet.
 //!
-//! Connects a `Socks5MixnetClient` to a receiving `MixnetClient` acting
-//! as the service provider, then sends an HTTP GET via the SOCKS5 proxy.
+//! Picks a network requester (the mixnet exit), starts a local SOCKS5 listener,
+//! points an HTTP client at it, and makes a real request end to end.
 //!
 //! Run with: cargo run --example socks5
 
-use nym_sdk::mixnet;
+use nym_sdk::mixnet::{NetworkRequester, Socks5MixnetClient};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     nym_bin_common::logging::setup_tracing_logger();
 
-    // Connect a receiving client (acts as the "network requester").
-    println!("Connecting receiver");
-    let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
+    // How to choose the requester. `any()` auto-discovers one from the directory,
+    // weighted by performance, and is the most robust default. The alternatives:
+    //   NetworkRequester::in_countries(["CH", "DE"])? -> discovery pinned to those countries
+    //   NetworkRequester::exact(Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf)? -> a specific known requester
+    // If you already have the address, Socks5MixnetClient::connect_new(Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf) is the one-line shorthand for the `exact` case.
+    let requester = NetworkRequester::any();
 
-    // Build and connect a SOCKS5 sending client pointed at the receiver.
-    let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
-    let sending_client = mixnet::MixnetClientBuilder::new_ephemeral()
-        .socks5_config(socks5_config)
-        .build()
-        .unwrap();
+    // Passing `None` binds the SOCKS5 listener to the default 127.0.0.1:1080. Pass Some(addr)
+    // to move it, for example when that port is taken or to run more than one client.
+    println!("Selecting a network requester and connecting");
+    let client =
+        Socks5MixnetClient::connect_with(requester, Some("127.0.0.1:1081".parse()?)).await?;
+    println!("SOCKS5 proxy listening at {}", client.socks5_url());
 
-    println!("Connecting sender");
-    let sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
+    // Point an HTTP client at the proxy and make a request through the mixnet.
+    let proxy = reqwest::Proxy::all(client.socks5_url())?;
+    let http = reqwest::Client::builder().proxy(proxy).build()?;
 
-    // Configure an HTTP client to use the SOCKS5 proxy.
-    let proxy = reqwest::Proxy::all(sending_client.socks5_url()).unwrap();
-    let reqwest_client = reqwest::Client::builder().proxy(proxy).build().unwrap();
+    // nymtech.net is on the default Nym exit policy. If you change this URL to a
+    // destination the exit policy does not allow, the request fails at the exit,
+    // which is not a discovery failure.
+    println!("Sending request through the mixnet");
+    let status = http.get("https://nymtech.net").send().await?.status();
+    println!("Got response status: {status}");
 
-    // Send an HTTP request through the mixnet via SOCKS5.
-    // No network requester is running on the other end, so we won't
-    // get a real HTTP response — but the receiver sees the raw bytes.
-    tokio::spawn(async move {
-        println!("Sending socks5-wrapped http request");
-        reqwest_client.get("https://nymtech.net").send().await.ok()
-    });
-
-    // The receiver sees the raw SOCKS5/HTTP bytes arrive.
-    println!("Waiting for message");
-    if let Some(received) = receiving_client.wait_for_messages().await {
-        for r in received {
-            println!(
-                "Received socks5 message requesting for endpoint: {}",
-                String::from_utf8_lossy(&r.message[10..27])
-            );
-        }
-    }
-
-    // Disconnect both clients.
-    receiving_client.disconnect().await;
-    sending_client.disconnect().await;
+    client.disconnect().await;
+    Ok(())
 }

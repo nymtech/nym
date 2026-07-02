@@ -13,14 +13,11 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandSender, LaneQueueLengths};
 use nym_task::ShutdownTracker;
-use std::net::SocketAddr;
-use tap::TapFallible;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
 pub struct NymSocksServer {
     authenticator: Authenticator,
-    listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
     client_config: client::Config,
@@ -31,9 +28,7 @@ pub struct NymSocksServer {
 
 impl NymSocksServer {
     /// Create a new SphinxSocks instance
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        bind_address: SocketAddr,
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
@@ -42,10 +37,8 @@ impl NymSocksServer {
         shutdown: ShutdownTracker,
         packet_type: PacketType,
     ) -> Self {
-        info!("Listening on {bind_address}");
         NymSocksServer {
             authenticator,
-            listening_address: bind_address,
             service_provider,
             self_address,
             client_config,
@@ -59,13 +52,11 @@ impl NymSocksServer {
     /// connects to the server.
     pub(crate) async fn serve(
         &mut self,
+        listener: TcpListener,
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         client_connection_tx: ConnectionCommandSender,
     ) -> Result<(), Socks5ClientCoreError> {
-        let listener = TcpListener::bind(self.listening_address)
-            .await
-            .tap_err(|err| log::error!("Failed to bind to address: {err}"))?;
         info!("Serving Connections...");
 
         // controller for managing all active connections

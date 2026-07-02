@@ -33,11 +33,27 @@ W  = "\033[1;37m"   # bold white
 D  = "\033[2;37m"   # dim
 NC = "\033[0m"      # reset
 
+SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
+
 
 def ok(msg):   print(f"  {G}✓{NC} {msg}")
 def err(msg):  print(f"  {R}✗{NC} {msg}")
 def info(msg): print(f"  {C}→{NC} {msg}")
 def dim(msg):  print(f"  {D}{msg}{NC}")
+
+
+def redact_cmd(cmd: list) -> list:
+    redacted = []
+    hide_next = False
+    for token in map(str, cmd):
+        if hide_next:
+            redacted.append("***REDACTED***")
+            hide_next = False
+            continue
+        redacted.append(token)
+        if token in SENSITIVE_FLAGS:
+            hide_next = True
+    return redacted
 
 
 def parse_args():
@@ -79,24 +95,8 @@ def resolve_paths(args):
     return nym_cli, ansible_pb, inventory
 
 
-
-SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
-
-def redact_cmd(cmd: list) -> list[str]:
-    redacted = []
-    hide_next = False
-    for token in map(str, cmd):
-        if hide_next:
-            redacted.append("***REDACTED***")
-            hide_next = False
-            continue
-        redacted.append(token)
-        if token in SENSITIVE_FLAGS:
-            hide_next = True
-    return redacted
-
- def run(cmd: list, capture=True) -> subprocess.CompletedProcess:
-    print(f"  $ {' '.join(redact_cmd(cmd))}")
+def run(cmd: list, dry_run: bool, capture=True, cwd=None) -> subprocess.CompletedProcess:
+    print(f"  {D}$ {' '.join(redact_cmd(cmd))}{NC}")
     if dry_run:
         return subprocess.CompletedProcess(cmd, 0, stdout='{"dry_run": true}', stderr="")
     result = subprocess.run(cmd, capture_output=capture, text=True, cwd=cwd)
@@ -146,7 +146,6 @@ def ansible_sign(node_id: str, payload: str, ansible_pb: Path, inventory: Path, 
         return "DRY_RUN_SIGNATURE", "DRY_RUN_RECAP"
 
     recap = extract_ansible_recap(result.stdout)
-
     match = re.search(r'ENCODED_SIGNATURE=([1-9A-HJ-NP-Za-km-z]+)', result.stdout)
     if not match:
         raise ValueError(f"Could not find ENCODED_SIGNATURE in ansible output:\n{result.stdout}")
@@ -167,7 +166,7 @@ def bond_node(row: dict, signature: str, nym_cli: Path, dry_run: bool):
         "--nym-api-url",             NYM_API_URL,
         "--force",
     ]
-    dim("$ " + " ".join(str(c) for c in cmd))
+    print(f"  {D}$ {' '.join(redact_cmd(cmd))}{NC}")
     if dry_run:
         return
     result = subprocess.run(cmd, text=True)

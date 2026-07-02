@@ -34,7 +34,7 @@ nym-contracts-common = { workspace = true }
 nym-directory-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
-# Optional deps activated by the `testable-node-families-contract` feature so
+# Optional deps activated by the `testable-directory-contract` feature so
 # downstream crates can pull in `crate::testing` for their own test harnesses.
 nym-contracts-common-testing = { workspace = true, optional = true }
 nym-mixnet-contract = { workspace = true, optional = true, features = ["testable-mixnet-contract"] }
@@ -44,7 +44,7 @@ nym-crypto = { workspace = true, optional = true }
 anyhow = { workspace = true }
 # make the testing helpers available for this crate's own unit tests via
 # `cfg(test)`; downstream crates instead pull these in through the
-# `testable-node-families-contract` feature.
+# `testable-directory-contract` feature.
 nym-contracts-common-testing = { workspace = true }
 nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }

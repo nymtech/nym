@@ -30,8 +30,8 @@ use mixnet_contract_common::{
 };
 use nym_contracts_common::helpers::ResponseExt;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
-use nym_geolocation_contract_common::msg::ExecuteMsg as GeoLocationExecuteMsg;
 use nym_directory_contract_common::msg::ExecuteMsg as DirectoryExecuteMsg;
+use nym_geolocation_contract_common::msg::ExecuteMsg as GeoLocationExecuteMsg;
 use nym_node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
 use serde::Serialize;
 
@@ -179,17 +179,18 @@ pub(crate) fn try_remove_nym_node(
             })
             .transpose()?;
 
-    let remove_from_directory_exec = mixnet_params_storage::directory_contract_address(deps.storage)?
-        .map(|directory_contract_address| {
-            wasm_execute(
-                directory_contract_address,
-                &DirectoryExecuteMsg::OnNymNodeUnbond {
-                    node_id: existing_bond.node_id,
-                },
-                vec![],
-            )
-        })
-        .transpose()?;
+    let remove_from_directory_exec =
+        mixnet_params_storage::directory_contract_address(deps.storage)?
+            .map(|directory_contract_address| {
+                wasm_execute(
+                    directory_contract_address,
+                    &DirectoryExecuteMsg::OnNymNodeUnbond {
+                        node_id: existing_bond.node_id,
+                    },
+                    vec![],
+                )
+            })
+            .transpose()?;
 
     Ok(Response::new()
         .add_optional_message(remove_from_family_exec)

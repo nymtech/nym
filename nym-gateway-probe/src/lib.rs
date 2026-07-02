@@ -395,6 +395,7 @@ impl Probe {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub async fn probe_run_agent(
         mut self,
         credential_args: CredentialArgs,

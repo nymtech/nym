@@ -1,24 +1,24 @@
 ## 1. Spike - de-risk the ICS23 proof (phase 0)
 
-- [ ] 1.1 Against a localnet/testnet directory contract, run `abci_query("store/wasm/key", raw_key, height=H, prove=true)` and inspect the returned `ProofOps` (expect two ops: an IAVL existence proof and a simple-merkle store proof).
-- [ ] 1.2 Verify the digest-item proof end to end: chain the two layers (IAVL key -> wasm-store root, simple-merkle wasm-store -> `app_hash`) and confirm it verifies against the header's `app_hash`; pin down the `ics23` spec constants for each layer.
-- [ ] 1.3 Decide and record: hand-chain two `ics23::verify_membership` calls vs depend on `ibc-core-commitment-types` `MerkleProof` (`ibc-proto` is present, the `ibc` verifier crate is not).
+- [x] 1.1 Retrieved a live sample proof (mixnet `admin` item, `query_contract_raw_with_proof`) and decoded the `ProofOps`: two ops confirmed - `ics23:iavl` (key -> wasm-store root) and `ics23:simple` `key="wasm"` (wasm-store -> `app_hash`).
+- [x] 1.2 Verified end to end: `proof::verify_wasm_store_membership` + `proof::tests::verifies_a_live_membership_proof_and_rejects_tampering` (live mixnet `admin` sample) - `calculate_existence_root` for the subroot, then `verify_membership` with `iavl_spec()` / `tendermint_spec()` against the `app_hash` from `header[H+1]` (off-by-one confirmed); passes on the sample, rejects a wrong app_hash and a tampered value.
+- [x] 1.3 Decided: hand-chain `ics23::verify_membership` directly (not `ibc-core-commitment-types`) - `ibc-rs` saves ~0 net code for a fixed 2-op proof while adding a dependency tree. See design D4.
 
 ## 2. Crate scaffolding
 
-- [ ] 2.1 Create `common/directory-client` (`nym-directory-client`) and register it in the workspace members.
-- [ ] 2.2 Add dependencies: `nym-directory-contract-common`, `nym-lthash`, `nym-validator-client`, `nym-mixnet-contract-common`, `nym-crypto` (ed25519), `ics23` (with `host-functions`), `tendermint` / `tendermint-rpc`.
+- [x] 2.1 Created `common/nym-directory-client` (`nym-directory-client`), registered in the workspace.
+- [x] 2.2 Dependencies added: `nym-directory-contract-common`, `nym-lthash`, `nym-validator-client` (http-client), `nym-mixnet-contract-common`, `nym-crypto` (asymmetric), `ics23` (host-functions), `thiserror`. (`tendermint` types come through validator-client; add directly only if needed.)
 
 ## 3. Shared validator-client extensions
 
-- [ ] 3.1 Proof-carrying raw-store query: a typed helper on the nyxd client that runs `abci_query(..., prove=true)` for a raw store key at height `H` and returns the value + `ProofOps` + response height (build on the existing `abci_query`, which never passes `prove=true` today).
-- [ ] 3.2 Height-pinned contract query: a height-parameterised `query_contract_smart` (and the `DirectoryQueryClient` paginated paths built on it) so contract reads can target an explicit height `H` instead of latest.
+- [x] 3.1 Proof-carrying raw-store query: `query_contract_raw_with_proof(addr, key, height) -> ProvableAbciQueryResponse` (with `query_contract_raw_at_height` + `make_raw_abci_query_with_proof`), returning value + `ProofOps` + height; `ProvableAbciQueryResponse::map` added.
+- [x] 3.2 Height-pinned contract query: `query_contract_smart_at_height` added; `query_contract_smart` now delegates to it with `None`. (Wire the `DirectoryQueryClient` paginated paths through it in the verify core, task 6.1.)
 
 ## 4. Chain-proof primitives (directory-client)
 
-- [ ] 4.1 Wasm raw-key builder: `0x03 || len-prefix(canonical bech32 addr) || contract_key`; the digest key is `b"digest_state"`.
+- [ ] 4.1 Wasm raw-key builder: `0x03 || canonical_addr || contract_key` (bech32-decode the address to raw bytes, NO length prefix - spike-confirmed; 32-byte addrs); the digest key is `b"digest_state"`. Layout validated in the 1.2 test (inline `0x03 ‖ addr ‖ "admin"` matched the proven key); still need a reusable builder for the `digest_state` key and the entry `Path` keys.
 - [ ] 4.2 Entry raw-key builder: reproduce the `cw-storage-plus` `Path` bytes for `StoredNodeEntries` `(node_id, label)` and `StoredCuratedEntries` `String` keys (mirror the contract's `storage_key`).
-- [ ] 4.3 ICS23 two-layer verifier (per 1.3): parse `ProofOps` (from the 3.1 helper) and verify a raw key/value up to the `app_hash`.
+- [x] 4.3 ICS23 two-layer verifier: `proof::verify_wasm_store_membership(ops, app_hash, key, value)` (hand-chained `calculate_existence_root` + two `verify_membership` calls with `iavl_spec`/`tendermint_spec` + `HostFunctionsManager`, typed `ProofError`), in `common/nym-directory-client/src/proof.rs`.
 - [ ] 4.4 `app_hash` source: read the header for `H+1` via validator-client and take its `app_hash`; typed errors when the header/state is unavailable.
 
 ## 5. Trust anchor

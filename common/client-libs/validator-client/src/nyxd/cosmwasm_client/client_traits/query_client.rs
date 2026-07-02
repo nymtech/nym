@@ -23,6 +23,7 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
 use cosmrs::tendermint::{block, chain, Hash};
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::iter::once;
 
 use cosmrs::AccountId;
 use std::time::Duration;
@@ -379,18 +380,19 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         query_data: Vec<u8>,
         height: Option<Height>,
     ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".to_owned());
+        let path = Some("/store/wasm/key".to_owned());
 
-        let req = QueryRawContractStateRequest {
-            address: address.to_string(),
-            query_data,
-        };
+        // 0x03 is the 'ContractStorePrefix' constant
+        // taken from https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/types/keys.go#L30
 
-        let res = self
-            .make_abci_query_with_proof::<_, QueryRawContractStateResponse>(path, req, height)
-            .await?;
+        // the actual storage key is '0x03 || contract_address_bytes || namespaced_key'
+        // (after tracing the calls within QueryRaw)
+        // https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/keeper/keeper.go#L924-L926
+        let mut key = vec![0x03];
+        key.extend_from_slice(&address.to_bytes());
+        key.extend_from_slice(&query_data);
 
-        Ok(res.map(|res| res.data))
+        self.make_raw_abci_query_with_proof(path, key, height).await
     }
 
     async fn query_contract_smart<M, T>(

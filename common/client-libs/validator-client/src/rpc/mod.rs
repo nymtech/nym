@@ -103,6 +103,30 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
         })
     }
 
+    async fn make_raw_abci_query_with_proof(
+        &self,
+        path: Option<String>,
+        key: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
+        if let Some(ref abci_path) = path {
+            tracing::trace!("performing query on abci path {abci_path}")
+        }
+
+        let res = self.abci_query(path, key, height, true).await?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
+
+        let Some(proof) = res_success.proof else {
+            return Err(NyxdError::MissingProof);
+        };
+
+        Ok(ProvableAbciQueryResponse {
+            response: res_success.value,
+            height: res_success.height,
+            proof,
+        })
+    }
+
     async fn make_abci_query_without_proof<Req, Res>(
         &self,
         path: Option<String>,

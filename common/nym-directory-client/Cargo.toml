@@ -14,6 +14,7 @@ publish = true
 
 [dependencies]
 thiserror = { workspace = true }
+async-trait = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 cosmrs = { workspace = true }

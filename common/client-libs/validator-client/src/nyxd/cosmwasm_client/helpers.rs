@@ -6,6 +6,7 @@ use crate::nyxd::error::NyxdError;
 use base64::Engine;
 use cosmrs::abci::TxMsgData;
 use cosmrs::cosmwasm::MsgExecuteContractResponse;
+use cosmrs::AccountId;
 use cosmwasm_std::from_json;
 use prost::bytes::Bytes;
 use serde::de::DeserializeOwned;
@@ -13,6 +14,26 @@ use tendermint_rpc::endpoint::broadcast;
 use tracing::error;
 
 pub use cosmrs::abci::MsgResponse;
+
+/// Build the raw `x/wasm` store key for a contract's storage entry:
+/// `ContractStorePrefix (0x03) || contract_address_bytes || contract_key`.
+///
+/// This is the multistore-relative key (queried under `store/wasm/key`) that an
+/// `abci_query` membership proof commits to, so an off-chain verifier can reconstruct
+/// it independently of the RPC response. See
+/// <https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/types/keys.go#L30> and
+/// <https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/keeper/keeper.go#L924-L926>.
+pub fn contract_storage_key(contract: &AccountId, contract_key: &[u8]) -> Vec<u8> {
+    // 0x03 is the wasmd 'ContractStorePrefix' constant
+    const CONTRACT_STORE_PREFIX: u8 = 0x03;
+
+    let addr = contract.to_bytes();
+    let mut key = Vec::with_capacity(1 + addr.len() + contract_key.len());
+    key.push(CONTRACT_STORE_PREFIX);
+    key.extend_from_slice(&addr);
+    key.extend_from_slice(contract_key);
+    key
+}
 
 pub fn parse_singleton_u32_from_contract_response(b: Vec<u8>) -> Result<u32, NyxdError> {
     if b.len() != 4 {
@@ -196,4 +217,28 @@ pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NyxdError> {
         .write_all(code)
         .map_err(NyxdError::WasmCompressionError)?;
     encoder.finish().map_err(NyxdError::WasmCompressionError)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // cross-checked against a live proof: the mainnet mixnet contract's `admin` item
+    // was proved under exactly `0x03 || addr(32) || "admin"`.
+    #[test]
+    fn contract_storage_key_matches_wasmd_layout() {
+        let contract: AccountId = "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
+            .parse()
+            .unwrap();
+
+        let key = contract_storage_key(&contract, b"admin");
+
+        let expected = vec![
+            3, 244, 7, 33, 76, 223, 43, 88, 38, 216, 46, 11, 149, 84, 35, 90, 59, 177, 232, 179,
+            191, 57, 251, 173, 211, 178, 70, 187, 59, 57, 130, 43, 151, 97, 100, 109, 105, 110,
+        ];
+        assert_eq!(key, expected);
+        assert_eq!(key[0], 0x03);
+        assert_eq!(key.len(), 1 + 32 + b"admin".len());
+    }
 }

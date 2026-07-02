@@ -23,7 +23,7 @@ Every read that feeds one verification - the digest proof and every paginated `A
 - **THEN** because all pages are read at `H`, the returned set still matches the digest committed at `H`
 
 ### Requirement: Digest integrity proof against the app hash
-In paranoid mode the trusted digest SHALL be established by an ICS23 membership proof of the raw digest storage item, verified against the block `app_hash` for height `H` (read from `header[H+1]`). A proof that does not verify against that `app_hash` MUST cause rejection.
+In proven mode the trusted digest SHALL be established by an ICS23 membership proof of the raw digest storage item, verified against the block `app_hash` for height `H` (read from `header[H+1]`). A proof that does not verify against that `app_hash` MUST cause rejection.
 
 #### Scenario: Valid proof yields a trusted digest
 - **WHEN** the ICS23 proof of the digest item verifies against the `app_hash` for `H`

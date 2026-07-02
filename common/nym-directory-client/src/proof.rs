@@ -233,7 +233,7 @@ mod tests {
         ])?;
 
         // reconstruct the raw wasm key: 0x03 || canonical_addr || b"admin" (no length prefix)
-        let mut key = vec![0x03u8];
+        let mut key = vec![0x03];
         key.extend_from_slice(&contract.to_bytes());
         key.extend_from_slice(b"admin");
         assert_eq!(

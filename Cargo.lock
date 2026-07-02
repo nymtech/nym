@@ -6851,6 +6851,7 @@ name = "nym-directory-client"
 version = "1.21.5-rc.3"
 dependencies = [
  "anyhow",
+ "async-trait",
  "cosmrs",
  "ics23",
  "nym-crypto",

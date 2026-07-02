@@ -23,7 +23,6 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
 use cosmrs::tendermint::{block, chain, Hash};
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use std::iter::once;
 
 use cosmrs::AccountId;
 use std::time::Duration;
@@ -381,16 +380,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         height: Option<Height>,
     ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
         let path = Some("/store/wasm/key".to_owned());
-
-        // 0x03 is the 'ContractStorePrefix' constant
-        // taken from https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/types/keys.go#L30
-
-        // the actual storage key is '0x03 || contract_address_bytes || namespaced_key'
-        // (after tracing the calls within QueryRaw)
-        // https://github.com/CosmWasm/wasmd/blob/v0.60.0/x/wasm/keeper/keeper.go#L924-L926
-        let mut key = vec![0x03];
-        key.extend_from_slice(&address.to_bytes());
-        key.extend_from_slice(&query_data);
+        let key = crate::nyxd::cosmwasm_client::contract_storage_key(address, &query_data);
 
         self.make_raw_abci_query_with_proof(path, key, height).await
     }

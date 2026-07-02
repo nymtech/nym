@@ -16,15 +16,15 @@
 
 ## 4. Chain-proof primitives (directory-client)
 
-- [ ] 4.1 Wasm raw-key builder: `0x03 || canonical_addr || contract_key` (bech32-decode the address to raw bytes, NO length prefix - spike-confirmed; 32-byte addrs); the digest key is `b"digest_state"`. Layout validated in the 1.2 test (inline `0x03 ‖ addr ‖ "admin"` matched the proven key); still need a reusable builder for the `digest_state` key and the entry `Path` keys.
-- [ ] 4.2 Entry raw-key builder: reproduce the `cw-storage-plus` `Path` bytes for `StoredNodeEntries` `(node_id, label)` and `StoredCuratedEntries` `String` keys (mirror the contract's `storage_key`).
+- [x] 4.1 Wasm raw-key builder: `contract_storage_key(contract, key) = 0x03 || canonical_addr || key` (no length prefix; 32-byte addrs) - hoisted into `nym-validator-client` (`nyxd::cosmwasm_client::contract_storage_key`) so `query_contract_raw_with_proof` and consumers share ONE layout; unit-tested against the live `admin` sample. Directory-specific `digest_state_key` in `nym-directory-client/src/key.rs` delegates to it.
+- [ ] 4.2 Entry raw-key builder: reproduce the `cw-storage-plus` `Path` bytes for `StoredNodeEntries` `(node_id, label)` and `StoredCuratedEntries` `String` keys (mirror the contract's `storage_key`), on top of `contract_storage_key`. Needed for §7 single-node proofs.
 - [x] 4.3 ICS23 two-layer verifier: `proof::verify_wasm_store_membership(ops, app_hash, key, value)` (hand-chained `calculate_existence_root` + two `verify_membership` calls with `iavl_spec`/`tendermint_spec` + `HostFunctionsManager`, typed `ProofError`), in `common/nym-directory-client/src/proof.rs`.
-- [ ] 4.4 `app_hash` source: read the header for `H+1` via validator-client and take its `app_hash`; typed errors when the header/state is unavailable.
+- [x] 4.4 `app_hash` source: the proven anchor reads `header[H+1]` via `TendermintRpcClientExt::header` and takes its `app_hash`; RPC/header errors map to `AnchorError::Query`.
 
 ## 5. Trust anchor
 
-- [ ] 5.1 Define `DirectoryTrustAnchor` (`async fn trusted_digest(&self, height) -> Result<[u8; 32]>`).
-- [ ] 5.2 Paranoid impl: ICS23-prove the digest item against the RPC `app_hash` at `H` and return the proven 32-byte digest.
+- [x] 5.1 `DirectoryTrustAnchor` trait (`async fn trusted_digest(&self, height) -> Result<TrustedDigest, AnchorError>`, `TrustedDigest { height, accumulator: LtHash16 }`) in `common/nym-directory-client/src/anchor.rs`.
+- [x] 5.2 `ProvenTrustAnchor<C: TendermintRpcClientExt>`: reconstructs `digest_state_key`, `make_raw_abci_query_with_proof` at `H`, fetches `header[H+1].app_hash`, `verify_wasm_store_membership`, and parses the raw value into `LtHash16` (returns the accumulator, not `out()`, so the verify core compares full accumulators). Uses the narrowest RPC bound, not `CosmWasmClient`. Live/integration test deferred to §8 (needs a deployed directory contract / localnet).
 
 ## 6. Verify core
 

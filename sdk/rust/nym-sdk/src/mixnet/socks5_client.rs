@@ -12,7 +12,7 @@ use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 
 use crate::mixnet::client::MixnetClientBuilder;
 use crate::mixnet::NetworkRequesterSelector;
-use crate::{Error, Result};
+use crate::Result;
 
 /// A SOCKS5 proxy client connected to the Nym mixnet.
 ///

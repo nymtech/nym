@@ -49,12 +49,14 @@ use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 
+use crate::rpc::types::ProvableAbciQueryResponse;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::std::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 
 pub mod reqwest;
+pub mod types;
 
 #[cfg(feature = "http-client")]
 pub fn http_client<U>(url: U) -> Result<HttpRpcClient, TendermintRpcError>
@@ -69,10 +71,43 @@ where
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait TendermintRpcClientExt: TendermintRpcClient {
+    async fn make_abci_query_with_proof<Req, Res>(
+        &self,
+        path: Option<String>,
+        req: Req,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Res>, NyxdError>
+    where
+        Req: Message,
+        Res: Message + Default,
+    {
+        if let Some(ref abci_path) = path {
+            tracing::trace!("performing query on abci path {abci_path}")
+        }
+        let mut buf = Vec::with_capacity(req.encoded_len());
+        req.encode(&mut buf)?;
+
+        let res = self.abci_query(path, buf, height, true).await?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
+
+        let Some(proof) = res_success.proof else {
+            return Err(NyxdError::MissingProof);
+        };
+
+        let response = Res::decode(res_success.value.as_ref())?;
+
+        Ok(ProvableAbciQueryResponse {
+            response,
+            height: res_success.height,
+            proof,
+        })
+    }
+
     async fn make_abci_query_without_proof<Req, Res>(
         &self,
         path: Option<String>,
         req: Req,
+        height: Option<Height>,
     ) -> Result<Res, NyxdError>
     where
         Req: Message,
@@ -84,7 +119,7 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
         let mut buf = Vec::with_capacity(req.encoded_len());
         req.encode(&mut buf)?;
 
-        let res = self.abci_query(path, buf, None, false).await?;
+        let res = self.abci_query(path, buf, height, false).await?;
         let res_success = nyxd::error::parse_abci_query_result(res)?;
 
         Ok(Res::decode(res_success.value.as_ref())?)
@@ -107,7 +142,7 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, QueryAccountResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryAccountResponse>(path, req, None)
             .await?;
 
         res.account.map(TryFrom::try_from).transpose()
@@ -146,7 +181,7 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, QueryBalanceResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryBalanceResponse>(path, req, None)
             .await?;
 
         res.balance
@@ -169,7 +204,11 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
             };
 
             let mut res = self
-                .make_abci_query_without_proof::<_, QueryAllBalancesResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryAllBalancesResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.balances.is_empty();
@@ -203,7 +242,11 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
             let req = QueryTotalSupplyRequest { pagination };
 
             let mut res = self
-                .make_abci_query_without_proof::<_, QueryTotalSupplyResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryTotalSupplyResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.supply.is_empty();
@@ -349,7 +392,7 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req)
+            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req, None)
             .await?;
 
         res.try_into()

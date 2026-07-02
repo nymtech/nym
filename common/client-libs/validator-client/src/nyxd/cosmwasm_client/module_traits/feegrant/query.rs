@@ -140,7 +140,7 @@ pub trait FeegrantQueryClient: CosmWasmClient {
         let res = self
             .make_abci_query_without_proof::<ProtoQueryAllowancesRequest, ProtoQueryAllowancesResponse>(
                 path,
-                req.into(),
+                req.into(),None
             )
             .await?;
 

@@ -6,7 +6,7 @@ use crate::nyxd::cosmwasm_client::types::{
     Account, CodeDetails, Contract, ContractCodeId, Model, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::Query;
+use crate::nyxd::{Height, Query};
 use crate::rpc::{TendermintRpcClient, TendermintRpcClientExt};
 use async_trait::async_trait;
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
@@ -31,6 +31,7 @@ use tendermint_rpc::endpoint::{
 };
 
 use crate::nyxd::helpers::{create_pagination, next_page_key};
+use crate::rpc::types::ProvableAbciQueryResponse;
 
 pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
@@ -53,7 +54,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         Req: Message,
         Res: Message + Default,
     {
-        TendermintRpcClientExt::make_abci_query_without_proof(self, path, req).await
+        TendermintRpcClientExt::make_abci_query_without_proof(self, path, req, None).await
     }
 
     #[deprecated(note = "use TendermintRpcClientExt::get_chain_id instead")]
@@ -163,7 +164,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
             let req = QueryCodesRequest { pagination };
 
             let mut res = self
-                .make_abci_query_without_proof::<_, QueryCodesResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryCodesResponse>(path.clone(), req, None)
                 .await?;
 
             let early_break = res.code_infos.is_empty();
@@ -192,7 +193,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         let req = QueryCodeRequest { code_id };
 
         let res = self
-            .make_abci_query_without_proof::<_, QueryCodeResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryCodeResponse>(path, req, None)
             .await?;
 
         if let Some(code_info) = res.code_info {
@@ -214,7 +215,11 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
             };
 
             let mut res = self
-                .make_abci_query_without_proof::<_, QueryContractsByCodeResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryContractsByCodeResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.contracts.is_empty();
@@ -246,7 +251,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, QueryContractInfoResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryContractInfoResponse>(path, req, None)
             .await?;
 
         let response_address = res.address;
@@ -276,7 +281,11 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
             };
 
             let mut res = self
-                .make_abci_query_without_proof::<_, QueryContractHistoryResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryContractHistoryResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.entries.is_empty();
@@ -315,6 +324,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
                 .make_abci_query_without_proof::<_, QueryAllContractStateResponse>(
                     path.clone(),
                     req,
+                    None,
                 )
                 .await?;
 
@@ -339,6 +349,16 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         address: &AccountId,
         query_data: Vec<u8>,
     ) -> Result<Vec<u8>, NyxdError> {
+        self.query_contract_raw_at_height(address, query_data, None)
+            .await
+    }
+
+    async fn query_contract_raw_at_height(
+        &self,
+        address: &AccountId,
+        query_data: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<Vec<u8>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".to_owned());
 
         let req = QueryRawContractStateRequest {
@@ -347,16 +367,50 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, QueryRawContractStateResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryRawContractStateResponse>(path, req, height)
             .await?;
 
         Ok(res.data)
+    }
+
+    async fn query_contract_raw_with_proof(
+        &self,
+        address: &AccountId,
+        query_data: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
+        let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".to_owned());
+
+        let req = QueryRawContractStateRequest {
+            address: address.to_string(),
+            query_data,
+        };
+
+        let res = self
+            .make_abci_query_with_proof::<_, QueryRawContractStateResponse>(path, req, height)
+            .await?;
+
+        Ok(res.map(|res| res.data))
     }
 
     async fn query_contract_smart<M, T>(
         &self,
         address: &AccountId,
         query_msg: &M,
+    ) -> Result<T, NyxdError>
+    where
+        M: ?Sized + Serialize + Sync,
+        for<'a> T: Deserialize<'a>,
+    {
+        self.query_contract_smart_at_height(address, query_msg, None)
+            .await
+    }
+
+    async fn query_contract_smart_at_height<M, T>(
+        &self,
+        address: &AccountId,
+        query_msg: &M,
+        height: Option<Height>,
     ) -> Result<T, NyxdError>
     where
         M: ?Sized + Serialize + Sync,
@@ -377,7 +431,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, QuerySmartContractStateResponse>(path, req)
+            .make_abci_query_without_proof::<_, QuerySmartContractStateResponse>(path, req, height)
             .await?;
 
         tracing::trace!("raw query response: {}", String::from_utf8_lossy(&res.data));
@@ -394,7 +448,7 @@ pub trait CosmWasmClient: TendermintRpcClientExt {
         };
 
         let res = self
-            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req)
+            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req, None)
             .await?;
 
         res.try_into()

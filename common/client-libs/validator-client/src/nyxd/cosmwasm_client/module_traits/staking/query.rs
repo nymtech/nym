@@ -29,6 +29,7 @@ pub trait StakingQueryClient: CosmWasmClient {
             .make_abci_query_without_proof::<ProtoQueryHistoricalInfoRequest, ProtoQueryHistoricalInfoResponse>(
                 path,
                 req.into(),
+                None,
             )
             .await?;
 
@@ -47,6 +48,7 @@ pub trait StakingQueryClient: CosmWasmClient {
             .make_abci_query_without_proof::<ProtoQueryValidatorRequest, ProtoQueryValidatorResponse>(
                 path,
                 req.into(),
+                None,
             )
             .await?;
 
@@ -66,6 +68,7 @@ pub trait StakingQueryClient: CosmWasmClient {
             .make_abci_query_without_proof::<ProtoQueryValidatorsRequest, ProtoQueryValidatorsResponse>(
                 path,
                 req.into(),
+                None,
             )
             .await?;
 

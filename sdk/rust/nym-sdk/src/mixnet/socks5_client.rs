@@ -1,28 +1,38 @@
+use std::net::SocketAddr;
 use std::time::Duration;
+
+use tokio::sync::RwLockReadGuard;
 
 use nym_client_core::client::base_client::ClientState;
 use nym_socks5_client_core::config::Socks5;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
-use tokio::sync::RwLockReadGuard;
-
 use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 
 use crate::mixnet::client::MixnetClientBuilder;
+use crate::mixnet::NetworkRequesterSelector;
 use crate::Result;
 
 /// A SOCKS5 proxy client connected to the Nym mixnet.
 ///
 /// `Socks5MixnetClient` provides a SOCKS5 proxy interface to the Nym mixnet,
 /// allowing HTTP(S) clients and other SOCKS5-compatible applications to route
-/// their traffic through the mixnet for enhanced privacy.
+/// their traffic through the mixnet without having to modify their networking
+/// code.
+///
+/// Traffic leaves the mixnet through a network requester: a service running on
+/// an exit gateway that makes requests on the client's behalf and enforces the
+/// Nym exit policy. You can let the client discover one for you or name a specific
+/// one; see [`connect_with`](Self::connect_with) and [`NetworkRequesterSelector`].
 ///
 /// ## Usage
 ///
-/// 1. Connect to a service provider via [`connect_new`](Self::connect_new)
+/// 1. Connect, either by discovering a requester with
+///    [`connect_with`](Self::connect_with) or naming a known one with
+///    [`connect_new`](Self::connect_new)
 /// 2. Get the SOCKS5 URL via [`socks5_url`](Self::socks5_url)
-/// 3. Configure your HTTP client to use this SOCKS5 proxy
+/// 3. Point your HTTP client at that SOCKS5 proxy
 ///
 /// ## Example
 ///
@@ -31,7 +41,7 @@ use crate::Result;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Connect to a network requester service provider
+///     // Connect to a known network requester by address
 ///     let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
 ///
 ///     // Get the SOCKS5 proxy URL
@@ -46,13 +56,7 @@ use crate::Result;
 ///     client.disconnect().await;
 ///     Ok(())
 /// }
-/// ```
-///
-/// ## Service Providers
-///
-/// The SOCKS5 client connects to a "network requester" service provider that
-/// makes HTTP requests on behalf of the client. The service provider's Nym
-/// address must be provided when creating the client.
+// ```
 pub struct Socks5MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
@@ -61,7 +65,7 @@ pub struct Socks5MixnetClient {
     /// current message send queue length.
     pub(crate) client_state: ClientState,
 
-    /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
+    /// The task manager controlling all the spawned tasks the client uses to do its job.
     pub(crate) task_handle: ShutdownTracker,
 
     /// SOCKS5 configuration parameters.
@@ -69,8 +73,15 @@ pub struct Socks5MixnetClient {
 }
 
 impl Socks5MixnetClient {
-    /// Create a new client and connect to a service provider over the mixnet via SOCKS5 using
+    /// Create a new client and connect to a network requester over the mixnet via SOCKS5 using
     /// ephemeral in-memory keys that are discarded at application close.
+    ///
+    /// This is the zero-ceremony path when you already know the requester's
+    /// address; it is shorthand for [`connect_with`](Self::connect_with) with
+    /// [`NetworkRequesterSelector::exact`] and the default listener bind.
+    ///
+    /// Kept for backwards compatibility: it predates [`connect_with`] and overlaps
+    /// with the `exact` case, but existing callers pass an address string directly.
     ///
     /// # Examples
     ///
@@ -92,7 +103,55 @@ impl Socks5MixnetClient {
             .await
     }
 
-    /// Get the nym address for this client, if it is available. The nym address is composed of the
+    /// Create a new client and connect to a network requester chosen per the
+    /// given [`NetworkRequesterSelector`]: auto-discovered ([`Any`](NetworkRequesterSelector::Any)),
+    /// country-restricted ([`InCountries`](NetworkRequesterSelector::InCountries)), or a
+    /// known address ([`Exact`](NetworkRequesterSelector::Exact)).
+    ///
+    /// The discovered requester enforces the Nym exit policy, so destinations
+    /// outside that policy are refused at the exit regardless of which
+    /// requester is selected.
+    ///
+    /// `bind` sets the local SOCKS5 listener address; pass `None` for the default
+    /// `127.0.0.1:1080`, or `Some(addr)` to move it (for example when 1080 is
+    /// already taken, or to run more than one client at once).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     // Any requester, weighted by performance, on the default port:
+    ///     let any = Socks5MixnetClient::connect_with(NetworkRequesterSelector::any(), None).await?;
+    ///
+    ///     // Pinned to Switzerland or Germany, listening on 127.0.0.1:1081:
+    ///     let pinned = Socks5MixnetClient::connect_with(
+    ///         NetworkRequesterSelector::in_countries(["CH", "DE"])?,
+    ///         Some("127.0.0.1:1081".parse()?),
+    ///     )
+    ///     .await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn connect_with(
+        requester: NetworkRequesterSelector,
+        bind: Option<SocketAddr>,
+    ) -> Result<Self> {
+        let provider = requester.resolve().await?;
+        let mut socks5_config = Socks5::new(provider.to_string());
+        if let Some(addr) = bind {
+            socks5_config.bind_address = addr;
+        }
+        MixnetClientBuilder::new_ephemeral()
+            .socks5_config(socks5_config)
+            .build()?
+            .connect_to_mixnet_via_socks5()
+            .await
+    }
+
+    /// Get the nym address of this client. The nym address is composed of the
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::DirectoryContractError;
+use crate::helpers::read_len_prefixed;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use nym_mixnet_contract_common::NodeId;
@@ -52,29 +53,6 @@ impl DirectoryEntry {
         }
     }
 
-    /// The compact stored-value encoding for the active variant (see
-    /// [`NodeEntry::to_bytes`] / [`CuratedEntry::to_bytes`]). Carries no class
-    /// discriminant - the key's [`Namespace`] selects the decoder.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            DirectoryEntry::NodeEntry(e) => e.to_bytes(),
-            DirectoryEntry::CuratedEntry(e) => e.to_bytes(),
-        }
-    }
-
-    /// Decode a stored value, choosing the variant from the key's `namespace`.
-    pub fn try_from_bytes(
-        namespace: Namespace,
-        bytes: &[u8],
-    ) -> Result<Self, DirectoryContractError> {
-        Ok(match namespace {
-            Namespace::Node => DirectoryEntry::NodeEntry(NodeEntry::try_from_bytes(bytes)?),
-            Namespace::Curated => {
-                DirectoryEntry::CuratedEntry(CuratedEntry::try_from_bytes(bytes)?)
-            }
-        })
-    }
-
     /// Append this entry's committed value bytes to a digest-leaf buffer. A node
     /// entry commits `data`, `signature`, and `sequence` (so the signature is
     /// independently verifiable); a curated entry commits only `data`. The per-class
@@ -112,7 +90,7 @@ impl NodeEntry {
     /// variable `data` as the unframed tail - so no class discriminant is needed
     /// (the storage key's [`Namespace`] tag selects this decoder).
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(8 + 8 + 8 + self.signature.len() + self.data.len());
+        let mut buf = Vec::with_capacity(8 + 8 + 4 + self.signature.len() + self.data.len());
         buf.extend_from_slice(&self.updated_at_height.to_le_bytes());
         buf.extend_from_slice(&self.sequence.to_le_bytes());
         crate::helpers::push_len_prefixed(&mut buf, self.signature.as_slice());
@@ -122,11 +100,23 @@ impl NodeEntry {
 
     /// Decode the [`Self::to_bytes`] layout.
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
-        let mut reader = crate::helpers::ValueReader::new(bytes);
-        let updated_at_height = reader.read_u64_le()?;
-        let sequence = reader.read_u64_le()?;
-        let signature = Binary::new(reader.read_len_prefixed()?.to_vec());
-        let data = Binary::new(reader.rest().to_vec());
+        if bytes.len() < 8 + 8 + 4 {
+            return Err(DirectoryContractError::MalformedEntryValue(
+                "unexpected end of value".to_owned(),
+            ));
+        }
+        // SAFETY: we ready exactly 8 bytes and know we have enough in the slice
+        #[allow(clippy::unwrap_used)]
+        let updated_at_height = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
+
+        #[allow(clippy::unwrap_used)]
+        let sequence = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+
+        let sig_bytes = read_len_prefixed(&bytes[16..])?;
+        let signature = Binary::new(sig_bytes.to_vec());
+
+        let data = Binary::new(bytes[20 + sig_bytes.len()..].to_vec());
+
         Ok(NodeEntry {
             data,
             updated_at_height,
@@ -621,17 +611,6 @@ mod tests {
             };
             assert_eq!(CuratedEntry::try_from_bytes(&entry.to_bytes()), Ok(entry));
         }
-    }
-
-    #[test]
-    fn directory_entry_value_dispatches_on_namespace() {
-        let node = node_entry(b"d", 3, b"sig");
-        let decoded = DirectoryEntry::try_from_bytes(Namespace::Node, &node.to_bytes());
-        assert_eq!(decoded, Ok(node));
-
-        let curated = curated_entry(b"c");
-        let decoded = DirectoryEntry::try_from_bytes(Namespace::Curated, &curated.to_bytes());
-        assert_eq!(decoded, Ok(curated));
     }
 
     #[test]

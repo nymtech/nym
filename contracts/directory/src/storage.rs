@@ -103,14 +103,13 @@ impl NymDirectoryContractStorage {
         Ok(self.sequences.may_load(store, node_id)?.unwrap_or_default())
     }
 
-    pub(crate) fn increment_account_sequence(
+    pub(crate) fn save_account_sequence(
         &self,
         store: &mut dyn Storage,
         node_id: NodeId,
+        new_sequence: u64,
     ) -> Result<(), DirectoryContractError> {
-        let current_sequence = self.current_sequence(store, node_id)?;
-        self.sequences
-            .save(store, node_id, &(current_sequence + 1))?;
+        self.sequences.save(store, node_id, &new_sequence)?;
         Ok(())
     }
 
@@ -444,17 +443,18 @@ impl StoredCuratedEntries {
 }
 
 pub mod retrieval_limits {
-    /// `AllCuratedEntries` page size (default applied when the caller omits `limit`,
-    /// then clamped to the max).
     pub const DEFAULT_CURATED_ENTRIES: u32 = 50;
     pub const MAX_CURATED_ENTRIES: u32 = 100;
 
     pub const DEFAULT_NODE_ENTRIES: u32 = 50;
     pub const MAX_NODE_ENTRIES: u32 = 100;
 
-    /// `AllEntries` (both classes) page size.
     pub const DEFAULT_ALL_ENTRIES: u32 = 50;
     pub const MAX_ALL_ENTRIES: u32 = 100;
+
+    // the below must hold otherwise `query_all_entries` will fail
+    const _: () = assert!(MAX_NODE_ENTRIES >= MAX_ALL_ENTRIES);
+    const _: () = assert!(DEFAULT_NODE_ENTRIES >= DEFAULT_ALL_ENTRIES);
 }
 
 #[cfg(test)]

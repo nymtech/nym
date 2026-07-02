@@ -137,13 +137,13 @@ pub(crate) fn init_contract_tester_with_node_families() -> ContractTester<Direct
         .get(NodeFamiliesContract::NAME)
         .unwrap()
         .clone();
-    let mut mixnet_state: ContractState = tester
-        .read_from_mixnet_contract_storage(MIXNET_CONTRACT_STATE_STORAGE_KEY)
-        .expect("mixnet contract state should be loadable");
-    mixnet_state.directory_contract_address = directory_address;
-    mixnet_state.node_families_contract_address = node_families_address;
     tester
-        .write_to_mixnet_contract_storage_value(MIXNET_CONTRACT_STATE_STORAGE_KEY, &mixnet_state)
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_directory_contract(directory_address)
+                .with_node_families_contract(node_families_address),
+        )
         .expect("should be able to patch mixnet contract state");
 
     tester

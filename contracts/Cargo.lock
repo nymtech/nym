@@ -1098,7 +1098,6 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
- "nym-directory-contract",
  "nym-directory-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",

@@ -124,7 +124,7 @@ pub(crate) fn try_set_node_entry(
         signature,
     };
     NYM_DIRECTORY_CONTRACT_STORAGE.set_node_entry(deps.storage, node_id, &label, entry)?;
-    NYM_DIRECTORY_CONTRACT_STORAGE.increment_account_sequence(deps.storage, node_id)?;
+    NYM_DIRECTORY_CONTRACT_STORAGE.save_account_sequence(deps.storage, node_id, sequence + 1)?;
 
     Ok(Response::new().add_event(
         Event::new(events::SET_NODE_ENTRY)
@@ -152,7 +152,7 @@ pub(crate) fn try_delete_node_entry(
     verify_node_signature(deps.api, &payload, signature.as_slice(), &identity_key)?;
 
     NYM_DIRECTORY_CONTRACT_STORAGE.remove_node_entry(deps.storage, node_id, &label)?;
-    NYM_DIRECTORY_CONTRACT_STORAGE.increment_account_sequence(deps.storage, node_id)?;
+    NYM_DIRECTORY_CONTRACT_STORAGE.save_account_sequence(deps.storage, node_id, sequence + 1)?;
 
     Ok(Response::new().add_event(
         Event::new(events::DELETE_NODE_ENTRY)
@@ -273,8 +273,9 @@ pub(crate) fn try_update_admin(
 /// Cross-contract callback fired by the mixnet contract when `node_id` unbonds:
 /// delete all of that node's entries in a single digest update. Authorised only when
 /// the caller is the configured mixnet contract (`UnauthorisedMixnetCallback`
-/// otherwise). Idempotent: a node with no entries is a no-op, so this stays safe as a
-/// best-effort (reply-on-error) sub-message on the mixnet side.
+/// otherwise). The mixnet dispatches this as a hard sub-message (not reply-on-error),
+/// so the directory contract must be deployed in every environment; the handler is
+/// idempotent, so a node with no entries is a safe no-op.
 pub(crate) fn try_handle_node_unbonding(
     deps: DepsMut,
     info: MessageInfo,

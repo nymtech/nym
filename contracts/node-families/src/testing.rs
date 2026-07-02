@@ -54,7 +54,7 @@ impl TestableNymContract for NodeFamiliesContract {
     where
         Self: Sized,
     {
-        let mut builder = ContractTesterBuilder::new().instantiate::<MixnetContract>(None);
+        let builder = ContractTesterBuilder::new().instantiate::<MixnetContract>(None);
 
         // we just instantiated it
         let mixnet_address = builder
@@ -62,13 +62,6 @@ impl TestableNymContract for NodeFamiliesContract {
             .get(MixnetContract::NAME)
             .unwrap()
             .clone();
-
-        builder.instantiate_contract::<nym_directory_contract::testing::DirectoryContract>(Some(
-            nym_directory_contract_common::InstantiateMsg {
-                mixnet_contract_address: mixnet_address.to_string(),
-                initial_labels: vec![],
-            },
-        ));
 
         builder
             .instantiate::<Self>(Some(InstantiateMsg {

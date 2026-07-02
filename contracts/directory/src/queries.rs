@@ -272,7 +272,7 @@ mod tests {
 
         let deps = tester.deps_mut();
         NYM_DIRECTORY_CONTRACT_STORAGE
-            .increment_account_sequence(deps.storage, 1)
+            .save_account_sequence(deps.storage, 1, 1)
             .unwrap();
 
         assert_eq!(query_sequence(tester.deps(), 1).unwrap().next_sequence, 1);

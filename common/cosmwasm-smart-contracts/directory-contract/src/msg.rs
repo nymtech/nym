@@ -95,7 +95,7 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(NodeEntriesResponse))]
     NodeEntries { node_id: NodeId },
 
-    /// Paginated enumeration of all node entries, ordered by their key string.
+    /// Paginated enumeration of all node entries, ordered by their (node_id, label) composite key
     #[cfg_attr(feature = "schema", returns(NodeEntriesPagedResponse))]
     NodeEntriesPaged {
         start_after: Option<(NodeId, String)>,

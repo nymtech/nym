@@ -11,6 +11,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nyxd::helpers::find_tx_attribute;
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
+use crate::rpc::TendermintRpcClientExt;
 use crate::signing::signer::OfflineSigner;
 use crate::signing::tx_signer::TxSigner;
 use crate::signing::SignerData;
@@ -74,7 +75,7 @@ where
         memo: impl Into<String> + Send + 'static,
     ) -> Result<SimulateResponse, NyxdError> {
         let public_key = self.signer_public_key(signer_address);
-        let sequence_response = self.get_sequence(signer_address).await?;
+        let sequence_response = TendermintRpcClientExt::get_sequence(self, signer_address).await?;
 
         let partial_tx = Tx {
             body: tx::Body::new(messages, memo, 0u32),
@@ -88,7 +89,8 @@ where
             signatures: partial_tx.signatures,
         }
         .into();
-        self.query_simulate(tx_raw.to_bytes()?).await
+
+        TendermintRpcClientExt::query_simulate(self, tx_raw.to_bytes()?).await
     }
 
     async fn upload(
@@ -190,6 +192,7 @@ where
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
         // to wrong validator or something
+        #[allow(clippy::unwrap_used)]
         let contract_address = find_tx_attribute(&tx_res, "instantiate", "_contract_address")
             .unwrap()
             .parse()
@@ -618,7 +621,7 @@ where
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_async(self, tx_bytes).await
+        TendermintRpcClientExt::broadcast_tx_async(self, tx_bytes).await
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
@@ -638,7 +641,7 @@ where
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_sync(self, tx_bytes).await
+        TendermintRpcClientExt::broadcast_tx_sync(self, tx_bytes).await
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
@@ -659,7 +662,7 @@ where
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_commit(self, tx_bytes).await
+        TendermintRpcClientExt::broadcast_tx_commit(self, tx_bytes).await
     }
 
     /// Broadcast a transaction to the network and monitors its inclusion in a block.
@@ -680,7 +683,7 @@ where
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        self.broadcast_tx(tx_bytes, None, None).await
+        TendermintRpcClientExt::broadcast_tx(self, tx_bytes, None, None).await
     }
 
     async fn sign(
@@ -696,8 +699,9 @@ where
             None => {
                 // TODO: Future optimisation: rather than grabbing current account_number and sequence
                 // on every sign request -> just keep them cached on the struct and increment as required
-                let sequence_response = self.get_sequence(signer_address).await?;
-                let chain_id = self.get_chain_id().await?;
+                let sequence_response =
+                    TendermintRpcClientExt::get_sequence(self, signer_address).await?;
+                let chain_id = TendermintRpcClientExt::get_chain_id(self).await?;
 
                 SignerData::new_from_sequence_response(sequence_response, chain_id)
             }

@@ -26,7 +26,7 @@ pub trait StakingQueryClient: CosmWasmClient {
         let req = QueryHistoricalInfoRequest { height };
 
         let res = self
-            .make_abci_query::<ProtoQueryHistoricalInfoRequest, ProtoQueryHistoricalInfoResponse>(
+            .make_abci_query_without_proof::<ProtoQueryHistoricalInfoRequest, ProtoQueryHistoricalInfoResponse>(
                 path,
                 req.into(),
             )
@@ -44,7 +44,7 @@ pub trait StakingQueryClient: CosmWasmClient {
         let req = QueryValidatorRequest { validator_addr };
 
         let res = self
-            .make_abci_query::<ProtoQueryValidatorRequest, ProtoQueryValidatorResponse>(
+            .make_abci_query_without_proof::<ProtoQueryValidatorRequest, ProtoQueryValidatorResponse>(
                 path,
                 req.into(),
             )
@@ -63,7 +63,7 @@ pub trait StakingQueryClient: CosmWasmClient {
         let req = QueryValidatorsRequest { status, pagination };
 
         let res = self
-            .make_abci_query::<ProtoQueryValidatorsRequest, ProtoQueryValidatorsResponse>(
+            .make_abci_query_without_proof::<ProtoQueryValidatorsRequest, ProtoQueryValidatorsResponse>(
                 path,
                 req.into(),
             )

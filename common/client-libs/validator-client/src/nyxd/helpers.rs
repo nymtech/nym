@@ -6,6 +6,7 @@ use crate::nyxd::TxResponse;
 use cosmrs::tendermint::abci;
 
 pub use abci::Event;
+use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
 
 // Searches in events for an event of the given event type which contains an
 // attribute for with the given key.
@@ -47,4 +48,26 @@ pub fn find_attribute_value_in_logs_or_events(
     }
 
     find_event_attribute(events, event_type, attribute_key)
+}
+
+pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
+    PageRequest {
+        key,
+        offset: 0,
+        limit: 0,
+        count_total: false,
+        reverse: false,
+    }
+}
+
+pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec<u8>> {
+    if let Some(next_page_info) = pagination_info {
+        // it turns out, even though `PageResponse` is always returned wrapped in an `Option`,
+        // the `next_key` can still be empty, so check whether we actually need to perform another call
+        if !next_page_info.next_key.is_empty() {
+            return Some(next_page_info.next_key);
+        }
+    }
+
+    None
 }

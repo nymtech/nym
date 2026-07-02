@@ -6,14 +6,13 @@ use crate::nyxd::error::NyxdError;
 use base64::Engine;
 use cosmrs::abci::TxMsgData;
 use cosmrs::cosmwasm::MsgExecuteContractResponse;
-use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
+use cosmwasm_std::from_json;
 use prost::bytes::Bytes;
+use serde::de::DeserializeOwned;
 use tendermint_rpc::endpoint::broadcast;
 use tracing::error;
 
 pub use cosmrs::abci::MsgResponse;
-use cosmwasm_std::from_json;
-use serde::de::DeserializeOwned;
 
 pub fn parse_singleton_u32_from_contract_response(b: Vec<u8>) -> Result<u32, NyxdError> {
     if b.len() != 4 {
@@ -197,26 +196,4 @@ pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NyxdError> {
         .write_all(code)
         .map_err(NyxdError::WasmCompressionError)?;
     encoder.finish().map_err(NyxdError::WasmCompressionError)
-}
-
-pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
-    PageRequest {
-        key,
-        offset: 0,
-        limit: 0,
-        count_total: false,
-        reverse: false,
-    }
-}
-
-pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec<u8>> {
-    if let Some(next_page_info) = pagination_info {
-        // it turns out, even though `PageResponse` is always returned wrapped in an `Option`,
-        // the `next_key` can still be empty, so check whether we actually need to perform another call
-        if !next_page_info.next_key.is_empty() {
-            return Some(next_page_info.next_key);
-        }
-    }
-
-    None
 }

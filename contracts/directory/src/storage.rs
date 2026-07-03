@@ -228,9 +228,7 @@ impl NymDirectoryContractStorage {
         let mut digest = self.load_digest(store)?;
 
         if let Some(old) = self.curated_entries.may_load(store, key)? {
-            digest.subtract(
-                &DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf(),
-            );
+            digest.subtract(&DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf());
         }
 
         self.curated_entries.save(store, key, &entry);

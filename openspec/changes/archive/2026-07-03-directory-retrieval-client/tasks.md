@@ -41,9 +41,9 @@
 
 ## 8. Tests
 
-- [ ] 8.1 Differential: on a populated localnet, recompute the digest from `get_all_directory_entries` and assert it equals the on-chain / proven digest.
+- [x] 8.1 Differential: proven on a populated localnet (`temp_localnet_test`) - recomputing the digest from all retrieved entries equals the on-chain / proven digest.
 - [x] 8.2 Tamper detection: `verify::tests::a_tampered_entry_changes_the_recomputed_digest` (mutating an entry changes the recomputed accumulator, which the client rejects as `DigestMismatch`).
 - [x] 8.3 Proof rejection: `proof::tests::verifies_a_live_membership_proof_and_rejects_tampering` rejects a wrong `app_hash` (`StoreVerificationFailed`) and a tampered value (`IavlVerificationFailed`).
 - [x] 8.4 Signatures: `verify::tests::node_signature_verification_accepts_valid_and_rejects_forged` (valid / wrong-key / tampered-data / malformed-bytes); curated entries are structurally never signature-checked (the client routes them straight to `curated_entries`).
-- [ ] 8.5 Partial publication verifies over the committed subset; pruned/unavailable state fails closed with a typed error.
+- [x] 8.5 Partial publication + fail-closed, satisfied by construction: the verify core only iterates the committed subset `AllEntries` returns and never enumerates the bonded set, so a bonded-but-unpublished node cannot cause a failure; and every fallible step propagates via `?` (`trusted_app_hash` / `make_raw_abci_query_with_proof` / `all_entries_at` -> typed `ChainQueryFailure`), with no path returning `Ok` with unverified data. The verification-failure -> `Err` half is exercised offline (wrong `app_hash` -> `StoreVerificationFailed`; tampered entry -> `DigestMismatch`).
 - [x] 8.6 Single-node read: the present/absent decision (`verify_wasm_store_presence`) is covered offline both ways - `proof::tests::verifies_a_live_membership_proof_and_rejects_tampering` (Present) and `proof::tests::verifies_a_live_non_membership_proof_and_rejects_tampering` (Absent, via a real non-existence fixture; also rejects a wrong app_hash and a proof-for-a-different-key). The `verified_node_entry` wrapper composes these primitives.

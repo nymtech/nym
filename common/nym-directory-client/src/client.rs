@@ -19,6 +19,7 @@ use nym_directory_contract_common::{
 };
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
 use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
+use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient, Height};
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -30,27 +31,15 @@ use tracing::error;
 pub struct DirectoryClient<A, C> {
     anchor: A,
     client: C,
-    directory_contract: AccountId,
-    mixnet_contract: AccountId,
 }
 
 impl<A, C> DirectoryClient<A, C>
 where
     A: DirectoryTrustAnchor + Sync,
-    C: CosmWasmClient + Sync,
+    C: CosmWasmClient + NymContractsProvider + Sync,
 {
-    pub fn new(
-        anchor: A,
-        client: C,
-        directory_contract: AccountId,
-        mixnet_contract: AccountId,
-    ) -> Self {
-        DirectoryClient {
-            anchor,
-            client,
-            directory_contract,
-            mixnet_contract,
-        }
+    pub fn new(anchor: A, client: C) -> Self {
+        DirectoryClient { anchor, client }
     }
 
     /// Retrieve and verify the complete directory at `height`.
@@ -135,8 +124,13 @@ where
         label: &str,
         height: Height,
     ) -> Result<Option<ProvenNodeEntry>, DirectoryClientError> {
+        let directory_contract = self
+            .client
+            .directory_contract_address()
+            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
+
         // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
-        let key = node_entry_key(&self.directory_contract, node_id, label);
+        let key = node_entry_key(&directory_contract, node_id, label);
 
         let res = self
             .client
@@ -184,8 +178,13 @@ where
         key: &str,
         height: Height,
     ) -> Result<Option<Vec<u8>>, DirectoryClientError> {
+        let directory_contract = self
+            .client
+            .directory_contract_address()
+            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
+
         // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
-        let raw_key = curated_entry_key(&self.directory_contract, key);
+        let raw_key = curated_entry_key(directory_contract, key);
 
         let res = self
             .client
@@ -224,10 +223,15 @@ where
         node_id: NodeId,
         height: Height,
     ) -> Result<Option<ed25519::PublicKey>, DirectoryClientError> {
+        let mixnet_contract = self
+            .client
+            .mixnet_contract_address()
+            .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
+
         let res: NodeDetailsResponse = self
             .client
             .query_contract_smart_at_height(
-                &self.mixnet_contract,
+                mixnet_contract,
                 &MixnetQueryMsg::GetNymNodeDetails { node_id },
                 Some(height),
             )
@@ -244,13 +248,18 @@ where
         &self,
         height: Height,
     ) -> Result<Vec<DirectoryEntryRecord>, DirectoryClientError> {
+        let directory_contract = self
+            .client
+            .directory_contract_address()
+            .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
+
         let mut records = Vec::new();
         let mut start_after: Option<EntryKey> = None;
         loop {
             let page: AllEntriesPagedResponse = self
                 .client
                 .query_contract_smart_at_height(
-                    &self.directory_contract,
+                    directory_contract,
                     &DirectoryQueryMsg::AllEntries {
                         start_after,
                         limit: None,
@@ -272,13 +281,18 @@ where
         &self,
         height: Height,
     ) -> Result<HashMap<NodeId, ed25519::PublicKey>, DirectoryClientError> {
+        let mixnet_contract = self
+            .client
+            .mixnet_contract_address()
+            .ok_or(DirectoryClientError::UnavailableMixnetContract)?;
+
         let mut bonds = Vec::new();
         let mut start_after = None;
         loop {
             let page: PagedNymNodeBondsResponse = self
                 .client
                 .query_contract_smart_at_height(
-                    &self.mixnet_contract,
+                    mixnet_contract,
                     &MixnetQueryMsg::GetNymNodeBondsPaged {
                         start_after,
                         limit: None,

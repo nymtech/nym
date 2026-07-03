@@ -57,4 +57,10 @@ pub enum DirectoryClientError {
     /// contract's value codec (malformed on-chain state).
     #[error("malformed on-chain entry value: {0}")]
     MalformedEntry(String),
+
+    #[error("no known directory contract address was provided")]
+    UnavailableDirectoryContract,
+
+    #[error("no known mixnet contract address was provided")]
+    UnavailableMixnetContract,
 }

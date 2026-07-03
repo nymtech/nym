@@ -26,7 +26,6 @@ use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
 use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
 use nym_contracts_common::ContractBuildInformation;
-use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -65,6 +64,7 @@ pub use cw3;
 pub use cw4;
 pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+pub use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 pub use prost::Name;
 pub use tendermint_rpc::endpoint::block::Response as BlockResponse;
 pub use tendermint_rpc::{

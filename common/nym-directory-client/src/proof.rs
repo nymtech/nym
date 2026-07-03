@@ -8,6 +8,7 @@
 //! `ops[1]` (`ics23:simple`) proves that root up to the multistore root (the `app_hash`).
 //! We hand-chain the two `ics23::verify_membership` calls against a trusted `app_hash`
 
+use crate::error::ProofError;
 use cosmrs::tendermint::merkle::proof::ProofOp;
 use ics23::commitment_proof::Proof;
 use ics23::{
@@ -18,34 +19,6 @@ use prost::Message;
 
 /// The multistore key under which the CosmWasm module's store is committed.
 const WASM_STORE_KEY: &[u8] = b"wasm";
-
-#[derive(Debug, thiserror::Error)]
-pub enum ProofError {
-    #[error("expected exactly 2 proof ops (ics23:iavl, ics23:simple), got {0}")]
-    UnexpectedOpCount(usize),
-
-    #[error("failed to decode the ICS23 commitment proof for op {op}: {source}")]
-    Decode {
-        op: usize,
-        source: prost::DecodeError,
-    },
-
-    #[error("proof op {0} is not an existence proof")]
-    NotExistenceProof(usize),
-
-    #[error("failed to compute the existence root: {0}")]
-    RootCalculation(String),
-
-    #[error(
-        "IAVL-layer membership verification failed (key/value not committed in the wasm store)"
-    )]
-    IavlVerificationFailed,
-
-    #[error(
-        "store-layer membership verification failed (wasm store not committed to the app_hash)"
-    )]
-    StoreVerificationFailed,
-}
 
 /// Verify a two-layer CosmWasm store membership proof for `key`/`value` against a
 /// trusted multistore `app_hash`.

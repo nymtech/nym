@@ -1,12 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::anchor::{AnchorError, DirectoryTrustAnchor, TrustedDigest, WASM_STORE_PATH};
+use crate::anchor::{DirectoryTrustAnchor, TrustedDigest, WASM_STORE_PATH};
+use crate::error::DirectoryClientError;
 use crate::key::digest_state_key;
 use crate::proof::verify_wasm_store_membership;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_lthash::{DIGEST_LEN, LtHash16};
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Height, TendermintRpcClientExt};
 
 /// Proven anchor: proves the on-chain `digest_state` item via an ICS23 membership
@@ -31,7 +33,7 @@ impl<C> DirectoryTrustAnchor for ProvenTrustAnchor<C>
 where
     C: TendermintRpcClientExt + Send + Sync,
 {
-    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, AnchorError> {
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
         // Reconstruct the raw key ourselves so a malicious RPC cannot substitute a
         // different key for the one we verify against.
         let key = digest_state_key(&self.directory_contract);
@@ -44,8 +46,7 @@ where
                 key.clone(),
                 Some(height),
             )
-            .await
-            .map_err(|e| AnchorError::Query(e.to_string()))?;
+            .await?;
 
         // 2. the app_hash committing state at H lives in header[H+1] (CometBFT off-by-one)
         let next: Height = (height.value() as u32 + 1).into();
@@ -53,7 +54,7 @@ where
             .client
             .header(next)
             .await
-            .map_err(|e| AnchorError::Query(e.to_string()))?
+            .map_err(NyxdError::from)?
             .header
             .app_hash;
 
@@ -64,7 +65,7 @@ where
         let bytes: [u8; DIGEST_LEN] = res
             .response
             .try_into()
-            .map_err(|v: Vec<u8>| AnchorError::BadDigestLength(v.len()))?;
+            .map_err(|v: Vec<u8>| DirectoryClientError::BadDigestLength(v.len()))?;
 
         Ok(TrustedDigest {
             height,

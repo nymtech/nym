@@ -374,7 +374,7 @@ mod tests {
         assert_eq!(
             all.entries
                 .iter()
-                .map(|r| r.key.clone())
+                .map(|r| r.key())
                 .collect::<Vec<_>>(),
             vec![node1, node2, cur_x.clone(), cur_y.clone()]
         );
@@ -382,12 +382,12 @@ mod tests {
         // a page spanning the node -> curated boundary, then resume via the cursor
         let page = query_all_entries(tester.deps(), None, Some(3)).unwrap();
         assert_eq!(page.entries.len(), 3);
-        assert_eq!(page.entries[2].key, cur_x);
+        assert_eq!(page.entries[2].key(), cur_x);
         let rest = query_all_entries(tester.deps(), page.start_next_after, Some(3)).unwrap();
         assert_eq!(
             rest.entries
                 .iter()
-                .map(|r| r.key.clone())
+                .map(|r| r.key())
                 .collect::<Vec<_>>(),
             vec![cur_y]
         );

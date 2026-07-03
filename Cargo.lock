@@ -6858,10 +6858,11 @@ dependencies = [
  "nym-directory-contract-common",
  "nym-lthash",
  "nym-mixnet-contract-common",
+ "nym-test-utils",
  "nym-validator-client",
  "prost 0.13.5",
  "thiserror 2.0.19",
- "tokio",
+ "tracing",
 ]
 
 [[package]]

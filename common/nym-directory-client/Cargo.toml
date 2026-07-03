@@ -18,6 +18,7 @@ async-trait = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 cosmrs = { workspace = true }
+tracing = { workspace = true }
 
 nym-lthash = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
@@ -27,7 +28,8 @@ nym-mixnet-contract-common = { workspace = true }
 
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["full"] }
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 
 [lints]

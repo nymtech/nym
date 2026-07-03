@@ -9,8 +9,7 @@ use cw_storage_plus::{
 use nym_directory_contract_common::constants::storage_keys;
 use nym_directory_contract_common::msg::InitialLabel;
 use nym_directory_contract_common::{
-    CuratedEntry, DirectoryContractError, DirectoryEntry, EntryKey, KnownLabel, LabelConfig,
-    NodeEntry,
+    CuratedEntry, DirectoryContractError, DirectoryEntryRecord, KnownLabel, LabelConfig, NodeEntry,
 };
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
@@ -154,19 +153,17 @@ impl NymDirectoryContractStorage {
         label: &str,
         entry: NodeEntry,
     ) -> Result<(), DirectoryContractError> {
-        let entry_key = EntryKey::Node {
-            node_id,
-            label: label.to_owned(),
-        };
         let mut digest = self.load_digest(store)?;
 
         // replacing an existing entry: retire its old leaf first
         if let Some(old) = self.node_entries.may_load(store, node_id, label)? {
-            digest.subtract(&entry_key.digest_leaf(&DirectoryEntry::NodeEntry(old)));
+            digest.subtract(
+                &DirectoryEntryRecord::new_node(node_id, label.to_owned(), old).digest_leaf(),
+            );
         }
 
         self.node_entries.save(store, node_id, label, &entry);
-        digest.add(&entry_key.digest_leaf(&DirectoryEntry::NodeEntry(entry)));
+        digest.add(&DirectoryEntryRecord::new_node(node_id, label.to_owned(), entry).digest_leaf());
         self.save_digest(store, &digest);
         Ok(())
     }
@@ -182,12 +179,10 @@ impl NymDirectoryContractStorage {
         let Some(old) = self.node_entries.may_load(store, node_id, label)? else {
             return Ok(());
         };
-        let entry_key = EntryKey::Node {
-            node_id,
-            label: label.to_owned(),
-        };
         let mut digest = self.load_digest(store)?;
-        digest.subtract(&entry_key.digest_leaf(&DirectoryEntry::NodeEntry(old)));
+        digest.subtract(
+            &DirectoryEntryRecord::new_node(node_id, label.to_owned(), old).digest_leaf(),
+        );
         self.node_entries.remove(store, node_id, label);
         self.save_digest(store, &digest);
         Ok(())
@@ -214,9 +209,9 @@ impl NymDirectoryContractStorage {
 
         let mut digest = self.load_digest(store)?;
         for (label, entry) in entries {
-            let entry_key = EntryKey::new_node(node_id, label.clone());
-
-            digest.subtract(&entry_key.digest_leaf(&DirectoryEntry::NodeEntry(entry)));
+            digest.subtract(
+                &DirectoryEntryRecord::new_node(node_id, label.clone(), entry).digest_leaf(),
+            );
             self.node_entries.remove(store, node_id, &label);
         }
         self.save_digest(store, &digest);
@@ -230,17 +225,16 @@ impl NymDirectoryContractStorage {
         key: &str,
         entry: CuratedEntry,
     ) -> Result<(), DirectoryContractError> {
-        let entry_key = EntryKey::Curated {
-            key: key.to_owned(),
-        };
         let mut digest = self.load_digest(store)?;
 
         if let Some(old) = self.curated_entries.may_load(store, key)? {
-            digest.subtract(&entry_key.digest_leaf(&DirectoryEntry::CuratedEntry(old)));
+            digest.subtract(
+                &DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf(),
+            );
         }
 
         self.curated_entries.save(store, key, &entry);
-        digest.add(&entry_key.digest_leaf(&DirectoryEntry::CuratedEntry(entry)));
+        digest.add(&DirectoryEntryRecord::new_curated(key.to_owned(), entry).digest_leaf());
         self.save_digest(store, &digest);
         Ok(())
     }
@@ -255,11 +249,8 @@ impl NymDirectoryContractStorage {
         let Some(old) = self.curated_entries.may_load(store, key)? else {
             return Ok(());
         };
-        let entry_key = EntryKey::Curated {
-            key: key.to_owned(),
-        };
         let mut digest = self.load_digest(store)?;
-        digest.subtract(&entry_key.digest_leaf(&DirectoryEntry::CuratedEntry(old)));
+        digest.subtract(&DirectoryEntryRecord::new_curated(key.to_owned(), old).digest_leaf());
         self.curated_entries.remove(store, key);
         self.save_digest(store, &digest);
         Ok(())
@@ -785,18 +776,11 @@ mod tests {
     // ---- digest-maintaining mutations ----
 
     fn node_leaf(node_id: NodeId, label: &str, entry: &NodeEntry) -> Vec<u8> {
-        EntryKey::Node {
-            node_id,
-            label: label.to_owned(),
-        }
-        .digest_leaf(&DirectoryEntry::NodeEntry(entry.clone()))
+        DirectoryEntryRecord::new_node(node_id, label.to_owned(), entry.clone()).digest_leaf()
     }
 
     fn curated_leaf(key: &str, entry: &CuratedEntry) -> Vec<u8> {
-        EntryKey::Curated {
-            key: key.to_owned(),
-        }
-        .digest_leaf(&DirectoryEntry::CuratedEntry(entry.clone()))
+        DirectoryEntryRecord::new_curated(key.to_owned(), entry.clone()).digest_leaf()
     }
 
     #[test]

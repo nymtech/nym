@@ -25,6 +25,25 @@ pub struct DirectoryNodeEntry {
     pub signature: Vec<u8>,
 }
 
+impl From<NodeEntry> for DirectoryNodeEntry {
+    fn from(entry: NodeEntry) -> Self {
+        DirectoryNodeEntry {
+            data: entry.data.into(),
+            updated_at_height: entry.updated_at_height,
+            sequence: entry.sequence,
+            signature: entry.signature.into(),
+        }
+    }
+}
+
+/// A single node entry, proven present at a height by an ICS23 membership proof, together
+/// with whether its stored signature verified against the node's bonded identity key.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProvenNodeEntry {
+    pub entry: DirectoryNodeEntry,
+    pub verified: bool,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DirectoryNode {
     // data submitted by the node for known labels, i.e. ones we know how to parse
@@ -161,5 +180,55 @@ mod tests {
             entry.data = b"different".to_vec().into();
         }
         assert_ne!(recompute_accumulator(&[tampered]), baseline);
+    }
+
+    #[test]
+    fn node_signature_verification_accepts_valid_and_rejects_forged() {
+        let kp = keypair(3);
+        let DirectoryEntryRecord::Node {
+            node_id,
+            label,
+            entry,
+        } = signed_node_record(&kp, 4, "sphinx_key", b"data")
+        else {
+            unreachable!("built a node record")
+        };
+
+        // valid signature under the node's own identity key
+        assert!(node_signature_verifies(
+            node_id,
+            &label,
+            &entry,
+            kp.public_key()
+        ));
+
+        // a different identity key does not verify
+        let other = keypair(4);
+        assert!(!node_signature_verifies(
+            node_id,
+            &label,
+            &entry,
+            other.public_key()
+        ));
+
+        // tampered data no longer matches the signature
+        let mut tampered = entry.clone();
+        tampered.data = b"tampered".to_vec().into();
+        assert!(!node_signature_verifies(
+            node_id,
+            &label,
+            &tampered,
+            kp.public_key()
+        ));
+
+        // malformed signature bytes are rejected, not panicked
+        let mut malformed = entry;
+        malformed.signature = b"not-a-signature".to_vec().into();
+        assert!(!node_signature_verifies(
+            node_id,
+            &label,
+            &malformed,
+            kp.public_key()
+        ));
     }
 }

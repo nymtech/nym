@@ -17,33 +17,33 @@
 ## 4. Chain-proof primitives (directory-client)
 
 - [x] 4.1 Wasm raw-key builder: `contract_storage_key(contract, key) = 0x03 || canonical_addr || key` (no length prefix; 32-byte addrs) - hoisted into `nym-validator-client` (`nyxd::cosmwasm_client::contract_storage_key`) so `query_contract_raw_with_proof` and consumers share ONE layout; unit-tested against the live `admin` sample. Directory-specific `digest_state_key` in `nym-directory-client/src/key.rs` delegates to it.
-- [ ] 4.2 Entry raw-key builder: reproduce the `cw-storage-plus` `Path` bytes for `StoredNodeEntries` `(node_id, label)` and `StoredCuratedEntries` `String` keys (mirror the contract's `storage_key`), on top of `contract_storage_key`. Needed for §7 single-node proofs.
+- [x] 4.2 Entry raw-key builder: `key::node_entry_key` / `curated_entry_key` reproduce the `cw-storage-plus` `Path` bytes for `StoredNodeEntries` `(node_id, label)` and `StoredCuratedEntries` `String` keys on top of `contract_storage_key`; unit-tested by cross-checking against `cw_storage_plus::Path` directly (not a hand-rolled golden).
 - [x] 4.3 ICS23 two-layer verifier: `proof::verify_wasm_store_membership(ops, app_hash, key, value)` (hand-chained `calculate_existence_root` + two `verify_membership` calls with `iavl_spec`/`tendermint_spec` + `HostFunctionsManager`, typed `ProofError`), in `common/nym-directory-client/src/proof.rs`.
 - [x] 4.4 `app_hash` source: the proven anchor reads `header[H+1]` via `TendermintRpcClientExt::header` and takes its `app_hash`; RPC/header errors map to `AnchorError::Query`.
 
 ## 5. Trust anchor
 
-- [x] 5.1 `DirectoryTrustAnchor` trait (`async fn trusted_digest(&self, height) -> Result<TrustedDigest, AnchorError>`, `TrustedDigest { height, accumulator: LtHash16 }`) in `common/nym-directory-client/src/anchor.rs`.
-- [x] 5.2 `ProvenTrustAnchor<C: TendermintRpcClientExt>`: reconstructs `digest_state_key`, `make_raw_abci_query_with_proof` at `H`, fetches `header[H+1].app_hash`, `verify_wasm_store_membership`, and parses the raw value into `LtHash16` (returns the accumulator, not `out()`, so the verify core compares full accumulators). Uses the narrowest RPC bound, not `CosmWasmClient`. Live/integration test deferred to §8 (needs a deployed directory contract / localnet).
+- [x] 5.1 `DirectoryTrustAnchor` trait in `common/nym-directory-client/src/anchor/mod.rs`: `trusted_app_hash(height) -> AppHash` (the trusted chain head - the single root both the digest proof and single-entry proofs check against) and `trusted_digest(height) -> TrustedDigest { height, accumulator: LtHash16 }`. Errors are the unified `DirectoryClientError`.
+- [x] 5.2 `ProvenTrustAnchor<C: TendermintRpcClientExt>`: `trusted_app_hash` reads `header[H+1].app_hash`; `trusted_digest` reconstructs `digest_state_key`, `make_raw_abci_query_with_proof` at `H`, verifies via `verify_wasm_store_membership` against `self.trusted_app_hash(H)`, and parses the raw value into `LtHash16` (returns the accumulator, not `out()`, so the verify core compares full accumulators). Uses the narrowest RPC bound, not `CosmWasmClient`. Live/integration test deferred to §8 (needs a deployed directory contract / localnet).
 
 ## 6. Verify core
 
-- [ ] 6.1 Fetch all entries at `H` via the height-pinned `get_all_directory_entries` (all pages pinned to `H`, using 3.2).
-- [ ] 6.2 Recompute `LtHash16` over each `DirectoryEntryRecord::digest_leaf()`, compare `out()` to the trusted digest, reject on mismatch.
-- [ ] 6.3 Node signature verification: verify the ed25519 signature over `node_signing_payload` against identity keys cross-queried from the mixnet bond (`MixnetContractQuerier`, base58 -> 32 bytes) with a cache; flag entries whose signature does not verify as unauthenticated.
-- [ ] 6.4 Classify each returned entry by trust tier (node self-authored vs admin-curated) in the returned type.
-- [ ] 6.5 Verify over the committed subset only; do not treat unpublished bonded nodes as a verification failure.
-- [ ] 6.6 Typed fail-closed errors for missing header / state / non-verifying proof (never return unverified data as verified).
+- [x] 6.1 `DirectoryClient::all_entries_at` pages `AllEntries` via `query_contract_smart_at_height`, every page pinned to `H` (its own height-pinned loop rather than the latest-only `get_all_directory_entries`), in `common/nym-directory-client/src/client.rs`.
+- [x] 6.2 `verify::recompute_accumulator` folds each `DirectoryEntryRecord::digest_leaf()` into an `LtHash16` and the client compares the full recomputed accumulator to the proven `TrustedDigest.accumulator` (stronger than the 32-byte `out()`), returning `DirectoryClientError::DigestMismatch` on any difference.
+- [x] 6.3 Node signature verification: `verify::node_signature_verifies` checks the ed25519 signature over `node_signing_payload` against identity keys bulk-fetched from the mixnet bond (`GetNymNodeBondsPaged` at `H`, base58 -> key, collected into a map in `all_node_identities_at`); a node with any non-verifying signature has `DirectoryNode::verified = false`.
+- [x] 6.4 `VerifiedDirectory` separates `curated_entries` (admin authority) from `node_entries` keyed by `NodeId`, each `DirectoryNode` carrying a `verified` flag plus known/unknown label maps - the trust-tier split.
+- [x] 6.5 Verifies only over the returned committed records; bonded-but-unpublished nodes are never treated as a failure.
+- [x] 6.6 Fail-closed `DirectoryClientError` for anchor (missing header/state, non-verifying proof) and query errors, and `DigestMismatch`; never returns unverified data as verified.
 
 ## 7. Single-node verified read
 
-- [ ] 7.1 Single-entry read: build the entry raw key, verify an ICS23 membership proof against the `app_hash` at `H`, decode via the entry value codec, and report an absent entry distinctly from a verification failure.
+- [x] 7.1 Single-entry verified reads - `DirectoryClient::verified_node_entry` and `verified_curated_entry` - build the entry raw key, read it with a proof at `H`, take the trusted `app_hash` from the trust anchor (`anchor.trusted_app_hash`, NOT re-fetched from the RPC serving the proof - else a malicious RPC could supply a self-consistent forgery), and via `proof::verify_wasm_store_presence` either verify an ICS23 membership proof (decode the value with the contract codec; node entries additionally check the signature against the bonded identity -> `Some(ProvenNodeEntry)`; curated entries carry no signature - the membership proof is the authentication - and return the decoded payload bytes) or a full non-existence proof (`proof::verify_wasm_store_non_membership` -> `Ok(None)`), so absence is distinct from a verification failure (`Err`). Presence is decided by the proof shape, not value emptiness.
 
 ## 8. Tests
 
 - [ ] 8.1 Differential: on a populated localnet, recompute the digest from `get_all_directory_entries` and assert it equals the on-chain / proven digest.
-- [ ] 8.2 Tamper detection: a mutated entry yields a recompute mismatch and is rejected.
-- [ ] 8.3 Proof rejection: a forged proof and a wrong-height `app_hash` are both rejected.
-- [ ] 8.4 Signatures: an invalid node signature is flagged unauthenticated; curated entries are not signature-checked.
+- [x] 8.2 Tamper detection: `verify::tests::a_tampered_entry_changes_the_recomputed_digest` (mutating an entry changes the recomputed accumulator, which the client rejects as `DigestMismatch`).
+- [x] 8.3 Proof rejection: `proof::tests::verifies_a_live_membership_proof_and_rejects_tampering` rejects a wrong `app_hash` (`StoreVerificationFailed`) and a tampered value (`IavlVerificationFailed`).
+- [x] 8.4 Signatures: `verify::tests::node_signature_verification_accepts_valid_and_rejects_forged` (valid / wrong-key / tampered-data / malformed-bytes); curated entries are structurally never signature-checked (the client routes them straight to `curated_entries`).
 - [ ] 8.5 Partial publication verifies over the committed subset; pruned/unavailable state fails closed with a typed error.
-- [ ] 8.6 Single-node read: present entry verifies, absent entry is reported as absent.
+- [x] 8.6 Single-node read: the present/absent decision (`verify_wasm_store_presence`) is covered offline both ways - `proof::tests::verifies_a_live_membership_proof_and_rejects_tampering` (Present) and `proof::tests::verifies_a_live_non_membership_proof_and_rejects_tampering` (Absent, via a real non-existence fixture; also rejects a wrong app_hash and a proof-for-a-different-key). The `verified_node_entry` wrapper composes these primitives.

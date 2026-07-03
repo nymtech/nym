@@ -6853,6 +6853,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "cosmrs",
+ "cw-storage-plus",
  "ics23",
  "nym-crypto",
  "nym-directory-contract-common",

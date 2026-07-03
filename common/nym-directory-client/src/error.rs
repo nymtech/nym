@@ -52,4 +52,9 @@ pub enum DirectoryClientError {
         "the locally recomputed digest does not match the proven digest at the verified height"
     )]
     DigestMismatch,
+
+    /// A raw entry value that was proven present on-chain failed to decode with the
+    /// contract's value codec (malformed on-chain state).
+    #[error("malformed on-chain entry value: {0}")]
+    MalformedEntry(String),
 }

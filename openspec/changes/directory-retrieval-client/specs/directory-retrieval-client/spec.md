@@ -77,16 +77,20 @@ The client SHALL classify each verified entry by trust tier: node self-authored 
 - **WHEN** the returned set contains both node and curated entries
 - **THEN** each entry is labeled with its trust tier
 
-### Requirement: Single-node verified read
-The client SHALL support retrieving and verifying a single entry via an ICS23 membership proof of that entry's raw storage key against the `app_hash` at `H`, decoding the value with the entry value codec.
+### Requirement: Single-entry verified read
+The client SHALL support retrieving and verifying a single entry - a node entry `(node_id, label)` or a curated entry `(key)` - via an ICS23 proof of that entry's raw storage key against the `app_hash` at `H` (obtained from the trust anchor, not re-fetched from the RPC serving the proof), decoding the value with the entry value codec. Presence versus absence MUST be decided by the proof (a membership proof versus a non-existence proof), not by whether the read value is empty. A node entry's signature is additionally checked against the bonded node's identity key; a curated entry carries no per-entry signature (its authority is the contract admin), so a verified membership proof is itself the authentication.
 
-#### Scenario: Present entry is proven
-- **WHEN** the membership proof for the entry's raw key verifies against the `app_hash` for `H`
-- **THEN** the decoded entry is returned as verified
+#### Scenario: Present node entry is proven
+- **WHEN** the membership proof for a node entry's raw key verifies against the `app_hash` for `H`
+- **THEN** the decoded entry is returned, with its signature-verification status against the bonded node's identity key
+
+#### Scenario: Present curated entry is proven
+- **WHEN** the membership proof for a curated entry's raw key verifies against the `app_hash` for `H`
+- **THEN** the decoded curated payload is returned (no per-entry signature is required)
 
 #### Scenario: Entry not present
 - **WHEN** the entry does not exist at `H`
-- **THEN** the client reports it as absent, distinct from a verification failure
+- **THEN** a verified non-existence proof causes the client to report it as absent, distinct from a verification failure
 
 ### Requirement: Partial publication is not tamper
 The client SHALL verify over exactly the entry set the digest commits and MUST NOT treat bonded nodes that have not published entries as a verification failure.

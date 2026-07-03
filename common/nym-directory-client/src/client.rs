@@ -6,16 +6,18 @@
 
 use crate::anchor::DirectoryTrustAnchor;
 use crate::error::DirectoryClientError;
+use crate::key::{curated_entry_key, node_entry_key};
+use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
 use crate::verify::{
-    DirectoryNode, DirectoryNodeEntry, VerifiedDirectory, node_signature_verifies,
+    DirectoryNode, DirectoryNodeEntry, ProvenNodeEntry, VerifiedDirectory, node_signature_verifies,
     recompute_accumulator,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
-    AllEntriesPagedResponse, DirectoryEntryRecord, EntryKey, KnownLabel,
+    AllEntriesPagedResponse, CuratedEntry, DirectoryEntryRecord, EntryKey, KnownLabel, NodeEntry,
     QueryMsg as DirectoryQueryMsg,
 };
-use nym_mixnet_contract_common::nym_node::PagedNymNodeBondsResponse;
+use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
 use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient, Height};
 use std::collections::{BTreeMap, HashMap};
@@ -101,12 +103,7 @@ where
                         .or_insert(DirectoryNode::new(verified));
                     entry.verified &= verified;
 
-                    let data = DirectoryNodeEntry {
-                        data: node_entry.data.into(),
-                        updated_at_height: node_entry.updated_at_height,
-                        sequence: node_entry.sequence,
-                        signature: node_entry.signature.into(),
-                    };
+                    let data = DirectoryNodeEntry::from(node_entry);
 
                     if let Ok(known) = KnownLabel::from_str(&label) {
                         entry.known_labels.insert(known, data);
@@ -123,6 +120,123 @@ where
             curated_entries,
             node_entries,
         })
+    }
+
+    /// Retrieve and verify a single node entry `(node_id, label)` at `height` via its own
+    /// ICS23 proof against the block `app_hash`.
+    ///
+    /// Returns `Ok(None)` when the entry is proven ABSENT (a verified non-existence proof),
+    /// distinct from a verification failure (`Err`). A present entry is decoded with the
+    /// contract value codec and its signature checked against the node's bonded identity
+    /// key. Presence is decided by the proof shape, not by the value's emptiness.
+    pub async fn verified_node_entry(
+        &self,
+        node_id: NodeId,
+        label: &str,
+        height: Height,
+    ) -> Result<Option<ProvenNodeEntry>, DirectoryClientError> {
+        // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
+        let key = node_entry_key(&self.directory_contract, node_id, label);
+
+        let res = self
+            .client
+            .make_raw_abci_query_with_proof(
+                Some(WASM_STORE_PATH.to_owned()),
+                key.clone(),
+                Some(height),
+            )
+            .await?;
+
+        // the app_hash comes from the trust anchor (NOT re-fetched from the same RPC that
+        // served the proof), so a malicious RPC cannot substitute a self-consistent forgery
+        let app_hash = self.anchor.trusted_app_hash(height).await?;
+
+        match verify_wasm_store_presence(&res.proof.ops, app_hash.as_bytes(), &key, &res.response)?
+        {
+            ProvenPresence::Absent => Ok(None),
+            ProvenPresence::Present => {
+                let node_entry = NodeEntry::try_from_bytes(&res.response)
+                    .map_err(|e| DirectoryClientError::MalformedEntry(e.to_string()))?;
+                let verified = match self.node_identity_at(node_id, height).await? {
+                    Some(identity) => {
+                        node_signature_verifies(node_id, label, &node_entry, &identity)
+                    }
+                    None => false,
+                };
+                Ok(Some(ProvenNodeEntry {
+                    entry: node_entry.into(),
+                    verified,
+                }))
+            }
+        }
+    }
+
+    /// Retrieve and verify a single curated entry by its `key` at `height` via its own
+    /// ICS23 proof against the block `app_hash`.
+    ///
+    /// Returns `Ok(None)` when the entry is proven ABSENT (a verified non-existence proof),
+    /// distinct from a verification failure (`Err`). Curated entries carry no per-entry
+    /// signature - their authority is the contract admin - so a verified membership proof
+    /// against the trusted app_hash is itself the authentication; the decoded payload bytes
+    /// are returned. Presence is decided by the proof shape, not by the value's emptiness.
+    pub async fn verified_curated_entry(
+        &self,
+        key: &str,
+        height: Height,
+    ) -> Result<Option<Vec<u8>>, DirectoryClientError> {
+        // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
+        let raw_key = curated_entry_key(&self.directory_contract, key);
+
+        let res = self
+            .client
+            .make_raw_abci_query_with_proof(
+                Some(WASM_STORE_PATH.to_owned()),
+                raw_key.clone(),
+                Some(height),
+            )
+            .await?;
+
+        // the app_hash comes from the trust anchor (NOT re-fetched from the same RPC that
+        // served the proof), so a malicious RPC cannot substitute a self-consistent forgery
+        let app_hash = self.anchor.trusted_app_hash(height).await?;
+
+        match verify_wasm_store_presence(
+            &res.proof.ops,
+            app_hash.as_bytes(),
+            &raw_key,
+            &res.response,
+        )? {
+            ProvenPresence::Absent => Ok(None),
+            ProvenPresence::Present => {
+                let entry = CuratedEntry::try_from_bytes(&res.response)
+                    .map_err(|e| DirectoryClientError::MalformedEntry(e.to_string()))?;
+                Ok(Some(entry.data.into()))
+            }
+        }
+    }
+
+    /// The node's ed25519 identity key from its mixnet bond at `height`, or `None` if the
+    /// node cannot be resolved (absent, or a malformed on-chain key). Unbonding status is
+    /// irrelevant to attribution: the identity key is unchanged and the entry was signed
+    /// with it.
+    async fn node_identity_at(
+        &self,
+        node_id: NodeId,
+        height: Height,
+    ) -> Result<Option<ed25519::PublicKey>, DirectoryClientError> {
+        let res: NodeDetailsResponse = self
+            .client
+            .query_contract_smart_at_height(
+                &self.mixnet_contract,
+                &MixnetQueryMsg::GetNymNodeDetails { node_id },
+                Some(height),
+            )
+            .await?;
+
+        let Some(details) = res.details else {
+            return Ok(None);
+        };
+        Ok(ed25519::PublicKey::from_base58_string(details.bond_information.identity()).ok())
     }
 
     /// Page through `AllEntries`, every request pinned to `height`.

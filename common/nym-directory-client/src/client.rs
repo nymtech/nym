@@ -20,7 +20,7 @@ use nym_directory_contract_common::{
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
 use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
-use nym_validator_client::nyxd::{AccountId, CosmWasmClient, Height};
+use nym_validator_client::nyxd::{CosmWasmClient, Height};
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 use tracing::error;
@@ -130,7 +130,7 @@ where
             .ok_or(DirectoryClientError::UnavailableDirectoryContract)?;
 
         // reconstruct the raw key ourselves so a malicious RPC cannot substitute another key
-        let key = node_entry_key(&directory_contract, node_id, label);
+        let key = node_entry_key(directory_contract, node_id, label);
 
         let res = self
             .client

@@ -5,7 +5,7 @@ use cosmrs::bank::MsgSend;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use nym_validator_client::http_client;
-use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::nyxd::TendermintRpcClientExt;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::signer::OfflineSigner;
 use nym_validator_client::signing::tx_signer::TxSigner;

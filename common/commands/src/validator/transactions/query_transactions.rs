@@ -1,15 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
-
-use clap::Parser;
-use cosmrs::rpc::query::Query;
-use nym_validator_client::nyxd::CosmWasmClient;
-use serde_json::json;
-
 use crate::context::QueryClient;
 use crate::utils::show_error;
+use clap::Parser;
+use cosmrs::rpc::query::Query;
+use nym_validator_client::nyxd::TendermintRpcClientExt;
+use serde_json::json;
+use std::str::FromStr;
 
 #[derive(Debug, Parser)]
 pub struct Args {

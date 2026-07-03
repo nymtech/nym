@@ -1,15 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
-use cosmrs::AccountId;
-use log::{error, info};
-
-use nym_validator_client::nyxd::{contract_traits::VestingQueryClient, Coin, CosmWasmClient};
-
 use crate::context::QueryClient;
 use crate::utils::show_error;
 use crate::utils::{pretty_coin, pretty_cosmwasm_coin};
+use clap::Parser;
+use cosmrs::AccountId;
+use log::{error, info};
+use nym_validator_client::nyxd::{
+    contract_traits::VestingQueryClient, Coin, TendermintRpcClientExt,
+};
 
 #[derive(Debug, Parser)]
 pub struct Args {

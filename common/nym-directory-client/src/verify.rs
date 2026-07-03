@@ -191,7 +191,7 @@ mod tests {
             entry,
         } = signed_node_record(&kp, 4, "sphinx_key", b"data")
         else {
-            unreachable!("built a node record")
+            panic!("built a node record")
         };
 
         // valid signature under the node's own identity key

@@ -13,7 +13,6 @@ The `tendermint-light-client = "0.40.4"` crate (same release family as the `tend
 - The `DirectoryClient` and verify core are entirely untouched.
 
 **Non-Goals:**
-- Bisection / header-skip verification (verifying non-adjacent headers). This is phase 2; phase 1b is sequential only.
 - Persistent trusted-state storage. The in-memory trusted block resets on process restart; the operator must provide a fresh checkpoint.
 - Multi-peer supervisor mode. A single RPC provider is used; operator is responsible for choosing a reputable one (this is still significantly stronger than raw header trust).
 - Auto-fetching the trusting period from chain genesis; the operator configures `Options` explicitly.
@@ -26,13 +25,17 @@ The `Supervisor` (multi-peer, bisecting) is the production-grade entry point in 
 
 Alternative considered: use the Supervisor with a single-peer in-memory store. Rejected: the adapter API surface is large and the single-peer case buys nothing over our simpler direct approach.
 
-### D2: Sequential stepping (forward from the trusted block)
+### D2: Skip verification with bisection fallback
 
-To supply `app_hash` at `H`, we need the verified header at `H+1`. If our trusted state is at `T < H+1`, we fetch and verify headers at `T+1, T+2, ..., H+1` in sequence. Each step requires one `commit(K)` call and one `validators(K)` call from the RPC.
+To supply `app_hash` at `H` when the trusted state is at `T < H+1`, we first attempt to verify `H+1` directly from `T`. `PredicateVerifier::verify` already handles non-adjacent heights: if the voting power that the trusted validator set contributes to the commit at `H+1` exceeds the trust threshold (1/3 by default), the block is accepted in one shot without touching any intermediate header.
 
-This is O(delta) in chain calls. For typical usage - a client that runs continuously and queries at recent heights - the delta is small (seconds to minutes of blocks). For a cold-start with a stale checkpoint, the operator should provide a recent checkpoint. We document this constraint explicitly.
+If that direct attempt fails due to insufficient overlap (validator set changed enough that <1/3 of trusted power signed), we bisect: verify the midpoint `M = (T + H+1) / 2` first, update the trusted state to `M`, then retry `H+1` from `M`. This recurses until the gap is small enough (typically 1-2 levels for Nym's stable, small validator set).
 
-Alternative considered: trust threshold skipping (verify a distant block by requiring >1/3 overlap between old and new validator sets). Rejected for phase 1b: skip verification is a more complex correctness argument and the Nym validator set is small and stable enough that sequential stepping is practical.
+Complexity: O(log delta) RPC calls in the worst case; O(1) when the validator set is stable - which covers the typical Nym scenario. A checkpoint 1000 blocks behind costs at most ~10 bisection hops, usually 1.
+
+The implementation is a simple recursive (or iterative) `advance_to(target)` that tries direct verification, then bisects on failure - around 30 lines, no Supervisor required. Each step fetches `commit(K)` + `validators(K)` from the RPC.
+
+Alternative considered: sequential stepping (verify every intermediate block). Rejected: O(delta) is unnecessary given the protocol already supports skip verification, and for a stale checkpoint the cost is prohibitive.
 
 ### D3: In-memory cache of verified `AppHash` values
 
@@ -54,7 +57,7 @@ The `next_validators` field is required by `TrustedBlockState` to verify the nex
 
 ## Risks / Trade-offs
 
-- [Sequential stepping can be slow on cold start] → Mitigation: document that operators must provide a checkpoint within a few hundred blocks of the current tip, or accept a longer startup delay; we log progress per step.
+- [Cold-start with very stale checkpoint] → Mitigation: bisection keeps this O(log delta), so even 10,000 blocks behind is ~14 hops. For Nym's stable validator set it is typically 1 hop regardless of delta. Log progress at each bisection level so operators can see what is happening.
 - [Process restart resets trusted state] → Mitigation: document that a fresh checkpoint must be provided at startup; phase 2 adds persistence. For many use cases (short-lived CLI clients, nym-api restart) the checkpoint simply comes from a well-known recent block bundled with the binary.
 - [Single-RPC still trusted for header data (just not for the `app_hash` value)] → Residual: a Byzantine RPC can withhold headers (DoS) but cannot forge a valid signed header since it lacks the validator private keys. A DoS is detectable; a forgery is not. This is a meaningful improvement over the current model.
 - [`next_validators` at checkpoint requires two RPC calls at setup] → Mitigation: the `Checkpoint` struct is constructed once; a helper `fetch_checkpoint(client, height)` in the anchor module fetches and assembles it.

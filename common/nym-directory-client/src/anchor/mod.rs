@@ -5,12 +5,63 @@
 
 use crate::error::DirectoryClientError;
 use async_trait::async_trait;
+use cosmrs::rpc::Paging;
 use cosmrs::tendermint::AppHash;
 use nym_lthash::LtHash16;
-use nym_validator_client::nyxd::Height;
+use nym_validator_client::nyxd::{Height, SignedHeader, TendermintRpcClientExt, ValidatorSet};
+use serde::{Deserialize, Serialize};
 
 pub mod attested;
+mod helpers;
+#[cfg(feature = "light-client")]
+pub mod light_client;
 pub mod proven;
+
+#[cfg(feature = "light-client")]
+pub use light_client::{LightClientAnchor, nyx_default_options};
+
+// root of trust for any future chain retrieval by the `LightClientAnchor`
+// it needs to be obtained from a trusted source
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Checkpoint {
+    pub height: Height,
+    pub signed_header: SignedHeader,
+    pub validators: ValidatorSet,
+    pub next_validators: ValidatorSet,
+}
+
+impl Checkpoint {
+    pub async fn fetch<C>(client: &C, height: Height) -> Result<Self, DirectoryClientError>
+    where
+        C: TendermintRpcClientExt + Sync + Send + 'static,
+    {
+        fetch_checkpoint(client, height).await
+    }
+}
+
+pub async fn fetch_checkpoint<C>(
+    client: &C,
+    height: Height,
+) -> Result<Checkpoint, DirectoryClientError>
+where
+    C: TendermintRpcClientExt + Sync + Send + 'static,
+{
+    let commit_res = client.commit(height).await?;
+    if !commit_res.canonical {
+        return Err(DirectoryClientError::NonCanonicalCommit(height.value()));
+    }
+    let validators_res = client.validators(height, Paging::All).await?;
+    let next_validators_res = client
+        .validators(height.value() as u32 + 1, Paging::All)
+        .await?;
+
+    Ok(Checkpoint {
+        height,
+        signed_header: commit_res.signed_header,
+        validators: ValidatorSet::without_proposer(validators_res.validators),
+        next_validators: ValidatorSet::without_proposer(next_validators_res.validators),
+    })
+}
 
 /// A directory digest trusted at a specific height.
 pub struct TrustedDigest {

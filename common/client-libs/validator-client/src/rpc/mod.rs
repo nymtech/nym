@@ -421,6 +421,10 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
 
         res.try_into()
     }
+
+    async fn get_all_validators(&self, height: Height) -> Result<validators::Response, NyxdError> {
+        Ok(self.validators(height, Paging::All).await?)
+    }
 }
 
 impl<T> TendermintRpcClientExt for T where T: TendermintRpcClient {}

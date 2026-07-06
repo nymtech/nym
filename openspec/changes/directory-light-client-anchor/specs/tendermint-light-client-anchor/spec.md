@@ -32,12 +32,16 @@ Defines the requirements for `LightClientAnchor`, a `DirectoryTrustAnchor` imple
 - **WHEN** the RPC returns a header at `H+1` whose signatures do not match the trusted validator set
 - **THEN** verification fails and no `app_hash` is returned, preventing a forged proof from passing downstream ICS23 checks
 
-### Requirement: Sequential stepping from the trusted state
-When the trusted state is at height `T` and `trusted_app_hash(H)` is called with `H+1 > T+1`, the anchor SHALL step through headers `T+1, T+2, ..., H+1` sequentially, verifying each against the previous trusted state before advancing. It MUST NOT skip headers in phase 1b.
+### Requirement: Skip verification with bisection fallback
+When the trusted state is at height `T` and `trusted_app_hash(H)` is called with `H+1 > T+1`, the anchor SHALL first attempt to verify `H+1` directly from `T` (skip verification). If the voting power that the trusted validator set contributes to the commit at `H+1` meets the trust threshold (≥1/3), the block is accepted in one shot. If the overlap is insufficient, the anchor SHALL bisect: verify the midpoint `M = (T + H+1) / 2` from `T`, advance the trusted state to `M`, then retry `H+1` from `M`, recursing until the target is reached. The anchor MUST NOT require the caller to supply a checkpoint close to the target height.
 
-#### Scenario: Trusted state lags behind target height
-- **WHEN** the trusted state is at `T` and `trusted_app_hash(H)` is called with `H > T`
-- **THEN** the anchor verifies and advances through every intermediate block from `T+1` to `H+1` before returning
+#### Scenario: Direct skip succeeds (stable validator set)
+- **WHEN** the trusted state is at `T`, `trusted_app_hash(H)` is called with `H >> T`, and ≥1/3 of the trusted validator voting power signed the block at `H+1`
+- **THEN** the anchor verifies `H+1` in a single direct check, updates trusted state, and returns `app_hash` without fetching any intermediate block
+
+#### Scenario: Bisection triggers on insufficient overlap
+- **WHEN** the direct verification of `H+1` from `T` fails due to <1/3 trusted voting power overlap
+- **THEN** the anchor verifies the midpoint `M` first, then retries `H+1` from `M`, requiring at most O(log delta) verification steps total
 
 #### Scenario: Target height already verified
 - **WHEN** `trusted_app_hash(H)` is called for an `H` whose `H+1` app hash is already in the cache

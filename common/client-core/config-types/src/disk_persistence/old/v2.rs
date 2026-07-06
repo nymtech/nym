@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::disk_persistence::ClientKeysPaths;
-use crate::disk_persistence::{CommonClientPaths, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME};
+use crate::disk_persistence::{
+    CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME,
+};
 use crate::error::ConfigUpgradeFailure;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -79,6 +81,7 @@ impl CommonClientPathsV2 {
             keys: self.keys.upgrade(),
             gateway_registrations: data_dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             credentials_database: self.credentials_database,
+            credential_requests_database: data_dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database: self.reply_surb_database,
         })
     }

@@ -20,7 +20,8 @@ use crate::support::config::Config;
 use crate::support::nyxd;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
-use nym_bandwidth_controller::{BandwidthController, NyxdGlobalDataFetcher};
+use nym_bandwidth_controller::BandwidthController;
+use nym_bandwidth_fetcher::NyxdGlobalDataFetcher;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx::acknowledgements::AckKey;
@@ -121,9 +122,9 @@ impl<'a> NetworkMonitorBuilder<'a> {
                 )
                 .await,
             )
-            .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(
+            .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(Arc::new(
                 self.nyxd_client.clone(),
-            ))
+            )))
         };
 
         let bandwidth_request_sender = bandwidth_controller.get_request_sender();

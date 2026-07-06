@@ -18295,7 +18295,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox testnet
-curl https://rpc.sandbox.nymtech.net/genesis | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
+curl https://validator-sandbox-1.nymtech.net/genesis | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -18449,7 +18449,7 @@ sudo apt install snapd -y
 sudo snap install lz4
 
 # download the snapshot
-wget -O nyxd-sandbox-snapshot-data.tar.lz4 https://rpc.sandbox.nymtech.net/snapshots/nyxd-sandbox-snapshot-data.tar.lz4
+wget -O nyxd-sandbox-snapshot-data.tar.lz4 https://validator-sandbox-1.nymtech.net/snapshots/nyxd-sandbox-snapshot-data.tar.lz4
 
 # reset your validator state
 nyxd tendermint unsafe-reset-all
@@ -18499,7 +18499,7 @@ nyxd tx staking create-validator
   --gas-adjustment=1.15
   --gas-prices=0.025unyx
   --from=<"KEYRING_NAME">
-  --node https://rpc.sandbox.nymtech.net:443
+  --node https://validator-sandbox-1.nymtech.net:443
 ```
 
 You'll need Nyx tokens on mainnet / sandbox to perform the above tasks.

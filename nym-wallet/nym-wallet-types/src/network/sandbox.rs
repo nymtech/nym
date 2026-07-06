@@ -40,9 +40,9 @@ pub(crate) const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
-        "https://rpc.sandbox.nymtech.net",
+        "https://validator-sandbox-1.nymtech.net",
         Some("https://sandbox-nym-api1.nymtech.net/api"),
-        Some("wss://rpc.sandbox.nymtech.net/websocket"),
+        Some("wss://validator-sandbox-1.nymtech.net/websocket"),
     )]
 }
 

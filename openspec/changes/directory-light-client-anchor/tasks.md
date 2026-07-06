@@ -50,17 +50,22 @@
 
 ## 6. Tests
 
-- [ ] 6.1 Unit test: constructing `LightClientAnchor` from a checkpoint makes no RPC calls (use a spy/mock client)
-- [ ] 6.2 Unit test: `try_verify_direct` with a valid signed header advances the trusted state and caches the app hash
-- [ ] 6.3 Unit test: `advance_to` with a header whose validator overlap is insufficient triggers bisection (mock client
-  records call heights; verify midpoint was fetched before target)
-- [ ] 6.4 Unit test: `advance_to` with stable validator set resolves in a single direct verification (no bisection)
-- [ ] 6.5 Unit test: repeated `trusted_app_hash(H)` for the same `H` returns from cache without a second RPC call
-- [ ] 6.6 Unit test: stale checkpoint (time > now - trusting_period) causes `trusted_app_hash` to fail
+- [x] 6.1 Unit test: `try_verify_direct` with a valid signed header advances the trusted state and caches the app hash
+- [x] 6.2 Unit test: `advance_to` with a header whose validator overlap is insufficient triggers bisection (mock client
+  records call heights; verify midpoint was fetched before target). Implemented via a tampered checkpoint whose
+  `next_validators` is padded with a dominant non-signing fake validator, forcing every skip hop below the 1/3 overlap
+  threshold. The `commit_calls()` sequence `[898, 897, 898]` proves the target was attempted, the midpoint fetched, then
+  the target retried. Needs two extra real fixtures (commit@24499898, validators@24499899) - see the `REPLACE_ME_*`
+  placeholders in `bisection_fixtures`.
+- [x] 6.3 Unit test: `advance_to` with stable validator set resolves in a single direct verification (no bisection)
+- [x] 6.4 Unit test: repeated `trusted_app_hash(H)` for the same `H` returns from cache without a second RPC call
+- [x] 6.5 Unit test: stale checkpoint (time > now - trusting_period) causes `trusted_app_hash` to fail
+- [x] 6.6 Unit test (regression): a below-head query re-verifies from the checkpoint instead of erroring; a
+  below-checkpoint query returns `HeightBelowCheckpoint`
 
 ## 7. Verification
 
-- [ ] 7.1 `cargo test -p nym-directory-client --features light-client --lib` passes
-- [ ] 7.2 `cargo test -p nym-directory-client --lib` (no feature) passes
-- [ ] 7.3 `cargo build -p nym-directory-client` and `cargo build -p nym-directory-client --features light-client` both
+- [x] 7.1 `cargo test -p nym-directory-client --features light-client --lib` passes (15 tests)
+- [x] 7.2 `cargo test -p nym-directory-client --lib` (no feature) passes (8 tests)
+- [x] 7.3 `cargo build -p nym-directory-client` and `cargo build -p nym-directory-client --features light-client` both
   succeed

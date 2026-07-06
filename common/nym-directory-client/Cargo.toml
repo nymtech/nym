@@ -35,6 +35,8 @@ nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 cw-storage-plus = { workspace = true }
+nym-validator-client = { workspace = true, features = ["mocks"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [features]
 light-client = ["tendermint-light-client"]

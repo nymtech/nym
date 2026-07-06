@@ -100,6 +100,7 @@ required-features = ["http-client"]
 [features]
 default = ["http-client"]
 http-client = ["cosmrs/rpc"]
+mocks = []
 generate-ts = []
 contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 # Features below are added to make clippy happy, it seems like they're unused we should remove them

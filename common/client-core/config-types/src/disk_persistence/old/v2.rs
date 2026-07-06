@@ -3,7 +3,8 @@
 
 use crate::disk_persistence::ClientKeysPaths;
 use crate::disk_persistence::{
-    CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME,
+    CommonClientPaths, DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME,
+    DEFAULT_GATEWAYS_DETAILS_DB_FILENAME,
 };
 use crate::error::ConfigUpgradeFailure;
 use serde::{Deserialize, Serialize};

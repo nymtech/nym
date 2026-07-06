@@ -1,24 +1,26 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials::ecash::bandwidth::CredentialSpendingData;
-use nym_credentials_interface::TicketType;
+use nym_credentials::{ecash::bandwidth::CredentialSpendingData, IssuedTicketBook};
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::OffsetDateTime;
 use nym_validator_client::nym_api::EpochId;
 
 pub use controller::BandwidthController;
-pub use fetcher::NyxdGlobalDataFetcher;
-pub use traits::{BandwidthTicketProvider, FetcherError};
+pub use nym_credentials_interface::TicketType;
+pub use ticketbooks::AvailableTicketbooks;
+pub use traits::{
+    BandwidthTicketProvider, CredentialFetcher, CredentialFetcherError,
+    CredentialPublicDataFetcher, FetcherError,
+};
 
-pub mod acquire;
 mod controller;
 pub mod error;
-mod fetcher;
 pub mod mock;
+mod readiness;
 pub mod requests;
+mod ticketbooks;
 mod traits;
-mod utils;
 
 pub const DEFAULT_TICKETS_TO_SPEND: u32 = 1;
 
@@ -55,4 +57,12 @@ pub struct EcashTicketRequest {
     pub gateway_id: ed25519::PublicKey,
     pub tickets_to_spend: u32,
     pub spend_time: OffsetDateTime,
+}
+
+pub enum NymCredential {
+    Ticketbook(Box<IssuedTicketBook>),
+    UpgradeModeToken {
+        jwt: String,
+        expiration: OffsetDateTime,
+    },
 }

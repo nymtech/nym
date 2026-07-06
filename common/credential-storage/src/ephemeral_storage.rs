@@ -5,7 +5,7 @@ use crate::backends::memory::MemoryEcachTicketbookManager;
 use crate::error::StorageError;
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedPendingTicketbook, RetrievedTicketbook,
+    RetrievedTicketbook,
 };
 use crate::storage::Storage;
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
 use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
-use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_credentials::IssuedTicketBook;
 use nym_ecash_time::Date;
 use std::fmt::{self, Debug, Formatter};
 
@@ -52,16 +52,6 @@ impl Storage for EphemeralStorage {
 
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError> {
         self.storage_manager.cleanup_expired().await;
-        Ok(())
-    }
-
-    async fn insert_pending_ticketbook(
-        &self,
-        ticketbook: &IssuanceTicketBook,
-    ) -> Result<(), Self::StorageError> {
-        self.storage_manager
-            .insert_pending_ticketbook(ticketbook)
-            .await;
         Ok(())
     }
 
@@ -121,18 +111,18 @@ impl Storage for EphemeralStorage {
         Ok(self.storage_manager.get_ticketbooks_info().await)
     }
 
-    async fn get_pending_ticketbooks(
-        &self,
-    ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError> {
-        Ok(self.storage_manager.get_pending_ticketbooks().await)
-    }
+    // async fn get_pending_ticketbooks(
+    //     &self,
+    // ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError> {
+    //     Ok(self.storage_manager.get_pending_ticketbooks().await)
+    // }
 
-    async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError> {
-        self.storage_manager
-            .remove_pending_ticketbook(pending_id)
-            .await;
-        Ok(())
-    }
+    // async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError> {
+    //     self.storage_manager
+    //         .remove_pending_ticketbook(pending_id)
+    //         .await;
+    //     Ok(())
+    // }
 
     /// Tries to retrieve one of the stored ticketbook for the specified type,
     /// that has not yet expired and has required number of unspent tickets.
@@ -253,6 +243,16 @@ impl Storage for EphemeralStorage {
             .await;
         Ok(())
     }
+
+    async fn clear_ticketbooks(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_ticketbooks().await;
+        Ok(())
+    }
+
+    async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_emergency_credentials().await;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -260,6 +260,7 @@ mod tests {
     use super::*;
     use nym_compact_ecash::tests::helpers::generate_expiration_date_signatures;
     use nym_compact_ecash::{issue, ttp_keygen};
+    use nym_credentials::IssuanceTicketBook;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
     use nym_ecash_time::EcashTime;

@@ -50,9 +50,14 @@ The `node_identities_hash` addition specifically is what makes whole-directory r
 
 Alternative considered - attest `app_hash` only, then ICS23-derive the accumulator and separately RPC-fetch node identities. Rejected for the same reason as before (weakens the anchor to a generic header oracle, forces it to hold an RPC) and additionally fails to deliver a genuinely RPC-free retrieval path, which is now a stated goal.
 
-### D3: Canonical signing payload in the shared crate; signed types in the client
+### D3: Both canonical encoders live in `nym-directory-client`, not a contract-common crate
 
-The exact bytes a nym-api signs are produced by `digest_snapshot_signing_payload(chain_id, contract, height, app_hash, accumulator, node_identities_hash) -> Vec<u8>` in `nym-directory-contract-common`, next to `node_signing_payload` and reusing its `push_len_prefixed` framing, with a distinct domain-separation tag so a snapshot signature can never be confused with a node-entry signature. The canonical encoder for `node_identities_hash` itself (hashing the sorted `(NodeId, identity)` set) is a separate, small function whose home is a mixnet-contract-common concern (it hashes mixnet bond data, not directory data) rather than living in the directory's shared crate - exact placement is an implementation-time call, not a design fork. This mirrors the existing split: canonical encoding lives in shared crates (single source of truth for producer and consumer), signed-wrapper type and verification logic live in the client (`attested.rs`).
+Revisited mid-implementation. `node_signing_payload` lives in `nym-directory-contract-common` because the contract itself reconstructs those bytes on-chain when verifying a node-entry signature - a genuine contract/client shared boundary. Neither `digest_snapshot_signing_payload` nor `node_identities_hash` has a contract-side consumer: their only two consumers are both off-chain peers of the digest-snapshot attestation protocol - the not-yet-built nym-api producer (signs) and this crate (verifies) - the identical pairing `recompute_accumulator` already serves from `verify.rs`. So both now live in `nym-directory-client`:
+
+- `digest_snapshot_signing_payload(chain_id: &str, contract: &AccountId, height: Height, app_hash: &AppHash, accumulator: &LtHash16, node_identities_hash: &[u8; 32]) -> Vec<u8>` in `src/anchor/attested.rs`, `pub(crate)` since nothing outside this crate consumes it yet. Uses the crate's own real types (`AccountId`, `LtHash16`, `AppHash`) rather than primitive-typed workarounds, since this crate already depends on `cosmrs` / `nym-lthash` / `nym-crypto`. Has its own small local length-prefixing helper (mirroring, not reusing, `nym_directory_contract_common::helpers::push_len_prefixed`, which is private to that crate) and a distinct domain-separation tag so a snapshot signature can never be confused with a node-entry signature.
+- `node_identities_hash` in `src/verify.rs`, next to `recompute_accumulator` - takes `(NodeId, ed25519::PublicKey)` pairs directly (this crate already depends on `nym-crypto`), sorts internally, and hashes with `blake3` (a new direct dependency of this crate; already transitively present via `nym-lthash`).
+
+This intentionally does *not* try to pre-build a neutral shared-crate home for a producer that doesn't exist yet and isn't scoped in this change (see the deferred nym-api producer endpoint in Non-Goals). `nym-api` already depends on multiple `-client` crates for shared chain logic (e.g. `nym-validator-client`), so a future producer depending on `nym-directory-client` - or extracting a shared piece once its real constraints are known - is a reasonable question to leave to that follow-up rather than deciding now.
 
 ### D4: Sybil resistance via a configured signer set and a quorum threshold
 
@@ -101,7 +106,7 @@ This change does not implement either; it only flags the dependency so D8's over
 
 ## Migration Plan
 
-1. Add `digest_snapshot_signing_payload` (now including `node_identities_hash`) to `nym-directory-contract-common`, and the node-identity-mapping canonical hash encoder to its chosen home, both with unit tests mirroring the `node_signing_payload` determinism / field-sensitivity tests.
+1. Add `digest_snapshot_signing_payload` to `src/anchor/attested.rs` and `node_identities_hash` to `src/verify.rs` (both in `nym-directory-client`; see D3), with unit tests mirroring the `node_signing_payload` determinism / field-sensitivity tests.
 2. Implement `SignedDigestSnapshot`, the `AttestationSource` trait, `AttestedTrustAnchor<S>`, and the default anchor constants in `src/anchor/attested.rs`.
 3. Re-export the public types from `src/anchor/mod.rs`.
 4. Add the new error variants to `DirectoryClientError`.
@@ -114,7 +119,6 @@ This change does not implement either; it only flags the dependency so D8's over
 - Retained-window size: how many previous snapshots should producers keep? Tied to the sphinx-key rotation range width and the maximum expected client lag.
 - Freshness: is height-vs-chain-tip lag sufficient, or does the attestation eventually need an `issued_at` / expiry field?
 - Default anchor size/composition: exactly how many Nym-SA keys, and what quorum threshold, ships as the default? (Implementation-time call, not blocking design.)
-- Node-identity-hash encoder home: `nym-mixnet-contract-common` or elsewhere - implementation-time call.
 
 ## Future direction (deferred, not in scope for this change)
 

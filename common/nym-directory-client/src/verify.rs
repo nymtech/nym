@@ -91,6 +91,32 @@ pub fn recompute_accumulator(records: &[DirectoryEntryRecord]) -> LtHash16 {
     acc
 }
 
+/// Canonical hash over a set of `(NodeId, identity)` pairs - the node-identity binding a
+/// nym-api attests alongside the directory accumulator (see the attested anchor), so
+/// whole-directory retrieval can verify entry authorship without a live chain
+/// connection. Sorted internally by `NodeId`, so the caller's iteration order does not
+/// affect the result.
+///
+/// Every pair contributes a fixed-width `NodeId` (big-endian) followed by the identity's
+/// raw bytes, so - unlike `node_signing_payload`'s variable-length fields - no
+/// length-prefixing is needed: every record is the same width, so the total buffer
+/// length alone fixes the record count, and a record's position alone fixes its field
+/// boundaries.
+pub fn node_identities_hash<'a>(
+    identities: impl Iterator<Item = &'a (NodeId, ed25519::PublicKey)>,
+) -> [u8; 32] {
+    let mut pairs: Vec<_> = identities.collect();
+    pairs.sort_unstable_by_key(|(node_id, _)| *node_id);
+
+    let mut buf = Vec::new();
+    for (node_id, identity) in pairs {
+        buf.extend_from_slice(&node_id.to_be_bytes());
+        buf.extend_from_slice(&identity.to_bytes());
+    }
+
+    blake3::hash(&buf).into()
+}
+
 /// Whether `entry`'s stored ed25519 signature verifies as node-authored: the signature
 /// over the canonical [`node_signing_payload`] must validate under `identity`.
 pub(crate) fn node_signature_verifies(
@@ -230,5 +256,75 @@ mod tests {
             &malformed,
             kp.public_key()
         ));
+    }
+
+    #[test]
+    fn node_identities_hash_is_deterministic() {
+        let a = *keypair(1).public_key();
+        let b = *keypair(2).public_key();
+        let pairs = [(1u32, a), (2, b)];
+        assert_eq!(
+            node_identities_hash(pairs.iter()),
+            node_identities_hash(pairs.iter())
+        );
+    }
+
+    #[test]
+    fn node_identities_hash_is_order_independent() {
+        let a = *keypair(1).public_key();
+        let b = *keypair(2).public_key();
+        let c = *keypair(3).public_key();
+        let forward = [(1, a), (2, b), (3, c)];
+        let shuffled = [(3, c), (1, a), (2, b)];
+        assert_eq!(
+            node_identities_hash(forward.iter()),
+            node_identities_hash(shuffled.iter())
+        );
+    }
+
+    #[test]
+    fn node_identities_hash_is_sensitive_to_node_id_change() {
+        let a = *keypair(1).public_key();
+        let b = *keypair(2).public_key();
+        let base = [(1, a), (2, b)];
+        let changed = [(1, a), (3, b)];
+        assert_ne!(
+            node_identities_hash(base.iter()),
+            node_identities_hash(changed.iter())
+        );
+    }
+
+    #[test]
+    fn node_identities_hash_is_sensitive_to_identity_change() {
+        let a = *keypair(1).public_key();
+        let b = *keypair(2).public_key();
+        let other = *keypair(3).public_key();
+        let base = [(1, a), (2, b)];
+        let changed = [(1, a), (2, other)];
+        assert_ne!(
+            node_identities_hash(base.iter()),
+            node_identities_hash(changed.iter())
+        );
+    }
+
+    #[test]
+    fn node_identities_hash_is_sensitive_to_membership_change() {
+        let a = *keypair(1).public_key();
+        let b = *keypair(2).public_key();
+        let c = *keypair(3).public_key();
+        let base = [(1, a), (2, b)];
+        let extra = [(1, a), (2, b), (3, c)];
+        assert_ne!(
+            node_identities_hash(base.iter()),
+            node_identities_hash(extra.iter())
+        );
+    }
+
+    #[test]
+    fn empty_node_identities_mapping_hashes_deterministically() {
+        assert_eq!(
+            node_identities_hash(Vec::new().iter()),
+            node_identities_hash(Vec::new().iter())
+        );
     }
 }

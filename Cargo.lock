@@ -6880,6 +6880,7 @@ version = "1.21.5-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "blake3",
  "cosmrs",
  "cw-storage-plus",
  "ics23",

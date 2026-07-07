@@ -15,15 +15,16 @@ publish = true
 [dependencies]
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+blake3 = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 cosmrs = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 tendermint-light-client = { workspace = true, optional = true }
 
-nym-lthash = { workspace = true }
+nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-directory-contract-common = { workspace = true }

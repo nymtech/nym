@@ -1,10 +1,17 @@
-## 1. Canonical attestation encoding (shared crates)
+## 1. Canonical attestation encoding
 
-- [ ] 1.1 Add `digest_snapshot_signing_payload(chain_id: &str, contract: &AccountId, height: u64, app_hash: &[u8], accumulator: &[u8; DIGEST_LEN], node_identities_hash: &[u8; 32]) -> Vec<u8>` to `common/cosmwasm-smart-contracts/directory-contract/src/helpers.rs`, reusing `push_len_prefixed` and prefixing a distinct domain-separation tag (so a snapshot signature can never collide with a `node_signing_payload` signature)
-- [ ] 1.2 Re-export it from `nym-directory-contract-common`'s public surface
-- [ ] 1.3 Unit tests: payload is deterministic and field-sensitive (differs on any of chain-id / contract / height / app_hash / accumulator / node_identities_hash); length-prefix framing disambiguates adjacent variable-length fields; domain tag differs from the node-entry payload
-- [ ] 1.4 Add a canonical hash encoder for the `NodeId -> ed25519 identity` mapping (sorted, length-prefixed pairs, plain cryptographic hash - not an LtHash accumulator, since it is recomputed fresh each time rather than incrementally updated) in an appropriate shared crate (e.g. `nym-mixnet-contract-common`, next to the bond types it hashes)
-- [ ] 1.5 Unit tests for the node-identity hash encoder: deterministic, sensitive to any `(node_id, identity)` change, order-independent (sorts internally so caller iteration order does not matter)
+Lives in `nym-directory-client` itself, not a contract-common crate: neither function is
+ever consumed by a contract, only by this crate (verifying) and the not-yet-built nym-api
+producer (signing) - the same two-off-chain-peers pairing `recompute_accumulator` already
+serves from `verify.rs`. Placement revisited mid-implementation (see `design.md` D3); the
+producer, when it lands, can decide then whether to depend on this crate or extract a
+shared piece, once its real constraints are known.
+
+- [x] 1.1 Add `digest_snapshot_signing_payload(chain_id: &str, contract: &AccountId, height: Height, app_hash: &AppHash, accumulator: &LtHash16, node_identities_hash: &[u8; 32]) -> Vec<u8>` to `common/nym-directory-client/src/anchor/attested.rs`, with its own local length-prefixing helper and a domain-separation tag (so a snapshot signature can never collide with a `node_signing_payload` signature)
+- [x] 1.2 N/A - not a shared crate, no re-export surface; `pub(crate)` within `nym-directory-client`, consumed by `attested.rs` itself (task 2/3)
+- [x] 1.3 Unit tests: payload is deterministic and field-sensitive (differs on any of chain-id / contract / height / app_hash / accumulator / node_identities_hash); length-prefix framing disambiguates adjacent variable-length fields; domain tag differs from a representative `node_signing_payload` output
+- [x] 1.4 Add `node_identities_hash` (sorted, fixed-width-per-record, plain `blake3` hash - not an LtHash accumulator, since it is recomputed fresh each time rather than incrementally updated) to `common/nym-directory-client/src/verify.rs`, next to `recompute_accumulator`
+- [x] 1.5 Unit tests for `node_identities_hash`: deterministic, sensitive to any `(node_id, identity)` or membership change, order-independent (sorts internally so caller iteration order does not matter)
 
 ## 2. Attestation types and transport trait (client crate)
 

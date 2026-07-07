@@ -1,0 +1,125 @@
+## Context
+
+`DirectoryTrustAnchor` is the seam that produces the block `app_hash` and directory digest the retrieval client is willing to trust at a height. Two implementations exist: `ProvenTrustAnchor` (reads `header[H+1].app_hash` from a configured, trusted RPC) and `LightClientAnchor` (verifies validator-set signatures from a caller-pinned checkpoint). The trust model (`project_directory_contract_trust_model_2026_06_24`) frames the production bootstrap around a hardcoded root key that signs a self-authenticating checkpoint, refreshed out-of-band. That layer (roadmap steps 1b/1c) cannot ship yet: the root key does not exist, and hardcoding one plus an initial checkpoint and a refresh flow is a prerequisite we are deliberately postponing.
+
+The same trust model describes a second, independent authority that is available today: the curated Tier-1 nym-apis. Their ed25519 identity keys already exist and are already the sanctioned signer tier. `AttestedTrustAnchor` uses a K-of-N quorum of those keys as the trust root. A quorum of nym-apis signs a directory snapshot; the client accepts a snapshot only when at least K distinct trusted signers agree on identical values. This is strictly stronger than trusting a single RPC (an attacker now needs K colluding, independently operated nym-apis) and requires no new key material, so it unblocks a verifiable-retrieval deployment now, behind the same trait the light client will use later.
+
+Two gaps surfaced once the basic quorum mechanism was sketched, both closed by this design:
+
+1. **No default trust root.** A caller had to supply `trusted_signers` from nothing - there was no sensible out-of-the-box configuration, which pushes the "who do I trust" decision onto every deployment even when the answer for most of them ("Nym SA's own nym-apis, for now") is the same.
+2. **RPC dependency survived the anchor.** Removing the RPC dependency from *establishing* trust (`app_hash`) does not remove it from *using* that trust: `DirectoryClient::verified_directory` still fetches entries and node identities via a live `CosmWasmClient` connection regardless of which anchor is plugged in, and the node-identity lookup in particular was never proven at all (a plain smart query) even under `LightClientAnchor`, which otherwise goes out of its way not to trust the RPC. Some deployments cannot or should not hold a direct chain RPC connection; this design closes that gap for whole-directory retrieval.
+
+A fourth gap, external to this change but load-bearing for D8's override path: nym-api has no unconditional way to expose its own identity key today (see "External prerequisite" below).
+
+A third gap - the trusted signer *set itself* being static, requiring a client update whenever Tier-1 membership rotates - was explored in depth (deriving it from the coconut-dkg dealer set and/or directory curated entries, generalizing attestation to arbitrary canonical subsets published by nym-api) but is deliberately left for a follow-up. See "Future direction" below for what was worked out, so it is not lost.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Add `AttestedTrustAnchor<S>: DirectoryTrustAnchor` whose trusted `app_hash` and digest come from a K-of-N quorum of configured nym-api identity keys.
+- Ship a small, hardcoded, overridable default trust root (Nym-SA-owned nym-api keys/endpoints) so a deployment gets a working configuration with zero setup, while remaining free to substitute its own.
+- Define a canonical, replay-resistant, domain-separated snapshot attestation whose signing-payload encoding is shared so a future nym-api producer reproduces identical bytes, and which additionally commits to a hash over the current `NodeId -> ed25519 identity` mapping (not just the directory's own digest).
+- Let whole-directory retrieval (entries *and* the node-identity bindings needed for authorship attribution) be verified by local hash-recompute against a trusted snapshot, with data sourced from anywhere - no chain RPC connection required on the verifying side.
+- Keep the transport abstract behind an `AttestationSource` trait so the anchor is testable with a mock and the concrete HTTP wiring can land with the producer.
+- Support fetching the quorum-agreed latest snapshot and a specific recent height within a retained window, for clients running behind or straddling a key-rotation range transition.
+- Leave `ProvenTrustAnchor`, `LightClientAnchor`, and the `DirectoryTrustAnchor` trait surface untouched; their existing (RPC-backed, and in the node-identity case unproven) behavior is preserved exactly.
+
+**Non-Goals:**
+
+- The nym-api producer endpoint (separate follow-up; this change fixes the format it must emit).
+- A concrete HTTP `AttestationSource` (lands with the producer, defining the wire format once).
+- The contract-side refresh-cadence / snapshot-retention parameter (TBD; producer / contract concern).
+- The checkpoint / root-key bootstrap (steps 1b/1c), explicitly postponed.
+- ICS23-proving the signer keys as curated entries, or deriving the trusted signer set from the coconut-dkg dealer set; in attested mode the signer set is configured (default or override), which is exactly what lets us skip the root-key layer. See "Future direction".
+- Generalizing attestation beyond the directory digest and node-identity hash to arbitrary canonical subsets (per-label slices, non-directory nym-api endpoints). See "Future direction".
+- Persistent snapshot cache across process restarts.
+- nym-api exposing its identity key unconditionally, or a possession-proof/challenge-response endpoint. Named as its own nym-api-side prerequisite; see "External prerequisite" below.
+
+## Decisions
+
+### D1: A third anchor, quorum-attested, behind the unchanged trait
+
+`AttestedTrustAnchor<S>` is a drop-in `DirectoryTrustAnchor` alongside the proven and light-client anchors. It is constructed with the set of trusted nym-api identity keys, a quorum threshold K, the expected chain-id, and the directory contract address - or with the shipped default (see D8). Trust is bootstrapped from those configured keys rather than a root key or a validator-set checkpoint, which is the whole reason it is deployable before steps 1b/1c. Because it satisfies the same trait, the verify core needs no changes; the swap is purely at construction time.
+
+### D2: Attest the whole snapshot `{height, app_hash, accumulator, node_identities_hash}`
+
+The attestation carries the block `app_hash`, the directory LtHash `accumulator`, AND a hash over the current `NodeId -> ed25519 identity` mapping sourced from the mixnet contract. All three are computed by the signing nym-api from its own trusted chain access and signed together under one signature, so a client that reaches quorum on this manifest can verify BOTH the directory's contents and the authorship binding for each entry, from data fetched anywhere untrusted, with no chain query of its own. `trusted_app_hash(H)` and `trusted_digest(H)` both read from the SAME quorum-agreed attestation, so they cannot disagree; single-entry reads still ICS23-prove against the attested `app_hash`, and the whole-directory recompute still fails closed on any mismatch (`DigestMismatch`) - a quorum that lied about either hash surfaces as a verification failure, never as silently-accepted bad data.
+
+The `node_identities_hash` addition specifically is what makes whole-directory retrieval genuinely chain-query-free: without it, `verified_directory` would still need a live, trusted RPC connection to look up node identities (today, that lookup is an *unproven* smart query even under `LightClientAnchor` - a pre-existing gap this does not fix for the other anchors, but does not need to, since they keep their existing RPC-backed behavior unchanged).
+
+Alternative considered - attest `app_hash` only, then ICS23-derive the accumulator and separately RPC-fetch node identities. Rejected for the same reason as before (weakens the anchor to a generic header oracle, forces it to hold an RPC) and additionally fails to deliver a genuinely RPC-free retrieval path, which is now a stated goal.
+
+### D3: Canonical signing payload in the shared crate; signed types in the client
+
+The exact bytes a nym-api signs are produced by `digest_snapshot_signing_payload(chain_id, contract, height, app_hash, accumulator, node_identities_hash) -> Vec<u8>` in `nym-directory-contract-common`, next to `node_signing_payload` and reusing its `push_len_prefixed` framing, with a distinct domain-separation tag so a snapshot signature can never be confused with a node-entry signature. The canonical encoder for `node_identities_hash` itself (hashing the sorted `(NodeId, identity)` set) is a separate, small function whose home is a mixnet-contract-common concern (it hashes mixnet bond data, not directory data) rather than living in the directory's shared crate - exact placement is an implementation-time call, not a design fork. This mirrors the existing split: canonical encoding lives in shared crates (single source of truth for producer and consumer), signed-wrapper type and verification logic live in the client (`attested.rs`).
+
+### D4: Sybil resistance via a configured signer set and a quorum threshold
+
+The anchor holds `trusted_signers: BTreeSet<ed25519::PublicKey>` and `quorum: usize`, seeded either from the caller's own configuration or from the shipped default (D8). An individual attestation is valid iff its signer is in the trusted set AND its signature verifies over the canonical payload AND its chain-id and contract match the configured ones. A snapshot is trusted iff at least K DISTINCT trusted signers produce valid attestations over identical `(height, app_hash, accumulator, node_identities_hash)`. Distinctness is by signer key, so a single malicious or duplicated source cannot inflate the count. K and N are validated at construction (`1 <= K <= N`).
+
+### D5: `AttestationSource` transport trait; concrete HTTP deferred
+
+Unchanged from the original sketch: `#[async_trait] trait AttestationSource { async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, _>; async fn snapshot_at(&self, height: Height) -> Result<SignedDigestSnapshot, _>; }`. The anchor holds `Vec<S>` and queries them concurrently. The concrete HTTP transport is deferred to the producer change. No new Cargo feature gate needed (only `nym-crypto`, `async-trait`, `serde`).
+
+### D6: Height model - latest quorum snapshot plus a retained window
+
+Unchanged: `refresh()` / `latest_snapshot_height()` fetch each source's latest signed snapshot, agree a common value across the quorum, cache it by height in a `BTreeMap<Height, TrustedSnapshot>` behind a `Mutex`. A miss on a specific height fetches `snapshot_at(H)`; a height the quorum cannot attest returns an error.
+
+### D7: Freshness by height, not by a baked-in expiry field
+
+Unchanged: no expiry timestamp in the attestation; staleness is judged by the caller comparing snapshot height against chain tip and a configured maximum lag, keeping the signed payload minimal.
+
+### D8: A small, hardcoded, overridable default anchor
+
+`AttestedTrustAnchor` ships a compiled-in default: a small set of Nym-SA-owned nym-api identity keys and endpoints, with a sensible default quorum threshold, exposed as a default-style constructor alongside the fully-configurable `new(sources, trusted_signers, quorum, chain_id, contract)`. This removes the "who do I trust" setup burden for the common case while leaving any operator free to override it entirely (e.g. one who does not trust Nym SA and wants to point at their own nym-api instance as the root of trust). The default is deliberately small and expected to be stable - rotating it requires a crate release, which is an accepted, rare cost (see Risks), not a live operational concern the way Tier-1 membership churn is.
+
+The override half of this decision is only as usable as an operator's ability to learn their own nym-api's identity key in the first place, which today depends on incidental DKG dealer registration. This change does not solve that; see "External prerequisite" below.
+
+### D9: Whole-directory verification decoupled from the client's own RPC connection
+
+The existing `recompute_accumulator` check in `verified_directory` is already source-agnostic (it hashes whatever records it is handed); the only reason the *current* implementation needs an RPC connection is that `DirectoryClient::verified_directory` fetches those records (and node identities) via `self.client`, a bound `CosmWasmClient`. This change extracts the verification logic (digest recompute + node-identity-hash recompute + per-entry signature attribution) into a form that accepts pre-fetched data and needs only the anchor's trusted snapshot - no `CosmWasmClient` bound at all. `DirectoryClient::verified_directory` becomes a thin wrapper that fetches via `self.client` as before and calls into that shared logic, so existing RPC-backed callers (including `ProvenTrustAnchor` / `LightClientAnchor` users) see no behavior change. A caller using `AttestedTrustAnchor` who sourced entries and node identities from elsewhere (any nym-api, a mirror, a CDN) can call the decoupled path directly, with no `CosmWasmClient` in the picture. This path is only available when the anchor's trusted snapshot actually carries a `node_identities_hash` (today, only `AttestedTrustAnchor`); calling it against an anchor that does not returns a clear error rather than silently skipping authorship verification.
+
+## Risks / Trade-offs
+
+- [Quorum collusion] K colluding, trusted signers can attest a false snapshot. Mitigation: choose independently operated nym-apis and set K high relative to N; the whole-directory recompute still fails closed if the attested hashes do not match the served data. Residual: a fully colluding quorum could serve a self-consistent fake directory *and* fake identity bindings. This is the explicit trust assumption of attested mode - strictly weaker than the light client, strictly stronger than a single trusted RPC.
+- [Liveness at cadence boundaries] If fewer than K sources are reachable, or the quorum straddles a snapshot boundary and disagrees on the latest height, `refresh()` fails. Mitigation: the retained window lets the client fall back to a slightly older agreed height; `QuorumNotReached { needed, agreed }` surfaces the shortfall clearly.
+- [Default-anchor staleness] The shipped default is compiled in; if Nym SA ever needs to rotate those specific keys, every deployment relying on the default needs a new crate release to pick up the change. Mitigation: keep the default small (fewer keys to ever need rotating) and document the override path prominently so operators with stricter needs are not depending on it in the first place. This is the same staleness shape as the light-client checkpoint's trust period, just far rarer and smaller in blast radius.
+- [Signer-set churn] Rotating a nym-api key (beyond the default) requires reconfiguring clients. Mitigation: the set is config-supplied, not hardcoded, for callers who override it; a future upgrade (see "Future direction") can derive the live set from chain state instead.
+- [Format churn when the producer lands] Mitigation: the canonical signing payload is defined now in the shared crate, and the producer follow-up reuses it verbatim.
+
+## External prerequisite (nym-api-side, tracked separately)
+
+D8's override path - a caller substituting their own nym-api(s) as the trust root instead of the shipped default - only works in practice if that nym-api can be identified. Today, an ed25519 identity key is only discoverable via the coconut-dkg contract's dealer registry (`DealerDetails.ed25519_identity`), which requires the nym-api to be a currently-registered DKG dealer - incidental to, and not required by, operating a directory-attestation-capable nym-api. An operator running a nym-api purely for this purpose has no API-exposed way to learn (or have others learn) that instance's identity key at all.
+
+This is named here as its own follow-up, distinct from the nym-api producer endpoint (which signs snapshots; this is about identifying who can be asked to). Two things it should cover, with protocol details deferred to that follow-up rather than worked out here:
+
+- Unconditional identity-key exposure: a plain endpoint returning the instance's own identity key, independent of DKG participation.
+- Proof of live possession: a challenge-response (a nonce signed with the identity key) so a caller wiring up an override anchor can confirm whoever answers at a given URL currently holds the claimed key, rather than trusting an unauthenticated claim. Not required for the quorum mechanism's own soundness (a spoofed source just fails signature verification harmlessly) - this is about setup-time / discovery-time confidence, not core protocol security.
+
+This change does not implement either; it only flags the dependency so D8's override path is understood to need it for broad usability beyond the shipped default.
+
+## Migration Plan
+
+1. Add `digest_snapshot_signing_payload` (now including `node_identities_hash`) to `nym-directory-contract-common`, and the node-identity-mapping canonical hash encoder to its chosen home, both with unit tests mirroring the `node_signing_payload` determinism / field-sensitivity tests.
+2. Implement `SignedDigestSnapshot`, the `AttestationSource` trait, `AttestedTrustAnchor<S>`, and the default anchor constants in `src/anchor/attested.rs`.
+3. Re-export the public types from `src/anchor/mod.rs`.
+4. Add the new error variants to `DirectoryClientError`.
+5. Extract the decoupled, data-source-agnostic verification path in `client.rs` / `verify.rs`; make `DirectoryClient::verified_directory` a thin wrapper over it so existing RPC-backed behavior for all three anchors is unchanged.
+6. Document in the crate README when to use each anchor and each retrieval path: `ProvenTrustAnchor` (local-dev / tests), `AttestedTrustAnchor` (production before a root key exists, with or without a live chain connection), `LightClientAnchor` (production with a checkpoint).
+
+## Open Questions
+
+- Refresh cadence: a fixed client-side interval, or a contract-configured parameter so all instances agree on snapshot heights? (User TBD - leaning contract-side for consistency.)
+- Retained-window size: how many previous snapshots should producers keep? Tied to the sphinx-key rotation range width and the maximum expected client lag.
+- Freshness: is height-vs-chain-tip lag sufficient, or does the attestation eventually need an `issued_at` / expiry field?
+- Default anchor size/composition: exactly how many Nym-SA keys, and what quorum threshold, ships as the default? (Implementation-time call, not blocking design.)
+- Node-identity-hash encoder home: `nym-mixnet-contract-common` or elsewhere - implementation-time call.
+
+## Future direction (deferred, not in scope for this change)
+
+Explored at length and deliberately parked as a follow-up rather than folded in here, so the thinking isn't lost:
+
+- **Generalized canonical-subset attestation.** Instead of attesting only the whole-directory digest and node-identity hash, a nym-api could sign a manifest `{height, app_hash, hashes: {subset -> hash}}` covering *any* canonical subset it knows how to compute - per-`KnownLabel` slices (e.g. "sphinx keys of all nodes"), and eventually subsets unrelated to the directory contract entirely. The subset identifier would naturally be implicit in nym-api's own versioned HTTP endpoints (e.g. `v4/nym-nodes/basic`), each with its own well-defined canonical encoding that all nym-apis compute identically - no shared enum to keep in sync, extensibility follows the API's existing versioning convention.
+- **Dynamic Tier-1 signer-set discovery**, motivated by not wanting to hand-maintain a rotating key list: a `Tier1SignerSet` canonical subset (the union of the coconut-dkg contract's current dealer set and the directory contract's curated entries) attested the same way as any other subset. A small, stable anchor (D8) bootstraps trust in one snapshot; the live Tier-1 set is then derived from that snapshot each refresh, rather than hand-maintained. Two sourcing asymmetries were identified: curated entries are covered by the directory's own accumulator and support full verifiable enumeration; coconut-dkg dealers (`EPOCH_DEALERS_MAP`, epoch-scoped, no accumulator) only support per-candidate existence proofs, not enumeration - which turns out to be fine, since soundness (everyone admitted is real) is what quorum trust needs, not completeness (finding every last one).
+- **Open scope question for that follow-up**: whether the general signed-manifest + quorum-verification core belongs inside `nym-directory-client` (a directory-specific consumer of a small, fixed set of subsets) or in a more general home (e.g. near `nym-api-requests`) if a real second, non-directory consumer materializes first.

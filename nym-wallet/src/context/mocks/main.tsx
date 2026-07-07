@@ -10,7 +10,6 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       appEnv: {
         ADMIN_ADDRESS: null,
         SHOW_TERMINAL: null,
-        ENABLE_QA_MODE: null,
       },
       appVersion: 'mock',
       isAdminAddress: false,
@@ -66,6 +65,7 @@ export const MockMainContextProvider: FCWithChildren = ({ children }) => {
       handleCloseSendModal: () => undefined,
       handleCloseReceiveModal: () => undefined,
       keepState: async () => undefined,
+      reloadStoredAccounts: async () => [],
       printBalance: '100.0000 NYMT',
       printVestedBalance: undefined,
       mixnetContractParams: undefined,

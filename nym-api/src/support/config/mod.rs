@@ -50,13 +50,16 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
 const DEFAULT_MIXNET_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(600);
 
 /// Maximum number of `block_timestamp` lookups in flight in parallel during a
 /// single refresh tick.
 const DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY: usize = 8;
+
+/// Number of blocks to look back when bootstrapping an average block time for
+/// estimating timestamps of pruned (no longer servable) heights.
+const DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK: u32 = 100;
 const DEFAULT_PERFORMANCE_CONTRACT_POLLING_INTERVAL: Duration = Duration::from_secs(150);
 const DEFAULT_PERFORMANCE_CONTRACT_FALLBACK_EPOCHS: u32 = 12;
 const DEFAULT_PERFORMANCE_CONTRACT_RETAINED_EPOCHS: usize = 25;
@@ -458,6 +461,10 @@ pub struct NodeFamiliesCacheDebug {
     pub caching_interval: Duration,
 
     pub node_families_block_timestamp_fetch_concurrency: usize,
+
+    /// Blocks to look back when bootstrapping an average block time for
+    /// estimating timestamps of pruned heights.
+    pub node_families_block_time_estimation_lookback: u32,
 }
 
 impl Default for NodeFamiliesCacheDebug {
@@ -466,6 +473,8 @@ impl Default for NodeFamiliesCacheDebug {
             caching_interval: DEFAULT_NODE_FAMILIES_CACHE_REFRESH_INTERVAL,
             node_families_block_timestamp_fetch_concurrency:
                 DEFAULT_NODE_FAMILIES_BLOCK_TIMESTAMP_FETCH_CONCURRENCY,
+            node_families_block_time_estimation_lookback:
+                DEFAULT_NODE_FAMILIES_BLOCK_TIME_ESTIMATION_LOOKBACK,
         }
     }
 }
@@ -722,12 +731,31 @@ pub struct NodeStatusAPIDebug {
     // port: u16,
     #[serde(with = "humantime_serde")]
     pub caching_interval: Duration,
+
+    // base amount (in unym)
+    pub minimum_on_chain_balance_amount: u128,
+
+    pub chain_capabilities_retrieval_concurrency: usize,
+
+    #[serde(with = "humantime_serde")]
+    pub chain_capabilities_refresh_interval: Duration,
+}
+
+impl NodeStatusAPIDebug {
+    const DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL: Duration = Duration::from_secs(305);
+    const DEFAULT_CHAIN_CAPABILITIES_RETRIEVAL_CONCURRENCY: usize = 8;
+    const DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60); // once a day is more than enough
+    const DEFAULT_MINIMUM_ON_CHAIN_BALANCE: u128 = 1_000000; // 1 nym is enough for all tx fees for quite some time
 }
 
 impl Default for NodeStatusAPIDebug {
     fn default() -> Self {
         NodeStatusAPIDebug {
-            caching_interval: DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
+            caching_interval: Self::DEFAULT_NODE_STATUS_CACHE_REFRESH_INTERVAL,
+            minimum_on_chain_balance_amount: Self::DEFAULT_MINIMUM_ON_CHAIN_BALANCE,
+            chain_capabilities_retrieval_concurrency:
+                Self::DEFAULT_CHAIN_CAPABILITIES_RETRIEVAL_CONCURRENCY,
+            chain_capabilities_refresh_interval: Self::DEFAULT_CHAIN_CAPABILITIES_REFRESH_INTERVAL,
         }
     }
 }

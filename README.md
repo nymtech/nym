@@ -73,6 +73,8 @@ Nym Node Operators and Validators Terms and Conditions can be found [here](https
 
 ## Getting Started
 
+Requires [Node.js](https://nodejs.org) version 24.
+
 ```bash
 pnpm install
 ```

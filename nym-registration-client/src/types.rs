@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_authenticator_client::{AuthClientMixnetListenerHandle, AuthenticatorClient};
-use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_lp::peer::DHKeyPair;
 use nym_registration_common::{AssignedAddresses, WireguardConfiguration};
 use nym_sdk::mixnet::{EventReceiver, MixnetClient};
@@ -32,7 +31,6 @@ impl RegistrationResult {
         entry_gateway_data: WireguardConfiguration,
         exit_gateway_data: WireguardConfiguration,
         authenticator_listener_handle: AuthClientMixnetListenerHandle,
-        bw_controller: Box<dyn BandwidthTicketProvider>,
     ) -> Self {
         RegistrationResult::Wireguard(Box::new(WireguardRegistrationResult::Legacy(Box::new(
             AuthenticatorRegistrationResult {
@@ -41,7 +39,6 @@ impl RegistrationResult {
                 entry_gateway_data,
                 exit_gateway_data,
                 authenticator_listener_handle,
-                bw_controller,
             },
         ))))
     }
@@ -51,7 +48,6 @@ impl RegistrationResult {
         exit_gateway_data: WireguardConfiguration,
         entry_lp_keypair: Arc<DHKeyPair>,
         exit_lp_keypair: Arc<DHKeyPair>,
-        bw_controller: Box<dyn BandwidthTicketProvider>,
     ) -> Self {
         RegistrationResult::Wireguard(Box::new(WireguardRegistrationResult::LewesProtocol(
             Box::new(LpRegistrationResult {
@@ -59,7 +55,6 @@ impl RegistrationResult {
                 exit_gateway_data,
                 entry_lp_keypair,
                 exit_lp_keypair,
-                bw_controller,
             }),
         )))
     }
@@ -98,7 +93,6 @@ pub struct AuthenticatorRegistrationResult {
     pub entry_gateway_data: WireguardConfiguration,
     pub exit_gateway_data: WireguardConfiguration,
     pub authenticator_listener_handle: AuthClientMixnetListenerHandle,
-    pub bw_controller: Box<dyn BandwidthTicketProvider>,
 }
 
 /// Result of LP (Lewes Protocol) registration with entry and exit gateways.
@@ -127,7 +121,4 @@ pub struct LpRegistrationResult {
     /// x25519 keypair used on the exit channel
     /// the purpose of persisting those keys is to be able to resume the pre-established session
     pub exit_lp_keypair: Arc<DHKeyPair>,
-
-    /// Bandwidth controller for credential management
-    pub bw_controller: Box<dyn BandwidthTicketProvider>,
 }

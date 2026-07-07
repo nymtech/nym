@@ -303,7 +303,6 @@ impl EcashState {
                 );
 
                 // 3. go around APIs and attempt to aggregate the data
-                let epoch_id = self.current_epoch_id(client).await?;
                 let master_vk = self.master_verification_key(client, storage, Some(epoch_id)).await?;
                 let all_apis = self.ecash_clients(client, epoch_id).await?;
                 let threshold = self.ecash_threshold(client, epoch_id).await?;

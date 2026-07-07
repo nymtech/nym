@@ -4,10 +4,11 @@
 use crate::node_describe_cache::NodeDescribeCacheError;
 use futures::future::{maybe_done, MaybeDone};
 use futures::{FutureExt, TryFutureExt};
-use nym_api_requests::models::{
-    AuthenticatorDetailsV2, AuxiliaryDetailsV2, DeclaredRolesV2, HostInformationV2,
-    IpPacketRouterDetailsV2, LewesProtocolDetailsV1, NetworkRequesterDetailsV2, NymNodeDataV2,
-    WebSocketsV2, WireguardDetailsV2,
+use nym_api_requests::models::described::v3::NymNodeAuxiliaryDetailsV3;
+use nym_api_requests::models::described::v3::{
+    AuthenticatorDetailsV3, DeclaredRolesV3, HostInformationV3, IpPacketRouterDetailsV3,
+    LewesProtocolDetailsV3, NetworkRequesterDetailsV3, NymNodeDataV3, WebSocketsV3,
+    WireguardDetailsV3,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
@@ -23,18 +24,35 @@ use tracing::debug;
 
 async fn network_requester_future(
     client: &Client,
-) -> Result<Option<NetworkRequesterDetailsV2>, NymNodeApiClientError> {
+) -> Result<Option<NetworkRequesterDetailsV3>, NymNodeApiClientError> {
     let Ok(nr) = client.get_network_requester().await else {
         return Ok(None);
     };
 
     client.get_exit_policy().await.map(|exit_policy| {
         let uses_nym_exit_policy = exit_policy.upstream_source == mainnet::EXIT_POLICY_URL;
-        Some(NetworkRequesterDetailsV2 {
+        Some(NetworkRequesterDetailsV3 {
             address: nr.address,
             uses_exit_policy: exit_policy.enabled && uses_nym_exit_policy,
         })
     })
+}
+
+// try v2 first; nodes that haven't been upgraded yet won't expose it, so fall back to v1
+// (the v1 path yields no chain address).
+async fn auxiliary_details_future(client: &Client, node_id: NodeId) -> NymNodeAuxiliaryDetailsV3 {
+    if let Ok(v2) = client.get_auxiliary_details_v2().await {
+        return v2.into();
+    }
+
+    client
+        .get_auxiliary_details()
+        .await
+        .inspect_err(|err| {
+            debug!("could not obtain auxiliary details of node {node_id}: {err} is it running an old version?")
+        })
+        .map(Into::into)
+        .unwrap_or_default()
 }
 
 pub(crate) async fn query_for_described_data(
@@ -50,13 +68,7 @@ pub(crate) async fn query_for_described_data(
     NodeDescribedInfoMegaFuture::new(
         client.get_build_information().map_err(map_query_err),
         client.get_roles().ok_into().map_err(map_query_err),
-        client.get_auxiliary_details()
-            .inspect_err(|err| {
-                // old nym-nodes will not have this field, so use the default instead
-                debug!("could not obtain auxiliary details of node {node_id}: {err} is it running an old version?")
-            })
-            .ok_into()
-            .unwrap_or_else(|_| AuxiliaryDetailsV2::default()),
+        auxiliary_details_future(client, node_id),
         client.get_mixnet_websockets().ok_into().map_err(map_query_err),
         network_requester_future(client).map_err(map_query_err),
         // `ok_into` ultimately calls `IpPacketRouter::into` to transform it into `IpPacketRouterDetails`
@@ -113,14 +125,14 @@ impl<F1, F2, F3, F4, F5, F6, F7, F8, F9> Future
     for NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8, F9>
 where
     F1: Future<Output = Result<BinaryBuildInformationOwned, NodeDescribeCacheError>>,
-    F2: Future<Output = Result<DeclaredRolesV2, NodeDescribeCacheError>>,
-    F3: Future<Output = AuxiliaryDetailsV2>,
-    F4: Future<Output = Result<WebSocketsV2, NodeDescribeCacheError>>,
-    F5: Future<Output = Result<Option<NetworkRequesterDetailsV2>, NodeDescribeCacheError>>,
-    F6: Future<Output = Option<IpPacketRouterDetailsV2>>,
-    F7: Future<Output = Option<AuthenticatorDetailsV2>>,
-    F8: Future<Output = Option<WireguardDetailsV2>>,
-    F9: Future<Output = Option<LewesProtocolDetailsV1>>,
+    F2: Future<Output = Result<DeclaredRolesV3, NodeDescribeCacheError>>,
+    F3: Future<Output = NymNodeAuxiliaryDetailsV3>,
+    F4: Future<Output = Result<WebSocketsV3, NodeDescribeCacheError>>,
+    F5: Future<Output = Result<Option<NetworkRequesterDetailsV3>, NodeDescribeCacheError>>,
+    F6: Future<Output = Option<IpPacketRouterDetailsV3>>,
+    F7: Future<Output = Option<AuthenticatorDetailsV3>>,
+    F8: Future<Output = Option<WireguardDetailsV3>>,
+    F9: Future<Output = Option<LewesProtocolDetailsV3>>,
 {
     type Output = Result<UnwrappedResolvedNodeDescribedInfo, NodeDescribeCacheError>;
 
@@ -203,15 +215,15 @@ where
 
 struct ResolvedNodeDescribedInfo {
     build_info: Result<BinaryBuildInformationOwned, NodeDescribeCacheError>,
-    roles: Result<DeclaredRolesV2, NodeDescribeCacheError>,
+    roles: Result<DeclaredRolesV3, NodeDescribeCacheError>,
     // TODO: in the future make it return a Result as well.
-    auxiliary_details: AuxiliaryDetailsV2,
-    websockets: Result<WebSocketsV2, NodeDescribeCacheError>,
-    network_requester: Result<Option<NetworkRequesterDetailsV2>, NodeDescribeCacheError>,
-    ipr: Option<IpPacketRouterDetailsV2>,
-    authenticator: Option<AuthenticatorDetailsV2>,
-    wireguard: Option<WireguardDetailsV2>,
-    lewes_protocol: Option<LewesProtocolDetailsV1>,
+    auxiliary_details: NymNodeAuxiliaryDetailsV3,
+    websockets: Result<WebSocketsV3, NodeDescribeCacheError>,
+    network_requester: Result<Option<NetworkRequesterDetailsV3>, NodeDescribeCacheError>,
+    ipr: Option<IpPacketRouterDetailsV3>,
+    authenticator: Option<AuthenticatorDetailsV3>,
+    wireguard: Option<WireguardDetailsV3>,
+    lewes_protocol: Option<LewesProtocolDetailsV3>,
 }
 
 impl ResolvedNodeDescribedInfo {
@@ -233,22 +245,22 @@ impl ResolvedNodeDescribedInfo {
 #[derive(Debug)]
 pub(crate) struct UnwrappedResolvedNodeDescribedInfo {
     pub(crate) build_info: BinaryBuildInformationOwned,
-    pub(crate) roles: DeclaredRolesV2,
-    pub(crate) auxiliary_details: AuxiliaryDetailsV2,
-    pub(crate) websockets: WebSocketsV2,
-    pub(crate) network_requester: Option<NetworkRequesterDetailsV2>,
-    pub(crate) ipr: Option<IpPacketRouterDetailsV2>,
-    pub(crate) authenticator: Option<AuthenticatorDetailsV2>,
-    pub(crate) wireguard: Option<WireguardDetailsV2>,
-    pub(crate) lewes_protocol: Option<LewesProtocolDetailsV1>,
+    pub(crate) roles: DeclaredRolesV3,
+    pub(crate) auxiliary_details: NymNodeAuxiliaryDetailsV3,
+    pub(crate) websockets: WebSocketsV3,
+    pub(crate) network_requester: Option<NetworkRequesterDetailsV3>,
+    pub(crate) ipr: Option<IpPacketRouterDetailsV3>,
+    pub(crate) authenticator: Option<AuthenticatorDetailsV3>,
+    pub(crate) wireguard: Option<WireguardDetailsV3>,
+    pub(crate) lewes_protocol: Option<LewesProtocolDetailsV3>,
 }
 
 impl UnwrappedResolvedNodeDescribedInfo {
     pub(crate) fn into_node_description(
         self,
-        host_info: impl Into<HostInformationV2>,
-    ) -> NymNodeDataV2 {
-        NymNodeDataV2 {
+        host_info: impl Into<HostInformationV3>,
+    ) -> NymNodeDataV3 {
+        NymNodeDataV3 {
             host_information: host_info.into(),
             last_polled: OffsetDateTime::now_utc().into(),
             build_information: self.build_info,

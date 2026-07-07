@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AccountsContext, AppContext } from 'src/context';
 import { EditAccountModal } from './modals/EditAccountModal';
+import { DeleteAccountModal } from './modals/DeleteAccountModal';
 import { AddAccountModal } from './modals/AddAccountModal';
 import { AccountsModal } from './modals/AccountsModal';
 import { MnemonicModal } from './modals/MnemonicModal';
@@ -16,6 +17,7 @@ export const Accounts = () => {
       <AccountsModal />
       <AddAccountModal />
       <EditAccountModal />
+      <DeleteAccountModal />
       <MnemonicModal />
     </>
   ) : null;

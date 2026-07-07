@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use crate::support::nyxd;
-use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_gateway_client::GatewayClient;
 use std::ops::{Deref, DerefMut};
 use tracing::warn;
 
 pub(crate) struct GatewayClientHandle {
-    client: GatewayClient<nyxd::Client, PersistentStorage>,
+    client: GatewayClient,
     gateways_status_updater: GatewayClientUpdateSender,
 }
 
 impl GatewayClientHandle {
     pub(crate) fn new(
-        client: GatewayClient<nyxd::Client, PersistentStorage>,
+        client: GatewayClient,
         gateways_status_updater: GatewayClientUpdateSender,
     ) -> Self {
         GatewayClientHandle {
@@ -40,7 +38,7 @@ impl Drop for GatewayClientHandle {
 }
 
 impl Deref for GatewayClientHandle {
-    type Target = GatewayClient<nyxd::Client, PersistentStorage>;
+    type Target = GatewayClient;
 
     fn deref(&self) -> &Self::Target {
         &self.client

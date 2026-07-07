@@ -20,7 +20,7 @@ use nym_coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use nym_config::defaults::NymNetworkDetails;
+use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
@@ -137,6 +137,10 @@ impl Client {
         })
     }
 
+    pub(crate) async fn query_client(&self) -> QueryHttpRpcNyxdClient {
+        nyxd_query!(self, clone_query_client())
+    }
+
     pub(crate) async fn read(&self) -> RwLockReadGuard<'_, ClientInner> {
         self.inner.read().await
     }
@@ -174,6 +178,10 @@ impl Client {
     #[allow(dead_code)]
     pub(crate) async fn known_contracts(&self) -> TypedNymContracts {
         nyxd_query!(self, get_nym_contracts())
+    }
+
+    pub(crate) async fn chain_details(&self) -> ChainDetails {
+        nyxd_query!(self, get_chain_details())
     }
 
     pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
@@ -234,6 +242,11 @@ impl Client {
         let time = nyxd_query!(self, get_block_timestamp(Some(height)).await?);
 
         Ok(time)
+    }
+
+    /// Latest committed block (height + timestamp) in a single RPC call.
+    pub(crate) async fn current_block_info(&self) -> Result<BlockResponse, NyxdError> {
+        Ok(nyxd_query!(self, latest_block().await?))
     }
 
     /// Obtains the hash of a block specified by the provided height.

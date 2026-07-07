@@ -1,15 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{
-    AuthenticatorDetailsV1, AuxiliaryDetailsV1, BinaryBuildInformationOwned, DeclaredRolesV1,
-    DescribedNodeTypeV1, HostInformationV1, HostKeysV1, IpPacketRouterDetailsV1,
-    LewesProtocolDetailsV1, NetworkRequesterDetailsV1, NymNodeDataV1, NymNodeDescriptionV1,
-    OffsetDateTimeJsonSchemaWrapper, SphinxKeyV1, WebSocketsV1, WireguardDetailsV1,
+use crate::models::described::type_translation::{
+    AnnouncePortsV1, AuthenticatorDetailsV1, DeclaredRolesV1, HostInformationV1, HostKeysV1,
+    IpPacketRouterDetailsV1, LewesProtocolDetailsV1, NetworkRequesterDetailsV1,
+    NymNodeAuxiliaryDetailsV1, SphinxKeyV1, WebSocketsV1, WireguardDetailsV1,
 };
-use crate::nym_nodes::{
-    BasicEntryInformation, NodeRole, SemiSkimmedNodeV1, SemiSkimmedNodeV3, SkimmedNodeV1,
-};
+use crate::models::described::v1::{DescribedNodeTypeV1, NymNodeDataV1, NymNodeDescriptionV1};
+use crate::models::{BinaryBuildInformationOwned, OffsetDateTimeJsonSchemaWrapper};
+use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNodeV1};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
@@ -22,7 +21,8 @@ use utoipa::ToSchema;
 // no changes for the following types
 pub type HostInformationV2 = HostInformationV1;
 pub type DeclaredRolesV2 = DeclaredRolesV1;
-pub type AuxiliaryDetailsV2 = AuxiliaryDetailsV1;
+pub type AnnouncePortsV2 = AnnouncePortsV1;
+pub type NymNodeAuxiliaryDetailsV2 = NymNodeAuxiliaryDetailsV1;
 pub type NetworkRequesterDetailsV2 = NetworkRequesterDetailsV1;
 pub type IpPacketRouterDetailsV2 = IpPacketRouterDetailsV1;
 pub type AuthenticatorDetailsV2 = AuthenticatorDetailsV1;
@@ -117,44 +117,6 @@ impl NymNodeDescriptionV2 {
             performance,
         }
     }
-
-    pub fn to_semi_skimmed_node(
-        &self,
-        current_rotation_id: u32,
-        role: NodeRole,
-        performance: Performance,
-    ) -> SemiSkimmedNodeV1 {
-        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
-
-        SemiSkimmedNodeV1 {
-            basic: skimmed_node,
-            x25519_noise_versioned_key: self
-                .description
-                .host_information
-                .keys
-                .x25519_versioned_noise,
-        }
-    }
-
-    pub fn to_semi_skimmed_node_v3(
-        &self,
-        current_rotation_id: u32,
-        role: NodeRole,
-        performance: Performance,
-    ) -> SemiSkimmedNodeV3 {
-        let skimmed_node = self.to_skimmed_node(current_rotation_id, role, performance);
-
-        SemiSkimmedNodeV3 {
-            basic: skimmed_node,
-            noise_key: self
-                .description
-                .host_information
-                .keys
-                .x25519_versioned_noise,
-            build_version: self.description.build_information.build_version.clone(),
-            lp: self.description.lewes_protocol.clone(),
-        }
-    }
 }
 
 // to whoever is thinking of modifying this struct.
@@ -172,7 +134,7 @@ pub struct NymNodeDataV2 {
     pub declared_role: DeclaredRolesV2,
 
     #[serde(default)]
-    pub auxiliary_details: AuxiliaryDetailsV2,
+    pub auxiliary_details: NymNodeAuxiliaryDetailsV2,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
@@ -264,119 +226,5 @@ impl From<NymNodeDescriptionV1> for NymNodeDescriptionV2 {
             contract_node_type: value.contract_node_type,
             description: value.description.into(),
         }
-    }
-}
-
-#[cfg(any(test, feature = "mock-fixtures"))]
-pub fn mock_nym_node_description(seed: u64) -> NymNodeDescriptionV2 {
-    use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM};
-    use nym_test_utils::helpers::{u64_seeded_rng, RngCore};
-
-    let mut rng = u64_seeded_rng(seed);
-
-    let ed25519 = ed25519::KeyPair::new(&mut rng);
-
-    // just reuse the same x25519 key for everything - this is just a data mock
-    let x25519 = x25519::KeyPair::new(&mut rng);
-
-    let mut dummy_kems = std::collections::BTreeMap::new();
-    for kem in [LPKEM::McEliece, LPKEM::McEliece] {
-        let mut kem_digests = std::collections::BTreeMap::new();
-        for (i, sf) in [
-            LPHashFunction::Blake3,
-            LPHashFunction::Shake128,
-            LPHashFunction::Shake256,
-            LPHashFunction::Sha256,
-        ]
-        .iter()
-        .enumerate()
-        {
-            kem_digests.insert(*sf, hex::encode([((seed + i as u64) % 256) as u8; 32]));
-        }
-        dummy_kems.insert(kem, kem_digests);
-    }
-
-    // make sure the serialisation stays the same and signature is still valid
-    let dummy_lp = nym_node_requests::api::v1::lewes_protocol::models::LewesProtocol {
-        enabled: false,
-        control_port: 123,
-        data_port: 345,
-        x25519: (*x25519.public_key()).into(),
-        kem_keys: dummy_kems,
-    };
-    let dummy_signed_lp =
-        nym_node_requests::api::SignedLewesProtocol::new(dummy_lp, ed25519.private_key()).unwrap();
-
-    NymNodeDescriptionV2 {
-        node_id: rng.next_u32(),
-        contract_node_type: DescribedNodeTypeV1::NymNode,
-        description: NymNodeDataV2 {
-            last_polled: time::OffsetDateTime::from_unix_timestamp(1767225600)
-                .unwrap()
-                .into(),
-            host_information: HostInformationV2 {
-                ip_address: vec![
-                    std::net::IpAddr::V4(std::net::Ipv4Addr::new(1, 2, 3, (seed % 255) as u8)),
-                ],
-                hostname: Some(format!("my-awesome-node-{seed}.com")),
-                keys: HostKeysV2 {
-                    ed25519: *ed25519.public_key(),
-                    x25519: *x25519.public_key(),
-                    current_x25519_sphinx_key: SphinxKeyV2 {
-                        rotation_id: 123,
-                        public_key: *x25519.public_key(),
-                    },
-                    pre_announced_x25519_sphinx_key: None,
-                    x25519_versioned_noise: Some(VersionedNoiseKeyV2 {
-                        supported_version: nym_noise_keys::NoiseVersion::V1,
-                        x25519_pubkey: *x25519.public_key(),
-                    }),
-                },
-            },
-            declared_role: DeclaredRolesV2 {
-                mixnode: false,
-                entry: true,
-                exit_nr: true,
-                exit_ipr: true,
-            },
-            auxiliary_details: AuxiliaryDetailsV2 {
-                location: Some(celes::Country::switzerland()),
-                announce_ports: Default::default(),
-                accepted_operator_terms_and_conditions: true,
-            },
-            build_information: BinaryBuildInformationOwned {
-                binary_name: "dummy-node".to_string(),
-                build_timestamp: "2021-02-23T20:14:46.558472672+00:00".to_string(),
-                build_version: "0.1.0-9-g46f83e1".to_string(),
-                commit_sha: "46f83e112520533338245862d366f6a02cef07d4".to_string(),
-                commit_timestamp: "2021-02-23T08:08:02-05:00".to_string(),
-                commit_branch: "master".to_string(),
-                rustc_version: "1.52.0-nightly".to_string(),
-                rustc_channel: "nightly".to_string(),
-                cargo_profile: "release".to_string(),
-                cargo_triple: "wasm32-unknown-unknown".to_string(),
-            },
-            network_requester: Some(NetworkRequesterDetailsV2 {
-                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
-                uses_exit_policy: true,
-            }),
-            ip_packet_router: Some(IpPacketRouterDetailsV2 {
-                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
-            }),
-            authenticator: Some(AuthenticatorDetailsV2 {
-                address: "FhtkzizQg2JbZ19kGkRKXdjV2QnFbT5ww88ZAKaD4nkF.7Remi4UVYzn1yL3qYtEcQBGh6tzTYxMdYB4uqyHVc5Z4@62F81C9GrHDRja9WCqozemRFSzFPMecY85MbGwn6efve".to_string(),
-            }),
-            wireguard: Some(WireguardDetailsV2 {
-                port: 123,
-                tunnel_port: 234,
-                metadata_port: 456,
-                public_key: x25519.public_key().to_base58_string(),
-            }),
-            lewes_protocol: Some(dummy_signed_lp.into()),
-            mixnet_websockets: WebSocketsV2 {
-                ws_port: 9000,
-                wss_port: None,
-            },
-        },
     }
 }

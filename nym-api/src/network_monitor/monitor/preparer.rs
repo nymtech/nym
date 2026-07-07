@@ -8,7 +8,8 @@ use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_describe_cache::NodeDescriptionTopologyExt;
 use crate::node_status_api::NodeStatusCache;
 use crate::support::caching::cache::SharedCache;
-use nym_api_requests::models::{NodeAnnotationV2, NymNodeDescriptionV2};
+use nym_api_requests::models::described::v3::NymNodeDescriptionV3;
+use nym_api_requests::models::NodeAnnotationV2;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_tester_utils::node::{NodeType, TestableNode};
@@ -205,7 +206,7 @@ impl PacketPreparer {
         rng: &mut R,
         current_rotation_id: u32,
         node_statuses: &HashMap<NodeId, NodeAnnotationV2>,
-        mixing_nym_nodes: impl Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
+        mixing_nym_nodes: impl Iterator<Item = &'a NymNodeDescriptionV3> + 'a,
     ) -> HashMap<LegacyMixLayer, Vec<(RoutingNode, f64)>> {
         let mut layered_mixes = HashMap::new();
 
@@ -245,7 +246,7 @@ impl PacketPreparer {
         &self,
         current_rotation_id: u32,
         node_statuses: &HashMap<NodeId, NodeAnnotationV2>,
-        gateway_capable_nym_nodes: impl Iterator<Item = &'a NymNodeDescriptionV2> + 'a,
+        gateway_capable_nym_nodes: impl Iterator<Item = &'a NymNodeDescriptionV3> + 'a,
     ) -> Vec<(RoutingNode, f64)> {
         let mut gateways = Vec::new();
 
@@ -400,7 +401,7 @@ impl PacketPreparer {
     fn nym_node_to_routing_node(
         &self,
         current_rotation_id: u32,
-        description: &NymNodeDescriptionV2,
+        description: &NymNodeDescriptionV3,
     ) -> Option<RoutingNode> {
         description.try_to_topology_node(current_rotation_id).ok()
     }

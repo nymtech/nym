@@ -15,16 +15,13 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
-use nym_api_requests::models::network_monitor::{
-    KnownNetworkMonitorResponse, StressTestBatchSubmission,
-};
+
 use nym_api_requests::models::node_families::NodeFamily;
 use nym_api_requests::models::{
     AnnotationResponseV1, AnnotationResponseV2, ApiHealthResponse, BinaryBuildInformationOwned,
     ChainBlocksStatusResponse, ChainStatusResponse, KeyRotationInfoResponse,
-    NodePerformanceResponse, NodeRefreshBody, NymNodeDescriptionV1, NymNodeDescriptionV2,
-    PerformanceHistoryResponse, RewardedSetResponse, SignerInformationResponse,
-    StressTestBatchSubmissionResponse,
+    NodePerformanceResponse, NodeRefreshBody, PerformanceHistoryResponse, RewardedSetResponse,
+    SignerInformationResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
@@ -34,6 +31,11 @@ use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
 
+use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
+use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
+use nym_api_requests::models::v3::{
+    KnownNetworkMonitorResponse, StressTestBatchSubmission, StressTestBatchSubmissionResponse,
+};
 pub use nym_api_requests::{
     ecash::{
         models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
@@ -52,7 +54,6 @@ pub use nym_api_requests::{
     },
     NymNetworkDetailsResponse,
 };
-
 pub use nym_coconut_dkg_common::types::EpochId;
 
 pub mod error;

@@ -40,6 +40,9 @@ pub enum AuthenticationClientError {
         source: nym_bandwidth_controller::error::BandwidthControllerError,
     },
 
+    #[error("No {ticketbook_type} tickets available")]
+    NoTicketsAvailable { ticketbook_type: TicketType },
+
     #[error("failed to retrieve upgrade mode token")]
     UpgradeModeToken {
         #[source]

@@ -15,8 +15,6 @@ import {
 } from '../requests';
 import { Console } from './console';
 
-const appWindow = getCurrentWebviewWindow();
-
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
   try {
@@ -118,7 +116,9 @@ export const splice = (size: number, address?: string): string => {
 };
 
 export const maximizeWindow = async () => {
-  await appWindow.maximize();
+  // Resolved lazily (not at module load) so this module is import-safe outside Tauri
+  // (e.g. the mock-wired e2e build running in a plain browser).
+  await getCurrentWebviewWindow().maximize();
 };
 
 export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {

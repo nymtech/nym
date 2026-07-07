@@ -66,8 +66,8 @@ impl ReplyStorageBackend for Empty {
 }
 
 #[async_trait]
-pub trait ReplyStorageBackend: Sized {
-    type StorageError: Error + 'static;
+pub trait ReplyStorageBackend: Sized + Send + Sync {
+    type StorageError: Error + Send + Sync + 'static;
 
     async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
         Ok(())

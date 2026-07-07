@@ -4,6 +4,8 @@ import { Typography, Box, Alert } from '@mui/material';
 import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { CurrencyDenom, FeeDetails, NodeCostParams } from '@nymproject/types';
+import { ErrorModal } from '../../Modals/ErrorModal';
+import { LoadingModal } from '../../Modals/LoadingModal';
 import { ModalFee } from '../../Modals/ModalFee';
 import { ModalListItem } from '../../Modals/ModalListItem';
 import { SimpleModal } from '../../Modals/SimpleModal';
@@ -32,13 +34,6 @@ export const UpdateCostParametersModal = ({
   const [hasFetchedFee, setHasFetchedFee] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle fee errors
-  useEffect(() => {
-    if (feeError) {
-      onError(feeError);
-    }
-  }, [feeError, onError]);
-
   useEffect(() => {
     if (fee && onFeeUpdate) {
       onFeeUpdate(fee);
@@ -63,24 +58,33 @@ export const UpdateCostParametersModal = ({
         getFee(simulateUpdateMixnodeCostParams, costParams);
         setHasFetchedFee(true);
       } catch (error) {
-        onError(error as string);
+        onError(String(error));
       }
     }
-  }, [hasFetchedFee, intervalOperatingCost, profitMarginPercent, getFee, onError, node]);
+  }, [hasFetchedFee, intervalOperatingCost, profitMarginPercent, getFee, onError]);
 
-  // Handle confirmation with loading state
   const handleConfirm = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || !fee) return;
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       await onConfirm();
-    } catch (error) {
-      onError(error as string);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isFeeLoading) {
+    return <LoadingModal />;
+  }
+
+  if (feeError) {
+    return <ErrorModal open title="An error occurred" message={feeError} onClose={onClose} />;
+  }
+
+  if (!fee) {
+    return null;
+  }
 
   return (
     <SimpleModal
@@ -90,11 +94,11 @@ export const UpdateCostParametersModal = ({
       okLabel={isSubmitting ? 'Updating...' : 'Update'}
       onOk={handleConfirm}
       onClose={onClose}
-      okDisabled={isSubmitting || isFeeLoading}
+      okDisabled={isSubmitting}
     >
       <ModalListItem label="Interval Operating Cost" value={`${intervalOperatingCost || '0'} nym`} divider />
       <ModalListItem label="Profit Margin" value={`${profitMarginPercent}%`} divider />
-      <ModalFee isLoading={isFeeLoading} fee={fee} divider />
+      <ModalFee isLoading={false} fee={fee} divider />
 
       <Typography fontSize="small">
         These changes will affect your node&apos;s economics and delegator rewards. Your new profit margin and operating

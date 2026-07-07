@@ -7,9 +7,7 @@ use crate::{
     config::Config,
     error::ClientCoreError,
 };
-use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
-use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::{QueryHttpRpcNyxdClient, nyxd};
 use std::{io, path::Path, time::Duration};
 use time::OffsetDateTime;
@@ -167,15 +165,6 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),
         })
-}
-
-pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
-    nyxd_url: Url,
-    storage: St,
-) -> Result<BandwidthController<QueryHttpRpcNyxdClient, St>, ClientCoreError> {
-    let client = default_query_dkg_client(nyxd_url)?;
-
-    Ok(BandwidthController::new(storage, client))
 }
 
 pub fn default_query_dkg_client_from_config(

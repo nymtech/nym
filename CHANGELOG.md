@@ -4,6 +4,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.13-ziller] (2026-07-07)
+
+- crates release: bump version to 1.21.3 ([#6916])
+- renaming ([#6914])
+- bugfix: feature-lock OutputV2 in nym-credential-proxy-requests ([#6913])
+- feat: estimate bonding height for pruned blocks ([#6911])
+- Bugfix/attestation verification ([#6910])
+- feat: introduce /aggregated-coin-indices-signatures and /aggregated-expiration-date-signatures credential proxy queries ([#6908])
+- Bandwidth controller step 1 : Standalone ([#6898])
+- Bandwidth controller topic branch ([#6896])
+- update stats API IP ([#6892])
+- feat: include node account information in config score response ([#6877])
+
+[#6916]: https://github.com/nymtech/nym/pull/6916
+[#6914]: https://github.com/nymtech/nym/pull/6914
+[#6913]: https://github.com/nymtech/nym/pull/6913
+[#6911]: https://github.com/nymtech/nym/pull/6911
+[#6910]: https://github.com/nymtech/nym/pull/6910
+[#6908]: https://github.com/nymtech/nym/pull/6908
+[#6898]: https://github.com/nymtech/nym/pull/6898
+[#6896]: https://github.com/nymtech/nym/pull/6896
+[#6892]: https://github.com/nymtech/nym/pull/6892
+[#6877]: https://github.com/nymtech/nym/pull/6877
+
 ## [2026.12-yaroslavsky] (2026-06-23)
 
 - update env details and fix swagger ([#6889])

@@ -16,7 +16,6 @@ pub async fn set_active_gateway<D>(
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .set_active_gateway(gateway_id)
@@ -31,7 +30,6 @@ pub async fn get_active_gateway_identity<D>(
 ) -> Result<Option<ed25519::PublicKey>, ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .active_gateway()
@@ -46,8 +44,7 @@ pub async fn get_all_registered_identities<D>(
     details_store: &D,
 ) -> Result<Vec<ed25519::PublicKey>, ClientCoreError>
 where
-    D: GatewaysDetailsStore + Sync,
-    D::StorageError: Send + Sync + 'static,
+    D: GatewaysDetailsStore,
 {
     details_store
         .all_gateways_identities()
@@ -61,8 +58,7 @@ pub async fn get_gateway_registrations<D>(
     details_store: &D,
 ) -> Result<Vec<GatewayRegistration>, ClientCoreError>
 where
-    D: GatewaysDetailsStore + Sync,
-    D::StorageError: Send + Sync + 'static,
+    D: GatewaysDetailsStore,
 {
     details_store.all_gateways().await.map_err(|source| {
         ClientCoreError::GatewaysDetailsStoreError {
@@ -77,7 +73,6 @@ pub async fn store_gateway_details<D>(
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .store_gateway_details(details)
@@ -94,7 +89,6 @@ pub async fn update_stored_published_data_gateway<D>(
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .update_gateway_published_data(gateway_id, published_data)
@@ -109,7 +103,6 @@ pub async fn load_active_gateway_details<D>(
 ) -> Result<ActiveGateway, ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store.active_gateway().await.map_err(|source| {
         ClientCoreError::GatewaysDetailsStoreError {
@@ -124,7 +117,6 @@ pub async fn load_gateway_details<D>(
 ) -> Result<GatewayRegistration, ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .load_gateway_details(gateway_id)
@@ -141,7 +133,6 @@ pub async fn has_gateway_details<D>(
 ) -> Result<bool, ClientCoreError>
 where
     D: GatewaysDetailsStore,
-    D::StorageError: Send + Sync + 'static,
 {
     details_store
         .has_gateway_details(gateway_id)
@@ -154,7 +145,6 @@ where
 pub async fn load_client_keys<K>(key_store: &K) -> Result<ClientKeys, ClientCoreError>
 where
     K: KeyStore,
-    K::StorageError: Send + Sync + 'static,
 {
     ClientKeys::load_keys(key_store)
         .await
@@ -166,7 +156,6 @@ where
 pub async fn store_client_keys<K>(keys: ClientKeys, key_store: &K) -> Result<(), ClientCoreError>
 where
     K: KeyStore,
-    K::StorageError: Send + Sync + 'static,
 {
     keys.persist_keys(key_store)
         .await

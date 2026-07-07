@@ -1,13 +1,13 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
     mixnet::{
-        CredentialStorage, GatewaysDetailsStore, KeyStore, MixnetClient, MixnetClientBuilder,
-        MixnetClientStorage, OnDiskPersistent, ReplyStorageBackend, StoragePaths, x25519,
+        MixnetClient, MixnetClientBuilder, MixnetClientStorage, OnDiskPersistent, StoragePaths,
+        x25519,
     },
 };
 
@@ -35,8 +35,9 @@ pub struct BuilderConfig {
     // Common options
     pub entry_node: NymNodeWithKeys,
     pub exit_node: NymNodeWithKeys,
-    pub data_path: Option<PathBuf>,
+    pub data_path: PathBuf,
     pub mode: RegistrationMode,
+    pub bandwidth_request_sender: BandwidthControllerRequestSender,
     pub cancel_token: CancellationToken,
 
     // Toggle
@@ -102,46 +103,21 @@ impl BuilderConfig {
 
     pub async fn setup_mixnet_client_storage(
         &self,
-    ) -> Result<Option<(OnDiskPersistent, PersistentStorage)>, RegistrationClientError> {
-        if let Some(path) = &self.data_path {
-            tracing::debug!("Using custom key storage path: {}", path.display());
+    ) -> Result<OnDiskPersistent, RegistrationClientError> {
+        tracing::debug!(
+            "Using custom mixnet client storage path: {}",
+            self.data_path.display()
+        );
 
-            let storage_paths = StoragePaths::new_from_dir(path)
-                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+        let storage_paths = StoragePaths::new_from_dir(&self.data_path)
+            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
-            let mixnet_client_storage = storage_paths
-                .initialise_persistent_storage(&self.mixnet_client_debug_config())
-                .await
-                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
-            let credential_storage = storage_paths
-                .persistent_credential_storage()
-                .await
-                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
+        let mixnet_client_storage = storage_paths
+            .initialise_persistent_storage(&self.mixnet_client_debug_config())
+            .await
+            .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
 
-            Ok(Some((mixnet_client_storage, credential_storage)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub async fn setup_credential_storage(
-        &self,
-    ) -> Result<Option<PersistentStorage>, RegistrationClientError> {
-        if let Some(path) = &self.data_path {
-            tracing::debug!("Using custom credential storage path: {}", path.display());
-
-            let storage_paths = StoragePaths::new_from_dir(path)
-                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
-
-            let credential_storage = storage_paths
-                .persistent_credential_storage()
-                .await
-                .map_err(|err| RegistrationClientError::StorageInitialization(Box::new(err)))?;
-
-            Ok(Some(credential_storage))
-        } else {
-            Ok(None)
-        }
+        Ok(mixnet_client_storage)
     }
 
     pub async fn build_and_connect_mixnet_client<S>(
@@ -150,12 +126,6 @@ impl BuilderConfig {
     ) -> Result<MixnetClient, RegistrationClientError>
     where
         S: MixnetClientStorage + Clone + 'static,
-        S::ReplyStore: Send + Sync,
-        S::GatewaysDetailsStore: Sync,
-        <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-        <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-        <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
     {
         let debug_config = self.mixnet_client_debug_config();
         let remember_me = match self.mode {
@@ -172,7 +142,8 @@ impl BuilderConfig {
             .credentials_mode(true)
             .no_hostname(true)
             .with_remember_me(remember_me)
-            .custom_topology_provider(self.custom_topology_provider);
+            .custom_topology_provider(self.custom_topology_provider)
+            .with_custom_bandwidth_provider(Box::new(self.bandwidth_request_sender));
 
         #[cfg(unix)]
         let builder = builder.with_connection_fd_callback(self.connection_fd_callback);

@@ -25,9 +25,8 @@ pub async fn issue_credential<C, S>(
     typ: TicketType,
 ) -> Result<()>
 where
-    C: DkgQueryClient + EcashSigningClient + EcashQueryClient + Send + Sync,
+    C: DkgQueryClient + EcashSigningClient + EcashQueryClient,
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     block_until_ecash_is_available(client).await?;
     info!("Starting to deposit funds, don't kill the process");
@@ -84,7 +83,7 @@ pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> Persist
 
 pub async fn block_until_ecash_is_available<C>(client: &C) -> Result<()>
 where
-    C: DkgQueryClient + Send + Sync,
+    C: DkgQueryClient,
 {
     loop {
         let epoch = client.get_current_epoch().await?;
@@ -113,9 +112,8 @@ where
 
 pub async fn recover_deposits<C, S>(client: &C, storage: &S) -> Result<usize>
 where
-    C: DkgQueryClient + Send + Sync,
+    C: DkgQueryClient,
     S: Storage,
-    <S as Storage>::StorageError: Send + Sync + 'static,
 {
     info!("checking for any incomplete previous issuance attempts...");
 

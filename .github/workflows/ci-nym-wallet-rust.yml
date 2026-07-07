@@ -82,8 +82,6 @@ jobs:
           args: cargo-audit --locked
 
       - name: Cargo audit (nym-wallet workspace)
-        uses: actions-rs/cargo@v1
-        with:
-          command: audit
+        run: cargo audit
         working-directory: nym-wallet
         continue-on-error: true

@@ -14,6 +14,7 @@ use crate::api::v1::node::models::{
     AuxiliaryDetailsV1, NodeDescription, NodeRoles, SignedHostInformation,
 };
 use crate::api::v1::node_load::models::NodeLoad;
+use crate::api::v2::node::models::AuxiliaryDetailsV2;
 use crate::routes;
 use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -57,6 +58,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_auxiliary_details(&self) -> Result<AuxiliaryDetailsV1, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::auxiliary_absolute())
+            .await
+    }
+
+    async fn get_auxiliary_details_v2(&self) -> Result<AuxiliaryDetailsV2, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v2::auxiliary_absolute())
             .await
     }
 

@@ -1,14 +1,29 @@
 {
   "extends": [
-    "@nymproject/eslint-config-react-typescript"
+    "@nymproject/eslint-config-react-typescript",
+    "plugin:storybook/recommended"
   ],
   "parserOptions": {
     "project": "./tsconfig.eslint.json"
   },
   "overrides": [
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx"],
-      "env": { "jest": true }
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "env": {
+        "jest": true
+      }
+    },
+    {
+      "files": [
+        "**/*.figma.tsx"
+      ],
+      "rules": {
+        "import/no-extraneous-dependencies": "off",
+        "react/react-in-jsx-scope": "off"
+      }
     }
   ],
   "rules": {
@@ -17,6 +32,7 @@
     "@typescript-eslint/no-implied-eval": "off",
     "@typescript-eslint/no-throw-literal": "off",
     "@typescript-eslint/no-unused-vars": "off",
-    "@typescript-eslint/quotes": "off"
+    "@typescript-eslint/quotes": "off",
+    "@typescript-eslint/return-await": "off"
   }
 }

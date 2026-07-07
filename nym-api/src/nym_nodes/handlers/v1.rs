@@ -7,10 +7,12 @@ use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
+use nym_api_requests::models::described::NoiseDetails;
 use nym_api_requests::models::{
     AnnotationResponseV1, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
-    NoiseDetails, NymNodeDescriptionV1, PerformanceHistoryResponse, RewardedSetResponse,
-    StakeSaturationResponse, UptimeHistoryResponse,
+    PerformanceHistoryResponse, RewardedSetResponse, StakeSaturationResponse,
+    UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;

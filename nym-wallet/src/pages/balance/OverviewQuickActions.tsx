@@ -43,20 +43,18 @@ export const OverviewQuickActions = () => {
 
   const pill = (icon: React.ReactNode, title: string, blurb: string, cta: React.ReactNode) => (
     <Box sx={panelSx}>
-      <Stack spacing={1.5} sx={{ height: '100%' }}>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          <Box sx={iconWrapSx(theme)}>{icon}</Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              {title}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'nym.text.muted', lineHeight: 1.35 }}>
-              {blurb}
-            </Typography>
-          </Box>
-        </Stack>
-        <Box sx={{ mt: 'auto', pt: 0.5 }}>{cta}</Box>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1.5 }}>
+        <Box sx={iconWrapSx(theme)}>{icon}</Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            {title}
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'nym.text.muted', lineHeight: 1.35 }}>
+            {blurb}
+          </Typography>
+        </Box>
       </Stack>
+      <Box sx={{ mt: 'auto', pt: 0.5 }}>{cta}</Box>
     </Box>
   );
 

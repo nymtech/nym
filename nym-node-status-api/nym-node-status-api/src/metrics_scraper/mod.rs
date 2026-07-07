@@ -1,12 +1,10 @@
 use crate::db::{DbPool, models::GatewaySessionsRecord, queries};
 use nym_network_defaults::NymNetworkDetails;
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
-use nym_validator_client::{
-    client::{NodeId, NymNodeDetails},
-    models::{DescribedNodeTypeV1, NymNodeDescriptionV1},
-};
+use nym_validator_client::client::{NodeId, NymNodeDetails};
 use time::OffsetDateTime;
 
+use nym_api_requests::models::described::v1::{DescribedNodeTypeV1, NymNodeDescriptionV1};
 use nym_bin_common::bin_info;
 use nym_node_requests::try_get_valid_nym_node_api_client;
 use nym_statistics_common::types::SessionType;

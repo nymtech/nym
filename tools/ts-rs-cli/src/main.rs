@@ -1,11 +1,14 @@
 #![allow(deprecated)]
 
+use nym_api_requests::models::described::type_translation::DeclaredRolesV1;
+use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
 use nym_api_requests::models::{
-    AnnotationResponseV1, AnnotationResponseV2, DeclaredRolesV1, DescribedNodeTypeV1,
-    GatewayCoreStatusResponse, HistoricalPerformanceResponse, HistoricalUptimeResponse,
-    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1,
-    NodeAnnotationV2, NodeDatePerformanceResponse, NodePerformanceResponse,
-    PerformanceHistoryResponse, StakeSaturationResponse, UptimeHistoryResponse,
+    AnnotationResponseV1, AnnotationResponseV2, ConfigScoreV1, ConfigScoreV2,
+    DetailedNodePerformanceV1, DetailedNodePerformanceV2, DisplayRole, GatewayCoreStatusResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1, NodeAnnotationV2,
+    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse, RoutingScore,
+    StakeSaturationResponse, StressTestingScore, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
@@ -17,6 +20,14 @@ use nym_mixnet_contract_common::{
     GatewayConfigUpdate, Interval as ContractInterval, IntervalRewardParams,
     IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, NymNode, PendingNodeChanges,
     RewardingParams, UnbondedMixnode,
+};
+use nym_node_families_contract_common::{
+    Config as NodeFamiliesConfig, FamilyInvitation, FamilyInvitationStatus, FamilyMemberRecord,
+    FamilyMembersPagedResponse, FamilyMembership, NodeFamily, NodeFamilyByOwnerResponse,
+    NodeFamilyMembershipResponse, NodeFamilyResponse, PastFamilyInvitation,
+    PastFamilyInvitationsPagedResponse, PastFamilyMember, PastFamilyMembersPagedResponse,
+    PendingFamilyInvitationDetails, PendingFamilyInvitationResponse,
+    PendingFamilyInvitationsPagedResponse, PendingInvitationsForNodePagedResponse,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
@@ -96,6 +107,26 @@ fn main() -> anyhow::Result<()> {
     do_export!(NodeConfigUpdate);
     do_export!(Role);
 
+    // common/cosmwasm-smart-contracts/node-families-contract/src
+    do_export!(NodeFamiliesConfig);
+    do_export!(NodeFamily);
+    do_export!(FamilyInvitation);
+    do_export!(FamilyMembership);
+    do_export!(FamilyInvitationStatus);
+    do_export!(PastFamilyInvitation);
+    do_export!(PastFamilyMember);
+    do_export!(NodeFamilyResponse);
+    do_export!(NodeFamilyByOwnerResponse);
+    do_export!(NodeFamilyMembershipResponse);
+    do_export!(PendingFamilyInvitationDetails);
+    do_export!(PendingFamilyInvitationResponse);
+    do_export!(FamilyMemberRecord);
+    do_export!(FamilyMembersPagedResponse);
+    do_export!(PendingFamilyInvitationsPagedResponse);
+    do_export!(PendingInvitationsForNodePagedResponse);
+    do_export!(PastFamilyInvitationsPagedResponse);
+    do_export!(PastFamilyMembersPagedResponse);
+
     // common/types/src
     do_export!(Account);
     do_export!(AccountEntry);
@@ -154,6 +185,14 @@ fn main() -> anyhow::Result<()> {
     do_export!(AnnotationResponseV1);
     do_export!(NodeAnnotationV2);
     do_export!(AnnotationResponseV2);
+    // dependencies of NodeAnnotationV1/V2 (otherwise their generated imports dangle)
+    do_export!(DisplayRole);
+    do_export!(DetailedNodePerformanceV1);
+    do_export!(DetailedNodePerformanceV2);
+    do_export!(RoutingScore);
+    do_export!(ConfigScoreV1);
+    do_export!(ConfigScoreV2);
+    do_export!(StressTestingScore);
     do_export!(NodePerformanceResponse);
     do_export!(NodeDatePerformanceResponse);
     do_export!(PerformanceHistoryResponse);

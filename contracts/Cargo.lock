@@ -739,7 +739,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy-addr"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "cosmwasm-std",
  "quote",
@@ -1136,7 +1136,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1150,7 +1150,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common-testing"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1217,7 +1217,7 @@ dependencies = [
  "cw-controllers",
  "cw-utils",
  "cw2",
- "nym-multisig-contract-common 1.21.1",
+ "nym-multisig-contract-common 1.21.3",
  "thiserror 2.0.18",
 ]
 
@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1298,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1313,7 +1313,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-defaults"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "cargo_metadata 0.19.2",
  "regex",
@@ -1321,7 +1321,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitors-contract-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1333,7 +1333,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-families-contract-common"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1348,7 +1348,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "1.21.1"
+version = "1.21.3"
 dependencies = [
  "pem",
  "tracing",

@@ -1,0 +1,59 @@
+name: Push to S3
+description: Sync a local directory to an S3-compatible bucket (Garage)
+
+inputs:
+  source_path:
+    description: "Local directory to sync. A trailing slash uploads the directory contents under the destination prefix (rather than nesting the directory itself)."
+    required: true
+  destination:
+    description: "Key prefix within the bucket. Leave empty to sync into the bucket root."
+    required: false
+    default: ""
+  aws_access_key_id:
+    description: "AWS/Garage access key id (composite actions cannot read secrets directly, so it must be passed in)."
+    required: true
+  aws_secret_access_key:
+    description: "AWS/Garage secret access key."
+    required: true
+  bucket:
+    description: "Target bucket name."
+    required: false
+    default: builds
+  endpoint:
+    description: "S3-compatible endpoint URL."
+    required: false
+    default: https://s3.nymte.ch
+  region:
+    description: "AWS region to send (Garage ignores the value but the CLI requires one)."
+    required: false
+    default: garage
+  args:
+    description: "Extra arguments forwarded to `aws s3 sync` (e.g. --delete)."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure AWS CLI is available
+      shell: bash
+      run: |
+        if ! command -v aws >/dev/null 2>&1; then
+          echo "AWS CLI not found, installing..."
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          (sudo /tmp/aws/install --update || /tmp/aws/install --update --bin-dir "$HOME/.local/bin" --install-dir "$HOME/.local/aws-cli")
+          export PATH="$HOME/.local/bin:$PATH"
+        fi
+        aws --version
+
+    - name: Sync to S3
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
+        AWS_DEFAULT_REGION: ${{ inputs.region }}
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        aws s3 sync "${{ inputs.source_path }}" "s3://${{ inputs.bucket }}/${{ inputs.destination }}" \
+          --endpoint-url "${{ inputs.endpoint }}" --no-progress ${{ inputs.args }}

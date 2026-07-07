@@ -26,8 +26,7 @@ pub struct BandwidthAcquireClient<St: Storage + Clone> {
 
 impl<St> BandwidthAcquireClient<St>
 where
-    St: Storage + Clone,
-    <St as Storage>::StorageError: Send + Sync + 'static,
+    St: Storage + 'static,
 {
     #[allow(clippy::result_large_err)]
     pub(crate) fn new(

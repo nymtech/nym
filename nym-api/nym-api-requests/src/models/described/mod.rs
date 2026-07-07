@@ -9,11 +9,7 @@ use utoipa::ToSchema;
 pub mod type_translation;
 pub mod v1;
 pub mod v2;
-
-// don't break existing imports
-pub use type_translation::*;
-pub use v1::*;
-pub use v2::*;
+pub mod v3;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NoiseDetails {

@@ -1,0 +1,4 @@
+test-results/
+.tsbuild/
+e2e-report/
+playwright-report/

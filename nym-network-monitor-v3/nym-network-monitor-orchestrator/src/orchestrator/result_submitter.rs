@@ -4,10 +4,10 @@
 use crate::orchestrator::config::Config;
 use crate::storage::NetworkMonitorStorage;
 use anyhow::Context;
+use nym_api_requests::models::v3::{StressTestBatchSubmissionContent, StressTestResult};
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::Client;
 use nym_task::ShutdownToken;
-use nym_validator_client::models::{StressTestBatchSubmissionContent, StressTestResult};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::signable::SignableMessageBody;
 use std::sync::Arc;

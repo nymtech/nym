@@ -43,6 +43,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::{debug, warn};
 
 pub(crate) mod connection;
@@ -225,7 +226,7 @@ impl NestedLpSession {
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
         gateway_identity: ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData>
     where
@@ -235,13 +236,21 @@ impl NestedLpSession {
         let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         // Step 1: Get bandwidth credential from controller
-        let credential_spending = bandwidth_controller
-            .get_ecash_ticket(ticket_type, gateway_identity, DEFAULT_TICKETS_TO_SPEND)
+        let credential_spending = bandwidth_provider
+            .get_ecash_ticket(
+                ticket_type,
+                gateway_identity,
+                DEFAULT_TICKETS_TO_SPEND,
+                OffsetDateTime::now_utc(),
+            )
             .await
             .map_err(|e| {
                 LpClientError::SendRegistrationRequest(format!(
                     "Failed to acquire bandwidth credential: {e}",
                 ))
+            })?
+            .ok_or(LpClientError::NoTicketsAvailable {
+                ticketbook_type: ticket_type,
             })?
             .data;
 
@@ -332,7 +341,7 @@ impl NestedLpSession {
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -394,7 +403,7 @@ impl NestedLpSession {
                 self.finalise_dvpn_registration(
                     outer_client,
                     *gateway_identity,
-                    bandwidth_controller,
+                    bandwidth_provider,
                     ticket_type,
                 )
                 .await?
@@ -443,7 +452,7 @@ impl NestedLpSession {
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -458,7 +467,7 @@ impl NestedLpSession {
             rng,
             wg_keypair,
             gateway_identity,
-            bandwidth_controller,
+            bandwidth_provider,
             ticket_type,
         )
         .await
@@ -499,7 +508,7 @@ impl NestedLpSession {
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
-        bandwidth_controller: &dyn BandwidthTicketProvider,
+        bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -551,7 +560,7 @@ impl NestedLpSession {
             rng,
             wg_keypair,
             gateway_identity,
-            bandwidth_controller,
+            bandwidth_provider,
             ticket_type,
         )
         .await

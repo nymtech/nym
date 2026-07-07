@@ -77,7 +77,7 @@ pub struct AnnouncePortsV1 {
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq,
 )]
-pub struct AuxiliaryDetailsV1 {
+pub struct NymNodeAuxiliaryDetailsV1 {
     /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
     #[schema(example = "PL", value_type = Option<String>)]
     #[schemars(with = "Option<String>")]
@@ -395,10 +395,39 @@ impl From<nym_node_requests::api::v1::node::models::AnnouncePorts> for AnnounceP
     }
 }
 
-impl From<nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1> for AuxiliaryDetailsV1 {
+impl From<nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1>
+    for NymNodeAuxiliaryDetailsV1
+{
     fn from(value: nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1) -> Self {
-        AuxiliaryDetailsV1 {
+        NymNodeAuxiliaryDetailsV1 {
             location: value.location,
+            announce_ports: value.announce_ports.into(),
+            accepted_operator_terms_and_conditions: value.accepted_operator_terms_and_conditions,
+        }
+    }
+}
+
+impl From<nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1>
+    for super::v3::NymNodeAuxiliaryDetailsV3
+{
+    fn from(value: nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1) -> Self {
+        super::v3::NymNodeAuxiliaryDetailsV3 {
+            location: value.location,
+            // v1 wire predates the chain-address field
+            address: None,
+            announce_ports: value.announce_ports.into(),
+            accepted_operator_terms_and_conditions: value.accepted_operator_terms_and_conditions,
+        }
+    }
+}
+
+impl From<nym_node_requests::api::v2::node::models::AuxiliaryDetailsV2>
+    for super::v3::NymNodeAuxiliaryDetailsV3
+{
+    fn from(value: nym_node_requests::api::v2::node::models::AuxiliaryDetailsV2) -> Self {
+        super::v3::NymNodeAuxiliaryDetailsV3 {
+            location: value.location,
+            address: Some(value.address),
             announce_ports: value.announce_ports.into(),
             accepted_operator_terms_and_conditions: value.accepted_operator_terms_and_conditions,
         }

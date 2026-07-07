@@ -68,11 +68,11 @@ It is intended to be used during development and for troubleshooting.
 You can compile the wallet in development mode by running the following command inside the `nym-wallet` directory:
 
 ```
-yarn dev
+pnpm run dev
 ```
-This will produce a binary in - `nym-wallet/target/debug/` named `nym-wallet`
+This will produce a binary in - `nym-wallet/target/debug/` named `NymWallet`
 
-To launch the wallet, navigate to the directory and run the following command: `./nym-wallet`
+To launch the wallet, navigate to the directory and run the following command: `./NymWallet`
 
 ## Production mode
 
@@ -85,10 +85,6 @@ The output will compile different types of binaries dependent on your hardware /
 ## Admin mode
 
 The admin screens can be shown by setting the environment variable `ADMIN_ADDRESS`. You'll need to know the admin account address for the network you are using.
-
-## QA mode
-
-On built versions of the wallet, you can set the environment variable `ENABLE_QA_MODE=true` to add the QA network to the list of available networks.
 
 ### Binary output directory structure 
 ```

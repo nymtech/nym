@@ -54,9 +54,9 @@ impl<T> SignedMessage<T> {
 // make sure only our types can implement this trait (to ensure infallible serialisation)
 pub(crate) mod sealed {
     use crate::ecash::models::*;
+    use crate::models::network_monitor::v3::StressTestBatchSubmissionContent;
     use crate::models::{
-        v3, ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody,
-        SignersStatusResponseBody,
+        ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody, SignersStatusResponseBody,
     };
 
     pub trait Sealed {}
@@ -75,5 +75,5 @@ pub(crate) mod sealed {
     impl Sealed for DetailedSignersStatusResponseBody {}
 
     // v3 stress testing
-    impl Sealed for v3::StressTestBatchSubmissionContent {}
+    impl Sealed for StressTestBatchSubmissionContent {}
 }

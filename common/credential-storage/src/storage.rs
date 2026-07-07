@@ -24,7 +24,7 @@ pub use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirati
 // then for each calculate the diff total_tickets - used_tickets and multiply the result by the size of the ticket
 #[async_trait]
 pub trait Storage: Clone + Send + Sync {
-    type StorageError: Error;
+    type StorageError: Error + Send + Sync + 'static;
 
     async fn close(&self);
 

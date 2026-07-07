@@ -1,0 +1,220 @@
+---
+title: "How to Create & Register a Nym Node Family"
+description: "Step-by-step guide to starting, configuring, and registering a nym-node family."
+schemaType: "HowTo"
+section: "Operators"
+lastUpdated: "2026-06-24"
+---
+
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
+import { VarInfo } from 'components/variable-info.tsx';
+import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { Steps } from 'nextra/components';
+
+# Nym Node Families
+
+<VarInfo />
+
+**This page is a how to guide showing steps to [create a node family](#create-node-family), [invite nodes to a family](#invite-new-node-to-a-family), [accept invitation](#accept-invitation-to-a-family), [leave a family](#leave-a-family) and to [edit a family](#edit-or-dissolve-a-family), where operators can change name, description or completely dissolve a family.**
+
+
+NymVPN protects user privacy by routing traffic through decentralised Nym nodes. This only works securely if those nodes are genuinely independent: if the Entry and Exit gateways in one route are run by the different operator and located in different network subnets. Otherwise an adversary could observe connection metadata end-to-end, or to trace users through co-located infrastructure.
+
+To address this, Nym is adopting the concept of node families — a mechanism already used by the [Tor network](https://community.torproject.org/relay/setup/post-install/family-ids/) — whereby operators who run multiple nodes cryptographically declare them as belonging to the same family. 
+
+The routing policy then disallows connections where Entry and Exit gateways share a family, ensuring meaningful separation between them. This significantly raises the bar for a traffic correlation attack, whether from a malicious operator silently running multiple nodes or from an adversary performing infrastructure seizure within a single jurisdiction.
+
+<Callout>
+*On May 21st 2026, we introduced the concept logic and roadmap of Nym Node Family in a [live stream](https://www.youtube.com/watch?v=j8WWBY8ewXE).*
+</Callout>
+
+## Family Management
+
+Nym node families are based on Nyx accounts, so a family can be [created](#create-node-family) by an account without any nodes, [inviting](#invite-new-node-to-a-family) them afterwards.
+
+Therefore, the management of Nym node families is done via [Nym Wallet](/operators/nodes/preliminary-steps/wallet-preparation), alternatively [`nym-cli`](/developers/tools/nym-cli). In this how to guide we use Nym Wallet UI, in case you prefer the CLI, build it following [these steps](/developers/tools/nym-cli/usage) and then see the commands in [this section](/developers/tools/nym-cli/commands) or follow `<COMMAND> --help` convention.
+
+Node families can be well previewed on [SpectreDAO Explorer](https://explorer.nym.spectredao.net/families).
+
+For any operation regarding node family, open your wallet and navigate to the section *Family - Manage node families*
+
+![](/images/operators/wallet-screenshots/fam-tab.png)
+
+### Create Node Family
+
+To create node family, open your wallet and follow the steps below.
+
+<Steps>
+###### 1. Ensure balance bigger than 101 NYM
+
+- Make sure you have at least 101 NYM to use 100 NYM as refundable deposit and have a bit left for the network fees
+
+- This refundable fee follows the same logic like [bonding](/operators/nodes/nym-node/bonding), using a little cost as spam prevention
+
+###### 2. Navigate to the section *Family - Manage node families*
+
+###### 3. Describe your family
+
+- In the default tab *My Family* enter your *Family Name* and *Description*
+
+![](/images/operators/wallet-screenshots/fam-create.png)
+
+<Callout type="info" emoji="ℹ️">
+Make sure to describe your in a concise but clear way, refraning from offensive or inside joke tyoe of descriptions. 
+</Callout>
+
+###### 4. Confirm
+
+- Click on *Create family - 100 NYM* and then confirm
+
+</Steps>
+
+Your family is now created, congratulation. You can preview it from your wallet or visit [SpectreDAO Explorer](https://explorer.nym.spectredao.net/families).
+
+![](/images/operators/wallet-screenshots/fam-overview.png)
+
+
+### Invite New Node to a Family
+
+To invite other nodes, open your wallet and follow the steps below.
+
+<Steps>
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Fill *Invite a Node* field
+
+- Add a `NODE-ID` of the node you want to add to the family (the digit, not node identity key)
+
+- Make sure that you only invite nodes you control and that are already bonded and operational
+
+![](/images/operators/wallet-screenshots/fam-create-invite.png)
+
+###### 3. Send and confirm
+
+- Click on *Send invite* and confirm
+
+</Steps>
+
+Your invite was sent, you can preview it in your wallet.
+
+![](/images/operators/wallet-screenshots/fam-invite-preview.png)
+
+### Accept invitation to a Family
+
+To accept an invitation, open your wallet and follow the steps below.
+
+<Steps>
+###### 1. Navigate to the section *Family - Manage node families* 
+
+- You will see a notification, click on the button
+
+![](/images/operators/wallet-screenshots/fam-notifycation.png)
+
+###### 2. Navigate to the tab *Invites*
+
+###### 3. Review the family
+
+<Callout type="warning" emoji="⚠️">
+Remember that anyone could have invited your node to their family, review  carefully the invitation account authenticity. 
+</Callout>
+
+###### 4. Accept & confirm
+
+- Click on *Accept* and on *Accept invite* to confirm
+
+![](/images/operators/wallet-screenshots/fam-invite-accept.png)
+
+</Steps>
+
+Congratulation, your node had join a family. You can preview the node status in the wallet
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+
+### Leave a Family
+
+In case you want to leave a family with your node, open your wallet and follow the steps below.
+
+<Steps>
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to *My Family* tab
+
+###### 3. Click on *Leave `<FAMILY_NAME>`* & confirm
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+</Steps>
+
+
+### Edit or Dissolve a Family
+
+You can edit your family name and description as well as dissolving it entirely. Open your wallet and follow the steps below.
+
+<div>
+  <Tabs items={[
+    "Edit family",
+    "Dissolve family",
+    ]} defaultIndex="0">
+    <MyTab>
+
+<Steps>
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to *Family Settings* in the upper right corner
+
+![](/images/operators/wallet-screenshots/fam-settings.png)
+
+###### 3. To edit family change *Family Name* and or *Description* 
+
+- Click on *Save Changes* and confirm
+
+
+</Steps>
+
+Congratulation, you edited your family.
+
+    </MyTab>
+    <MyTab>
+
+<Steps>
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to the tab *My family*
+
+- See the nodes in *Members* section in the bottom
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+###### 3. Remove all the nodes in your family
+
+A family must be empty before it can be dissolved
+
+- Click on *Remove*
+
+- Confirm by clicking on *Remove Member*
+
+###### 4. Navigate to *Family Settings* in the upper right corner
+
+![](/images/operators/wallet-screenshots/fam-settings.png)
+
+###### 5. Dissolve family
+
+- Click on *Dissolve family*
+
+- Confirm by clicking on *Dissolve family* as a confirmation
+
+</Steps>
+
+Your family is dissolved.
+
+    </MyTab>
+  </Tabs>
+</div>
+

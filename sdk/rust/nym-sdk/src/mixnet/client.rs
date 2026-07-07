@@ -4,11 +4,12 @@
 use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::{BandwidthAcquireClient, BandwidthImporter};
 use crate::mixnet::socks5_client::Socks5MixnetClient;
-use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
+use crate::mixnet::{MixnetClient, Recipient};
 use crate::GatewayTransceiver;
 use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use log::{debug, warn};
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_client_core::client::base_client::storage::gateways_storage::GatewayRegistration;
 use nym_client_core::client::base_client::storage::helpers::{
     get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
@@ -17,11 +18,9 @@ use nym_client_core::client::base_client::storage::helpers::{
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
+use nym_client_core::client::base_client::BaseClientBuilder;
 use nym_client_core::client::base_client::{BaseClient, EventSender};
 use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::client::{
-    base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
-};
 use nym_client_core::config::{DebugConfig, ForgetMe, RememberMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
@@ -75,6 +74,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     wait_for_initial_topology: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
     custom_shutdown: Option<ShutdownTracker>,
     event_tx: Option<EventSender>,
     force_tls: bool,
@@ -118,6 +118,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             wait_for_gateway: false,
             wait_for_initial_topology: false,
             custom_topology_provider: None,
+            custom_bandwidth_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
                 .await?,
@@ -141,12 +142,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
 impl<S> MixnetClientBuilder<S>
 where
     S: MixnetClientStorage + Clone + 'static,
-    S::ReplyStore: Send + Sync,
-    S::GatewaysDetailsStore: Sync,
-    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
@@ -159,6 +154,7 @@ where
             wait_for_initial_topology: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            custom_bandwidth_provider: None,
             custom_shutdown: None,
             event_tx: None,
             force_tls: false,
@@ -186,6 +182,7 @@ where
             wait_for_initial_topology: self.wait_for_initial_topology,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
+            custom_bandwidth_provider: self.custom_bandwidth_provider,
             custom_shutdown: self.custom_shutdown,
             event_tx: self.event_tx,
             force_tls: self.force_tls,
@@ -378,6 +375,17 @@ where
         self
     }
 
+    /// Use an externally managed bandwidth controller instead of having the client spin up its own.
+    /// only for advanced use
+    #[must_use]
+    pub fn with_custom_bandwidth_provider(
+        mut self,
+        bandwidth_provider: Box<dyn BandwidthTicketProvider>,
+    ) -> Self {
+        self.custom_bandwidth_provider = Some(bandwidth_provider);
+        self
+    }
+
     /// Use specified file for storing gateway configuration.
     pub fn gateway_endpoint_config_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.gateway_endpoint_config_path = Some(path.as_ref().to_owned());
@@ -395,6 +403,7 @@ where
         )?;
 
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
+        client.custom_bandwidth_provider = self.custom_bandwidth_provider;
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
@@ -448,6 +457,9 @@ where
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
+    /// advanced usage of an externally managed bandwidth controller
+    custom_bandwidth_provider: Option<Box<dyn BandwidthTicketProvider>>,
+
     /// Attempt to wait for the selected gateway (if applicable) to come online if it's currently not bonded.
     wait_for_gateway: bool,
 
@@ -485,12 +497,6 @@ where
 impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + Clone + 'static,
-    S::ReplyStore: Send + Sync,
-    S::GatewaysDetailsStore: Sync,
-    <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
-    <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
@@ -530,6 +536,7 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            custom_bandwidth_provider: None,
             wait_for_gateway: false,
             wait_for_initial_topology: false,
             force_tls: false,
@@ -851,6 +858,10 @@ where
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
+        }
+
+        if let Some(bandwidth_provider) = self.custom_bandwidth_provider {
+            base_builder = base_builder.with_custom_bandwidth_provider(bandwidth_provider);
         }
 
         #[cfg(unix)]

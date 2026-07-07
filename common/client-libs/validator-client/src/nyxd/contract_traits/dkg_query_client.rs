@@ -28,7 +28,7 @@ pub use nym_coconut_dkg_common::{
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait DkgQueryClient {
+pub trait DkgQueryClient: Send + Sync {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>;
@@ -299,10 +299,7 @@ mod tests {
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
-    fn all_query_variants_are_covered<C: DkgQueryClient + Send + Sync>(
-        client: C,
-        msg: DkgQueryMsg,
-    ) {
+    fn all_query_variants_are_covered<C: DkgQueryClient>(client: C, msg: DkgQueryMsg) {
         match msg {
             DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),

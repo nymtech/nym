@@ -119,6 +119,7 @@ export const Bonding = () => {
 
   const handleError = (err: string) => {
     setShowModal(undefined);
+    refresh();
     setConfirmationDetails({
       status: 'error',
       title: 'An error occurred',
@@ -197,19 +198,18 @@ export const Bonding = () => {
     return undefined;
   };
 
-  if (error) {
-    return (
-      <ErrorModal
-        open
-        title="An error occurred, please check logs for details"
-        message={error}
-        onClose={() => refresh()}
-      />
-    );
-  }
+  const showBondingError = error && !confirmationDetails;
 
   return (
     <PageLayout maxWidth={bondedNode ? 'wide' : 'narrow'}>
+      {showBondingError && (
+        <ErrorModal
+          open
+          title="An error occurred, please check logs for details"
+          message={error}
+          onClose={() => refresh()}
+        />
+      )}
       <Box>
         {bondedNode && !isNymNode(bondedNode) && bondedNode?.proxy && (
           <Alert severity="warning" sx={{ mb: 3 }}>
@@ -312,21 +312,22 @@ export const Bonding = () => {
           />
         )}
 
-        {confirmationDetails && confirmationDetails.status === 'success' && (
+        {confirmationDetails && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}
             subtitle={confirmationDetails.subtitle}
             status={confirmationDetails.status}
             txUrl={confirmationDetails.txUrl}
             onClose={() => {
+              const wasSuccess = confirmationDetails.status === 'success';
               setConfirmationDetails(undefined);
-              handleCloseModal();
+              if (wasSuccess) {
+                handleCloseModal();
+              } else {
+                refresh();
+              }
             }}
           />
-        )}
-
-        {confirmationDetails && confirmationDetails.status === 'error' && (
-          <ErrorModal open message={confirmationDetails.subtitle} onClose={() => setConfirmationDetails(undefined)} />
         )}
 
         {isLoading && <LoadingModal />}

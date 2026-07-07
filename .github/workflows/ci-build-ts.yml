@@ -8,14 +8,15 @@ on:
       - "sdk/typescript/**"
       - ".github/workflows/ci-build-ts.yml"
 
+env:
+  S3_ENDPOINT: https://s3.nymte.ch
+  S3_BUCKET: builds
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v6
-    - name: Install rsync
-      run: sudo apt-get install rsync
-      continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
     - name: Setup pnpm
       uses: pnpm/action-setup@v5.0.0
@@ -27,25 +28,25 @@ jobs:
         cache: pnpm
     - name: Build
       run: pnpm install && pnpm build && pnpm build:ci:storybook
-    - name: Deploy branch to CI www (storybook)
+    - name: Publish storybook to S3
       continue-on-error: true
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "ts-packages/dist/storybook/"
-        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ts-${{ env.GITHUB_REF_SLUG }}
-        EXCLUDE: "/dist/, /node_modules/"
-    - name: Deploy branch to CI www (example)
+      uses: ./.github/actions/push-to-s3
+      with:
+        source_path: ts-packages/dist/storybook/
+        destination: ts-${{ env.GITHUB_REF_SLUG }}/
+        args: "--delete"
+        endpoint: ${{ env.S3_ENDPOINT }}
+        bucket: ${{ env.S3_BUCKET }}
+        aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}
+    - name: Publish example to S3
       continue-on-error: true
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "ts-packages/dist/example/"
-        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ts-${{ env.GITHUB_REF_SLUG }}-example
-        EXCLUDE: "/dist/, /node_modules/"
+      uses: ./.github/actions/push-to-s3
+      with:
+        source_path: ts-packages/dist/example/
+        destination: ts-${{ env.GITHUB_REF_SLUG }}-example/
+        args: "--delete"
+        endpoint: ${{ env.S3_ENDPOINT }}
+        bucket: ${{ env.S3_BUCKET }}
+        aws_access_key_id: ${{ secrets.GARAGE_AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.GARAGE_AWS_SECRET_ACCESS_KEY }}

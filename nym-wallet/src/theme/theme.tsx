@@ -12,10 +12,10 @@ const LIGHT_MODE_PRIMARY_GREEN = 'rgb(18, 149, 96)';
 
 const nymPalette = {
   /** emphasises important elements */
-  highlight: 'rgb(20, 231, 111)',
+  highlight: '#5BF0A0',
   success: 'rgb(20, 231, 111)',
-  info: '#60D7EF',
-  red: '#E33B5A',
+  info: '#485ECA',
+  red: '#E73E14',
   fee: '#967FF0',
   background: {
     light: '#242B2D',
@@ -27,7 +27,7 @@ const nymPalette = {
     muted: '#938F99',
     grey: '#79747E',
   },
-  linkHover: 'rgb(20, 231, 111)',
+  linkHover: '#5BF0A0',
   border: {
     menu: '#49454F',
   },
@@ -36,8 +36,8 @@ const nymPalette = {
 const darkMode = {
   mode: 'dark' as const,
   background: {
-    main: '#242B2D',
-    paper: '#32373D',
+    main: '#0A0A0A',
+    paper: '#1A1A1C',
     warn: '#F97316',
     grey: '#3A373F',
     greyStroke: '#49454F',
@@ -49,10 +49,10 @@ const darkMode = {
     main: '#FFFFFF',
     muted: '#938F99',
     warn: '#F97316',
-    contrast: '#242B2D',
+    contrast: '#0A0A0A',
     grey: '#79747E',
     blue: '#60D7EF',
-    subdued: '#B8B5BD',
+    subdued: '#AEACB1',
   },
   topNav: {
     background: '#1C1B1F',
@@ -71,7 +71,7 @@ const darkMode = {
   },
   // New additions for modern look
   gradients: {
-    primary: 'linear-gradient(45deg, rgba(20, 231, 111, 0.9), rgba(20, 231, 111, 0.7))',
+    primary: 'linear-gradient(45deg, #5BF0A0, #4AD88C)',
     subtle: 'linear-gradient(180deg, rgba(50, 55, 61, 0.8), rgba(36, 43, 45, 0.8))',
   },
   shadows: {
@@ -265,16 +265,16 @@ const getComponentOverrides = (mode: PaletteMode): Components<Theme> => ({
       // Use different approach for overriding MUI styles that have type issues
       containedPrimary: () => ({
         background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
-        color: '#FFFFFF',
+        color: mode === 'dark' ? '#0A0A0A' : '#FFFFFF',
         '&:hover': {
           background: mode === 'dark' ? darkMode.gradients.primary : lightMode.gradients.primary,
-          color: '#FFFFFF',
+          color: mode === 'dark' ? '#0A0A0A' : '#FFFFFF',
         },
         '&.Mui-disabled': {
           opacity: 1,
           backgroundImage: 'none',
           backgroundColor: mode === 'dark' ? alpha(nymPalette.highlight, 0.35) : alpha(LIGHT_MODE_PRIMARY_GREEN, 0.35),
-          color: alpha('#FFFFFF', 0.8),
+          color: mode === 'dark' ? alpha('#0A0A0A', 0.6) : alpha('#FFFFFF', 0.8),
         },
       }),
       outlined: {

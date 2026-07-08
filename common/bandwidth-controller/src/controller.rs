@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::BandwidthControllerConfig;
 use crate::error::BandwidthControllerError;
 use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot, ReadinessStatus};
 use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender};
@@ -11,7 +12,6 @@ use crate::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::traits::CredentialFetcherError;
@@ -33,9 +33,6 @@ use nym_ecash_time::{Date, OffsetDateTime};
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::EpochId;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-
-/// How often the controller proactively checks whether any ticket type needs restocking.
-const TOPUP_INTERVAL: Duration = Duration::from_secs(3 * 3600); // 3 hours
 
 /// Result of a background ticketbook fetch, drained from `fetch_tasks` in the `run` loop.
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,6 +70,8 @@ pub struct BandwidthController<St> {
         UnboundedReceiver<BandwidthControllerRequest>,
     ),
 
+    config: BandwidthControllerConfig,
+
     // fetches the global ecash signing materials when they are missing locally
     public_data_fetcher: Option<Arc<dyn CredentialPublicDataFetcher>>,
 
@@ -103,6 +102,7 @@ impl<St: Storage> BandwidthController<St> {
         BandwidthController {
             storage,
             request_channel,
+            config: Default::default(),
             public_data_fetcher: None,
             credential_fetcher: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -111,6 +111,11 @@ impl<St: Storage> BandwidthController<St> {
             fetch_tasks: tokio::task::JoinSet::new(),
             pending_readiness: Vec::new(),
         }
+    }
+    #[must_use]
+    pub fn with_config(mut self, config: BandwidthControllerConfig) -> Self {
+        self.config = config;
+        self
     }
 
     #[must_use]
@@ -147,7 +152,7 @@ impl<St: Storage> BandwidthController<St> {
     pub async fn run(mut self, shutdown_token: ShutdownToken) {
         tracing::info!("BandwidthController started successfully");
         let mut topup_interval = {
-            let mut interval = tokio::time::interval(TOPUP_INTERVAL);
+            let mut interval = tokio::time::interval(self.config.topup_interval);
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             interval
         };
@@ -481,7 +486,7 @@ impl<St: Storage> BandwidthController<St> {
 
         for typ in ticketbook_types {
             tracing::debug!("Checking credential stock for {typ} ticket");
-            if available.needs_restock(typ) {
+            if available.needs_restock(typ, self.config) {
                 tracing::debug!("{typ} tickets need a restock");
                 self.ensure_stocked(typ);
             }
@@ -628,7 +633,7 @@ impl<St: Storage> BandwidthController<St> {
 
         let mut tickets_readiness = HashMap::new();
         for typ in AvailableTicketbooks::ticketbook_types() {
-            let status = if available.contains_minimal_tickets(typ) {
+            let status = if available.contains_minimal_tickets(typ, self.config) {
                 ReadinessStatus::Ready
             } else if self.is_in_flight(typ) {
                 ReadinessStatus::InFlight
@@ -860,7 +865,7 @@ impl<St: Storage> BandwidthController<St> {
         for ticketbook in ticketbooks_info {
             if ticketbook.has_expired() {
                 tracing::debug!("Expired ticketbook: {ticketbook}");
-            } else if ticketbook.expired_soon() {
+            } else if ticketbook.expired_soon(OffsetDateTime::now_utc(), self.config) {
                 tracing::info!("Soon expired ticketbook: {ticketbook}");
             } else {
                 tracing::info!("Ticketbook: {ticketbook}");

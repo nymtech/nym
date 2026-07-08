@@ -1,23 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::{fmt, time::Duration};
+use std::fmt;
 
 use nym_credential_storage::models::BasicTicketbookInformation;
 use nym_credentials_interface::TicketType;
 use nym_ecash_time::{Date, EcashTime, OffsetDateTime};
 use strum::IntoEnumIterator;
 
-use crate::error::BandwidthControllerError;
-
-// If we go below this threshold, we should request more tickets
-const TICKET_NUMBER_THRESHOLD: u64 = 20;
-
-// If we go below this threshold, we can't proceed with a connection
-const TICKET_NUMBER_LOW_THRESHOLD: u64 = 5;
-
-// Threshold to determine if a ticket is soon expired
-const SOON_EXPIRY_THRESHOLD: Duration = Duration::from_secs(12 * 3600); // 12 hours
+use crate::{config::BandwidthControllerConfig, error::BandwidthControllerError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AvailableTicketbook {
@@ -51,8 +42,12 @@ impl AvailableTicketbook {
     }
 
     // If that ticketbook will be expired in SOON_EXPIRY_THRESHOLD
-    pub fn expired_soon(&self) -> bool {
-        self.expiration.ecash_datetime() < OffsetDateTime::now_utc() + SOON_EXPIRY_THRESHOLD
+    pub fn expired_soon(
+        &self,
+        datetime: OffsetDateTime,
+        bc_config: BandwidthControllerConfig,
+    ) -> bool {
+        self.expiration.ecash_datetime() < datetime + bc_config.soon_expiry_threshold
     }
 }
 
@@ -129,9 +124,13 @@ impl AvailableTicketbooks {
             .filter(move |ticketbook| ticketbook.typ == typ)
     }
 
-    pub fn remaining_tickets_long_lasting(&self, typ: TicketType) -> u64 {
+    pub fn remaining_tickets_long_lasting(
+        &self,
+        typ: TicketType,
+        bc_config: BandwidthControllerConfig,
+    ) -> u64 {
         self.tickets_by_type(typ)
-            .filter(|ticketbook| !ticketbook.expired_soon())
+            .filter(|ticketbook| !ticketbook.expired_soon(OffsetDateTime::now_utc(), bc_config))
             .map(|ticketbook| ticketbook.remaining_tickets())
             .fold(0, |acc, remaining| acc.saturating_add(remaining.into()))
     }
@@ -144,14 +143,18 @@ impl AvailableTicketbooks {
     }
 
     /// Whether `typ` should be proactively restocked
-    pub fn needs_restock(&self, typ: TicketType) -> bool {
-        let remaining = self.remaining_tickets_long_lasting(typ);
-        remaining <= TICKET_NUMBER_THRESHOLD
+    pub fn needs_restock(&self, typ: TicketType, bc_config: BandwidthControllerConfig) -> bool {
+        let remaining = self.remaining_tickets_long_lasting(typ, bc_config);
+        remaining <= bc_config.nb_ticket_restock
     }
 
-    pub fn contains_minimal_tickets(&self, typ: TicketType) -> bool {
+    pub fn contains_minimal_tickets(
+        &self,
+        typ: TicketType,
+        bc_config: BandwidthControllerConfig,
+    ) -> bool {
         let remaining = self.remaining_unexpired_tickets(typ);
-        remaining > TICKET_NUMBER_LOW_THRESHOLD
+        remaining > bc_config.min_nb_ticket_needed
     }
 
     pub fn len(&self) -> usize {

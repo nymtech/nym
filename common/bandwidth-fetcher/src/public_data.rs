@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::warn;
 use nym_bandwidth_controller::{CredentialFetcherError, CredentialPublicDataFetcher};
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
 use nym_ecash_time::Date;
+use nym_validator_client::EcashApiClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_validator_client::EcashApiClient;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Display;
 use std::future::Future;
 use std::sync::Arc;
+use tracing::debug;
 
-use crate::error::NyxdFetcherError;
 use crate::EcashApiClientsCache;
+use crate::error::NyxdFetcherError;
 
 /// In-repo [`CredentialPublicDataFetcher`] that retrieves the global ecash signing materials from the
 /// nym-apis using a nyxd query client.
@@ -139,7 +139,7 @@ where
         match f(api).await {
             Ok(res) => return Ok(res),
             Err(err) => {
-                warn!("failed to obtain valid response from API {disp}: {err}")
+                debug!("failed to obtain valid response from API {disp}: {err}")
             }
         }
     }

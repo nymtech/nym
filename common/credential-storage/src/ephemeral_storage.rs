@@ -111,19 +111,6 @@ impl Storage for EphemeralStorage {
         Ok(self.storage_manager.get_ticketbooks_info().await)
     }
 
-    // async fn get_pending_ticketbooks(
-    //     &self,
-    // ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError> {
-    //     Ok(self.storage_manager.get_pending_ticketbooks().await)
-    // }
-
-    // async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError> {
-    //     self.storage_manager
-    //         .remove_pending_ticketbook(pending_id)
-    //         .await;
-    //     Ok(())
-    // }
-
     /// Tries to retrieve one of the stored ticketbook for the specified type,
     /// that has not yet expired and has required number of unspent tickets.
     /// it immediately updated the on-disk number of used tickets so that another task

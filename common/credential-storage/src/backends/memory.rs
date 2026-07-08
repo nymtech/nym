@@ -3,7 +3,7 @@
 
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedPendingTicketbook, RetrievedTicketbook,
+    RetrievedTicketbook,
 };
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
@@ -13,7 +13,7 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
-use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_credentials::IssuedTicketBook;
 use nym_ecash_time::Date;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -34,7 +34,6 @@ struct InternalIdCounters {
 #[derive(Default)]
 struct EcashCredentialManagerInner {
     ticketbooks: HashMap<i64, RetrievedTicketbook>,
-    pending: HashMap<i64, RetrievedPendingTicketbook>,
     master_vk: HashMap<u64, VerificationKeyAuth>,
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
@@ -140,45 +139,6 @@ impl MemoryEcachTicketbookManager {
         } else {
             false
         }
-    }
-
-    pub(crate) async fn insert_pending_ticketbook(&self, ticketbook: &IssuanceTicketBook) {
-        let mut guard = self.inner.write().await;
-
-        let ser = ticketbook.pack();
-        let data = Zeroizing::new(ser.data);
-        let id = ticketbook.deposit_id() as i64;
-        guard.pending.insert(
-            id,
-            RetrievedPendingTicketbook {
-                pending_id: ticketbook.deposit_id() as i64,
-                pending_ticketbook: IssuanceTicketBook::try_unpack(&data, None).unwrap(),
-            },
-        );
-    }
-
-    pub(crate) async fn get_pending_ticketbooks(&self) -> Vec<RetrievedPendingTicketbook> {
-        let guard = self.inner.read().await;
-
-        let mut pending = Vec::new();
-
-        for p in guard.pending.values() {
-            // 🫠
-            let ser = p.pending_ticketbook.pack();
-            let data = Zeroizing::new(ser.data);
-            pending.push(RetrievedPendingTicketbook {
-                pending_id: p.pending_id,
-                pending_ticketbook: IssuanceTicketBook::try_unpack(&data, None).unwrap(),
-            })
-        }
-
-        pending
-    }
-
-    pub(crate) async fn remove_pending_ticketbook(&self, pending_id: i64) {
-        let mut guard = self.inner.write().await;
-
-        guard.pending.remove(&pending_id);
     }
 
     pub(crate) async fn insert_new_ticketbook(
@@ -332,6 +292,14 @@ impl MemoryEcachTicketbookManager {
         let mut guard = self.inner.write().await;
         guard.emergency_credentials.remove(typ);
     }
+
+    pub(crate) async fn clear_ticketbooks(&self) {
+        self.inner.write().await.ticketbooks.clear();
+    }
+
+    pub(crate) async fn clear_emergency_credentials(&self) {
+        self.inner.write().await.emergency_credentials.clear();
+    }
 }
 
 #[cfg(test)]
@@ -339,6 +307,7 @@ mod tests {
     use super::*;
     use nym_compact_ecash::tests::helpers::generate_expiration_date_signatures;
     use nym_compact_ecash::{issue, ttp_keygen};
+    use nym_credentials::IssuanceTicketBook;
     use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
     use nym_ecash_time::EcashTime;
@@ -534,31 +503,6 @@ mod tests {
         assert!(!manager.revert_ticketbook_withdrawal(999, 1, 0).await);
 
         Ok(())
-    }
-
-    #[tokio::test]
-    async fn pending_ticketbook_round_trip() {
-        let manager = MemoryEcachTicketbookManager::new();
-        let issuance = mock_issuance(7);
-        let deposit_id = issuance.deposit_id() as i64;
-
-        assert!(manager.get_pending_ticketbooks().await.is_empty());
-
-        manager.insert_pending_ticketbook(&issuance).await;
-
-        let pending = manager.get_pending_ticketbooks().await;
-        assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].pending_id, deposit_id);
-        assert_eq!(
-            pending[0].pending_ticketbook.deposit_id(),
-            issuance.deposit_id()
-        );
-
-        manager.remove_pending_ticketbook(deposit_id).await;
-        assert!(manager.get_pending_ticketbooks().await.is_empty());
-
-        // removing a non-existent id is a no-op
-        manager.remove_pending_ticketbook(999).await;
     }
 
     #[tokio::test]

@@ -4,7 +4,7 @@
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
     RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
-    StoredIssuedTicketbook, StoredPendingTicketbook,
+    StoredIssuedTicketbook,
 };
 use nym_ecash_time::Date;
 use nym_sqlx_pool_guard::SqlitePoolGuard;
@@ -45,30 +45,6 @@ impl SqliteEcashTicketbookManager {
         &self,
     ) -> Result<Transaction<'_, Sqlite>, sqlx::Error> {
         self.connection_pool.begin_with("BEGIN IMMEDIATE").await
-    }
-
-    pub(crate) async fn insert_pending_ticketbook(
-        &self,
-        serialisation_revision: u8,
-        deposit_id: u32,
-        data: &[u8],
-        expiration_date: Date,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO pending_issuance
-                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date)
-                VALUES (?, ?, ?, ?)
-            "#,
-            deposit_id,
-            serialisation_revision,
-            data,
-            expiration_date,
-        )
-        .execute(&*self.connection_pool)
-        .await?;
-
-        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -152,27 +128,6 @@ impl SqliteEcashTicketbookManager {
         .await?
         .rows_affected();
         Ok(affected > 0)
-    }
-
-    pub(crate) async fn get_pending_ticketbooks(
-        &self,
-    ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM pending_issuance")
-            .fetch_all(&*self.connection_pool)
-            .await
-    }
-
-    pub(crate) async fn remove_pending_ticketbook(
-        &self,
-        pending_id: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM pending_issuance WHERE deposit_id = ?",
-            pending_id
-        )
-        .execute(&*self.connection_pool)
-        .await?;
-        Ok(())
     }
 
     pub(crate) async fn get_master_verification_key(
@@ -375,6 +330,20 @@ impl SqliteEcashTicketbookManager {
         )
         .execute(&*self.connection_pool)
         .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn clear_ticketbooks(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM ecash_ticketbook")
+            .execute(&*self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn clear_emergency_credentials(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM emergency_credential")
+            .execute(&*self.connection_pool)
+            .await?;
         Ok(())
     }
 }

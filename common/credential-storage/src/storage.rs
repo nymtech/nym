@@ -3,7 +3,7 @@
 
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedPendingTicketbook, RetrievedTicketbook,
+    RetrievedTicketbook,
 };
 use async_trait::async_trait;
 use nym_compact_ecash::VerificationKeyAuth;
@@ -11,7 +11,7 @@ use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
 use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
-use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_credentials::IssuedTicketBook;
 use nym_ecash_time::Date;
 use std::error::Error;
 
@@ -30,11 +30,6 @@ pub trait Storage: Clone + Send + Sync {
 
     /// remove all expired ticketbooks and expiration date signatures
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError>;
-
-    async fn insert_pending_ticketbook(
-        &self,
-        ticketbook: &IssuanceTicketBook,
-    ) -> Result<(), Self::StorageError>;
 
     async fn insert_issued_ticketbook(
         &self,
@@ -57,12 +52,6 @@ pub trait Storage: Clone + Send + Sync {
     async fn get_ticketbooks_info(
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError>;
-
-    async fn get_pending_ticketbooks(
-        &self,
-    ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError>;
-
-    async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError>;
 
     /// Tries to retrieve one of the stored ticketbook for the specified type,
     /// that has not yet expired and has required number of unspent tickets.
@@ -128,4 +117,8 @@ pub trait Storage: Clone + Send + Sync {
         &self,
         typ: &str,
     ) -> Result<(), Self::StorageError>;
+
+    async fn clear_ticketbooks(&self) -> Result<(), Self::StorageError>;
+
+    async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError>;
 }

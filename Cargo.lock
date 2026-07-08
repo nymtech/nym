@@ -5911,7 +5911,6 @@ name = "nym-bandwidth-fetcher"
 version = "1.21.3"
 dependencies = [
  "anyhow",
- "arc-swap",
  "async-trait",
  "log",
  "nym-bandwidth-controller",

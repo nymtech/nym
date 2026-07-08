@@ -15,19 +15,31 @@ shared piece, once its real constraints are known.
 
 ## 2. Attestation types and transport trait (client crate)
 
-- [ ] 2.1 Define `DigestSnapshot { chain_id: String, directory_contract: AccountId (or String), height: Height, app_hash: AppHash, accumulator: [u8; DIGEST_LEN], node_identities_hash: [u8; 32] }` and `SignedDigestSnapshot { snapshot: DigestSnapshot, signer: ed25519::PublicKey, signature: Vec<u8> }` in `src/anchor/attested.rs` (Serialize/Deserialize; signature kept as bytes so malformed data is a verification failure, not a decode panic - mirrors `DirectoryNodeEntry`)
-- [ ] 2.2 Implement `SignedDigestSnapshot::verify(&self, trusted: &BTreeSet<ed25519::PublicKey>, chain_id: &str, contract: &AccountId) -> bool`: signer in trusted set AND chain-id + contract match AND ed25519 signature verifies over `digest_snapshot_signing_payload(..)` (mirror `node_signature_verifies`)
-- [ ] 2.3 Define `#[async_trait] pub trait AttestationSource { async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, DirectoryClientError>; async fn snapshot_at(&self, height: Height) -> Result<SignedDigestSnapshot, DirectoryClientError>; }`
+`trusted_signers`/`trusted` use `HashSet<ed25519::PublicKey>`, not the originally-sketched
+`BTreeSet`: `ed25519::PublicKey` derives `Hash` but not `Ord` (confirmed in
+`common/crypto/src/asymmetric/ed25519/mod.rs`), and a signer allowlist has no ordering
+requirement to justify adding one - membership testing is all quorum counting needs.
+
+- [x] 2.1 Define `DigestSnapshot { chain_id: chain::Id, directory_contract: AccountId, height: Height, app_hash: AppHash, accumulator: LtHash16, node_identities_hash: [u8; 32] }` (richer types than the original sketch - all confirmed to have serde support: `chain::Id`/`AccountId`/`Height` via hand-written impls, `AppHash` via `cosmrs::tendermint::serializers::apphash`, `LtHash16` via a new `serde` feature on `nym-lthash`, see task 1's follow-up) and `SignedDigestSnapshot { snapshot: DigestSnapshot, signer: ed25519::PublicKey, signature: Vec<u8> }` in `src/anchor/attested.rs` (both `Serialize`/`Deserialize`; signature kept as bytes so malformed data is a verification failure, not a decode panic - mirrors `DirectoryNodeEntry`)
+- [x] 2.2 Implement `SignedDigestSnapshot::verify(&self, trusted: &HashSet<ed25519::PublicKey>, chain_id: &str, contract: &AccountId) -> bool`: signer in trusted set AND chain-id + contract match AND ed25519 signature verifies over `digest_snapshot_signing_payload(..)` (mirror `node_signature_verifies`); unit tests: valid attestation accepted, untrusted signer / mismatched chain-id / mismatched contract / forged or malformed signature all rejected
+- [x] 2.3 Define `#[async_trait] pub trait AttestationSource { fn identity(&self) -> ed25519::PublicKey; async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, DirectoryClientError>; async fn snapshot_at(&self, height: Height) -> Result<SignedDigestSnapshot, DirectoryClientError>; }` (`identity()` added mid-implementation, ahead of the original sketch - a sync, no-network way for the anchor to recognize which source produced a given attestation, used by `refresh()`, task 3.5, to avoid re-querying the seed's own source)
 
 ## 3. AttestedTrustAnchor core
 
-- [ ] 3.1 Define `TrustedSnapshot { app_hash: AppHash, accumulator: LtHash16, node_identities_hash: [u8; 32] }` and private `AttestedTrustAnchorState { snapshots: BTreeMap<Height, TrustedSnapshot>, latest: Option<Height> }`
-- [ ] 3.2 Define `AttestedTrustAnchor<S> { sources: Vec<S>, trusted_signers: BTreeSet<ed25519::PublicKey>, quorum: usize, chain_id: String, directory_contract: AccountId, state: Mutex<AttestedTrustAnchorState> }`
-- [ ] 3.3 Implement `new(sources, trusted_signers, quorum, chain_id, directory_contract)` validating `1 <= quorum <= trusted_signers.len()` (error otherwise)
-- [ ] 3.4 Implement a private `reach_quorum(candidates: Vec<SignedDigestSnapshot>) -> Result<(Height, TrustedSnapshot), DirectoryClientError>`: filter to valid attestations (via `verify`), group by `(height, app_hash, accumulator, node_identities_hash)`, count DISTINCT signer keys per group, accept the first group reaching `quorum`, else `QuorumNotReached { needed, agreed }`
-- [ ] 3.5 Implement `refresh(&self) -> Result<Height, DirectoryClientError>`: query all sources' `latest_snapshot()` concurrently, `reach_quorum`, insert into `snapshots`, set `latest`, return the agreed height
-- [ ] 3.6 Implement `latest_snapshot_height(&self) -> Result<Height, DirectoryClientError>`: return cached `latest` or call `refresh()`
-- [ ] 3.7 Implement a private `snapshot_for(&self, height) -> Result<TrustedSnapshot, DirectoryClientError>`: cache hit on `height` returns immediately; on miss query all sources' `snapshot_at(height)`, `reach_quorum` (verifying the returned height matches), cache, return; a height the quorum cannot attest returns `NoQuorumSnapshotForHeight(height)`
+`refresh()`'s flow was revised mid-implementation (see `design.md` D6): rather than
+comparing every source's independently-reported "latest" (which can split across a
+cadence boundary if sources are not perfectly in lockstep), it seeds a height from the
+first successful `latest_snapshot()` response, then asks every source's `snapshot_at`
+that same height and reaches quorum over all of it. The seed is untrusted at that point -
+just a discovery hint - so a lying seed only wastes a round-trip, never a false accept.
+
+- [x] 3.1 Define `TrustedSnapshot { app_hash: AppHash, accumulator: LtHash16, node_identities_hash: [u8; 32] }` and private `AttestedTrustAnchorState { snapshots: BTreeMap<Height, TrustedSnapshot>, latest: Option<Height> }`
+- [x] 3.2 Define `AttestedTrustAnchor<S> { sources: Vec<S>, trusted_signers: HashSet<ed25519::PublicKey>, quorum: usize, chain_id: chain::Id, directory_contract: AccountId, state: Mutex<AttestedTrustAnchorState> }` (`chain_id` typed as `chain::Id`, matching `DigestSnapshot` and `verify`, not the originally-sketched `String`)
+- [x] 3.3 Implement `new(sources, trusted_signers, quorum, chain_id, directory_contract)` validating `1 <= quorum <= trusted_signers.len()` (error otherwise)
+- [x] 3.4 Implement a private `reach_quorum(&self, candidates: Vec<SignedDigestSnapshot>) -> Result<(Height, TrustedSnapshot), DirectoryClientError>`: filter to valid attestations (via `verify`), group by `(height, app_hash, accumulator, node_identities_hash)` via a `HashMap<DigestSnapshot, HashSet<ed25519::PublicKey>>` keyed on a manual `Hash` impl added to `DigestSnapshot` (not the linear scan originally planned, once `LtHash16` gained a `Hash` impl to build it from - see design.md D3/D6), count DISTINCT signer keys per group, accept the *first* group (in candidate-arrival order, checked as each candidate is folded in, so the result is deterministic regardless of `HashMap` iteration order) reaching `quorum`, else `QuorumNotReached { needed, agreed }` (`agreed` = the largest distinct-signer count seen across any single group, via an order-independent `max()`)
+- [x] 3.5 Implement `refresh(&self) -> Result<Height, DirectoryClientError>`: try sources' `latest_snapshot()` in shuffled order, one at a time, taking the first successful response as a height seed `H` (see design.md D6 for an open latency concern with this vs. querying concurrently); query every *other* source's (via `identity()`, task 2.3) `snapshot_at(H)` concurrently; `reach_quorum` over the seed plus all of those responses; insert into `snapshots`, set `latest`, return the agreed height
+- [x] 3.6 Implement `latest_snapshot_height(&self) -> Result<Height, DirectoryClientError>`: return cached `latest` or call `refresh()`
+- [x] 3.7 Implement a private `snapshot_for(&self, height) -> Result<TrustedSnapshot, DirectoryClientError>`: cache hit on `height` returns immediately; on miss query all sources' `snapshot_at(height)`, `reach_quorum` (verifying the returned height equals the requested one, else `NoQuorumSnapshotForHeight(height)` even if some other height reached quorum), cache, return; a height the quorum cannot attest at all returns `NoQuorumSnapshotForHeight(height)`
 
 ## 4. Default anchor
 
@@ -51,11 +63,11 @@ shared piece, once its real constraints are known.
 
 ## 7. Error handling
 
-- [ ] 7.1 Add to `DirectoryClientError`: `QuorumNotReached { needed: usize, agreed: usize }`, `NoQuorumSnapshotForHeight(u64)`, `InvalidQuorumConfig { quorum: usize, signers: usize }`, `NodeIdentitiesHashUnavailable`, and an attestation-transport / decode variant as needed
+- [ ] 7.1 Add to `DirectoryClientError`: ~~`QuorumNotReached { needed: usize, agreed: usize }`~~, ~~`NoQuorumSnapshotForHeight(u64)`~~, ~~`InvalidQuorumConfig { quorum: usize, signers: usize }`~~ (all three added early, needed by task 3), `NodeIdentitiesHashUnavailable`, and an attestation-transport / decode variant as needed
 
 ## 8. Tests (mock transport)
 
-- [ ] 8.1 Add a `MockAttestationSource` (in-memory, serves pre-registered latest + per-height signed snapshots; records call log) - mirror the `MockRpcClient` pattern; helper to build a `SignedDigestSnapshot` from a seeded `KeyPair`
+- [ ] 8.1 Add a `MockAttestationSource` (in-memory, serves pre-registered latest + per-height signed snapshots + its `identity()`; records call log) - mirror the `MockRpcClient` pattern; helper to build a `SignedDigestSnapshot` from a seeded `KeyPair`. A non-call-logging version of this already exists as `MockSource` in `attested.rs`'s own test module (task 3); task 8 can promote/extend it rather than starting fresh
 - [ ] 8.2 Unit test: K distinct trusted signers agreeing on identical values yields a trusted snapshot; `trusted_app_hash` and `trusted_digest` return the attested values
 - [ ] 8.3 Unit test: fewer than K valid agreeing signers returns `QuorumNotReached`
 - [ ] 8.4 Unit test: a duplicated signer key is counted once (does not reach quorum on its own)

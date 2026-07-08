@@ -16,9 +16,11 @@ publish = true
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 blake3 = { workspace = true }
+futures = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 cosmrs = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }

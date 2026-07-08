@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
 use async_trait::async_trait;
 use cosmrs::AccountId;
@@ -388,6 +389,35 @@ where
             .snapshots
             .insert(height, trusted.clone());
         Ok(trusted)
+    }
+
+    /// The trusted hash over the `NodeId -> ed25519 identity` mapping at `height` (see
+    /// [`crate::verify::node_identities_hash`]) - anchor-specific rather than part of
+    /// the shared [`DirectoryTrustAnchor`] trait, since `ProvenTrustAnchor` and
+    /// `LightClientAnchor` have no equivalent value to offer.
+    pub async fn trusted_node_identities_hash(
+        &self,
+        height: Height,
+    ) -> Result<[u8; 32], DirectoryClientError> {
+        Ok(self.snapshot_for(height).await?.node_identities_hash)
+    }
+}
+
+#[async_trait]
+impl<S> DirectoryTrustAnchor for AttestedTrustAnchor<S>
+where
+    S: AttestationSource + Sync,
+{
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+        Ok(self.snapshot_for(height).await?.app_hash)
+    }
+
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+        let snapshot = self.snapshot_for(height).await?;
+        Ok(TrustedDigest {
+            height,
+            accumulator: snapshot.accumulator,
+        })
     }
 }
 
@@ -1051,5 +1081,54 @@ mod tests {
             err,
             DirectoryClientError::NoQuorumSnapshotForHeight(999)
         ));
+    }
+
+    #[tokio::test]
+    async fn directory_trust_anchor_impl_returns_the_attested_values() {
+        let a = keypair(1);
+        let b = keypair(2);
+        let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+        let height = Height::from(100u32);
+        let hash = app_hash(7);
+        let mut acc = LtHash16::new();
+        acc.add(b"leaf");
+        let node_hash = [3u8; 32];
+
+        let sources = [&a, &b].map(|kp| {
+            let snapshot = signed_snapshot_with(
+                kp,
+                "nyx-testnet",
+                &contract(),
+                height,
+                hash.clone(),
+                acc.clone(),
+                node_hash,
+            );
+            MockSource {
+                identity: *kp.public_key(),
+                latest: Some(snapshot.clone()),
+                by_height: HashMap::from([(height, snapshot)]),
+            }
+        });
+
+        let anchor = AttestedTrustAnchor::new(
+            sources.into(),
+            trusted,
+            2,
+            chain::Id::try_from("nyx-testnet").unwrap(),
+            contract(),
+        )
+        .unwrap();
+
+        assert_eq!(anchor.trusted_app_hash(height).await.unwrap(), hash);
+
+        let digest = anchor.trusted_digest(height).await.unwrap();
+        assert_eq!(digest.height, height);
+        assert_eq!(digest.accumulator, acc);
+
+        assert_eq!(
+            anchor.trusted_node_identities_hash(height).await.unwrap(),
+            node_hash
+        );
     }
 }

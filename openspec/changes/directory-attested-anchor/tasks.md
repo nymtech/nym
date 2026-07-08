@@ -57,10 +57,11 @@ than separately hardcoded, so the list and the threshold cannot drift out of syn
 
 ## 5. DirectoryTrustAnchor impl and re-exports
 
-- [ ] 5.1 Implement `trusted_app_hash(H)`: `snapshot_for(H)` then return its `app_hash`
-- [ ] 5.2 Implement `trusted_digest(H)`: `snapshot_for(H)` then return `TrustedDigest { height: H, accumulator }` (no ICS23 proof - the quorum attests the accumulator directly)
-- [ ] 5.3 Expose the snapshot's `node_identities_hash` for a given height via an anchor-specific accessor (not part of the shared `DirectoryTrustAnchor` trait, so `ProvenTrustAnchor` / `LightClientAnchor` are untouched)
-- [ ] 5.4 Re-export `AttestedTrustAnchor`, `AttestationSource`, `SignedDigestSnapshot`, `DigestSnapshot` from `src/anchor/mod.rs`
+- [x] 5.1 Implement `trusted_app_hash(H)`: `snapshot_for(H)` then return its `app_hash`
+- [x] 5.2 Implement `trusted_digest(H)`: `snapshot_for(H)` then return `TrustedDigest { height: H, accumulator }` (no ICS23 proof - the quorum attests the accumulator directly)
+- [x] 5.3 Expose the snapshot's `node_identities_hash` for a given height via an anchor-specific accessor (`pub async fn trusted_node_identities_hash`, not part of the shared `DirectoryTrustAnchor` trait, so `ProvenTrustAnchor` / `LightClientAnchor` are untouched)
+- [x] 5.4 Re-export `AttestedTrustAnchor`, `AttestationSource`, `SignedDigestSnapshot`, `DigestSnapshot` from `src/anchor/mod.rs`
+- [x] 5.5 (added) Unit test `directory_trust_anchor_impl_returns_the_attested_values`: `trusted_app_hash`, `trusted_digest`, and `trusted_node_identities_hash` all return values matching a quorum-agreed mock snapshot at a given height
 
 ## 6. Data-source-agnostic whole-directory verification
 

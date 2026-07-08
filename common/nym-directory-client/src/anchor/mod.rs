@@ -17,6 +17,7 @@ mod helpers;
 pub mod light_client;
 pub mod proven;
 
+pub use attested::{AttestationSource, AttestedTrustAnchor, DigestSnapshot, SignedDigestSnapshot};
 #[cfg(feature = "light-client")]
 pub use light_client::{LightClientAnchor, nyx_default_options};
 

@@ -106,9 +106,7 @@ where
             } else {
                 // this should never be the case since the only case where final timestamp is unknown is when it's waiting for initialisation,
                 // but let's guard ourselves against future changes
-                info!(
-                    "it is unknown when ecash will become available. Going to check again later"
-                );
+                info!("it is unknown when ecash will become available. Going to check again later");
                 tokio::time::sleep(Duration::from_secs(60 * 5)).await;
             }
         }

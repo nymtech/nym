@@ -194,7 +194,7 @@ impl<St: Storage> BandwidthController<St> {
     #[cfg(target_arch = "wasm32")]
     pub async fn run(mut self, shutdown_token: ShutdownToken) {
         let mut topup_interval = {
-            let mut interval = wasmtimer::tokio::interval(TOPUP_INTERVAL);
+            let mut interval = wasmtimer::tokio::interval(self.config.topup_interval);
             interval.set_missed_tick_behavior(wasmtimer::tokio::MissedTickBehavior::Delay);
             interval
         };

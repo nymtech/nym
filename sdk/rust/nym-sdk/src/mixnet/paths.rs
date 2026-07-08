@@ -10,9 +10,10 @@ use nym_client_core::config;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::config::disk_persistence::{
     ClientKeysPaths, DEFAULT_ACK_KEY_FILENAME, DEFAULT_CREDENTIALS_DB_FILENAME,
-    DEFAULT_GATEWAYS_DETAILS_DB_FILENAME, DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME,
-    DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME, DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME,
-    DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME, DEFAULT_REPLY_SURB_DB_FILENAME,
+    DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME,
+    DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME, DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME,
+    DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME, DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME,
+    DEFAULT_REPLY_SURB_DB_FILENAME,
 };
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
@@ -182,6 +183,10 @@ impl From<StoragePaths> for CommonClientPaths {
                 ack_key_file: value.ack_key,
             },
             gateway_registrations: value.gateway_registrations,
+            // Users do not deal with that one, we can just create one if it's not there
+            credential_requests_database: value
+                .credential_database_path
+                .with_file_name(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
         }

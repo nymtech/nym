@@ -32,6 +32,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::{interval, MissedTickBehavior};
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::{interval, MissedTickBehavior};
+
 use crate::in_flight::{FetchResult, InFlightFetches};
 
 /// Owns all ecash credential state and is the **single writer** to the credential [`Storage`].
@@ -135,20 +141,9 @@ impl<St: Storage> BandwidthController<St> {
     /// the proactive restock timer and drains completed background fetches.
     pub async fn run(mut self, shutdown_token: ShutdownToken) {
         tracing::info!("BandwidthController started successfully");
-        let mut topup_interval = {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let mut interval = tokio::time::interval(self.config.topup_interval);
-                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-                interval
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                let mut interval = wasmtimer::tokio::interval(self.config.topup_interval);
-                interval.set_missed_tick_behavior(wasmtimer::tokio::MissedTickBehavior::Delay);
-                interval
-            }
-        };
+
+        let mut topup_interval = interval(self.config.topup_interval);
+        topup_interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
@@ -175,7 +170,8 @@ impl<St: Storage> BandwidthController<St> {
             }
         }
 
-        self.in_flight.cancel_all();
+        // wait for in-flight fetches to stop before cleaning up the fetcher they still hold
+        self.in_flight.cancel_and_join().await;
         if let Some(fetcher) = self.credential_fetcher {
             fetcher.cleanup().await;
         }
@@ -255,9 +251,11 @@ impl<St: Storage> BandwidthController<St> {
 
     // Removes fetcher, stops in flight requests, clear credentials, answer all readiness request with unavailable
     async fn handle_reset(&mut self) -> Result<(), BandwidthControllerError> {
-        // Cancel fetching: cancelling stops the in-flight network work, dropping the receivers
-        // stops the tasks from reporting back.
-        self.in_flight.cancel_all();
+        // Cancel fetching and wait for the tasks to stop before touching the fetcher or storage:
+        // this leaves no stale in-flight entries (so a following restock can spawn), and drains any
+        // fetch that completed just before cancellation so it can't resurrect a ticketbook into
+        // storage we're about to clear.
+        self.in_flight.cancel_and_join().await;
 
         if let Some(fetcher) = &self.credential_fetcher {
             fetcher.cleanup().await;

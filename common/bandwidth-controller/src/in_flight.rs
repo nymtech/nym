@@ -59,6 +59,11 @@ impl InFlightFetches {
     /// Spawns a background fetch for `ticketbook_type` and tracks it. The caller is expected to
     /// skip types already in flight (see [`Self::contains`]).
     pub(crate) fn spawn(&mut self, ticket_type: TicketType, fetcher: Arc<dyn CredentialFetcher>) {
+        // Defense in depth, don't overwrite existing fetch
+        if self.fetches.contains_key(&ticket_type) {
+            tracing::warn!("a {ticket_type} fetch is already in flight; not spawning a duplicate");
+            return;
+        }
         let cancel = ShutdownToken::new();
         let (tx, result) = oneshot::channel();
         let task_cancel = cancel.clone();
@@ -104,6 +109,22 @@ impl InFlightFetches {
         for fetch in self.fetches.values() {
             fetch.cancel.cancel();
         }
+    }
+
+    /// Cancels every in-flight fetch and waits for each task to observe the cancellation and
+    /// finish, discarding their results, leaving the map empty.
+    pub(crate) async fn cancel_and_join(&mut self) {
+        self.cancel_all();
+        while !self.is_empty() {
+            let _ = self.next_result().await;
+        }
+    }
+}
+
+impl Drop for InFlightFetches {
+    /// Cancel all tasks
+    fn drop(&mut self) {
+        self.cancel_all();
     }
 }
 
@@ -242,6 +263,32 @@ mod tests {
 
         assert_eq!(typ, TYPE);
         assert!(matches!(result, Ok(None)));
+        assert!(fetches.is_empty());
+    }
+
+    #[tokio::test]
+    async fn spawning_a_duplicate_type_is_refused_and_leaves_the_first_fetch_intact() {
+        let mut fetches = InFlightFetches::new();
+        fetches.spawn(TYPE, fetcher(Behaviour::Hang));
+        // second spawn for the same type must not overwrite/orphan the first
+        fetches.spawn(TYPE, fetcher(Behaviour::Succeed));
+
+        assert_eq!(fetches.fetches.len(), 1);
+        // the surviving fetch is the original hanging one: it only drains once cancelled
+        fetches.cancel_all();
+        let (typ, result) = fetches.next_result().await;
+        assert_eq!(typ, TYPE);
+        assert!(matches!(result, Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn cancel_and_join_drains_everything_and_empties_the_map() {
+        let mut fetches = InFlightFetches::new();
+        fetches.spawn(TicketType::V1MixnetEntry, fetcher(Behaviour::Hang));
+        fetches.spawn(TicketType::V1MixnetExit, fetcher(Behaviour::Hang));
+
+        fetches.cancel_and_join().await;
+
         assert!(fetches.is_empty());
     }
 

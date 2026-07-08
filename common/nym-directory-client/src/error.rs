@@ -97,4 +97,11 @@ pub enum DirectoryClientError {
     /// `AttestedTrustAnchor::new` was called with a degenerate quorum threshold.
     #[error("invalid quorum configuration: quorum {quorum} with {signers} trusted signers")]
     InvalidQuorumConfig { quorum: usize, signers: usize },
+
+    /// The data-source-agnostic whole-directory verification path
+    /// (`verify::verify_directory_offline`) was called without a trusted
+    /// node-identities hash to check against - today, only `AttestedTrustAnchor`'s
+    /// snapshot carries one.
+    #[error("no trusted node-identities hash is available to verify authorship against")]
+    NodeIdentitiesHashUnavailable,
 }

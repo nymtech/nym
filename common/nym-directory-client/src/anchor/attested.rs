@@ -945,19 +945,47 @@ mod tests {
         ));
     }
 
-    struct MockSource {
+    /// Calls made to a [`MockAttestationSource`], in call order - mirrors
+    /// `nym_validator_client::rpc::mocks::MockRpcClient`'s `CallLog` pattern.
+    #[derive(Default)]
+    struct AttestationCallLog {
+        latest_snapshot: usize,
+        snapshot_at: Vec<Height>,
+    }
+
+    /// In-memory [`AttestationSource`] serving pre-registered latest + per-height
+    /// signed snapshots, with a call log so tests can assert which sources were (or
+    /// were not) queried - mirrors `MockRpcClient`. `Clone` shares the same underlying
+    /// log (an `Arc<Mutex<_>>`), so a test can keep its own handle after moving a
+    /// clone into an anchor's `sources`.
+    #[derive(Clone)]
+    struct MockAttestationSource {
         identity: ed25519::PublicKey,
         latest: Option<SignedDigestSnapshot>,
         by_height: HashMap<Height, SignedDigestSnapshot>,
+        call_log: std::sync::Arc<std::sync::Mutex<AttestationCallLog>>,
+    }
+
+    impl MockAttestationSource {
+        /// Number of times [`AttestationSource::latest_snapshot`] was called.
+        fn latest_snapshot_calls(&self) -> usize {
+            self.call_log.lock().unwrap().latest_snapshot
+        }
+
+        /// Heights passed to [`AttestationSource::snapshot_at`], in call order.
+        fn snapshot_at_calls(&self) -> Vec<Height> {
+            self.call_log.lock().unwrap().snapshot_at.clone()
+        }
     }
 
     #[async_trait]
-    impl AttestationSource for MockSource {
+    impl AttestationSource for MockAttestationSource {
         fn identity(&self) -> PublicKey {
             self.identity
         }
 
         async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, DirectoryClientError> {
+            self.call_log.lock().unwrap().latest_snapshot += 1;
             self.latest
                 .clone()
                 .ok_or(DirectoryClientError::NoQuorumSnapshotForHeight(0))
@@ -967,18 +995,20 @@ mod tests {
             &self,
             height: Height,
         ) -> Result<SignedDigestSnapshot, DirectoryClientError> {
+            self.call_log.lock().unwrap().snapshot_at.push(height);
             self.by_height.get(&height).cloned().ok_or(
                 DirectoryClientError::NoQuorumSnapshotForHeight(height.value()),
             )
         }
     }
 
-    fn mock_source(kp: &KeyPair, height: Height) -> MockSource {
+    fn mock_source(kp: &KeyPair, height: Height) -> MockAttestationSource {
         let snapshot = signed_snapshot(kp, "nyx-testnet", &contract(), height);
-        MockSource {
+        MockAttestationSource {
             identity: *kp.public_key(),
             latest: Some(snapshot.clone()),
             by_height: HashMap::from([(height, snapshot)]),
+            call_log: Default::default(),
         }
     }
 
@@ -1003,6 +1033,50 @@ mod tests {
         let height = anchor.refresh().await.unwrap();
         assert_eq!(height, Height::from(100u32));
         assert_eq!(anchor.latest_snapshot_height().await.unwrap(), height);
+    }
+
+    #[tokio::test]
+    async fn refresh_pins_the_height_and_a_cached_query_does_not_requery_sources() {
+        let a = keypair(1);
+        let b = keypair(2);
+        let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+        let source_a = mock_source(&a, Height::from(100u32));
+        let source_b = mock_source(&b, Height::from(100u32));
+        let sources = vec![source_a.clone(), source_b.clone()];
+
+        let anchor = AttestedTrustAnchor::new(
+            sources,
+            trusted,
+            2,
+            chain::Id::try_from("nyx-testnet").unwrap(),
+            contract(),
+        )
+        .unwrap();
+
+        let height = anchor.refresh().await.unwrap();
+        assert_eq!(height, Height::from(100u32));
+
+        // exactly one source was asked for "latest" (the randomly-chosen seed); the
+        // seed itself is never re-queried for confirmation (excluded via `identity()`,
+        // see design.md D6), so exactly one `snapshot_at` call happened in total too
+        let latest_calls_after_refresh =
+            source_a.latest_snapshot_calls() + source_b.latest_snapshot_calls();
+        let snapshot_at_calls_after_refresh =
+            source_a.snapshot_at_calls().len() + source_b.snapshot_at_calls().len();
+        assert_eq!(latest_calls_after_refresh, 1);
+        assert_eq!(snapshot_at_calls_after_refresh, 1);
+
+        // a later query for the now-cached height is served from cache - no source is
+        // queried again at all
+        assert!(anchor.trusted_app_hash(height).await.is_ok());
+        assert_eq!(
+            source_a.latest_snapshot_calls() + source_b.latest_snapshot_calls(),
+            latest_calls_after_refresh
+        );
+        assert_eq!(
+            source_a.snapshot_at_calls().len() + source_b.snapshot_at_calls().len(),
+            snapshot_at_calls_after_refresh
+        );
     }
 
     #[tokio::test]
@@ -1104,10 +1178,11 @@ mod tests {
                 acc.clone(),
                 node_hash,
             );
-            MockSource {
+            MockAttestationSource {
                 identity: *kp.public_key(),
                 latest: Some(snapshot.clone()),
                 by_height: HashMap::from([(height, snapshot)]),
+                call_log: Default::default(),
             }
         });
 

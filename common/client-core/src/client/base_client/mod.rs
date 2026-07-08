@@ -36,9 +36,8 @@ use crate::init::{
     types::{GatewaySetup, InitialisationResult},
 };
 use futures::channel::mpsc;
-use nym_bandwidth_controller::{
-    BandwidthController, BandwidthTicketProvider, NyxdGlobalDataFetcher,
-};
+use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider};
+use nym_bandwidth_fetcher::NyxdGlobalDataFetcher;
 use nym_client_core_config_types::{ForgetMe, RememberMe};
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -814,7 +813,7 @@ where
         // controller can fetch any missing global ecash data itself.
         if let Some(client) = public_data_fetcher_client {
             bandwidth_controller = bandwidth_controller
-                .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(client));
+                .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(Arc::new(client)));
         }
         let request_sender = bandwidth_controller.get_request_sender();
         let shutdown_token = shutdown_tracker.clone_shutdown_token();

@@ -9,7 +9,7 @@ use crate::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
     },
     error::StorageError,
-    models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook},
+    models::{BasicTicketbookInformation, RetrievedTicketbook},
     persistent_storage::legacy_helpers::{
         deserialise_v1_coin_index_signatures, deserialise_v1_expiration_date_signatures,
         deserialise_v1_master_verification_key,
@@ -31,7 +31,7 @@ use nym_credentials::{
         signatures::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures},
         VersionedSerialise,
     },
-    IssuanceTicketBook, IssuedTicketBook,
+    IssuedTicketBook,
 };
 use nym_ecash_time::{ecash_today, Date, EcashTime};
 use nym_sqlx_pool_guard::SqlitePoolGuard;
@@ -103,26 +103,6 @@ impl Storage for PersistentStorage {
         self.storage_manager
             .cleanup_expired(ecash_yesterday)
             .await?;
-        Ok(())
-    }
-
-    async fn insert_pending_ticketbook(
-        &self,
-        ticketbook: &IssuanceTicketBook,
-    ) -> Result<(), Self::StorageError> {
-        let ser = ticketbook.pack();
-        let data = Zeroizing::new(ser.data);
-        let serialisation_revision = ser.revision;
-
-        self.storage_manager
-            .insert_pending_ticketbook(
-                serialisation_revision,
-                ticketbook.deposit_id(),
-                &data,
-                ticketbook.expiration_date(),
-            )
-            .await?;
-
         Ok(())
     }
 
@@ -201,37 +181,6 @@ impl Storage for PersistentStorage {
         &self,
     ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError> {
         Ok(self.storage_manager.get_ticketbooks_info().await?)
-    }
-
-    async fn get_pending_ticketbooks(
-        &self,
-    ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError> {
-        let pending = self
-            .storage_manager
-            .get_pending_ticketbooks()
-            .await?
-            .into_iter()
-            .map(|p| {
-                IssuanceTicketBook::try_unpack(&p.pending_ticketbook_data, p.serialization_revision)
-                    .map_err(|err| {
-                        StorageError::database_inconsistency(format!(
-                            "failed to deserialise stored pending ticketbook: {err}"
-                        ))
-                    })
-                    .map(|pending_ticketbook| RetrievedPendingTicketbook {
-                        pending_id: p.deposit_id,
-                        pending_ticketbook,
-                    })
-            })
-            .collect::<Result<_, _>>()?;
-        Ok(pending)
-    }
-
-    async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError> {
-        self.storage_manager
-            .remove_pending_ticketbook(pending_id)
-            .await?;
-        Ok(())
     }
 
     /// Tries to retrieve one of the stored ticketbook,
@@ -432,6 +381,16 @@ impl Storage for PersistentStorage {
         self.storage_manager
             .remove_emergency_credentials_of_type(typ)
             .await?;
+        Ok(())
+    }
+
+    async fn clear_ticketbooks(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_ticketbooks().await?;
+        Ok(())
+    }
+
+    async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_emergency_credentials().await?;
         Ok(())
     }
 }

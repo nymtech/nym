@@ -39,6 +39,7 @@ zeroize = { workspace = true }
 # internal
 nym-id = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true }
 nym-crypto = { workspace = true }
 nym-gateway-client = { workspace = true }
 nym-gateway-requests = { workspace = true }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM ecash_ticketbook",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "952ea93555a93d2b23a04cc0b51b69b532c4ba01760a81ebcfe716709270b0c0"
+}

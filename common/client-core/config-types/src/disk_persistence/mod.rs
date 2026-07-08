@@ -11,6 +11,7 @@ pub use old::{old_v1_1_20_2, old_v1_1_33};
 
 pub const DEFAULT_REPLY_SURB_DB_FILENAME: &str = "persistent_reply_store.sqlite";
 pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
+pub const DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME: &str = "credential_requests.db";
 pub const DEFAULT_GATEWAYS_DETAILS_DB_FILENAME: &str = "gateways_registrations.sqlite";
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
@@ -31,6 +32,10 @@ pub struct CommonClientPaths {
     /// Path to the database containing bandwidth credentials of this client.
     pub credentials_database: PathBuf,
 
+    /// Path to the database of pending credential requests, i.e. deposits made for ticketbooks
+    /// whose issuance hasn't completed yet.
+    pub credential_requests_database: PathBuf,
+
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
     pub reply_surb_database: PathBuf,
 }
@@ -41,6 +46,7 @@ impl CommonClientPaths {
 
         CommonClientPaths {
             credentials_database: base_dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
+            credential_requests_database: base_dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: base_dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             keys: ClientKeysPaths::new_base(base_data_directory),

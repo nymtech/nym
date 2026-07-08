@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_credentials::IssuedTicketBook;
 use nym_ecash_time::Date;
 use time::OffsetDateTime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -10,11 +10,6 @@ pub struct RetrievedTicketbook {
     pub ticketbook_id: i64,
     pub total_tickets: u32,
     pub ticketbook: IssuedTicketBook,
-}
-
-pub struct RetrievedPendingTicketbook {
-    pub pending_id: i64,
-    pub pending_ticketbook: IssuanceTicketBook,
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
@@ -45,19 +40,6 @@ pub struct StoredIssuedTicketbook {
 
     pub total_tickets: u32,
     pub used_tickets: u32,
-}
-
-#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
-#[derive(Zeroize, ZeroizeOnDrop, Clone)]
-pub struct StoredPendingTicketbook {
-    pub deposit_id: i64,
-
-    pub serialization_revision: u8,
-
-    pub pending_ticketbook_data: Vec<u8>,
-
-    #[zeroize(skip)]
-    pub expiration_date: Date,
 }
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]

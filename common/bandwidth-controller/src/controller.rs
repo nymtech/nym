@@ -7,19 +7,11 @@ use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot, Readin
 use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender};
 use crate::ticketbooks::AvailableTicketbooks;
 use crate::traits::{CredentialFetcher, CredentialPublicDataFetcher};
+use crate::NymCredential;
 use crate::{
     BandwidthTicketProvider, PreparedCredential, PreparedCredentialMetadata, UPGRADE_MODE_JWT_TYPE,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::traits::CredentialFetcherError;
-use crate::NymCredential;
-use std::collections::HashSet;
-
-use async_trait::async_trait;
-use log::error;
 use nym_credential_storage::models::EmergencyCredentialContent;
 use nym_credential_storage::models::RetrievedTicketbook;
 use nym_credential_storage::storage::Storage;
@@ -32,7 +24,16 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime};
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::EpochId;
+
+use async_trait::async_trait;
+use log::error;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::traits::CredentialFetcherError;
 
 /// Result of a background ticketbook fetch, drained from `fetch_tasks` in the `run` loop.
 #[cfg(not(target_arch = "wasm32"))]

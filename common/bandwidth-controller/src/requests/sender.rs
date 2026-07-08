@@ -91,8 +91,9 @@ impl BandwidthControllerRequestSender {
                 tx,
                 Some(credential_fetcher),
             ))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Removes the credential fetcher; no further automatic restocking happens until one is set.
@@ -101,8 +102,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::SetCredentialFetcher(tx, None))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Installs the global-data fetcher used to retrieve missing ecash signing materials.
@@ -117,8 +119,9 @@ impl BandwidthControllerRequestSender {
                 tx,
                 Some(public_data_fetcher),
             ))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Removes the global-data fetcher.
@@ -127,8 +130,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::SetPublicDataFetcher(tx, None))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Cancels in-flight fetches, drops the fetcher, clears stored credentials, and fails any parked
@@ -138,8 +142,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::Reset(tx))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Removes stored emergency (upgrade-mode) credentials, leaving ticketbooks intact.
@@ -148,8 +153,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::ClearEmergencyCredentials(tx))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Returns the currently stored ticketbooks.
@@ -160,8 +166,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::GetAvailableTicketbooks(tx))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
     /// Resolves once every listed type is usable (stocked or covered by upgrade mode). Errors if a
@@ -175,8 +182,9 @@ impl BandwidthControllerRequestSender {
         let (tx, rx) = ReturnSender::new();
         self.command_tx
             .send(BandwidthControllerRequest::WaitForTicketbooks(tx, types))
-            .map_err(BandwidthControllerError::internal)?;
-        rx.await.map_err(BandwidthControllerError::internal)?
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 }
 

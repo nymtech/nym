@@ -113,9 +113,7 @@ impl AvailableTicketbooks {
     }
 
     pub fn remaining_data_si(&self, typ: TicketType) -> String {
-        si_scale::helpers::bibytes2(
-            self.remaining_tickets(typ) as f64 * typ.to_repr().bandwidth_value() as f64,
-        )
+        si_scale::helpers::bibytes2(self.remaining_data(typ) as f64)
     }
 
     fn tickets_by_type(&self, typ: TicketType) -> impl Iterator<Item = &AvailableTicketbook> {

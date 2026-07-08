@@ -8,6 +8,7 @@ use cosmrs::tendermint::chain;
 use futures::future::join_all;
 use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
+use nym_network_defaults::default_directory_attestation_sources;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::hash::AppHash;
 use rand::seq::SliceRandom;
@@ -147,6 +148,18 @@ struct AttestedTrustAnchorState {
     latest: Option<Height>,
 }
 
+/// Parses identity keys of attestation sources set in the env into the anchor's native representation.
+#[allow(clippy::expect_used)]
+fn default_trusted_signers() -> HashSet<ed25519::PublicKey> {
+    default_directory_attestation_sources()
+        .iter()
+        .map(|source| {
+            ed25519::PublicKey::from_base58_string(&source.identity_ed25519_bs58)
+                .expect("compiled-in default trusted signer key must be valid")
+        })
+        .collect()
+}
+
 /// A [`DirectoryTrustAnchor`](crate::anchor::DirectoryTrustAnchor) backed by a K-of-N
 /// quorum of nym-api identity keys signing directory snapshots, rather than a root key
 /// or a light-client checkpoint.
@@ -191,6 +204,36 @@ impl<S> AttestedTrustAnchor<S> {
                 latest: None,
             }),
         })
+    }
+
+    /// A simple majority (more than half) of `signer_count` - the quorum policy used
+    /// by [`Self::with_default_anchor`]. Expressing the default quorum as a function
+    /// of the signer set's size, rather than a separately hardcoded number, means
+    /// growing that set (e.g. mainnet's third nym-api gaining a key) automatically
+    /// moves the default from 2-of-2 to 2-of-3 with no code change anywhere.
+    pub fn majority_quorum(signer_count: usize) -> usize {
+        signer_count / 2 + 1
+    }
+
+    /// Constructs the anchor using the compiled-in default trust root -
+    /// [`nym_network_defaults::mainnet::DIRECTORY_ATTESTATION_SOURCES`]' identity keys,
+    /// requiring [`Self::majority_quorum`] of them to agree. This is the common case,
+    /// since most deployments have no reason to distrust Nym SA's own instances;
+    /// callers who do, or who are not on mainnet, should use [`Self::new`] directly.
+    pub fn with_default_anchor(
+        sources: Vec<S>,
+        chain_id: chain::Id,
+        directory_contract: AccountId,
+    ) -> Result<Self, DirectoryClientError> {
+        let trusted_signers = default_trusted_signers();
+        let quorum = Self::majority_quorum(trusted_signers.len());
+        Self::new(
+            sources,
+            trusted_signers,
+            quorum,
+            chain_id,
+            directory_contract,
+        )
     }
 
     /// Filters `candidates` to valid attestations (see
@@ -698,6 +741,47 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn majority_quorum_is_more_than_half() {
+        assert_eq!(AttestedTrustAnchor::<()>::majority_quorum(1), 1);
+        assert_eq!(AttestedTrustAnchor::<()>::majority_quorum(2), 2);
+        assert_eq!(AttestedTrustAnchor::<()>::majority_quorum(3), 2);
+        assert_eq!(AttestedTrustAnchor::<()>::majority_quorum(4), 3);
+        assert_eq!(AttestedTrustAnchor::<()>::majority_quorum(5), 3);
+    }
+
+    #[test]
+    fn with_default_anchor_uses_the_compiled_in_default() {
+        let anchor = AttestedTrustAnchor::<()>::with_default_anchor(
+            Vec::new(),
+            chain::Id::try_from("nyx-testnet").unwrap(),
+            contract(),
+        )
+        .unwrap();
+
+        assert_eq!(anchor.trusted_signers, default_trusted_signers());
+        assert_eq!(
+            anchor.quorum,
+            AttestedTrustAnchor::<()>::majority_quorum(anchor.trusted_signers.len())
+        );
+    }
+
+    #[test]
+    fn new_with_a_caller_supplied_set_is_unaffected_by_the_default() {
+        let custom = HashSet::from([*keypair(1).public_key()]);
+        let anchor = AttestedTrustAnchor::<()>::new(
+            Vec::new(),
+            custom.clone(),
+            1,
+            chain::Id::try_from("nyx-testnet").unwrap(),
+            contract(),
+        )
+        .unwrap();
+
+        assert_eq!(anchor.trusted_signers, custom);
+        assert_ne!(anchor.trusted_signers, default_trusted_signers());
     }
 
     #[test]

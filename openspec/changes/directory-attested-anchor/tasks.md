@@ -43,9 +43,17 @@ just a discovery hint - so a lying seed only wastes a round-trip, never a false 
 
 ## 4. Default anchor
 
-- [ ] 4.1 Define compiled-in default anchor constants (Nym-SA-owned nym-api identity keys + a default quorum threshold; concrete key material and endpoints TBD at implementation time)
-- [ ] 4.2 Implement a default-anchor constructor (e.g. `AttestedTrustAnchor::with_default_anchor(sources, chain_id, directory_contract)`) that builds the anchor with the default `trusted_signers`/quorum, alongside the fully-configurable `new(...)` for callers who want to override
-- [ ] 4.3 Unit test: the default-anchor constructor produces an anchor whose `trusted_signers`/quorum match the compiled-in default; `new(...)` with a caller-supplied set is unaffected by the default
+Placement revised mid-implementation (see `design.md` D8): the compiled-in constants do
+not live in `nym-directory-client` itself, but in `nym-network-defaults::mainnet` -
+that crate already hardcodes exactly this shape of thing
+(`UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY` / `UPGRADE_MODE_ATTESTATION_URL`), and
+`nym-directory-client` was already going to depend on it transitively via
+`nym-validator-client`. Quorum is derived from the signer count (a majority) rather
+than separately hardcoded, so the list and the threshold cannot drift out of sync.
+
+- [x] 4.1 Add `DirectoryAttestationSourceConst { api_url: &str, identity_ed25519_bs58: &str }` (compiled-in) and `DirectoryAttestationSource { api_url: String, identity_ed25519_bs58: String }` (owned, for env-sourced values) to `common/network-defaults/src/network.rs`, and a mainnet-only `DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst]` (`#[cfg(feature = "network")]`) to `common/network-defaults/src/mainnet.rs`, holding the 2 currently-known real mainnet identity keys/URLs (a commented-out third entry documents the nym-api that cannot be added yet - see the "External prerequisite"). No separate quorum constant (see 4.2). Added `pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource>`: reads a `DIRECTORY_ATTESTATION_SOURCES` JSON env var when `env_configured()` (mirroring `NYM_APIS`/`NYM_VPN_APIS`), else falls back to the compiled mainnet list - the `#[cfg(feature = "env")]` block guarding the env path had to be scoped *inside* the always-compiled function (not as an unconditional top-level `use crate::env_configured`/`use crate::var_names`), since `network.rs` compiles under `feature = "network"` alone and those items require `feature = "env"` too; also wired into `mainnet::export_to_env()`/`export_to_env_if_not_set()` so `setup_env()` backfills the var from the compiled default for any real binary that didn't have it in its static `.env` file (verified end-to-end against `envs/mainnet.env` - no manual duplication needed there).
+- [x] 4.2 Add `nym-network-defaults` as a dependency of `nym-directory-client`; implement `AttestedTrustAnchor::majority_quorum(signer_count: usize) -> usize` (`signer_count / 2 + 1`, public) and a private `default_trusted_signers()` parsing `default_directory_attestation_sources()`'s bs58 keys into `HashSet<ed25519::PublicKey>` (`#[allow(clippy::expect_used)]` - the workspace denies `expect_used` by default); implement `AttestedTrustAnchor::with_default_anchor(sources, chain_id, directory_contract)` calling `new(sources, default_trusted_signers(), majority_quorum(...), chain_id, directory_contract)`
+- [x] 4.3 Unit tests: `majority_quorum` matches simple-majority arithmetic for several signer counts; `with_default_anchor` produces an anchor whose `trusted_signers`/quorum match the compiled-in default; `new(...)` with a caller-supplied set is unaffected by the default
 
 ## 5. DirectoryTrustAnchor impl and re-exports
 

@@ -28,6 +28,7 @@ tendermint-light-client = { workspace = true, optional = true }
 
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
 nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-directory-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }

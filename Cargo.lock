@@ -6889,6 +6889,7 @@ dependencies = [
  "nym-directory-contract-common",
  "nym-lthash",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-test-utils",
  "nym-validator-client",
  "prost 0.13.5",

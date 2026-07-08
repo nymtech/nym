@@ -12,8 +12,8 @@
 # This should make it easy to add new rules without breaking existing ones.
 
 # contracts
-/contracts/mixnet @durch @jstuczyn
-/contracts/vesting @durch @jstuczyn
+/contracts/mixnet @jstuczyn
+/contracts/vesting @jstuczyn
 
 # crypto code
 /common/crypto/ @jstuczyn
@@ -22,4 +22,4 @@
 /common/nymsphinx/ @jstuczyn
 
 # documentation
-/documentation @mfahampshire
+/documentation @mfahampshire @merve64

@@ -40,6 +40,9 @@ pub struct StoragePaths {
     /// The database containing credentials
     pub credential_database_path: PathBuf,
 
+    /// The database containing credential requests, for earlier failed attempts
+    pub credential_requests_database_path: PathBuf,
+
     /// The database storing reply surbs in-between sessions
     pub reply_surb_database_path: PathBuf,
 
@@ -68,6 +71,7 @@ impl StoragePaths {
             public_encryption: dir.join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME),
             ack_key: dir.join(DEFAULT_ACK_KEY_FILENAME),
             credential_database_path: dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
+            credential_requests_database_path: dir.join(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
             reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
         })
@@ -183,10 +187,7 @@ impl From<StoragePaths> for CommonClientPaths {
                 ack_key_file: value.ack_key,
             },
             gateway_registrations: value.gateway_registrations,
-            // Users do not deal with that one, we can just create one if it's not there
-            credential_requests_database: value
-                .credential_database_path
-                .with_file_name(DEFAULT_CREDENTIAL_REQUESTS_DB_FILENAME),
+            credential_requests_database: value.credential_requests_database_path,
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
         }
@@ -202,6 +203,7 @@ impl From<CommonClientPaths> for StoragePaths {
             public_encryption: value.keys.public_encryption_key_file,
             ack_key: value.keys.ack_key_file,
             credential_database_path: value.credentials_database,
+            credential_requests_database_path: value.credential_requests_database,
             reply_surb_database_path: value.reply_surb_database,
             gateway_registrations: value.gateway_registrations,
         }

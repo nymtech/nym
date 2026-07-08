@@ -76,18 +76,6 @@ where
         })
     }
 
-    /// Like [`Self::new`], but places the pending-request DB at the default filename inside `data_dir`.
-    pub async fn new_from_dir(
-        client: Arc<C>,
-        data_dir: impl AsRef<Path>,
-        client_id: Zeroizing<Vec<u8>>,
-    ) -> Result<Self, NyxdFetcherError> {
-        let mut db_path = data_dir.as_ref().to_path_buf();
-        db_path.push("credential_requests.db");
-
-        Self::new(client, db_path, client_id).await
-    }
-
     async fn block_until_ecash_is_available(&self) -> Result<(), NyxdFetcherError> {
         loop {
             let epoch = self.client.get_current_epoch().await?;

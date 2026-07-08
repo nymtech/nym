@@ -151,6 +151,21 @@ impl CommonConfigsWrapper {
             CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_credentials_store(),
         }
     }
+
+    /// Path to the fetcher's pending-credential-requests DB.
+    pub(crate) fn try_get_credential_requests_store(&self) -> anyhow::Result<PathBuf> {
+        match self {
+            CommonConfigsWrapper::NymClients(cfg) => {
+                Ok(cfg.storage_paths.inner.credential_requests_database.clone())
+            }
+            CommonConfigsWrapper::NymApi(cfg) => Ok(cfg
+                .network_monitor
+                .storage_paths
+                .credentials_request_path
+                .clone()),
+            CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_credential_requests_store(),
+        }
+    }
 }
 
 // ideally we would have just imported the full nym-api config structure, but that'd have been an overkill,
@@ -174,6 +189,7 @@ struct NymApiConfigNetworkMonitorLight {
 #[derive(Deserialize, Debug)]
 struct NetworkMonitorPaths {
     credentials_database_path: PathBuf,
+    credentials_request_path: PathBuf,
 }
 
 // a hacky way of reading common data from client configs (native, socks5, etc.)
@@ -238,6 +254,19 @@ impl UnknownConfigWrapper {
             Ok(credentials_store.parse()?)
         } else {
             bail!("no 'credentials_database_path' field present in the config")
+        }
+    }
+
+    pub(crate) fn try_get_credential_requests_store(&self) -> anyhow::Result<PathBuf> {
+        let id_val = self
+            .find_value("credential_requests_database_path")
+            .ok_or_else(|| {
+                anyhow!("no 'credential_requests_database_path' field present in the config")
+            })?;
+        if let toml::Value::String(credential_requests_store) = id_val {
+            Ok(credential_requests_store.parse()?)
+        } else {
+            bail!("no 'credential_requests_database_path' field present in the config")
         }
     }
 

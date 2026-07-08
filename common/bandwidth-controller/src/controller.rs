@@ -1,25 +1,17 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::BandwidthControllerConfig;
 use crate::error::BandwidthControllerError;
 use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot, ReadinessStatus};
 use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender};
 use crate::ticketbooks::AvailableTicketbooks;
 use crate::traits::{CredentialFetcher, CredentialPublicDataFetcher};
+use crate::NymCredential;
 use crate::{
     BandwidthTicketProvider, PreparedCredential, PreparedCredentialMetadata, UPGRADE_MODE_JWT_TYPE,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::traits::CredentialFetcherError;
-use crate::NymCredential;
-use std::collections::HashSet;
-
-use async_trait::async_trait;
-use log::error;
 use nym_credential_storage::models::EmergencyCredentialContent;
 use nym_credential_storage::models::RetrievedTicketbook;
 use nym_credential_storage::storage::Storage;
@@ -32,17 +24,21 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime};
 use nym_task::ShutdownToken;
 use nym_validator_client::nym_api::EpochId;
+
+use async_trait::async_trait;
+use log::error;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-/// How often the controller proactively checks whether any ticket type needs restocking.
-const TOPUP_INTERVAL: Duration = Duration::from_secs(3 * 3600); // 3 hours
-
-/// Result of a background ticketbook fetch, drained from `fetch_tasks` in the `run` loop.
 #[cfg(not(target_arch = "wasm32"))]
-struct FetchOutcome {
-    ticket_type: TicketType,
-    result: Result<Vec<NymCredential>, CredentialFetcherError>,
-}
+use tokio::time::{interval, MissedTickBehavior};
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::{interval, MissedTickBehavior};
+
+use crate::in_flight::{FetchResult, InFlightFetches};
 
 /// Owns all ecash credential state and is the **single writer** to the credential [`Storage`].
 ///
@@ -73,6 +69,8 @@ pub struct BandwidthController<St> {
         UnboundedReceiver<BandwidthControllerRequest>,
     ),
 
+    config: BandwidthControllerConfig,
+
     // fetches the global ecash signing materials when they are missing locally
     public_data_fetcher: Option<Arc<dyn CredentialPublicDataFetcher>>,
 
@@ -80,14 +78,9 @@ pub struct BandwidthController<St> {
     // `Arc` so the native auto path can clone it into spawned fetch tasks.
     credential_fetcher: Option<Arc<dyn CredentialFetcher>>,
 
-    // ticket types with an automatic fetch currently in flight, so we don't request the same
-    // type twice (native auto path only)
-    #[cfg(not(target_arch = "wasm32"))]
-    in_flight: HashSet<TicketType>,
-
-    // background ticketbook fetches; completions are drained in the `run` loop
-    #[cfg(not(target_arch = "wasm32"))]
-    fetch_tasks: tokio::task::JoinSet<FetchOutcome>,
+    // ticketbook fetches currently in flight; skips duplicate requests per type, drives
+    // completions, and cancels on reset/shutdown
+    in_flight: InFlightFetches,
 
     // callers parked on `wait_for_ticketbooks`, re-evaluated whenever a fetch completes
     pending_readiness: Vec<ReadinessRequest>,
@@ -103,14 +96,17 @@ impl<St: Storage> BandwidthController<St> {
         BandwidthController {
             storage,
             request_channel,
+            config: Default::default(),
             public_data_fetcher: None,
             credential_fetcher: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            in_flight: HashSet::new(),
-            #[cfg(not(target_arch = "wasm32"))]
-            fetch_tasks: tokio::task::JoinSet::new(),
+            in_flight: InFlightFetches::new(),
             pending_readiness: Vec::new(),
         }
+    }
+    #[must_use]
+    pub fn with_config(mut self, config: BandwidthControllerConfig) -> Self {
+        self.config = config;
+        self
     }
 
     #[must_use]
@@ -143,14 +139,11 @@ impl<St: Storage> BandwidthController<St> {
     /// Runs the controller event loop, handling incoming requests until the
     /// request channel is closed or cancellation is requested. Additionally drives
     /// the proactive restock timer and drains completed background fetches.
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn run(mut self, shutdown_token: ShutdownToken) {
         tracing::info!("BandwidthController started successfully");
-        let mut topup_interval = {
-            let mut interval = tokio::time::interval(TOPUP_INTERVAL);
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-            interval
-        };
+
+        let mut topup_interval = interval(self.config.topup_interval);
+        topup_interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
@@ -164,8 +157,8 @@ impl<St: Storage> BandwidthController<St> {
                     self.ensure_global_data().await;
                     self.check_and_restock(AvailableTicketbooks::ticketbook_types()).await;
                 }
-                Some(done) = self.fetch_tasks.join_next() => {
-                    self.on_fetch_complete(done).await;
+                (typ, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
+                    self.on_fetch_complete(typ, res).await;
                 }
                 request = self.request_channel.1.recv() => match request {
                     Some(request) => self.handle_request(request).await,
@@ -177,40 +170,10 @@ impl<St: Storage> BandwidthController<St> {
             }
         }
 
+        // wait for in-flight fetches to stop before cleaning up the fetcher they still hold
+        self.in_flight.cancel_and_join().await;
         if let Some(fetcher) = self.credential_fetcher {
             fetcher.cleanup().await;
-        }
-        self.storage.close().await;
-    }
-
-    /// Runs the controller event loop, handling incoming requests until the
-    /// request channel is closed or cancellation is requested
-    #[cfg(target_arch = "wasm32")]
-    pub async fn run(mut self, shutdown_token: ShutdownToken) {
-        let mut topup_interval = {
-            let mut interval = wasmtimer::tokio::interval(TOPUP_INTERVAL);
-            interval.set_missed_tick_behavior(wasmtimer::tokio::MissedTickBehavior::Delay);
-            interval
-        };
-        loop {
-            tokio::select! {
-                biased;
-                _ = shutdown_token.cancelled() => {
-                    log::debug!("bandwidth controller received cancellation request; shutting down");
-                    break;
-                }
-                _ = topup_interval.tick() => {
-                    let _ = self.print_info().await;
-                    self.ensure_global_data().await;
-                }
-                request = self.request_channel.1.recv() => match request {
-                    Some(request) => self.handle_request(request).await,
-                    None => {
-                        log::warn!("bandwidth controller request channel closed; this should never happen as we own a sender; shutting down");
-                        break;
-                    }
-                }
-            }
         }
         self.storage.close().await;
     }
@@ -233,7 +196,6 @@ impl<St: Storage> BandwidthController<St> {
                     .await;
                 return_sender.send(credential_result);
                 // a ticket was just requested for this type - top it up if it's now running low
-                #[cfg(not(target_arch = "wasm32"))]
                 self.check_and_restock(vec![ticket_type]).await;
             }
             BandwidthControllerRequest::UpgradeModeToken(return_sender) => {
@@ -283,19 +245,17 @@ impl<St: Storage> BandwidthController<St> {
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
         self.credential_fetcher = fetcher;
-        #[cfg(not(target_arch = "wasm32"))]
         self.check_and_restock(AvailableTicketbooks::ticketbook_types())
             .await;
     }
 
     // Removes fetcher, stops in flight requests, clear credentials, answer all readiness request with unavailable
     async fn handle_reset(&mut self) -> Result<(), BandwidthControllerError> {
-        // Cancel fetching
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            self.fetch_tasks.shutdown().await;
-            self.in_flight = HashSet::new();
-        }
+        // Cancel fetching and wait for the tasks to stop before touching the fetcher or storage:
+        // this leaves no stale in-flight entries (so a following restock can spawn), and drains any
+        // fetch that completed just before cancellation so it can't resurrect a ticketbook into
+        // storage we're about to clear.
+        self.in_flight.cancel_and_join().await;
 
         if let Some(fetcher) = &self.credential_fetcher {
             fetcher.cleanup().await;
@@ -447,7 +407,7 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     // ---------------------------------------------------------------------
-    // Automatic restocking & background fetches (native only)
+    // Automatic restocking & background fetches
     // ---------------------------------------------------------------------
 
     /// Fetches a ticketbook of `ticketbook_type` via the configured credential fetcher and persists
@@ -469,7 +429,6 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     /// Restocks the given ticket types that are running low or about to expire.
-    #[cfg(not(target_arch = "wasm32"))]
     async fn check_and_restock(&mut self, ticketbook_types: Vec<TicketType>) {
         let available = match self.get_available_ticketbooks().await {
             Ok(available) => available,
@@ -481,7 +440,7 @@ impl<St: Storage> BandwidthController<St> {
 
         for typ in ticketbook_types {
             tracing::debug!("Checking credential stock for {typ} ticket");
-            if available.needs_restock(typ) {
+            if available.needs_restock(typ, self.config) {
                 tracing::debug!("{typ} tickets need a restock");
                 self.ensure_stocked(typ);
             }
@@ -490,9 +449,8 @@ impl<St: Storage> BandwidthController<St> {
 
     /// Spawns a background fetch for `ticketbook_type` unless one is already in flight for it.
     /// Non-blocking: the result is drained later in the `run` loop via `on_fetch_complete`.
-    #[cfg(not(target_arch = "wasm32"))]
     fn ensure_stocked(&mut self, ticketbook_type: TicketType) {
-        if self.in_flight.contains(&ticketbook_type) {
+        if self.in_flight.contains(ticketbook_type) {
             // already fetching this type; don't ask again while we're still waiting
             tracing::debug!("{ticketbook_type} ticket restock already in flight");
             return;
@@ -501,47 +459,36 @@ impl<St: Storage> BandwidthController<St> {
             tracing::debug!("No credential fetcher set. No restock possible");
             return;
         };
-        let fetcher = Arc::clone(fetcher);
-        self.in_flight.insert(ticketbook_type);
         tracing::debug!("requesting more {ticketbook_type} ticketbooks");
-        self.fetch_tasks.spawn(async move {
-            let result = fetcher.fetch_ticketbooks(ticketbook_type).await;
-            FetchOutcome {
-                ticket_type: ticketbook_type,
-                result,
-            }
-        });
+        self.in_flight.spawn(ticketbook_type, Arc::clone(fetcher));
     }
 
-    /// Persists the credentials returned by a completed fetch and clears its in-flight marker.
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn on_fetch_complete(&mut self, done: Result<FetchOutcome, tokio::task::JoinError>) {
+    /// Persists the credentials returned by a completed fetch. The in-flight slot was already
+    /// freed by [`InFlightFetches::next_result`].
+    async fn on_fetch_complete(&mut self, ticket_type: TicketType, received: FetchResult) {
         // a failed fetch is surfaced to any readiness waiter that required the failed type
-        let failure = match done {
-            Ok(FetchOutcome {
-                ticket_type,
-                result: Ok(credentials),
-            }) => {
-                self.in_flight.remove(&ticket_type);
+        let failure = match received {
+            Ok(Some(Ok(credentials))) => {
                 self.store_fetched(credentials).await;
                 tracing::info!("fetched and stored a {ticket_type} ticketbook");
                 None
             }
-            Ok(FetchOutcome {
-                ticket_type,
-                result: Err(err),
-            }) => {
-                self.in_flight.remove(&ticket_type);
+            Ok(Some(Err(err))) => {
                 tracing::warn!("failed to fetch {ticket_type} ticketbooks: {err}");
                 Some(FetchFailure {
                     ticket_type,
                     error: err,
                 })
             }
-            Err(join_err) => {
-                // a panicking fetch loses its ticket type, so it stays marked in-flight until the
-                // controller is restarted - acceptable as our fetcher isn't expected to panic.
-                tracing::error!("a credential fetch task terminated abnormally: {join_err}");
+            Ok(None) => {
+                // fetch was cancelled (reset / shutdown); next_result already freed the slot
+                tracing::debug!("fetch for {ticket_type} ticketbooks was cancelled");
+                None
+            }
+            Err(_recv_err) => {
+                // the task dropped its sender without a result: it panicked.
+                // next_result already freed the slot, so a later restock can retry the type.
+                tracing::error!("a credential fetch task for {ticket_type} terminated abnormally");
                 None
             }
         };
@@ -609,14 +556,8 @@ impl<St: Storage> BandwidthController<St> {
     // Ticketbook readiness
     // ---------------------------------------------------------------------
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn is_in_flight(&self, typ: TicketType) -> bool {
-        self.in_flight.contains(&typ)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn is_in_flight(&self, _typ: TicketType) -> bool {
-        false
+        self.in_flight.contains(typ)
     }
 
     async fn build_readiness_snapshot(
@@ -628,7 +569,7 @@ impl<St: Storage> BandwidthController<St> {
 
         let mut tickets_readiness = HashMap::new();
         for typ in AvailableTicketbooks::ticketbook_types() {
-            let status = if available.contains_minimal_tickets(typ) {
+            let status = if available.contains_minimal_tickets(typ, self.config) {
                 ReadinessStatus::Ready
             } else if self.is_in_flight(typ) {
                 ReadinessStatus::InFlight
@@ -651,7 +592,6 @@ impl<St: Storage> BandwidthController<St> {
 
     /// Re-evaluates parked `wait_for_ticketbooks` callers after stock/in-flight state changed,
     /// answering and dropping the ones that resolved.
-    #[cfg(not(target_arch = "wasm32"))]
     async fn resolve_pending_waiters(&mut self, failure: Option<FetchFailure>) {
         if self.pending_readiness.is_empty() {
             return;
@@ -860,7 +800,7 @@ impl<St: Storage> BandwidthController<St> {
         for ticketbook in ticketbooks_info {
             if ticketbook.has_expired() {
                 tracing::debug!("Expired ticketbook: {ticketbook}");
-            } else if ticketbook.expired_soon() {
+            } else if ticketbook.expired_soon(OffsetDateTime::now_utc(), self.config) {
                 tracing::info!("Soon expired ticketbook: {ticketbook}");
             } else {
                 tracing::info!("Ticketbook: {ticketbook}");

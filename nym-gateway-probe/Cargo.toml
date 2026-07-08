@@ -46,13 +46,13 @@ nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-authenticator-client = { workspace = true }
 nym-authenticator-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true }
 nym-bin-common = { workspace = true }
 nym-client-core = { workspace = true }
 nym-config = { workspace = true }
 nym-connection-monitor = { path = "../common/nym-connection-monitor" }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
-nym-credential-utils = { workspace = true }
 nym-crypto = { workspace = true }
 nym-http-api-client = { path = "../common/http-api-client" }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
@@ -75,7 +75,13 @@ test-utils = []
 
 [build-dependencies]
 anyhow = { workspace = true }
-vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "cargo"] }
+vergen = { workspace = true, features = [
+    "build",
+    "git",
+    "gitcl",
+    "rustc",
+    "cargo",
+] }
 
 [package.metadata.cargo-machete]
 ignored = ["vergen", "nym-http-api-client"]

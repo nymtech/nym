@@ -22,6 +22,7 @@ members = [
     "common/async-file-watcher",
     "common/authenticator-requests",
     "common/bandwidth-controller",
+    "common/bandwidth-fetcher",
     "common/bin-common",
     "common/client-core",
     "common/client-core/config-types",
@@ -47,7 +48,6 @@ members = [
     "common/cosmwasm-smart-contracts/network-monitors-contract",
     "common/credential-proxy",
     "common/credential-storage",
-    "common/credential-utils",
     "common/credential-verification",
     "common/credentials",
     "common/credentials-interface",
@@ -433,6 +433,7 @@ nym-authenticator-requests = { version = "1.21.3", path = "common/authenticator-
 nym-async-file-watcher = { version = "1.21.3", path = "common/async-file-watcher" }
 nym-authenticator-client = { version = "1.21.3", path = "nym-authenticator-client" }
 nym-bandwidth-controller = { version = "1.21.3", path = "common/bandwidth-controller" }
+nym-bandwidth-fetcher = { version = "1.21.3", path = "common/bandwidth-fetcher" }
 nym-bin-common = { version = "1.21.3", path = "common/bin-common" }
 nym-cache = { version = "1.21.3", path = "common/nym-cache" }
 nym-client-core = { version = "1.21.3", path = "common/client-core", default-features = false }
@@ -446,7 +447,6 @@ nym-config = { version = "1.21.3", path = "common/config" }
 nym-contracts-common = { version = "1.21.3", path = "common/cosmwasm-smart-contracts/contracts-common" }
 nym-coconut-dkg-common = { version = "1.21.3", path = "common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-credential-storage = { version = "1.21.3", path = "common/credential-storage" }
-nym-credential-utils = { version = "1.21.3", path = "common/credential-utils" }
 nym-credential-proxy-lib = { version = "1.21.3", path = "common/credential-proxy" }
 nym-credentials = { version = "1.21.3", path = "common/credentials", default-features = false }
 nym-credentials-interface = { version = "1.21.3", path = "common/credentials-interface" }

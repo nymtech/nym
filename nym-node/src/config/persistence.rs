@@ -332,6 +332,7 @@ impl NetworkRequesterPaths {
 
             // not needed for embedded providers
             credentials_database: Default::default(),
+            credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
         }
     }
@@ -412,6 +413,7 @@ impl IpPacketRouterPaths {
 
             // not needed for embedded providers
             credentials_database: Default::default(),
+            credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
         }
     }
@@ -492,6 +494,7 @@ impl AuthenticatorPaths {
 
             // not needed for embedded providers
             credentials_database: Default::default(),
+            credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
         }
     }

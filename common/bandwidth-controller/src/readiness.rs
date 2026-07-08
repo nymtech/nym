@@ -89,7 +89,9 @@ impl ReadinessRequest {
             }
             ReadinessStatus::FetchFailed(reason) => {
                 self.return_sender
-                    .send(Err(BandwidthControllerError::TicketbookFetchFailed { reason }));
+                    .send(Err(BandwidthControllerError::TicketbookFetchFailed {
+                        reason,
+                    }));
                 None
             }
         }

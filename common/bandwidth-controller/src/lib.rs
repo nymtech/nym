@@ -14,8 +14,10 @@ pub use traits::{
     CredentialPublicDataFetcher, FetcherError,
 };
 
+pub mod config;
 mod controller;
 pub mod error;
+mod in_flight;
 pub mod mock;
 mod readiness;
 pub mod requests;

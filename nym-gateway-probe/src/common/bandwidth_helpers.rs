@@ -1,9 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::{Context, bail};
+use anyhow::bail;
 use nym_bandwidth_controller::BandwidthTicketProvider;
-use nym_bandwidth_controller::error::BandwidthControllerError;
 use nym_bandwidth_controller::mock::MockBandwidthController;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
 use nym_credentials::{
@@ -17,6 +16,7 @@ use nym_sdk::mixnet::{CredentialStorage, DisconnectedMixnetClient, EphemeralCred
 use nym_validator_client::nyxd::error::NyxdError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info};
 
@@ -45,7 +45,7 @@ where
         Ok(Box::new(
             nym_bandwidth_controller::BandwidthController::new(storage)
                 .with_credential_public_data_fetcher(
-                    nym_bandwidth_controller::NyxdGlobalDataFetcher::new(rpc_client),
+                    nym_bandwidth_fetcher::NyxdGlobalDataFetcher::new(Arc::new(rpc_client)),
                 ),
         ))
     } else {
@@ -113,6 +113,32 @@ pub(crate) async fn import_bandwidth(
     Ok(())
 }
 
+/// Walks the error's source chain looking for an underlying nyxd error, wherever it's wrapped.
+fn find_nyxd_error<'a>(err: &'a (dyn std::error::Error + 'static)) -> Option<&'a NyxdError> {
+    let mut current = Some(err);
+    while let Some(source) = current {
+        if let Some(nyxd) = source.downcast_ref::<NyxdError>() {
+            return Some(nyxd);
+        }
+        current = source.source();
+    }
+    None
+}
+
+/// Whether a nyxd error is an account-sequence mismatch. The log has to be string-matched since it
+/// originates from the go nyxd binary.
+fn is_account_sequence_mismatch(err: &NyxdError) -> bool {
+    match err {
+        // happens when sequence issue occurs during tx delivery
+        NyxdError::BroadcastTxErrorDeliverTx { raw_log, .. } => {
+            raw_log.contains("account sequence mismatch")
+        }
+        // happens when sequence issue occurs during tx simulate
+        NyxdError::AbciError { log, .. } => log.contains("account sequence mismatch"),
+        _ => false,
+    }
+}
+
 pub(crate) async fn acquire_bandwidth(
     mnemonic: &str,
     disconnected_mixnet_client: &DisconnectedMixnetClient<OnDiskPersistent>,
@@ -138,66 +164,12 @@ pub(crate) async fn acquire_bandwidth(
                 }
                 return Ok(());
             }
-            Err(nym_sdk::Error::CredentialIssuanceError { source }) => match source {
-                nym_credential_utils::errors::Error::BandwidthControllerError(
-                    BandwidthControllerError::Nyxd(nyxd_error),
-                ) => match nyxd_error {
-                    // happens when sequence issue occurs during tx delivery
-                    NyxdError::BroadcastTxErrorDeliverTx {
-                        hash,
-                        height,
-                        code,
-                        raw_log,
-                    } => {
-                        // unfortunately at this point we have to do string matching as the log
-                        // is returned from the go nyxd binary
-                        if raw_log.contains("account sequence mismatch") {
-                            error!(
-                                "another process is using the same mnemonic. we failed to broadcast transaction {hash} due to mismatched sequence number"
-                            )
-                        } else {
-                            return Err(NyxdError::BroadcastTxErrorDeliverTx {
-                                hash,
-                                height,
-                                code,
-                                raw_log,
-                            }
-                            .into());
-                        }
-                    }
-                    // happens when sequence issue occurs during tx simulate
-                    NyxdError::AbciError {
-                        code,
-                        log,
-                        pretty_log,
-                    } => {
-                        // unfortunately at this point we have to do string matching as the log
-                        // is returned from the go nyxd binary
-                        if log.contains("account sequence mismatch") {
-                            error!(
-                                "another process is using the same mnemonic. we failed to simulate transaction due to mismatched sequence number"
-                            )
-                        } else {
-                            return Err(NyxdError::AbciError {
-                                code,
-                                log,
-                                pretty_log,
-                            }
-                            .into());
-                        }
-                    }
-                    other => {
-                        return Err(other)
-                            .context("another nyxd failure during bandwidth acquisition");
-                    }
-                },
-                other => {
-                    return Err(other.into());
-                }
+            Err(err) => match find_nyxd_error(&err) {
+                Some(nyxd) if is_account_sequence_mismatch(nyxd) => error!(
+                    "another process is using the same mnemonic; a transaction failed due to a mismatched account sequence - retrying"
+                ),
+                _ => return Err(err.into()),
             },
-            Err(other) => {
-                return Err(other.into());
-            }
         }
 
         // add a bit of backoff as if the rpc node is slightly out of sync,

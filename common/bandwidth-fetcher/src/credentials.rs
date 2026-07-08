@@ -9,19 +9,19 @@ use nym_bandwidth_controller::{
     TicketType,
 };
 use nym_credentials::{
-    obtain_aggregate_wallet, AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
-    EpochVerificationKey, IssuanceTicketBook, IssuedTicketBook,
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
+    IssuanceTicketBook, IssuedTicketBook, obtain_aggregate_wallet,
 };
 use nym_crypto::asymmetric::ed25519;
-use nym_ecash_time::{ecash_default_expiration_date, Date, OffsetDateTime};
+use nym_ecash_time::{Date, OffsetDateTime, ecash_default_expiration_date};
 use nym_validator_client::{
     nym_api::EpochId,
     nyxd::{
+        Coin, CosmWasmClient,
         contract_traits::{
-            dkg_query_client::EpochState, DkgQueryClient, EcashQueryClient, EcashSigningClient,
+            DkgQueryClient, EcashQueryClient, EcashSigningClient, dkg_query_client::EpochState,
         },
         cosmwasm_client::ContractResponseData,
-        Coin, CosmWasmClient,
     },
     signing::signer::OfflineSigner,
 };
@@ -30,8 +30,8 @@ use tracing::{debug, error, info, warn};
 use zeroize::Zeroizing;
 
 use crate::{
-    error::NyxdFetcherError, storage::PendingCredentialRequestsStorage, EcashApiClientsCache,
-    NyxdGlobalDataFetcher,
+    EcashApiClientsCache, NyxdGlobalDataFetcher, error::NyxdFetcherError,
+    storage::PendingCredentialRequestsStorage,
 };
 
 /// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
@@ -76,18 +76,6 @@ where
         })
     }
 
-    /// Like [`Self::new`], but places the pending-request DB at the default filename inside `data_dir`.
-    pub async fn new_from_dir(
-        client: Arc<C>,
-        data_dir: impl AsRef<Path>,
-        client_id: Zeroizing<Vec<u8>>,
-    ) -> Result<Self, NyxdFetcherError> {
-        let mut db_path = data_dir.as_ref().to_path_buf();
-        db_path.push("credential_requests.db");
-
-        Self::new(client, db_path, client_id).await
-    }
-
     async fn block_until_ecash_is_available(&self) -> Result<(), NyxdFetcherError> {
         loop {
             let epoch = self.client.get_current_epoch().await?;
@@ -98,17 +86,19 @@ where
             } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
                 // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
                 let secs_until_final = final_timestamp.saturating_sub(current_timestamp_secs) + 1;
-                info!("Approximately {secs_until_final} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.");
+                info!(
+                    "Approximately {secs_until_final} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment."
+                );
                 tokio::time::sleep(Duration::from_secs(secs_until_final)).await;
             } else if matches!(epoch.state, EpochState::WaitingInitialisation) {
-                info!("dkg hasn't been initialised yet and it is not known when it will be. Going to check again later");
+                info!(
+                    "dkg hasn't been initialised yet and it is not known when it will be. Going to check again later"
+                );
                 tokio::time::sleep(Duration::from_secs(60 * 5)).await;
             } else {
                 // this should never be the case since the only case where final timestamp is unknown is when it's waiting for initialisation,
                 // but let's guard ourselves against future changes
-                info!(
-                    "it is unknown when ecash will become available. Going to check again later"
-                );
+                info!("it is unknown when ecash will become available. Going to check again later");
                 tokio::time::sleep(Duration::from_secs(60 * 5)).await;
             }
         }
@@ -140,22 +130,30 @@ where
         for issuance in incomplete {
             let deposit = issuance.pending_ticketbook.deposit_id();
             if issuance.pending_ticketbook.expired() {
-                warn!("ticketbook data associated with deposit {deposit} has expired. if you haven't contacted more than 1/3 of signers. it could still be recoverable (but out of scope of this library)");
+                warn!(
+                    "ticketbook data associated with deposit {deposit} has expired. if you haven't contacted more than 1/3 of signers. it could still be recoverable (but out of scope of this library)"
+                );
                 continue;
             }
 
             if issuance.pending_ticketbook.check_expiration_date() {
-                warn!("deposit {deposit} was made with a different expiration date, its validity will be shorter than the max one");
+                warn!(
+                    "deposit {deposit} was made with a different expiration date, its validity will be shorter than the max one"
+                );
             }
 
             match self.obtain_ticketbook(&issuance.pending_ticketbook).await {
                 Err(err) => error!("could not recover deposit {deposit} due to: {err}"),
                 Ok(issued) => {
                     recovered_books.push(NymCredential::Ticketbook(Box::new(issued)));
-                    info!("managed to recover deposit {deposit}! the ticketbook has been added to the storage");
-                    self.pending_storage
+                    info!("managed to recover deposit {deposit}! ");
+                    if let Err(e) = self
+                        .pending_storage
                         .remove_pending_ticketbook(issuance.pending_id)
-                        .await?;
+                        .await
+                    {
+                        warn!("Failed to remove the data from pending storage : {e}");
+                    };
                 }
             }
         }
@@ -181,7 +179,7 @@ where
 
         let apis = self.ecash_api_clients.get(&*self.client, epoch_id).await?;
 
-        log::info!("Querying wallet signatures");
+        info!("Querying wallet signatures");
         let wallet = obtain_aggregate_wallet(issuance_data, &apis, threshold).await?;
         info!("managed to obtain sufficient number of partial signatures!");
 
@@ -198,16 +196,16 @@ where
         expiration: Date,
         ticketbook_type: TicketType,
     ) -> Result<IssuanceTicketBook, NyxdFetcherError> {
-        // serialise deposits: overlapping fetches would otherwise race the account sequence number.
-        // `make_ticketbook_deposit` broadcasts-and-waits-for-commit, so by the time the tx returns
-        // the sequence has advanced on-chain - holding the lock across it is enough.
-        let _deposit_guard = self.deposit_lock.lock().await;
-
         let mut rng = OsRng;
         let signing_key = ed25519::PrivateKey::new(&mut rng);
 
         let deposit_amount = self.client.get_default_deposit_amount().await?;
         info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
+
+        // serialise deposits: overlapping fetches would otherwise race the account sequence number.
+        // `make_ticketbook_deposit` broadcasts-and-waits-for-commit, so by the time the tx returns
+        // the sequence has advanced on-chain - holding the lock across it is enough.
+        let _deposit_guard = self.deposit_lock.lock().await;
         let result = self
             .client
             .make_ticketbook_deposit(
@@ -251,8 +249,8 @@ where
         );
 
         info!(
-        "this will require {nb_deposits} deposits that will cost approximately {total_deposits_cost}"
-    );
+            "this will require {nb_deposits} deposits that will cost approximately {total_deposits_cost}"
+        );
 
         let client_address = self.client.signer_addresses()[0].clone();
 
@@ -267,8 +265,8 @@ where
 
         if !sufficient_funds {
             warn!(
-            "insufficient funds for obtaining desired amount of ticketbooks. available: {available_balance} required (approximately): {total_deposits_cost}"
-        );
+                "insufficient funds for obtaining desired amount of ticketbooks. available: {available_balance} required (approximately): {total_deposits_cost}"
+            );
         }
         Ok(sufficient_funds)
     }
@@ -344,7 +342,7 @@ where
                 info!("Succeeded adding a ticketbook of type '{ticketbook_type}'");
                 Ok(vec![NymCredential::Ticketbook(Box::new(issued))])
             }
-            Err(_) => {
+            Err(e) => {
                 error!("failed to obtain credential. saving recovery data...");
 
                 self.pending_storage
@@ -356,7 +354,7 @@ where
                     })
                     .map_err(NyxdFetcherError::from)?;
 
-                Ok(vec![])
+                Err(e.into())
             }
         }
     }
@@ -377,10 +375,8 @@ where
 #[cfg(feature = "recovery")]
 pub(crate) mod recovery {
     use super::*;
-    use std::ops::Deref;
 
-    /// Recover-only view over [`NyxdCredentialFetcher`]: reuses all of its query/recovery logic via
-    /// `Deref`, but its `CredentialFetcher` impl only recovers pending deposits (never makes new
+    /// Recover-only view over [`NyxdCredentialFetcher`]: its `CredentialFetcher` impl only recovers pending deposits (never makes new
     /// ones), so it works with a plain query client.
     pub struct NyxdRecoveryFetcher<C>(NyxdCredentialFetcher<C>);
 
@@ -396,13 +392,6 @@ pub(crate) mod recovery {
             Ok(Self(
                 NyxdCredentialFetcher::new(client, db_path, Zeroizing::new(Vec::new())).await?,
             ))
-        }
-    }
-
-    impl<C> Deref for NyxdRecoveryFetcher<C> {
-        type Target = NyxdCredentialFetcher<C>;
-        fn deref(&self) -> &Self::Target {
-            &self.0
         }
     }
 
@@ -447,9 +436,9 @@ pub(crate) mod recovery {
             &self,
             ticketbook_type: TicketType,
         ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
-            self.block_until_ecash_is_available().await?;
+            self.0.block_until_ecash_is_available().await?;
 
-            let recovered_ticketbooks = self.recover_deposits(ticketbook_type).await?;
+            let recovered_ticketbooks = self.0.recover_deposits(ticketbook_type).await?;
             info!(
                 "managed to recover {} ticket books",
                 recovered_ticketbooks.len()
@@ -458,7 +447,7 @@ pub(crate) mod recovery {
         }
 
         async fn cleanup(&self) {
-            self.pending_storage.close().await;
+            self.0.pending_storage.close().await;
         }
 
         async fn reset(mut self) -> Result<(), CredentialFetcherError> {

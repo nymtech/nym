@@ -34,10 +34,10 @@ nym-client-core = { workspace = true, features = [
 nym-crypto = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-storage = { workspace = true }
-nym-credential-utils = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-lp-data = { workspace = true }
 nym-sphinx = { workspace = true }

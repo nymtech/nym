@@ -1,13 +1,13 @@
-// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credentials::{ecash::bandwidth::serialiser::VersionedSerialise, IssuanceTicketBook};
+use nym_credentials::{IssuanceTicketBook, ecash::bandwidth::serialiser::VersionedSerialise};
 use nym_sqlx_pool_guard::SqlitePoolGuard;
 
 use sqlite::SqliteZkNymRequestsStorageManager;
 use sqlx::{
-    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     ConnectOptions,
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
 };
 use std::{
     path::{Path, PathBuf},

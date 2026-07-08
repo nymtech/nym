@@ -84,12 +84,6 @@ pub enum Error {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
-    #[error(transparent)]
-    CredentialIssuanceError {
-        #[from]
-        source: nym_credential_utils::Error,
-    },
-
     #[error("loaded shared gateway key without providing information about what gateway it corresponds to")]
     GatewayWithUnknownEndpoint,
 

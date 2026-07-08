@@ -798,6 +798,7 @@ where
             client_id,
             ticketbook_type,
         )
+        .await
     }
 
     pub fn begin_bandwidth_import(&self) -> BandwidthImporter<'_, S::CredentialStore> {

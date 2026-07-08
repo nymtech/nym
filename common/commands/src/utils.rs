@@ -163,7 +163,7 @@ impl CommonConfigsWrapper {
                 .storage_paths
                 .credentials_request_path
                 .clone()),
-            CommonConfigsWrapper::Unknown(_cfg) => todo!(),
+            CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_credential_requests_store(),
         }
     }
 }
@@ -254,6 +254,19 @@ impl UnknownConfigWrapper {
             Ok(credentials_store.parse()?)
         } else {
             bail!("no 'credentials_database_path' field present in the config")
+        }
+    }
+
+    pub(crate) fn try_get_credential_requests_store(&self) -> anyhow::Result<PathBuf> {
+        let id_val = self
+            .find_value("credential_requests_database_path")
+            .ok_or_else(|| {
+                anyhow!("no 'credential_requests_database_path' field present in the config")
+            })?;
+        if let toml::Value::String(credential_requests_store) = id_val {
+            Ok(credential_requests_store.parse()?)
+        } else {
+            bail!("no 'credential_requests_database_path' field present in the config")
         }
     }
 

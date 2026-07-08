@@ -237,6 +237,7 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     async fn handle_set_credential_fetcher(&mut self, fetcher: Option<Arc<dyn CredentialFetcher>>) {
+        self.in_flight.cancel_and_join().await;
         if let Some(old_fetcher) = self.credential_fetcher.take() {
             old_fetcher.cleanup().await;
         }

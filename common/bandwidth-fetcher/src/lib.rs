@@ -1,23 +1,24 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NyxdFetcherError;
+
+use nym_ecash_time::OffsetDateTime;
+use nym_validator_client::EcashApiClient;
+use nym_validator_client::coconut::{EcashApiError, all_ecash_api_clients};
+use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+
+use arc_swap::ArcSwapOption;
 use std::sync::Arc;
 use std::time::Duration;
 
-use arc_swap::ArcSwapOption;
-use nym_ecash_time::OffsetDateTime;
-use nym_validator_client::coconut::{all_ecash_api_clients, EcashApiError};
-use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_validator_client::EcashApiClient;
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "recovery"))]
-pub use credentials::recovery::NyxdRecoveryFetcher;
-#[cfg(not(target_arch = "wasm32"))]
-pub use credentials::NyxdCredentialFetcher;
 pub use public_data::NyxdGlobalDataFetcher;
 
-use crate::error::NyxdFetcherError;
+#[cfg(not(target_arch = "wasm32"))]
+pub use credentials::NyxdCredentialFetcher;
+#[cfg(all(not(target_arch = "wasm32"), feature = "recovery"))]
+pub use credentials::recovery::NyxdRecoveryFetcher;
 
 // credential issuance/recovery is backed by a sqlite pending-requests store, so it's native-only.
 // wasm only uses the storage-free `NyxdGlobalDataFetcher`.

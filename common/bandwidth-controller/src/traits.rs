@@ -12,6 +12,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime};
 use nym_validator_client::nym_api::EpochId;
 
+use crate::error::FetcherErrorKind;
+use crate::NymCredential;
 use crate::{error::BandwidthControllerError, PreparedCredential, PreparedCredentialMetadata};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -67,12 +69,42 @@ impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box
     }
 }
 
-// This isn't an associated type because
-// a) it would make it dyn-incompatible and we want it
-// b) BandwidthController will pack everything its own variant anyway
+/// Boxed, dyn-compatible fetcher error. Deliberately a boxed trait object rather than an associated
+/// type on [`CredentialFetcher`]: an associated type would make the trait dyn-incompatible, and the
+/// controller wraps it in its own [`crate::error::BandwidthControllerError`] anyway.
+pub type CredentialFetcherError = Box<dyn FetcherError>;
 
 /// Error any fetcher implementation may return; the controller wraps it with context.
-pub type FetcherError = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub trait FetcherError: std::error::Error + Send + Sync + 'static {
+    /// Coarse category the controller can branch on without knowing the concrete error type.
+    fn kind(&self) -> FetcherErrorKind;
+}
+
+// so `?` converts any concrete fetcher error into the boxed form
+impl<E: FetcherError> From<E> for CredentialFetcherError {
+    fn from(e: E) -> Self {
+        Box::new(e)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait CredentialFetcher: CredentialPublicDataFetcher + Send + Sync {
+    /// Fetches (or recovers) ticketbooks of the given type. The controller does **not** retry on
+    /// failure - retrying transient errors is the fetcher's responsibility. Recovery can yield
+    /// several ticketbooks of the same type, hence the `Vec`.
+    async fn fetch_ticketbooks(
+        &self,
+        ticketbook_type: TicketType,
+    ) -> Result<Vec<NymCredential>, CredentialFetcherError>;
+
+    /// Persists any in-progress state (e.g. closing storage) before the fetcher is dropped, such
+    /// that it can be resumed later.
+    async fn cleanup(&self);
+
+    /// Wipes the fetcher's long-term data (e.g. removes its storage).
+    async fn reset(self) -> Result<(), CredentialFetcherError>;
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -80,16 +112,16 @@ pub trait CredentialPublicDataFetcher: Send + Sync {
     async fn fetch_master_verification_key(
         &self,
         epoch_id: EpochId,
-    ) -> Result<EpochVerificationKey, FetcherError>;
+    ) -> Result<EpochVerificationKey, CredentialFetcherError>;
 
     async fn fetch_coin_index_signatures(
         &self,
         epoch_id: EpochId,
-    ) -> Result<AggregatedCoinIndicesSignatures, FetcherError>;
+    ) -> Result<AggregatedCoinIndicesSignatures, CredentialFetcherError>;
 
     async fn fetch_expiration_date_signatures(
         &self,
         expiration_date: Date,
         epoch_id: EpochId,
-    ) -> Result<AggregatedExpirationDateSignatures, FetcherError>;
+    ) -> Result<AggregatedExpirationDateSignatures, CredentialFetcherError>;
 }

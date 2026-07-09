@@ -26,32 +26,35 @@ New crate at `common/directory-attestation/` (package `nym-directory-attestation
 light deps only - no `nym-validator-client` (see `design.md` D1). This is the library
 imported by the producer (nym-api, later nym-node) and the verifying client.
 
-- [ ] 2.1 Scaffold `Cargo.toml` (deps: `nym-crypto`, `serde`, `cosmrs`/`tendermint`, `nym-lthash` with `serde`+`Hash`,
+- [x] 2.1 Scaffold `Cargo.toml` (deps: `nym-crypto`, `serde`, `cosmrs`/`tendermint`, `nym-lthash` with `serde`+`Hash`,
   `blake3`, `nym-mixnet-contract-common`, `async-trait`) and register it as a workspace member
-- [ ] 2.2 Move `DigestSnapshot`, `SignedDigestSnapshot`, `digest_snapshot_signing_payload`, and
+- [x] 2.2 Move `DigestSnapshot`, `SignedDigestSnapshot`, `digest_snapshot_signing_payload`, and
   `SignedDigestSnapshot::verify` from `nym-directory-client::anchor::attested` into this crate (make them `pub`),
   keeping their existing behavior byte-for-byte
-- [ ] 2.3 Move `node_identities_hash` from `nym-directory-client::verify` into this crate (`pub`); leave
+- [x] 2.3 Move `node_identities_hash` from `nym-directory-client::verify` into this crate (`pub`); leave
   `recompute_accumulator` in `nym-directory-client` (consumer-only - the producer reads the on-chain digest / verifies
   via its anchor rather than recomputing)
-- [ ] 2.4 Move the `AttestationSource` trait here (`pub`); the concrete HTTP impl stays in `nym-directory-client` (task
+- [x] 2.4 Move the `AttestationSource` trait here (`pub`); the concrete HTTP impl stays in `nym-directory-client` (task
     3)
-- [ ] 2.5 Move the corresponding unit tests (snapshot payload determinism/field-sensitivity, domain-tagging, `verify`
+- [x] 2.5 Move the corresponding unit tests (snapshot payload determinism/field-sensitivity, domain-tagging, `verify`
   accept/reject, `node_identities_hash` determinism/sensitivity) into this crate; confirm they pass unchanged
-- [ ] 2.6 Add the generic subset types:
-  `trait DirectorySubset { const SUBSET_ID: &'static str; fn canonical_bytes(&self) -> Vec<u8>; }`,
-  `SubsetDigest { chain_id, height, subset_id, hash: [u8; 32] }`, `SignedSubsetDigest { digest, signer, signature }`,
-  `AttestedSubset<T: DirectorySubset> { signed_digest, data }` (all `Serialize`/`Deserialize`; signature/pubkey typed
-  but decode-tolerant per the `SignedDigestSnapshot` precedent)
-- [ ] 2.7 Add the subset canonical hash encoder (domain-tagged, distinct from the snapshot tag;
-  `hash = blake3(SUBSET_ID || height || canonical_bytes(data))` with length-prefixed framing) and
-  `SignedSubsetDigest::verify(trusted, chain_id)` mirroring `SignedDigestSnapshot::verify`
-- [ ] 2.8 Add the signer-agnostic producer core: `build_and_sign_snapshot(inputs, &keypair) -> SignedDigestSnapshot` and
-  `sign_subset<T: DirectorySubset>(chain_id, height, &data, &keypair) -> AttestedSubset<T>` (pure over pre-fetched
-  inputs; no chain/RPC/HTTP)
-- [ ] 2.9 Unit tests: subset digest deterministic + tamper-sensitive (data change flips the hash), `verify`
-  accept/reject (untrusted signer, wrong chain-id, forged signature), and a dummy-subset round-trip (`sign_subset` ->
-  `SignedSubsetDigest::verify` -> recompute `canonical_bytes` matches `digest.hash`)
+- [x] 2.6 Add the generic subset types. `DirectorySubset` is a symmetric canonical codec, not just an encoder
+  (`trait DirectorySubset: Sized { const SUBSET_ID; fn to_canonical_bytes(&self) -> Vec<u8>; fn from_canonical_bytes(&[u8]) -> Result<Self, SubsetDecodeError>; }`),
+  because the canonical bytes are the single wire form (transported AND hashed), so a verifier checks the commitment
+  over exactly the bytes received then decodes - see `design.md` D3a. `SubsetDigest { chain_id, height, subset_id, hash: [u8; 32] }`,
+  `SignedSubsetDigest { digest, signer, signature }`, and a NON-generic `AttestedSubset { signed_digest, canonical_data: Vec<u8> }`
+  (all `Serialize`/`Deserialize`); added `SubsetDecodeError` in `error.rs`
+- [x] 2.7 Add the subset hash encoder (domain-tagged, distinct from the snapshot tag): bytes-based
+  `subset_hash(subset_id, height, canonical_data) = blake3(tag || len(id) || id || height || len(data) || data)`
+  plus the typed convenience `subset_data_hash<T>(&data, height) = subset_hash(T::SUBSET_ID, height, &data.to_canonical_bytes())`,
+  and `SignedSubsetDigest::verify(trusted, chain_id)` mirroring `SignedDigestSnapshot::verify`
+- [x] 2.8 Add the signer-agnostic producer core: `build_and_sign_snapshot(inputs, &keypair) -> SignedDigestSnapshot` and
+  `sign_subset<T: DirectorySubset>(chain_id, height, &data, &keypair) -> AttestedSubset` (stores `data.to_canonical_bytes()`;
+  pure over pre-fetched inputs; no chain/RPC/HTTP)
+- [x] 2.9 Unit tests: subset hash deterministic + tamper-sensitive + height/id-sensitive, `verify` accept/reject
+  (untrusted signer, wrong chain-id, forged signature), `to/from_canonical_bytes` round-trip + malformed-decode
+  rejection, and a dummy-subset producer round-trip (`sign_subset` -> `SignedSubsetDigest::verify` -> `subset_hash`
+  over the received `canonical_data` matches `digest.hash` -> `from_canonical_bytes` reproduces the value)
 
 ## 3. `nym-directory-client` (consumer)
 

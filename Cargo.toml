@@ -190,6 +190,7 @@ members = [
     "nym-geolocator",
     "nym-geolocator/nym-geolocator-requests",
     "common/nym-directory-client",
+    "common/directory-attestation",
 ]
 
 default-members = [

@@ -1,0 +1,33 @@
+[package]
+name = "nym-directory-attestation"
+description = "Shared library for attesting the nym directory"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+async-trait = { workspace = true }
+blake3 = { workspace = true }
+cosmrs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-lthash = { workspace = true, features = ["serde"] }
+nym-mixnet-contract-common = { workspace = true }
+
+[dev-dependencies]
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-test-utils = { workspace = true }
+nym-directory-contract-common = { workspace = true }
+
+[lints]
+workspace = true

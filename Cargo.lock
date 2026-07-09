@@ -6875,6 +6875,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-attestation"
+version = "1.21.5-rc.3"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
+ "serde",
+ "thiserror 2.0.19",
+ "tracing",
+]
+
+[[package]]
 name = "nym-directory-client"
 version = "1.21.5-rc.3"
 dependencies = [

@@ -42,27 +42,36 @@ Rejected: folding this into `nym-api-requests`. It would make `nym-directory-cli
 The snapshot and a subset do different jobs: the snapshot is a tiny, hash-only trust-anchor bootstrap (quorum-signed, small, so bulk data can be fetched untrusted and re-checked); a subset *is* bulk data the client wants to use. Conflating them into one manifest was considered and rejected (it churns the landed anchor and loses the clean "small commitment vs bulk content" split). So `DigestSnapshot` stays exactly as shipped, and new data rides a separate mechanism:
 
 ```
-trait DirectorySubset { const SUBSET_ID: &'static str; fn canonical_bytes(&self) -> Vec<u8>; }
-struct SubsetDigest       { chain_id, height, subset_id, hash: [u8; 32] }   // blake3 over canonical_bytes
+trait DirectorySubset: Sized {                              // a symmetric canonical codec
+    const SUBSET_ID: &'static str;
+    fn to_canonical_bytes(&self) -> Vec<u8>;
+    fn from_canonical_bytes(&[u8]) -> Result<Self, SubsetDecodeError>;
+}
+struct SubsetDigest       { chain_id, height, subset_id, hash: [u8; 32] }   // hash = subset_hash(id, height, canonical_bytes)
 struct SignedSubsetDigest { digest: SubsetDigest, signer: ed25519::PublicKey, signature: ed25519::Signature }
-struct AttestedSubset<T>  { signed_digest: SignedSubsetDigest, data: T }     // T: DirectorySubset
+struct AttestedSubset     { signed_digest: SignedSubsetDigest, canonical_data: Vec<u8> }   // non-generic: carries the exact hashed bytes
 ```
 
-`node_identities_hash` stays grandfathered inside `DigestSnapshot` (it is load-bearing for the anchor's existing behavior and the full-directory path, D8); only *new* data uses the subset path. Down the road node-identities could be re-expressed as a subset, but not here.
+A subset's **canonical bytes are its single wire form** - the same bytes are transported and hashed, so a verifier checks the commitment over exactly what it received rather than a re-encoding of a serde round-trip (this is why `DirectorySubset` is a to/from codec, not just an encoder - see D3a). `node_identities_hash` stays grandfathered inside `DigestSnapshot` (it is load-bearing for the anchor's existing behavior and the full-directory path, D8); only *new* data uses the subset path. Down the road node-identities could be re-expressed as a subset, but not here.
 
 Trust flow (the generalization of the `node_identities_hash` pattern into a first-class mechanism):
 
 ```
 1. quorum:  ask K-of-N sources for SignedSubsetDigest(H, subset_id) -> reach_quorum on identical `hash`
-2. content: fetch ONE AttestedSubset<T> from any source (even untrusted)
-3. check:   blake3(canonical_bytes(data)) == digest.hash == quorum-agreed hash
+2. content: fetch ONE AttestedSubset from any source (even untrusted)
+3. check:   subset_hash(subset_id, H, &canonical_data) == digest.hash == quorum-agreed hash
+4. decode:  T::from_canonical_bytes(&canonical_data)   // only after (3) passes
 ```
 
-Invariant (spec-enforced): the recompute in step 3 is load-bearing (tampered data fails closed); a single `SignedSubsetDigest` never confers trust on its own - K distinct trusted signers on the same hash are always required.
+Invariant (spec-enforced): the recompute in step 3 is load-bearing (tampered data fails closed) and is computed over the exact received bytes; a single `SignedSubsetDigest` never confers trust on its own - K distinct trusted signers on the same hash are always required.
 
-### D3: `AttestedSubset<T>` carries the `SignedSubsetDigest`, not a bare `SubsetDigest`
+### D3: `AttestedSubset` carries the `SignedSubsetDigest`, not a bare `SubsetDigest`
 
-For ~96 bytes over the bulk data, the single response is self-verifying (verify signature over the digest, recompute hash over data), and its embedded `signed_digest` **reuses as exactly one quorum candidate** - so a client can fetch data + one vote from one source and ask only the *others* for the remaining votes. This mirrors the anchor's `refresh()` seed-reuse (fetch from one source, count it as a candidate, ask peers for the rest). The embedded digest gets no special trust for being the data-server: it is counted identically to a separately-fetched `SignedSubsetDigest`, and K distinct trusted signers are still required.
+For ~96 bytes over the bulk data, the single response is self-verifying (verify signature over the digest, recompute hash over the carried bytes), and its embedded `signed_digest` **reuses as exactly one quorum candidate** - so a client can fetch data + one vote from one source and ask only the *others* for the remaining votes. This mirrors the anchor's `refresh()` seed-reuse (fetch from one source, count it as a candidate, ask peers for the rest). The embedded digest gets no special trust for being the data-server: it is counted identically to a separately-fetched `SignedSubsetDigest`, and K distinct trusted signers are still required.
+
+### D3a: `DirectorySubset` is a symmetric codec; canonical bytes are the single wire form
+
+`AttestedSubset` carries `canonical_data: Vec<u8>` (not a typed `data: T` transported via serde). A subset's canonical encoding is therefore the *only* encoding - both what crosses the wire and what is hashed - so a verifier recomputes `subset_hash` over exactly the bytes it received (step 3) and then decodes the typed value via `DirectorySubset::from_canonical_bytes` (step 4, `SubsetDecodeError` on malformed input). The rejected alternative (`data: T` over serde JSON, hash recomputed by re-encoding `serde -> T -> canonical_bytes`) leaves two parallel encodings that a subset author must keep in lockstep and verifies the commitment against a re-encoding rather than the received bytes - the wrong trade for a verifiable-retrieval system. The only cost is subset payloads are opaque bytes in JSON rather than typed JSON; fine, since nym-api still serves the same data typed via its normal endpoints and the attested-subset path exists for verification, not introspection.
 
 ### D4: Subsets are scaffolding only in this change
 

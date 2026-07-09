@@ -118,6 +118,18 @@ impl NymApiTopologyProvider {
         let metadata = all_nodes_res.metadata;
         let all_nodes = all_nodes_res.nodes;
 
+        if rewarded_set.epoch_id != metadata.absolute_epoch_id {
+            // while technically the requests did succeed, they still returned data across epochs
+            // so the responses were internally inconsistent
+            return Err(NymAPIError::InternalResponseInconsistency {
+                url: self.validator_client.current_url().clone().into(),
+                details: format!(
+                    "retrieved rewarded set information for different epoch than the nodes details {} and {}",
+                    rewarded_set.epoch_id, metadata.absolute_epoch_id
+                ),
+            });
+        }
+
         debug!(
             "there are {} nodes on the network (before filtering)",
             all_nodes.len()
@@ -170,6 +182,18 @@ impl NymApiTopologyProvider {
             return Err(NymAPIError::InternalResponseInconsistency {
                 url: self.validator_client.current_url().clone().into(),
                 details: msg,
+            });
+        }
+
+        // finally, compare epoch for the rewarded set and the nodes
+        // (we might have got rewarded set for epoch 123, but mixnodes AND gateways for 124
+        if rewarded_set.epoch_id != metadata.absolute_epoch_id {
+            return Err(NymAPIError::InternalResponseInconsistency {
+                url: self.validator_client.current_url().clone().into(),
+                details: format!(
+                    "retrieved rewarded set information for different epoch than the nodes details {} and {}",
+                    rewarded_set.epoch_id, metadata.absolute_epoch_id
+                ),
             });
         }
 

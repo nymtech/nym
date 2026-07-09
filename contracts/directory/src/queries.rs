@@ -15,7 +15,7 @@ use nym_directory_contract_common::{
     AllEntriesPagedResponse, AllowedLabelsResponse, AnnotatedNodeLabelEntry,
     CuratedEntriesPagedResponse, CuratedEntryResponse, CuratedLabelEntry, DigestResponse,
     DirectoryContractError, EntryKey, LabelEntry, NodeEntriesPagedResponse, NodeEntriesResponse,
-    NodeEntryResponse, NodeLabelEntry, SequenceResponse,
+    NodeEntryResponse, NodeLabelEntry, SequenceResponse, SnapshotIntervalResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -199,6 +199,13 @@ pub(crate) fn query_allowed_labels(
         .map(|res| res.map(|(label, config)| LabelEntry { label, config }))
         .collect::<StdResult<Vec<_>>>()?;
     Ok(AllowedLabelsResponse { labels })
+}
+
+pub(crate) fn query_snapshot_interval(
+    deps: Deps,
+) -> Result<SnapshotIntervalResponse, DirectoryContractError> {
+    let interval = NYM_DIRECTORY_CONTRACT_STORAGE.load_snapshot_interval(deps.storage)?;
+    Ok(SnapshotIntervalResponse { interval })
 }
 
 #[cfg(test)]

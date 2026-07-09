@@ -432,6 +432,11 @@ pub struct AllEntriesPagedResponse {
     pub start_next_after: Option<EntryKey>,
 }
 
+#[cw_serde]
+pub struct SnapshotIntervalResponse {
+    pub interval: u32,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

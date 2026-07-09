@@ -6,17 +6,19 @@
 use crate::queries::{
     query_admin, query_all_entries, query_allowed_labels, query_curated_entries_paged,
     query_curated_entry, query_digest, query_node_entries, query_node_entries_paged,
-    query_node_entry, query_sequence,
+    query_node_entry, query_sequence, query_snapshot_interval,
 };
 use crate::storage::NYM_DIRECTORY_CONTRACT_STORAGE;
 use crate::transactions::{
     try_delete_node_entry, try_handle_node_unbonding, try_remove_curated_entry, try_remove_label,
     try_set_curated_entry, try_set_label, try_set_node_entry, try_update_admin,
+    try_update_snapshot_interval,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
 use nym_contracts_common::set_build_information;
+use nym_directory_contract_common::constants::DEFAULT_SNAPSHOT_INTERVAL;
 use nym_directory_contract_common::{
     DirectoryContractError, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
@@ -44,6 +46,7 @@ pub fn instantiate(
         deps,
         info.sender,
         mixnet_contract_address,
+        msg.snapshot_interval.unwrap_or(DEFAULT_SNAPSHOT_INTERVAL),
         msg.initial_labels,
     )?;
 
@@ -79,6 +82,9 @@ pub fn execute(
         ExecuteMsg::RemoveLabel { label } => try_remove_label(deps, info, label),
         ExecuteMsg::UpdateAdmin { admin } => try_update_admin(deps, info, admin),
         ExecuteMsg::OnNymNodeUnbond { node_id } => try_handle_node_unbonding(deps, info, node_id),
+        ExecuteMsg::UpdateSnapshotInterval { interval } => {
+            try_update_snapshot_interval(deps, info, interval)
+        }
     }
 }
 
@@ -109,6 +115,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, DirectoryCo
         QueryMsg::Sequence { node_id } => Ok(to_json_binary(&query_sequence(deps, node_id)?)?),
         QueryMsg::Digest {} => Ok(to_json_binary(&query_digest(deps)?)?),
         QueryMsg::AllowedLabels {} => Ok(to_json_binary(&query_allowed_labels(deps)?)?),
+        QueryMsg::SnapshotInterval {} => Ok(to_json_binary(&query_snapshot_interval(deps)?)?),
     }
 }
 
@@ -152,6 +159,7 @@ mod tests {
                 message_info(&some_sender, &[]),
                 InstantiateMsg {
                     mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: None,
                     initial_labels: vec![],
                 },
             )?;
@@ -178,6 +186,7 @@ mod tests {
                 message_info(&sender, &[]),
                 InstantiateMsg {
                     mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: None,
                     initial_labels: vec![],
                 },
             )?;
@@ -202,6 +211,7 @@ mod tests {
                 message_info(&sender, &[]),
                 InstantiateMsg {
                     mixnet_contract_address: "not-a-valid-bech32-address".to_string(),
+                    snapshot_interval: None,
                     initial_labels: vec![],
                 },
             );
@@ -222,6 +232,7 @@ mod tests {
                 message_info(&sender, &[]),
                 InstantiateMsg {
                     mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: None,
                     initial_labels: vec![],
                 },
             )?;
@@ -231,6 +242,77 @@ mod tests {
             assert_eq!(version.version, CONTRACT_VERSION);
 
             Ok(())
+        }
+
+        #[test]
+        fn defaults_the_snapshot_interval_when_unset() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: None,
+                    initial_labels: vec![],
+                },
+            )?;
+
+            assert_eq!(
+                query_snapshot_interval(deps.as_ref())?.interval,
+                DEFAULT_SNAPSHOT_INTERVAL
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn persists_an_explicit_snapshot_interval() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: Some(250),
+                    initial_labels: vec![],
+                },
+            )?;
+
+            assert_eq!(query_snapshot_interval(deps.as_ref())?.interval, 250);
+            Ok(())
+        }
+
+        #[test]
+        fn rejects_a_zero_snapshot_interval() {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mixnet_contract_address = deps.api.addr_make("mixnet-contract");
+            let sender = deps.api.addr_make("some_sender");
+
+            let res = instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&sender, &[]),
+                InstantiateMsg {
+                    mixnet_contract_address: mixnet_contract_address.to_string(),
+                    snapshot_interval: Some(0),
+                    initial_labels: vec![],
+                },
+            );
+
+            assert_eq!(
+                res.unwrap_err(),
+                DirectoryContractError::InvalidSnapshotInterval
+            );
         }
     }
 }

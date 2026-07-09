@@ -4,7 +4,7 @@
 //! State-mutating execute handlers.
 
 use crate::storage::NYM_DIRECTORY_CONTRACT_STORAGE;
-use cosmwasm_std::{Api, Binary, Deps, DepsMut, Empty, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{Api, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response};
 use nym_directory_contract_common::constants::{events, MAX_LABEL_SIZE_CEILING};
 use nym_directory_contract_common::{
     node_signing_payload, CuratedEntry, DirectoryContractError, LabelConfig, NodeEntry,
@@ -265,7 +265,7 @@ pub(crate) fn try_update_admin(
     let new_admin = deps.api.addr_validate(&admin)?;
     Ok(NYM_DIRECTORY_CONTRACT_STORAGE
         .contract_admin
-        .execute_update_admin::<Empty, _>(deps, info, Some(new_admin))?)
+        .execute_update_admin(deps, info, Some(new_admin))?)
 }
 
 // ---- mixnet unbond callback ----
@@ -298,6 +298,23 @@ pub(crate) fn try_handle_node_unbonding(
     ))
 }
 
+pub(crate) fn try_update_snapshot_interval(
+    deps: DepsMut,
+    info: MessageInfo,
+    interval: u32,
+) -> Result<Response, DirectoryContractError> {
+    NYM_DIRECTORY_CONTRACT_STORAGE
+        .contract_admin
+        .assert_admin(deps.as_ref(), &info.sender)?;
+
+    if interval == 0 {
+        return Err(DirectoryContractError::InvalidSnapshotInterval);
+    }
+
+    NYM_DIRECTORY_CONTRACT_STORAGE.save_snapshot_interval(deps.storage, interval)?;
+    Ok(Response::new())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,6 +342,92 @@ mod tests {
                 label: "sphinx_key".to_string()
             }
         );
+    }
+
+    mod snapshot_interval {
+        use super::*;
+        use crate::queries::query_snapshot_interval;
+        use crate::testing::init_contract_tester;
+        use cosmwasm_std::testing::message_info;
+        use cw_controllers::AdminError;
+        use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+        use nym_directory_contract_common::constants::DEFAULT_SNAPSHOT_INTERVAL;
+        use nym_lthash::LtHash16;
+
+        fn not_admin() -> DirectoryContractError {
+            DirectoryContractError::Admin(AdminError::NotAdmin {})
+        }
+
+        #[test]
+        fn admin_can_update_the_interval_and_it_is_queryable() {
+            let mut tester = init_contract_tester();
+            let admin = tester.admin_msg();
+
+            // a fresh contract carries the default interval, and it is queryable
+            assert_eq!(
+                query_snapshot_interval(tester.deps()).unwrap().interval,
+                DEFAULT_SNAPSHOT_INTERVAL
+            );
+
+            try_update_snapshot_interval(tester.deps_mut(), admin, 250).unwrap();
+
+            assert_eq!(
+                query_snapshot_interval(tester.deps()).unwrap().interval,
+                250
+            );
+        }
+
+        #[test]
+        fn non_admin_cannot_update_the_interval() {
+            let mut tester = init_contract_tester();
+            let stranger = tester.generate_account();
+
+            let err =
+                try_update_snapshot_interval(tester.deps_mut(), message_info(&stranger, &[]), 250)
+                    .unwrap_err();
+            assert_eq!(err, not_admin());
+
+            // and the interval is left untouched
+            assert_eq!(
+                query_snapshot_interval(tester.deps()).unwrap().interval,
+                DEFAULT_SNAPSHOT_INTERVAL
+            );
+        }
+
+        #[test]
+        fn update_rejects_a_zero_interval() {
+            let mut tester = init_contract_tester();
+            let admin = tester.admin_msg();
+
+            let err = try_update_snapshot_interval(tester.deps_mut(), admin, 0).unwrap_err();
+            assert_eq!(err, DirectoryContractError::InvalidSnapshotInterval);
+        }
+
+        #[test]
+        fn updating_the_interval_leaves_the_digest_unchanged() {
+            let mut tester = init_contract_tester();
+            let admin = tester.admin_msg();
+
+            // plant an entry so the digest is non-trivial ...
+            try_set_curated_entry(
+                tester.deps_mut(),
+                admin.clone(),
+                "nym-api/1".to_string(),
+                Binary::from(b"v".to_vec()),
+            )
+            .unwrap();
+            let before = NYM_DIRECTORY_CONTRACT_STORAGE
+                .load_digest(tester.deps().storage)
+                .unwrap();
+            assert_ne!(before, LtHash16::new());
+
+            // ... updating the interval must not touch it (the interval is not a digest leaf)
+            try_update_snapshot_interval(tester.deps_mut(), admin, 250).unwrap();
+            let after = NYM_DIRECTORY_CONTRACT_STORAGE
+                .load_digest(tester.deps().storage)
+                .unwrap();
+            assert_eq!(before, after);
+        }
     }
 
     mod admin_path {

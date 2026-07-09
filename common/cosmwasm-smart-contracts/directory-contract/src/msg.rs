@@ -10,7 +10,7 @@ use nym_mixnet_contract_common::NodeId;
 use crate::types::{
     AllEntriesPagedResponse, AllowedLabelsResponse, CuratedEntriesPagedResponse,
     CuratedEntryResponse, DigestResponse, NodeEntriesPagedResponse, NodeEntriesResponse,
-    NodeEntryResponse, SequenceResponse,
+    NodeEntryResponse, SequenceResponse, SnapshotIntervalResponse,
 };
 
 /// Defines initial label to be created on contract instantiation.
@@ -25,6 +25,10 @@ pub struct InitialLabel {
 pub struct InstantiateMsg {
     /// Mixnet contract address, used to resolve node bonds and identity keys.
     pub mixnet_contract_address: String,
+
+    /// The number of blocks between each snapshot of the directory content.
+    /// If not provided, default value will be used instead
+    pub snapshot_interval: Option<u32>,
 
     /// Initial label whitelist with per-label size limits.
     pub initial_labels: Vec<InitialLabel>,
@@ -70,6 +74,9 @@ pub enum ExecuteMsg {
     /// Transfer the admin role to `admin`. Admin only. The admin can never be
     /// cleared - there must always be exactly one.
     UpdateAdmin { admin: String },
+
+    /// Update the snapshot interval. Admin only.
+    UpdateSnapshotInterval { interval: u32 },
 
     /// Cross-contract callback from the mixnet contract when `node_id` unbonds;
     /// deletes all of that node's entries. Sender must be the configured mixnet
@@ -128,6 +135,10 @@ pub enum QueryMsg {
     /// The label whitelist with per-label sizes.
     #[cfg_attr(feature = "schema", returns(AllowedLabelsResponse))]
     AllowedLabels {},
+
+    /// The current snapshot interval.
+    #[cfg_attr(feature = "schema", returns(SnapshotIntervalResponse))]
+    SnapshotInterval {},
 }
 
 /// Message passed to the contract's `migrate` entry point.

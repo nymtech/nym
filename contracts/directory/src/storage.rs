@@ -22,6 +22,11 @@ pub struct NymDirectoryContractStorage {
     /// Admin of the contract; gates privileged operations.
     pub(crate) contract_admin: Admin,
 
+    /// Specifies the cadence of directory providers snapshotting the directory content.
+    /// Defined as number of blocks
+    // Snapshot should occur for every height % snapshot_interval == 0
+    pub(crate) snapshot_interval: Item<u32>,
+
     /// Address of the mixnet contract; used to verify a node id refers to a
     /// real, registered, and bonded node.
     pub(crate) mixnet_contract_address: Item<Addr>,
@@ -46,6 +51,7 @@ impl NymDirectoryContractStorage {
     pub(crate) const fn new() -> Self {
         NymDirectoryContractStorage {
             contract_admin: Admin::new(storage_keys::CONTRACT_ADMIN),
+            snapshot_interval: Item::new(storage_keys::SNAPSHOT_INTERVAL),
             mixnet_contract_address: Item::new(storage_keys::MIXNET_CONTRACT_ADDRESS),
             sequences: Map::new(storage_keys::SEQUENCES),
             allowed_storage_labels: Map::new(storage_keys::ALLOWED_LABELS),
@@ -62,13 +68,21 @@ impl NymDirectoryContractStorage {
         deps: DepsMut,
         sender: Addr,
         mixnet_contract_address: Addr,
+        snapshot_interval: u32,
         initial_labels: Vec<InitialLabel>,
     ) -> Result<(), DirectoryContractError> {
         // 1. set mixnet contract address
         self.mixnet_contract_address
             .save(deps.storage, &mixnet_contract_address)?;
 
-        // 2. save known labels
+        // save the snapshot interval (if valid)
+        if snapshot_interval == 0 {
+            return Err(DirectoryContractError::InvalidSnapshotInterval);
+        }
+        self.snapshot_interval
+            .save(deps.storage, &snapshot_interval)?;
+
+        // 3. save known labels
         for label in KnownLabel::ALL {
             self.allowed_storage_labels.save(
                 deps.storage,
@@ -77,7 +91,7 @@ impl NymDirectoryContractStorage {
             )?;
         }
 
-        // 3. save additional, provided, labels (if applicable)
+        // 4. save additional, provided, labels (if applicable)
         // if there's an overlap with the known labels,
         // prefer the explicitly provided config
         for initial_label in initial_labels {
@@ -88,7 +102,7 @@ impl NymDirectoryContractStorage {
             )?;
         }
 
-        // 4. save contract admin (consumes deps)
+        // 5. save contract admin (consumes deps)
         self.contract_admin.set(deps, Some(sender))?;
 
         Ok(())
@@ -109,6 +123,22 @@ impl NymDirectoryContractStorage {
         new_sequence: u64,
     ) -> Result<(), DirectoryContractError> {
         self.sequences.save(store, node_id, &new_sequence)?;
+        Ok(())
+    }
+
+    pub(crate) fn load_snapshot_interval(
+        &self,
+        store: &dyn Storage,
+    ) -> Result<u32, DirectoryContractError> {
+        Ok(self.snapshot_interval.load(store)?)
+    }
+
+    pub(crate) fn save_snapshot_interval(
+        &self,
+        store: &mut dyn Storage,
+        interval: u32,
+    ) -> Result<(), DirectoryContractError> {
+        self.snapshot_interval.save(store, &interval)?;
         Ok(())
     }
 

@@ -498,6 +498,10 @@ impl HttpClientError {
             source: ReqwestErrorWrapper(source),
         }
     }
+
+    pub fn is_data_inconsistency(&self) -> bool {
+        matches!(self, HttpClientError::InternalResponseInconsistency { .. })
+    }
 }
 
 /// Core functionality required for types acting as API clients.

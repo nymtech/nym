@@ -41,6 +41,9 @@ pub(crate) mod test_helpers;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
+    /// Identity of this nym-api instance.
+    pub(crate) identity_keypair: Arc<ed25519::KeyPair>,
+
     // ideally this would have been made generic to make tests easier,
     // however, it'd be a way bigger change (I tried)
     /// Instance of a client used for interacting with the nyx chain.

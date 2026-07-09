@@ -1,6 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::signable::{SignableMessageBody, SignedMessage};
+use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use utoipa::ToSchema;
@@ -66,3 +68,46 @@ pub struct SignerInformationResponse {
 
     pub verification_key: Option<String>,
 }
+
+// we only allow json and yaml responses so we can easily add additional fields later
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiInformationResponse {
+    #[schema(value_type = String)]
+    #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+    pub identity: ed25519::PublicKey,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyPossessionChallenge {
+    pub nonce: [u8; 32],
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyPossessionChallengePlaintext {
+    version: u8,
+
+    #[serde(flatten)]
+    challenge: KeyPossessionChallenge,
+
+    purpose: &'static str,
+}
+
+impl KeyPossessionChallenge {
+    pub fn sign(&self, key: &ed25519::PrivateKey) -> KeyPossessionChallengeResponse {
+        self.plaintext_message().sign(key)
+    }
+
+    #[allow(clippy::expect_used)]
+    pub fn plaintext_message(&self) -> KeyPossessionChallengePlaintext {
+        KeyPossessionChallengePlaintext {
+            version: 1,
+            challenge: *self,
+            purpose: "key-possession-challenge",
+        }
+    }
+}
+
+pub type KeyPossessionChallengeResponse = SignedMessage<KeyPossessionChallengePlaintext>;

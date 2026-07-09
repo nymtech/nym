@@ -1284,7 +1284,7 @@ pub(crate) async fn build_dummy_ecash_state(
 ) -> DummyEcashBundle {
     let mut rng = crate::ecash::tests::fixtures::test_rng(rng_seed);
     let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
-    let identity = ed25519::KeyPair::new(&mut rng);
+    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
     let epoch = Arc::new(AtomicU64::new(1));
     let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let comm_channel = DummyCommunicationChannel::new_single_dummy(
@@ -1544,7 +1544,7 @@ mod credential_tests {
     #[tokio::test]
     async fn state_functions() {
         let mut rng = OsRng;
-        let identity = ed25519::KeyPair::new(&mut rng);
+        let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
         let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
         let nyxd_client = DummyClient::new(address.clone(), Default::default());

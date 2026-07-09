@@ -46,6 +46,7 @@ pub(crate) fn build_app_state(
         NodeAnnotationsCache::new(node_status_cache, RefreshRequester::default());
 
     AppState {
+        identity_keypair: ecash_state.local.identity_keypair.clone(),
         nyxd_client,
         chain_status_cache: ChainStatusCache::new(Duration::from_secs(42)),
         ecash_signers_cache: Default::default(),

@@ -59,7 +59,7 @@ leg with a QUIC bridge (selecting a QUIC-capable entry gateway).
 ### Requirement: Zcash compact-block sync benchmark example
 
 `smol-dvpn` SHALL provide a `zcash-sync` example that syncs a configurable number of
-Zcash compact blocks (default 100,000, selectable with `--blocks <N>`) from a public
+Zcash compact blocks (default 10,000, selectable with `--blocks <N>`) from a public
 `lightwalletd` over gRPC-over-TLS both directly and through the tunnel, and reports the
 throughput of each.
 

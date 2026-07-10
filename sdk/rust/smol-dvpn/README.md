@@ -63,12 +63,14 @@ see [Developers](#developers) for pointing at sandbox.
 | `smol-dvpn-grpc` | A `tonic` gRPC health check through the tunnel. |
 | `two-hop-ip` | Prove the tunnel relocates your public IP: query `ipinfo.io` directly, then through the tunnel (the IP/org/country should become the exit gateway's). |
 | `two-hop-quic` | Like `two-hop-ip`, but the **entry leg is carried over a QUIC bridge** (for clients blocked from plain WireGuard/UDP). Always QUIC + two-hop. |
-| `zcash-sync` | Time syncing the last 1000 Zcash compact blocks from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
+| `zcash-sync` | Time syncing the last N Zcash compact blocks (default 100,000, `--blocks <N>`) from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
 
-Run one with (see [Developers](#developers) to set the sandbox env first):
+Run one with (see [Developers](#developers) to set the sandbox env first).
+**Build `--release`** — `boringtun` is much slower in debug, which dominates the
+tunnel timing:
 
 ```sh
-MNEMONIC="<funded mnemonic>" cargo run -p nym-smol-dvpn --example two-hop-ip
+MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smol-dvpn --example two-hop-ip
 ```
 
 ### Command-line options
@@ -104,7 +106,7 @@ Notes:
   QUIC-capable entry matches the requested country/identity, selection fails with
   `NoQuicGateway`.
 
-Examples:
+Examples (`…` = `MNEMONIC="…" cargo run --release -p nym-smol-dvpn`):
 
 ```sh
 # Random two-hop, show the IP relocate:
@@ -165,8 +167,11 @@ repo's sandbox env file and provide a funded sandbox mnemonic:
 set -a; source envs/sandbox.env; set +a      # nyxd / nym-api / contract addresses
 export MNEMONIC="<funded sandbox mnemonic>"   # deposits NYM + issues ticketbooks
 
-cargo run -p nym-smol-dvpn --example two-hop-ip
+cargo run --release -p nym-smol-dvpn --example two-hop-ip
 ```
+
+- Build `--release`: `boringtun`'s userspace crypto is much slower in a debug
+  build, which dominates the through-tunnel timing (especially `zcash-sync`).
 
 - `envs/sandbox.env` sets the `NYM_*`/network variables `new_from_env()` reads;
   without it the examples target mainnet.

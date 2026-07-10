@@ -61,8 +61,8 @@
 - [x] 7.2 `smol-dvpn-topup`: spend a stored ticket via the gateway `metadata` endpoint and report updated available bandwidth
 - [x] 7.3 `two-hop-ip`: query `ipinfo.io` directly then through the tunnel to show the public IP/location relocate to the exit gateway (verified live: CH → DE)
 - [x] 7.4 `two-hop-quic`: same as `two-hop-ip` but the entry leg is carried over a QUIC bridge (selects a QUIC-capable entry from the directory; verified live up to the QUIC dial — sandbox bridge endpoint currently unreachable)
-- [x] 7.5 `zcash-sync`: sync the last 1000 Zcash compact blocks from `zec.rocks:443` (gRPC-over-TLS, hand-written prost messages + manual tonic client) direct vs. through the tunnel and compare throughput (verified live)
-- [x] 7.6 Shared example CLI (`examples/common`): `--one-hop`/`--two-hop`, `--entry`/`--exit`/`--gateway <spec>` (random / ISO country / base58 identity), `--quic`, with validation; plus a TLS-over-tunnel connector and an HTTPS `ipinfo.io` fetcher
+- [x] 7.5 `zcash-sync`: sync a configurable number of Zcash compact blocks (default 100,000, `--blocks <N>`) from `zec.rocks:443` (gRPC-over-TLS, hand-written prost messages + manual tonic client) direct vs. through the tunnel and compare throughput (verified live)
+- [x] 7.6 Shared example CLI (`examples/common`): `--one-hop`/`--two-hop`, `--entry`/`--exit`/`--gateway <spec>` (random / ISO country / base58 identity), `--quic`, `--blocks <N>` (zcash-sync), with validation; plus a TLS-over-tunnel connector and an HTTPS `ipinfo.io` fetcher
 
 ## 8. Docs, licensing, and finalization
 

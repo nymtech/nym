@@ -7,9 +7,9 @@
 //! then queries `ipinfo.io` again *through the tunnel* — the reported IP/org/
 //! country should now be the exit gateway's.
 //!
-//! Usage:
+//! Usage (build `--release`: boringtun is slow in debug):
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p nym-smol-dvpn --example two-hop-ip [-- <options>]
+//!   cargo run --release -p nym-smol-dvpn --example two-hop-ip [-- <options>]
 //!
 //! Options (see `common::USAGE` / README): `--one-hop`/`--two-hop`,
 //! `--entry <SPEC>`, `--exit <SPEC>`, `--gateway <SPEC>`, `--quic`. `<SPEC>` is

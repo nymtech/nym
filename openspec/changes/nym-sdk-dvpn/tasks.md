@@ -22,6 +22,8 @@
 - [x] 3.6 `CancellationToken` support to abort the setup/issuance phase
 - [x] 3.7 Implement single-hop as a single-gateway registration (`BuilderConfig` mandates entry+exit and the reference is two-hop-only, so use the LP single-gateway `register_dvpn` path rather than forcing `entry == exit`); expose `gateway=` for single-hop and `entry=`/`exit=` for two-hop
 - [x] 3.8 Tests for issuance, storage reuse, each selection mode, and setup abort
+- [x] 3.9 Optional dVPN gateway-directory client (`SessionConfig.dvpn_directory_url`, best-effort fetch); enrich per-hop `GatewayInfo` with the gateway moniker (`name`) + node id/country/IP, exposed on `HopConfig`
+- [x] 3.10 QUIC-bridge entry selection: `register_two_hop_quic` requires a QUIC-capable entry per the directory (honoring the `GatewaySpec`), returns the entry `QuicBridge` params on `HopConfig.bridge`, and fails with `SessionError::NoQuicGateway` when none match; single-hop / non-QUIC two-hop carry no bridge
 
 ## 4. `sdk/rust/smol-dvpn` datapath (`nym-smol-dvpn`)
 
@@ -57,6 +59,10 @@
 
 - [x] 7.1 `smol-dvpn-config --gateway <spec>`: single-hop LP registration → plain WireGuard config export (Interface + Peer with pubkey/PSK/endpoint/allowed-ips)
 - [x] 7.2 `smol-dvpn-topup`: spend a stored ticket via the gateway `metadata` endpoint and report updated available bandwidth
+- [x] 7.3 `two-hop-ip`: query `ipinfo.io` directly then through the tunnel to show the public IP/location relocate to the exit gateway (verified live: CH → DE)
+- [x] 7.4 `two-hop-quic`: same as `two-hop-ip` but the entry leg is carried over a QUIC bridge (selects a QUIC-capable entry from the directory; verified live up to the QUIC dial — sandbox bridge endpoint currently unreachable)
+- [x] 7.5 `zcash-sync`: sync the last 1000 Zcash compact blocks from `zec.rocks:443` (gRPC-over-TLS, hand-written prost messages + manual tonic client) direct vs. through the tunnel and compare throughput (verified live)
+- [x] 7.6 Shared example CLI (`examples/common`): `--one-hop`/`--two-hop`, `--entry`/`--exit`/`--gateway <spec>` (random / ISO country / base58 identity), `--quic`, with validation; plus a TLS-over-tunnel connector and an HTTPS `ipinfo.io` fetcher
 
 ## 8. Docs, licensing, and finalization
 

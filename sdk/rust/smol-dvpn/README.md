@@ -190,6 +190,9 @@ cargo run --release -p nym-smol-dvpn --example two-hop-ip
   the smol-core interface while preserving the WireGuard session; reference
   defaults: overhead 80/hop; desktop 1420/1340; mobile 1360/1280).
 - DNS-in-tunnel by default (configurable), via the `smol-core` resolver.
+- Throughput-tuned stack: a 512 KiB TCP window (vs smoltcp's 8 KiB default) and
+  an unbounded device burst, so bulk transfers aren't window/BDP-throttled on
+  higher-RTT two-hop paths (`StackConfig::with_tcp_buffer` tunes it).
 - boringtun timer pump on the datapath task; keepalive/handshake/rekey routed
   through the active transport.
 - Optional `SocketProtector` callback (Linux/Android) for the egress UDP socket.

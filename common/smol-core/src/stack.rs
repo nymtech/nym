@@ -13,13 +13,19 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use smoltcp::iface::Config;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr};
 use tokio_smoltcp::device::AsyncDevice;
-use tokio_smoltcp::{Net, NetConfig};
+use tokio_smoltcp::{BufferSize, Net, NetConfig};
 
 use crate::device::DEFAULT_MTU;
 use crate::dns::{self, DnsConfig};
 use crate::error::Result;
 
 pub use tokio_smoltcp::{TcpStream, UdpSocket};
+
+/// Default per-socket TCP buffer size (bytes). The receive buffer *is* the TCP
+/// receive window, so this caps throughput to `buffer / RTT`. tokio-smoltcp's own
+/// default is only 8 KiB, which throttles bulk transfers over a higher-RTT tunnel
+/// (e.g. two-hop); 512 KiB gives a window sized to a realistic path BDP.
+pub const DEFAULT_TCP_BUFFER: usize = 512 * 1024;
 
 /// Address + MTU configuration for the virtual interface.
 ///
@@ -35,6 +41,9 @@ pub struct StackConfig {
     pub ipv6: Option<Ipv6Addr>,
     /// Interface MTU.
     pub mtu: usize,
+    /// Per-socket TCP rx/tx buffer size (bytes); the rx side is the TCP receive
+    /// window and the dominant throughput lever on a higher-RTT tunnel.
+    pub tcp_buffer: usize,
 }
 
 impl StackConfig {
@@ -44,6 +53,7 @@ impl StackConfig {
             ipv4,
             ipv6: None,
             mtu: DEFAULT_MTU,
+            tcp_buffer: DEFAULT_TCP_BUFFER,
         }
     }
 
@@ -56,6 +66,12 @@ impl StackConfig {
     /// Set the interface MTU.
     pub fn with_mtu(mut self, mtu: usize) -> Self {
         self.mtu = mtu;
+        self
+    }
+
+    /// Set the per-socket TCP buffer size (the TCP window; see [`DEFAULT_TCP_BUFFER`]).
+    pub fn with_tcp_buffer(mut self, tcp_buffer: usize) -> Self {
+        self.tcp_buffer = tcp_buffer;
         self
     }
 }
@@ -76,13 +92,20 @@ impl Stack {
     /// `tcp_connect` / `udp_bind` create sockets managed by that reactor.
     pub fn new<D: AsyncDevice + 'static>(device: D, config: StackConfig) -> Self {
         let iface_config = Config::new(HardwareAddress::Ip);
-        let net_config = NetConfig::new(
+        let mut net_config = NetConfig::new(
             iface_config,
             IpCidr::new(IpAddress::Ipv4(config.ipv4), 32),
             // Default route via the unspecified address; the transport does the
             // actual routing (the tunnel exit gateway, mixnet IPR, etc.).
             vec![IpAddress::Ipv4(Ipv4Addr::UNSPECIFIED)],
         );
+        // Widen the TCP window beyond tokio-smoltcp's 8 KiB default (the dominant
+        // throughput cap on a higher-RTT tunnel). UDP/raw keep their defaults.
+        net_config.buffer_size = BufferSize {
+            tcp_rx_size: config.tcp_buffer,
+            tcp_tx_size: config.tcp_buffer,
+            ..Default::default()
+        };
 
         Self {
             net: Net::new(device, net_config),

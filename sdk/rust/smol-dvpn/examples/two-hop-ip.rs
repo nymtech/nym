@@ -9,53 +9,39 @@
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p nym-smol-dvpn --example two-hop-ip [-- --quic]
+//!   cargo run -p nym-smol-dvpn --example two-hop-ip [-- <options>]
 //!
-//! `--quic` requires the entry gateway to be QUIC-bridge-capable (fails if none
-//! is available for the chosen country/identity) and fronts the entry leg with
-//! the QUIC bridge.
+//! Options (see `common::USAGE` / README): `--one-hop`/`--two-hop`,
+//! `--entry <SPEC>`, `--exit <SPEC>`, `--gateway <SPEC>`, `--quic`. `<SPEC>` is
+//! `random`, a two-letter country code, or a base58 gateway identity. Defaults
+//! to a random two-hop tunnel.
 
 use std::process::ExitCode;
 use std::time::Duration;
-
-use nym_sdk_session::GatewaySpec;
 
 #[path = "common/mod.rs"]
 mod common;
 
 async fn run() -> Result<(), common::BoxError> {
     common::init_crypto();
-    let use_quic = std::env::args().any(|a| a == "--quic");
+    let cli = common::parse_cli()?;
 
     // 1. Real IP (direct).
     let real = common::ipinfo_direct().await?;
     println!("real IP (no tunnel):    {}", common::fmt_ipinfo(&real));
 
-    // 2. Provision + register a two-hop tunnel with random gateways.
-    println!(
-        "\nprovisioning a two-hop tunnel{} …",
-        if use_quic { " (QUIC entry)" } else { "" }
-    );
+    // 2. Provision + register the requested tunnel.
+    println!("\nprovisioning a {} tunnel …", common::describe(&cli));
     let session = common::new_session("two-hop-ip-data").await;
-    session.ensure_ticketbooks(true).await?;
-    let reg = if use_quic {
-        session
-            .register_two_hop_quic(&GatewaySpec::Random, &GatewaySpec::Random)
-            .await?
-    } else {
-        session
-            .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random)
-            .await?
-    };
+    let reg = common::register(&session, &cli).await?;
 
     common::print_gateway("entry", &reg.entry.gateway);
-    common::print_gateway(
-        "exit",
-        &reg.exit.as_ref().expect("two-hop has an exit hop").gateway,
-    );
+    if let Some(exit) = reg.exit.as_ref() {
+        common::print_gateway("exit", &exit.gateway);
+    }
 
     // 3. Bring up the tunnel (QUIC entry when requested).
-    let tunnel = common::build_two_hop_tunnel(&reg, use_quic).await?;
+    let tunnel = common::build_tunnel(&reg, cli.quic).await?;
 
     // 4. IP through the tunnel — retry while the WireGuard handshake warms up.
     println!("\nquerying ipinfo.io through the tunnel …");

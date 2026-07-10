@@ -16,7 +16,6 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use http::uri::PathAndQuery;
-use nym_sdk_session::GatewaySpec;
 use nym_smol_dvpn::Tunnel;
 use tonic::client::Grpc;
 use tonic::transport::{Channel, Endpoint};
@@ -136,7 +135,7 @@ fn report(label: &str, blocks: u64, elapsed: Duration) {
 
 async fn run() -> Result<(), BoxError> {
     common::init_crypto();
-    let use_quic = std::env::args().any(|a| a == "--quic");
+    let cli = common::parse_cli()?;
 
     // 1. Real IP + baseline sync (no tunnel).
     println!(
@@ -147,28 +146,15 @@ async fn run() -> Result<(), BoxError> {
     let (out_blocks, out_time) = sync_last_blocks(grpc_channel(DirectConnector).await?).await?;
     report("direct", out_blocks, out_time);
 
-    // 2. Provision + bring up a two-hop tunnel (QUIC entry when `--quic`).
-    println!(
-        "\nprovisioning a two-hop tunnel{} …",
-        if use_quic { " (QUIC entry)" } else { "" }
-    );
+    // 2. Provision + bring up the requested tunnel.
+    println!("\nprovisioning a {} tunnel …", common::describe(&cli));
     let session = common::new_session("zcash-sync-data").await;
-    session.ensure_ticketbooks(true).await?;
-    let reg = if use_quic {
-        session
-            .register_two_hop_quic(&GatewaySpec::Random, &GatewaySpec::Random)
-            .await?
-    } else {
-        session
-            .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random)
-            .await?
-    };
+    let reg = common::register(&session, &cli).await?;
     common::print_gateway("entry", &reg.entry.gateway);
-    common::print_gateway(
-        "exit",
-        &reg.exit.as_ref().expect("two-hop has an exit hop").gateway,
-    );
-    let tunnel: Tunnel = common::build_two_hop_tunnel(&reg, use_quic).await?;
+    if let Some(exit) = reg.exit.as_ref() {
+        common::print_gateway("exit", &exit.gateway);
+    }
+    let tunnel: Tunnel = common::build_tunnel(&reg, cli.quic).await?;
 
     // Warm up the tunnel (also reports the exit IP).
     let mut ip = None;

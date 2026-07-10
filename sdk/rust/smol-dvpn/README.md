@@ -52,31 +52,130 @@ let tunnel = TunnelBuilder::two_hop(entry, exit)
 
 ## Examples
 
-Runnable end-to-end demos live in `examples/` (all need a funded `MNEMONIC` and
-a live Nym network; shared setup is in `examples/common/`):
+Runnable end-to-end demos live in `examples/` (shared setup is in
+`examples/common/`). **All need a funded `MNEMONIC`** and a live Nym network —
+see [Developers](#developers) for pointing at sandbox.
 
-- `smol-dvpn-config` — export a plain WireGuard config from a single-hop
-  registration.
-- `smol-dvpn-topup` — spend a stored ticket and report updated bandwidth.
-- `smol-dvpn-grpc` — a `tonic` gRPC health check through the tunnel.
-- `two-hop-ip` — prove a two-hop tunnel relocates your public IP (queries
-  `ipinfo.io` directly, then through the tunnel). Pass `-- --quic` to require a
-  QUIC-bridge entry gateway.
-- `two-hop-quic` — a two-hop tunnel whose **entry leg is carried over a QUIC
-  bridge** (for clients blocked from plain WireGuard/UDP).
-- `zcash-sync` — time syncing the last 1000 Zcash compact blocks from a public
-  `lightwalletd` (gRPC-over-TLS) directly vs. through the tunnel. Also accepts
-  `-- --quic`.
+| Example | What it does |
+|---|---|
+| `smol-dvpn-config` | Register a single hop and export a plain WireGuard config (`Interface` + `Peer`). Takes `--gateway <SPEC>`. |
+| `smol-dvpn-topup` | Spend a stored ticket via the gateway `metadata` endpoint and report updated bandwidth. |
+| `smol-dvpn-grpc` | A `tonic` gRPC health check through the tunnel. |
+| `two-hop-ip` | Prove the tunnel relocates your public IP: query `ipinfo.io` directly, then through the tunnel (the IP/org/country should become the exit gateway's). |
+| `two-hop-quic` | Like `two-hop-ip`, but the **entry leg is carried over a QUIC bridge** (for clients blocked from plain WireGuard/UDP). Always QUIC + two-hop. |
+| `zcash-sync` | Time syncing the last 1000 Zcash compact blocks from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
+
+Run one with (see [Developers](#developers) to set the sandbox env first):
 
 ```sh
-MNEMONIC="<funded mnemonic>" cargo run -p nym-smol-dvpn --example two-hop-quic
+MNEMONIC="<funded mnemonic>" cargo run -p nym-smol-dvpn --example two-hop-ip
 ```
 
-QUIC-entry selection (`two-hop-quic`, `--quic`) needs a dVPN gateway-directory
-URL so the session can discover QUIC-bridge-capable gateways and their bridge
-params; the examples default to the sandbox directory (override with
-`DVPN_DIRECTORY_URL`). If no QUIC-capable entry matches the requested
-country/identity, selection fails with `NoQuicGateway`.
+### Command-line options
+
+`two-hop-ip`, `two-hop-quic`, and `zcash-sync` share a common option set (pass
+after `--`, e.g. `cargo run … --example two-hop-ip -- --entry DE --quic`):
+
+| Option | Meaning |
+|---|---|
+| `--two-hop` | Entry **and** exit gateways (the default). |
+| `--one-hop` | A single gateway (entry == exit). Cannot be combined with `--quic`. |
+| `--entry <SPEC>` | Entry (or, with `--one-hop`, the sole) gateway selector. Default `random`. |
+| `--exit <SPEC>` | Exit gateway selector. Default `random`. Ignored in one-hop mode. |
+| `--gateway <SPEC>` | Set both entry and exit at once (handy for `--one-hop`). |
+| `--quic` | Require a **QUIC-bridge-capable** entry gateway and front the entry leg with it. Two-hop only. |
+| `-h`, `--help` | Print the options and exit. |
+
+`<SPEC>` selects a gateway one of three ways:
+
+| `<SPEC>` | Selection |
+|---|---|
+| `random` | Any WireGuard-capable gateway (the default). |
+| `<CC>` | A two-letter ISO 3166 country code, e.g. `DE`, `CH` — a random gateway in that country. |
+| `<identity>` | An exact gateway ed25519 identity key (base58). |
+
+Notes:
+- `two-hop-quic` is QUIC + two-hop by definition; it still honours
+  `--entry`/`--exit`/`--gateway` but ignores `--one-hop`/`--quic`.
+- **QUIC only fronts the two-hop entry leg** — `--quic --one-hop` is rejected.
+- QUIC-entry selection needs a **dVPN gateway-directory URL** so the session can
+  discover QUIC-bridge-capable gateways and their bridge params. The examples
+  default to the sandbox directory; override with `DVPN_DIRECTORY_URL`. If no
+  QUIC-capable entry matches the requested country/identity, selection fails with
+  `NoQuicGateway`.
+
+Examples:
+
+```sh
+# Random two-hop, show the IP relocate:
+… --example two-hop-ip
+# Two-hop with a German entry and a Swiss exit:
+… --example two-hop-ip -- --entry DE --exit CH
+# Single-hop through one specific gateway:
+… --example two-hop-ip -- --one-hop --gateway <base58-identity>
+# Zcash sync through a QUIC-fronted two-hop tunnel:
+… --example zcash-sync -- --quic
+```
+
+### `zcash-sync` flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as zcash-sync
+    participant Chain as nyx chain
+    participant Entry as Entry gateway
+    participant Exit as Exit gateway
+    participant LWD as lightwalletd (zec.rocks)
+
+    Note over App,Chain: 1. zk-nym dVPN ticketbooks
+    App->>Chain: deposit NYM, issue V1WireguardEntry + V1WireguardExit ticketbooks
+    Chain-->>App: aggregated ecash credentials (stored, reused next run)
+
+    Note over App,Exit: 2. Register peers (two-hop)
+    App->>Entry: LP handshake + register_dvpn (spend entry ticket)
+    Entry-->>App: entry WireGuard config (pubkey, PSK, IPs)
+    App->>Entry: forward exit registration
+    Entry->>Exit: nested LP register_dvpn (spend exit ticket)
+    Exit-->>App: exit WireGuard config
+
+    Note over App,Exit: 3. Bring up the nested WireGuard tunnel
+    App->>Entry: WG handshake (outer)
+    App->>Exit: WG handshake (inner, tunnelled via entry)
+
+    Note over App,LWD: 4. gRPC compact-block sync over the tunnel
+    App->>LWD: GetLatestBlock (gRPC/TLS through the tunnel)
+    LWD-->>App: chain tip height H
+    App->>LWD: GetBlockRange [H-999 .. H]
+    LWD-->>App: stream 1000 CompactBlocks
+    Note right of App: measure throughput (blocks/s), compare to direct
+
+    Note over App,Exit: 5. Disconnect
+    App->>App: tunnel.shutdown() (issued tickets are retained)
+```
+
+## Developers
+
+The examples read the target network from the environment
+(`NymNetworkDetails::new_from_env()`). To run against **sandbox**, source the
+repo's sandbox env file and provide a funded sandbox mnemonic:
+
+```sh
+# from the repo root:
+set -a; source envs/sandbox.env; set +a      # nyxd / nym-api / contract addresses
+export MNEMONIC="<funded sandbox mnemonic>"   # deposits NYM + issues ticketbooks
+
+cargo run -p nym-smol-dvpn --example two-hop-ip
+```
+
+- `envs/sandbox.env` sets the `NYM_*`/network variables `new_from_env()` reads;
+  without it the examples target mainnet.
+- The mnemonic's account must hold enough sandbox NYM to deposit for the
+  WireGuard ticketbooks (issued once, then reused from the per-example
+  credential store, e.g. `two-hop-ip-data/`).
+- `DVPN_DIRECTORY_URL` defaults to the sandbox dVPN directory (used for gateway
+  monikers and QUIC-bridge discovery); override it for another network.
+- `RUST_LOG=info` (or `nym_smol_dvpn=debug`) surfaces datapath/handshake logs.
 
 ## Features
 

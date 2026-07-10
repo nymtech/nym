@@ -9,9 +9,9 @@
 //! queries `ipinfo.io` through the tunnel to show the IP/org/country moved to the
 //! exit gateway. QUIC only ever fronts the two-hop entry leg.
 //!
-//! Usage:
+//! Usage (build `--release`: boringtun is slow in debug):
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p nym-smol-dvpn --example two-hop-quic
+//!   cargo run --release -p nym-smol-dvpn --example two-hop-quic
 //!
 //! The QUIC gateway set comes from the dVPN directory (see
 //! `common::DEFAULT_DVPN_DIRECTORY`; override with `DVPN_DIRECTORY_URL`).

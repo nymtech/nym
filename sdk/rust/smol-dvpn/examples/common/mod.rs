@@ -135,6 +135,7 @@ options:
   --exit  <SPEC>       exit gateway selector  (default: random)
   --gateway <SPEC>     set both entry and exit (handy for --one-hop)
   --quic               require a QUIC-bridge-capable entry gateway (two-hop only)
+  --blocks <N>         number of blocks to sync (zcash-sync only; default 100000)
   -h, --help           print this help
 
 <SPEC> is one of:
@@ -152,6 +153,8 @@ pub struct Cli {
     pub exit: GatewaySpec,
     /// Require a QUIC-bridge entry gateway (two-hop only).
     pub quic: bool,
+    /// Number of blocks to sync (used by `zcash-sync` only; `None` = its default).
+    pub blocks: Option<u64>,
 }
 
 /// Parse a gateway `<SPEC>`: `random`, a two-letter country code, or a base58
@@ -173,6 +176,7 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
     let mut two_hop = true;
     let (mut entry, mut exit) = (GatewaySpec::Random, GatewaySpec::Random);
     let mut quic = false;
+    let mut blocks = None;
 
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -194,6 +198,13 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
                 entry = s.clone();
                 exit = s;
             }
+            "--blocks" => {
+                let v = next(&mut i, "--blocks")?;
+                blocks = Some(
+                    v.parse()
+                        .map_err(|_| format!("--blocks expects a number, got {v:?}"))?,
+                );
+            }
             "-h" | "--help" => {
                 println!("{USAGE}");
                 std::process::exit(0);
@@ -211,6 +222,7 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
         entry,
         exit,
         quic,
+        blocks,
     })
 }
 

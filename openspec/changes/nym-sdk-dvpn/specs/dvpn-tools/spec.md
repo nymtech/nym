@@ -58,9 +58,10 @@ leg with a QUIC bridge (selecting a QUIC-capable entry gateway).
 
 ### Requirement: Zcash compact-block sync benchmark example
 
-`smol-dvpn` SHALL provide a `zcash-sync` example that syncs a fixed number of Zcash
-compact blocks from a public `lightwalletd` over gRPC-over-TLS both directly and
-through the tunnel, and reports the throughput of each.
+`smol-dvpn` SHALL provide a `zcash-sync` example that syncs a configurable number of
+Zcash compact blocks (default 100,000, selectable with `--blocks <N>`) from a public
+`lightwalletd` over gRPC-over-TLS both directly and through the tunnel, and reports the
+throughput of each.
 
 #### Scenario: Sync direct vs. through the tunnel
 - **WHEN** the user runs `zcash-sync` with a funded mnemonic
@@ -72,8 +73,9 @@ through the tunnel, and reports the throughput of each.
 The configurable examples (`two-hop-ip`, `two-hop-quic`, `zcash-sync`) SHALL share a
 command-line interface for choosing hop mode (`--one-hop`/`--two-hop`), gateways
 (`--entry`/`--exit`/`--gateway <spec>`, where `<spec>` is `random`, a two-letter
-country code, or a base58 identity), and QUIC entry (`--quic`), rejecting invalid
-combinations (QUIC requires two-hop).
+country code, or a base58 identity), QUIC entry (`--quic`), and — for `zcash-sync` —
+the block count (`--blocks <N>`), rejecting invalid combinations (QUIC requires
+two-hop).
 
 #### Scenario: Select gateways and mode from the CLI
 - **WHEN** the user passes `--entry`/`--exit`/`--gateway`/`--one-hop`/`--two-hop`

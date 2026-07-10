@@ -2,15 +2,18 @@
 
 //! `zcash-sync` — Zcash compact-block sync over a two-hop dVPN tunnel.
 //!
-//! Times syncing the last 1000 compact blocks from a public `lightwalletd`
-//! (`zec.rocks:443`, gRPC over TLS) both directly and through a two-hop tunnel,
-//! and compares the throughput. Uses a hand-written `tonic` gRPC client (no
-//! proto/build.rs): only the message fields needed to drive `GetLatestBlock`
-//! and count `GetBlockRange` are declared.
+//! Times syncing the last N compact blocks (default 100_000, `--blocks <N>`) from
+//! a public `lightwalletd` (`zec.rocks:443`, gRPC over TLS) both directly and
+//! through a two-hop tunnel, and compares the throughput. Uses a hand-written
+//! `tonic` gRPC client (no proto/build.rs): only the message fields needed to
+//! drive `GetLatestBlock` and count `GetBlockRange` are declared.
+//!
+//! Build with `--release`: boringtun is much slower in debug, which dominates the
+//! through-tunnel timing at the default block count.
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p nym-smol-dvpn --example zcash-sync
+//!   cargo run --release -p nym-smol-dvpn --example zcash-sync [-- --blocks <N> <options>]
 
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
@@ -27,7 +30,7 @@ mod common;
 use common::{BoxError, DirectConnector, TlsWrap};
 
 const LWD: &str = "zec.rocks";
-const N_BLOCKS: u64 = 1000;
+const DEFAULT_BLOCKS: u64 = 100_000;
 const GET_LATEST_BLOCK: &str = "/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLatestBlock";
 const GET_BLOCK_RANGE: &str = "/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetBlockRange";
 
@@ -76,9 +79,9 @@ where
     Ok(channel)
 }
 
-/// Sync the last `N_BLOCKS` compact blocks over `channel`; returns
+/// Sync the last `n_blocks` compact blocks over `channel`; returns
 /// (blocks_streamed, elapsed) timing only the block-range streaming.
-async fn sync_last_blocks(channel: Channel) -> Result<(u64, Duration), BoxError> {
+async fn sync_last_blocks(channel: Channel, n_blocks: u64) -> Result<(u64, Duration), BoxError> {
     let mut grpc = Grpc::new(channel);
     grpc.ready().await?;
 
@@ -92,7 +95,7 @@ async fn sync_last_blocks(channel: Channel) -> Result<(u64, Duration), BoxError>
         .await?
         .into_inner();
     let top = latest.height;
-    let start = top.saturating_sub(N_BLOCKS - 1);
+    let start = top.saturating_sub(n_blocks.saturating_sub(1));
 
     let range = BlockRange {
         start: Some(BlockId {
@@ -142,8 +145,10 @@ async fn run() -> Result<(), BoxError> {
         "real IP (no tunnel):    {}",
         common::fmt_ipinfo(&common::ipinfo_direct().await?)
     );
-    println!("\nsyncing last {N_BLOCKS} blocks from {LWD} directly …");
-    let (out_blocks, out_time) = sync_last_blocks(grpc_channel(DirectConnector).await?).await?;
+    let n_blocks = cli.blocks.unwrap_or(DEFAULT_BLOCKS);
+    println!("\nsyncing last {n_blocks} blocks from {LWD} directly …");
+    let (out_blocks, out_time) =
+        sync_last_blocks(grpc_channel(DirectConnector).await?, n_blocks).await?;
     report("direct", out_blocks, out_time);
 
     // 2. Provision + bring up the requested tunnel.
@@ -174,8 +179,9 @@ async fn run() -> Result<(), BoxError> {
     println!("IP through the tunnel:  {}", common::fmt_ipinfo(&ip));
 
     // 3. Sync the same range through the tunnel.
-    println!("\nsyncing last {N_BLOCKS} blocks from {LWD} through the tunnel …");
-    let (in_blocks, in_time) = sync_last_blocks(grpc_channel(tunnel.connector()).await?).await?;
+    println!("\nsyncing last {n_blocks} blocks from {LWD} through the tunnel …");
+    let (in_blocks, in_time) =
+        sync_last_blocks(grpc_channel(tunnel.connector()).await?, n_blocks).await?;
     report("tunnel", in_blocks, in_time);
 
     // 4. Comparison.
@@ -186,7 +192,7 @@ async fn run() -> Result<(), BoxError> {
     println!("  tunnel took {slowdown:.2}x the direct time");
 
     let _ = tokio::time::timeout(Duration::from_secs(5), tunnel.shutdown()).await;
-    println!("PASS: synced {N_BLOCKS} blocks inside and outside the tunnel");
+    println!("PASS: synced {n_blocks} blocks inside and outside the tunnel");
     std::process::exit(0);
 }
 

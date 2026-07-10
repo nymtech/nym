@@ -246,31 +246,8 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::test_helpers::DummySubset;
     use super::*;
-    use nym_crypto::asymmetric::ed25519::KeyPair;
-    use nym_test_utils::helpers::u64_seeded_rng;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::str::FromStr;
-
-    fn keypair(seed: u64) -> KeyPair {
-        KeyPair::new(&mut u64_seeded_rng(seed))
-    }
-
-    // fn signed(kp: &KeyPair, digest: SubsetDigest) -> SignedSubsetDigest {
-    //     let signature = kp.private_key().sign(digest.signing_payload());
-    //     SignedSubsetDigest {
-    //         digest,
-    //         signer: *kp.public_key(),
-    //         signature,
-    //     }
-    // }
-    //
-    // fn digest(chain_id: &str, height: Height, hash: [u8; 32]) -> SubsetDigest {
-    //     SubsetDigest {
-    //         chain_id: chain::Id::try_from(chain_id).unwrap(),
-    //         height,
-    //         subset_id: DummySubset::SUBSET_ID.to_owned(),
-    //         hash,
-    //     }
-    // }
 
     #[test]
     fn subset_data_hash_is_deterministic() {
@@ -311,7 +288,7 @@ mod tests {
 
     #[test]
     fn verify_accepts_a_valid_digest_from_a_trusted_signer() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::from_str("nyx-testnet").unwrap();
         let data = DummySubset::from(vec![1, 2, 3]);
         let signed = SubsetDigest::new(&data, chain_id.clone(), Height::from(100u32)).sign(&kp);
@@ -323,8 +300,8 @@ mod tests {
 
     #[test]
     fn verify_rejects_an_untrusted_signer() {
-        let kp = keypair(1);
-        let other = keypair(2);
+        let kp = dummy_ed25519_keypair(1);
+        let other = dummy_ed25519_keypair(2);
         let chain_id = chain::Id::from_str("nyx-testnet").unwrap();
 
         let trusted = HashSet::from([*other.public_key()]);
@@ -336,7 +313,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_a_mismatched_chain_id() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::from_str("nyx-mainnet").unwrap();
         let other_chain_id = chain::Id::from_str("nyx-testnet").unwrap();
 
@@ -350,7 +327,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_a_forged_signature() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::from_str("nyx-testnet").unwrap();
 
         let trusted = HashSet::from([*kp.public_key()]);
@@ -359,7 +336,7 @@ mod tests {
         let mut forged = SubsetDigest::new(&data, chain_id.clone(), Height::from(100u32)).sign(&kp);
         // re-sign with a different key: the signer field still says `kp`, but the bytes
         // were produced by someone else
-        forged.signature = keypair(2)
+        forged.signature = dummy_ed25519_keypair(2)
             .private_key()
             .sign(forged.digest.signing_payload());
 

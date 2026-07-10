@@ -68,6 +68,15 @@ impl DigestSnapshot {
             &self.node_identities_hash,
         )
     }
+
+    pub fn signed(self, keys: &ed25519::KeyPair) -> SignedDigestSnapshot {
+        let signature = keys.private_key().sign(self.signing_payload());
+        SignedDigestSnapshot {
+            snapshot: self,
+            signer: *keys.public_key(),
+            signature,
+        }
+    }
 }
 
 /// A [`DigestSnapshot`] as published by a nym-api (or a nym-node), together with its signer and
@@ -155,26 +164,9 @@ pub fn node_identities_hash(identities: &HashMap<NodeId, ed25519::PublicKey>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::mock::{mock_app_hash, mock_chain_id, mock_contract};
     use nym_crypto::asymmetric::ed25519::KeyPair;
-    use nym_test_utils::helpers::u64_seeded_rng;
-    use std::str::FromStr;
-
-    fn contract() -> AccountId {
-        AccountId::from_str("n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr").unwrap()
-    }
-
-    fn other_contract() -> AccountId {
-        AccountId::from_str("n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf").unwrap()
-    }
-
-    fn app_hash(byte: u8) -> AppHash {
-        AppHash::try_from(vec![byte; 32]).unwrap()
-    }
-
-    fn keypair(seed: u64) -> KeyPair {
-        let mut rng = u64_seeded_rng(seed);
-        KeyPair::new(&mut rng)
-    }
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn signed_snapshot_with(
         kp: &KeyPair,
@@ -185,20 +177,15 @@ mod tests {
         accumulator: LtHash16,
         node_identities_hash: [u8; 32],
     ) -> SignedDigestSnapshot {
-        let snapshot = DigestSnapshot {
+        DigestSnapshot {
             chain_id: chain::Id::try_from(chain_id).unwrap(),
             directory_contract: contract.clone(),
             height,
             app_hash,
             accumulator,
             node_identities_hash,
-        };
-        let signature = kp.private_key().sign(snapshot.signing_payload());
-        SignedDigestSnapshot {
-            snapshot,
-            signer: *kp.public_key(),
-            signature,
         }
+        .signed(kp)
     }
 
     fn signed_snapshot(
@@ -212,7 +199,7 @@ mod tests {
             chain_id,
             contract,
             height,
-            app_hash(1),
+            mock_app_hash(1),
             LtHash16::new(),
             [0u8; 32],
         )
@@ -220,24 +207,24 @@ mod tests {
 
     #[test]
     fn digest_snapshot_payload_is_deterministic_and_field_sensitive() {
-        let contract = contract();
+        let contract = mock_contract(0);
         let acc = LtHash16::new();
         let node_hash = [9u8; 32];
         let base = digest_snapshot_signing_payload(
-            "nyx-testnet",
+            mock_chain_id().as_str(),
             &contract,
             Height::from(100u32),
-            &app_hash(1),
+            &mock_app_hash(1),
             &acc,
             &node_hash,
         );
         assert_eq!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
+                mock_chain_id().as_str(),
                 &contract,
                 Height::from(100u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &acc,
                 &node_hash,
             )
@@ -248,7 +235,7 @@ mod tests {
                 "nyx-mainnet",
                 &contract,
                 Height::from(100u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &acc,
                 &node_hash,
             )
@@ -256,10 +243,10 @@ mod tests {
         assert_ne!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &other_contract(),
+                mock_chain_id().as_str(),
+                &mock_contract(1),
                 Height::from(100u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &acc,
                 &node_hash,
             )
@@ -267,10 +254,10 @@ mod tests {
         assert_ne!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
+                mock_chain_id().as_str(),
                 &contract,
                 Height::from(101u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &acc,
                 &node_hash,
             )
@@ -278,10 +265,10 @@ mod tests {
         assert_ne!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
+                mock_chain_id().as_str(),
                 &contract,
                 Height::from(100u32),
-                &app_hash(2),
+                &mock_app_hash(2),
                 &acc,
                 &node_hash,
             )
@@ -291,10 +278,10 @@ mod tests {
         assert_ne!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
+                mock_chain_id().as_str(),
                 &contract,
                 Height::from(100u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &other_acc,
                 &node_hash,
             )
@@ -304,10 +291,10 @@ mod tests {
         assert_ne!(
             base,
             digest_snapshot_signing_payload(
-                "nyx-testnet",
+                mock_chain_id().as_str(),
                 &contract,
                 Height::from(100u32),
-                &app_hash(1),
+                &mock_app_hash(1),
                 &acc,
                 &other_node_hash,
             )
@@ -325,17 +312,17 @@ mod tests {
         assert_ne!(
             digest_snapshot_signing_payload(
                 "ab",
-                &contract(),
+                &mock_contract(0),
                 Height::from(0u32),
-                &app_hash(0),
+                &mock_app_hash(0),
                 &acc,
                 &node_hash,
             ),
             digest_snapshot_signing_payload(
                 "a",
-                &other_contract(),
+                &mock_contract(1),
                 Height::from(0u32),
-                &app_hash(0),
+                &mock_app_hash(0),
                 &acc,
                 &node_hash,
             ),
@@ -346,9 +333,9 @@ mod tests {
     fn digest_snapshot_payload_is_domain_tagged() {
         let payload = digest_snapshot_signing_payload(
             "chain",
-            &contract(),
+            &mock_contract(0),
             Height::from(1u32),
-            &app_hash(7),
+            &mock_app_hash(7),
             &LtHash16::new(),
             &[7u8; 32],
         );
@@ -362,62 +349,87 @@ mod tests {
 
     #[test]
     fn verify_accepts_a_valid_attestation_from_a_trusted_signer() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let trusted = HashSet::from([*kp.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
+        let snapshot = signed_snapshot(
+            &kp,
+            mock_chain_id().as_str(),
+            &mock_contract(0),
+            Height::from(100u32),
+        );
 
-        assert!(snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
+        assert!(snapshot.verify(&trusted, &mock_chain_id(), &mock_contract(0)));
     }
 
     #[test]
     fn verify_rejects_an_untrusted_signer() {
-        let kp = keypair(1);
-        let other = keypair(2);
+        let kp = dummy_ed25519_keypair(1);
+        let other = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*other.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
+        let snapshot = signed_snapshot(
+            &kp,
+            mock_chain_id().as_str(),
+            &mock_contract(0),
+            Height::from(100u32),
+        );
 
-        assert!(!snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
+        assert!(!snapshot.verify(&trusted, &mock_chain_id(), &mock_contract(0)));
     }
 
     #[test]
     fn verify_rejects_a_mismatched_chain_id_or_contract() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let trusted = HashSet::from([*kp.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
+        let snapshot = signed_snapshot(
+            &kp,
+            mock_chain_id().as_str(),
+            &mock_contract(0),
+            Height::from(100u32),
+        );
 
-        assert!(!snapshot.verify(&trusted, &"nyx-mainnet".parse().unwrap(), &contract()));
-        assert!(!snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &other_contract()));
+        assert!(!snapshot.verify(&trusted, &"nyx-mainnet".parse().unwrap(), &mock_contract(0)));
+        assert!(!snapshot.verify(&trusted, &mock_chain_id(), &mock_contract(1)));
     }
 
     #[test]
     fn verify_rejects_a_forged_or_malformed_signature() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let trusted = HashSet::from([*kp.public_key()]);
 
-        let mut forged = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
-        forged.signature = keypair(2)
+        let mut forged = signed_snapshot(
+            &kp,
+            mock_chain_id().as_str(),
+            &mock_contract(0),
+            Height::from(100u32),
+        );
+        forged.signature = dummy_ed25519_keypair(2)
             .private_key()
             .sign(forged.snapshot.signing_payload());
-        assert!(!forged.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
+        assert!(!forged.verify(&trusted, &mock_chain_id(), &mock_contract(0)));
 
-        let mut malformed = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(101u32));
+        let mut malformed = signed_snapshot(
+            &kp,
+            mock_chain_id().as_str(),
+            &mock_contract(0),
+            Height::from(101u32),
+        );
         malformed.signature = forged.signature;
-        assert!(!malformed.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
+        assert!(!malformed.verify(&trusted, &mock_chain_id(), &mock_contract(0)));
     }
 
     #[test]
     fn node_identities_hash_is_deterministic() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
+        let a = *dummy_ed25519_keypair(1).public_key();
+        let b = *dummy_ed25519_keypair(2).public_key();
         let pairs = [(1u32, a), (2, b)].into_iter().collect();
         assert_eq!(node_identities_hash(&pairs), node_identities_hash(&pairs));
     }
 
     #[test]
     fn node_identities_hash_is_order_independent() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let c = *keypair(3).public_key();
+        let a = *dummy_ed25519_keypair(1).public_key();
+        let b = *dummy_ed25519_keypair(2).public_key();
+        let c = *dummy_ed25519_keypair(3).public_key();
         let forward = [(1, a), (2, b), (3, c)].into_iter().collect();
         let shuffled = [(3, c), (1, a), (2, b)].into_iter().collect();
         assert_eq!(
@@ -428,8 +440,8 @@ mod tests {
 
     #[test]
     fn node_identities_hash_is_sensitive_to_node_id_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
+        let a = *dummy_ed25519_keypair(1).public_key();
+        let b = *dummy_ed25519_keypair(2).public_key();
         let base = [(1, a), (2, b)].into_iter().collect();
         let changed = [(1, a), (3, b)].into_iter().collect();
         assert_ne!(node_identities_hash(&base), node_identities_hash(&changed));
@@ -437,9 +449,9 @@ mod tests {
 
     #[test]
     fn node_identities_hash_is_sensitive_to_identity_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let other = *keypair(3).public_key();
+        let a = *dummy_ed25519_keypair(1).public_key();
+        let b = *dummy_ed25519_keypair(2).public_key();
+        let other = *dummy_ed25519_keypair(3).public_key();
         let base = [(1, a), (2, b)].into_iter().collect();
         let changed = [(1, a), (2, other)].into_iter().collect();
         assert_ne!(node_identities_hash(&base), node_identities_hash(&changed));
@@ -447,9 +459,9 @@ mod tests {
 
     #[test]
     fn node_identities_hash_is_sensitive_to_membership_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let c = *keypair(3).public_key();
+        let a = *dummy_ed25519_keypair(1).public_key();
+        let b = *dummy_ed25519_keypair(2).public_key();
+        let c = *dummy_ed25519_keypair(3).public_key();
         let base = [(1, a), (2, b)].into_iter().collect();
         let extra = [(1, a), (2, b), (3, c)].into_iter().collect();
         assert_ne!(node_identities_hash(&base), node_identities_hash(&extra));

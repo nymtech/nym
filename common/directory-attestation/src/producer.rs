@@ -59,24 +59,15 @@ pub fn sign_subset<T: DirectorySubset>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::mock::mock_contract;
     use crate::subset::test_helpers::DummySubset;
     use crate::subset_hash;
-    use nym_crypto::asymmetric::ed25519::KeyPair;
-    use nym_test_utils::helpers::u64_seeded_rng;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::collections::HashSet;
-    use std::str::FromStr;
-
-    fn keypair(seed: u64) -> KeyPair {
-        KeyPair::new(&mut u64_seeded_rng(seed))
-    }
-
-    fn contract() -> AccountId {
-        AccountId::from_str("n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr").unwrap()
-    }
 
     #[test]
     fn build_and_sign_snapshot_produces_a_snapshot_that_verifies() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::try_from("nyx-testnet").unwrap();
         let mut accumulator = LtHash16::new();
         accumulator.add(b"leaf");
@@ -84,7 +75,7 @@ mod tests {
         let signed = build_and_sign_snapshot(
             SnapshotInputs {
                 chain_id: chain_id.clone(),
-                directory_contract: contract(),
+                directory_contract: mock_contract(0),
                 height: Height::from(1000u32),
                 app_hash: AppHash::try_from(vec![3u8; 32]).unwrap(),
                 accumulator,
@@ -94,13 +85,13 @@ mod tests {
         );
 
         let trusted = HashSet::from([*kp.public_key()]);
-        assert!(signed.verify(&trusted, &chain_id, &contract()));
+        assert!(signed.verify(&trusted, &chain_id, &mock_contract(0)));
         assert_eq!(signed.snapshot.height, Height::from(1000u32));
     }
 
     #[test]
     fn sign_subset_round_trips_through_verify_and_recompute() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::try_from("nyx-testnet").unwrap();
         let height = Height::from(500u32);
         let data = DummySubset::from(vec![1, 2, 3]);
@@ -131,7 +122,7 @@ mod tests {
 
     #[test]
     fn a_tampered_subset_payload_no_longer_matches_the_committed_hash() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let chain_id = chain::Id::try_from("nyx-testnet").unwrap();
         let height = Height::from(500u32);
 

@@ -7,13 +7,13 @@
 
 use crate::error::DirectoryClientError;
 use nym_crypto::asymmetric::ed25519;
+use nym_directory_attestation::node_identities_hash;
 use nym_directory_contract_common::{
     DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::Height;
-use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 
@@ -92,30 +92,6 @@ pub fn recompute_accumulator(records: &[DirectoryEntryRecord]) -> LtHash16 {
         acc.add(&record.digest_leaf());
     }
     acc
-}
-
-/// Canonical hash over a set of `(NodeId, identity)` pairs - the node-identity binding a
-/// nym-api attests alongside the directory accumulator (see the attested anchor), so
-/// whole-directory retrieval can verify entry authorship without a live chain
-/// connection. Sorted internally by `NodeId`, so the caller's iteration order does not
-/// affect the result.
-///
-/// Every pair contributes a fixed-width `NodeId` (big-endian) followed by the identity's
-/// raw bytes, so - unlike `node_signing_payload`'s variable-length fields - no
-/// length-prefixing is needed: every record is the same width, so the total buffer
-/// length alone fixes the record count, and a record's position alone fixes its field
-/// boundaries.
-pub fn node_identities_hash(identities: &HashMap<NodeId, ed25519::PublicKey>) -> [u8; 32] {
-    let mut pairs: Vec<_> = identities.iter().collect();
-    pairs.sort_unstable_by_key(|(node_id, _)| *node_id);
-
-    let mut buf = Vec::new();
-    for (node_id, identity) in pairs {
-        buf.extend_from_slice(&node_id.borrow().to_be_bytes());
-        buf.extend_from_slice(&identity.borrow().to_bytes());
-    }
-
-    blake3::hash(&buf).into()
 }
 
 /// Whether `entry`'s stored ed25519 signature verifies as node-authored: the signature
@@ -233,13 +209,9 @@ pub fn verify_directory_offline(
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::ed25519::KeyPair;
+    use nym_directory_attestation::node_identities_hash;
     use nym_directory_contract_common::CuratedEntry;
-    use nym_test_utils::helpers::u64_seeded_rng;
-
-    fn keypair(seed: u64) -> KeyPair {
-        let mut rng = u64_seeded_rng(seed);
-        KeyPair::new(&mut rng)
-    }
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn signed_node_record(
         kp: &KeyPair,
@@ -273,7 +245,7 @@ mod tests {
 
     #[test]
     fn recompute_matches_the_incremental_digest_and_is_order_independent() {
-        let kp = keypair(1);
+        let kp = dummy_ed25519_keypair(1);
         let a = signed_node_record(&kp, 1, "sphinx_key", b"a");
         let b = signed_node_record(&kp, 2, "sphinx_key", b"b");
         let c = curated_record("nym-api/1", b"c");
@@ -294,7 +266,7 @@ mod tests {
 
     #[test]
     fn a_tampered_entry_changes_the_recomputed_digest() {
-        let kp = keypair(2);
+        let kp = dummy_ed25519_keypair(2);
         let good = signed_node_record(&kp, 7, "sphinx_key", b"payload");
         let baseline = recompute_accumulator(std::slice::from_ref(&good));
 
@@ -307,7 +279,7 @@ mod tests {
 
     #[test]
     fn node_signature_verification_accepts_valid_and_rejects_forged() {
-        let kp = keypair(3);
+        let kp = dummy_ed25519_keypair(3);
         let DirectoryEntryRecord::Node {
             node_id,
             label,
@@ -326,7 +298,7 @@ mod tests {
         ));
 
         // a different identity key does not verify
-        let other = keypair(4);
+        let other = dummy_ed25519_keypair(4);
         assert!(!node_signature_verifies(
             node_id,
             &label,
@@ -355,72 +327,14 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn node_identities_hash_is_deterministic() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let pairs = [(1u32, a), (2, b)].into_iter().collect();
-        assert_eq!(node_identities_hash(&pairs), node_identities_hash(&pairs));
-    }
-
-    #[test]
-    fn node_identities_hash_is_order_independent() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let c = *keypair(3).public_key();
-        let forward = [(1, a), (2, b), (3, c)].into_iter().collect();
-        let shuffled = [(3, c), (1, a), (2, b)].into_iter().collect();
-        assert_eq!(
-            node_identities_hash(&forward),
-            node_identities_hash(&shuffled)
-        );
-    }
-
-    #[test]
-    fn node_identities_hash_is_sensitive_to_node_id_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let base = [(1, a), (2, b)].into_iter().collect();
-        let changed = [(1, a), (3, b)].into_iter().collect();
-        assert_ne!(node_identities_hash(&base), node_identities_hash(&changed));
-    }
-
-    #[test]
-    fn node_identities_hash_is_sensitive_to_identity_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let other = *keypair(3).public_key();
-        let base = [(1, a), (2, b)].into_iter().collect();
-        let changed = [(1, a), (2, other)].into_iter().collect();
-        assert_ne!(node_identities_hash(&base), node_identities_hash(&changed));
-    }
-
-    #[test]
-    fn node_identities_hash_is_sensitive_to_membership_change() {
-        let a = *keypair(1).public_key();
-        let b = *keypair(2).public_key();
-        let c = *keypair(3).public_key();
-        let base = [(1, a), (2, b)].into_iter().collect();
-        let extra = [(1, a), (2, b), (3, c)].into_iter().collect();
-        assert_ne!(node_identities_hash(&base), node_identities_hash(&extra));
-    }
-
-    #[test]
-    fn empty_node_identities_mapping_hashes_deterministically() {
-        assert_eq!(
-            node_identities_hash(&HashMap::new()),
-            node_identities_hash(&HashMap::new())
-        );
-    }
-
     fn sample_directory() -> (
         Vec<DirectoryEntryRecord>,
         HashMap<NodeId, ed25519::PublicKey>,
         LtHash16,
         [u8; 32],
     ) {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let records = vec![
             signed_node_record(&a, 1, "sphinx_key", b"a"),
             signed_node_record(&b, 2, "sphinx_key", b"b"),

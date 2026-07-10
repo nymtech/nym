@@ -374,12 +374,6 @@ mod tests {
         }
     }
 
-    fn dummy_contract() -> AccountId {
-        "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
-            .parse()
-            .unwrap()
-    }
-
     /// A mock RPC serving every fixture (checkpoint, adjacent block, skip block).
     fn full_mock() -> MockRpcClient {
         let (c896, v896, v897) = checkpoint_fixtures();

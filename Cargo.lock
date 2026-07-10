@@ -6876,7 +6876,7 @@ dependencies = [
 
 [[package]]
 name = "nym-directory-attestation"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "async-trait",
  "blake3",
@@ -6893,7 +6893,7 @@ dependencies = [
 
 [[package]]
 name = "nym-directory-client"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6903,6 +6903,7 @@ dependencies = [
  "futures",
  "ics23",
  "nym-crypto",
+ "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-lthash",
  "nym-mixnet-contract-common",
@@ -9101,6 +9102,7 @@ dependencies = [
  "anyhow",
  "futures",
  "nym-bin-common",
+ "nym-crypto",
  "rand_chacha 0.10.0",
  "rand_chacha 0.3.1",
  "tokio",

@@ -7,6 +7,9 @@ use async_trait::async_trait;
 use cosmrs::tendermint::block::Height;
 use nym_crypto::asymmetric::ed25519;
 
+#[cfg(any(test, feature = "mock"))]
+pub mod mock;
+
 /// A source of nym-api-signed directory snapshots, so the anchor is independent of any
 /// particular transport and can be exercised with a mock. The concrete HTTP transport
 /// lives in the consuming client crate.

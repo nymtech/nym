@@ -235,7 +235,7 @@ impl Session {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.select_inner(spec, role, false) => res,
+            res = self.select_inner(spec, role, false, None) => res,
         }
     }
 
@@ -244,13 +244,21 @@ impl Session {
         spec: &GatewaySpec,
         role: WgRole,
         require_quic: bool,
+        exclude: Option<&ed25519::PublicKey>,
     ) -> Result<SelectedGateway, SessionError> {
         let nodes = self
             .api
             .get_all_described_nodes_v2()
             .await
             .map_err(|e| SessionError::Chain(e.to_string()))?;
-        gateway::select(nodes, spec, role, self.directory.as_ref(), require_quic)
+        gateway::select(
+            nodes,
+            spec,
+            role,
+            self.directory.as_ref(),
+            require_quic,
+            exclude,
+        )
     }
 
     /// Register a single-hop tunnel against one gateway via the LP
@@ -271,7 +279,9 @@ impl Session {
         gateway: &GatewaySpec,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(false).await?;
-        let selected = self.select_inner(gateway, WgRole::Entry, false).await?;
+        let selected = self
+            .select_inner(gateway, WgRole::Entry, false, None)
+            .await?;
         let hop = self
             .register_hop(&selected, TicketType::V1WireguardEntry, None)
             .await?;
@@ -319,8 +329,13 @@ impl Session {
         entry_quic: bool,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(true).await?;
-        let entry_gw = self.select_inner(entry, WgRole::Entry, entry_quic).await?;
-        let exit_gw = self.select_inner(exit, WgRole::Exit, false).await?;
+        let entry_gw = self
+            .select_inner(entry, WgRole::Entry, entry_quic, None)
+            .await?;
+        // Exclude the entry gateway so a two-hop tunnel never uses one gateway twice.
+        let exit_gw = self
+            .select_inner(exit, WgRole::Exit, false, Some(&entry_gw.identity))
+            .await?;
 
         let entry_lp = lp_info(&entry_gw)?;
         let exit_lp = lp_info(&exit_gw)?;

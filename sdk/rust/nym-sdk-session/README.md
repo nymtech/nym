@@ -47,6 +47,9 @@ let registration = session
 `GatewaySpec::Identity(key)` / `Country("XX")` / `Random`, filtered to
 WireGuard-capable nodes (country = the described-node `location`). Single-hop
 uses the LP single-gateway `register_dvpn` path; two-hop registers entry + exit.
+Two-hop selection excludes the entry gateway from the exit pool, so the two hops
+are always distinct gateways (an exit spec that can only match the entry gateway
+fails with `SessionError::SameGatewaySelected`).
 
 ## dVPN directory: monikers + QUIC entry selection
 

@@ -47,6 +47,12 @@ WireGuard role.
 - **THEN** a WireGuard-capable gateway is chosen uniformly at random from the eligible
   set
 
+#### Scenario: Two-hop selects distinct gateways
+- **WHEN** a two-hop tunnel is registered
+- **THEN** the entry gateway is excluded from the exit selection so the two hops never
+  resolve to the same gateway; if the exit spec can only match the entry gateway,
+  registration fails with a distinct-gateways error
+
 ### Requirement: Gateway registration producing WireGuard configuration
 
 The session SHALL register selected gateways via `nym-registration-client` and return,

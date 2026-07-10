@@ -12,6 +12,7 @@ use nym_registration_client::RegistrationNymNode;
 use nym_registration_common::{NymNodeInformation, NymNodeLPInformation};
 use rand::seq::SliceRandom;
 
+use crate::dvpn::{DvpnDirectory, QuicBridge};
 use crate::error::SessionError;
 
 /// How the caller names the gateway(s) to use.
@@ -42,6 +43,42 @@ pub struct SelectedGateway {
     pub identity: ed25519::PublicKey,
     /// The gateway's advertised country (ISO 3166 alpha-2), if known.
     pub country: Option<String>,
+    /// The gateway's directory node id.
+    pub node_id: u32,
+    /// The gateway's advertised IP address.
+    pub ip: std::net::IpAddr,
+    /// The gateway's human moniker from the dVPN directory, if configured/known.
+    pub name: Option<String>,
+    /// The gateway's QUIC bridge parameters, if it advertises one.
+    pub quic: Option<QuicBridge>,
+}
+
+impl SelectedGateway {
+    /// A copyable summary of this gateway's directory metadata.
+    pub fn info(&self) -> GatewayInfo {
+        GatewayInfo {
+            identity: self.identity,
+            node_id: self.node_id,
+            country: self.country.clone(),
+            ip: self.ip,
+            name: self.name.clone(),
+        }
+    }
+}
+
+/// Directory metadata for the gateway a tunnel hop terminates at.
+#[derive(Clone, Debug)]
+pub struct GatewayInfo {
+    /// ed25519 identity key.
+    pub identity: ed25519::PublicKey,
+    /// Directory node id.
+    pub node_id: u32,
+    /// Advertised country (ISO 3166 alpha-2), if known.
+    pub country: Option<String>,
+    /// Advertised IP address.
+    pub ip: std::net::IpAddr,
+    /// Human moniker from the dVPN directory, if configured/known.
+    pub name: Option<String>,
 }
 
 /// A node is usable for dVPN only if it advertises WireGuard, an authenticator,
@@ -146,14 +183,50 @@ fn build_node(desc: &NymNodeDescriptionV2) -> Result<SelectedGateway, SessionErr
         node: RegistrationNymNode { node, keys },
         identity,
         country,
+        node_id: desc.node_id,
+        ip,
+        name: None,
+        quic: None,
     })
 }
 
+/// Build a gateway and enrich its moniker/QUIC bridge from the dVPN directory.
+fn build_and_enrich(
+    desc: &NymNodeDescriptionV2,
+    directory: Option<&DvpnDirectory>,
+) -> Result<SelectedGateway, SessionError> {
+    let mut selected = build_node(desc)?;
+    if let Some(entry) = directory.and_then(|d| d.entry(&selected.identity.to_base58_string())) {
+        selected.name = entry.name.clone();
+        selected.quic = entry.quic.clone();
+        // Prefer the directory's country when the described node lacks one.
+        if selected.country.is_none() {
+            selected.country = entry.country.clone();
+        }
+    }
+    Ok(selected)
+}
+
+/// Whether `identity` may be selected given the QUIC requirement.
+fn quic_ok(
+    directory: Option<&DvpnDirectory>,
+    require_quic: bool,
+    identity: &ed25519::PublicKey,
+) -> bool {
+    !require_quic || directory.is_some_and(|d| d.has_quic(&identity.to_base58_string()))
+}
+
 /// Select a gateway from the described-node set per the spec and role.
+///
+/// When `require_quic` is set, only gateways the dVPN `directory` reports as
+/// QUIC-bridge-capable are eligible; if none match, [`SessionError::NoQuicGateway`]
+/// is returned.
 pub(crate) fn select(
     nodes: Vec<NymNodeDescriptionV2>,
     spec: &GatewaySpec,
     role: WgRole,
+    directory: Option<&DvpnDirectory>,
+    require_quic: bool,
 ) -> Result<SelectedGateway, SessionError> {
     match spec {
         GatewaySpec::Identity(id) => {
@@ -164,7 +237,12 @@ pub(crate) fn select(
             if !wg_capable(&desc, role) {
                 return Err(SessionError::NoWireguardGateway);
             }
-            build_node(&desc)
+            if !quic_ok(directory, require_quic, id) {
+                return Err(SessionError::NoQuicGateway {
+                    spec: id.to_base58_string(),
+                });
+            }
+            build_and_enrich(&desc, directory)
         }
         GatewaySpec::Country(cc) => {
             let candidates: Vec<_> = nodes
@@ -176,19 +254,38 @@ pub(crate) fn select(
                             .location
                             .as_ref()
                             .is_some_and(|c| c.alpha2.eq_ignore_ascii_case(cc))
+                        && quic_ok(directory, require_quic, &n.ed25519_identity_key())
                 })
                 .collect();
-            let desc = candidates
-                .choose(&mut rand::thread_rng())
-                .ok_or_else(|| SessionError::NoCountryMatch(cc.clone()))?;
-            build_node(desc)
+            let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
+                if require_quic {
+                    SessionError::NoQuicGateway {
+                        spec: format!("country {cc}"),
+                    }
+                } else {
+                    SessionError::NoCountryMatch(cc.clone())
+                }
+            })?;
+            build_and_enrich(desc, directory)
         }
         GatewaySpec::Random => {
-            let candidates: Vec<_> = nodes.into_iter().filter(|n| wg_capable(n, role)).collect();
-            let desc = candidates
-                .choose(&mut rand::thread_rng())
-                .ok_or(SessionError::NoWireguardGateway)?;
-            build_node(desc)
+            let candidates: Vec<_> = nodes
+                .into_iter()
+                .filter(|n| {
+                    wg_capable(n, role)
+                        && quic_ok(directory, require_quic, &n.ed25519_identity_key())
+                })
+                .collect();
+            let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
+                if require_quic {
+                    SessionError::NoQuicGateway {
+                        spec: "random".to_string(),
+                    }
+                } else {
+                    SessionError::NoWireguardGateway
+                }
+            })?;
+            build_and_enrich(desc, directory)
         }
     }
 }
@@ -210,9 +307,15 @@ mod tests {
     #[test]
     fn identity_not_found_over_empty_set() {
         let id = random_identity();
-        let err = select(vec![], &GatewaySpec::Identity(id), WgRole::Entry)
-            .err()
-            .expect("expected selection error");
+        let err = select(
+            vec![],
+            &GatewaySpec::Identity(id),
+            WgRole::Entry,
+            None,
+            false,
+        )
+        .err()
+        .expect("expected selection error");
         match err {
             SessionError::GatewayNotFound(s) => assert_eq!(s, id.to_base58_string()),
             other => panic!("expected GatewayNotFound, got {other:?}"),
@@ -221,9 +324,15 @@ mod tests {
 
     #[test]
     fn country_no_match_over_empty_set() {
-        let err = select(vec![], &GatewaySpec::Country("CH".into()), WgRole::Exit)
-            .err()
-            .expect("expected selection error");
+        let err = select(
+            vec![],
+            &GatewaySpec::Country("CH".into()),
+            WgRole::Exit,
+            None,
+            false,
+        )
+        .err()
+        .expect("expected selection error");
         match err {
             SessionError::NoCountryMatch(cc) => assert_eq!(cc, "CH"),
             other => panic!("expected NoCountryMatch, got {other:?}"),
@@ -232,10 +341,19 @@ mod tests {
 
     #[test]
     fn random_no_gateway_over_empty_set() {
-        let err = select(vec![], &GatewaySpec::Random, WgRole::Entry)
+        let err = select(vec![], &GatewaySpec::Random, WgRole::Entry, None, false)
             .err()
             .expect("expected selection error");
         assert!(matches!(err, SessionError::NoWireguardGateway));
+    }
+
+    #[test]
+    fn require_quic_without_directory_fails() {
+        // With no directory (None), requiring QUIC can never be satisfied.
+        let err = select(vec![], &GatewaySpec::Random, WgRole::Entry, None, true)
+            .err()
+            .expect("expected selection error");
+        assert!(matches!(err, SessionError::NoQuicGateway { .. }));
     }
 
     #[test]

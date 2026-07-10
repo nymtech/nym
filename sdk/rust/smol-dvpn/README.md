@@ -50,6 +50,34 @@ let tunnel = TunnelBuilder::two_hop(entry, exit)
     .await?;
 ```
 
+## Examples
+
+Runnable end-to-end demos live in `examples/` (all need a funded `MNEMONIC` and
+a live Nym network; shared setup is in `examples/common/`):
+
+- `smol-dvpn-config` — export a plain WireGuard config from a single-hop
+  registration.
+- `smol-dvpn-topup` — spend a stored ticket and report updated bandwidth.
+- `smol-dvpn-grpc` — a `tonic` gRPC health check through the tunnel.
+- `two-hop-ip` — prove a two-hop tunnel relocates your public IP (queries
+  `ipinfo.io` directly, then through the tunnel). Pass `-- --quic` to require a
+  QUIC-bridge entry gateway.
+- `two-hop-quic` — a two-hop tunnel whose **entry leg is carried over a QUIC
+  bridge** (for clients blocked from plain WireGuard/UDP).
+- `zcash-sync` — time syncing the last 1000 Zcash compact blocks from a public
+  `lightwalletd` (gRPC-over-TLS) directly vs. through the tunnel. Also accepts
+  `-- --quic`.
+
+```sh
+MNEMONIC="<funded mnemonic>" cargo run -p nym-smol-dvpn --example two-hop-quic
+```
+
+QUIC-entry selection (`two-hop-quic`, `--quic`) needs a dVPN gateway-directory
+URL so the session can discover QUIC-bridge-capable gateways and their bridge
+params; the examples default to the sandbox directory (override with
+`DVPN_DIRECTORY_URL`). If no QUIC-capable entry matches the requested
+country/identity, selection fails with `NoQuicGateway`.
+
 ## Features
 
 - `CancellationToken` aborts setup or tears down the long-lived tunnel;

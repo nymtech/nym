@@ -35,6 +35,9 @@ bip39 = { workspace = true }
 rand = { workspace = true }
 rand09 = { workspace = true }
 semver = { workspace = true }
+reqwest = { workspace = true, features = ["rustls", "json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
 tokio-util = { workspace = true }
 thiserror = { workspace = true }

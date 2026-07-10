@@ -19,6 +19,7 @@
 //!     network: nym_network_defaults::NymNetworkDetails::new_mainnet(),
 //!     credential_store_path: None,
 //!     data_path: "/tmp/dvpn".into(),
+//!     dvpn_directory_url: None,
 //! };
 //! let session = Session::new(config, CancellationToken::new()).await?;
 //!
@@ -30,10 +31,12 @@
 //! # }
 //! ```
 
+mod dvpn;
 mod error;
 mod gateway;
 mod session;
 
+pub use dvpn::QuicBridge;
 pub use error::SessionError;
-pub use gateway::{GatewaySpec, SelectedGateway, WgRole};
+pub use gateway::{GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
 pub use session::{HopConfig, Registration, Session, SessionConfig};

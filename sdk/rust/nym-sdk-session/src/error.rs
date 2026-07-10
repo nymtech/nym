@@ -42,6 +42,11 @@ pub enum SessionError {
     #[error("no WireGuard-capable gateway found in country {0}")]
     NoCountryMatch(String),
 
+    /// A QUIC-bridge entry gateway was required but none is available for the
+    /// requested selection (directory unavailable, or no QUIC gateway matches).
+    #[error("no QUIC-bridge gateway available for selection: {spec}")]
+    NoQuicGateway { spec: String },
+
     /// A selected gateway advertised malformed LP data.
     #[error("gateway {identity} advertised malformed LP data: {reason}")]
     MalformedGateway { identity: String, reason: String },

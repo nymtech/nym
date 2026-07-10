@@ -17,9 +17,11 @@
 
 use std::time::Duration;
 
+use std::net::IpAddr;
+
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{GatewaySpec, HopConfig, Registration, Session, SessionConfig};
-use nym_smol_dvpn::{PeerConfig, Tunnel, TunnelBuilder};
+use nym_smol_dvpn::{MtuConfig, PeerConfig, Tunnel, TunnelBuilder};
 use tokio_util::sync::CancellationToken;
 
 /// Map a session hop into the datapath's transport-agnostic peer config.
@@ -57,36 +59,51 @@ async fn new_session(data_dir: &str) -> Session {
     .expect("session init")
 }
 
-/// Bring up `registration` as a tunnel and prove traffic flows by resolving a
-/// hostname through it (exercises the UDP socket + smol-core DNS path).
-async fn probe_traffic(builder: TunnelBuilder) {
-    let tunnel: Tunnel = builder.connect().await.expect("tunnel connect");
-
-    // Retry while the WireGuard handshake warms up: early DNS queries can be
-    // dropped before the session is established, surfacing as no records.
-    let mut resolved = Vec::new();
+/// Resolve a hostname through the tunnel, retrying while the WireGuard handshake
+/// (or a freshly rebuilt interface) warms up.
+async fn resolve_with_warmup(tunnel: &Tunnel) -> Vec<IpAddr> {
     for attempt in 1..=10 {
         match tunnel.resolve("nymtech.net").await {
-            Ok(addrs) if !addrs.is_empty() => {
-                resolved = addrs;
-                break;
-            }
+            Ok(addrs) if !addrs.is_empty() => return addrs,
             Ok(_) | Err(_) => {
                 println!("resolve attempt {attempt} not ready yet; retrying");
                 tokio::time::sleep(Duration::from_secs(3)).await;
             }
         }
     }
+    Vec::new()
+}
+
+/// Bring up `registration` as a tunnel and prove traffic flows by resolving a
+/// hostname through it (exercises the UDP socket + smol-core DNS path), then
+/// exercise a runtime MTU change (task 4.7) and prove traffic still flows.
+async fn probe_traffic(builder: TunnelBuilder) {
+    let tunnel: Tunnel = builder.connect().await.expect("tunnel connect");
+
+    let resolved = resolve_with_warmup(&tunnel).await;
     assert!(
         !resolved.is_empty(),
         "no addresses resolved through the tunnel after warmup"
     );
     println!("resolved nymtech.net through the tunnel: {resolved:?}");
 
+    // Runtime MTU change (task 4.7): rebuild the interface at the MOBILE MTU
+    // while keeping the WireGuard session, then confirm traffic still flows.
+    tunnel
+        .set_mtu(MtuConfig::MOBILE)
+        .expect("set_mtu at runtime");
+    println!("changed MTU at runtime to {:?}", tunnel.mtu());
+    let after = resolve_with_warmup(&tunnel).await;
+    assert!(
+        !after.is_empty(),
+        "no addresses resolved through the tunnel after runtime MTU change"
+    );
+    println!("resolved again after MTU change: {after:?}");
+
     // Traffic is proven; tear down (bounded — teardown of a live multi-threaded
     // runtime can be slow, so we don't fail the proven test on shutdown latency).
     let _ = tokio::time::timeout(Duration::from_secs(5), tunnel.shutdown()).await;
-    println!("PASS: traffic flowed through the tunnel");
+    println!("PASS: traffic flowed through the tunnel (incl. after MTU change)");
     // Guarantee the test binary terminates promptly regardless of background
     // runtime/reactor teardown latency (this is a live demo/integration test).
     std::process::exit(0);

@@ -17,7 +17,7 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
 
 use http::Uri;
@@ -27,15 +27,16 @@ use tower::Service;
 
 use crate::error::DvpnError;
 
-/// A `tower` connector that dials through the dVPN tunnel. Cloneable and cheap
-/// (shares the tunnel's stack via `Arc`).
+/// A `tower` connector that dials through the dVPN tunnel. Cloneable and cheap;
+/// holds the tunnel's swappable stack handle so it keeps working across a
+/// runtime MTU change (which rebuilds the stack).
 #[derive(Clone)]
 pub struct TunnelConnector {
-    stack: Arc<Stack>,
+    stack: Arc<RwLock<Arc<Stack>>>,
 }
 
 impl TunnelConnector {
-    pub(crate) fn new(stack: Arc<Stack>) -> Self {
+    pub(crate) fn new(stack: Arc<RwLock<Arc<Stack>>>) -> Self {
         Self { stack }
     }
 }
@@ -50,7 +51,8 @@ impl Service<Uri> for TunnelConnector {
     }
 
     fn call(&mut self, uri: Uri) -> Self::Future {
-        let stack = self.stack.clone();
+        // Snapshot the current stack (survives a runtime MTU swap).
+        let stack = self.stack.read().expect("stack lock poisoned").clone();
         Box::pin(async move {
             let host = uri
                 .host()

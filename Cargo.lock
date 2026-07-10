@@ -8338,6 +8338,8 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
+ "tonic 0.14.6",
+ "tonic-health",
  "tower",
  "tracing",
  "x509-parser",
@@ -13123,6 +13125,19 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "tonic-health"
+version = "0.14.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcfab99db777fba2802f0dfa861d1628d1ae916fb199d29819941f139ae85082"
+dependencies = [
+ "prost 0.14.3",
+ "tokio",
+ "tokio-stream",
+ "tonic 0.14.6",
+ "tonic-prost",
 ]
 
 [[package]]

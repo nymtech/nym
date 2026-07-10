@@ -18,8 +18,11 @@ use std::task::{Context, Poll};
 
 use http::Uri;
 use hyper_util::rt::TokioIo;
+use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sdk_session::{GatewayInfo, HopConfig, QuicBridge, Registration, Session, SessionConfig};
+use nym_sdk_session::{
+    GatewayInfo, GatewaySpec, HopConfig, QuicBridge, Registration, Session, SessionConfig,
+};
 use nym_smol_dvpn::{BridgeParams, PeerConfig, Tunnel, TunnelBuilder};
 use rustls::pki_types::ServerName;
 use serde_json::Value;
@@ -108,6 +111,127 @@ pub async fn build_two_hop_tunnel(reg: &Registration, use_quic: bool) -> Result<
         builder = builder.quic_bridge(bridge_params(qb)?);
     }
     Ok(builder.connect().await?)
+}
+
+/// Bring up the tunnel described by `reg` (single- or two-hop, QUIC entry when
+/// `use_quic`), dispatching on whether an exit hop is present.
+pub async fn build_tunnel(reg: &Registration, use_quic: bool) -> Result<Tunnel, BoxError> {
+    if reg.exit.is_some() {
+        build_two_hop_tunnel(reg, use_quic).await
+    } else {
+        let entry = peer_from_hop(&reg.entry);
+        Ok(TunnelBuilder::single_hop(entry).connect().await?)
+    }
+}
+
+// --- CLI --------------------------------------------------------------------
+
+/// Usage string shared by the configurable examples.
+pub const USAGE: &str = "\
+options:
+  --two-hop            entry + exit gateways (default)
+  --one-hop            a single gateway (entry == exit); cannot be combined with --quic
+  --entry <SPEC>       entry gateway selector (default: random)
+  --exit  <SPEC>       exit gateway selector  (default: random)
+  --gateway <SPEC>     set both entry and exit (handy for --one-hop)
+  --quic               require a QUIC-bridge-capable entry gateway (two-hop only)
+  -h, --help           print this help
+
+<SPEC> is one of:
+  random               any WireGuard-capable gateway (default)
+  <CC>                 a two-letter ISO country code, e.g. DE, CH
+  <identity>           an exact gateway ed25519 identity (base58)";
+
+/// Parsed command-line options for the configurable examples.
+pub struct Cli {
+    /// Two-hop (entry + exit) when true; single-hop when false.
+    pub two_hop: bool,
+    /// Entry (or sole) gateway selector.
+    pub entry: GatewaySpec,
+    /// Exit gateway selector (ignored for single-hop).
+    pub exit: GatewaySpec,
+    /// Require a QUIC-bridge entry gateway (two-hop only).
+    pub quic: bool,
+}
+
+/// Parse a gateway `<SPEC>`: `random`, a two-letter country code, or a base58
+/// ed25519 identity key.
+fn parse_spec(s: &str) -> Result<GatewaySpec, BoxError> {
+    if s.eq_ignore_ascii_case("random") {
+        Ok(GatewaySpec::Random)
+    } else if s.len() == 2 && s.chars().all(|c| c.is_ascii_alphabetic()) {
+        Ok(GatewaySpec::Country(s.to_ascii_uppercase()))
+    } else {
+        let key = ed25519::PublicKey::from_base58_string(s)
+            .map_err(|e| format!("invalid gateway spec {s:?}: {e}"))?;
+        Ok(GatewaySpec::Identity(key))
+    }
+}
+
+/// Parse the process args into a [`Cli`] (prints usage and exits on `-h`).
+pub fn parse_cli() -> Result<Cli, BoxError> {
+    let mut two_hop = true;
+    let (mut entry, mut exit) = (GatewaySpec::Random, GatewaySpec::Random);
+    let mut quic = false;
+
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut i = 0;
+    let next = |i: &mut usize, flag: &str| -> Result<String, BoxError> {
+        *i += 1;
+        args.get(*i)
+            .cloned()
+            .ok_or_else(|| format!("{flag} requires a value").into())
+    };
+    while i < args.len() {
+        match args[i].as_str() {
+            "--quic" => quic = true,
+            "--one-hop" | "--single-hop" => two_hop = false,
+            "--two-hop" => two_hop = true,
+            "--entry" => entry = parse_spec(&next(&mut i, "--entry")?)?,
+            "--exit" => exit = parse_spec(&next(&mut i, "--exit")?)?,
+            "--gateway" => {
+                let s = parse_spec(&next(&mut i, "--gateway")?)?;
+                entry = s.clone();
+                exit = s;
+            }
+            "-h" | "--help" => {
+                println!("{USAGE}");
+                std::process::exit(0);
+            }
+            other => return Err(format!("unknown argument {other:?}\n\n{USAGE}").into()),
+        }
+        i += 1;
+    }
+
+    if quic && !two_hop {
+        return Err("--quic requires two-hop mode (QUIC fronts the entry leg only)".into());
+    }
+    Ok(Cli {
+        two_hop,
+        entry,
+        exit,
+        quic,
+    })
+}
+
+/// Issue the required ticketbooks and register the gateway(s) for `cli`.
+pub async fn register(session: &Session, cli: &Cli) -> Result<Registration, BoxError> {
+    session.ensure_ticketbooks(cli.two_hop).await?;
+    let reg = if !cli.two_hop {
+        session.register_single_hop(&cli.entry).await?
+    } else if cli.quic {
+        session.register_two_hop_quic(&cli.entry, &cli.exit).await?
+    } else {
+        session.register_two_hop(&cli.entry, &cli.exit).await?
+    };
+    Ok(reg)
+}
+
+/// One-line description of the tunnel a [`Cli`] will bring up.
+pub fn describe(cli: &Cli) -> String {
+    let mode = if cli.two_hop { "two-hop" } else { "single-hop" };
+    let quic = if cli.quic { " (QUIC entry)" } else { "" };
+    format!("{mode}{quic}")
 }
 
 /// Map a session hop into the datapath's transport-agnostic peer config.

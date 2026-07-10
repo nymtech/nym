@@ -19,13 +19,17 @@
 use std::process::ExitCode;
 use std::time::Duration;
 
-use nym_sdk_session::GatewaySpec;
-
 #[path = "common/mod.rs"]
 mod common;
 
 async fn run() -> Result<(), common::BoxError> {
     common::init_crypto();
+    // QUIC + two-hop by definition; still honour --entry/--exit/--gateway selectors.
+    let mut cli = common::parse_cli()?;
+    if !cli.two_hop {
+        return Err("two-hop-quic is two-hop only (QUIC fronts the entry leg)".into());
+    }
+    cli.quic = true;
 
     // 1. Real IP (direct).
     let real = common::ipinfo_direct().await?;
@@ -34,10 +38,7 @@ async fn run() -> Result<(), common::BoxError> {
     // 2. Register a two-hop tunnel, requiring a QUIC-capable entry gateway.
     println!("\nprovisioning a two-hop tunnel with a QUIC entry gateway …");
     let session = common::new_session("two-hop-quic-data").await;
-    session.ensure_ticketbooks(true).await?;
-    let reg = session
-        .register_two_hop_quic(&GatewaySpec::Random, &GatewaySpec::Random)
-        .await?;
+    let reg = common::register(&session, &cli).await?;
 
     common::print_gateway("entry (QUIC)", &reg.entry.gateway);
     common::print_gateway(
@@ -53,7 +54,7 @@ async fn run() -> Result<(), common::BoxError> {
     }
 
     // 3. Bring up the tunnel with the QUIC entry leg.
-    let tunnel = common::build_two_hop_tunnel(&reg, /* use_quic = */ true).await?;
+    let tunnel = common::build_tunnel(&reg, /* use_quic = */ true).await?;
 
     // 4. IP through the tunnel — retry while the handshake warms up.
     println!("\nquerying ipinfo.io through the QUIC-fronted tunnel …");

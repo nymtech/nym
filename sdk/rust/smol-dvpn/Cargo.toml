@@ -60,6 +60,10 @@ x509-parser = "0.16"
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "io-util", "net"] }
 rcgen = { version = "0.13", features = ["pem", "crypto"] }
+# Example only: demonstrate a real tonic gRPC request through the tunnel using
+# tonic-health's ready-made client (no custom proto/build.rs).
+tonic = { workspace = true, features = ["transport"] }
+tonic-health = "0.14"
 # Example CLIs only (keep the library decoupled from the provisioning facade).
 nym-sdk-session = { workspace = true }
 nym-crypto = { workspace = true }

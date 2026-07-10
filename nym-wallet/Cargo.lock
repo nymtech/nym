@@ -817,6 +817,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake3"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2468ef7d57b3fb7e16b576e8377cdbde2320c60e1491e961d11da40fc4f02a2d"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "cc",
+ "cfg-if",
+ "constant_time_eq",
+ "cpufeatures 0.2.17",
+ "digest 0.10.7",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5163,6 +5178,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-attestation"
+version = "1.21.3"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "nym-crypto",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "nym-directory-contract-common"
 version = "1.21.3"
 dependencies = [
@@ -5308,6 +5338,16 @@ dependencies = [
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nym-lthash"
+version = "1.21.3"
+dependencies = [
+ "blake3",
+ "digest 0.10.7",
+ "serde",
+ "serde_bytes",
 ]
 
 [[package]]
@@ -5558,6 +5598,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
+ "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",

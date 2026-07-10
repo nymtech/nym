@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::directory::cache::data::NymDirectoryCacheData;
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
@@ -107,6 +108,9 @@ pub(crate) struct AppState {
     // todo: refactor it into inner: Arc<EcashStateInner>
     /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
+
+    /// Verified nym-directory retrieved from the directory contract.
+    pub(crate) directory: SharedCache<NymDirectoryCacheData>,
 }
 
 impl FromRef<AppState> for ApiStatusState {
@@ -154,6 +158,12 @@ impl FromRef<AppState> for NodeStatusCache {
 impl FromRef<AppState> for SharedCache<SignersCacheData> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_signers_cache.clone()
+    }
+}
+
+impl FromRef<AppState> for SharedCache<NymDirectoryCacheData> {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.directory.clone()
     }
 }
 

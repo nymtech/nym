@@ -23,7 +23,7 @@ pub mod source;
 pub mod subset;
 
 pub use error::AttestationSourceError;
-pub use producer::{SnapshotInputs, build_and_sign_snapshot, sign_subset};
+pub use producer::sign_subset;
 pub use snapshot::{
     DigestSnapshot, SignedDigestSnapshot, digest_snapshot_signing_payload, node_identities_hash,
 };

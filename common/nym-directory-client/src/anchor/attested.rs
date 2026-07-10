@@ -316,10 +316,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::keypair;
     use nym_directory_attestation::source::mock::{
         mock_app_hash, mock_attestation_source, mock_chain_id, mock_contract, mock_digest_snapshot,
     };
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
 
     fn mock_anchor(trusted: HashSet<ed25519::PublicKey>, quorum: usize) -> AttestedTrustAnchor<()> {
         AttestedTrustAnchor::new(
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     fn new_rejects_zero_quorum() {
-        let trusted = HashSet::from([*keypair(1).public_key()]);
+        let trusted = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let result = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             trusted,
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn new_rejects_quorum_exceeding_signer_count() {
-        let trusted = HashSet::from([*keypair(1).public_key()]);
+        let trusted = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let result = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             trusted,
@@ -372,7 +372,10 @@ mod tests {
 
     #[test]
     fn new_accepts_a_valid_configuration() {
-        let trusted = HashSet::from([*keypair(1).public_key(), *keypair(2).public_key()]);
+        let trusted = HashSet::from([
+            *dummy_ed25519_keypair(1).public_key(),
+            *dummy_ed25519_keypair(2).public_key(),
+        ]);
         assert!(
             AttestedTrustAnchor::<()>::new(
                 Vec::new(),
@@ -412,7 +415,7 @@ mod tests {
 
     #[test]
     fn new_with_a_caller_supplied_set_is_unaffected_by_the_default() {
-        let custom = HashSet::from([*keypair(1).public_key()]);
+        let custom = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let anchor = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             custom.clone(),
@@ -428,8 +431,8 @@ mod tests {
 
     #[test]
     fn reach_quorum_accepts_k_distinct_agreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let anchor = mock_anchor(trusted, 2);
@@ -445,8 +448,8 @@ mod tests {
 
     #[test]
     fn reach_quorum_fails_with_fewer_than_k_agreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let anchor = mock_anchor(trusted, 2);
 
@@ -464,8 +467,8 @@ mod tests {
 
     #[test]
     fn reach_quorum_counts_a_duplicated_signer_once() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let anchor = mock_anchor(trusted, 2);
@@ -489,8 +492,8 @@ mod tests {
 
     #[test]
     fn reach_quorum_ignores_untrusted_or_invalid_attestations() {
-        let a = keypair(1);
-        let untrusted = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let untrusted = dummy_ed25519_keypair(2);
         let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key()]);
         let anchor = mock_anchor(trusted, 1);
@@ -514,8 +517,8 @@ mod tests {
 
     #[test]
     fn reach_quorum_rejects_disagreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let anchor = mock_anchor(trusted, 2);
@@ -541,8 +544,8 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_seeds_a_height_and_confirms_it_across_sources() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
             mock_attestation_source(&a, Height::from(100u32)),
@@ -559,8 +562,8 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_pins_the_height_and_a_cached_query_does_not_requery_sources() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let source_a = mock_attestation_source(&a, Height::from(100u32));
         let source_b = mock_attestation_source(&b, Height::from(100u32));
@@ -598,8 +601,8 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_fails_when_sources_disagree() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         // a and b each only ever answer for their OWN, different height, so asking the
         // other for the seeded height always comes back empty
@@ -623,8 +626,8 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_for_returns_the_cached_value_on_a_second_call() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
             mock_attestation_source(&a, Height::from(100u32)),
@@ -641,8 +644,8 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_for_rejects_a_height_no_quorum_can_attest() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
             mock_attestation_source(&a, Height::from(100u32)),
@@ -661,8 +664,8 @@ mod tests {
 
     #[tokio::test]
     async fn directory_trust_anchor_impl_returns_the_attested_values() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let height = Height::from(100u32);
 

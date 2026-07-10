@@ -28,7 +28,8 @@ const SUBSET_DIGEST_DOMAIN_TAG: &[u8] = b"nym-directory-subset-digest-v1";
 /// given subset MUST encode it byte-identically, so independent producers reach quorum on
 /// the same [`subset_data_hash`].
 pub trait DirectorySubset: Sized {
-    type DecodeError;
+    /// Error from [`Self::from_canonical_bytes`]
+    type DecodeError: std::error::Error;
 
     /// Stable identifier for this subset, doubling as its domain separator. Versioned by
     /// convention (e.g. `"...-v1"`) so an encoding change becomes a new subset.
@@ -206,7 +207,8 @@ pub(crate) mod test_helpers {
     use crate::DirectorySubset;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug)]
+    #[derive(Debug, thiserror::Error)]
+    #[error("malformed dummy subset canonical bytes")]
     pub(crate) struct DummySubsetDecodeError;
 
     #[derive(Clone, Serialize, Deserialize)]

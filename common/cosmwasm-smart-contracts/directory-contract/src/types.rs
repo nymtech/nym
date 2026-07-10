@@ -123,7 +123,8 @@ pub struct LabelConfig {
 /// added after a consumer was built fall through as unknown (see
 /// [`KnownLabel::from_str`]) and are handled as opaque bytes.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[cw_serde]
+#[derive(Copy, Ord, Eq, PartialOrd)]
 pub enum KnownLabel {
     /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
     /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous

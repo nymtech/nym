@@ -28,6 +28,7 @@ nym-group-contract-common = { workspace = true }
 nym-performance-contract-common = { workspace = true }
 nym-network-monitors-contract-common = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
+nym-directory-attestation = { workspace = true }
 nym-directory-contract-common = { workspace = true }
 nym-geolocation-contract-common = { workspace = true }
 nym-serde-helpers = { workspace = true, features = ["hex", "base64"] }

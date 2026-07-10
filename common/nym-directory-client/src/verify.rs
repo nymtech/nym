@@ -14,10 +14,11 @@ use nym_directory_contract_common::{
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::Height;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirectoryNodeEntry {
     pub data: Vec<u8>,
     pub updated_at_height: u64,
@@ -47,7 +48,7 @@ pub struct ProvenNodeEntry {
     pub verified: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirectoryNode {
     // data submitted by the node for known labels, i.e. ones we know how to parse
     pub known_labels: BTreeMap<KnownLabel, DirectoryNodeEntry>,
@@ -70,7 +71,7 @@ impl DirectoryNode {
 }
 
 /// The complete directory, verified against a trusted digest at a single height.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VerifiedDirectory {
     /// The height every read was pinned to.
     pub height: Height,
@@ -81,6 +82,20 @@ pub struct VerifiedDirectory {
     pub curated_entries: BTreeMap<String, Vec<u8>>,
 
     pub node_entries: BTreeMap<NodeId, DirectoryNode>,
+}
+
+/// A helper that wraps around the retrieved, verified, directory
+/// along identities of nodes that had to be retrieved
+pub struct VerifiedDirectoryWithIdentities {
+    pub directory: VerifiedDirectory,
+
+    pub node_identities: HashMap<NodeId, ed25519::PublicKey>,
+}
+
+impl VerifiedDirectoryWithIdentities {
+    pub fn node_identities_digest(&self) -> [u8; 32] {
+        node_identities_hash(&self.node_identities)
+    }
 }
 
 /// Recompute the LtHash accumulator over a set of records using the contract's
@@ -172,6 +187,13 @@ pub fn verify_directory(
                     entry.unknown_labels.insert(label, data);
                 }
             }
+        }
+    }
+
+    // insert empty records for nodes that did not submit any data
+    for node_id in node_identities.keys() {
+        if !node_entries.contains_key(node_id) {
+            node_entries.insert(*node_id, DirectoryNode::new(false));
         }
     }
 

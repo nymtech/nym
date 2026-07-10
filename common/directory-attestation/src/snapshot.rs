@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 /// carries no tag of its own), even for a signer whose identity key is used for both.
 const DIGEST_SNAPSHOT_DOMAIN_TAG: &[u8] = b"nym-directory-digest-snapshot-v1";
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DigestSnapshot {
     /// The chain this attestation is scoped to, so a signature cannot be replayed
     /// against a different chain.
@@ -81,7 +81,7 @@ impl DigestSnapshot {
 
 /// A [`DigestSnapshot`] as published by a nym-api (or a nym-node), together with its signer and
 /// signature over the snapshot's canonical signing payload.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedDigestSnapshot {
     pub snapshot: DigestSnapshot,
 

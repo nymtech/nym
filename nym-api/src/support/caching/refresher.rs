@@ -271,6 +271,7 @@ where
 
     pub async fn run(&mut self, shutdown_token: ShutdownToken) {
         self.provider.wait_until_ready().await;
+        self.try_flush_to_disk().await;
 
         let mut refresh_interval = interval(self.refreshing_interval);
         loop {

@@ -5,44 +5,9 @@
 //! pre-fetched inputs. No chain, RPC, or HTTP - a producer (nym-api, later nym-node)
 //! fetches and verifies the inputs itself, then calls these with its identity keypair.
 
-use crate::snapshot::{DigestSnapshot, SignedDigestSnapshot};
 use crate::subset::{AttestedSubset, DirectorySubset};
-use cosmrs::AccountId;
-use cosmrs::tendermint::{block::Height, chain, hash::AppHash};
+use cosmrs::tendermint::{block::Height, chain};
 use nym_crypto::asymmetric::ed25519;
-use nym_lthash::LtHash16;
-
-/// The values a producer has already fetched and verified for a height, ready to be
-/// committed into a signed snapshot.
-pub struct SnapshotInputs {
-    pub chain_id: chain::Id,
-    pub directory_contract: AccountId,
-    pub height: Height,
-    pub app_hash: AppHash,
-    pub accumulator: LtHash16,
-    pub node_identities_hash: [u8; 32],
-}
-
-/// Build and sign a [`DigestSnapshot`] from pre-fetched, already-verified inputs.
-pub fn build_and_sign_snapshot(
-    inputs: SnapshotInputs,
-    keypair: &ed25519::KeyPair,
-) -> SignedDigestSnapshot {
-    let snapshot = DigestSnapshot {
-        chain_id: inputs.chain_id,
-        directory_contract: inputs.directory_contract,
-        height: inputs.height,
-        app_hash: inputs.app_hash,
-        accumulator: inputs.accumulator,
-        node_identities_hash: inputs.node_identities_hash,
-    };
-    let signature = keypair.private_key().sign(snapshot.signing_payload());
-    SignedDigestSnapshot {
-        snapshot,
-        signer: *keypair.public_key(),
-        signature,
-    }
-}
 
 /// Compute, sign, and wrap a canonical subset: hashes `data`'s canonical bytes into a
 /// [`SubsetDigest`], signs it, and returns it alongside those exact bytes as an
@@ -59,35 +24,10 @@ pub fn sign_subset<T: DirectorySubset>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source::mock::mock_contract;
     use crate::subset::test_helpers::DummySubset;
     use crate::subset_hash;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
     use std::collections::HashSet;
-
-    #[test]
-    fn build_and_sign_snapshot_produces_a_snapshot_that_verifies() {
-        let kp = dummy_ed25519_keypair(1);
-        let chain_id = chain::Id::try_from("nyx-testnet").unwrap();
-        let mut accumulator = LtHash16::new();
-        accumulator.add(b"leaf");
-
-        let signed = build_and_sign_snapshot(
-            SnapshotInputs {
-                chain_id: chain_id.clone(),
-                directory_contract: mock_contract(0),
-                height: Height::from(1000u32),
-                app_hash: AppHash::try_from(vec![3u8; 32]).unwrap(),
-                accumulator,
-                node_identities_hash: [5u8; 32],
-            },
-            &kp,
-        );
-
-        let trusted = HashSet::from([*kp.public_key()]);
-        assert!(signed.verify(&trusted, &chain_id, &mock_contract(0)));
-        assert_eq!(signed.snapshot.height, Height::from(1000u32));
-    }
 
     #[test]
     fn sign_subset_round_trips_through_verify_and_recompute() {

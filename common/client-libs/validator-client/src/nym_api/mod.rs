@@ -24,6 +24,7 @@ use nym_api_requests::models::{
     SignerInformationResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
+use nym_directory_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
 use std::net::IpAddr;
@@ -1559,6 +1560,45 @@ pub trait NymApiClientExt: ApiClient {
             request,
         )
         .await
+    }
+
+    /// This producer's latest signed directory snapshot (see `nym-directory-attestation`).
+    #[instrument(level = "debug", skip(self))]
+    async fn directory_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
+        todo!()
+    }
+
+    /// This producer's signed directory snapshot at `height`, if still within its retained
+    /// window.
+    #[instrument(level = "debug", skip(self))]
+    async fn directory_snapshot_at(
+        &self,
+        height: u64,
+    ) -> Result<SignedDigestSnapshot, NymAPIError> {
+        let _ = height;
+        todo!()
+    }
+
+    /// This producer's signed digest for the subset `subset_id` at `height`.
+    #[instrument(level = "debug", skip(self))]
+    async fn directory_subset_digest(
+        &self,
+        subset_id: &str,
+        height: u64,
+    ) -> Result<SignedSubsetDigest, NymAPIError> {
+        let _ = (subset_id, height);
+        todo!()
+    }
+
+    /// This producer's attested subset `subset_id` at `height` (signed digest + canonical bytes).
+    #[instrument(level = "debug", skip(self))]
+    async fn directory_subset(
+        &self,
+        subset_id: &str,
+        height: u64,
+    ) -> Result<AttestedSubset, NymAPIError> {
+        let _ = (subset_id, height);
+        todo!()
     }
 }
 

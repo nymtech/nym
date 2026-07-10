@@ -37,8 +37,8 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_families, node_performance, node_status_api, signers_cache,
+    directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
+    node_describe_cache, node_families, node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -336,6 +336,17 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     node_families_cache_refresher.start(shutdown_manager.clone_shutdown_token());
 
+    // DIRECTORY
+    let directory_path = storage_cfg.cache_file("directory");
+    let directory_cache = directory::cache::start_cache_refresher(
+        config.directory,
+        identity_keypair.clone(),
+        nyxd_client.clone(),
+        directory_path,
+        &shutdown_manager,
+    )
+    .await?;
+
     // start dkg task
     if config.ecash_signer.enabled {
         let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
@@ -429,6 +440,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
+        directory: directory_cache,
     });
 
     let bind_address = config.base.bind_address.to_owned();

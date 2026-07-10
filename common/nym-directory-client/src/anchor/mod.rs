@@ -85,3 +85,14 @@ pub trait DirectoryTrustAnchor {
     /// of the digest item against [`Self::trusted_app_hash`]).
     async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError>;
 }
+
+#[async_trait]
+impl<T: DirectoryTrustAnchor + Send + Sync + ?Sized> DirectoryTrustAnchor for Box<T> {
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+        (**self).trusted_app_hash(height).await
+    }
+
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+        (**self).trusted_digest(height).await
+    }
+}

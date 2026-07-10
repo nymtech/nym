@@ -39,17 +39,22 @@ imported by the producer (nym-api, later nym-node) and the verifying client.
 - [x] 2.5 Move the corresponding unit tests (snapshot payload determinism/field-sensitivity, domain-tagging, `verify`
   accept/reject, `node_identities_hash` determinism/sensitivity) into this crate; confirm they pass unchanged
 - [x] 2.6 Add the generic subset types. `DirectorySubset` is a symmetric canonical codec, not just an encoder
-  (`trait DirectorySubset: Sized { const SUBSET_ID; fn to_canonical_bytes(&self) -> Vec<u8>; fn from_canonical_bytes(&[u8]) -> Result<Self, SubsetDecodeError>; }`),
+  (
+  `trait DirectorySubset: Sized { const SUBSET_ID; fn to_canonical_bytes(&self) -> Vec<u8>; fn from_canonical_bytes(&[u8]) -> Result<Self, SubsetDecodeError>; }`),
   because the canonical bytes are the single wire form (transported AND hashed), so a verifier checks the commitment
-  over exactly the bytes received then decodes - see `design.md` D3a. `SubsetDigest { chain_id, height, subset_id, hash: [u8; 32] }`,
-  `SignedSubsetDigest { digest, signer, signature }`, and a NON-generic `AttestedSubset { signed_digest, canonical_data: Vec<u8> }`
+  over exactly the bytes received then decodes - see `design.md` D3a.
+  `SubsetDigest { chain_id, height, subset_id, hash: [u8; 32] }`,
+  `SignedSubsetDigest { digest, signer, signature }`, and a NON-generic
+  `AttestedSubset { signed_digest, canonical_data: Vec<u8> }`
   (all `Serialize`/`Deserialize`); added `SubsetDecodeError` in `error.rs`
 - [x] 2.7 Add the subset hash encoder (domain-tagged, distinct from the snapshot tag): bytes-based
   `subset_hash(subset_id, height, canonical_data) = blake3(tag || len(id) || id || height || len(data) || data)`
-  plus the typed convenience `subset_data_hash<T>(&data, height) = subset_hash(T::SUBSET_ID, height, &data.to_canonical_bytes())`,
+  plus the typed convenience
+  `subset_data_hash<T>(&data, height) = subset_hash(T::SUBSET_ID, height, &data.to_canonical_bytes())`,
   and `SignedSubsetDigest::verify(trusted, chain_id)` mirroring `SignedDigestSnapshot::verify`
 - [x] 2.8 Add the signer-agnostic producer core: `build_and_sign_snapshot(inputs, &keypair) -> SignedDigestSnapshot` and
-  `sign_subset<T: DirectorySubset>(chain_id, height, &data, &keypair) -> AttestedSubset` (stores `data.to_canonical_bytes()`;
+  `sign_subset<T: DirectorySubset>(chain_id, height, &data, &keypair) -> AttestedSubset` (stores
+  `data.to_canonical_bytes()`;
   pure over pre-fetched inputs; no chain/RPC/HTTP)
 - [x] 2.9 Unit tests: subset hash deterministic + tamper-sensitive + height/id-sensitive, `verify` accept/reject
   (untrusted signer, wrong chain-id, forged signature), `to/from_canonical_bytes` round-trip + malformed-decode
@@ -62,10 +67,10 @@ Depend on the new crate; delete moved code; re-export to preserve every downstre
 `use` path (see `design.md` D1). Add the concrete HTTP transport + client-side subset
 and whole-directory consumption.
 
-- [ ] 3.1 Add `nym-directory-attestation` as a dependency; delete the moved items; re-export `DigestSnapshot`/
+- [x] 3.1 Add `nym-directory-attestation` as a dependency; delete the moved items; re-export `DigestSnapshot`/
   `SignedDigestSnapshot`/`AttestationSource` (and the subset types) from `src/anchor/mod.rs` so `AttestedTrustAnchor`
   and existing consumers compile unchanged
-- [ ] 3.2 Add `DirectoryClientError::AttestationTransport` (wrapping the HTTP client + decode failure) - the variant the
+- [x] 3.2 Add `DirectoryClientError::AttestationTransport` (wrapping the HTTP client + decode failure) - the variant the
   prior change deferred for lack of a call site
 - [ ] 3.3 Implement `HttpAttestationSource` (`AttestationSource` impl): `identity()` (configured/known signer key for
   the URL), `latest_snapshot()` -> GET the producer's latest endpoint, `snapshot_at(H)` -> GET the per-height endpoint;
@@ -90,7 +95,7 @@ Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
 - [ ] 4.1 Producer config: retained-window count `N` (default ~3), `settle_lag` in blocks (default ~5), and the
   source-anchor selection (default `ProvenTrustAnchor` against the api's own RPC; allow `LightClientAnchor`; never
   `AttestedTrustAnchor`)
-- [ ] 4.2 A retained-window store in `AppState`: `BTreeMap<Height, (SignedDigestSnapshot, VerifiedDirectory)>` (or
+- [x] 4.2 A retained-window store in `AppState`: `BTreeMap<Height, (SignedDigestSnapshot, VerifiedDirectory)>` (or
   equivalent), holding the last `N` cadence snapshots plus their full verified directories
 - [ ] 4.3 A periodic producer task (reusing nym-api's cache-refresh cadence pattern): read `snapshot_interval` from the
   contract; on crossing a cadence boundary `H` (once `H+1` is available for `app_hash`), fetch+verify the directory at

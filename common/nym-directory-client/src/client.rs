@@ -9,7 +9,7 @@ use crate::error::DirectoryClientError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
 use crate::verify::{
-    ProvenNodeEntry, VerifiedDirectory, node_signature_verifies, verify_directory,
+    ProvenNodeEntry, VerifiedDirectoryWithIdentities, node_signature_verifies, verify_directory,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
@@ -19,9 +19,10 @@ use nym_directory_contract_common::{
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
 use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
+use nym_validator_client::nyxd::hash::AppHash;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
 use std::collections::HashMap;
-use tracing::error;
+use tracing::{error, info};
 
 /// A verifiable directory reader. Composes a trust anchor (which produces a digest to
 /// trust at a height) with height-pinned chain queries; the anchor can be swapped
@@ -31,6 +32,12 @@ pub struct DirectoryClient<A, C> {
     client: C,
 }
 
+impl<A, C> DirectoryClient<A, C> {
+    pub fn client(&self) -> &C {
+        &self.client
+    }
+}
+
 impl<A, C> DirectoryClient<A, C>
 where
     A: DirectoryTrustAnchor + Sync,
@@ -38,6 +45,10 @@ where
 {
     pub fn new(anchor: A, client: C) -> Self {
         DirectoryClient { anchor, client }
+    }
+
+    pub async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+        self.anchor.trusted_app_hash(height).await
     }
 
     /// Retrieve and verify the complete directory at `height`.
@@ -53,9 +64,10 @@ where
     pub async fn verified_directory(
         &self,
         height: Height,
-    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+    ) -> Result<VerifiedDirectoryWithIdentities, DirectoryClientError> {
         // establish the digest we trust at this height (proof handled by the anchor)
         let trusted = self.anchor.trusted_digest(height).await?;
+        info!("obtained trusted digest for height {height}");
 
         // fetch the whole entry set and node identities at the SAME height
         let records = self.all_entries_at(height).await?;
@@ -64,13 +76,20 @@ where
         // no trusted node-identities hash here - this anchor-agnostic path
         // authenticates node identities via the live (though unproven) query above,
         // exactly as before this was extracted
-        verify_directory(
+        let directory = verify_directory(
             height,
             records,
             &node_identities,
             &trusted.accumulator,
             None,
-        )
+        )?;
+
+        info!("verified directory at height {height}");
+
+        Ok(VerifiedDirectoryWithIdentities {
+            directory,
+            node_identities,
+        })
     }
 
     /// Retrieve and verify a single node entry `(node_id, label)` at `height` via its own

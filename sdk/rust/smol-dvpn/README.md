@@ -63,7 +63,7 @@ see [Developers](#developers) for pointing at sandbox.
 | `smol-dvpn-grpc` | A `tonic` gRPC health check through the tunnel. |
 | `two-hop-ip` | Prove the tunnel relocates your public IP: query `ipinfo.io` directly, then through the tunnel (the IP/org/country should become the exit gateway's). |
 | `two-hop-quic` | Like `two-hop-ip`, but the **entry leg is carried over a QUIC bridge** (for clients blocked from plain WireGuard/UDP). Always QUIC + two-hop. |
-| `zcash-sync` | Time syncing the last N Zcash compact blocks (default 100,000, `--blocks <N>`) from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
+| `zcash-sync` | Time syncing the last N Zcash compact blocks (default 10,000, `--blocks <N>`) from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
 
 Run one with (see [Developers](#developers) to set the sandbox env first).
 **Build `--release`** — `boringtun` is much slower in debug, which dominates the

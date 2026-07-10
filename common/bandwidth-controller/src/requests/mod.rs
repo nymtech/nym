@@ -37,6 +37,13 @@ pub enum BandwidthControllerRequest {
     /// Returns the currently stored ticketbooks (also logs a stock summary).
     GetAvailableTicketbooks(ReturnSender<AvailableTicketbooks>),
 
+    /// Checks the given ticket types and kicks off a background restock for any running low or
+    /// about to expire. Resolves once the check has been scheduled, not once the fetches finish.
+    ///
+    /// Not to be used lightly: the automatic triggers (ticket handout, timer, fetcher install)
+    /// already keep every type stocked. This is a manual safety valve, not a routine call.
+    RestockTicketbooks(ReturnSender<()>, Vec<TicketType>),
+
     /// Resolves once every required ticket type is usable (stocked or covered by upgrade mode),
     /// or fails if a required type is neither stocked nor being fetched.
     WaitForTicketbooks(ReturnSender<()>, Vec<TicketType>),
@@ -62,8 +69,8 @@ where
     {
         self.sender
             .send(response)
-            .inspect_err(|err| {
-                tracing::error!("Failed to send response: {:#?}", err);
+            .inspect_err(|_| {
+                tracing::warn!("Failed to send response, receiver is gone already");
             })
             .ok();
     }

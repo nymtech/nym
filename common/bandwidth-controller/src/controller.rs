@@ -226,6 +226,10 @@ impl<St: Storage> BandwidthController<St> {
             BandwidthControllerRequest::GetAvailableTicketbooks(return_sender) => {
                 return_sender.send(self.handle_get_available_ticketbooks().await)
             }
+            BandwidthControllerRequest::RestockTicketbooks(return_sender, ticket_types) => {
+                self.check_and_restock(ticket_types).await;
+                return_sender.send(Ok(()))
+            }
             BandwidthControllerRequest::WaitForTicketbooks(return_sender, ticket_types) => {
                 self.handle_wait_for_ticketbooks(ReadinessRequest {
                     return_sender,

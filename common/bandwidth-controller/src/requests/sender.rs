@@ -171,6 +171,32 @@ impl BandwidthControllerRequestSender {
             .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
+    /// Kicks off a background restock for the given ticket types
+    /// Returns once the restock is scheduled - it does not wait for the fetches to finish
+    /// (use [`Self::wait_for_ticketbooks`] for that).
+    ///
+    /// Not to be used lightly: the automatic triggers (ticket handout, timer, fetcher install)
+    /// already keep every type stocked. This is a manual safety valve, not a routine call.
+    #[instrument(skip(self))]
+    pub async fn restock_ticketbooks(
+        &self,
+        types: Vec<TicketType>,
+    ) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::RestockTicketbooks(tx, types))
+            .map_err(BandwidthControllerError::internal)?;
+        rx.await.map_err(BandwidthControllerError::internal)?
+    }
+
+    /// Kicks off a background restock for every ticket type running low or about to expire.
+    /// Returns once the restock is scheduled, not once the fetches finish.
+    #[instrument(skip(self))]
+    pub async fn restock_all_ticketbooks(&self) -> Result<(), BandwidthControllerError> {
+        self.restock_ticketbooks(AvailableTicketbooks::ticketbook_types())
+            .await
+    }
+
     /// Resolves once every listed type is usable (stocked or covered by upgrade mode). Errors if a
     /// required type is neither stocked nor being fetched; otherwise waits while the unsatisfied
     /// ones are still in flight.

@@ -31,9 +31,14 @@ registration, and stack machinery already in this monorepo.
   **not** depending on the unstable `nym_bridges` crate): ALPN `hq-29`, ed25519-SPKI
   cert pinning, 2-byte length framing over one reliable QUIC bi-stream. LP
   registration stays **Direct-only** (not bridgeable over QUIC yet).
-- Add two example CLIs in `smol-dvpn`: **`smol-dvpn-config`** (single-hop plain
-  WireGuard config export) and **`smol-dvpn-topup`** (bandwidth top-up via the
-  gateway `metadata` endpoint).
+- Add example programs in `smol-dvpn`: **`smol-dvpn-config`** (single-hop plain
+  WireGuard config export), **`smol-dvpn-topup`** (bandwidth top-up via the
+  gateway `metadata` endpoint), **`smol-dvpn-grpc`** (`tonic` gRPC health check
+  through the tunnel), **`two-hop-ip`** and **`two-hop-quic`** (public-IP
+  relocation over a Direct / QUIC-fronted tunnel), and **`zcash-sync`** (Zcash
+  compact-block gRPC sync benchmarked direct vs. through the tunnel). The
+  configurable examples share a CLI (`--one-hop`/`--two-hop`,
+  `--entry`/`--exit`/`--gateway <spec>`, `--quic`).
 - New dependencies (`boringtun` BSD-3-Clause, `quinn`, `quinn-proto`) are declared in
   `smol-dvpn`'s own `Cargo.toml`, **not** promoted to the workspace dependency table.
 
@@ -45,14 +50,17 @@ registration, and stack machinery already in this monorepo.
   transport; `smolmix` refactored onto it.
 - `dvpn-session`: mnemonic-funded zk-nym ticketbook issuance + persistent credential
   storage, gateway selection (identity / country / random), and gateway registration,
-  as a shared `nym-sdk-session` facade.
+  as a shared `nym-sdk-session` facade; optionally sources the dVPN gateway directory
+  for gateway monikers and QUIC-bridge entry selection.
 - `dvpn-tunnel`: userspace 1-/2-hop WireGuard datapath (`boringtun`), tunnel lifecycle
   and cancellation, configurable/dynamic MTU, DNS-in-tunnel, and the tokio socket +
   `tonic`/`hyper`/`reqwest` traffic surfaces.
 - `dvpn-quic-bridge`: QUIC bridge data-plane transport (inline reimplementation) as an
   alternative to direct UDP for censored clients.
-- `dvpn-tools`: the `smol-dvpn-config` (WireGuard config export) and `smol-dvpn-topup`
-  (metadata bandwidth top-up) example CLIs.
+- `dvpn-tools`: example programs — `smol-dvpn-config` (WireGuard config export),
+  `smol-dvpn-topup` (metadata bandwidth top-up), `smol-dvpn-grpc` (gRPC through the
+  tunnel), `two-hop-ip` / `two-hop-quic` (public-IP relocation), and `zcash-sync`
+  (Zcash compact-block sync benchmark), sharing a gateway/hop/QUIC selection CLI.
 
 ### Modified Capabilities
 <!-- None. `smolmix` is refactored internally but has no existing OpenSpec capability. -->

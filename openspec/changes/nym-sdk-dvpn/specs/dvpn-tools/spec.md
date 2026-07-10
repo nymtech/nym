@@ -28,3 +28,57 @@ existing registration.
 - **WHEN** the user runs `smol-dvpn-topup` with a stored ticket available
 - **THEN** the CLI submits the ticket to the gateway metadata endpoint and reports the
   updated available bandwidth
+
+### Requirement: gRPC-through-tunnel example
+
+`smol-dvpn` SHALL provide a `smol-dvpn-grpc` example that brings up a tunnel and
+issues a real `tonic` gRPC request through it via the tunnel connector.
+
+#### Scenario: gRPC request over the tunnel
+- **WHEN** the user runs `smol-dvpn-grpc` with a funded mnemonic
+- **THEN** the example brings up a tunnel and completes a gRPC call through the tunnel
+  connector
+
+### Requirement: Public-IP relocation examples
+
+`smol-dvpn` SHALL provide `two-hop-ip` and `two-hop-quic` examples that query a public
+IP-echo service directly and then through the tunnel, demonstrating that the observed
+public IP/location becomes the exit gateway's. `two-hop-quic` SHALL front the entry
+leg with a QUIC bridge (selecting a QUIC-capable entry gateway).
+
+#### Scenario: IP relocates through the tunnel
+- **WHEN** the user runs `two-hop-ip` with a funded mnemonic
+- **THEN** the pre-tunnel public IP differs from the through-tunnel IP, and the latter
+  corresponds to the exit gateway
+
+#### Scenario: QUIC-fronted entry
+- **WHEN** the user runs `two-hop-quic`
+- **THEN** the entry gateway is QUIC-bridge-capable and the entry leg is carried over
+  the QUIC bridge
+
+### Requirement: Zcash compact-block sync benchmark example
+
+`smol-dvpn` SHALL provide a `zcash-sync` example that syncs a fixed number of Zcash
+compact blocks from a public `lightwalletd` over gRPC-over-TLS both directly and
+through the tunnel, and reports the throughput of each.
+
+#### Scenario: Sync direct vs. through the tunnel
+- **WHEN** the user runs `zcash-sync` with a funded mnemonic
+- **THEN** the example reports blocks synced and elapsed time for both the direct and
+  the through-tunnel path
+
+### Requirement: Shared example selection CLI
+
+The configurable examples (`two-hop-ip`, `two-hop-quic`, `zcash-sync`) SHALL share a
+command-line interface for choosing hop mode (`--one-hop`/`--two-hop`), gateways
+(`--entry`/`--exit`/`--gateway <spec>`, where `<spec>` is `random`, a two-letter
+country code, or a base58 identity), and QUIC entry (`--quic`), rejecting invalid
+combinations (QUIC requires two-hop).
+
+#### Scenario: Select gateways and mode from the CLI
+- **WHEN** the user passes `--entry`/`--exit`/`--gateway`/`--one-hop`/`--two-hop`
+- **THEN** the example provisions the corresponding hop mode and gateway selection
+
+#### Scenario: Reject QUIC with single-hop
+- **WHEN** the user passes `--quic --one-hop`
+- **THEN** the example exits with an error explaining QUIC is two-hop-entry only

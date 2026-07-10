@@ -69,3 +69,43 @@ two-hop (`entry=…`/`exit=…`) SHALL register both hops.
 - **WHEN** registration completes for an entry/exit hop
 - **THEN** the corresponding `V1WireguardEntry`/`V1WireguardExit` ticket is spent from
   the store
+
+### Requirement: Optional dVPN directory for gateway metadata
+
+The session SHALL accept an optional dVPN gateway-directory URL and, when set, fetch
+it best-effort (a fetch/parse failure is logged and treated as an empty directory) to
+enrich each returned gateway's metadata with its human moniker and, when the described
+node omits one, its country. Each hop's returned metadata SHALL include the gateway
+identity, directory node id, country, IP, and moniker (when known).
+
+#### Scenario: Monikers populated from the directory
+- **WHEN** a directory URL is configured and a selected gateway appears in it
+- **THEN** the returned per-hop gateway metadata includes that gateway's moniker
+
+#### Scenario: Directory unavailable is non-fatal
+- **WHEN** a directory URL is configured but the fetch or parse fails
+- **THEN** the session still provisions and registers gateways, with monikers absent
+
+### Requirement: QUIC-bridge entry gateway selection
+
+The session SHALL provide a two-hop registration that requires the entry gateway to be
+QUIC-bridge-capable per the dVPN directory, honoring the entry `GatewaySpec`
+(identity / country / random). It SHALL return the entry's QUIC bridge parameters
+(bridge addresses, SNI host, base64 ed25519 `id_pubkey`) with the entry hop, and fail
+with a distinct error when no QUIC-capable gateway matches. Only the two-hop entry hop
+may carry bridge parameters; single-hop and non-QUIC two-hop registrations carry none.
+
+#### Scenario: QUIC entry selected and bridge params returned
+- **WHEN** the caller requests a QUIC two-hop registration and a directory gateway
+  matching the entry spec advertises a QUIC bridge
+- **THEN** that gateway is chosen as entry and its bridge parameters are returned with
+  the entry hop
+
+#### Scenario: No QUIC-capable gateway matches
+- **WHEN** the caller requests a QUIC entry but no directory gateway matching the spec
+  advertises a QUIC bridge (or no directory is configured)
+- **THEN** registration fails with a distinct `NoQuicGateway` error
+
+#### Scenario: Non-QUIC registrations carry no bridge params
+- **WHEN** a single-hop or non-QUIC two-hop registration completes
+- **THEN** no hop carries QUIC bridge parameters

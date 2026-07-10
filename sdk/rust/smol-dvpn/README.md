@@ -181,8 +181,9 @@ cargo run -p nym-smol-dvpn --example two-hop-ip
 
 - `CancellationToken` aborts setup or tears down the long-lived tunnel;
   `shutdown()` is equivalent. Issued tickets are never touched by this crate.
-- Configurable per-hop MTU (reference defaults: overhead 80/hop; desktop
-  1420/1340; mobile 1360/1280).
+- Configurable, runtime-adjustable per-hop MTU via `Tunnel::set_mtu()` (rebuilds
+  the smol-core interface while preserving the WireGuard session; reference
+  defaults: overhead 80/hop; desktop 1420/1340; mobile 1360/1280).
 - DNS-in-tunnel by default (configurable), via the `smol-core` resolver.
 - boringtun timer pump on the datapath task; keepalive/handshake/rekey routed
   through the active transport.

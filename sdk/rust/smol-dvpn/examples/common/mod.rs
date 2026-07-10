@@ -135,7 +135,7 @@ options:
   --exit  <SPEC>       exit gateway selector  (default: random)
   --gateway <SPEC>     set both entry and exit (handy for --one-hop)
   --quic               require a QUIC-bridge-capable entry gateway (two-hop only)
-  --blocks <N>         number of blocks to sync (zcash-sync only; default 100000)
+  --blocks <N>         number of blocks to sync (zcash-sync only; default 10000)
   -h, --help           print this help
 
 <SPEC> is one of:

@@ -2,7 +2,7 @@
 
 //! `zcash-sync` — Zcash compact-block sync over a two-hop dVPN tunnel.
 //!
-//! Times syncing the last N compact blocks (default 100_000, `--blocks <N>`) from
+//! Times syncing the last N compact blocks (default 10_000, `--blocks <N>`) from
 //! a public `lightwalletd` (`zec.rocks:443`, gRPC over TLS) both directly and
 //! through a two-hop tunnel, and compares the throughput. Uses a hand-written
 //! `tonic` gRPC client (no proto/build.rs): only the message fields needed to
@@ -30,7 +30,7 @@ mod common;
 use common::{BoxError, DirectConnector, TlsWrap};
 
 const LWD: &str = "zec.rocks";
-const DEFAULT_BLOCKS: u64 = 100_000;
+const DEFAULT_BLOCKS: u64 = 10_000;
 const GET_LATEST_BLOCK: &str = "/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLatestBlock";
 const GET_BLOCK_RANGE: &str = "/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetBlockRange";
 

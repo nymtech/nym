@@ -31,7 +31,7 @@
 - [x] 4.4 Two-hop datapath: nested `Tunn`s with the exit→IP/UDP→entry encapsulation from Spike A
 - [x] 4.5 boringtun timer pump on a dedicated cancellable task, routed through the active transport
 - [x] 4.6 Tunnel lifecycle + `CancellationToken` (abort setup / teardown long-lived tunnel; `shutdown()`); tickets retained on teardown
-- [~] 4.7 Configurable, runtime-adjustable MTU with reference defaults (overhead 80/hop; desktop 1420/1340; mobile 1360/1280) — PARTIAL: configurable `MtuConfig` + reference `DESKTOP`/`MOBILE` defaults implemented and applied to the interface at connect; *resize-while-up* is blocked by `tokio-smoltcp 0.5` (its `BufferDevice` caches the interface MTU at construction — a seamless live resize needs an upstream change or a disruptive reconnect)
+- [x] 4.7 Configurable, runtime-adjustable MTU with reference defaults (overhead 80/hop; desktop 1420/1340; mobile 1360/1280) — `Tunnel::set_mtu()` rebuilds the smol-core interface at the new MTU while preserving the WireGuard session (no re-handshake); verified live (resolve → set_mtu(MOBILE) → resolve). Note: `tokio-smoltcp 0.5` fixes the interface MTU at construction, so the change rebuilds the interface rather than a fully seamless in-place resize.
 - [x] 4.8 DNS-in-tunnel default (configurable) via the `smol-core` resolver
 - [x] 4.9 Background bandwidth top-up task via the `nym-wireguard-private-metadata` client
 - [x] 4.10 Optional `on_socket_open`-style socket-protection callback (Linux/Android)

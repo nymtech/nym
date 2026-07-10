@@ -46,7 +46,10 @@ impl ChannelDevice {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
         capabilities.max_transmission_unit = mtu;
-        capabilities.max_burst_size = Some(1);
+        // Leave `max_burst_size` unbounded (default `None`). Capping it at 1 made
+        // smoltcp process a single packet per poll, serializing the datapath and
+        // throttling bulk transfers; the channel transport imposes no burst limit.
+        capabilities.max_burst_size = None;
 
         Self {
             rx,

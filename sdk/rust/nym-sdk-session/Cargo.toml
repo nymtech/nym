@@ -1,0 +1,46 @@
+# Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+
+[package]
+name = "nym-sdk-session"
+description = "Provisioning facade over nym-registration-client + nym-bandwidth-controller + the credential store: from a mnemonic it issues/persists zk-nym WireGuard ticketbooks, selects gateways, and registers them"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+nym-validator-client = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credentials-interface = { workspace = true }
+time = { workspace = true }
+nym-registration-client = { workspace = true }
+nym-registration-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
+nym-api-requests = { workspace = true }
+nym-authenticator-requests = { workspace = true }
+nym-kkt-ciphersuite = { workspace = true }
+nym-lp = { workspace = true }
+nym-lp-data = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+
+bip39 = { workspace = true }
+rand = { workspace = true }
+rand09 = { workspace = true }
+semver = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
+tokio-util = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

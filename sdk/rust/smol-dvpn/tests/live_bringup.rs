@@ -52,6 +52,7 @@ async fn new_session(data_dir: &str) -> Session {
             network: NymNetworkDetails::new_from_env(),
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
             data_path: data_dir.into(),
+            dvpn_directory_url: None,
         },
         cancel,
     )

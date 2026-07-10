@@ -64,6 +64,15 @@ rcgen = { version = "0.13", features = ["pem", "crypto"] }
 # tonic-health's ready-made client (no custom proto/build.rs).
 tonic = { workspace = true, features = ["transport"] }
 tonic-health = "0.14"
+# Examples: HTTPS-over-tunnel (ipinfo.io) + zcash lightwalletd gRPC (manual
+# tonic client with hand-written prost messages — no proto/build.rs).
+tonic-prost = "0.14"
+# Must match tonic-prost's prost major (0.14); the workspace prost is 0.13, and
+# prost-derive hardcodes the `::prost` path, so the example pins 0.14 directly.
+prost = { version = "0.14", features = ["derive"] }
+tokio-rustls = { workspace = true }
+webpki-roots = { workspace = true }
+serde_json = { workspace = true }
 # Example CLIs only (keep the library decoupled from the provisioning facade).
 nym-sdk-session = { workspace = true }
 nym-crypto = { workspace = true }

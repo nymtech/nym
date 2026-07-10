@@ -1,7 +1,7 @@
 # Runtime artifacts from live integration tests / example CLIs (credential
 # stores, fetcher recovery DBs). Never commit these.
 /live-*/
-/smol-dvpn-*-data/
+/*-data/
 /smol-dvpn-*-creds.db
 *.db
 *.db-shm

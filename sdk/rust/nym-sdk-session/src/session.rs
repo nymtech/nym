@@ -24,8 +24,9 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 use zeroize::Zeroizing;
 
+use crate::dvpn::{DvpnDirectory, QuicBridge};
 use crate::error::SessionError;
-use crate::gateway::{self, GatewaySpec, SelectedGateway, WgRole};
+use crate::gateway::{self, GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
 
 /// Number of tickets to reserve when checking for / spending a stored ticketbook.
 const TICKETS_TO_SPEND: u32 = 1;
@@ -45,6 +46,11 @@ pub struct SessionConfig {
     /// Directory for the fetcher's pending-request recovery database and other
     /// per-session data.
     pub data_path: PathBuf,
+    /// Optional dVPN gateway-directory URL. When set, the session fetches it to
+    /// enrich gateway monikers and to enable QUIC-bridge entry selection
+    /// (`register_two_hop_quic`). Fetched best-effort — a failure is logged and
+    /// treated as an empty directory.
+    pub dvpn_directory_url: Option<String>,
 }
 
 /// Everything the datapath needs to bring up ONE WireGuard hop.
@@ -55,6 +61,11 @@ pub struct HopConfig {
     pub client_private_key: x25519::PrivateKey,
     /// The gateway's ed25519 identity.
     pub gateway_identity: ed25519::PublicKey,
+    /// Directory metadata for this hop's gateway (identity, node id, country, IP).
+    pub gateway: GatewayInfo,
+    /// QUIC bridge params for this hop, set only for a QUIC entry hop (see
+    /// [`Session::register_two_hop_quic`]); `None` for direct/exit hops.
+    pub bridge: Option<QuicBridge>,
 }
 
 /// The result of registering a tunnel: one hop for single-hop, two for two-hop.
@@ -70,6 +81,8 @@ pub struct Session {
     api: NymApiClient,
     controller: BandwidthController<PersistentStorage>,
     cancel: CancellationToken,
+    /// dVPN gateway directory (empty if none configured or the fetch failed).
+    directory: Option<DvpnDirectory>,
 }
 
 impl Session {
@@ -85,6 +98,7 @@ impl Session {
             network,
             credential_store_path,
             data_path,
+            dvpn_directory_url,
         } = config;
 
         let nyxd_url = network
@@ -131,10 +145,23 @@ impl Session {
         let controller = BandwidthController::new(storage).with_credential_fetcher(fetcher);
         let api = NymApiClient::new_with_timeout(api_url, API_TIMEOUT);
 
+        // Best-effort dVPN directory (monikers + QUIC bridge params).
+        let directory = match dvpn_directory_url {
+            Some(url) => match DvpnDirectory::fetch(&url).await {
+                Ok(dir) => Some(dir),
+                Err(e) => {
+                    tracing::warn!("failed to fetch dVPN directory at {url}: {e}");
+                    Some(DvpnDirectory::default())
+                }
+            },
+            None => None,
+        };
+
         Ok(Self {
             api,
             controller,
             cancel,
+            directory,
         })
     }
 
@@ -208,7 +235,7 @@ impl Session {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.select_inner(spec, role) => res,
+            res = self.select_inner(spec, role, false) => res,
         }
     }
 
@@ -216,13 +243,14 @@ impl Session {
         &self,
         spec: &GatewaySpec,
         role: WgRole,
+        require_quic: bool,
     ) -> Result<SelectedGateway, SessionError> {
         let nodes = self
             .api
             .get_all_described_nodes_v2()
             .await
             .map_err(|e| SessionError::Chain(e.to_string()))?;
-        gateway::select(nodes, spec, role)
+        gateway::select(nodes, spec, role, self.directory.as_ref(), require_quic)
     }
 
     /// Register a single-hop tunnel against one gateway via the LP
@@ -243,7 +271,7 @@ impl Session {
         gateway: &GatewaySpec,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(false).await?;
-        let selected = self.select_inner(gateway, WgRole::Entry).await?;
+        let selected = self.select_inner(gateway, WgRole::Entry, false).await?;
         let hop = self
             .register_hop(&selected, TicketType::V1WireguardEntry, None)
             .await?;
@@ -263,7 +291,24 @@ impl Session {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.register_two_hop_inner(entry, exit) => res,
+            res = self.register_two_hop_inner(entry, exit, false) => res,
+        }
+    }
+
+    /// Like [`register_two_hop`](Self::register_two_hop), but the ENTRY gateway
+    /// must advertise a QUIC bridge (per the configured dVPN directory). The
+    /// returned `entry` hop carries its [`QuicBridge`] in `bridge`. Fails with
+    /// [`SessionError::NoQuicGateway`] if no QUIC entry matches the spec.
+    /// (QUIC only fronts the two-hop entry leg; the exit is registered normally.)
+    pub async fn register_two_hop_quic(
+        &self,
+        entry: &GatewaySpec,
+        exit: &GatewaySpec,
+    ) -> Result<Registration, SessionError> {
+        tokio::select! {
+            biased;
+            _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
+            res = self.register_two_hop_inner(entry, exit, true) => res,
         }
     }
 
@@ -271,10 +316,11 @@ impl Session {
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
+        entry_quic: bool,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(true).await?;
-        let entry_gw = self.select_inner(entry, WgRole::Entry).await?;
-        let exit_gw = self.select_inner(exit, WgRole::Exit).await?;
+        let entry_gw = self.select_inner(entry, WgRole::Entry, entry_quic).await?;
+        let exit_gw = self.select_inner(exit, WgRole::Exit, false).await?;
 
         let entry_lp = lp_info(&entry_gw)?;
         let exit_lp = lp_info(&exit_gw)?;
@@ -343,6 +389,14 @@ impl Session {
                 source,
             })?;
 
+        // The entry hop carries QUIC bridge params only when QUIC was required
+        // (selection guarantees `entry_gw.quic` is `Some` in that case).
+        let entry_bridge = if entry_quic {
+            entry_gw.quic.clone()
+        } else {
+            None
+        };
+
         Ok(Registration {
             entry: HopConfig {
                 wg_config: entry_cfg,
@@ -350,6 +404,8 @@ impl Session {
                     entry_wg.private_key().to_bytes(),
                 ),
                 gateway_identity: entry_gw.identity,
+                gateway: entry_gw.info(),
+                bridge: entry_bridge,
             },
             exit: Some(HopConfig {
                 wg_config: exit_cfg,
@@ -357,6 +413,8 @@ impl Session {
                     exit_wg.private_key().to_bytes(),
                 ),
                 gateway_identity: exit_gw.identity,
+                gateway: exit_gw.info(),
+                bridge: None,
             }),
         })
     }
@@ -407,6 +465,8 @@ impl Session {
             wg_config: cfg,
             client_private_key: x25519::PrivateKey::from_secret(wg.private_key().to_bytes()),
             gateway_identity: selected.identity,
+            gateway: selected.info(),
+            bridge: None,
         })
     }
 }

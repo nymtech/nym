@@ -75,6 +75,7 @@ async fn run() -> Result<(), String> {
             network: NymNetworkDetails::new_from_env(),
             credential_store_path: Some("smol-dvpn-grpc-creds.db".into()),
             data_path: "smol-dvpn-grpc-data".into(),
+            dvpn_directory_url: None,
         },
         CancellationToken::new(),
     )

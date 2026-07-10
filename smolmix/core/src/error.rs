@@ -16,3 +16,16 @@ pub enum SmolmixError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
+
+// Map smol-core stack errors onto the existing public variants, so refactoring
+// smolmix onto smol-core does not change SmolmixError's public surface.
+impl From<smol_core::SmolCoreError> for SmolmixError {
+    fn from(err: smol_core::SmolCoreError) -> Self {
+        match err {
+            smol_core::SmolCoreError::Io(e) => SmolmixError::Io(e),
+            smol_core::SmolCoreError::ChannelClosed => SmolmixError::ChannelClosed,
+            // DNS/other stack errors surface as IO (smolmix exposes no DNS API).
+            other => SmolmixError::Io(std::io::Error::other(other.to_string())),
+        }
+    }
+}

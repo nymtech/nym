@@ -13,15 +13,8 @@ readme = "src/ARCHITECTURE.md"
 publish = true
 
 [dependencies]
-smoltcp = { workspace = true, features = [
-    "std",
-    "medium-ip",
-    "proto-ipv4",
-    "socket-tcp",
-    "socket-udp",
-] }
+smol-core = { workspace = true }
 tokio = { workspace = true }
-tokio-smoltcp = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
 nym-sdk = { workspace = true }

@@ -47,6 +47,9 @@ pub enum SessionError {
     #[error("no QUIC-bridge gateway available for selection: {spec}")]
     NoQuicGateway { spec: String },
 
+    #[error("entry and exit resolved to the same gateway ({0}); a two-hop tunnel needs distinct gateways")]
+    SameGatewaySelected(String),
+
     /// A selected gateway advertised malformed LP data.
     #[error("gateway {identity} advertised malformed LP data: {reason}")]
     MalformedGateway { identity: String, reason: String },

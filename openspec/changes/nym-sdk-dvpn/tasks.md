@@ -24,6 +24,7 @@
 - [x] 3.8 Tests for issuance, storage reuse, each selection mode, and setup abort
 - [x] 3.9 Optional dVPN gateway-directory client (`SessionConfig.dvpn_directory_url`, best-effort fetch); enrich per-hop `GatewayInfo` with the gateway moniker (`name`) + node id/country/IP, exposed on `HopConfig`
 - [x] 3.10 QUIC-bridge entry selection: `register_two_hop_quic` requires a QUIC-capable entry per the directory (honoring the `GatewaySpec`), returns the entry `QuicBridge` params on `HopConfig.bridge`, and fails with `SessionError::NoQuicGateway` when none match; single-hop / non-QUIC two-hop carry no bridge
+- [x] 3.11 Two-hop selection excludes the entry gateway from the exit pool so the hops are always distinct (`SessionError::SameGatewaySelected` if the exit spec can only match the entry)
 
 ## 4. `sdk/rust/smol-dvpn` datapath (`nym-smol-dvpn`)
 

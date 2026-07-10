@@ -220,16 +220,22 @@ fn quic_ok(
 ///
 /// When `require_quic` is set, only gateways the dVPN `directory` reports as
 /// QUIC-bridge-capable are eligible; if none match, [`SessionError::NoQuicGateway`]
-/// is returned.
+/// is returned. `exclude` (the already-chosen hop's identity, e.g. the entry when
+/// picking the exit) is never selected, so a two-hop tunnel gets distinct gateways.
 pub(crate) fn select(
     nodes: Vec<NymNodeDescriptionV2>,
     spec: &GatewaySpec,
     role: WgRole,
     directory: Option<&DvpnDirectory>,
     require_quic: bool,
+    exclude: Option<&ed25519::PublicKey>,
 ) -> Result<SelectedGateway, SessionError> {
+    let excluded = |id: &ed25519::PublicKey| exclude == Some(id);
     match spec {
         GatewaySpec::Identity(id) => {
+            if excluded(id) {
+                return Err(SessionError::SameGatewaySelected(id.to_base58_string()));
+            }
             let desc = nodes
                 .into_iter()
                 .find(|n| &n.ed25519_identity_key() == id)
@@ -248,13 +254,15 @@ pub(crate) fn select(
             let candidates: Vec<_> = nodes
                 .into_iter()
                 .filter(|n| {
-                    wg_capable(n, role)
+                    let id = n.ed25519_identity_key();
+                    !excluded(&id)
+                        && wg_capable(n, role)
                         && n.description
                             .auxiliary_details
                             .location
                             .as_ref()
                             .is_some_and(|c| c.alpha2.eq_ignore_ascii_case(cc))
-                        && quic_ok(directory, require_quic, &n.ed25519_identity_key())
+                        && quic_ok(directory, require_quic, &id)
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
@@ -272,8 +280,8 @@ pub(crate) fn select(
             let candidates: Vec<_> = nodes
                 .into_iter()
                 .filter(|n| {
-                    wg_capable(n, role)
-                        && quic_ok(directory, require_quic, &n.ed25519_identity_key())
+                    let id = n.ed25519_identity_key();
+                    !excluded(&id) && wg_capable(n, role) && quic_ok(directory, require_quic, &id)
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
@@ -313,12 +321,36 @@ mod tests {
             WgRole::Entry,
             None,
             false,
+            None,
         )
         .err()
         .expect("expected selection error");
         match err {
             SessionError::GatewayNotFound(s) => assert_eq!(s, id.to_base58_string()),
             other => panic!("expected GatewayNotFound, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn excluded_identity_is_rejected() {
+        // Selecting the excluded gateway (e.g. the entry, when picking the exit)
+        // fails up front so a two-hop tunnel gets distinct gateways.
+        let id =
+            ed25519::PublicKey::from_base58_string("Gejc2CnSRFUxK6519ewmWM66ytDZbbuXytwLUgytCQUD")
+                .unwrap();
+        let err = select(
+            vec![],
+            &GatewaySpec::Identity(id),
+            WgRole::Exit,
+            None,
+            false,
+            Some(&id),
+        )
+        .err()
+        .expect("expected selection error");
+        match err {
+            SessionError::SameGatewaySelected(s) => assert_eq!(s, id.to_base58_string()),
+            other => panic!("expected SameGatewaySelected, got {other:?}"),
         }
     }
 
@@ -330,6 +362,7 @@ mod tests {
             WgRole::Exit,
             None,
             false,
+            None,
         )
         .err()
         .expect("expected selection error");
@@ -341,18 +374,32 @@ mod tests {
 
     #[test]
     fn random_no_gateway_over_empty_set() {
-        let err = select(vec![], &GatewaySpec::Random, WgRole::Entry, None, false)
-            .err()
-            .expect("expected selection error");
+        let err = select(
+            vec![],
+            &GatewaySpec::Random,
+            WgRole::Entry,
+            None,
+            false,
+            None,
+        )
+        .err()
+        .expect("expected selection error");
         assert!(matches!(err, SessionError::NoWireguardGateway));
     }
 
     #[test]
     fn require_quic_without_directory_fails() {
         // With no directory (None), requiring QUIC can never be satisfied.
-        let err = select(vec![], &GatewaySpec::Random, WgRole::Entry, None, true)
-            .err()
-            .expect("expected selection error");
+        let err = select(
+            vec![],
+            &GatewaySpec::Random,
+            WgRole::Entry,
+            None,
+            true,
+            None,
+        )
+        .err()
+        .expect("expected selection error");
         assert!(matches!(err, SessionError::NoQuicGateway { .. }));
     }
 

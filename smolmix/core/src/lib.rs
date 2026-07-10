@@ -3,7 +3,6 @@
 #![doc = include_str!("ARCHITECTURE.md")]
 
 mod bridge;
-mod device;
 mod error;
 mod tunnel;
 

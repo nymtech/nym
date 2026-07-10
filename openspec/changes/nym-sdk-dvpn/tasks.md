@@ -1,0 +1,65 @@
+## 1. Conformance spikes (de-risk first, throwaway)
+
+- [x] 1.1 Spike A — two-hop boringtun nesting parity: register entry+exit via `nym-registration-client`, build the exit→IP/UDP→entry encapsulation with `boringtun` + `smoltcp::wire`, push one hand-framed packet, and confirm a reply matches the `nym-vpn-client` reference behavior (fixed exit source port 54001)
+- [x] 1.2 Spike B — QUIC bridge one-packet round-trip: connect to a bridge with `quinn` (ALPN `hq-29`, ed25519-SPKI pinning), open one bi-stream, send a 2-byte-length-framed WireGuard packet and confirm the framed reply
+- [x] 1.3 Record spike outcomes; confirm the two-hop mechanism and bridge framing before building the real crates
+
+## 2. `common/smol-core` (shared smoltcp stack)
+
+- [x] 2.1 Create `common/smol-core` crate; add to workspace `members`
+- [x] 2.2 Extract the transport-agnostic smoltcp stack from `smolmix` (device wiring, `Net`, `TcpStream`/`UdpSocket`) behind an abstract IP-packet transport (`Vec<u8>` in/out)
+- [x] 2.3 Add the tunnel-scoped DNS resolver (bound to a stack UDP socket)
+- [x] 2.4 Refactor `smolmix` to consume `smol-core`; preserve its public API
+- [x] 2.5 Regression tests proving `smolmix`'s public API and behavior are unchanged; unit tests for `smol-core` TCP/UDP/DNS
+
+## 3. `sdk/rust/nym-sdk-session` (provisioning facade)
+
+- [x] 3.1 Create `nym-sdk-session` crate; add to workspace `members`
+- [x] 3.2 Mnemonic → nyxd signing client → `NyxdCredentialFetcher` + `BandwidthController` wiring; issue `V1WireguardEntry`/`V1WireguardExit` ticketbooks
+- [x] 3.3 Persistent credential store integration; reuse stored tickets on subsequent bring-up
+- [x] 3.4 Gateway selection: identity / two-letter country code / random, filtered to WireGuard-capable nodes (country = filter on described-node `location`)
+- [x] 3.5 Gateway registration via `nym-registration-client`; return per-hop `WireguardConfiguration` (pubkey + PSK + endpoint + assigned IPs)
+- [x] 3.6 `CancellationToken` support to abort the setup/issuance phase
+- [x] 3.7 Implement single-hop as a single-gateway registration (`BuilderConfig` mandates entry+exit and the reference is two-hop-only, so use the LP single-gateway `register_dvpn` path rather than forcing `entry == exit`); expose `gateway=` for single-hop and `entry=`/`exit=` for two-hop
+- [x] 3.8 Tests for issuance, storage reuse, each selection mode, and setup abort
+
+## 4. `sdk/rust/smol-dvpn` datapath (`nym-smol-dvpn`)
+
+- [x] 4.1 Create `sdk/rust/smol-dvpn` crate (`nym-smol-dvpn`); add to workspace `members`; declare `boringtun`, `quinn`, `quinn-proto` in its own `Cargo.toml` (not the workspace table)
+- [x] 4.2 Define the `WgPacketTransport` seam (one WG packet per send/recv) and the `Direct` UDP implementation
+- [x] 4.3 Single-hop datapath: one `boringtun` `Tunn` on `smol-core`, peer configured from registration (pubkey + PSK)
+- [x] 4.4 Two-hop datapath: nested `Tunn`s with the exit→IP/UDP→entry encapsulation from Spike A
+- [x] 4.5 boringtun timer pump on a dedicated cancellable task, routed through the active transport
+- [x] 4.6 Tunnel lifecycle + `CancellationToken` (abort setup / teardown long-lived tunnel; `shutdown()`); tickets retained on teardown
+- [ ] 4.7 Configurable, runtime-adjustable MTU with reference defaults (overhead 80/hop; desktop 1420/1340; mobile 1360/1280)
+- [x] 4.8 DNS-in-tunnel default (configurable) via the `smol-core` resolver
+- [x] 4.9 Background bandwidth top-up task via the `nym-wireguard-private-metadata` client
+- [x] 4.10 Optional `on_socket_open`-style socket-protection callback (Linux/Android)
+- [x] 4.11 Integration test: bring up single-hop and two-hop tunnels and pass TCP/UDP traffic
+
+## 5. Traffic surfaces & connectors
+
+- [x] 5.1 Expose `tcp_connect` (`AsyncRead+AsyncWrite`) and UDP socket surfaces
+- [x] 5.2 `tonic` connector/channel adapter
+- [x] 5.3 `hyper` and `reqwest` connector adapters
+- [ ] 5.4 Example + test: `tonic` gRPC request through the tunnel
+
+## 6. `dvpn-quic-bridge` (QUIC-tunnelling two-hop)
+
+- [x] 6.1 Inline QUIC client module mirroring `nym-vpn-client` `transports/` (no `nym_bridges` dep): `quinn` setup, ALPN `hq-29`, `keep_alive_interval` + `max_idle_timeout` + BBR
+- [x] 6.2 `IdentityBasedVerifier` (ed25519-only, SNI/CN ∈ alt-names, SPKI == pinned key)
+- [x] 6.3 2-byte big-endian length framing per WG packet over one `open_bi()` stream; wire as the `QuicBridge` `WgPacketTransport`
+- [x] 6.4 Source bridge params (`addresses`, SNI host, base64 ed25519 `id_pubkey`) from the gateway directory; enforce QUIC only on the two-hop entry leg (reject QUIC one-hop)
+- [x] 6.5 Keep LP registration Direct-only; bridge the WG data plane only; cancellable connect
+- [x] 6.6 Conformance test against a pinned bridge reference (or mock) for framing + pinning
+
+## 7. Example CLIs (`dvpn-tools`)
+
+- [x] 7.1 `smol-dvpn-config --gateway <spec>`: single-hop LP registration → plain WireGuard config export (Interface + Peer with pubkey/PSK/endpoint/allowed-ips)
+- [x] 7.2 `smol-dvpn-topup`: spend a stored ticket via the gateway `metadata` endpoint and report updated available bandwidth
+
+## 8. Docs, licensing, and finalization
+
+- [x] 8.1 Crate READMEs + usage examples; link the design docs in `sdk/rust/docs/nym-sdk-dvpn/`
+- [x] 8.2 Confirm license notices for `boringtun` (BSD-3-Clause) and `quinn` (MIT/Apache-2.0) are retained; verify workspace license compliance
+- [x] 8.3 Ensure no Go / gVisor netstack and no new workspace-table deps introduced; `cargo test`/`clippy` clean across the three crates

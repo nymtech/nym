@@ -1,0 +1,44 @@
+# THROWAWAY conformance spikes for the nym-sdk-dvpn change (OpenSpec task 1).
+# Detached from the monorepo workspace on purpose (own empty [workspace] table)
+# so heavy, crate-local deps (boringtun/quinn) never touch the main build.
+# Not intended to be merged as-is; findings are recorded in FINDINGS.md.
+[package]
+name = "dvpn-spikes"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "spike_a_nesting"
+path = "src/bin/spike_a_nesting.rs"
+
+[[bin]]
+name = "spike_b_quic"
+path = "src/bin/spike_b_quic.rs"
+
+[dependencies]
+# Spike A — pure-Rust WireGuard datapath + inner IP/UDP framing.
+boringtun = "0.7.1"
+# Feature set mirrors smolmix/core (a coherent socket+proto combo; smoltcp's own
+# lib fails to compile without at least one socket feature).
+smoltcp = { version = "0.12", default-features = false, features = [
+    "std",
+    "medium-ip",
+    "proto-ipv4",
+    "socket-tcp",
+    "socket-udp",
+] }
+
+# Spike B — QUIC bridge framing + ed25519-SPKI pinning.
+quinn = "0.11"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+rustls-pki-types = "1"
+rcgen = { version = "0.13", features = ["pem", "crypto"] }
+ed25519-dalek = { version = "2", features = ["pkcs8"] }
+x509-parser = "0.16"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+bytes = "1"

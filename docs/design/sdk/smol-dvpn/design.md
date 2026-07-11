@@ -157,12 +157,12 @@ outgoing:
 incoming: exact reverse (entry_tunn.decapsulate → parse mid_ip/UDP → exit_tunn.decapsulate → app_ip)
 ```
 
-Key confirmations from the reference:
+Key points established from the reference:
 
 - The **exit peer `endpoint` from registration is the exit gateway's real public
   address**; the entry tunnel routes it (in the reference's OS-tun mode via the
   entry peer's `allowed_ips = [exit_endpoint_ip, metadata_endpoint_ip]`; in the
-  userspace mode via the UDP proxy). So Spike A's assumption is **correct**.
+  userspace mode via the UDP proxy).
 - **Fixed exit-tunnel source port** (`client_port`, reference default **54001**).
 - **MTU stepping (actual reference values):** `WG_TUNNEL_OVERHEAD = 80` B/hop, over
   a base of `ETHERNET_V2_MTU = 1500` (desktop) or `MIN_IPV6_MTU = 1280` (iOS/Android).
@@ -243,41 +243,36 @@ enum GatewayTransport {
 }
 ```
 
-Confirmed protocol (must byte-match — see §14 for sources):
+The bridge protocol (see §14 for sources):
 
-- **`quinn` 0.11 + `quinn-proto` 0.11, `rustls` 0.23 (ring provider).** Install the
-  ring default crypto provider at startup. `quinn` is a **crate-local dependency of
-  `nym-smol-dvpn`**, like `boringtun`.
+- **`quinn` 0.11 + `quinn-proto` 0.11, `rustls` 0.23 (ring provider).** The ring
+  default crypto provider is installed at startup. `quinn` is a **crate-local
+  dependency of `nym-smol-dvpn`**, like `boringtun`.
 - **ALPN = `hq-29`** (legacy HTTP/QUIC id — *not* `h3`; there is no real HTTP/3).
 - **WireGuard packets ride a single reliable QUIC bi-stream, length-framed with a
   2-byte big-endian prefix** (`tokio_util::LengthDelimitedCodec`,
-  `length_field_length(2)`). **Not** RFC 9221 datagrams — this corrects an earlier
-  assumption in this doc; the bridge server implements only the framed-stream form.
-  Per outbound WG packet: write `u16be(len) || packet`; per inbound: read `u16be`
-  then that many bytes.
+  `length_field_length(2)`) — not RFC 9221 datagrams. Per outbound WG packet: write
+  `u16be(len) || packet`; per inbound: read `u16be` then that many bytes.
 - **Server-identity cert pinning (ed25519).** The bridge self-signs an X.509 cert
   whose CN/SAN is the base58 of its ed25519 identity key and whose SPKI *is* that
   key. A custom `rustls::ServerCertVerifier` (`IdentityBasedVerifier`) requires: SNI
   ∈ alt-names, CN ∈ alt-names, cert SPKI == pinned `id_pubkey`, valid self-signature,
-  and `ED25519`-only verify schemes. Client uses `with_no_client_auth()` (client is
-  anonymous).
-- **Client-side transport tuning (mirror the reference).** The bridge *server* sets
-  no keepalive/idle/congestion, but the reference *client* (`transport_conn`) does,
-  and we should too for the long-lived tunnel: set `keep_alive_interval` +
-  `max_idle_timeout` (so an idle session doesn't drop) and the **BBR** congestion
-  controller. The `open_bi()` connect is wrapped in `run_until_cancelled` (our
-  `CancellationToken`).
-- **Socket-protection hook.** The reference exposes an `on_socket_open:
-  FnOnce(RawFd)` (Linux/Android) so a VPN app can protect the underlying UDP socket
-  from routing loops. `nym-smol-dvpn` should surface an equivalent optional callback.
-- **Reimplement the QUIC client inline — do NOT depend on the `nym_bridges` crate.**
-  This mirrors `nym-vpn-client`, which declares `quinn`/`quinn-proto` directly and
-  reimplements the client (its own `transports/mod.rs` + `certs.rs`) rather than
-  depending on `nym_bridges` (whose protocol is versioned `"0"` and explicitly
-  unstable). We keep a small self-contained module in `nym-smol-dvpn` that
-  byte-matches the three invariants — ALPN `hq-29`, the `IdentityBasedVerifier`
-  semantics (ed25519-only, SNI/CN ∈ alt-names, SPKI == pinned key), and the 2-byte
-  length framing — using `nym_bridges` only as a reference to track.
+  and `ED25519`-only verify schemes. The client is anonymous
+  (`with_no_client_auth()`).
+- **Delegate the QUIC connection to the `nym-bridges` client; add only the datapath
+  framing on top.** `nym-smol-dvpn` depends on the `nym-bridges` crate (git-pinned)
+  and uses its `transport::quic::{transport_conn, ClientOptions}` to establish the
+  cert-pinned, ALPN-`hq-29` connection, so the client can never drift from the bridge
+  server. On top of that connection this crate adds the WireGuard datapath: one
+  reliable `open_bi()` stream carrying 2-byte-length-framed WG packets. Because the
+  protocol is versioned `"0"` and explicitly unstable, the dependency is pinned to a
+  commit, and publishing `nym-smol-dvpn` to crates.io is blocked until `nym-bridges`
+  is released.
+- **Session liveness.** `nym-bridges` does not set QUIC keep-alive or a BBR
+  congestion controller; WireGuard's own persistent-keepalive keeps the long-lived
+  session (and its NAT mapping) alive.
+- **Socket-protection hook.** An optional `SocketProtector` callback (Linux/Android)
+  lets a VPN app protect the underlying UDP socket from routing loops.
 - **The bridge path is the better WASM story, not worse.** Browsers cannot open raw
   UDP, but **WebTransport is HTTP/3 / QUIC and is browser-native** — so the future
   WASM `WgPacketTransport` is essentially "the bridge over WebTransport". The
@@ -387,9 +382,10 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
   model the metadata endpoint is just another destination reachable via
   `smol-core`'s `tcp_connect` on the running tunnel.
 
-## 11. Public API sketch
+## 11. Public API
 
-> Illustrative shape, not final. No implementation exists yet.
+> The shape below is illustrative; see the crate README and rustdoc for the
+> current public surface.
 
 ```rust
 // ── nym-sdk-session (shared provisioning facade) ────────────────────────────
@@ -462,7 +458,7 @@ Traffic surfaces to expose (all reuse `smol-core`):
 | smoltcp stack pattern | `smolmix` — `smolmix/core/src/{tunnel,device}.rs` → generalise into `smol-core` |
 | Metadata top-up | `nym-wireguard-private-metadata` (client) — `topup_bandwidth`, `available_bandwidth` |
 | WG datapath (new) | `boringtun` (`Tunn`) + `smoltcp::wire` for the middle IP/UDP frame |
-| QUIC bridge (new) | `quinn` 0.11, reimplemented inline (mirroring `nym-vpn-client`, not depending on `nym_bridges`): ALPN `hq-29`, ed25519-SPKI pinning, 2-byte len-framed WG packets over one bi-stream |
+| QUIC bridge (new) | `quinn` 0.11 via the `nym-bridges` client (git-pinned, `transport::quic`): ALPN `hq-29`, ed25519-SPKI pinning; this crate adds the 2-byte len-framed WG packets over one bi-stream |
 
 ## 14. Reference implementations studied
 
@@ -493,13 +489,13 @@ engine** (they are Go; we are pure Rust).
   (`QuicClientOptions { addresses, host, id_pubkey }`) come from the VPN API per
   gateway.
 
-**`nym-bridges`** (`github.com/nymtech/nym-bridges`) — the bridge server. Used as a
-**protocol reference only** — we do *not* depend on the crate (neither does
-`nym-vpn-client`), because the protocol is unstable (`version = "0"`).
-- Useful reference modules: `transport::quic::{ClientOptions, transport_conn}`
-  (configured `quinn::Connection`), `transport::tls::certs::IdentityBasedVerifier`
-  (pinning), `connection::process_udp` (the 2-byte-len framing/relay loop). Follow
-  the `bridge-tools/src/client_udp.rs` reference (UDP-fronted), **not** `client.rs`.
+**`nym-bridges`** (`github.com/nymtech/nym-bridges`) — the bridge server, and the
+QUIC client `nym-smol-dvpn` builds on. `nym-smol-dvpn` depends on the crate
+(git-pinned to a commit, since the protocol is versioned `"0"` and unstable) and
+uses its client transport rather than reimplementing the connection.
+- Modules used: `transport::quic::{ClientOptions, transport_conn}` (configured
+  `quinn::Connection`) and `transport::tls::certs::IdentityBasedVerifier` (pinning).
+  This crate layers the 2-byte-length WG framing on top of the connection.
 - **Transparent fixed-target forwarder:** the target gateway is set server-side
   (`[forward] address`); **no client-sent gateway-selection handshake**. Bridge is
   1:1 with a gateway. Default listen `[::]:4443` (`:443` in the wild). No client

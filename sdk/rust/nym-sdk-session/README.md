@@ -6,7 +6,7 @@ mnemonic it issues and persists zk-nym WireGuard ticketbooks, selects gateways,
 and registers them — returning the per-hop `WireguardConfiguration` a datapath
 (e.g. [`nym-smol-dvpn`](../smol-dvpn)) needs.
 
-Shared by both mixnet and dVPN modes (design D3).
+Shared by both mixnet and dVPN modes.
 
 ## Usage
 
@@ -70,4 +70,6 @@ Every setup/issuance/registration entry point is driven under the supplied
 
 ## Design
 
-See `sdk/rust/docs/nym-sdk-dvpn/` and the `dvpn-session` OpenSpec capability.
+See the architecture docs in
+[`docs/design/sdk/smol-dvpn/`](../../../docs/design/sdk/smol-dvpn/) and the
+[`dvpn-session`](../../../openspec/specs/dvpn-session/spec.md) OpenSpec capability.

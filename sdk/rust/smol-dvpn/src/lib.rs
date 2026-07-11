@@ -36,7 +36,7 @@ mod topup;
 mod transport;
 mod tunnel;
 
-pub use bridge::BridgeParams;
+pub use bridge::{probe as probe_bridge, BridgeParams};
 pub use config::{DnsMode, MtuConfig, PeerConfig, TunnelConfig, DEFAULT_EXIT_WG_CLIENT_PORT};
 pub use connectors::TunnelConnector;
 pub use error::{DvpnError, Result};

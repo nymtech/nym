@@ -45,7 +45,7 @@ tunnel.shutdown().await;
 
 // QUIC-bridged two-hop:
 let tunnel = TunnelBuilder::two_hop(entry, exit)
-    .quic_bridge(BridgeParams { addresses, sni_host, id_pubkey })
+    .quic_bridge(BridgeParams { addresses, sni_host, id_pubkey_base64 })
     .connect()
     .await?;
 ```

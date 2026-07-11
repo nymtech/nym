@@ -54,8 +54,12 @@ quinn = "0.11"
 quinn-proto = "0.11"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rustls-pki-types = "1"
-ed25519-dalek = { version = "2", features = ["pkcs8"] }
-x509-parser = "0.16"
+
+# The QUIC bridge client is delegated to the canonical `nym-bridges`
+# implementation (cert-pinning verifier, ALPN, dialing) instead of being
+# reimplemented here — see `bridge.rs`. Not yet on crates.io, so pulled via git;
+# `cargo publish` of this crate is blocked until `nym-bridges` is released.
+nym-bridges = { git = "https://github.com/nymtech/nym-bridges", rev = "dc4a7bf8da10d6bb6621379a2e87766da9e069cd" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "io-util", "net"] }
@@ -73,6 +77,11 @@ prost = { version = "0.14", features = ["derive"] }
 tokio-rustls = { workspace = true }
 webpki-roots = { workspace = true }
 serde_json = { workspace = true }
+# Conformance test only: derive the base58 SNI a nym-bridge server certificate
+# is issued for (CN/SAN = base58 identity key), and encode the mock server's
+# base64 identity.
+bs58 = "0.5"
+base64 = { workspace = true }
 # Example CLIs only (keep the library decoupled from the provisioning facade).
 nym-sdk-session = { workspace = true }
 nym-crypto = { workspace = true }

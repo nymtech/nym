@@ -15,7 +15,7 @@ use nym_lp::peer::{DHKeyPair, LpRemotePeer};
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{LpRegistrationClient, NestedLpSession};
 use nym_registration_common::WireguardConfiguration;
-use nym_validator_client::client::NymApiClient;
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use rand09::SeedableRng;
 use time::OffsetDateTime;
@@ -78,7 +78,7 @@ pub struct Registration {
 
 /// Provisioning facade over the credential + registration machinery.
 pub struct Session {
-    api: NymApiClient,
+    api: nym_http_api_client::Client,
     controller: BandwidthController<PersistentStorage>,
     cancel: CancellationToken,
     /// dVPN gateway directory (empty if none configured or the fetch failed).
@@ -143,7 +143,7 @@ impl Session {
             .map_err(|e| SessionError::Issuance(e.to_string()))?;
 
         let controller = BandwidthController::new(storage).with_credential_fetcher(fetcher);
-        let api = NymApiClient::new_with_timeout(api_url, API_TIMEOUT);
+        let api = nym_http_api_client::Client::new(api_url, Some(API_TIMEOUT));
 
         // Best-effort dVPN directory (monikers + QUIC bridge params).
         let directory = match dvpn_directory_url {

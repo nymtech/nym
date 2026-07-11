@@ -264,3 +264,13 @@ Related capabilities in sibling crates:
 `nym-sdk-session`) and
 [`smol-core-stack`](../../../openspec/specs/smol-core-stack/spec.md) (the
 `smol-core` TCP/IP stack).
+
+## License
+
+`nym-smol-dvpn` is licensed under the **Apache License, Version 2.0**
+([`Apache-2.0`](../../../LICENSES/Apache-2.0.txt)). Unless you explicitly state otherwise,
+any contribution intentionally submitted for inclusion in this crate shall be
+licensed as above, without any additional terms or conditions.
+
+Bundled third-party crates keep their own permissive licenses: `boringtun`
+(BSD-3-Clause) and `quinn` / `quinn-proto` (MIT OR Apache-2.0).

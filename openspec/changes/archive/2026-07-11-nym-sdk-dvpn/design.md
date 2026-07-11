@@ -64,8 +64,8 @@ pure Rust: the exit `Tunn` encrypts to the exit gateway's real endpoint; that
 ciphertext is framed as an IP/UDP packet (via `smoltcp::wire`) and fed to the entry
 `Tunn`, which encrypts to the entry gateway. Fixed exit source port bound
 dynamically with ref-default 54001 fallback. No loopback proxy needed since we own
-both `Tunn`s. Single-hop collapses the inner tunnel. Proven end-to-end in the
-conformance spike (`tools/internal/dvpn-spikes`, task 1.1).
+both `Tunn`s. Single-hop collapses the inner tunnel. Proven end-to-end during the
+conformance-spike phase (task 1.1).
 
 **D5 — Transport seam `WgPacketTransport` with three data-plane modes.** One WG packet
 per `send`/`recv`. `Direct` = real UDP datagram to the entry gateway. `QuicBridge` =

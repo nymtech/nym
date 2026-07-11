@@ -1,4 +1,5 @@
-// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! Live integration test (OpenSpec task 4.11): bring up single-hop and two-hop
 //! tunnels against real Nym gateways and pass traffic through them.

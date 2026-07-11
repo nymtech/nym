@@ -1,4 +1,5 @@
-// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! Background bandwidth top-up (OpenSpec task 4.9).
 //!

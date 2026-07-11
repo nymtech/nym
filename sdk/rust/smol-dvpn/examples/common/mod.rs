@@ -83,12 +83,12 @@ pub async fn new_session(data_dir: &str) -> Session {
 }
 
 /// Map a session [`QuicBridge`] into the datapath's [`BridgeParams`].
-pub fn bridge_params(qb: &QuicBridge) -> Result<BridgeParams, BoxError> {
-    Ok(BridgeParams {
+pub fn bridge_params(qb: &QuicBridge) -> BridgeParams {
+    BridgeParams {
         addresses: qb.addresses.clone(),
         sni_host: qb.sni_host.clone(),
-        id_pubkey: BridgeParams::id_pubkey_from_base64(&qb.id_pubkey_base64)?,
-    })
+        id_pubkey_base64: qb.id_pubkey_base64.clone(),
+    }
 }
 
 /// Bring up a two-hop tunnel from a [`Registration`]. When `use_quic` is set,
@@ -108,7 +108,7 @@ pub async fn build_two_hop_tunnel(reg: &Registration, use_quic: bool) -> Result<
             .bridge
             .as_ref()
             .ok_or("QUIC requested but the entry hop carries no bridge params")?;
-        builder = builder.quic_bridge(bridge_params(qb)?);
+        builder = builder.quic_bridge(bridge_params(qb));
     }
     Ok(builder.connect().await?)
 }

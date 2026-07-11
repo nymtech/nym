@@ -47,8 +47,8 @@ nym-wireguard-private-metadata-client = { workspace = true }
 nym-wireguard-private-metadata-shared = { workspace = true }
 
 # --- Crate-local deps: deliberately NOT promoted to the workspace dependency
-# --- table (design decision D10). The userspace WireGuard engine and the
-# --- inline QUIC bridge stack live only here.
+# --- table. The userspace WireGuard engine and the QUIC bridge stack live only
+# --- here, keeping the WG/QUIC dependency surface contained to this crate.
 boringtun = "0.7.1"
 quinn = "0.11"
 quinn-proto = "0.11"

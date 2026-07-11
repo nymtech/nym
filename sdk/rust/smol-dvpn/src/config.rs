@@ -43,7 +43,7 @@ impl std::fmt::Debug for PeerConfig {
     }
 }
 
-/// Per-hop MTU. Defaults follow the reference (design D9): overhead 80 B/hop;
+/// Per-hop MTU. Defaults follow the reference: overhead 80 B/hop;
 /// desktop entry 1420 / exit 1340; mobile entry 1360 / exit 1280.
 #[derive(Clone, Copy, Debug)]
 pub struct MtuConfig {

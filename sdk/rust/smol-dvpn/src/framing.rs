@@ -8,7 +8,7 @@
 //! and feed it to the entry `Tunn`, which encrypts it to the entry gateway. On
 //! the way back the entry tunnel decrypts to recover this datagram, whose UDP
 //! payload is the exit ciphertext. This is the pure-Rust equivalent of the
-//! reference's in-gVisor UDP forwarder, proven in conformance spike A.
+//! reference's in-gVisor UDP forwarder.
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 

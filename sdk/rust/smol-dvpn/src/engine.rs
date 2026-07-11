@@ -2,8 +2,8 @@
 
 //! The userspace WireGuard engine (boringtun).
 //!
-//! Owns the one (single-hop) or two (two-hop) `Tunn`s and implements the nesting
-//! proven in conformance spike A. Every method returns an [`EngineOutput`]
+//! Owns the one (single-hop) or two (two-hop) `Tunn`s and implements the two-hop
+//! nesting. Every method returns an [`EngineOutput`]
 //! splitting work into inner IP packets destined for the smol-core stack and
 //! outer WireGuard packets destined for the active transport. The engine is
 //! driven from a single task, so the `Tunn`s need no locking.
@@ -11,8 +11,8 @@
 //! Handshake note: the entry handshake runs directly; the exit handshake is
 //! tunnelled through the entry `Tunn`. boringtun drives retransmission via
 //! `update_timers`, so the timer pump re-kicks the exit handshake until the
-//! session establishes. End-to-end handshake success is validated against a
-//! live gateway; the encap/decap/framing correctness is covered by spike A.
+//! session establishes. Handshake success and encap/decap/framing correctness
+//! are validated end-to-end against a live gateway (see the crate examples).
 
 use std::net::SocketAddrV4;
 

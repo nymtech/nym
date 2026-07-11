@@ -11,8 +11,8 @@ mixnet). What is missing is a pure-Rust *client-side WireGuard datapath* that
 terminates in ordinary `tokio` sockets.
 
 A full exploration (grounded in this repo plus the `nym-vpn-client` and `nym-bridges`
-reference repos) is captured at `sdk/rust/docs/nym-sdk-dvpn/` (README, design,
-open-questions). This document summarizes the decisions that drive implementation.
+reference repos) is captured at `docs/design/sdk/smol-dvpn/` (README, design). This
+document summarizes the decisions that drive implementation.
 
 ## Goals / Non-Goals
 

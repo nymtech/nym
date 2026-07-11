@@ -15,6 +15,7 @@ publish = false
 
 [dependencies]
 nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
 nym-bandwidth-fetcher = { workspace = true }
 nym-credential-storage = { workspace = true }

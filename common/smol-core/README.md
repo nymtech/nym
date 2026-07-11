@@ -47,5 +47,6 @@ socket.
 
 ## Design
 
-See `sdk/rust/docs/nym-sdk-dvpn/` (design decision **D2**) and the
-`smol-core-stack` OpenSpec capability.
+See the architecture docs in
+[`docs/design/sdk/smol-dvpn/`](../../docs/design/sdk/smol-dvpn/) and the
+[`smol-core-stack`](../../openspec/specs/smol-core-stack/spec.md) OpenSpec capability.

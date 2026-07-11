@@ -6,14 +6,50 @@ with **no OS `tun` device and no root**. Application traffic flows through the
 tunnel via ordinary tokio socket surfaces (`TcpStream`, `UdpSocket`, and
 `tonic`/`hyper` connectors).
 
+## What can I use `nym-smol-dvpn` for?
+
+Tunnel some or all of your app's internet traffic over the Nym network — in
+**1-hop or 2-hop dVPN mode** — straight from Rust. You don't stand up an
+OS-wide VPN; the tunnel is **scoped to your app's own traffic**, so nothing
+leaks around it and closing the tunnel simply cuts your app off — a **natural
+kill-switch** you get for free.
+
+How it works, end to end:
+
+1. **Get unlinkable credentials.** Your app acquires zk-nym ticketbooks to pay
+   for access to the Nym network. Because they're zero-knowledge, there's **no
+   link between the payment and the network usage** it unlocks.
+2. **Register with individual gateways.** Each hop registers separately and is
+   handed its **own unique WireGuard identity** — there is no centralised, shared
+   WireGuard public key. The network is run by **independent operators**, so
+   trust isn't concentrated in one party.
+3. **Send traffic through tokio.** Drive the tunnel with ordinary async
+   primitives — `AsyncRead`/`AsyncWrite`, `TcpStream`, `UdpSocket` — and layer
+   crates like `tonic` or `hyper` on top to send **gRPC, HTTP, or anything else**
+   inside your app-specific tunnel. Under the hood it's WireGuard: **fast, with
+   very small per-packet header overhead**.
+
+Blocked by a censor doing **Deep Packet Inspection**? Flip on the **QUIC bridge**
+transport ([Data-plane modes](#data-plane-modes)): the WireGuard tunnel rides inside a QUIC
+connection to a Nym network bridge, so on the wire it looks like ordinary QUIC
+rather than WireGuard/UDP.
+
+### Don't want your users to touch NYM tokens?
+
+Your end-users **don't have to acquire or hold NYM** to use the Nym network. Run
+the [`nym-credential-proxy`](../../../nym-credential-proxy/nym-credential-proxy) —
+an authenticated service you operate that **gifts zk-nyms to your users** on their
+behalf. Your app authenticates to the proxy, the proxy issues the unlinkable
+credentials, and your users get Nym access with zero crypto onboarding.
+
 ## Data-plane modes
 
-Three modes (design D5), selected on the builder:
+Three modes, selected on the builder:
 
 - **one-hop** — a single `boringtun` `Tunn` to one gateway.
 - **two-hop** — nested `Tunn`s: the exit tunnel's ciphertext is framed as an
   inner IP/UDP datagram (via `smoltcp::wire`) and re-encrypted by the entry
-  tunnel (design D4, proven in conformance spike A).
+  tunnel.
 - **QUIC-tunnelling two-hop** — the entry leg is fronted by an inline QUIC
   bridge (ALPN `hq-29`, ed25519-SPKI pinning, 2-byte length framing) for
   clients blocked from pure UDP. QUIC only ever fronts the two-hop entry leg.
@@ -200,7 +236,8 @@ cargo run --release -p nym-smol-dvpn --example two-hop-ip
 ## Third-party dependencies
 
 `boringtun` (BSD-3-Clause), `quinn` + `quinn-proto` (MIT/Apache-2.0) are declared
-**crate-local** here, not promoted to the workspace dependency table (design D10).
+**crate-local** here, not promoted to the workspace dependency table, keeping the
+WG/QUIC dependency surface contained to this crate.
 
 ## Tests
 
@@ -211,5 +248,19 @@ End-to-end tunnel bring-up against a live Nym gateway is validated separately
 
 ## Design
 
-See `sdk/rust/docs/nym-sdk-dvpn/` and the `dvpn-tunnel` / `dvpn-quic-bridge`
-OpenSpec capabilities.
+See the architecture docs in
+[`docs/design/sdk/smol-dvpn/`](../../../docs/design/sdk/smol-dvpn/) and the
+OpenSpec capability specs this crate implements:
+
+- [`dvpn-tunnel`](../../../openspec/specs/dvpn-tunnel/spec.md) — the userspace
+  WireGuard datapath, tunnel modes, lifecycle, DNS, MTU, and top-up.
+- [`dvpn-quic-bridge`](../../../openspec/specs/dvpn-quic-bridge/spec.md) — the
+  `WgPacketTransport` abstraction and the QUIC bridge transport.
+- [`dvpn-tools`](../../../openspec/specs/dvpn-tools/spec.md) — the example CLIs
+  (config export, bandwidth top-up, gRPC/IP/Zcash demos).
+
+Related capabilities in sibling crates:
+[`dvpn-session`](../../../openspec/specs/dvpn-session/spec.md) (provisioning,
+`nym-sdk-session`) and
+[`smol-core-stack`](../../../openspec/specs/smol-core-stack/spec.md) (the
+`smol-core` TCP/IP stack).

@@ -1,7 +1,7 @@
 // Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
 
-//! Inline QUIC bridge client (design D6), an alternative WireGuard data-plane
-//! transport for clients blocked from pure UDP.
+//! QUIC bridge client — an alternative WireGuard data-plane transport for
+//! clients blocked from pure UDP.
 //!
 //! The QUIC connection itself — cert-pinning verifier (ed25519 identity, SNI ∈
 //! cert alt-names, cert SPKI == pinned key), ALPN `hq-29`, endpoint bind and
@@ -13,7 +13,7 @@
 //!
 //! Only ever fronts the two-hop entry leg (the bridge is bound 1:1 to a gateway
 //! and forwards to its WireGuard port); there is no QUIC one-hop mode and no
-//! gateway-selection handshake. Proven in conformance spike B.
+//! gateway-selection handshake.
 //!
 //! Note: [`nym_bridges`] dials `addresses[0]` (the directory lists the bridge's
 //! IPv6 address first) and binds dual-stack `[::]:0`; it does not set QUIC

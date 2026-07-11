@@ -67,6 +67,6 @@
 
 ## 8. Docs, licensing, and finalization
 
-- [x] 8.1 Crate READMEs + usage examples; link the design docs in `sdk/rust/docs/nym-sdk-dvpn/`
+- [x] 8.1 Crate READMEs + usage examples; link the design docs in `docs/design/sdk/smol-dvpn/`
 - [x] 8.2 Confirm license notices for `boringtun` (BSD-3-Clause) and `quinn` (MIT/Apache-2.0) are retained; verify workspace license compliance
 - [x] 8.3 Ensure no Go / gVisor netstack and no new workspace-table deps introduced; `cargo test`/`clippy` clean across the three crates

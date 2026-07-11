@@ -1,4 +1,5 @@
-// Copyright 2024-2026 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 //! Gateway selection and construction of the per-hop `RegistrationNymNode` the
 //! LP registration client consumes.

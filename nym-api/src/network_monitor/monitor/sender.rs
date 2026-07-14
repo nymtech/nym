@@ -180,7 +180,8 @@ impl PacketSender {
         let gateway_client = GatewayClient::new(
             GatewayClientConfig::new_default()
                 .with_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode)
-                .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout),
+                .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout)
+                .with_hickory_dns(false),
             config,
             Arc::clone(&fresh_gateway_client_data.local_identity),
             shared_keys,

@@ -211,6 +211,7 @@ impl GatewayClient {
         }
         let (ws_stream, _) = connect_async_with_fallback(
             &self.gateway_addresses,
+            self.cfg.connection.use_hickory_dns,
             #[cfg(unix)]
             self.connection_fd_callback.clone(),
         )

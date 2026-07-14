@@ -16,7 +16,7 @@ use url::{Host, Url};
 use std::net::SocketAddr;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) async fn connect_async(
+pub(crate) async fn connect_async_with_hickory(
     endpoint: &str,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
@@ -88,13 +88,41 @@ pub(crate) async fn connect_async(
         })
 }
 
+async fn connect_async_inner(
+    endpoint: &str,
+    use_hickory_dns_resolver: bool,
+    #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
+    if use_hickory_dns_resolver {
+        connect_async_with_hickory(
+            endpoint,
+            #[cfg(unix)]
+            connection_fd_callback.clone(),
+        )
+        .await
+    } else {
+        let (stream, response) = tokio_tungstenite::connect_async(endpoint).await?;
+        #[cfg(unix)]
+        if let (Some(callback), Some(fd)) = (
+            connection_fd_callback.as_ref(),
+            crate::socket_state::ws_fd(&stream),
+        ) {
+            callback.as_ref()(fd);
+        }
+
+        Ok((stream, response))
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async_with_fallback(
     endpoints: &GatewayListeners,
+    use_hickory_dns_resolver: bool,
     #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
-    match connect_async(
+    match connect_async_inner(
         endpoints.primary.as_ref(),
+        use_hickory_dns_resolver,
         #[cfg(unix)]
         connection_fd_callback.clone(),
     )
@@ -107,8 +135,9 @@ pub(crate) async fn connect_async_with_fallback(
                     "Main endpoint failed {} : {e}, trying fallback : {fallback}",
                     endpoints.primary
                 );
-                connect_async(
+                connect_async_inner(
                     fallback.as_ref(),
+                    use_hickory_dns_resolver,
                     #[cfg(unix)]
                     connection_fd_callback,
                 )

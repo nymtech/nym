@@ -7,7 +7,7 @@
 
 use crate::error::DirectoryClientError;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::node_identities_hash;
+use nym_directory_attestation::{AttestedDirectoryData, DigestSnapshot, node_identities_hash};
 use nym_directory_contract_common::{
     DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
@@ -15,7 +15,7 @@ use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::nyxd::Height;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -89,7 +89,13 @@ pub struct VerifiedDirectory {
 pub struct VerifiedDirectoryWithIdentities {
     pub directory: VerifiedDirectory,
 
-    pub node_identities: HashMap<NodeId, ed25519::PublicKey>,
+    pub node_identities: BTreeMap<NodeId, ed25519::PublicKey>,
+
+    /// The raw entry set the accumulator was recomputed from - retained (rather than
+    /// discarded after the recompute) so a producer can re-serve it verbatim for
+    /// offline whole-directory verification, without a fragile reconstruction from the
+    /// parsed `directory`.
+    pub records: Vec<DirectoryEntryRecord>,
 }
 
 impl VerifiedDirectoryWithIdentities {
@@ -124,6 +130,19 @@ pub(crate) fn node_signature_verifies(
     identity.verify(payload, &signature).is_ok()
 }
 
+pub fn verify_attested_directory_data(
+    digest_snapshot: &DigestSnapshot,
+    data: AttestedDirectoryData,
+) -> Result<VerifiedDirectory, DirectoryClientError> {
+    verify_directory_offline(
+        data.height,
+        data.records,
+        &data.node_identities,
+        &digest_snapshot.accumulator,
+        Some(digest_snapshot.node_identities_hash),
+    )
+}
+
 /// Recompute the digest from pre-fetched `records` and check it against
 /// `trusted_accumulator`, then attribute each node entry to its signing node -
 /// needs no chain RPC connection at all, so `records`/`node_identities` can be sourced
@@ -140,7 +159,7 @@ pub(crate) fn node_signature_verifies(
 pub fn verify_directory(
     height: Height,
     records: Vec<DirectoryEntryRecord>,
-    node_identities: &HashMap<NodeId, ed25519::PublicKey>,
+    node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
     trusted_accumulator: &LtHash16,
     trusted_node_identities_hash: Option<[u8; 32]>,
 ) -> Result<VerifiedDirectory, DirectoryClientError> {
@@ -212,7 +231,7 @@ pub fn verify_directory(
 pub fn verify_directory_offline(
     height: Height,
     records: Vec<DirectoryEntryRecord>,
-    node_identities: &HashMap<NodeId, ed25519::PublicKey>,
+    node_identities: &BTreeMap<NodeId, ed25519::PublicKey>,
     trusted_accumulator: &LtHash16,
     trusted_node_identities_hash: Option<[u8; 32]>,
 ) -> Result<VerifiedDirectory, DirectoryClientError> {
@@ -351,7 +370,7 @@ mod tests {
 
     fn sample_directory() -> (
         Vec<DirectoryEntryRecord>,
-        HashMap<NodeId, ed25519::PublicKey>,
+        BTreeMap<NodeId, ed25519::PublicKey>,
         LtHash16,
         [u8; 32],
     ) {
@@ -363,8 +382,8 @@ mod tests {
             curated_record("nym-api/1", b"c"),
         ];
         let accumulator = recompute_accumulator(&records);
-        let node_identities = HashMap::from([(1, *a.public_key()), (2, *b.public_key())]);
-        let pairs: HashMap<_, _> = node_identities
+        let node_identities = BTreeMap::from([(1, *a.public_key()), (2, *b.public_key())]);
+        let pairs: BTreeMap<_, _> = node_identities
             .iter()
             .map(|(id, key)| (*id, *key))
             .collect();

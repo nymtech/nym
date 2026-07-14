@@ -17,20 +17,23 @@ async-trait = { workspace = true }
 blake3 = { workspace = true }
 cosmrs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_with = { workspace = true, features = ["base64", "hex"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+utoipa = { workspace = true, optional = true }
 
 nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-mixnet-contract-common = { workspace = true }
+nym-directory-contract-common = { workspace = true }
 
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
-nym-directory-contract-common = { workspace = true }
 
 [features]
 mock = []
+utoipa = ["dep:utoipa", "nym-directory-contract-common/utoipa"]
 
 [lints]
 workspace = true

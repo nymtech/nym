@@ -257,7 +257,7 @@ mod inner_proof_base64_serde {
     pub fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<MerkleProof<Sha256>, D::Error> {
-        let bytes = nym_serde_helpers::base64::deserialize(deserializer)?;
+        let bytes: Vec<u8> = nym_serde_helpers::base64::deserialize(deserializer)?;
         MerkleProof::<Sha256>::deserialize::<DirectHashesOrder>(&bytes)
             .map_err(serde::de::Error::custom)
     }

@@ -6889,8 +6889,10 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-test-utils",
  "serde",
+ "serde_with",
  "thiserror 2.0.19",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -6932,6 +6934,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.19",
+ "utoipa",
 ]
 
 [[package]]
@@ -8530,11 +8533,9 @@ dependencies = [
 name = "nym-serde-helpers"
 version = "1.21.5"
 dependencies = [
- "base64 0.22.1",
- "bs58",
- "hex",
  "serde",
  "serde_json",
+ "serde_with",
  "time",
 ]
 

@@ -11,8 +11,9 @@ use nym_crypto::asymmetric::ed25519;
 use nym_lthash::LtHash16;
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
+use serde_with::{hex::Hex, serde_as};
 use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 
 /// Domain-separation tag for [`digest_snapshot_signing_payload`], so a snapshot
@@ -20,28 +21,39 @@ use std::hash::{Hash, Hasher};
 /// carries no tag of its own), even for a signer whose identity key is used for both.
 const DIGEST_SNAPSHOT_DOMAIN_TAG: &[u8] = b"nym-directory-digest-snapshot-v1";
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct DigestSnapshot {
     /// The chain this attestation is scoped to, so a signature cannot be replayed
     /// against a different chain.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub chain_id: chain::Id,
 
     /// The directory contract this attestation is scoped to, so a signature cannot be
     /// replayed against a different contract instance.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub directory_contract: AccountId,
 
     /// The block height every other field attests to.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub height: Height,
 
     /// The block `app_hash` at `height` - the ICS23 fallback root for single-entry reads.
     #[serde(with = "cosmrs::tendermint::serializers::apphash")]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub app_hash: AppHash,
 
     /// The directory contract's LtHash accumulator at `height`.
+    // the value_type is not 100% accurate, since it's only a String for human-readable serialisers,
+    // but realistically the schema will only be used for JSON data anyway
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub accumulator: LtHash16,
 
     /// Hash over the current `NodeId -> ed25519 identity` mapping at `height`
     /// (see [`node_identities_hash`]).
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde_as(as = "Hex")]
     pub node_identities_hash: [u8; 32],
 }
 
@@ -82,11 +94,16 @@ impl DigestSnapshot {
 /// A [`DigestSnapshot`] as published by a nym-api (or a nym-node), together with its signer and
 /// signature over the snapshot's canonical signing payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct SignedDigestSnapshot {
     pub snapshot: DigestSnapshot,
 
+    #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signer: ed25519::PublicKey,
 
+    #[serde(with = "ed25519::bs58_ed25519_signature")]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signature: ed25519::Signature,
 }
 
@@ -148,7 +165,7 @@ pub fn digest_snapshot_signing_payload(
 /// length-prefixing is needed: every record is the same width, so the total buffer
 /// length alone fixes the record count, and a record's position alone fixes its field
 /// boundaries.
-pub fn node_identities_hash(identities: &HashMap<NodeId, ed25519::PublicKey>) -> [u8; 32] {
+pub fn node_identities_hash(identities: &BTreeMap<NodeId, ed25519::PublicKey>) -> [u8; 32] {
     let mut pairs: Vec<_> = identities.iter().collect();
     pairs.sort_unstable_by_key(|(node_id, _)| *node_id);
 
@@ -470,8 +487,8 @@ mod tests {
     #[test]
     fn empty_node_identities_mapping_hashes_deterministically() {
         assert_eq!(
-            node_identities_hash(&HashMap::new()),
-            node_identities_hash(&HashMap::new())
+            node_identities_hash(&BTreeMap::new()),
+            node_identities_hash(&BTreeMap::new())
         );
     }
 }

@@ -35,11 +35,17 @@ impl Namespace {
 /// sequence makes the signature independently re-verifiable - the signed message is
 /// `(node_id, label, sequence, data)` - and both are committed to the digest, so an
 /// entry is self-authenticating and the directory is auditable from current state alone.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct NodeEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub data: Binary,
+
     pub updated_at_height: u64,
+
     pub sequence: u64,
+
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signature: Binary,
 }
 
@@ -86,8 +92,10 @@ impl NodeEntry {
 }
 
 /// An admin-curated entry: opaque bytes (the authority is the contract admin).
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct CuratedEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub data: Binary,
 }
 
@@ -345,6 +353,7 @@ impl EntryKey {
 }
 
 /// One directory entry together with its key, as yielded by the global enumeration.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub enum DirectoryEntryRecord {
     /// A self-published node entry, keyed `(node_id, label)`.

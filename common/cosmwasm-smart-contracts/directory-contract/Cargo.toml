@@ -23,8 +23,11 @@ cw-controllers = { workspace = true }
 
 nym-mixnet-contract-common = { workspace = true }
 
+utoipa = { workspace = true, optional = true }
+
 [features]
 schema = []
+utoipa = ["dep:utoipa"]
 
 [lints]
 workspace = true

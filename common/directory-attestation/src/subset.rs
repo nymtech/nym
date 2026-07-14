@@ -14,6 +14,7 @@ use crate::push_len_prefixed;
 use cosmrs::tendermint::{block::Height, chain};
 use nym_crypto::asymmetric::ed25519;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, hex::Hex, serde_as};
 use std::collections::HashSet;
 
 /// Domain-separation tag for the data-commitment hash inside a [`SubsetDigest`],
@@ -65,18 +66,24 @@ pub fn subset_data_hash<T: DirectorySubset>(data: &T, height: Height) -> [u8; 32
 }
 
 /// The small, quorum-signable commitment a client asks K sources for.
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct SubsetDigest {
     /// The chain this commitment is scoped to, so a signature cannot be replayed across chains.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub chain_id: chain::Id,
 
     /// The block height the subset was computed at.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub height: Height,
 
     /// The subset's stable identifier (see [`DirectorySubset::SUBSET_ID`]).
     pub subset_id: String,
 
     /// The commitment over the subset's canonical bytes (see [`subset_data_hash`]).
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde_as(as = "Hex")]
     pub hash: [u8; 32],
 }
 
@@ -139,11 +146,16 @@ pub fn subset_digest_signing_payload(
 /// A [`SubsetDigest`] together with its signer and signature - what a client fetches from
 /// K sources to reach quorum on the committed hash.
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct SignedSubsetDigest {
     pub digest: SubsetDigest,
 
+    #[serde(with = "ed25519::bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signer: ed25519::PublicKey,
 
+    #[serde(with = "ed25519::bs58_ed25519_signature")]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signature: ed25519::Signature,
 }
 
@@ -171,10 +183,14 @@ impl SignedSubsetDigest {
 /// equals the quorum-agreed hash; only then are the bytes decoded via
 /// [`DirectorySubset::from_canonical_bytes`]. The serving source is otherwise untrusted,
 /// and the hash is verified over exactly the bytes received - never a re-encoding.
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct AttestedSubset {
     pub signed_digest: SignedSubsetDigest,
 
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    #[serde_as(as = "Base64")]
     pub canonical_data: Vec<u8>,
 }
 

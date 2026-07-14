@@ -16,12 +16,14 @@
 //! - [`AttestationSource`]: the transport contract the retrieval client drives.
 //! - [`build_and_sign_snapshot`] / [`sign_subset`]: the signer-agnostic producer core.
 
+pub mod directory_data;
 pub mod error;
 pub mod producer;
 pub mod snapshot;
 pub mod source;
 pub mod subset;
 
+pub use directory_data::{AttestedDirectoryData, DirectoryEntryRecord};
 pub use error::AttestationSourceError;
 pub use producer::sign_subset;
 pub use snapshot::{

@@ -21,7 +21,7 @@ use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::hash::AppHash;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use tracing::{error, info};
 
 /// A verifiable directory reader. Composes a trust anchor (which produces a digest to
@@ -78,7 +78,7 @@ where
         // exactly as before this was extracted
         let directory = verify_directory(
             height,
-            records,
+            records.clone(),
             &node_identities,
             &trusted.accumulator,
             None,
@@ -89,6 +89,7 @@ where
         Ok(VerifiedDirectoryWithIdentities {
             directory,
             node_identities,
+            records,
         })
     }
 
@@ -261,7 +262,7 @@ where
     async fn all_node_identities_at(
         &self,
         height: Height,
-    ) -> Result<HashMap<NodeId, ed25519::PublicKey>, DirectoryClientError> {
+    ) -> Result<BTreeMap<NodeId, ed25519::PublicKey>, DirectoryClientError> {
         let mixnet_contract = self
             .client
             .mixnet_contract_address()
@@ -288,7 +289,7 @@ where
                 None => break,
             }
         }
-        let mut identities = HashMap::new();
+        let mut identities = BTreeMap::new();
         for bond in bonds {
             let Ok(identity) = bond.identity().parse() else {
                 // this should be impossible as otherwise we wouldn't have been able to verify

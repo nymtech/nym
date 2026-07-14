@@ -372,7 +372,7 @@ serde_derive = "1.0"
 serde_json = { version = "1.0.140", features = ["float_roundtrip"] }
 serde_json_path = "0.7.2"
 serde_repr = "0.1"
-serde_with = "3.9.0"
+serde_with = "3.21.0"
 serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"

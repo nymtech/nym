@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::cache::data::NymDirectoryCacheData;
 use crate::ecash::state::EcashState;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
 use crate::network::models::NetworkDetails;
@@ -16,6 +15,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::directory::DirectoryState;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -32,6 +32,7 @@ use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
+pub(crate) mod directory;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
@@ -110,7 +111,7 @@ pub(crate) struct AppState {
     pub(crate) ecash_state: Arc<EcashState>,
 
     /// Verified nym-directory retrieved from the directory contract.
-    pub(crate) directory: SharedCache<NymDirectoryCacheData>,
+    pub(crate) directory: DirectoryState,
 }
 
 impl FromRef<AppState> for ApiStatusState {
@@ -161,7 +162,7 @@ impl FromRef<AppState> for SharedCache<SignersCacheData> {
     }
 }
 
-impl FromRef<AppState> for SharedCache<NymDirectoryCacheData> {
+impl FromRef<AppState> for DirectoryState {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.directory.clone()
     }

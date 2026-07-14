@@ -97,7 +97,7 @@ Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
   `AttestedTrustAnchor`)
 - [x] 4.2 A retained-window store in `AppState`: `BTreeMap<Height, (SignedDigestSnapshot, VerifiedDirectory)>` (or
   equivalent), holding the last `N` cadence snapshots plus their full verified directories
-- [ ] 4.3 A periodic producer task (reusing nym-api's cache-refresh cadence pattern): read `snapshot_interval` from the
+- [x] 4.3 A periodic producer task (reusing nym-api's cache-refresh cadence pattern): read `snapshot_interval` from the
   contract; on crossing a cadence boundary `H` (once `H+1` is available for `app_hash`), fetch+verify the directory at
   `H` via the configurable source anchor, compute `node_identities_hash`, and `build_and_sign_snapshot` with the
   identity keypair; insert into the store, prune to `N`

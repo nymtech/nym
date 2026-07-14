@@ -1,7 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::directory::cache::data::{CachedDirectory, NymDirectoryCacheData, RawCachedDirectory};
+use crate::directory::cache::data::{
+    CachedDirectory, DirectoryCacheUpdate, NymDirectoryCacheData, RawCachedDirectory,
+};
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::refresher::CacheItemProvider;
 use crate::support::config::DirectoryConfig;
@@ -23,9 +25,6 @@ pub struct DirectoryDataProvider {
     /// Number of snapshots to keep
     retention_count: usize,
 
-    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
-    settle_lag: usize,
-
     /// Specifies the cadence of directory providers (e.g. nym-apis) snapshotting the directory content.
     /// Defined as number of blocks
     snapshot_interval: u32,
@@ -43,10 +42,10 @@ pub struct DirectoryDataProvider {
 
 pub(crate) fn refresher_update_fn(
     main_cache: &mut NymDirectoryCacheData,
-    update: CachedDirectory,
+    update: DirectoryCacheUpdate,
     retention_count: usize,
 ) {
-    main_cache.insert_new(update, retention_count)
+    main_cache.update(update, retention_count)
 }
 
 impl DirectoryDataProvider {
@@ -66,7 +65,6 @@ impl DirectoryDataProvider {
 
         let mut this = DirectoryDataProvider {
             retention_count: config.debug.retention_count,
-            settle_lag: config.debug.settle_lag,
             snapshot_interval,
             chain_id,
             signing_keys,
@@ -84,7 +82,9 @@ impl DirectoryDataProvider {
         let current_height = self.current_height().await?;
         let expected_latest = current_height.value() - (current_height.value() % snapshot_interval);
         let expected_retained = (0..self.retention_count as u64)
-            .map(|i| expected_latest - (snapshot_interval * i))
+            // saturating so a young chain (fewer than retention_count intervals of history)
+            // does not underflow; duplicate/zero heights are harmless (deduped by the cache map)
+            .map(|i| expected_latest.saturating_sub(snapshot_interval * i))
             .map(|h| Height::from(h as u32))
             .collect::<Vec<_>>();
 
@@ -97,7 +97,7 @@ impl DirectoryDataProvider {
         for expected in expected_retained {
             if !cache.contains_entry(expected) {
                 let snapshot = self.retrieve_directory_snapshot(expected).await?;
-                cache.insert_new(snapshot, self.retention_count);
+                cache.insert_entry(snapshot);
             }
         }
 
@@ -151,14 +151,15 @@ impl DirectoryDataProvider {
         }
         .signed(&self.signing_keys);
 
-        let raw_directory = RawCachedDirectory::new(snapshot, directory.directory);
+        let node_identities = directory.node_identities.into_iter().collect();
+        let raw_directory = RawCachedDirectory::new(snapshot, directory.records, node_identities);
         Ok(CachedDirectory::new(raw_directory))
     }
 }
 
 #[async_trait]
 impl CacheItemProvider for DirectoryDataProvider {
-    type Item = CachedDirectory;
+    type Item = DirectoryCacheUpdate;
     type Error = DirectoryClientError;
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
@@ -167,12 +168,18 @@ impl CacheItemProvider for DirectoryDataProvider {
             Height::from(self.last_snapshot_height().await.value() as u32 + self.snapshot_interval);
 
         // we need to have one additional block available so that we could retrieve the app hash
-        if current_height.value() > next_snapshot_height.value() {
-            let dir = self
-                .retrieve_directory_snapshot(next_snapshot_height)
-                .await?;
-            return Ok(Some(dir));
-        }
-        Ok(None)
+        let new_directory = if current_height.value() > next_snapshot_height.value() {
+            Some(
+                self.retrieve_directory_snapshot(next_snapshot_height)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
+        Ok(Some(DirectoryCacheUpdate::new(
+            new_directory,
+            current_height,
+        )))
     }
 }

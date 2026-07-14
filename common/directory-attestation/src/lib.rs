@@ -23,7 +23,7 @@ pub mod snapshot;
 pub mod source;
 pub mod subset;
 
-pub use directory_data::{AttestedDirectoryData, DirectoryEntryRecord};
+pub use directory_data::{DirectoryEntryRecord, DirectorySnapshotData};
 pub use error::AttestationSourceError;
 pub use producer::sign_subset;
 pub use snapshot::{

@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct AttestedDirectoryData {
+pub struct DirectorySnapshotData {
     /// The height every entry (and identity) was pinned to - the same height the client
     /// obtained a quorum'd snapshot for.
     #[cfg_attr(feature = "utoipa", schema(value_type = String))]

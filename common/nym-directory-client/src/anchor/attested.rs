@@ -3,12 +3,15 @@
 
 use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
+use crate::verify::{VerifiedDirectory, verify_directory_offline};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{AttestationSource, DigestSnapshot, SignedDigestSnapshot};
+use nym_directory_attestation::{
+    AttestationSource, DigestSnapshot, DirectorySnapshotData, SignedDigestSnapshot,
+};
 use nym_lthash::LtHash16;
 use nym_network_defaults::default_directory_attestation_sources;
 use nym_validator_client::nyxd::Height;
@@ -33,6 +36,19 @@ impl TrustedSnapshot {
             accumulator: snapshot.accumulator,
             node_identities_hash: snapshot.node_identities_hash,
         }
+    }
+
+    fn verify_directory_data(
+        &self,
+        data: DirectorySnapshotData,
+    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+        verify_directory_offline(
+            data.height,
+            data.records,
+            &data.node_identities,
+            &self.accumulator,
+            Some(self.node_identities_hash),
+        )
     }
 }
 
@@ -292,6 +308,39 @@ where
         height: Height,
     ) -> Result<[u8; 32], DirectoryClientError> {
         Ok(self.snapshot_for(height).await?.node_identities_hash)
+    }
+
+    /// The whole directory at `height`, fetched over HTTP from a source and verified
+    /// offline against the quorum'd snapshot's accumulator + node-identities hash.
+    ///
+    /// The accumulator + identities hash are already quorum-trusted (via [`Self::snapshot_for`]),
+    /// so the bulk data only needs to be fetched from a single source and recompute-checked
+    /// against them. A source that fails to answer OR serves data that does not recompute to
+    /// the trusted values is skipped in favour of the next, so one unavailable/tampered source
+    /// does not doom the fetch; verification stays fail-closed (a mismatch is never accepted,
+    /// only retried elsewhere). Surfaces the last failure if no source produced verifying data.
+    pub async fn verified_directory(
+        &self,
+        height: Height,
+    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+        let trusted = self.snapshot_for(height).await?; // reuses quorum + cache
+
+        let mut last_err = None;
+        for source in &self.sources {
+            match source.directory_data(height).await {
+                Ok(data) => match trusted.verify_directory_data(data) {
+                    Ok(verified) => return Ok(verified),
+                    Err(err) => last_err = Some(err),
+                },
+                Err(err) => last_err = Some(err.into()),
+            }
+        }
+
+        Err(
+            last_err.unwrap_or(DirectoryClientError::NoQuorumSnapshotForHeight(
+                height.value(),
+            )),
+        )
     }
 }
 

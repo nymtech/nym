@@ -3,7 +3,7 @@
 
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_attestation::{
-    AttestedDirectoryData, DirectoryEntryRecord, SignedDigestSnapshot,
+    DirectoryEntryRecord, DirectorySnapshotData, SignedDigestSnapshot,
 };
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
@@ -63,8 +63,8 @@ impl CachedDirectory {
     /// raw entry set + node-identity map, pinned to this snapshot's height, so a client
     /// can recompute the accumulator and node-identities hash offline against the
     /// (separately quorum'd) `SignedDigestSnapshot`.
-    pub(crate) fn attested_data(&self) -> AttestedDirectoryData {
-        AttestedDirectoryData {
+    pub(crate) fn snapshot_data(&self) -> DirectorySnapshotData {
+        DirectorySnapshotData {
             height: self.raw.digest_snapshot.snapshot.height,
             records: self.raw.records.clone(),
             node_identities: self.raw.node_identities.clone(),

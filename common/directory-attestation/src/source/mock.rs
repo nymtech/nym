@@ -4,7 +4,10 @@
 // fine in test mocks
 #![allow(clippy::unwrap_used)]
 
-use crate::{AttestationSource, AttestationSourceError, DigestSnapshot, SignedDigestSnapshot};
+use crate::{
+    AttestationSource, AttestationSourceError, DigestSnapshot, DirectorySnapshotData,
+    SignedDigestSnapshot,
+};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::{AppHash, block::Height, chain};
@@ -19,6 +22,7 @@ use std::sync::{Arc, Mutex};
 pub struct AttestationCallLog {
     pub latest_snapshot: usize,
     pub snapshot_at: Vec<Height>,
+    pub directory_data: Vec<Height>,
 }
 
 /// In-memory [`AttestationSource`] serving pre-registered latest + per-height
@@ -31,6 +35,7 @@ pub struct MockAttestationSource {
     identity: ed25519::PublicKey,
     latest: Option<SignedDigestSnapshot>,
     by_height: HashMap<Height, SignedDigestSnapshot>,
+    directory_data: HashMap<Height, DirectorySnapshotData>,
     call_log: Arc<Mutex<AttestationCallLog>>,
 }
 
@@ -44,8 +49,16 @@ impl MockAttestationSource {
             identity,
             latest: Some(latest),
             by_height,
+            directory_data: HashMap::new(),
             call_log: Arc::new(Mutex::new(AttestationCallLog::default())),
         }
+    }
+
+    /// Register the whole-directory payload this source serves at `height` (for
+    /// exercising `AttestedTrustAnchor::verified_directory`).
+    pub fn with_directory_data(mut self, height: Height, data: DirectorySnapshotData) -> Self {
+        self.directory_data.insert(height, data);
+        self
     }
 
     /// Number of times [`AttestationSource::latest_snapshot`] was called.
@@ -56,6 +69,11 @@ impl MockAttestationSource {
     /// Heights passed to [`AttestationSource::snapshot_at`], in call order.
     pub fn snapshot_at_calls(&self) -> Vec<Height> {
         self.call_log.lock().unwrap().snapshot_at.clone()
+    }
+
+    /// Heights passed to [`AttestationSource::directory_data`], in call order.
+    pub fn directory_data_calls(&self) -> Vec<Height> {
+        self.call_log.lock().unwrap().directory_data.clone()
     }
 }
 
@@ -83,6 +101,18 @@ impl AttestationSource for MockAttestationSource {
             .ok_or(AttestationSourceError::NoSnapshotAtHeight {
                 height: height.value(),
             })
+    }
+
+    async fn directory_data(
+        &self,
+        height: Height,
+    ) -> Result<DirectorySnapshotData, AttestationSourceError> {
+        self.call_log.lock().unwrap().directory_data.push(height);
+        self.directory_data.get(&height).cloned().ok_or(
+            AttestationSourceError::NoSnapshotAtHeight {
+                height: height.value(),
+            },
+        )
     }
 }
 
@@ -115,6 +145,7 @@ pub fn mock_attestation_source(kp: &ed25519::KeyPair, height: Height) -> MockAtt
         identity: *kp.public_key(),
         latest: Some(snapshot.clone()),
         by_height: HashMap::from([(height, snapshot)]),
+        directory_data: HashMap::new(),
         call_log: Default::default(),
     }
 }

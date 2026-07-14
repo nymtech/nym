@@ -25,7 +25,7 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::pagination::PaginatedResponse;
 use nym_directory_attestation::{
-    AttestedDirectoryData, AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest,
+    AttestedSubset, DirectorySnapshotData, SignedDigestSnapshot, SignedSubsetDigest,
 };
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
@@ -1608,13 +1608,13 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn get_attested_directory_data(
+    async fn get_directory_snapshot_data(
         &self,
         height: u64,
-    ) -> Result<AttestedDirectoryData, NymAPIError> {
+    ) -> Result<DirectorySnapshotData, NymAPIError> {
         let records = self.get_all_directory_entries(height).await?;
         let identities = self.get_directory_entries_identities(height).await?;
-        Ok(AttestedDirectoryData {
+        Ok(DirectorySnapshotData {
             height: identities.height,
             records,
             node_identities: identities.node_identities,

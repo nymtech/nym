@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::DirectorySnapshotData;
 use crate::error::AttestationSourceError;
 use crate::snapshot::SignedDigestSnapshot;
 use async_trait::async_trait;
@@ -27,4 +28,12 @@ pub trait AttestationSource {
         &self,
         height: Height,
     ) -> Result<SignedDigestSnapshot, AttestationSourceError>;
+
+    /// This source's whole-directory payload at `height` - the raw entry set + node
+    /// identities a client recomputes offline against a quorum'd snapshot (see
+    /// [`DirectorySnapshotData`]).
+    async fn directory_data(
+        &self,
+        height: Height,
+    ) -> Result<DirectorySnapshotData, AttestationSourceError>;
 }

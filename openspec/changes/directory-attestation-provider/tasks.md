@@ -72,15 +72,15 @@ and whole-directory consumption.
   and existing consumers compile unchanged
 - [x] 3.2 Add `DirectoryClientError::AttestationTransport` (wrapping the HTTP client + decode failure) - the variant the
   prior change deferred for lack of a call site
-- [ ] 3.3 Implement `HttpAttestationSource` (`AttestationSource` impl): `identity()` (configured/known signer key for
+- [x] 3.3 Implement `HttpAttestationSource` (`AttestationSource` impl): `identity()` (configured/known signer key for
   the URL), `latest_snapshot()` -> GET the producer's latest endpoint, `snapshot_at(H)` -> GET the per-height endpoint;
   deserialize `SignedDigestSnapshot`, mapping transport/decode errors to 3.2
-- [ ] 3.4 Add the client subset path: `quorum_subset_digest<T>(sources, height) -> Result<[u8; 32], _>` (fetch each
+- [x] 3.4 Add the client subset path: `quorum_subset_digest<T>(sources, height) -> Result<[u8; 32], _>` (fetch each
   source's `SignedSubsetDigest`, `reach_quorum` on the hash reusing the anchor's distinct-signer counting) and
   `fetch_and_verify_subset<T>(source, quorum_hash) -> Result<T, _>` (fetch one `AttestedSubset<T>`, recompute
   `canonical_bytes` and require `== digest.hash == quorum_hash`, counting the embedded `signed_digest` as at most one
   vote)
-- [ ] 3.5 Add a whole-directory-from-a-nym-api fetch that pulls entries + node identities over HTTP and verifies them
+- [x] 3.5 Add a whole-directory-from-a-nym-api fetch that pulls entries + node identities over HTTP and verifies them
   via the existing `verify_directory_offline` against `AttestedTrustAnchor`'s `accumulator` + `node_identities_hash` (
   see `design.md` D8) - not the subset mechanism
 - [ ] 3.6 Tests: `HttpAttestationSource` against a mock HTTP server (latest + at-height, plus a transport-error case);
@@ -92,7 +92,7 @@ and whole-directory consumption.
 Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
 `AppState.identity_keypair`, the `DescribedNodes`/mixnet caches, and the `nyxd` client.
 
-- [ ] 4.1 Producer config: retained-window count `N` (default ~3), `settle_lag` in blocks (default ~5), and the
+- [x] 4.1 Producer config: retained-window count `N` (default ~3), `settle_lag` in blocks (default ~5), and the
   source-anchor selection (default `ProvenTrustAnchor` against the api's own RPC; allow `LightClientAnchor`; never
   `AttestedTrustAnchor`)
 - [x] 4.2 A retained-window store in `AppState`: `BTreeMap<Height, (SignedDigestSnapshot, VerifiedDirectory)>` (or
@@ -101,10 +101,10 @@ Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
   contract; on crossing a cadence boundary `H` (once `H+1` is available for `app_hash`), fetch+verify the directory at
   `H` via the configurable source anchor, compute `node_identities_hash`, and `build_and_sign_snapshot` with the
   identity keypair; insert into the store, prune to `N`
-- [ ] 4.4 HTTP routes: `latest` (settle-lagged: greatest retained `H` with `tip >= H + settle_lag`), snapshot at a
+- [x] 4.4 HTTP routes: `latest` (settle-lagged: greatest retained `H` with `tip >= H + settle_lag`), snapshot at a
   specific retained height, and the full verified directory at a retained height; register under nym-api's versioned
   route tree with `utoipa` annotations
-- [ ] 4.5 Give `SignedDigestSnapshot` (and the full-directory response shape) whatever `ToSchema`/serde the routes
+- [x] 4.5 Give `SignedDigestSnapshot` (and the full-directory response shape) whatever `ToSchema`/serde the routes
   need - in the attestation crate if clean, else a thin `nym-api-requests` wrapper
 - [ ] 4.6 Tests: cadence-height selection + retention/pruning; settle-lag applied to `latest`; snapshot round-trips
   through the route DTOs; producer refuses to attest a directory its source anchor fails to verify

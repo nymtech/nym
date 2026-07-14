@@ -6,7 +6,7 @@ use crate::support::caching::cache::SharedCache;
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_attestation::{
-    AttestedDirectoryData, AttestedSubset, DirectoryEntryRecord, SignedDigestSnapshot,
+    AttestedSubset, DirectoryEntryRecord, DirectorySnapshotData, SignedDigestSnapshot,
     SignedSubsetDigest,
 };
 use nym_mixnet_contract_common::NodeId;
@@ -86,13 +86,13 @@ impl DirectoryState {
     /// no settle-lag skew to reconcile). `None` if the height is outside the retained window.
     #[allow(dead_code)]
     // TODO: perhaps expose it under some internal, helper, endpoint?
-    pub(crate) async fn entries_at(&self, height: u64) -> Option<AttestedDirectoryData> {
+    pub(crate) async fn entries_at(&self, height: u64) -> Option<DirectorySnapshotData> {
         self.cache
             .get()
             .await
             .ok()?
             .get_entry(height.try_into().ok()?)
-            .map(|entry| entry.attested_data())
+            .map(|entry| entry.snapshot_data())
     }
 
     pub(crate) async fn paged_entries_at(

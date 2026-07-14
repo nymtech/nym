@@ -7,7 +7,7 @@
 
 use crate::error::DirectoryClientError;
 use nym_crypto::asymmetric::ed25519;
-use nym_directory_attestation::{AttestedDirectoryData, DigestSnapshot, node_identities_hash};
+use nym_directory_attestation::node_identities_hash;
 use nym_directory_contract_common::{
     DirectoryEntryRecord, KnownLabel, NodeEntry, node_signing_payload,
 };
@@ -128,19 +128,6 @@ pub(crate) fn node_signature_verifies(
         return false;
     };
     identity.verify(payload, &signature).is_ok()
-}
-
-pub fn verify_attested_directory_data(
-    digest_snapshot: &DigestSnapshot,
-    data: AttestedDirectoryData,
-) -> Result<VerifiedDirectory, DirectoryClientError> {
-    verify_directory_offline(
-        data.height,
-        data.records,
-        &data.node_identities,
-        &digest_snapshot.accumulator,
-        Some(digest_snapshot.node_identities_hash),
-    )
 }
 
 /// Recompute the digest from pre-fetched `records` and check it against

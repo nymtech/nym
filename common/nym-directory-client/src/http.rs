@@ -6,8 +6,8 @@
 use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_attestation::{
-    AttestationSource, AttestationSourceError, AttestedSubset, DirectorySubset,
-    SignedDigestSnapshot, SignedSubsetDigest,
+    AttestationSource, AttestationSourceError, AttestedSubset, DirectorySnapshotData,
+    DirectorySubset, SignedDigestSnapshot, SignedSubsetDigest,
 };
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::Height;
@@ -84,6 +84,16 @@ where
     ) -> Result<SignedDigestSnapshot, AttestationSourceError> {
         self.client
             .directory_snapshot_at(height.value())
+            .await
+            .map_err(|err| AttestationSourceError::Transport(err.to_string()))
+    }
+
+    async fn directory_data(
+        &self,
+        height: Height,
+    ) -> Result<DirectorySnapshotData, AttestationSourceError> {
+        self.client
+            .get_directory_snapshot_data(height.value())
             .await
             .map_err(|err| AttestationSourceError::Transport(err.to_string()))
     }

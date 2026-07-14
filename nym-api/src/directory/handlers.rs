@@ -47,7 +47,7 @@ pub(crate) fn routes() -> Router<AppState> {
             Router::new()
                 .route("/{height}/records", get(directory_entries_records))
                 .route(
-                    "/{height}/node_identities",
+                    "/{height}/node-identities",
                     get(directory_entries_identities),
                 ),
         )

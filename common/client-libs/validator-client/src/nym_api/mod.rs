@@ -24,7 +24,9 @@ use nym_api_requests::models::{
     SignerInformationResponse,
 };
 use nym_api_requests::pagination::PaginatedResponse;
-use nym_directory_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
+use nym_directory_attestation::{
+    AttestedDirectoryData, AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest,
+};
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
 use std::net::IpAddr;
@@ -35,6 +37,9 @@ use tracing::instrument;
 
 use nym_api_requests::models::described::v1::NymNodeDescriptionV1;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
+use nym_api_requests::models::directory::{
+    DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
+};
 use nym_api_requests::models::v3::{
     KnownNetworkMonitorResponse, StressTestBatchSubmission, StressTestBatchSubmissionResponse,
 };
@@ -57,6 +62,7 @@ pub use nym_api_requests::{
     NymNetworkDetailsResponse, NymNetworkDetailsV2Response,
 };
 pub use nym_coconut_dkg_common::types::EpochId;
+use nym_directory_contract_common::DirectoryEntryRecord;
 
 pub mod error;
 pub mod routes;
@@ -1565,7 +1571,7 @@ pub trait NymApiClientExt: ApiClient {
     /// This producer's latest signed directory snapshot (see `nym-directory-attestation`).
     #[instrument(level = "debug", skip(self))]
     async fn directory_snapshot_latest(&self) -> Result<SignedDigestSnapshot, NymAPIError> {
-        todo!()
+        self.get_json_from("/v1/directory/snapshot/latest").await
     }
 
     /// This producer's signed directory snapshot at `height`, if still within its retained
@@ -1575,8 +1581,8 @@ pub trait NymApiClientExt: ApiClient {
         &self,
         height: u64,
     ) -> Result<SignedDigestSnapshot, NymAPIError> {
-        let _ = height;
-        todo!()
+        self.get_json_from(format!("/v1/directory/snapshot/{height}"))
+            .await
     }
 
     /// This producer's signed digest for the subset `subset_id` at `height`.
@@ -1586,8 +1592,8 @@ pub trait NymApiClientExt: ApiClient {
         subset_id: &str,
         height: u64,
     ) -> Result<SignedSubsetDigest, NymAPIError> {
-        let _ = (subset_id, height);
-        todo!()
+        self.get_json_from(format!("/v1/directory/subset/digest/{subset_id}/{height}"))
+            .await
     }
 
     /// This producer's attested subset `subset_id` at `height` (signed digest + canonical bytes).
@@ -1597,8 +1603,75 @@ pub trait NymApiClientExt: ApiClient {
         subset_id: &str,
         height: u64,
     ) -> Result<AttestedSubset, NymAPIError> {
-        let _ = (subset_id, height);
-        todo!()
+        self.get_json_from(format!("/v1/directory/subset/data/{subset_id}/{height}"))
+            .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_attested_directory_data(
+        &self,
+        height: u64,
+    ) -> Result<AttestedDirectoryData, NymAPIError> {
+        let records = self.get_all_directory_entries(height).await?;
+        let identities = self.get_directory_entries_identities(height).await?;
+        Ok(AttestedDirectoryData {
+            height: identities.height,
+            records,
+            node_identities: identities.node_identities,
+        })
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_all_directory_entries(
+        &self,
+        height: u64,
+    ) -> Result<Vec<DirectoryEntryRecord>, NymAPIError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut records = Vec::new();
+
+        loop {
+            let mut res = self
+                .get_directory_entries(height, Some(page), Some(500))
+                .await?;
+            records.append(&mut res.entries.data);
+            if records.len() < res.entries.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+        Ok(records)
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_directory_entries(
+        &self,
+        height: u64,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<DirectoryEntriesRecordsResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(format!("/v1/directory/entries/{height}/records"), &params)
+            .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_directory_entries_identities(
+        &self,
+        height: u64,
+    ) -> Result<DirectoryEntriesIdentitiesResponse, NymAPIError> {
+        self.get_json_from(format!("/v1/directory/entries/{height}/node-identities"))
+            .await
     }
 }
 

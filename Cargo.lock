@@ -6911,6 +6911,7 @@ dependencies = [
  "nym-crypto",
  "nym-directory-attestation",
  "nym-directory-contract-common",
+ "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-network-defaults",

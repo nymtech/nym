@@ -9,3 +9,6 @@ pub mod key;
 pub mod proof;
 pub mod subset;
 pub mod verify;
+
+#[cfg(test)]
+mod test_support;

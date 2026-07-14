@@ -42,6 +42,7 @@ cw-storage-plus = { workspace = true }
 nym-validator-client = { workspace = true, features = ["mocks"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-http-api-client = { workspace = true }
 
 [features]
 light-client = ["tendermint-light-client"]

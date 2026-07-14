@@ -194,7 +194,7 @@ async fn directory_entries_records(
     // SAFETY: we just managed to perform a lookup based on this height,
     // so it must be valid
     #[allow(clippy::unwrap_used)]
-    Ok(pagination.to_response(DirectoryEntriesRecordsResponse {
+    Ok(pagination.format_response(DirectoryEntriesRecordsResponse {
         height: Height::try_from(height).unwrap(),
         entries,
     }))

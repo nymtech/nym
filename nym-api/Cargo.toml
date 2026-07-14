@@ -137,6 +137,8 @@ rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-directory-attestation = { workspace = true, features = ["mock"] }
 
 [lints]
 workspace = true

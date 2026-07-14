@@ -98,3 +98,48 @@ where
             .map_err(|err| AttestationSourceError::Transport(err.to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{MockNymApiClient, mock_source};
+    use nym_directory_attestation::source::mock::mock_digest_snapshot;
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
+
+    // `latest_snapshot`/`snapshot_at` are the `AttestationSource` trait methods; these check
+    // the source delegates to the right client method and surfaces the value.
+
+    #[tokio::test]
+    async fn latest_snapshot_returns_the_producer_response() {
+        let kp = dummy_ed25519_keypair(1);
+        let height = Height::from(100u32);
+        let signed = mock_digest_snapshot(height).signed(&kp);
+
+        let source = mock_source(MockNymApiClient::new().with_latest(signed), &kp);
+        let got = source.latest_snapshot().await.unwrap();
+        assert_eq!(got.snapshot.height, height);
+        assert_eq!(got.signer, *kp.public_key());
+    }
+
+    #[tokio::test]
+    async fn snapshot_at_returns_the_per_height_response() {
+        let kp = dummy_ed25519_keypair(1);
+        let height = Height::from(250u32);
+        let signed = mock_digest_snapshot(height).signed(&kp);
+
+        let source = mock_source(
+            MockNymApiClient::new().with_snapshot(height.value(), signed),
+            &kp,
+        );
+        let got = source.snapshot_at(height).await.unwrap();
+        assert_eq!(got.snapshot.height, height);
+    }
+
+    #[tokio::test]
+    async fn a_client_error_maps_to_a_transport_error() {
+        let kp = dummy_ed25519_keypair(1);
+        let source = mock_source(MockNymApiClient::failing(), &kp);
+        let err = source.latest_snapshot().await.unwrap_err();
+        assert!(matches!(err, AttestationSourceError::Transport(_)));
+    }
+}

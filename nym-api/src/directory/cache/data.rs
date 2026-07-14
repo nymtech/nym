@@ -179,3 +179,124 @@ impl NymDirectoryCacheData {
         self.directory.get(&height)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_directory_attestation::source::mock::mock_digest_snapshot;
+    use rand_chacha::rand_core::SeedableRng;
+
+    fn signed_snapshot(height: u32) -> SignedDigestSnapshot {
+        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(height as u64);
+        let kp = ed25519::KeyPair::new(&mut rng);
+        mock_digest_snapshot(Height::from(height)).signed(&kp)
+    }
+
+    fn cached_directory(height: u32) -> CachedDirectory {
+        CachedDirectory::new(RawCachedDirectory::new(
+            signed_snapshot(height),
+            Vec::new(),
+            BTreeMap::new(),
+        ))
+    }
+
+    fn empty_cache(last_polled: u32) -> NymDirectoryCacheData {
+        NymDirectoryCacheData {
+            last_polled_height: Height::from(last_polled),
+            directory: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn update_prunes_to_the_retention_count() {
+        let mut cache = empty_cache(0);
+        for h in [100u32, 200, 300, 400] {
+            cache.update(
+                DirectoryCacheUpdate::new(Some(cached_directory(h)), Height::from(h)),
+                3,
+            );
+        }
+        // once the window exceeds the retention count the oldest snapshot is dropped
+        assert_eq!(cache.directory.len(), 3);
+        assert!(cache.get_entry(Height::from(100u32)).is_none());
+        assert!(cache.get_entry(Height::from(200u32)).is_some());
+        assert!(cache.get_entry(Height::from(400u32)).is_some());
+    }
+
+    #[test]
+    fn remove_stale_retains_only_the_listed_heights() {
+        let mut cache = empty_cache(300);
+        for h in [100u32, 200, 300] {
+            cache.insert_entry(cached_directory(h));
+        }
+        cache.remove_stale(&[Height::from(200u32), Height::from(300u32)]);
+        assert_eq!(cache.directory.len(), 2);
+        assert!(cache.get_entry(Height::from(100u32)).is_none());
+        assert!(cache.get_entry(Height::from(300u32)).is_some());
+    }
+
+    #[test]
+    fn most_recent_entry_applies_the_settle_lag() {
+        let mut cache = empty_cache(0);
+        for h in [800u32, 900, 950] {
+            cache.insert_entry(cached_directory(h));
+        }
+        // the chain tip is ahead of the newest snapshot
+        cache.last_polled_height = Height::from(1000u32);
+
+        // lag 60 -> allowed latest 940 -> newest snapshot at or below is 900
+        assert_eq!(
+            cache
+                .most_recent_entry(60)
+                .unwrap()
+                .digest_snapshot()
+                .snapshot
+                .height,
+            Height::from(900u32)
+        );
+        // a smaller lag lets the newest snapshot through
+        assert_eq!(
+            cache
+                .most_recent_entry(10)
+                .unwrap()
+                .digest_snapshot()
+                .snapshot
+                .height,
+            Height::from(950u32)
+        );
+    }
+
+    #[test]
+    fn most_recent_entry_saturates_when_lag_exceeds_tip() {
+        let mut cache = empty_cache(0);
+        cache.insert_entry(cached_directory(100));
+        cache.last_polled_height = Height::from(10u32);
+        // allowed latest saturates to 0, so nothing qualifies (rather than underflowing)
+        assert!(cache.most_recent_entry(50).is_none());
+    }
+
+    #[test]
+    fn signed_snapshot_round_trips_through_json() {
+        let snapshot = signed_snapshot(500);
+        let json = serde_json::to_string(&snapshot).unwrap();
+        let back: SignedDigestSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.snapshot, snapshot.snapshot);
+        assert_eq!(back.signer, snapshot.signer);
+    }
+
+    #[test]
+    fn directory_snapshot_data_round_trips_through_json() {
+        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(7);
+        let kp = ed25519::KeyPair::new(&mut rng);
+        let data = DirectorySnapshotData {
+            height: Height::from(500u32),
+            records: Vec::new(),
+            node_identities: BTreeMap::from([(1, *kp.public_key())]),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let back: DirectorySnapshotData = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.height, data.height);
+        // exercises the custom bs58 NodeId -> pubkey map codec
+        assert_eq!(back.node_identities, data.node_identities);
+    }
+}

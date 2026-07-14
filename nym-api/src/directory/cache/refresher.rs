@@ -48,6 +48,27 @@ pub(crate) fn refresher_update_fn(
     main_cache.update(update, retention_count)
 }
 
+/// The snapshot heights the warmup should hold at `current_height`: the most recent cadence
+/// boundary at or below it, plus the preceding `retention_count - 1` boundaries. Saturating
+/// so a young chain (fewer than `retention_count` intervals of history) does not underflow;
+/// duplicate/zero heights are harmless (the cache is keyed by height).
+fn expected_retained_heights(
+    current_height: u64,
+    snapshot_interval: u64,
+    retention_count: usize,
+) -> Vec<Height> {
+    let expected_latest = current_height - (current_height % snapshot_interval);
+    (0..retention_count as u64)
+        .map(|i| expected_latest.saturating_sub(snapshot_interval * i))
+        .map(|h| Height::from(h as u32))
+        .collect()
+}
+
+/// The next cadence boundary to snapshot after `last_snapshot_height`.
+fn next_snapshot_height(last_snapshot_height: u64, snapshot_interval: u32) -> Height {
+    Height::from(last_snapshot_height as u32 + snapshot_interval)
+}
+
 impl DirectoryDataProvider {
     pub async fn new(
         config: DirectoryConfig,
@@ -78,15 +99,12 @@ impl DirectoryDataProvider {
 
     // ensure the shared cache contains the `retention_count` latest snapshots
     async fn warmup_cache(&mut self) -> anyhow::Result<()> {
-        let snapshot_interval = self.snapshot_interval as u64;
         let current_height = self.current_height().await?;
-        let expected_latest = current_height.value() - (current_height.value() % snapshot_interval);
-        let expected_retained = (0..self.retention_count as u64)
-            // saturating so a young chain (fewer than retention_count intervals of history)
-            // does not underflow; duplicate/zero heights are harmless (deduped by the cache map)
-            .map(|i| expected_latest.saturating_sub(snapshot_interval * i))
-            .map(|h| Height::from(h as u32))
-            .collect::<Vec<_>>();
+        let expected_retained = expected_retained_heights(
+            current_height.value(),
+            self.snapshot_interval as u64,
+            self.retention_count,
+        );
 
         let mut cache = self.cache.write().await?;
 
@@ -164,15 +182,14 @@ impl CacheItemProvider for DirectoryDataProvider {
 
     async fn try_refresh(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         let current_height = self.current_height().await?;
-        let next_snapshot_height =
-            Height::from(self.last_snapshot_height().await.value() as u32 + self.snapshot_interval);
+        let next_snapshot = next_snapshot_height(
+            self.last_snapshot_height().await.value(),
+            self.snapshot_interval,
+        );
 
         // we need to have one additional block available so that we could retrieve the app hash
-        let new_directory = if current_height.value() > next_snapshot_height.value() {
-            Some(
-                self.retrieve_directory_snapshot(next_snapshot_height)
-                    .await?,
-            )
+        let new_directory = if current_height.value() > next_snapshot.value() {
+            Some(self.retrieve_directory_snapshot(next_snapshot).await?)
         } else {
             None
         };
@@ -181,5 +198,44 @@ impl CacheItemProvider for DirectoryDataProvider {
             new_directory,
             current_height,
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn heights(values: &[u32]) -> Vec<Height> {
+        values.iter().map(|h| Height::from(*h)).collect()
+    }
+
+    #[test]
+    fn expected_retained_heights_are_the_last_n_cadence_boundaries() {
+        // interval 100, current 1050 -> latest boundary 1000, then the two before it
+        assert_eq!(
+            expected_retained_heights(1050, 100, 3),
+            heights(&[1000, 900, 800])
+        );
+        // exactly on a boundary: that boundary is the latest
+        assert_eq!(
+            expected_retained_heights(1000, 100, 2),
+            heights(&[1000, 900])
+        );
+    }
+
+    #[test]
+    fn expected_retained_heights_saturate_on_a_young_chain() {
+        // fewer than retention_count intervals of history: earlier boundaries clamp to 0
+        // rather than underflowing
+        assert_eq!(
+            expected_retained_heights(150, 100, 4),
+            heights(&[100, 0, 0, 0])
+        );
+    }
+
+    #[test]
+    fn next_snapshot_height_advances_by_one_interval() {
+        assert_eq!(next_snapshot_height(1000, 100), Height::from(1100u32));
+        assert_eq!(next_snapshot_height(0, 100), Height::from(100u32));
     }
 }

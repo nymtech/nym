@@ -83,7 +83,7 @@ and whole-directory consumption.
 - [x] 3.5 Add a whole-directory-from-a-nym-api fetch that pulls entries + node identities over HTTP and verifies them
   via the existing `verify_directory_offline` against `AttestedTrustAnchor`'s `accumulator` + `node_identities_hash` (
   see `design.md` D8) - not the subset mechanism
-- [ ] 3.6 Tests: `HttpAttestationSource` against a mock HTTP server (latest + at-height, plus a transport-error case);
+- [x] 3.6 Tests: `HttpAttestationSource` against a mock HTTP server (latest + at-height, plus a transport-error case);
   subset quorum happy path + fail-closed (tampered data, sub-quorum, disagreeing hashes); whole-directory-from-http
   happy + fail-closed
 
@@ -106,17 +106,22 @@ Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
   route tree with `utoipa` annotations
 - [x] 4.5 Give `SignedDigestSnapshot` (and the full-directory response shape) whatever `ToSchema`/serde the routes
   need - in the attestation crate if clean, else a thin `nym-api-requests` wrapper
-- [ ] 4.6 Tests: cadence-height selection + retention/pruning; settle-lag applied to `latest`; snapshot round-trips
+- [x] 4.6 Tests: cadence-height selection + retention/pruning; settle-lag applied to `latest`; snapshot round-trips
   through the route DTOs; producer refuses to attest a directory its source anchor fails to verify
+  (cadence arithmetic extracted to pure `expected_retained_heights`/`next_snapshot_height` helpers + unit-tested;
+  retention/pruning, settle-lag, and DTO JSON round-trips covered in `directory::cache` tests. The
+  refuse-to-attest path is a thin `?` propagation of `DirectoryClient::verified_directory`, whose fail-closed
+  behaviour is already covered in `nym-directory-client` (`verify_directory*` + `verified_directory`); an
+  end-to-end nym-api test would require mocking the 27-method `CosmWasmClient`, which has no precedent here.)
 
 ## 5. Verification
 
-- [ ] 5.1 `cargo build` + `cargo test` for `nym-directory-attestation`
-- [ ] 5.2 `cargo build` + `cargo test` for `nym-directory-client` (default and `--features light-client`) - moved-type
+- [x] 5.1 `cargo build` + `cargo test` for `nym-directory-attestation`
+- [x] 5.2 `cargo build` + `cargo test` for `nym-directory-client` (default and `--features light-client`) - moved-type
   re-exports keep it compiling and green
-- [ ] 5.3 `cargo build` + `cargo test` for `nym-directory-contract` (+ `nym-directory-contract-common`): the cadence
+- [x] 5.3 `cargo build` + `cargo test` for `nym-directory-contract` (+ `nym-directory-contract-common`): the cadence
   tests (1.7)
-- [ ] 5.4 `cargo build` + `cargo test` for `nym-api`: producer tests (4.6)
+- [x] 5.4 `cargo build` + `cargo test` for `nym-api`: producer tests (4.6)
 - [ ] 5.5 Confirm the downstream instantiate wiring (network-defaults / generator / localnet / wallet) still builds
   after the new instantiate field (1.6)
-- [ ] 5.6 (Use `cargo build`/`check` + `test`, not `clippy`, for verification, per project preference)
+- [x] 5.6 (Use `cargo build`/`check` + `test`, not `clippy`, for verification, per project preference)

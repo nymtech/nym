@@ -27,7 +27,7 @@ impl PaginationRequestV2 {
         self.output.unwrap_or_default()
     }
 
-    pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
+    pub fn format_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
         self.get_output().to_response(data)
     }
 }

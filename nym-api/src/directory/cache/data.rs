@@ -70,6 +70,14 @@ impl CachedDirectory {
             node_identities: self.raw.node_identities.clone(),
         }
     }
+
+    pub(crate) fn directory_records(&self) -> &[DirectoryEntryRecord] {
+        &self.raw.records
+    }
+
+    pub(crate) fn directory_node_identities(&self) -> &BTreeMap<NodeId, ed25519::PublicKey> {
+        &self.raw.node_identities
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

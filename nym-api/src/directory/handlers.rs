@@ -2,15 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::support::http::helpers::PaginationRequestV2;
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
-use nym_directory_attestation::{
-    AttestedDirectoryData, AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest,
+use nym_api_requests::models::directory::{
+    DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
+use nym_directory_attestation::{AttestedSubset, SignedDigestSnapshot, SignedSubsetDigest};
 use nym_http_api_common::{FormattedResponse, OutputParamsV2};
+use std::cmp::min;
+use tendermint::block::Height;
+
+const DEFAULT_ENTRIES_PAGE_SIZE: u32 = 200;
+const MAX_ENTRIES_PAGE_SIZE: u32 = 500;
 
 // /v1/directory
 pub(crate) fn routes() -> Router<AppState> {
@@ -37,7 +44,12 @@ pub(crate) fn routes() -> Router<AppState> {
         // the commitment.
         .nest(
             "/entries",
-            Router::new().route("/{height}", get(directory_entries)),
+            Router::new()
+                .route("/{height}/records", get(directory_entries_records))
+                .route(
+                    "/{height}/node_identities",
+                    get(directory_entries_identities),
+                ),
         )
         // routes exposing human-readable json data with backing signature (no canonical encoding due to json)
         .nest("/unattested", Router::new())
@@ -151,24 +163,74 @@ async fn directory_subset(
 #[utoipa::path(
     tag = "Nym Directory",
     get,
-    path = "/entries/{height}",
+    path = "/entries/{height}/records",
     context_path = "/v1/directory",
     responses(
         (status = 200, content(
-            (AttestedDirectoryData = "application/json"),
-            (AttestedDirectoryData = "application/yaml"),
+            (DirectoryEntriesRecordsResponse = "application/json"),
+            (DirectoryEntriesRecordsResponse = "application/yaml"),
         ))
     ),
 )]
-async fn directory_entries(
+async fn directory_entries_records(
+    Path(height): Path<u64>,
+    Query(pagination): Query<PaginationRequestV2>,
+    State(state): State<AppState>,
+) -> AxumResult<FormattedResponse<DirectoryEntriesRecordsResponse>> {
+    let page = pagination.page.unwrap_or_default();
+    let per_page = min(
+        pagination.per_page.unwrap_or(DEFAULT_ENTRIES_PAGE_SIZE),
+        MAX_ENTRIES_PAGE_SIZE,
+    );
+    let entries = state
+        .directory
+        .paged_entries_at(height, page, per_page)
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::not_found(format!(
+                "could not find directory entries for height {height}",
+            ))
+        })?;
+    // SAFETY: we just managed to perform a lookup based on this height,
+    // so it must be valid
+    #[allow(clippy::unwrap_used)]
+    Ok(pagination.to_response(DirectoryEntriesRecordsResponse {
+        height: Height::try_from(height).unwrap(),
+        entries,
+    }))
+}
+
+#[utoipa::path(
+    tag = "Nym Directory",
+    get,
+    path = "/entries/{height}/records",
+    context_path = "/v1/directory",
+    responses(
+        (status = 200, content(
+            (DirectoryEntriesIdentitiesResponse = "application/json"),
+            (DirectoryEntriesIdentitiesResponse = "application/yaml"),
+        ))
+    ),
+)]
+async fn directory_entries_identities(
     Path(height): Path<u64>,
     Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
-) -> AxumResult<FormattedResponse<AttestedDirectoryData>> {
-    let entries = state.directory.entries_at(height).await.ok_or_else(|| {
-        AxumErrorResponse::not_found(format!(
-            "could not find directory entries for height {height}",
-        ))
-    })?;
-    Ok(output.to_response(entries))
+) -> AxumResult<FormattedResponse<DirectoryEntriesIdentitiesResponse>> {
+    let node_identities = state
+        .directory
+        .node_identities_at(height)
+        .await
+        .ok_or_else(|| {
+            AxumErrorResponse::not_found(format!(
+                "could not find directory identities for height {height}",
+            ))
+        })?;
+    // SAFETY: we just managed to perform a lookup based on this height,
+    // so it must be valid
+    #[allow(clippy::unwrap_used)]
+    Ok(output.to_response(DirectoryEntriesIdentitiesResponse {
+        height: Height::try_from(height).unwrap(),
+        node_identities,
+    }))
 }

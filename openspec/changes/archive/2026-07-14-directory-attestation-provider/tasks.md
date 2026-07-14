@@ -122,6 +122,6 @@ Wire the library into nym-api (see `design.md` D6/D7/D10). Reuse
 - [x] 5.3 `cargo build` + `cargo test` for `nym-directory-contract` (+ `nym-directory-contract-common`): the cadence
   tests (1.7)
 - [x] 5.4 `cargo build` + `cargo test` for `nym-api`: producer tests (4.6)
-- [ ] 5.5 Confirm the downstream instantiate wiring (network-defaults / generator / localnet / wallet) still builds
+- [x] 5.5 Confirm the downstream instantiate wiring (network-defaults / generator / localnet / wallet) still builds
   after the new instantiate field (1.6)
 - [x] 5.6 (Use `cargo build`/`check` + `test`, not `clippy`, for verification, per project preference)

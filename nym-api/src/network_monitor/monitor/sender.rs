@@ -3,7 +3,7 @@
 
 use crate::network_monitor::monitor::gateway_client_handle::GatewayClientHandle;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use crate::support::config::Config;
+use crate::support::config;
 use dashmap::DashMap;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -127,7 +127,7 @@ pub(crate) struct PacketSender {
 
 impl PacketSender {
     pub(crate) fn new(
-        config: &Config,
+        config: &config::NetworkMonitor,
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<ed25519::KeyPair>,
         bandwidth_request_sender: BandwidthControllerRequestSender,
@@ -138,18 +138,15 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 shutdown_token,
-                gateway_response_timeout: config.network_monitor.debug.gateway_response_timeout,
+                gateway_response_timeout: config.debug.gateway_response_timeout,
                 bandwidth_request_sender,
-                disabled_credentials_mode: config.network_monitor.debug.disabled_credentials_mode,
+                disabled_credentials_mode: config.debug.disabled_credentials_mode,
                 gateways_key_cache: Default::default(),
             }),
-            gateway_connection_timeout: config.network_monitor.debug.gateway_connection_timeout,
-            gateway_bandwidth_claim_timeout: config
-                .network_monitor
-                .debug
-                .gateway_bandwidth_claim_timeout,
-            max_concurrent_clients: config.network_monitor.debug.max_concurrent_gateway_clients,
-            max_sending_rate: config.network_monitor.debug.gateway_sending_rate,
+            gateway_connection_timeout: config.debug.gateway_connection_timeout,
+            gateway_bandwidth_claim_timeout: config.debug.gateway_bandwidth_claim_timeout,
+            max_concurrent_clients: config.debug.max_concurrent_gateway_clients,
+            max_sending_rate: config.debug.gateway_sending_rate,
         }
     }
 

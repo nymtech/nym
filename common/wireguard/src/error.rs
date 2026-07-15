@@ -11,8 +11,14 @@ pub enum Error {
     #[error("internal {0}")]
     Internal(String),
 
-    #[error("storage should have the requested bandwidth entry")]
-    MissingClientBandwidthEntry,
+    #[error("storage should have the requested wireguard peer entry: {0}")]
+    MissingWireguardPeerEntry(String),
+
+    #[error("storage should have the requested client id entry: {0}")]
+    MissingClientIdEntry(i64),
+
+    #[error("storage manager entry could not be found in memory for peer: {0}")]
+    MissingStorageManagerEntry(String),
 
     #[error("kernel should have the requested client entry: {0}")]
     MissingClientKernelEntry(String),

@@ -250,13 +250,13 @@ impl PeerController {
         let client_id = storage
             .get_wireguard_peer(&public_key.to_string())
             .await?
-            .ok_or(Error::MissingClientBandwidthEntry)?
+            .ok_or(Error::MissingWireguardPeerEntry(public_key.to_string()))?
             .client_id;
 
         let bandwidth = storage
             .get_available_bandwidth(client_id)
             .await?
-            .ok_or(Error::MissingClientBandwidthEntry)?;
+            .ok_or(Error::MissingClientIdEntry(client_id))?;
 
         Ok(BandwidthStorageManager::new(
             storage,
@@ -416,7 +416,7 @@ impl PeerController {
         let bandwidth_storage_manager = self
             .bw_storage_managers
             .get(key)
-            .ok_or(Error::MissingClientBandwidthEntry)?;
+            .ok_or(Error::MissingStorageManagerEntry(key.to_string()))?;
 
         Ok(bandwidth_storage_manager
             .inner()
@@ -448,10 +448,10 @@ impl PeerController {
         let client_id = storage
             .get_wireguard_peer(&key.to_string())
             .await?
-            .ok_or(Error::MissingClientBandwidthEntry)?
+            .ok_or(Error::MissingWireguardPeerEntry(key.to_string()))?
             .client_id;
         let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
-            return Err(Error::MissingClientBandwidthEntry);
+            return Err(Error::MissingStorageManagerEntry(key.to_string()));
         };
         let client_bandwidth = bandwidth_storage_manager
             .inner()

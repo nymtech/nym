@@ -65,6 +65,16 @@ impl BandwidthControllerRequestSender {
     }
 
     #[instrument(skip(self), level = "debug")]
+    pub async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::FreeTrialToken(tx))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    #[instrument(skip(self), level = "debug")]
     pub async fn attempt_revert_spending(
         &self,
         metadata: PreparedCredentialMetadata,
@@ -204,6 +214,10 @@ impl BandwidthTicketProvider for BandwidthControllerRequestSender {
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         self.get_upgrade_mode_token().await
+    }
+
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        self.get_free_trial_token().await
     }
 
     async fn attempt_revert_spending(

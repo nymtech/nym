@@ -3,7 +3,7 @@
 
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    RetrievedTicketbook, StoredFreeTrialToken,
 };
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
@@ -14,7 +14,7 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
 };
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::IssuedTicketBook;
-use nym_ecash_time::Date;
+use nym_ecash_time::{Date, OffsetDateTime};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -38,6 +38,7 @@ struct EcashCredentialManagerInner {
     coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
     expiration_date_sigs: HashMap<(u64, Date), Vec<AnnotatedExpirationDateSignature>>,
     emergency_credentials: HashMap<String, Vec<EmergencyCredential>>,
+    free_trial_token: Option<StoredFreeTrialToken>,
 
     // internal counters emulating assignment of an increasing id to new inserted database entries
     internal_counters: InternalIdCounters,
@@ -300,6 +301,26 @@ impl MemoryEcachTicketbookManager {
     pub(crate) async fn clear_emergency_credentials(&self) {
         self.inner.write().await.emergency_credentials.clear();
     }
+
+    pub(crate) async fn store_free_trial_token(&self, token: &str, expiration: OffsetDateTime) {
+        let mut guard = self.inner.write().await;
+        guard.free_trial_token = Some(StoredFreeTrialToken {
+            token: token.to_string(),
+            expiration,
+        });
+    }
+
+    pub(crate) async fn get_free_trial_token(&self) -> Option<StoredFreeTrialToken> {
+        let guard = self.inner.read().await;
+        guard
+            .free_trial_token
+            .clone()
+            .filter(|t| t.expiration > OffsetDateTime::now_utc())
+    }
+
+    pub(crate) async fn clear_free_trial_token(&self) {
+        self.inner.write().await.free_trial_token = None;
+    }
 }
 
 #[cfg(test)]
@@ -548,6 +569,40 @@ mod tests {
 
         // unrelated type is untouched
         assert!(manager.get_emergency_credential("type-b").await.is_some());
+    }
+
+    #[tokio::test]
+    async fn free_trial_token_store_replace_and_expiry() {
+        let manager = MemoryEcachTicketbookManager::new();
+        let now = OffsetDateTime::now_utc();
+
+        // nothing stored yet
+        assert!(manager.get_free_trial_token().await.is_none());
+
+        // a fresh token round-trips
+        manager
+            .store_free_trial_token("tok-1", now + time::Duration::hours(1))
+            .await;
+        assert_eq!(manager.get_free_trial_token().await.unwrap().token, "tok-1");
+
+        // storing replaces the previous token (single current token)
+        manager
+            .store_free_trial_token("tok-2", now + time::Duration::hours(2))
+            .await;
+        assert_eq!(manager.get_free_trial_token().await.unwrap().token, "tok-2");
+
+        // an expired token is never handed back
+        manager
+            .store_free_trial_token("stale", now - time::Duration::hours(1))
+            .await;
+        assert!(manager.get_free_trial_token().await.is_none());
+
+        // clear removes it
+        manager
+            .store_free_trial_token("tok-3", now + time::Duration::hours(1))
+            .await;
+        manager.clear_free_trial_token().await;
+        assert!(manager.get_free_trial_token().await.is_none());
     }
 
     #[tokio::test]

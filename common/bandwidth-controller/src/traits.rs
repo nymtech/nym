@@ -29,6 +29,8 @@ pub trait BandwidthTicketProvider: Send + Sync {
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError>;
 
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError>;
+
     async fn attempt_revert_spending(
         &self,
         metadata: PreparedCredentialMetadata,
@@ -54,6 +56,10 @@ impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         (**self).get_upgrade_mode_token().await
+    }
+
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        (**self).get_free_trial_token().await
     }
 
     async fn attempt_revert_spending(

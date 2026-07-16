@@ -201,6 +201,9 @@ impl<St: Storage> BandwidthController<St> {
             BandwidthControllerRequest::UpgradeModeToken(return_sender) => {
                 return_sender.send(self.get_upgrade_mode_token().await)
             }
+            BandwidthControllerRequest::FreeTrialToken(return_sender) => {
+                return_sender.send(self.get_free_trial_token().await)
+            }
             BandwidthControllerRequest::AttemptRevertSpending(return_sender, metadata) => {
                 return_sender.send(self.attempt_revert_ticket_usage(metadata).await)
             }
@@ -504,6 +507,9 @@ impl<St: Storage> BandwidthController<St> {
                 NymCredential::UpgradeModeToken { jwt, expiration } => {
                     self.store_upgrade_token(jwt, expiration).await
                 }
+                NymCredential::FreeTrialToken { jwt, expiration } => {
+                    self.store_free_trial_token(jwt, expiration).await
+                }
             }
         }
     }
@@ -550,6 +556,12 @@ impl<St: Storage> BandwidthController<St> {
             .await
         {
             tracing::warn!("failed to store emergency credential: {e}");
+        }
+    }
+
+    async fn store_free_trial_token(&self, jwt: String, expiration: OffsetDateTime) {
+        if let Err(e) = self.storage.store_free_trial_token(&jwt, expiration).await {
+            tracing::warn!("failed to store free-trial token: {e}");
         }
     }
 
@@ -781,6 +793,16 @@ impl<St: Storage> BandwidthController<St> {
         Ok(Some(token))
     }
 
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        // the storage layer already filters out expired free-trial tokens
+        Ok(self
+            .storage
+            .get_free_trial_token()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?
+            .map(|stored| stored.token))
+    }
+
     async fn get_available_ticketbooks(
         &self,
     ) -> Result<AvailableTicketbooks, BandwidthControllerError> {
@@ -834,6 +856,10 @@ impl<St: Storage> BandwidthTicketProvider for BandwidthController<St> {
 
     async fn get_upgrade_mode_token(&self) -> Result<Option<String>, BandwidthControllerError> {
         self.get_upgrade_mode_token().await
+    }
+
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        self.get_free_trial_token().await
     }
 
     async fn attempt_revert_spending(

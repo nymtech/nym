@@ -67,4 +67,8 @@ pub enum NymCredential {
         jwt: String,
         expiration: OffsetDateTime,
     },
+    FreeTrialToken {
+        jwt: String,
+        expiration: OffsetDateTime,
+    },
 }

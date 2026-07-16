@@ -78,3 +78,12 @@ pub struct EmergencyCredentialContent {
     pub content: Vec<u8>,
     pub expiration: Option<OffsetDateTime>,
 }
+
+/// A stored free-tier capability token. Distinct from emergency credentials:
+/// this is promotional access, not a network-emergency fallback.
+#[derive(Clone, Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct StoredFreeTrialToken {
+    pub token: String,
+    pub expiration: OffsetDateTime,
+}

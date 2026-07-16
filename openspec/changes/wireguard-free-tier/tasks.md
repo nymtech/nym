@@ -5,13 +5,14 @@
 - [x] 1.3 Keep `BandwidthClaim.kind` set to an existing wireguard `TicketType`; confirmed `insert_wireguard_peer` persists an ordinary wireguard `ClientType` (kind flows through `process_new_peer` unchanged) and no new `TicketType` variant was added, so nym-api / issuance is untouched
 - [x] 1.4 Added the free allowance constant (`FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES`, 100 MB placeholder) to `common/network-defaults`. Attester key REUSED from `upgrade_mode.attester_public_key` (same-signer decision) rather than a separate key/url. Added a nym-node `free_tier` config section (`enabled` + `debug.pool_bandwidth_per_second`, human-readable via bytesize, e.g. "10 MB").
 - [x] 1.5 Confirmed both transports (LP `on_final_lp_request` and legacy `on_final_authenticator_request`) funnel through the shared `process_new_peer` -> `handle_final_credential_claim`, so the `FreeTier` arm covers both
+- [x] 1.6 Added a required `purpose` claim (`FreeTierPurpose::{NewUser,Renewal}`) to `FreeTierClaims`; the gateway arm rejects `Renewal` tokens until the walled garden exists (forward-compat for the renewal-to-garden flow, task 5.7). Dropped the now-redundant `tier` marker (a required, typed `purpose` already disambiguates from the co-signed upgrade-mode JWT)
 
 ## 2. Client-side free-tier credential (`common/bandwidth-controller`) (v1)
 
-- [ ] 2.1 Add `NymCredential::FreeTrialToken { jwt, expiration }` and its store/retrieve arm (mirror `UpgradeModeToken`, using the emergency-credential path with a new `FREE_TRIAL_JWT_TYPE`)
-- [ ] 2.2 Add `get_free_trial_token() -> Option<String>` to `BandwidthTicketProvider` plus the `BandwidthControllerRequest`/sender plumbing (mirror `get_upgrade_mode_token`)
-- [ ] 2.3 Add a `FreeTrialFetcher` that obtains the token from the VPN-API and populates the store; it is not a `CredentialFetcher` (that trait is ticketbook-typed)
-- [ ] 2.4 Leave `PreparedCredential` untouched; add unit tests for issuance/store/retrieve and the mock provider
+- [x] 2.1 Added `NymCredential::FreeTrialToken { jwt, expiration }` + `store_free_trial_token` wired into `store_fetched`. Storage is a DEDICATED `free_trial_token` table (not the emergency-credential family - that's a network-fallback concept; free tier is promotional access): new migration + `StoredFreeTrialToken` model + `Storage` trait methods (`store`/`get`/`clear`) on both `EphemeralStorage` + `PersistentStorage`; single-row replace; `MalformedFreeTrialToken` dropped (token stored as `TEXT`)
+- [x] 2.2 Added `get_free_trial_token() -> Option<String>` to `BandwidthTicketProvider` + `BandwidthControllerRequest`/dispatch/sender/`Box`-impl/mock/controller plumbing. Expiry-awareness lives in the storage layer: BOTH backends filter out expired tokens on read (sqlite via SQL, memory via a `now` check), fixing the memory-backend gap that upgrade-mode still has. Storage round-trip/replace/expiry test green
+- [ ] 2.3 Presentation is an EXPLICIT caller decision (not present-if-present): thread a caller-sourced `free_tier: bool` into the registration flow parallel to `upgrade_mode_enabled` (which is gateway-sourced), present `BandwidthCredential::FreeTier` only when the flag is set, and ERROR if set but no valid token (no ecash fallback). Applies to the LP/dVPN client first, then the legacy authenticator path. NB: token FETCH/injection is out of scope here - the external vpn-client does that via the existing `CredentialFetcher`/`store_fetched` seam (no in-repo fetcher, no VPN-API knowledge)
+- [ ] 2.4 Leave `PreparedCredential` untouched; unit tests: store + retrieve-fresh (`Some`) + retrieve-expired (`None`), the mock provider, and claim production (`free_tier=true`+token->`FreeTier`; `free_tier=true`+none->error; `free_tier=false`+token present->ecash, i.e. the paid-reconnect guard)
 
 ## 3. Free-tier state and metering (v1)
 
@@ -20,6 +21,7 @@
 - [ ] 3.3 Seed the volume allowance from the network-defaults constant (reuse the existing byte accounting path)
 - [ ] 3.4 Add the session-time clock; check elapsed time at the existing bandwidth-flush cadence (coarse; no sub-second precision)
 - [ ] 3.5 Trigger the exhaustion transition on whichever limit (bytes or time) is reached first
+- [ ] 3.6 Entry-gateway per-IP Sybil filter: count free-tier tokens per client source IP per day and reject new-user tokens over a configurable cap (e.g. 5/day). LP/dVPN transport only (needs the client source IP - verify it is plumbed into the free-tier registration path); exempt `Renewal` tokens
 
 ## 4. Rate limiting via `tc` (v1)
 
@@ -36,6 +38,7 @@
 - [ ] 5.4 On exhaustion: leave the tc pool (full speed) and add the peer's garden rule instead of removing the peer
 - [ ] 5.5 Reconcile the garden chain from free-tier state on startup; do not persist the node's rules; verify fail-closed behavior on crash
 - [ ] 5.6 Reconnect-to-upgrade: when a formerly-free peer presents an ecash credential, clear the garden rule, clear the rate limit, and set `is_free = false`
+- [ ] 5.7 Renewal tokens (`purpose = Renewal`): on registration route the peer straight into the walled garden - no bandwidth seeded, no per-IP limiting - replacing the v1 reject-renewal guard added in task 1.6
 
 ## 6. Metrics (v1)
 

@@ -5,7 +5,7 @@ use crate::backends::memory::MemoryEcachTicketbookManager;
 use crate::error::StorageError;
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    RetrievedTicketbook, StoredFreeTrialToken,
 };
 use crate::storage::Storage;
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
 use nym_credentials::IssuedTicketBook;
-use nym_ecash_time::Date;
+use nym_ecash_time::{Date, OffsetDateTime};
 use std::fmt::{self, Debug, Formatter};
 
 pub type EphemeralCredentialStorage = EphemeralStorage;
@@ -238,6 +238,28 @@ impl Storage for EphemeralStorage {
 
     async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError> {
         self.storage_manager.clear_emergency_credentials().await;
+        Ok(())
+    }
+
+    async fn store_free_trial_token(
+        &self,
+        token: &str,
+        expiration: OffsetDateTime,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .store_free_trial_token(token, expiration)
+            .await;
+        Ok(())
+    }
+
+    async fn get_free_trial_token(
+        &self,
+    ) -> Result<Option<StoredFreeTrialToken>, Self::StorageError> {
+        Ok(self.storage_manager.get_free_trial_token().await)
+    }
+
+    async fn clear_free_trial_token(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_free_trial_token().await;
         Ok(())
     }
 }

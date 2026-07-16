@@ -59,7 +59,21 @@ The free-tier credential SHALL be handled by the shared registration path so tha
 
 The bandwidth controller SHALL represent the free-tier token as a `NymCredential::FreeTrialToken`, expose a `get_free_trial_token` provider method, and obtain it via a dedicated `FreeTrialFetcher`, mirroring the upgrade-mode token. The ecash-only `PreparedCredential` type MUST NOT be modified to carry the token.
 
-#### Scenario: Token fetched and stored like the upgrade-mode token
+#### Scenario: Token fetched externally and stored client-side
 
-- **WHEN** the client obtains a free-tier token from the VPN-API
-- **THEN** it is stored and later retrieved through the same emergency-credential mechanism used for the upgrade-mode token, and `PreparedCredential` is unchanged
+- **WHEN** the external client obtains a free-tier token from the VPN-API and injects it through the existing `CredentialFetcher`/store seam
+- **THEN** it is persisted in a dedicated free-trial-token store (separate from the emergency-credential family) and later retrieved expiry-filtered, and `PreparedCredential` is unchanged
+
+### Requirement: Token purpose distinguishes new-user trials from renewals
+
+A free-tier capability token SHALL carry an explicit `purpose` claim, always set by the issuer, distinguishing a new-user trial from a subscription renewal. A new-user token grants the free allowance; a renewal token SHALL NOT grant free bandwidth and is instead confined immediately to the purchase walled garden. Until the walled garden exists, the gateway SHALL reject renewal tokens rather than grant free bandwidth.
+
+#### Scenario: New-user token grants the free allowance
+
+- **WHEN** a valid new-user free-tier token is presented at registration
+- **THEN** the peer is granted the free allowance
+
+#### Scenario: Renewal token is confined to purchase, never granted bandwidth
+
+- **WHEN** a valid renewal free-tier token is presented at registration
+- **THEN** no free bandwidth is granted; once the walled garden exists the peer is placed directly into it, and until then the registration is rejected

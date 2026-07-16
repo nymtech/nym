@@ -39,6 +39,9 @@ pub enum GatewayWireguardError {
     #[error("free tier is not enabled on this gateway")]
     FreeTierDisabled,
 
+    #[error("free-tier renewal tokens are not yet supported")]
+    FreeTierRenewalNotSupported,
+
     #[error("provided free-tier token is invalid: {0}")]
     InvalidFreeTierToken(#[from] nym_free_tier_check::FreeTierCheckError),
 

@@ -31,7 +31,7 @@ use nym_credentials_interface::{
     ecash_today, Bandwidth, BandwidthCredential, CredentialSpendingData,
 };
 use nym_crypto::asymmetric::x25519;
-use nym_free_tier_check::{validate_free_tier_jwt, CREDENTIAL_PROXY_JWT_ISSUER};
+use nym_free_tier_check::{validate_free_tier_jwt, FreeTierPurpose, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_lp_data::packet::header::LpReceiverIndex;
@@ -206,9 +206,16 @@ impl PeerRegistrator {
                 }
 
                 // verify the capability token offline against the configured
-                // (upgrade-mode) attester key, then seed the free byte allowance
+                // (upgrade-mode) attester key
                 let attester = self.upgrade_mode.state().attester_pubkey();
-                validate_free_tier_jwt(&token, &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+                let claims =
+                    validate_free_tier_jwt(&token, &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+
+                // renewal tokens grant no free bandwidth - they belong straight in the
+                // purchase walled garden, which does not exist yet, so reject for now
+                if claims.purpose == FreeTierPurpose::Renewal {
+                    return Err(GatewayWireguardError::FreeTierRenewalNotSupported);
+                }
 
                 self.seed_free_tier_bandwidth(client_id).await?;
                 Ok(())

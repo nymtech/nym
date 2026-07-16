@@ -7,7 +7,4 @@ use thiserror::Error;
 pub enum FreeTierCheckError {
     #[error("failed to verify the free-tier jwt: {source}")]
     JwtVerificationFailure { source: jwt_simple::Error },
-
-    #[error("the jwt is not a free-tier capability token")]
-    UnexpectedTier,
 }

@@ -20,6 +20,8 @@ pub enum BandwidthControllerRequest {
 
     UpgradeModeToken(ReturnSender<Option<String>>),
 
+    FreeTrialToken(ReturnSender<Option<String>>),
+
     AttemptRevertSpending(ReturnSender<bool>, PreparedCredentialMetadata),
 
     /// Sets (or clears, with `None`) the credential fetcher; a new one triggers an immediate restock.

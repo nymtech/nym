@@ -3,7 +3,7 @@
 
 mod legacy_helpers;
 
-use crate::models::{EmergencyCredential, EmergencyCredentialContent};
+use crate::models::{EmergencyCredential, EmergencyCredentialContent, StoredFreeTrialToken};
 use crate::{
     backends::sqlite::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
@@ -33,6 +33,7 @@ use nym_credentials::{
     },
     IssuedTicketBook,
 };
+use nym_ecash_time::OffsetDateTime;
 use nym_ecash_time::{ecash_today, Date, EcashTime};
 use nym_sqlx_pool_guard::SqlitePoolGuard;
 use sqlx::{
@@ -391,6 +392,28 @@ impl Storage for PersistentStorage {
 
     async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError> {
         self.storage_manager.clear_emergency_credentials().await?;
+        Ok(())
+    }
+
+    async fn store_free_trial_token(
+        &self,
+        token: &str,
+        expiration: OffsetDateTime,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .store_free_trial_token(token, expiration)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_free_trial_token(
+        &self,
+    ) -> Result<Option<StoredFreeTrialToken>, Self::StorageError> {
+        Ok(self.storage_manager.get_free_trial_token().await?)
+    }
+
+    async fn clear_free_trial_token(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.clear_free_trial_token().await?;
         Ok(())
     }
 }

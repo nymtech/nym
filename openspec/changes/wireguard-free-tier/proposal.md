@@ -11,7 +11,8 @@ Nym has no free or trial path today: a WireGuard (dVPN / fast-mode) client can o
 - Enforce a shared, bidirectional bandwidth cap for all free users on a gateway via Linux traffic control (`tc`, HTB pool) on the `nymwg` interface. Always admit free users and degrade under load rather than rejecting; expose the number of active free users and the pool allowance as metrics so the app can warn users.
 - On exhaustion, move the peer into a walled garden instead of disconnecting: drop it from the rate-limit pool (full speed) and confine its egress to a purchase-endpoint allowlist via `iptables`, integrated with the operator's `scripts/nym-node-setup/network-tunnel-manager.sh` chain model. Full speed is safe because the allowlist confines it to the checkout path.
 - Add a lean test harness: Linux network-namespace integration tests for the enforcement datapath, plus a single-real-gateway integration setup that points an unbonded node at mainnet.
-- Reduced unlinkability for the free tier only is an accepted, scoped trade-off; paid tiers are unaffected. Per-user issuance rate-limiting is enforced externally at the VPN-API and is out of scope here.
+- Reduced unlinkability for the free tier only is an accepted, scoped trade-off; paid tiers are unaffected. Issuance-side per-user rate-limiting is enforced externally at the VPN-API; as defense-in-depth the entry gateway ALSO applies a per-IP daily cap on free-tier tokens at redemption.
+- The token carries an explicit `purpose` claim (new-user trial vs subscription renewal): a new-user token grants the free allowance and is IP-limited, whereas a renewal token grants no free bandwidth, is confined straight to the purchase walled garden, and is not IP-limited. The claim is required now (WIP, nothing deployed) so the format is fixed; the renewal-to-garden behavior lands with the walled garden and until then renewals are rejected.
 
 ## Capabilities
 
@@ -34,4 +35,4 @@ Nym has no free or trial path today: a WireGuard (dVPN / fast-mode) client can o
 - **Operator tooling:** `scripts/nym-node-setup/network-tunnel-manager.sh` gains a pre-created empty `NYM-GARDEN` chain plus jump scaffolding; the node manages that chain's per-peer contents at runtime.
 - **New dependencies:** none beyond shelling out to `tc`/`iptables`, already present via `iproute2` alongside the existing `ip` calls.
 - **Platform:** enforcement (tc/iptables, kernel forwarding) is Linux-only; the credential and metering logic is cross-platform.
-- **Out of scope:** VPN-API token issuance and its per-IP rate-limiting (separate repo); the seamless in-session upgrade (v2); fixing the currently-broken full localnet (the mixnet contract now requires a node-families address the orchestrator does not deploy).
+- **Out of scope:** VPN-API token issuance and its issuance-side per-IP limiting (separate repo; the gateway's redemption-side per-IP cap IS in scope); the seamless in-session upgrade (v2); fixing the currently-broken full localnet (the mixnet contract now requires a node-families address the orchestrator does not deploy).

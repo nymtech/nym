@@ -3,7 +3,7 @@
 
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    RetrievedTicketbook, StoredFreeTrialToken,
 };
 use async_trait::async_trait;
 use nym_compact_ecash::VerificationKeyAuth;
@@ -12,7 +12,7 @@ use nym_credentials::ecash::bandwidth::serialiser::signatures::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
 };
 use nym_credentials::IssuedTicketBook;
-use nym_ecash_time::Date;
+use nym_ecash_time::{Date, OffsetDateTime};
 use std::error::Error;
 
 pub use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
@@ -121,4 +121,19 @@ pub trait Storage: Clone + Send + Sync {
     async fn clear_ticketbooks(&self) -> Result<(), Self::StorageError>;
 
     async fn clear_emergency_credentials(&self) -> Result<(), Self::StorageError>;
+
+    /// Store the current free-tier capability token, replacing any previous one.
+    async fn store_free_trial_token(
+        &self,
+        token: &str,
+        expiration: OffsetDateTime,
+    ) -> Result<(), Self::StorageError>;
+
+    /// Retrieve the current free-tier token, if any. Expired tokens are never returned.
+    async fn get_free_trial_token(
+        &self,
+    ) -> Result<Option<StoredFreeTrialToken>, Self::StorageError>;
+
+    /// Remove any stored free-tier token.
+    async fn clear_free_trial_token(&self) -> Result<(), Self::StorageError>;
 }

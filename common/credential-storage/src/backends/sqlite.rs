@@ -3,10 +3,10 @@
 
 use crate::models::{
     BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
+    RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey, StoredFreeTrialToken,
     StoredIssuedTicketbook,
 };
-use nym_ecash_time::Date;
+use nym_ecash_time::{Date, OffsetDateTime};
 use nym_sqlx_pool_guard::SqlitePoolGuard;
 use sqlx::{Executor, Sqlite, Transaction};
 
@@ -342,6 +342,48 @@ impl SqliteEcashTicketbookManager {
 
     pub(crate) async fn clear_emergency_credentials(&self) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM emergency_credential")
+            .execute(&*self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn store_free_trial_token(
+        &self,
+        token: &str,
+        expiration: OffsetDateTime,
+    ) -> Result<(), sqlx::Error> {
+        // single current token: fixed row id, replaced on each store
+        sqlx::query!(
+            r#"
+                INSERT OR REPLACE INTO free_trial_token (id, token, expiration)
+                VALUES (1, ?, ?)
+            "#,
+            token,
+            expiration,
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn get_free_trial_token(
+        &self,
+    ) -> Result<Option<StoredFreeTrialToken>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+                SELECT token, expiration
+                FROM free_trial_token
+                WHERE expiration > CURRENT_TIMESTAMP
+                ORDER BY expiration DESC
+                LIMIT 1
+            "#,
+        )
+        .fetch_optional(&*self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn clear_free_trial_token(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM free_trial_token")
             .execute(&*self.connection_pool)
             .await?;
         Ok(())

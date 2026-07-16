@@ -14,31 +14,26 @@ use std::time::Duration;
 /// `nym-upgrade-mode-check`; both features verify credential-proxy-signed JWTs.
 pub const CREDENTIAL_PROXY_JWT_ISSUER: &str = "nym-credential-proxy";
 
-/// Marker carried in a free-tier token's `tier` claim.
-pub const FREE_TIER_JWT_TIER: &str = "free";
+/// Why a free-tier token was issued: a new user trialing (granted the free
+/// allowance) vs a returning user renewing (no free bandwidth, purchase-only).
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FreeTierPurpose {
+    NewUser,
+    Renewal,
+}
 
-/// Custom claims of a free-tier capability JWT. The token is a capability
-/// marker only; the allowance is a network constant looked up at redemption.
+/// Custom claims of a free-tier capability JWT. A capability marker only; the
+/// allowance is a network constant looked up at redemption.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FreeTierClaims {
-    pub tier: String,
+    /// Why this token was issued; always set explicitly by the issuer.
+    pub purpose: FreeTierPurpose,
 }
 
 impl FreeTierClaims {
-    pub fn new() -> Self {
-        FreeTierClaims {
-            tier: FREE_TIER_JWT_TIER.to_string(),
-        }
-    }
-
-    pub fn is_free_tier(&self) -> bool {
-        self.tier == FREE_TIER_JWT_TIER
-    }
-}
-
-impl Default for FreeTierClaims {
-    fn default() -> Self {
-        Self::new()
+    pub fn new(purpose: FreeTierPurpose) -> Self {
+        FreeTierClaims { purpose }
     }
 }
 
@@ -48,8 +43,9 @@ pub fn generate_free_tier_jwt(
     validity: Duration,
     keys: &ed25519::KeyPair,
     issuer: Option<&str>,
+    purpose: FreeTierPurpose,
 ) -> String {
-    let claim = Claims::with_custom_claims(FreeTierClaims::new(), validity.into());
+    let claim = Claims::with_custom_claims(FreeTierClaims::new(purpose), validity.into());
     let mut claim = if let Some(issuer) = issuer {
         claim.with_issuer(issuer)
     } else {
@@ -70,7 +66,7 @@ pub fn generate_free_tier_jwt(
 
 /// Verify a free-tier JWT offline against a configured attester public key.
 /// No network, no attestation, no delegation: the token must be signed
-/// directly by `attester_public_key`, and carry the free-tier marker.
+/// directly by `attester_public_key`.
 pub fn validate_free_tier_jwt(
     token: &str,
     attester_public_key: &ed25519::PublicKey,
@@ -86,10 +82,6 @@ pub fn validate_free_tier_jwt(
         .verify_token::<FreeTierClaims>(token, Some(opts))
         .map_err(|source| FreeTierCheckError::JwtVerificationFailure { source })?
         .custom;
-
-    if !claims.is_free_tier() {
-        return Err(FreeTierCheckError::UnexpectedTier);
-    }
 
     Ok(claims)
 }
@@ -108,7 +100,12 @@ mod tests {
     fn valid_token_accepted_with_configured_key() {
         let mut rng = deterministic_rng();
         let attester = ed25519::KeyPair::new(&mut rng);
-        let jwt = generate_free_tier_jwt(hour(), &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER));
+        let jwt = generate_free_tier_jwt(
+            hour(),
+            &attester,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::NewUser,
+        );
 
         let claims = validate_free_tier_jwt(
             &jwt,
@@ -116,7 +113,7 @@ mod tests {
             Some(CREDENTIAL_PROXY_JWT_ISSUER),
         )
         .expect("valid free-tier token should verify");
-        assert!(claims.is_free_tier());
+        assert_eq!(claims.purpose, FreeTierPurpose::NewUser);
     }
 
     #[test]
@@ -124,7 +121,12 @@ mod tests {
         let mut rng = deterministic_rng();
         let attester = ed25519::KeyPair::new(&mut rng);
         let impostor = ed25519::KeyPair::new(&mut rng);
-        let jwt = generate_free_tier_jwt(hour(), &impostor, Some(CREDENTIAL_PROXY_JWT_ISSUER));
+        let jwt = generate_free_tier_jwt(
+            hour(),
+            &impostor,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::NewUser,
+        );
 
         assert!(
             validate_free_tier_jwt(
@@ -140,7 +142,12 @@ mod tests {
     fn wrong_issuer_rejected() {
         let mut rng = deterministic_rng();
         let attester = ed25519::KeyPair::new(&mut rng);
-        let jwt = generate_free_tier_jwt(hour(), &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER));
+        let jwt = generate_free_tier_jwt(
+            hour(),
+            &attester,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::NewUser,
+        );
 
         assert!(
             validate_free_tier_jwt(&jwt, attester.public_key(), Some("nym-someone-else")).is_err()
@@ -151,7 +158,12 @@ mod tests {
     fn any_issuer_accepted_when_not_required() {
         let mut rng = deterministic_rng();
         let attester = ed25519::KeyPair::new(&mut rng);
-        let jwt = generate_free_tier_jwt(hour(), &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER));
+        let jwt = generate_free_tier_jwt(
+            hour(),
+            &attester,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::NewUser,
+        );
 
         assert!(validate_free_tier_jwt(&jwt, attester.public_key(), None).is_ok());
     }
@@ -165,9 +177,11 @@ mod tests {
 
         // mint a token that already expired an hour ago
         let now = Clock::now_since_epoch();
-        let mut claim =
-            Claims::with_custom_claims(FreeTierClaims::new(), JwtDuration::from_secs(1))
-                .with_issuer(CREDENTIAL_PROXY_JWT_ISSUER);
+        let mut claim = Claims::with_custom_claims(
+            FreeTierClaims::new(FreeTierPurpose::NewUser),
+            JwtDuration::from_secs(1),
+        )
+        .with_issuer(CREDENTIAL_PROXY_JWT_ISSUER);
         claim.issued_at = Some(now - JwtDuration::from_secs(2 * 60 * 60));
         claim.expires_at = Some(now - JwtDuration::from_secs(60 * 60));
         #[allow(clippy::unwrap_used)]
@@ -181,5 +195,29 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn purpose_roundtrips() {
+        let mut rng = deterministic_rng();
+        let attester = ed25519::KeyPair::new(&mut rng);
+
+        let new_user = generate_free_tier_jwt(
+            hour(),
+            &attester,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::NewUser,
+        );
+        let claims = validate_free_tier_jwt(&new_user, attester.public_key(), None).unwrap();
+        assert_eq!(claims.purpose, FreeTierPurpose::NewUser);
+
+        let renewal = generate_free_tier_jwt(
+            hour(),
+            &attester,
+            Some(CREDENTIAL_PROXY_JWT_ISSUER),
+            FreeTierPurpose::Renewal,
+        );
+        let claims = validate_free_tier_jwt(&renewal, attester.public_key(), None).unwrap();
+        assert_eq!(claims.purpose, FreeTierPurpose::Renewal);
     }
 }

@@ -6,7 +6,7 @@ pub(crate) mod jwt;
 
 pub use error::FreeTierCheckError;
 pub use jwt::{
-    CREDENTIAL_PROXY_JWT_ISSUER, FREE_TIER_JWT_TIER, FreeTierClaims, generate_free_tier_jwt,
+    CREDENTIAL_PROXY_JWT_ISSUER, FreeTierClaims, FreeTierPurpose, generate_free_tier_jwt,
     validate_free_tier_jwt,
 };
 

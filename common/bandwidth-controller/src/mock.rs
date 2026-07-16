@@ -123,6 +123,10 @@ impl BandwidthTicketProvider for MockBandwidthController {
         Ok(None)
     }
 
+    async fn get_free_trial_token(&self) -> Result<Option<String>, BandwidthControllerError> {
+        Ok(None)
+    }
+
     async fn attempt_revert_spending(
         &self,
         _: PreparedCredentialMetadata,

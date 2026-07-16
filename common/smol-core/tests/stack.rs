@@ -118,9 +118,8 @@ async fn tcp_connect_to_closed_port_errors() {
 
     // Either the handshake was refused (Err) or it never completed (timeout).
     // The one thing that must NOT happen is a successful connection.
-    match result {
-        Ok(Ok(_stream)) => panic!("connect unexpectedly succeeded to a closed port"),
-        Ok(Err(_)) | Err(_) => {}
+    if let Ok(Ok(_stream)) = result {
+        panic!("connect unexpectedly succeeded to a closed port")
     }
 }
 

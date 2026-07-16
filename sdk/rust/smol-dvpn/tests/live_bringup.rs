@@ -37,19 +37,21 @@ fn peer_from_hop(hop: &HopConfig) -> PeerConfig {
     }
 }
 
-fn mnemonic() -> bip39::Mnemonic {
+fn mnemonic() -> Option<bip39::Mnemonic> {
     std::env::var("MNEMONIC")
         .or_else(|_| std::env::var("NYX_ACCOUNT_MNEMONIC"))
-        .expect("set MNEMONIC or NYX_ACCOUNT_MNEMONIC")
+        .inspect_err(|_| eprintln!("set MNEMONIC or NYX_ACCOUNT_MNEMONIC to run this test"))
+        .ok()?
         .parse()
         .expect("valid bip39 mnemonic")
+        .map(Some)
 }
 
-async fn new_session(data_dir: &str) -> Session {
+async fn new_session(data_dir: &str) -> Option<Session> {
     let cancel = CancellationToken::new();
-    Session::new(
+    let session = Session::new(
         SessionConfig {
-            mnemonic: mnemonic(),
+            mnemonic: mnemonic()?,
             network: NymNetworkDetails::new_from_env(),
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
             data_path: data_dir.into(),
@@ -58,7 +60,8 @@ async fn new_session(data_dir: &str) -> Session {
         cancel,
     )
     .await
-    .expect("session init")
+    .expect("session init");
+    Some(session)
 }
 
 /// Resolve a hostname through the tunnel, retrying while the WireGuard handshake
@@ -114,7 +117,10 @@ async fn probe_traffic(builder: TunnelBuilder) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn single_hop_bringup_passes_traffic() {
-    let session = new_session("live-single").await;
+    let Some(session) = new_session("live-single").await else {
+        eprintln!("could not run the test without valid session");
+        return;
+    };
     session
         .ensure_ticketbooks(false)
         .await
@@ -131,7 +137,10 @@ async fn single_hop_bringup_passes_traffic() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn two_hop_bringup_passes_traffic() {
-    let session = new_session("live-two").await;
+    let Some(session) = new_session("live-two").await else {
+        eprintln!("could not run the test without valid session");
+        return;
+    };
     session
         .ensure_ticketbooks(true)
         .await

@@ -38,13 +38,13 @@ fn peer_from_hop(hop: &HopConfig) -> PeerConfig {
 }
 
 fn mnemonic() -> Option<bip39::Mnemonic> {
-    std::env::var("MNEMONIC")
+    let mnemonic = std::env::var("MNEMONIC")
         .or_else(|_| std::env::var("NYX_ACCOUNT_MNEMONIC"))
         .inspect_err(|_| eprintln!("set MNEMONIC or NYX_ACCOUNT_MNEMONIC to run this test"))
         .ok()?
         .parse()
-        .expect("valid bip39 mnemonic")
-        .map(Some)
+        .expect("valid bip39 mnemonic");
+    Some(mnemonic)
 }
 
 async fn new_session(data_dir: &str) -> Option<Session> {

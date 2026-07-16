@@ -1106,9 +1106,12 @@ dependencies = [
 
 [[package]]
 name = "bytesize"
-version = "2.3.1"
+version = "2.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bd91ee7b2422bcb158d90ef4d14f75ef67f340943fc4149891dcce8f8b972a3"
+checksum = "3d7c8918969267b2932ffd5655509bbbea0833823058c378876953217f5fc50e"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "camino"
@@ -6125,7 +6128,7 @@ dependencies = [
  "serde",
  "serde_json",
  "slab",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "thiserror 2.0.18",
  "tinyvec",
  "tokio",
@@ -6729,6 +6732,7 @@ dependencies = [
  "nym-upgrade-mode-check",
  "rand 0.8.6",
  "serde",
+ "serde_json",
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "thiserror 2.0.18",
@@ -6916,6 +6920,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-free-tier-check"
+version = "1.21.3"
+dependencies = [
+ "jwt-simple",
+ "nym-crypto",
+ "nym-test-utils",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-gateway"
 version = "1.1.36"
 dependencies = [
@@ -6938,6 +6953,7 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-free-tier-check",
  "nym-gateway-requests",
  "nym-gateway-stats-storage",
  "nym-gateway-storage",
@@ -7787,6 +7803,7 @@ dependencies = [
  "blake2 0.8.1",
  "bloomfilter",
  "bs58",
+ "bytesize",
  "cargo_metadata 0.19.2",
  "celes",
  "cfg-if",

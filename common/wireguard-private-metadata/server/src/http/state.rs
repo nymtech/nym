@@ -107,6 +107,13 @@ impl AppState {
                     upgrade_mode: true,
                 })
             }
+            BandwidthCredential::FreeTier { .. } => {
+                // free-tier tokens are a one-shot registration allowance and
+                // cannot be used to top up bandwidth on an existing peer
+                Err(MetadataError::CredentialVerification {
+                    message: "free-tier tokens cannot be used to top up bandwidth".to_string(),
+                })
+            }
         }
     }
 

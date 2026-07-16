@@ -27,11 +27,15 @@ use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_credential_verification::{
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::{BandwidthCredential, CredentialSpendingData};
+use nym_credentials_interface::{
+    ecash_today, Bandwidth, BandwidthCredential, CredentialSpendingData,
+};
 use nym_crypto::asymmetric::x25519;
+use nym_free_tier_check::{validate_free_tier_jwt, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::PersistedBandwidth;
 use nym_lp_data::packet::header::LpReceiverIndex;
+use nym_network_defaults::constants::FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES;
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
@@ -63,6 +67,9 @@ pub struct PeerRegistrator {
     /// to remotely trigger the recheck
     pub(crate) upgrade_mode: UpgradeModeDetails,
 
+    /// Whether this gateway accepts free-tier capability tokens at registration.
+    pub(crate) free_tier_enabled: bool,
+
     /// Registrations in progress
     pub(crate) pending_registrations: PendingRegistrations,
 }
@@ -72,11 +79,13 @@ impl PeerRegistrator {
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         peer_manager: PeerManager,
         upgrade_mode: UpgradeModeDetails,
+        free_tier_enabled: bool,
     ) -> Self {
         PeerRegistrator {
             ecash_verifier,
             peer_manager,
             upgrade_mode,
+            free_tier_enabled,
             pending_registrations: Default::default(),
         }
     }
@@ -147,6 +156,28 @@ impl PeerRegistrator {
         Ok(verifier.verify().await?)
     }
 
+    /// Seed the fixed free-tier byte allowance for a newly-registered free peer,
+    /// reusing the existing bandwidth accounting (mirrors the testnet free path).
+    async fn seed_free_tier_bandwidth(&self, client_id: i64) -> Result<(), GatewayWireguardError> {
+        let bandwidth = self.credential_storage_preparation(client_id).await?;
+        let client_bandwidth = ClientBandwidth::new(bandwidth.into());
+        let mut manager = BandwidthStorageManager::new(
+            self.ecash_verifier.storage(),
+            client_bandwidth,
+            client_id,
+            BandwidthFlushingBehaviourConfig::default(),
+            true,
+        );
+
+        manager
+            .increase_bandwidth(
+                Bandwidth::new_unchecked(FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES),
+                ecash_today(),
+            )
+            .await?;
+        Ok(())
+    }
+
     async fn handle_final_credential_claim(
         &self,
         claim: BandwidthClaim,
@@ -167,6 +198,19 @@ impl PeerRegistrator {
                 }
 
                 self.upgrade_mode.try_enable_via_received_jwt(token).await?;
+                Ok(())
+            }
+            BandwidthCredential::FreeTier { token } => {
+                if !self.free_tier_enabled {
+                    return Err(GatewayWireguardError::FreeTierDisabled);
+                }
+
+                // verify the capability token offline against the configured
+                // (upgrade-mode) attester key, then seed the free byte allowance
+                let attester = self.upgrade_mode.state().attester_pubkey();
+                validate_free_tier_jwt(&token, &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+
+                self.seed_free_tier_bandwidth(client_id).await?;
                 Ok(())
             }
         }

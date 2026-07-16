@@ -57,6 +57,7 @@ members = [
     "common/ecash-signer-check-types",
     "common/ecash-time",
     "common/exit-policy",
+    "common/free-tier-check",
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",
@@ -243,6 +244,7 @@ bloomfilter = "3.0.1"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
 bytes = "1.11.1"
+bytesize = "2.4.2"
 cargo-edit = "0.13.8"
 cargo_metadata = "0.19.2"
 celes = "2.6.0"
@@ -463,6 +465,7 @@ nym-ecash-signer-check-types = { version = "1.21.3", path = "common/ecash-signer
 nym-ecash-time = { version = "1.21.3", path = "common/ecash-time" }
 nym-exit-policy = { version = "1.21.3", path = "common/exit-policy" }
 nym-ffi-shared = { version = "1.21.3", path = "sdk/ffi/shared" }
+nym-free-tier-check = { version = "1.21.3", path = "common/free-tier-check" }
 nym-gateway-client = { version = "1.21.3", path = "common/client-libs/gateway-client", default-features = false }
 nym-gateway-probe = { version = "1.21.3", path = "nym-gateway-probe" }
 nym-gateway-requests = { version = "1.21.3", path = "common/gateway-requests" }

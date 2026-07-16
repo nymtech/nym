@@ -1,0 +1,27 @@
+[package]
+name = "nym-free-tier-check"
+description = "Offline verification of credential-proxy-signed free-tier capability JWTs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+jwt-simple = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric", "naive_jwt"] }
+
+[dev-dependencies]
+nym-test-utils = { workspace = true }
+nym-crypto = { workspace = true, features = ["rand"] }
+
+[lints]
+workspace = true

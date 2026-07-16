@@ -171,12 +171,11 @@ impl TryFrom<RequestData> for previous::interface::RequestData {
             RequestData::AvailableBandwidth => Ok(Self::AvailableBandwidth(())),
             RequestData::TopUpBandwidth { credential } => match *credential {
                 BandwidthCredential::ZkNym(zk_nym) => Ok(Self::TopUpBandwidth(zk_nym)),
-                BandwidthCredential::UpgradeModeJWT { .. } => {
-                    Err(super::Error::DowngradeNotPossible {
-                        from: VERSION,
-                        to: previous::VERSION,
-                    })
-                }
+                BandwidthCredential::UpgradeModeJWT { .. }
+                | BandwidthCredential::FreeTier { .. } => Err(super::Error::DowngradeNotPossible {
+                    from: VERSION,
+                    to: previous::VERSION,
+                }),
             },
             RequestData::UpgradeModeCheck { .. } => Err(super::Error::DowngradeNotPossible {
                 from: VERSION,

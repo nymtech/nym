@@ -1,10 +1,10 @@
 ## 1. Free-tier credential: wire + gateway seam (v1)
 
-- [ ] 1.1 Add `BandwidthCredential::FreeTier { token: String }` to `common/credentials-interface`; update every match site (`common/wireguard-private-metadata` server/shared, `common/authenticator-requests`, `common/registration`) to handle the new arm
-- [ ] 1.2 Add the `FreeTier` arm to `handle_final_credential_claim` (`gateway/src/node/wireguard/new_peer_registration/mod.rs`): verify the JWT locally via ed25519 against a configured attester public key (mirroring `common/upgrade-mode-check`), skip ecash verification, and seed the free allowance
-- [ ] 1.3 Keep `BandwidthClaim.kind` set to an existing wireguard `TicketType`; confirm `insert_wireguard_peer` persists an ordinary wireguard `ClientType` and nym-api / issuance is untouched
-- [ ] 1.4 Add the free allowance constant and the attester public key to `common/network-defaults`; add node config for the attester url/key
-- [ ] 1.5 Confirm both transports (LP and legacy authenticator-over-mixnet) reach the `FreeTier` arm through the shared `process_new_peer`
+- [x] 1.1 Add `BandwidthCredential::FreeTier { token: String }` to `common/credentials-interface`; update every match site (only 3 exhaustive matches needed arms: gateway `handle_final_credential_claim`, `wireguard-private-metadata` server topup + shared v2 downgrade; `authenticator-requests`/`registration` use `.into_zk_nym()` wildcard, no change). Wire-format round-trip test added.
+- [x] 1.2 Add the `FreeTier` arm to `handle_final_credential_claim` (`gateway/src/node/wireguard/new_peer_registration/mod.rs`): offline ed25519 JWT verification via new `nym-free-tier-check` crate against the reused (upgrade-mode) attester key, skip ecash verification, seed the free allowance (`seed_free_tier_bandwidth`, mirrors the testnet free-bandwidth path). Gated on `free_tier_enabled`.
+- [x] 1.3 Keep `BandwidthClaim.kind` set to an existing wireguard `TicketType`; confirmed `insert_wireguard_peer` persists an ordinary wireguard `ClientType` (kind flows through `process_new_peer` unchanged) and no new `TicketType` variant was added, so nym-api / issuance is untouched
+- [x] 1.4 Added the free allowance constant (`FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES`, 100 MB placeholder) to `common/network-defaults`. Attester key REUSED from `upgrade_mode.attester_public_key` (same-signer decision) rather than a separate key/url. Added a nym-node `free_tier` config section (`enabled` + `debug.pool_bandwidth_per_second`, human-readable via bytesize, e.g. "10 MB").
+- [x] 1.5 Confirmed both transports (LP `on_final_lp_request` and legacy `on_final_authenticator_request`) funnel through the shared `process_new_peer` -> `handle_final_credential_claim`, so the `FreeTier` arm covers both
 
 ## 2. Client-side free-tier credential (`common/bandwidth-controller`) (v1)
 

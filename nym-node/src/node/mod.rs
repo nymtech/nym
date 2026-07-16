@@ -767,7 +767,10 @@ impl NymNode {
         }
 
         let wg_peer_registrator = gateway_tasks_builder
-            .build_peer_registrator(upgrade_mode_common_state.clone())
+            .build_peer_registrator(
+                upgrade_mode_common_state.clone(),
+                self.config.gateway_tasks.free_tier.enabled,
+            )
             .await?;
 
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {

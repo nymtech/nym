@@ -467,6 +467,7 @@ mod tests {
                 ecash_manager.clone(),
                 peer_manager.clone(),
                 upgrade_mode_details,
+                false,
             );
 
             TestSetup {

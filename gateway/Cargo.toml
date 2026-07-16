@@ -57,6 +57,7 @@ nym-gateway-storage = { workspace = true }
 nym-gateway-stats-storage = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-mixnet-client = { workspace = true }
+nym-free-tier-check = { workspace = true }
 nym-network-defaults = { workspace = true }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-sdk = { workspace = true }

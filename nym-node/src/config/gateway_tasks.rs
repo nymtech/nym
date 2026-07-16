@@ -4,6 +4,7 @@
 use crate::config::helpers::log_error_and_return;
 use crate::config::persistence::GatewayTasksPaths;
 use crate::error::NymNodeError;
+use bytesize::ByteSize;
 use nym_config::defaults::{
     DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS, mainnet, var_names,
 };
@@ -47,7 +48,45 @@ pub struct GatewayTasksConfig {
     pub upgrade_mode: UpgradeModeWatcher,
 
     #[serde(default)]
+    pub free_tier: FreeTier,
+
+    #[serde(default)]
     pub debug: Debug,
+}
+
+/// Configuration of the free tier: rate-limited, walled-garden access granted
+/// via a credential-proxy-signed capability JWT. Off unless enabled. The
+/// verification key is reused from [`UpgradeModeWatcher::attester_public_key`].
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+pub struct FreeTier {
+    /// Whether this gateway accepts free-tier capability tokens at registration.
+    pub enabled: bool,
+
+    #[serde(default)]
+    pub debug: FreeTierDebug,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(default)]
+pub struct FreeTierDebug {
+    /// Aggregate bandwidth dedicated to the shared free-tier rate-limit pool,
+    /// per second (e.g. "10 MiB"). All free users share this ceiling.
+    pub pool_bandwidth_per_second: ByteSize,
+}
+
+impl FreeTierDebug {
+    // placeholder pending tuning
+    pub const DEFAULT_POOL_BANDWIDTH_PER_SECOND: ByteSize = ByteSize::mib(10);
+}
+
+impl Default for FreeTierDebug {
+    fn default() -> Self {
+        FreeTierDebug {
+            pool_bandwidth_per_second: Self::DEFAULT_POOL_BANDWIDTH_PER_SECOND,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -234,6 +273,7 @@ impl GatewayTasksConfig {
             announce_ws_port: None,
             announce_wss_port: None,
             upgrade_mode: UpgradeModeWatcher::new()?,
+            free_tier: FreeTier::default(),
             debug: Default::default(),
         })
     }
@@ -371,5 +411,34 @@ impl Default for UpgradeModeWatcherDebug {
             regular_polling_interval: Self::DEFAULT_REGULAR_POLLING_INTERVAL,
             expedited_poll_interval: Self::DEFAULT_EXPEDITED_POLL_INTERVAL,
         }
+    }
+}
+
+#[cfg(test)]
+mod free_tier_config_tests {
+    use super::*;
+
+    #[test]
+    fn pool_bandwidth_parses_human_readable() {
+        let parsed: FreeTierDebug =
+            toml::from_str(r#"pool_bandwidth_per_second = "10 MB""#).unwrap();
+        assert_eq!(parsed.pool_bandwidth_per_second, ByteSize::mb(10));
+    }
+
+    #[test]
+    fn pool_bandwidth_accepts_raw_byte_count() {
+        let parsed: FreeTierDebug = toml::from_str("pool_bandwidth_per_second = 10000000").unwrap();
+        assert_eq!(parsed.pool_bandwidth_per_second, ByteSize::mb(10));
+    }
+
+    #[test]
+    fn free_tier_debug_default_roundtrips() {
+        let original = FreeTierDebug::default();
+        let serialized = toml::to_string(&original).unwrap();
+        let recovered: FreeTierDebug = toml::from_str(&serialized).unwrap();
+        assert_eq!(
+            recovered.pool_bandwidth_per_second,
+            original.pool_bandwidth_per_second
+        );
     }
 }

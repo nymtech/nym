@@ -6,6 +6,10 @@ pub use deprecated::*;
 pub use nyx::*;
 pub use wireguard::*;
 
+/// Byte allowance granted to a single free-tier session, looked up at redemption
+/// (not encoded in the token). Placeholder pending tuning.
+pub const FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES: u64 = 100 * 1000 * 1000; // 100 MB
+
 // all of those should be obtained via nym-node, et al. crate instead
 pub mod deprecated {
     pub const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;

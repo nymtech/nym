@@ -665,6 +665,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
                         .expedited_poll_interval,
                 },
             },
+            free_tier: Default::default(),
             debug: gateway_tasks::Debug {
                 message_retrieval_limit: old_cfg.gateway_tasks.debug.message_retrieval_limit,
                 maximum_open_connections: old_cfg.gateway_tasks.debug.maximum_open_connections,

@@ -36,6 +36,12 @@ pub enum GatewayWireguardError {
     #[error("credential verification failed: {0}")]
     CredentialVerificationError(#[from] nym_credential_verification::Error),
 
+    #[error("free tier is not enabled on this gateway")]
+    FreeTierDisabled,
+
+    #[error("provided free-tier token is invalid: {0}")]
+    InvalidFreeTierToken(#[from] nym_free_tier_check::FreeTierCheckError),
+
     #[error(transparent)]
     GatewayStorageError(#[from] nym_gateway_storage::error::GatewayStorageError),
 

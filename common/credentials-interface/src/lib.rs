@@ -43,8 +43,14 @@ pub const DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD: i64 =
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum BandwidthCredential {
+    /// ZK-Nym credential
     ZkNym(Box<CredentialSpendingData>),
+
+    /// Credential-proxy-signed upgrade mode attestation JWT, verified locally at the gateway.
     UpgradeModeJWT { token: String },
+
+    /// Credential-proxy-signed free-tier capability JWT, verified locally at the gateway.
+    FreeTier { token: String },
 }
 
 impl BandwidthCredential {
@@ -398,5 +404,24 @@ impl Bandwidth {
 
     pub fn value(&self) -> u64 {
         self.value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn free_tier_variant_wire_format_roundtrips() {
+        let cred = BandwidthCredential::FreeTier {
+            token: "some.jwt.token".to_string(),
+        };
+
+        // pin the externally-tagged shape the transports carry
+        let json = serde_json::to_string(&cred).unwrap();
+        assert_eq!(json, r#"{"FreeTier":{"token":"some.jwt.token"}}"#);
+
+        let recovered: BandwidthCredential = serde_json::from_str(&json).unwrap();
+        assert_eq!(cred, recovered);
     }
 }

@@ -30,6 +30,7 @@ clap = { workspace = true, features = ["cargo", "env"] }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
+bytesize = { workspace = true, features = ["serde"] }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }

@@ -148,10 +148,18 @@ impl MixnetBasedRegistrationClient {
             self.config.exit.node.ip_address,
         );
 
-        let entry_fut = entry_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardEntry);
-        let exit_fut = exit_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardExit);
+        // TODO(free-tier): thread a caller-sourced `free_tier` flag here; the
+        // legacy mixnet client is paid-only for now.
+        let entry_fut = entry_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            TicketType::V1WireguardEntry,
+            false,
+        );
+        let exit_fut = exit_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            TicketType::V1WireguardExit,
+            false,
+        );
 
         let (entry, exit) = match Box::pin(
             self.cancel_token

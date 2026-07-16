@@ -224,6 +224,8 @@ mod tests {
                 ecash_verifier.clone(),
                 PeerManager::new(wireguard_data),
                 upgrade_mode_details,
+                // free tier disabled in these paid-path registration tests
+                false,
             );
 
             let lp_state = SharedLpClientControlState {
@@ -463,6 +465,7 @@ mod tests {
                         gateway_identity,
                         &client_data.ticket_provider,
                         TicketType::V1WireguardEntry,
+                        false,
                     )
                     .timeboxed()
                     .await??;
@@ -534,6 +537,7 @@ mod tests {
                     gateway_identity,
                     &client_data.ticket_provider,
                     TicketType::V1WireguardEntry,
+                    false,
                 )
                 .timeboxed()
                 .await?
@@ -703,6 +707,7 @@ mod tests {
                     exit.base.identity.public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardExit,
+                    false,
                 )
                 .timeboxed()
                 .await??;
@@ -715,6 +720,7 @@ mod tests {
                     entry.base.identity.public_key(),
                     &client_data.ticket_provider,
                     TicketType::V1WireguardEntry,
+                    false,
                 )
                 .timeboxed()
                 .await??;

@@ -223,6 +223,8 @@ pub async fn lp_registration_probe(
             &gateway_identity,
             bandwidth_controller,
             ticket_type,
+            // paid probe; free-tier not exercised here
+            false,
         ),
     )
     .await

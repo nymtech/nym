@@ -49,6 +49,15 @@ pub enum AuthenticationClientError {
         source: nym_bandwidth_controller::error::BandwidthControllerError,
     },
 
+    #[error("failed to retrieve free-tier token")]
+    FreeTierToken {
+        #[source]
+        source: nym_bandwidth_controller::error::BandwidthControllerError,
+    },
+
+    #[error("free-tier registration was requested but no valid free-tier token is available")]
+    NoFreeTierToken,
+
     #[error("unknown authenticator version number")]
     UnsupportedAuthenticatorVersion,
 

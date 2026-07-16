@@ -126,7 +126,7 @@ async fn single_hop_bringup_passes_traffic() {
         .await
         .expect("issue ticketbooks");
     let reg: Registration = session
-        .register_single_hop(&GatewaySpec::Random)
+        .register_single_hop(&GatewaySpec::Random, false)
         .await
         .expect("single-hop registration");
 
@@ -146,7 +146,7 @@ async fn two_hop_bringup_passes_traffic() {
         .await
         .expect("issue ticketbooks");
     let reg: Registration = session
-        .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random)
+        .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random, false)
         .await
         .expect("two-hop registration");
 

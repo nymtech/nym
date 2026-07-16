@@ -49,3 +49,12 @@ When a peer that is in the garden or the free pool presents a valid paid ecash c
 
 - **WHEN** a formerly-free peer presents a valid ecash credential
 - **THEN** its garden rule and rate limit are removed and it is treated as a paid peer with unrestricted egress
+
+### Requirement: Returning garden peer's registration reflects restricted access
+
+When a free peer whose allowance is exhausted (in the walled garden) re-registers over the LP transport, the gateway SHALL return the peer's WireGuard configuration together with a restricted / purchase-only status marker, rather than a plain unrestricted completed registration. This lets the client keep a working tunnel to reach the purchase endpoint while surfacing that full access requires purchase. The marker mirrors the existing upgrade-mode flag on the success response; it MUST NOT be conveyed via `RequiresCredential` (the peer already holds a working, if restricted, session that it needs for checkout).
+
+#### Scenario: Re-registration of an exhausted free peer signals restriction
+
+- **WHEN** a free peer whose allowance is exhausted re-registers over the LP transport
+- **THEN** the gateway returns the peer's config with a restricted / purchase-only marker set, not an unrestricted completed registration

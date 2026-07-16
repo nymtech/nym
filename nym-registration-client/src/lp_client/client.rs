@@ -11,7 +11,7 @@ use crate::lp_client::helpers::{
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
-use nym_credentials_interface::TicketType;
+use nym_credentials_interface::{BandwidthCredential, TicketType};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::Ciphersuite;
 use nym_lp::LpTransportSession;
@@ -22,7 +22,7 @@ use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, header::LpReceiverIndex, version};
 use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
 use nym_registration_common::{
-    LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
+    BandwidthClaim, LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
@@ -435,35 +435,51 @@ where
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
+        free_tier: bool,
     ) -> Result<WireguardRegistrationData> {
-        tracing::debug!("Acquiring bandwidth credential for registration");
-
-        // 1. Get bandwidth credential from controller
-        let credential_spending = bandwidth_provider
-            .get_ecash_ticket(
-                ticket_type,
-                gateway_identity,
-                DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc(),
-            )
-            .await
-            .map_err(|e| {
-                LpClientError::SendRegistrationRequest(format!(
-                    "Failed to acquire bandwidth credential: {e}",
-                ))
+        // Build the bandwidth claim. An explicit free-tier session presents the
+        // stored free-trial token; otherwise we spend a paid ecash ticket.
+        // (Upgrade mode is not supported on the LP path.)
+        let credential = if free_tier {
+            tracing::debug!("Acquiring free-tier token for registration");
+            let token = bandwidth_provider
+                .get_free_trial_token()
+                .await
+                .map_err(|e| {
+                    LpClientError::SendRegistrationRequest(format!(
+                        "Failed to acquire free-tier token: {e}",
+                    ))
+                })?
+                .ok_or(LpClientError::NoFreeTierToken)?;
+            BandwidthClaim {
+                credential: BandwidthCredential::FreeTier { token },
+                kind: ticket_type,
+            }
+        } else {
+            tracing::debug!("Acquiring bandwidth credential for registration");
+            let credential_spending = bandwidth_provider
+                .get_ecash_ticket(
+                    ticket_type,
+                    gateway_identity,
+                    DEFAULT_TICKETS_TO_SPEND,
+                    OffsetDateTime::now_utc(),
+                )
+                .await
+                .map_err(|e| {
+                    LpClientError::SendRegistrationRequest(format!(
+                        "Failed to acquire bandwidth credential: {e}",
+                    ))
+                })?
+                .ok_or(LpClientError::NoTicketsAvailable {
+                    ticketbook_type: ticket_type,
+                })?
+                .data;
+            credential_spending.try_into().map_err(|err| {
+                LpClientError::Other(format!("malformed stored credential: {err}"))
             })?
-            .ok_or(LpClientError::NoTicketsAvailable {
-                ticketbook_type: ticket_type,
-            })?
-            .data;
+        };
 
         // 2. Build registration request
-
-        // for now we do NOT support upgrade mode (yeah... no.)
-        let credential = credential_spending
-            .try_into()
-            .map_err(|err| LpClientError::Other(format!("malformed stored credential: {err}")))?;
-
         let request = LpRegistrationRequest::new_finalise_dvpn(credential);
 
         tracing::trace!("Built dVPN registration finalisation request");
@@ -543,6 +559,7 @@ where
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
         ticket_type: TicketType,
+        free_tier: bool,
     ) -> Result<WireguardConfiguration>
     where
         R: RngCore + CryptoRng,
@@ -595,8 +612,13 @@ where
                 // we're registering for the first time with this gateway - we need to attach a credential
 
                 // 8. retrieve credential from the controller
-                self.finalise_dvpn_registration(*gateway_identity, bandwidth_provider, ticket_type)
-                    .await?
+                self.finalise_dvpn_registration(
+                    *gateway_identity,
+                    bandwidth_provider,
+                    ticket_type,
+                    free_tier,
+                )
+                .await?
             }
         };
 
@@ -683,12 +705,15 @@ where
             }));
         }
 
+        // TODO(free-tier): thread a caller-sourced `free_tier` flag through this
+        // wrapper once the higher layers expose it; paid-only for now.
         self.register_dvpn(
             rng,
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
             ticket_type,
+            false,
         )
         .await
         .inspect_err(|e| tracing::warn!("Registration failed: {e}"))

@@ -87,7 +87,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|e| format!("ticketbook issuance: {e}"))?;
     let registration = session
-        .register_single_hop(&gateway)
+        .register_single_hop(&gateway, false)
         .await
         .map_err(|e| format!("registration: {e}"))?;
 

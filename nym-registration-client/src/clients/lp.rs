@@ -111,6 +111,9 @@ impl LpBasedRegistrationClient {
                 &self.config.exit.node.identity,
                 &*self.bandwidth_provider,
                 TicketType::V1WireguardExit,
+                // TODO(free-tier): thread a caller-sourced `free_tier` flag here
+                // (paired with STEP 3); paid-only for now.
+                false,
             )
             .await
             .map_err(|source| RegistrationClientError::ExitGatewayRegisterLp {
@@ -130,6 +133,9 @@ impl LpBasedRegistrationClient {
                 &self.config.entry.node.identity,
                 &*self.bandwidth_provider,
                 TicketType::V1WireguardEntry,
+                // TODO(free-tier): thread a caller-sourced `free_tier` flag here
+                // (and into the STEP-2 nested/exit registration); paid-only for now.
+                false,
             )
             .await
             .map_err(|source| RegistrationClientError::EntryGatewayRegisterLp {

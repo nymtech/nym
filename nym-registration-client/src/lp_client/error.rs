@@ -55,6 +55,9 @@ pub enum LpClientError {
     #[error("No {ticketbook_type} tickets available")]
     NoTicketsAvailable { ticketbook_type: TicketType },
 
+    #[error("free-tier registration was requested but no valid free-tier token is available")]
+    NoFreeTierToken,
+
     /// Failed to send registration request
     #[error("Failed to send registration request: {0}")]
     SendRegistrationRequest(String),

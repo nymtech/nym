@@ -211,6 +211,7 @@ impl AuthenticatorClient {
         &self,
         bandwidth_provider: &dyn BandwidthTicketProvider,
         upgrade_mode_enabled: bool,
+        free_tier: bool,
         ticketbook_type: TicketType,
     ) -> Result<BandwidthClaim> {
         if upgrade_mode_enabled {
@@ -232,6 +233,20 @@ impl AuthenticatorClient {
                     });
                 }
             }
+        }
+
+        // explicit free-tier session: present the stored free-trial token
+        // (never auto-presented just because one happens to be stored)
+        if free_tier {
+            let token = bandwidth_provider
+                .get_free_trial_token()
+                .await
+                .map_err(|source| AuthenticationClientError::FreeTierToken { source })?
+                .ok_or(AuthenticationClientError::NoFreeTierToken)?;
+            return Ok(BandwidthClaim {
+                credential: BandwidthCredential::FreeTier { token },
+                kind: ticketbook_type,
+            });
         }
 
         let credential = bandwidth_provider
@@ -264,6 +279,7 @@ impl AuthenticatorClient {
         &mut self,
         bandwidth_provider: &dyn BandwidthTicketProvider,
         ticketbook_type: TicketType,
+        free_tier: bool,
     ) -> std::result::Result<WireguardConfiguration, RegistrationError> {
         debug!("Registering with the wg gateway...");
         let pub_key = self.peer_public_key();
@@ -320,6 +336,7 @@ impl AuthenticatorClient {
                     .produce_bandwidth_claim(
                         bandwidth_provider,
                         upgrade_mode_enabled,
+                        free_tier,
                         ticketbook_type,
                     )
                     .await

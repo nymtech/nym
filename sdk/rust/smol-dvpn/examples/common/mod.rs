@@ -231,11 +231,15 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
 pub async fn register(session: &Session, cli: &Cli) -> Result<Registration, BoxError> {
     session.ensure_ticketbooks(cli.two_hop).await?;
     let reg = if !cli.two_hop {
-        session.register_single_hop(&cli.entry).await?
+        session.register_single_hop(&cli.entry, false).await?
     } else if cli.quic {
-        session.register_two_hop_quic(&cli.entry, &cli.exit).await?
+        session
+            .register_two_hop_quic(&cli.entry, &cli.exit, false)
+            .await?
     } else {
-        session.register_two_hop(&cli.entry, &cli.exit).await?
+        session
+            .register_two_hop(&cli.entry, &cli.exit, false)
+            .await?
     };
     Ok(reg)
 }

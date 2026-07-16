@@ -15,7 +15,7 @@ use crate::mixnet::{
     LpMixnetRegistrationResponseMessageContent,
 };
 use crate::serialisation::{BincodeError, BincodeOptions, lp_bincode_serializer};
-use nym_authenticator_requests::models::BandwidthClaim;
+pub use nym_authenticator_requests::models::BandwidthClaim;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 

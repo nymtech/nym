@@ -267,24 +267,26 @@ impl Session {
     pub async fn register_single_hop(
         &self,
         gateway: &GatewaySpec,
+        free_tier: bool,
     ) -> Result<Registration, SessionError> {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.register_single_inner(gateway) => res,
+            res = self.register_single_inner(gateway, free_tier) => res,
         }
     }
 
     async fn register_single_inner(
         &self,
         gateway: &GatewaySpec,
+        free_tier: bool,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(false).await?;
         let selected = self
             .select_inner(gateway, WgRole::Entry, false, None)
             .await?;
         let hop = self
-            .register_hop(&selected, TicketType::V1WireguardEntry, None)
+            .register_hop(&selected, TicketType::V1WireguardEntry, None, free_tier)
             .await?;
         Ok(Registration {
             entry: hop,
@@ -298,11 +300,12 @@ impl Session {
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
+        free_tier: bool,
     ) -> Result<Registration, SessionError> {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.register_two_hop_inner(entry, exit, false) => res,
+            res = self.register_two_hop_inner(entry, exit, false, free_tier) => res,
         }
     }
 
@@ -315,11 +318,12 @@ impl Session {
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
+        free_tier: bool,
     ) -> Result<Registration, SessionError> {
         tokio::select! {
             biased;
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
-            res = self.register_two_hop_inner(entry, exit, true) => res,
+            res = self.register_two_hop_inner(entry, exit, true, free_tier) => res,
         }
     }
 
@@ -328,6 +332,7 @@ impl Session {
         entry: &GatewaySpec,
         exit: &GatewaySpec,
         entry_quic: bool,
+        free_tier: bool,
     ) -> Result<Registration, SessionError> {
         self.ensure_inner(true).await?;
         let entry_gw = self
@@ -382,6 +387,7 @@ impl Session {
                 &exit_gw.identity,
                 &self.controller,
                 TicketType::V1WireguardExit,
+                free_tier,
             )
             .await
             .map_err(|source| SessionError::Registration {
@@ -398,6 +404,7 @@ impl Session {
                 &entry_gw.identity,
                 &self.controller,
                 TicketType::V1WireguardEntry,
+                free_tier,
             )
             .await
             .map_err(|source| SessionError::Registration {
@@ -441,6 +448,7 @@ impl Session {
         selected: &SelectedGateway,
         ticket_type: TicketType,
         _forward_via: Option<()>,
+        free_tier: bool,
     ) -> Result<HopConfig, SessionError> {
         let lp = lp_info(selected)?;
         let keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
@@ -470,6 +478,7 @@ impl Session {
                 &selected.identity,
                 &self.controller,
                 ticket_type,
+                free_tier,
             )
             .await
             .map_err(|source| SessionError::Registration {

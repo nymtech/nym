@@ -9,7 +9,7 @@
 //! into `tonic` (`Endpoint::connect_with_connector`) and `hyper-util`'s
 //! `Client`. `reqwest` can be layered on top of the same `hyper` client.
 //!
-//! ```ignore
+//! ```no_run
 //! // tonic (requires the caller's `tonic` dependency):
 //! let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
 //!     .connect_with_connector(tunnel.connector())

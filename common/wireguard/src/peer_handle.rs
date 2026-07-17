@@ -9,10 +9,12 @@ use futures::channel::oneshot;
 use nym_credential_verification::OutOfBandwidthResultExt;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_credential_verification::upgrade_mode::UpgradeModeStatus;
+use nym_network_defaults::constants::FREE_TIER_TRIAL_TIME_CAP;
 use nym_task::ShutdownToken;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::fmt::Display;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, trace, warn};
@@ -48,6 +50,10 @@ pub struct PeerHandle {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
 
+    /// Grant timestamp for a free-tier peer, if this is one. `Some` enables the
+    /// wall-clock session time cap; `None` for paid/upgrade peers (no cap).
+    free_tier_granted_at: Option<OffsetDateTime>,
+
     /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
     /// their bandwidth metered.
     upgrade_mode: UpgradeModeStatus,
@@ -68,6 +74,7 @@ impl PeerHandle {
         bandwidth_storage_manager: SharedBandwidthStorageManager,
         request_tx: mpsc::Sender<PeerControlRequest>,
         upgrade_mode: UpgradeModeStatus,
+        free_tier_granted_at: Option<OffsetDateTime>,
         shutdown_token: &ShutdownToken,
     ) -> Self {
         let timeout_check_interval =
@@ -80,6 +87,7 @@ impl PeerHandle {
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
+            free_tier_granted_at,
             upgrade_mode,
             shutdown_token,
         }
@@ -113,11 +121,31 @@ impl PeerHandle {
         Ok(success)
     }
 
+    /// Whether this peer is a free-tier peer whose wall-clock session time cap has
+    /// elapsed since its grant. Always false for non-free (paid/upgrade) peers.
+    fn free_tier_time_exhausted(&self) -> bool {
+        let Some(granted_at) = self.free_tier_granted_at else {
+            return false;
+        };
+        let elapsed_secs = (OffsetDateTime::now_utc() - granted_at).whole_seconds();
+        elapsed_secs >= FREE_TIER_TRIAL_TIME_CAP.as_secs() as i64
+    }
+
     async fn active_peer(&mut self, kernel_peer: PeerInformation) -> Result<bool, Error> {
         let Some(cached_peer) = self.cached_peer.get_peer() else {
             debug!("{self} not in storage anymore, shutting down handle");
             return Ok(false);
         };
+
+        // free-tier session time cap: wall-clock from the grant, independent of the
+        // byte allowance. Suspended during upgrade mode, like byte metering. v1 action
+        // mirrors byte exhaustion (remove the peer); task 5 will route it to the garden.
+        if !self.upgrade_mode.enabled() && self.free_tier_time_exhausted() {
+            debug!("{self} reached its free-tier session time cap, removing it");
+            let success = self.remove_peer().await?;
+            self.cached_peer.remove_peer();
+            return Ok(!success);
+        }
 
         let spent_bandwidth = kernel_peer.consumed_kernel_bandwidth(&cached_peer);
         self.cached_peer.update(kernel_peer);

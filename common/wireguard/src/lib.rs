@@ -279,7 +279,20 @@ pub async fn start_wireguard(
             )),
             peer.allowed_ips.clone(),
         );
-        peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
+        let free_tier_granted_at = ecash_manager
+            .storage()
+            .get_free_tier_record(&peer.public_key.to_string())
+            .await?
+            .filter(|r| r.is_free)
+            .map(|r| r.granted_at);
+        peer_bandwidth_managers.insert(
+            peer.public_key.clone(),
+            peer_controller::PeerHandleSeed {
+                bandwidth_manager,
+                peer: peer.clone(),
+                free_tier_granted_at,
+            },
+        );
     }
 
     // Initialize IP pool from configuration

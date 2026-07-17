@@ -33,12 +33,22 @@ use std::{
     net::IpAddr,
     time::{Duration, SystemTime},
 };
+use time::OffsetDateTime;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
 
 #[cfg(feature = "mock")]
 pub mod mock;
+
+/// Everything needed to spin up a [`PeerHandle`] for one peer at controller startup:
+/// its bandwidth manager, the peer record, and the free-tier grant timestamp (`Some`
+/// only for a free-tier peer, driving the session time cap).
+pub(crate) struct PeerHandleSeed {
+    pub(crate) bandwidth_manager: SharedBandwidthStorageManager,
+    pub(crate) peer: Peer,
+    pub(crate) free_tier_granted_at: Option<OffsetDateTime>,
+}
 
 /// Registration data for a new peer (without pre-allocated IPs)
 #[derive(Debug, Clone)]
@@ -166,7 +176,7 @@ impl PeerController {
         ip_pool: IpPool,
         wg_api: Arc<dyn WireguardInterfaceApi + Send + Sync>,
         initial_host_information: Host,
-        bw_storage_managers: HashMap<Key, (SharedBandwidthStorageManager, Peer)>,
+        bw_storage_managers: HashMap<Key, PeerHandleSeed>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         upgrade_mode: UpgradeModeStatus,
@@ -177,15 +187,16 @@ impl PeerController {
         let ip_cleanup_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_IP_CLEANUP_INTERVAL));
         let host_information = Arc::new(RwLock::new(initial_host_information));
-        for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
-            let cached_peer_manager = CachedPeerManager::new(peer);
+        for (public_key, seed) in bw_storage_managers.iter() {
+            let cached_peer_manager = CachedPeerManager::new(&seed.peer);
             let mut handle = PeerHandle::new(
                 public_key.clone(),
                 host_information.clone(),
                 cached_peer_manager,
-                bandwidth_storage_manager.clone(),
+                seed.bandwidth_manager.clone(),
                 request_tx.clone(),
                 upgrade_mode.clone(),
+                seed.free_tier_granted_at,
                 &shutdown_token,
             );
             let public_key = public_key.clone();
@@ -196,7 +207,7 @@ impl PeerController {
         }
         let bw_storage_managers = bw_storage_managers
             .into_iter()
-            .map(|(k, (m, _))| (k, m))
+            .map(|(k, seed)| (k, seed.bandwidth_manager))
             .collect();
 
         PeerController {
@@ -296,6 +307,13 @@ impl PeerController {
             peer.allowed_ips.clone(),
         );
         let cached_peer_manager = CachedPeerManager::new(peer);
+        let free_tier_granted_at = self
+            .ecash_verifier
+            .storage()
+            .get_free_tier_record(&peer.public_key.to_string())
+            .await?
+            .filter(|r| r.is_free)
+            .map(|r| r.granted_at);
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
@@ -303,6 +321,7 @@ impl PeerController {
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
             self.upgrade_mode.clone(),
+            free_tier_granted_at,
             &self.shutdown_token,
         );
         self.bw_storage_managers

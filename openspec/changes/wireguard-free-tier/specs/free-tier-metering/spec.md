@@ -25,17 +25,19 @@ A public key whose `granted_at` is less than the claim window (a network constan
 
 ### Requirement: Reconnecting within the trial resumes the same allowance
 
-Reconnecting while still inside the trial window SHALL resume the existing allowance - the remaining bytes and remaining time measured from `granted_at`, not a fresh grant - and SHALL NOT require re-presenting the token, nor be blocked by the single-claim guard (which governs new grants only). Because the record is keyed by public key and outlives the WireGuard peer, a peer idle-reaped mid-trial still resumes on reconnect instead of being forced into a new, guard-blocked claim. Time is wall-clock from `granted_at`; disconnecting does not pause it.
+Reconnecting while the WireGuard peer still exists SHALL resume the existing allowance - the remaining bytes and remaining time measured from `granted_at`, not a fresh grant - and SHALL NOT require re-presenting the token, nor be blocked by the single-claim guard (which governs new grants only). This is provided by the existing-peer short-circuit at registration: a client disconnect does not remove the connectionless server-side peer, and a restart reconciles peers from storage, so the live bandwidth entry is preserved and simply continued. Time is wall-clock from `granted_at`; disconnecting does not pause it.
 
-#### Scenario: Reconnect mid-trial resumes the remaining allowance
+If instead the WireGuard peer row was removed (e.g. exhaustion-removal before the walled garden exists, or a transient error), its remaining bytes CANNOT be recovered - a re-registration allocates a new client id and a fresh, empty bandwidth entry - so the gateway SHALL NOT seed a fresh allowance for a record still inside the claim window: doing so would let a peer refill its allowance by reconnecting after exhaustion. Such a reconnect is refused in v1, and the peer becomes eligible again only once the claim window elapses. Routing these into the walled garden, and restoring genuinely-remaining bytes, are deferred (the latter requires persisting remaining bytes into the record).
 
-- **WHEN** a free peer reconnects while still within its trial window with bytes remaining
+#### Scenario: Reconnect mid-trial resumes the remaining allowance (peer still present)
+
+- **WHEN** a free peer whose WireGuard peer still exists reconnects while within its trial window with bytes remaining
 - **THEN** it resumes with its remaining bytes and time, no fresh allowance is granted, and no token is required
 
-#### Scenario: Idle-reaped peer still resumes within the trial
+#### Scenario: Reconnect after the peer row was removed is not re-granted
 
-- **WHEN** a free peer whose WireGuard peer was reaped reconnects within the trial window and re-presents its token
-- **THEN** the gateway resumes the existing record's remaining allowance rather than treating it as a new (guard-blocked) claim
+- **WHEN** a free peer whose WireGuard peer row was removed re-presents its token while still inside the claim window
+- **THEN** the gateway does not seed a fresh allowance (which would be a reconnect-refill) and the peer becomes eligible again only once the claim window has elapsed
 
 ### Requirement: Volume metering
 

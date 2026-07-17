@@ -1,0 +1,16 @@
+[package]
+name = "nym-free-tier-enforcement"
+description = "Linux datapath enforcement (tc rate-limit pool + iptables walled garden) for the nym-node free tier"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[lints]
+workspace = true

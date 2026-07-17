@@ -16,24 +16,24 @@
 
 ## 3. Free-tier state and metering (v1)
 
-- [ ] 3.1 Add a per-public-key free-tier record to `nym-gateway-storage`: `{ claimed_today, session_start, is_free }`
-- [ ] 3.2 Enforce the daily single-claim guard at registration: a public key that already claimed today does not get a fresh allowance
+- [ ] 3.1 Add a per-public-key free-tier record to `nym-gateway-storage`: `{ last_claimed_at: OffsetDateTime, session_start, is_free }` - store the last claim as an absolute timestamp (NOT a `claimed_today` bool), so the guard reads elapsed time and nothing ever needs a scheduled daily reset. (Consider whether `last_claimed_at` subsumes `session_start`.)
+- [ ] 3.2 Enforce the rolling single-claim guard at registration: reject a fresh allowance when `now - last_claimed_at < claim_window` (network constant, e.g. 24h); otherwise grant and update `last_claimed_at = now`
 - [ ] 3.3 Seed the volume allowance from the network-defaults constant (reuse the existing byte accounting path)
 - [ ] 3.4 Add the session-time clock; check elapsed time at the existing bandwidth-flush cadence (coarse; no sub-second precision)
 - [ ] 3.5 Trigger the exhaustion transition on whichever limit (bytes or time) is reached first
-- [ ] 3.6 Entry-gateway per-IP Sybil filter: count free-tier tokens per client source IP per day and reject new-user tokens over a configurable cap (e.g. 5/day). LP/dVPN transport only (needs the client source IP - verify it is plumbed into the free-tier registration path); exempt `Renewal` tokens
+- [ ] 3.6 Entry-gateway per-IP Sybil filter: count free-tier tokens per client source IP per day and reject new-user tokens over a configurable cap (e.g. 5/day). LP/dVPN transport only (needs the client source IP - verify it is plumbed into the free-tier registration path); exempt `Renewal` tokens. Source IP may be v4 or v6 - count per-`/64` prefix for v6 (a single `/64` defeats per-exact-address limiting)
 
 ## 4. Rate limiting via `tc` (v1)
 
 - [ ] 4.1 Add a traffic-control manager (nym-node) that shells out to `tc`; one-time HTB root + shared free pool on `nymwg` (egress) and the ingress path (police / IFB) for bidirectional shaping
-- [ ] 4.2 Add/remove a peer to/from the pool via a per-peer classify filter keyed on the peer IP
+- [ ] 4.2 Add/remove a peer to/from the pool via a per-peer classify filter keyed on the peer IP - DUAL-STACK: match both the peer's v4 and v6 tunnel address; the off-switch removes both
 - [ ] 4.3 Implement the off-switch: removing a peer's filter drops it to the default unlimited class without disconnecting (reused by garden and upgrade)
 - [ ] 4.4 Node config for the pool size; rebuild pool membership from state on startup
 
 ## 5. Walled garden via `iptables` (v1)
 
-- [ ] 5.1 Extend `scripts/nym-node-setup/network-tunnel-manager.sh` to pre-create an empty `NYM-GARDEN` chain and its jump scaffolding next to `NYM-EXIT`
-- [ ] 5.2 Add a garden manager (nym-node) that inserts/deletes `-s <peerIP> -j NYM-GARDEN` in its own chain only, never touching operator rules
+- [ ] 5.1 Extend `scripts/nym-node-setup/network-tunnel-manager.sh` to pre-create an empty `NYM-GARDEN` chain and its jump scaffolding next to `NYM-EXIT` - in BOTH `iptables` and `ip6tables`
+- [ ] 5.2 Add a garden manager (nym-node) that inserts/deletes `-s <peerIP> -j NYM-GARDEN` in its own chain only, never touching operator rules - DUAL-STACK: rule for both the peer's v4 and v6 tunnel address (iptables + ip6tables); allowlist covers the endpoint's v4 and v6 addresses
 - [ ] 5.3 Node config for the purchase-endpoint allowlist; populate the garden chain's allow/deny logic
 - [ ] 5.4 On exhaustion: leave the tc pool (full speed) and add the peer's garden rule instead of removing the peer
 - [ ] 5.5 Reconcile the garden chain from free-tier state on startup; do not persist the node's rules; verify fail-closed behavior on crash
@@ -49,8 +49,8 @@
 
 ## 7. Test harness (v1, kept lean)
 
-- [ ] 7.1 Layer 0: Linux network-namespace integration test (cargo test, linux + root gated) that applies the tc pool and the garden `iptables` allowlist to a bare `nymwg`-style interface and asserts reachability - baseline reaches the open internet, garden reaches only the allowlisted endpoint
-- [ ] 7.2 Layer 1: exercise the peer-controller lifecycle (register -> free -> garden -> cleared) via the existing `mock` feature (`MockEcashManager`) against a real kernel interface
+- [x] 7.1 Layer 0 DONE: new lean crate `common/free-tier-enforcement` (the future home for the tasks-4/5 managers) with `tests/datapath.rs` - a netns integration test that builds a `node`-forwards-`client` topology (node in its own ns so teardown = delete namespaces), applies the `tc` HTB pool + the `NYM-GARDEN` `iptables` allowlist, and asserts: baseline reaches both endpoints, garden reaches ONLY the allowlisted (purchase) endpoint (other dropped), tc pool present + coexists. Gated by `#[ignore]` AND the `NYM_FREE_TIER_NETNS_TESTS` env var (CI runs `--ignored`, so the env var is the real guard) + a root check. Runner: `netns/{Dockerfile,run.sh,README.md}` (privileged Docker, Apple-`container` fallback). Verified green in a privileged container; self-skips in a CI-style `--ignored` run
+- [ ] 7.2 Layer 1: exercise the peer-controller lifecycle (register -> free -> garden -> cleared) via the existing `mock` feature (`MockEcashManager`) against a real kernel interface. Extend the netns harness to cover IPv6 too (`ip6tables` garden + v6 tc classifier), so the dual-stack enforcement (tasks 4/5) is actually validated, not just the v4 path the 7.1 smoke tests cover
 - [ ] 7.3 Integration: run a single real gateway in a container pointed at mainnet but never bonded; drive `LpRegistrationClient` + `smol-dvpn` `PeerConfig` directly with the node's IP + keys (bypass topology selection); mint test free-tier JWTs signed with a throwaway attester key
 - [ ] 7.4 Keep the harness minimal; document how to run it (container runtime: Apple `container` on macOS, privileged netns on Linux CI)
 

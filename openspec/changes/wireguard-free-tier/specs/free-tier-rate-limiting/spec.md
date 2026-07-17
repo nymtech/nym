@@ -44,3 +44,12 @@ The gateway SHALL expose the number of active free-tier users (pool members) and
 
 - **WHEN** free peers join or leave the pool
 - **THEN** the active-free-user metric reflects the change and the pool allowance metric reports the configured capacity
+
+### Requirement: Rate-limit pool covers both address families
+
+Each free peer holds both an IPv4 and an IPv6 tunnel address. The per-peer classifier that places a peer in the shared pool SHALL match both, and the off-switch SHALL remove both, so a peer is never shaped on one family while unshaped on the other.
+
+#### Scenario: Both families are shaped and released together
+
+- **WHEN** a free peer is added to or removed from the pool
+- **THEN** its IPv4 and IPv6 traffic are shaped (or released) together

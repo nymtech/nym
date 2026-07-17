@@ -31,7 +31,7 @@ sequenceDiagram
     alt public key already claimed free today
         GW-->>App: reject / no fresh quota
     else fresh claim
-        Note over GW: seed allowance from network-defaults constant; record { claimed_today, session_start, is_free }
+        Note over GW: seed allowance from network-defaults constant; record { last_claimed_at, session_start, is_free }
         GW->>ENF: configure peer + add peer IP to the shared tc free-pool
     end
 
@@ -104,7 +104,7 @@ stateDiagram-v2
 
 **D4 - Client side mirrors upgrade mode; `PreparedCredential` is untouched.** Add `NymCredential::FreeTrialToken { jwt, expiration }`, a `get_free_trial_token() -> Option<String>` provider method (and its request/sender plumbing), and a `FreeTrialFetcher` that obtains the token from the VPN-API and stores it via the existing emergency-credential path. `PreparedCredential` is ecash-only (spending data, epoch id, ticketbook metadata, revert semantics) and must not carry a bearer token.
 
-**D5 - Meter by volume and time; single per-public-key free-tier record.** Volume reuses the existing byte accounting seeded from the D2 constant. Time is a new session clock checked at the existing bandwidth-flush cadence (coarse is acceptable; no sub-second precision). One pubkey-keyed record holds `claimed_today` (daily anti-refill), `session_start`/elapsed (time metering), and the `is_free` marker; the daily guard is what makes reuse of a token not refill the allowance.
+**D5 - Meter by volume and time; single per-public-key free-tier record.** Volume reuses the existing byte accounting seeded from the D2 constant. Time is a new session clock checked at the existing bandwidth-flush cadence (coarse is acceptable; no sub-second precision). One pubkey-keyed record holds `last_claimed_at` (an absolute timestamp - the rolling anti-refill guard rejects a fresh allowance when `now - last_claimed_at < window`, evaluated at read so no record ever needs a scheduled daily reset), `session_start`/elapsed (time metering), and the `is_free` marker. Storing a timestamp rather than a `claimed_today` bool also avoids calendar-boundary gaming and keeps calendar-vs-rolling window policy open.
 
 **D6 - Bidirectional shared `tc` pool on `nymwg`.** A single HTB pool caps aggregate free-user bandwidth (a cost backstop and a Sybil blast-radius bound: total free egress cannot exceed the pool no matter how many identities). Free users are always admitted and degrade under load rather than being rejected. The pool membership is a per-peer classify filter; removing it (the off-switch) drops the peer to the default unlimited class without disconnecting - this off-switch is reused by both the garden transition and the paid upgrade.
 
@@ -134,6 +134,6 @@ Additive and gated. New credential arm, new per-public-key state, new enforcemen
 ## Open Questions
 
 - Exact numbers: byte allowance, session-time cap, and pool size (working assumptions ~100 MB / ~10 minutes / ~10 Mbps) are placeholders to be tuned.
-- Token lifetime (`exp`) and how the daily guard interacts with reuse: the per-public-key `claimed_today` record is the chosen guard, but the exact reset boundary and token exp are to be finalized.
+- Token lifetime (`exp`) and the claim-window duration: the guard is a per-public-key `last_claimed_at` timestamp with a rolling `now - last_claimed_at < window` check (no reset boundary); the window length (working assumption 24h) and token `exp` are to be finalized.
 - Purchase allowlist contents and whether a dedicated stable-IP Nym checkout endpoint is provisioned.
 - Metric names and exact exposition location (deferred; the requirement is only that active-free-user count and pool allowance be exposable).

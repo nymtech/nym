@@ -58,3 +58,12 @@ When a free peer whose allowance is exhausted (in the walled garden) re-register
 
 - **WHEN** a free peer whose allowance is exhausted re-registers over the LP transport
 - **THEN** the gateway returns the peer's config with a restricted / purchase-only marker set, not an unrestricted completed registration
+
+### Requirement: Walled garden is dual-stack (IPv4 + IPv6)
+
+Each free peer holds both an IPv4 and an IPv6 tunnel address, so the garden SHALL be enforced in both `iptables` and `ip6tables`: the `NYM-GARDEN` chain and its jump scaffolding exist in both, the node inserts/deletes the peer's rule for BOTH its v4 and v6 tunnel address, and the purchase-endpoint allowlist covers the endpoint's v4 and v6 addresses. A peer confined in one family but reachable on the other has an escape route.
+
+#### Scenario: Garden confines both address families
+
+- **WHEN** a peer is moved into the garden
+- **THEN** its forwarded IPv4 and IPv6 traffic are both confined to the allowlist (rules present in both `iptables` and `ip6tables`)

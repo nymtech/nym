@@ -63,6 +63,12 @@ impl IpTablesFamily {
         self.make_cmd(table, "-A", chain, extra)
     }
 
+    /// Insert at the top of the chain (position 1) - for a rule that must precede
+    /// existing ones, e.g. a DROP-based jump that has to win over operator ACCEPTs.
+    pub(crate) fn insert(&self, table: &str, chain: &str, extra: &[&str]) -> CommandSpec {
+        self.make_cmd(table, "-I", chain, extra)
+    }
+
     pub(crate) fn delete(&self, table: &str, chain: &str, extra: &[&str]) -> CommandSpec {
         self.make_cmd(table, "-D", chain, extra)
     }

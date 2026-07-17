@@ -8,17 +8,19 @@
 //!
 //! Managers emit [`CommandSpec`]s that a [`CommandRunner`] executes - the split keeps
 //! command generation unit-testable without root, while the netns harness validates
-//! the live behaviour. [`RateLimitPool`] lands task 4; the garden manager lands task 5
-//! and reuses the same command/runner/[`PeerAddrs`] seams.
+//! the live behaviour. [`RateLimitPool`] (task 4) and [`WalledGarden`] (task 5) share
+//! the same command/runner/[`PeerAddrs`] seams.
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub use command::{CommandRunner, CommandSpec, SystemCommandRunner};
 pub use error::EnforcementError;
+pub use garden::WalledGarden;
 pub use tc::RateLimitPool;
 
 mod command;
 mod error;
+mod garden;
 mod iptables;
 mod tc;
 

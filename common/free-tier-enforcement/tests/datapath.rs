@@ -11,14 +11,15 @@
 //!   NYM_FREE_TIER_NETNS_TESTS=1 sudo -E cargo test -p nym-free-tier-enforcement \
 //!       --test datapath -- --ignored --nocapture
 
-#![cfg(target_os = "linux")]
+// #![cfg(target_os = "linux")]
 #![allow(clippy::panic)]
 
 use nym_free_tier_enforcement::{
-    CommandRunner, CommandSpec, EnforcementError, PeerAddrs, RateLimitPool,
+    CommandRunner, CommandSpec, EnforcementError, PeerAddrs, RateLimitPool, WalledGarden,
 };
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::process::Command;
+use std::sync::Arc;
 
 /// Run a command, returning its captured output.
 fn sh(args: &[&str]) -> std::process::Output {
@@ -202,7 +203,7 @@ impl CommandRunner for NetnsRunner {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             if ignore_failure {
-                eprintln!("  (ignored) netns `{}`: {stderr}", cmd.rendered());
+                eprintln!("  (ignored) netns `{cmd}`: {stderr}");
                 return Ok(());
             }
             return Err(EnforcementError::CommandFailed {
@@ -509,7 +510,7 @@ fn rate_limit_pool_classifies_download_and_exempts_whitelist() {
         FWD_CLIENT_DEV,
         125_000, // ~1 Mbit/s; irrelevant to a classification (not throughput) check
         vec![FWD_ALLOWED_IP.parse::<IpAddr>().unwrap()],
-        Box::new(NetnsRunner {
+        Arc::new(NetnsRunner {
             ns: NODE.to_string(),
         }),
     );
@@ -546,5 +547,80 @@ fn rate_limit_pool_classifies_download_and_exempts_whitelist() {
     assert!(
         class_sent_bytes(NODE, FWD_CLIENT_DEV, "1:10") > 0,
         "download to a pooled peer from a non-whitelisted endpoint must land in the pool class"
+    );
+}
+
+/// Drive the REAL [`WalledGarden`] against a namespace: a confined peer reaches ONLY
+/// the whitelisted endpoint, and the off-switch (`remove_peer`) restores full reach
+/// without disconnecting. This is the task-4 `forward_garden_allowlist` proof, but via
+/// the actual manager (scaffolding + per-peer membership) rather than hand-run commands.
+#[test]
+#[ignore = "needs linux + root + NET_ADMIN; run via netns/run.sh"]
+fn walled_garden_confines_peer_via_real_manager() {
+    if !netns_tests_enabled() {
+        eprintln!(
+            "SKIP: set NYM_FREE_TIER_NETNS_TESTS=1 (see netns/run.sh) to run the free-tier netns datapath tests"
+        );
+        return;
+    }
+    if !is_root() {
+        eprintln!("SKIP: free-tier netns tests require root (NET_ADMIN)");
+        return;
+    }
+
+    const CLIENT: &str = "ftw_client";
+    const NODE: &str = "ftw_node";
+    const ALLOWED: &str = "ftw_allowed";
+    const OTHER: &str = "ftw_other";
+    let _guard = NetnsGuard(&[CLIENT, NODE, ALLOWED, OTHER]);
+
+    build_forward_topology(CLIENT, NODE, ALLOWED, OTHER);
+
+    // baseline: reaches both endpoints before confinement
+    assert!(
+        ping(CLIENT, FWD_ALLOWED_IP, "1", "56"),
+        "baseline reach allowed"
+    );
+    assert!(
+        ping(CLIENT, FWD_OTHER_IP, "1", "56"),
+        "baseline reach other"
+    );
+
+    let garden = WalledGarden::new(
+        FWD_CLIENT_DEV,
+        vec![FWD_ALLOWED_IP.parse::<IpAddr>().unwrap()],
+        Arc::new(NetnsRunner {
+            ns: NODE.to_string(),
+        }),
+    );
+    garden
+        .setup()
+        .expect("garden scaffolding should apply cleanly");
+
+    let peer = PeerAddrs {
+        v4: FWD_CLIENT_IP.parse::<Ipv4Addr>().unwrap(),
+        v6: Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 2),
+    };
+    garden
+        .add_peer(&peer)
+        .expect("confining the peer should apply cleanly");
+
+    // confined: only the whitelisted endpoint is reachable, the rest is dropped
+    assert!(
+        ping(CLIENT, FWD_ALLOWED_IP, "1", "56"),
+        "garden: the whitelisted (purchase) endpoint stays reachable"
+    );
+    assert!(
+        !ping(CLIENT, FWD_OTHER_IP, "1", "56"),
+        "garden: a non-whitelisted endpoint is dropped"
+    );
+
+    // off-switch: releasing the peer restores full reach without disconnecting
+    garden
+        .remove_peer(&peer)
+        .expect("releasing the peer should apply cleanly");
+    assert!(
+        ping(CLIENT, FWD_OTHER_IP, "1", "56"),
+        "off-switch: the non-whitelisted endpoint is reachable again once released"
     );
 }

@@ -18,28 +18,42 @@ A peer in the walled garden SHALL be removed from the rate-limit pool (restored 
 - **WHEN** a garden peer attempts to reach an address outside the allowlist
 - **THEN** the traffic is dropped, while traffic to the allowlisted purchase endpoint succeeds at full speed
 
-### Requirement: Node-managed iptables chain separated from operator rules
+### Requirement: Node-ensured iptables chain separated from operator rules
 
-The garden SHALL be enforced by an `iptables` chain (`NYM-GARDEN`) whose scaffolding is pre-created by the operator setup script, while the node manages only per-peer membership within that chain (inserting and deleting `-s <peerIP>` rules). The node MUST NOT modify operator-managed base rules.
+The garden SHALL be enforced by an `iptables` chain (`NYM-GARDEN`, plus a node-owned parent chain jumped from `FORWARD`) that the node ENSURES idempotently at startup, rather than relying on an operator setup script. The node creates the chains and the single `FORWARD` jump if absent - inserting the jump at a safe position ahead of any operator `ACCEPT`, since the garden is `DROP`-based and therefore ordering-sensitive - using a check-exists probe so it neither duplicates the jump nor disturbs an operator who chose to pre-create it. Beyond that one additive jump, the node manages ONLY per-peer membership within its own chains (inserting/deleting `-s <peerIP>` rules) and MUST NOT modify or reorder operator-managed base rules. Ensuring the scaffolding in the node (not only a setup script) keeps the free tier working across reboots and upgrades, where kernel iptables state would otherwise be lost or stale, and mirrors how the rate-limit pool self-creates its own chain and jump.
 
 #### Scenario: Node toggles only its own chain
 
 - **WHEN** the node moves a peer into or out of the garden
-- **THEN** it inserts or deletes only that peer's rule in the `NYM-GARDEN` chain and leaves operator-managed rules untouched
+- **THEN** it inserts or deletes only that peer's rule in its own chain and leaves operator-managed rules untouched
 
-### Requirement: Reconcile-on-start, unpersisted, fail-closed
+#### Scenario: Scaffolding is present after a reboot without operator action
 
-The node SHALL rebuild the garden chain's per-peer contents from its free-tier state on startup, SHALL NOT persist those runtime rules, and SHALL be fail-closed: if the node stops with peers in the garden, those peers remain restricted until the node reconciles.
+- **WHEN** the node starts and the `NYM-GARDEN` scaffolding is absent (e.g. a reboot cleared iptables)
+- **THEN** the node creates the chains and the `FORWARD` jump itself, so the garden is enforceable without a separate operator step
 
-#### Scenario: Rules rebuilt from state after restart
+### Requirement: Reconcile-before-serve, unpersisted, fail-closed
 
-- **WHEN** the node restarts
-- **THEN** it flushes its own garden rules and re-derives them from the free-tier state, leaving no stale per-peer rules
+The node SHALL rebuild the garden chain's per-peer contents from its free-tier state on startup and BEFORE it begins forwarding peer traffic or accepting registrations, so a returning garden peer is confined from its first forwarded packet (there is no window in which it is served unrestricted). It SHALL NOT persist those runtime rules to disk, and SHALL NOT tear them down on shutdown: while the node is stopped the kernel retains the `DROP` rules, so peers in the garden stay restricted until the node returns and reconciles. Fail-closed follows from these two together - reconcile-before-serve on startup, and persist-while-down on shutdown.
+
+#### Scenario: Confinement precedes serving on restart
+
+- **WHEN** the node restarts with peers that were in the garden
+- **THEN** it rebuilds their garden rules from state before the datapath forwards their traffic, leaving no stale per-peer rules and never briefly serving them unrestricted
 
 #### Scenario: Crash leaves garden peers restricted
 
 - **WHEN** the node crashes while peers are in the garden
-- **THEN** those peers remain confined to the allowlist rather than gaining unrestricted egress
+- **THEN** the kernel retains the `DROP` rules and those peers remain confined to the allowlist rather than gaining unrestricted egress
+
+### Requirement: Explicit teardown of node-applied enforcement rules
+
+Because the node deliberately does not remove its enforcement rules on shutdown (persist-while-down, above), it SHALL provide an explicit `nym-node` command that removes ALL free-tier routing state the node applies: the rate-limit pool (tc qdisc / classes and its mangle classify chain + jump) and the walled-garden chains + `FORWARD` jump + per-peer rules, in both address families. The command SHALL be idempotent and tolerant of already-absent rules, so it is safe to run after a non-graceful crash, when disabling the free tier, or when decommissioning the node.
+
+#### Scenario: Operator wipes leftover rules after a crash
+
+- **WHEN** the operator runs the teardown command after the node crashed with enforcement rules still applied
+- **THEN** all node-applied pool and garden rules are removed in both address families, and running it again is a no-op
 
 ### Requirement: Exit to paid clears garden and rate limit
 

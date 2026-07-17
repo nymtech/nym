@@ -20,6 +20,7 @@ use crate::command::{CommandRunner, CommandSpec};
 use crate::error::EnforcementError;
 use crate::iptables::IpTablesFamily;
 use std::net::IpAddr;
+use std::sync::Arc;
 
 const MANGLE: &str = "mangle";
 
@@ -37,7 +38,7 @@ pub struct RateLimitPool {
     interface: String,
     pool_rate_bits_per_sec: u64,
     whitelist: Vec<IpAddr>,
-    runner: Box<dyn CommandRunner>,
+    runner: Arc<dyn CommandRunner>,
 }
 
 impl RateLimitPool {
@@ -47,7 +48,7 @@ impl RateLimitPool {
         interface: impl Into<String>,
         pool_bytes_per_sec: u64,
         whitelist: Vec<IpAddr>,
-        runner: Box<dyn CommandRunner>,
+        runner: Arc<dyn CommandRunner>,
     ) -> Self {
         RateLimitPool {
             interface: interface.into(),
@@ -246,7 +247,7 @@ mod tests {
                 IpAddr::V4(Ipv4Addr::new(203, 0, 113, 5)),
                 IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)),
             ],
-            Box::new(crate::command::SystemCommandRunner),
+            Arc::new(crate::command::SystemCommandRunner),
         )
     }
 

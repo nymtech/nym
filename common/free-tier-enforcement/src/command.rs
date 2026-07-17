@@ -57,7 +57,7 @@ pub struct SystemCommandRunner;
 
 impl CommandRunner for SystemCommandRunner {
     fn execute(&self, cmd: &CommandSpec, ignore_failure: bool) -> Result<(), EnforcementError> {
-        debug!("running: {}", cmd.rendered());
+        debug!("running: {cmd}");
         let output = Command::new(&cmd.program)
             .args(&cmd.args)
             .output()

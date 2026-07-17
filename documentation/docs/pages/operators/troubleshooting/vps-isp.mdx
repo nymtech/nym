@@ -82,9 +82,9 @@ On modern Debian based Linux distributions, the network is configured by either 
 
 Most contemporary Ubuntu/Debian distributions come with Netplan, however it is possible that your hosting provider is using a custom version of ISO. For example, Debian 12 (latest version as of June 2024) may come with ifup/down.
 
-Nym operator community members have tested a VPS with Netplan and where in some cases `nym-node --mode exit-gateway` was not routing IP packets properly even after running `network_tunnel_manager.sh` script. We are working on a guide to setup Netplan configuration manually for such cases.
+Nym operator community members have tested a VPS with Netplan and in some cases `nym-node --mode exit-gateway` was not routing IP packets properly even after running `network-tunnel-manager.sh` script. We are working on a guide to set up Netplan configuration manually for such cases.
 
-Configuration of ifup/ifdown is a bit simpler. If the `network_tunnel_manager.sh` script doesn't do the job, open `/etc/network/interfaces` file (research if your system uses a different naming for it) and configure it similarly to this:
+Configuration of ifup/ifdown is a bit simpler. If the `network-tunnel-manager.sh` script doesn't do the job, open `/etc/network/interfaces` file (research if your system uses a different naming for it) and configure it similarly to this:
 
 ```ini
 auto lo
@@ -112,7 +112,7 @@ Be extra careful editing this file since you may lock yourself out of the server
 
 Once finished, save the file and reboot the server. Now, running `ip a` command should return correct IPv4 and IPv6 addresses.
 
-Finally re-run `network_tunnel_manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/nym-node/configuration.mdx#ipv6-configuration).
+Finally re-run `network-tunnel-manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/nym-node/configuration.mdx#ipv6-configuration).
 
 ## Other VPS troubleshooting
 

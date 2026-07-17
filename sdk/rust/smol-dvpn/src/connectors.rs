@@ -10,10 +10,12 @@
 //! `Client`. `reqwest` can be layered on top of the same `hyper` client.
 //!
 //! ```no_run
-//! // tonic (requires the caller's `tonic` dependency):
+//! # async fn example_connect(tunnel: &nym_smol_dvpn::Tunnel) -> Result<(), Box<dyn std::error::Error>> {
 //! let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
 //!     .connect_with_connector(tunnel.connector())
 //!     .await?;
+//! # Ok(())
+//! # }
 //! ```
 
 use std::future::Future;

@@ -34,6 +34,9 @@ nym-credentials-interface = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-sphinx = { workspace = true }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }
+
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

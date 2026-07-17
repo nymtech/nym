@@ -11,8 +11,8 @@ use crate::{
     GatewayStorageError,
     clients::ClientType,
     models::{
-        Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
-        VerifiedTicket, WireguardPeer,
+        Client, FreeTierRecord, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal,
+        StoredMessage, VerifiedTicket, WireguardPeer,
     },
 };
 
@@ -182,6 +182,31 @@ pub trait BandwidthGatewayStorage: dyn_clone::DynClone {
         public_key: &str,
         psk: Option<&str>,
     ) -> Result<(), GatewayStorageError>;
+
+    /// Create or replace the per-public-key free-tier record.
+    async fn set_free_tier_record(
+        &self,
+        public_key: &str,
+        granted_at: OffsetDateTime,
+        is_free: bool,
+    ) -> Result<(), GatewayStorageError>;
+
+    /// Retrieve the free-tier record for a public key, if any.
+    async fn get_free_tier_record(
+        &self,
+        public_key: &str,
+    ) -> Result<Option<FreeTierRecord>, GatewayStorageError>;
+
+    /// Remove the free-tier record for a public key.
+    async fn remove_free_tier_record(&self, public_key: &str) -> Result<(), GatewayStorageError>;
+
+    /// Update only the `is_free` flag (e.g. on upgrade to paid), leaving
+    /// `granted_at` intact so the claim guard still applies.
+    async fn set_free_tier_is_free(
+        &self,
+        public_key: &str,
+        is_free: bool,
+    ) -> Result<(), GatewayStorageError>;
 }
 
 #[cfg(feature = "mock")]
@@ -225,6 +250,7 @@ pub mod mock {
         verified_tickets: Vec<i64>,
         wireguard_peers: HashMap<String, WireguardPeer>,
         clients: HashMap<i64, String>,
+        free_tier_state: HashMap<String, FreeTierRecord>,
     }
 
     #[async_trait]
@@ -527,6 +553,49 @@ pub mod mock {
         ) -> Result<(), GatewayStorageError> {
             if let Some(peer) = self.write().await.wireguard_peers.get_mut(public_key) {
                 peer.psk = psk.map(|psk| psk.to_owned())
+            }
+            Ok(())
+        }
+
+        async fn set_free_tier_record(
+            &self,
+            public_key: &str,
+            granted_at: OffsetDateTime,
+            is_free: bool,
+        ) -> Result<(), GatewayStorageError> {
+            self.write().await.free_tier_state.insert(
+                public_key.to_owned(),
+                FreeTierRecord {
+                    public_key: public_key.to_owned(),
+                    granted_at,
+                    is_free,
+                },
+            );
+            Ok(())
+        }
+
+        async fn get_free_tier_record(
+            &self,
+            public_key: &str,
+        ) -> Result<Option<FreeTierRecord>, GatewayStorageError> {
+            Ok(self.read().await.free_tier_state.get(public_key).cloned())
+        }
+
+        async fn remove_free_tier_record(
+            &self,
+            public_key: &str,
+        ) -> Result<(), GatewayStorageError> {
+            self.write().await.free_tier_state.remove(public_key);
+            Ok(())
+        }
+
+        async fn set_free_tier_is_free(
+            &self,
+            public_key: &str,
+            is_free: bool,
+        ) -> Result<(), GatewayStorageError> {
+            if let Some(rec) = self.write().await.free_tier_state.get_mut(public_key) {
+                rec.is_free = is_free;
             }
             Ok(())
         }

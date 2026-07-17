@@ -162,4 +162,18 @@ impl BandwidthStorageManager {
         self.sync_storage_bandwidth().await?;
         Ok(())
     }
+
+    pub async fn set_bandwidth_to(
+        &mut self,
+        bandwidth: Bandwidth,
+        expiration: OffsetDateTime,
+    ) -> Result<()> {
+        self.client_bandwidth
+            .set_bandwidth(bandwidth.value() as i64, expiration)
+            .await;
+
+        self.sync_expiration().await?;
+        self.sync_storage_bandwidth().await?;
+        Ok(())
+    }
 }

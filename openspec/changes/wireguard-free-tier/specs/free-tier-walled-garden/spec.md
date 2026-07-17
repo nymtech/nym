@@ -52,12 +52,21 @@ When a peer that is in the garden or the free pool presents a valid paid ecash c
 
 ### Requirement: Returning garden peer's registration reflects restricted access
 
-When a free peer whose allowance is exhausted (in the walled garden) re-registers over the LP transport, the gateway SHALL return the peer's WireGuard configuration together with a restricted / purchase-only status marker, rather than a plain unrestricted completed registration. This lets the client keep a working tunnel to reach the purchase endpoint while surfacing that full access requires purchase. The marker mirrors the existing upgrade-mode flag on the success response; it MUST NOT be conveyed via `RequiresCredential` (the peer already holds a working, if restricted, session that it needs for checkout).
+When a free peer whose allowance is exhausted (in the walled garden) re-registers over the LP transport while still WITHIN the claim window (not yet eligible for a fresh trial), the gateway SHALL return the peer's WireGuard configuration together with a restricted / purchase-only status marker, rather than a plain unrestricted completed registration. This lets the client keep a working tunnel to reach the purchase endpoint while surfacing that full access requires purchase. The marker mirrors the existing upgrade-mode flag on the success response; it MUST NOT be conveyed via `RequiresCredential` (the peer already holds a working, if restricted, session that it needs for checkout).
 
-#### Scenario: Re-registration of an exhausted free peer signals restriction
+#### Scenario: Re-registration of an exhausted free peer within the window signals restriction
 
-- **WHEN** a free peer whose allowance is exhausted re-registers over the LP transport
+- **WHEN** a free peer whose allowance is exhausted re-registers over LP while still within the claim window
 - **THEN** the gateway returns the peer's config with a restricted / purchase-only marker set, not an unrestricted completed registration
+
+### Requirement: A returning peer eligible to re-claim is asked for a credential
+
+Once the claim window has elapsed (`now - granted_at >= claim_window`), a returning free peer is eligible for a fresh trial, and the gateway SHALL require a credential to grant it - respond `RequiresCredential`, not a plain resume of the spent/garden state and not an allowance auto-granted without a token. A fresh allowance is never granted without re-presenting a token, so the VPN-API's per-issuance limits stay meaningful. Whether the client reuses its stored token or must fetch a new one is governed by token `exp` (short `exp` -> a fresh token per trial; long `exp` -> one token re-claims each window).
+
+#### Scenario: Reconnect after the window elapsed requires a fresh claim
+
+- **WHEN** a free peer whose trial is spent reconnects after the claim window has elapsed
+- **THEN** the gateway responds `RequiresCredential`, and grants a fresh allowance (new `granted_at`) only on a valid token - it does not auto-connect without one
 
 ### Requirement: Walled garden is dual-stack (IPv4 + IPv6)
 

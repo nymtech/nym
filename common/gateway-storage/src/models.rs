@@ -144,3 +144,13 @@ impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
         })
     }
 }
+
+/// Per-public-key free-tier state: a single `granted_at` timestamp (driving both
+/// the session time cap and the rolling refill guard) plus the `is_free` marker.
+/// Keyed by the WireGuard peer public key; persists independently of the peer.
+#[derive(Debug, Clone, FromRow)]
+pub struct FreeTierRecord {
+    pub public_key: String,
+    pub granted_at: OffsetDateTime,
+    pub is_free: bool,
+}

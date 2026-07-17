@@ -27,6 +27,17 @@ The gateway SHALL admit free-tier peers rather than rejecting them when the pool
 - **WHEN** a new free peer registers while the pool is saturated
 - **THEN** it is admitted and shares the degraded pool rather than being rejected
 
+### Requirement: Purchase endpoint bypasses the rate-limit pool at full speed
+
+A free-tier peer SHALL reach the purchase-endpoint allowlist at full speed even while its other traffic is confined to the shared rate-limit pool. The gateway SHALL enforce this with a higher-priority traffic-control filter that matches the allowlisted destinations and steers them to the default unlimited class, ordered ahead of the per-peer pool classifier. The exemption SHALL cover both shaping directions and both address families, and SHALL reuse the same purchase-endpoint allowlist as the walled garden (a single source of truth). The exemption is static for a free peer and does not toggle on exhaustion: the walled-garden transition changes only the fallthrough for non-allowlisted traffic (rate-limited pool while on trial, dropped once exhausted).
+
+Traffic to the purchase endpoint still counts against the free byte allowance, because metering is measured at the WireGuard interface counter (total peer traffic, not per-destination). The exemption governs throughput, not accounting; this is acceptable because the checkout flow is small and it keeps the free allowance a single number.
+
+#### Scenario: Checkout stays fast under a congested pool
+
+- **WHEN** the shared free-tier pool is saturated and a free peer sends traffic to an allowlisted purchase endpoint
+- **THEN** that traffic reaches the endpoint at full speed while the peer's other traffic remains capped by the pool
+
 ### Requirement: Rate-limit off-switch without disconnect
 
 The gateway SHALL be able to remove a peer's rate limit without disconnecting it, by removing its pool classifier so its traffic falls to the default unlimited class. This off-switch SHALL be usable by both the walled-garden transition and the paid upgrade.

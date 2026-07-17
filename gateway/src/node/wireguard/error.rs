@@ -42,6 +42,9 @@ pub enum GatewayWireguardError {
     #[error("free-tier renewal tokens are not yet supported")]
     FreeTierRenewalNotSupported,
 
+    #[error("a free-tier allowance was already claimed for this peer within the claim window")]
+    FreeTierClaimGuardActive,
+
     #[error("provided free-tier token is invalid: {0}")]
     InvalidFreeTierToken(#[from] nym_free_tier_check::FreeTierCheckError),
 

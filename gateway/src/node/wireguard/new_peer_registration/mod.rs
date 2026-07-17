@@ -27,15 +27,18 @@ use nym_credential_verification::upgrade_mode::UpgradeModeDetails;
 use nym_credential_verification::{
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
+use nym_credentials::ecash::utils::ecash_date_offset;
 use nym_credentials_interface::{
     ecash_today, Bandwidth, BandwidthCredential, CredentialSpendingData,
 };
 use nym_crypto::asymmetric::x25519;
 use nym_free_tier_check::{validate_free_tier_jwt, FreeTierPurpose, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_gateway_storage::models::PersistedBandwidth;
+use nym_gateway_storage::models::{FreeTierRecord, PersistedBandwidth};
 use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_network_defaults::constants::FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES;
+use nym_network_defaults::constants::{
+    FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES, FREE_TIER_CLAIM_WINDOW, FREE_TIER_TRIAL_TIME_CAP,
+};
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
@@ -47,6 +50,7 @@ use nym_task::ShutdownToken;
 use nym_wireguard::WireguardConfig;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::time::{interval_at, Instant};
 use tracing::trace;
 
@@ -72,6 +76,51 @@ pub struct PeerRegistrator {
 
     /// Registrations in progress
     pub(crate) pending_registrations: PendingRegistrations,
+}
+
+/// Outcome of evaluating a free-tier token against the peer's existing record.
+/// The single `granted_at` timestamp defines two nested windows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FreeTierClaimOutcome {
+    /// No prior record: grant a fresh allowance and record `granted_at = now`.
+    FirstClaim,
+
+    /// Trial still active (`elapsed < time_cap`) but the peer row is gone (a reaped
+    /// peer re-presenting its token). v1 grants no fresh allowance - the row-present
+    /// resume keeps its remaining bytes via the existing-peer short-circuit, and once
+    /// the row is gone those bytes are unrecoverable, so re-seeding here would be a
+    /// reconnect-refill vector. Task 5 routes this into the walled garden with the
+    /// trial time still counting from `granted_at`.
+    Resume,
+
+    /// Spent but still within the claim window (`time_cap <= elapsed < claim_window`):
+    /// the single-claim guard rejects a fresh grant (v1; task 5 routes this to the garden).
+    GuardBlocked,
+
+    /// Claim window elapsed (`elapsed >= claim_window`): grant a fresh allowance and
+    /// reset `granted_at = now`.
+    FreshReclaim,
+}
+
+/// Classify a free-tier claim from the peer's existing record (if any) and the
+/// wall-clock elapsed since its grant. Pure; windows are passed in whole seconds.
+fn classify_free_tier_claim(
+    record: Option<&FreeTierRecord>,
+    now: OffsetDateTime,
+    time_cap_secs: i64,
+    claim_window_secs: i64,
+) -> FreeTierClaimOutcome {
+    let Some(record) = record else {
+        return FreeTierClaimOutcome::FirstClaim;
+    };
+    let elapsed_secs = (now - record.granted_at).whole_seconds();
+    if elapsed_secs < time_cap_secs {
+        FreeTierClaimOutcome::Resume
+    } else if elapsed_secs < claim_window_secs {
+        FreeTierClaimOutcome::GuardBlocked
+    } else {
+        FreeTierClaimOutcome::FreshReclaim
+    }
 }
 
 impl PeerRegistrator {
@@ -170,18 +219,69 @@ impl PeerRegistrator {
         );
 
         manager
-            .increase_bandwidth(
+            .set_bandwidth_to(
                 Bandwidth::new_unchecked(FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES),
-                ecash_today(),
+                // use offset of 1 to avoid immediately expiring all bandwidth if claimed at 23:59
+                ecash_date_offset(1),
             )
             .await?;
         Ok(())
+    }
+
+    /// Apply the free-tier claim guard and resume logic for a verified free-tier
+    /// token, keyed by the WireGuard peer public key. See [`FreeTierClaimOutcome`].
+    ///
+    /// Only reached when the peer is not already registered (a brand-new peer, or
+    /// one whose row was removed): an existing peer short-circuits to
+    /// `CompletedRegistration` before finalisation and never re-seeds.
+    async fn grant_or_resume_free_tier(
+        &self,
+        public_key: &str,
+        client_id: i64,
+    ) -> Result<(), GatewayWireguardError> {
+        let record = self
+            .ecash_verifier
+            .storage()
+            .get_free_tier_record(public_key)
+            .await?;
+        let now = OffsetDateTime::now_utc();
+
+        match classify_free_tier_claim(
+            record.as_ref(),
+            now,
+            FREE_TIER_TRIAL_TIME_CAP.as_secs() as i64,
+            FREE_TIER_CLAIM_WINDOW.as_secs() as i64,
+        ) {
+            // First-ever claim or an eligible re-claim (the claim window has elapsed):
+            // grant a fresh allowance and (re)stamp granted_at.
+            FreeTierClaimOutcome::FirstClaim | FreeTierClaimOutcome::FreshReclaim => {
+                self.seed_free_tier_bandwidth(client_id).await?;
+                self.ecash_verifier
+                    .storage()
+                    .set_free_tier_record(public_key, now, true)
+                    .await?;
+                Ok(())
+            }
+            // Within the claim window with the peer row gone: NO fresh allowance.
+            // A genuine mid-session resume keeps its remaining bytes via the
+            // existing-peer short-circuit (row present) and never reaches here; once
+            // the row is gone those bytes cannot be restored across the new client_id,
+            // so re-seeding would let a peer refill its allowance simply by reconnecting
+            // after exhaustion. v1 rejects both cases; task 5 will instead route them
+            // into the walled garden (Resume = trial time still remaining,
+            // GuardBlocked = trial spent), and a proper remaining-byte resume arrives
+            // once the metering path persists remaining bytes to the record.
+            FreeTierClaimOutcome::Resume | FreeTierClaimOutcome::GuardBlocked => {
+                Err(GatewayWireguardError::FreeTierClaimGuardActive)
+            }
+        }
     }
 
     async fn handle_final_credential_claim(
         &self,
         claim: BandwidthClaim,
         client_id: i64,
+        public_key: &str,
     ) -> Result<(), GatewayWireguardError> {
         match claim.credential {
             BandwidthCredential::ZkNym(zk_nym) => {
@@ -217,8 +317,7 @@ impl PeerRegistrator {
                     return Err(GatewayWireguardError::FreeTierRenewalNotSupported);
                 }
 
-                self.seed_free_tier_bandwidth(client_id).await?;
-                Ok(())
+                self.grant_or_resume_free_tier(public_key, client_id).await
             }
         }
     }
@@ -247,6 +346,7 @@ impl PeerRegistrator {
         ];
 
         let typ = credential.kind;
+        let public_key = peer.public_key.to_string();
 
         // 2. attempt to pre-insert peer into the storage
         let client_id = self
@@ -257,19 +357,18 @@ impl PeerRegistrator {
 
         // 3. verify the credential
         if let Err(err) = self
-            .handle_final_credential_claim(credential, client_id)
+            .handle_final_credential_claim(credential, client_id, &public_key)
             .await
         {
             // 3.1. on failure -> remove the inserted peer
             self.ecash_verifier
                 .storage()
-                .remove_wireguard_peer(&peer.public_key.to_string())
+                .remove_wireguard_peer(&public_key)
                 .await?;
             return Err(err);
         }
 
         // 4. attempt to start the actual handle for the peer
-        let public_key = peer.public_key.to_string();
         if let Err(err) = self.peer_manager.add_peer(peer).await {
             // 4.1. on failure -> remove the inserted peer (from the storage)
             self.ecash_verifier
@@ -458,5 +557,80 @@ impl StaleRegistrationRemover {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod free_tier_claim_tests {
+    use super::*;
+    use time::Duration as TimeDuration;
+
+    const TIME_CAP: i64 = 600; // 10 minutes
+    const CLAIM_WINDOW: i64 = 86_400; // 24 hours
+
+    fn record_granted_secs_ago(now: OffsetDateTime, ago_secs: i64) -> FreeTierRecord {
+        FreeTierRecord {
+            public_key: "pk".to_string(),
+            granted_at: now - TimeDuration::seconds(ago_secs),
+            is_free: true,
+        }
+    }
+
+    #[test]
+    fn no_record_is_a_first_claim() {
+        let now = OffsetDateTime::UNIX_EPOCH + TimeDuration::days(1);
+        assert_eq!(
+            classify_free_tier_claim(None, now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::FirstClaim
+        );
+    }
+
+    #[test]
+    fn within_the_time_cap_resumes() {
+        let now = OffsetDateTime::UNIX_EPOCH + TimeDuration::days(1);
+        let rec = record_granted_secs_ago(now, TIME_CAP - 1);
+        assert_eq!(
+            classify_free_tier_claim(Some(&rec), now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::Resume
+        );
+    }
+
+    #[test]
+    fn spent_within_the_claim_window_is_guard_blocked() {
+        let now = OffsetDateTime::UNIX_EPOCH + TimeDuration::days(1);
+        // just past the time cap
+        let rec = record_granted_secs_ago(now, TIME_CAP + 1);
+        assert_eq!(
+            classify_free_tier_claim(Some(&rec), now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::GuardBlocked
+        );
+        // just shy of the claim window
+        let rec = record_granted_secs_ago(now, CLAIM_WINDOW - 1);
+        assert_eq!(
+            classify_free_tier_claim(Some(&rec), now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::GuardBlocked
+        );
+    }
+
+    #[test]
+    fn after_the_claim_window_allows_a_fresh_reclaim() {
+        let now = OffsetDateTime::UNIX_EPOCH + TimeDuration::days(2);
+        // exactly at the window boundary is already eligible (elapsed >= claim_window)
+        let rec = record_granted_secs_ago(now, CLAIM_WINDOW);
+        assert_eq!(
+            classify_free_tier_claim(Some(&rec), now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::FreshReclaim
+        );
+    }
+
+    #[test]
+    fn a_future_grant_from_clock_skew_resumes() {
+        let now = OffsetDateTime::UNIX_EPOCH + TimeDuration::days(1);
+        // granted_at in the future -> negative elapsed -> treated as active
+        let rec = record_granted_secs_ago(now, -60);
+        assert_eq!(
+            classify_free_tier_claim(Some(&rec), now, TIME_CAP, CLAIM_WINDOW),
+            FreeTierClaimOutcome::Resume
+        );
     }
 }

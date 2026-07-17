@@ -103,6 +103,14 @@ impl ClientBandwidth {
         guard.bytes_delta_since_sync += increase;
     }
 
+    pub(crate) async fn set_bandwidth(&self, new_value: i64, new_expiration: OffsetDateTime) {
+        let mut guard = self.inner.write().await;
+
+        guard.bandwidth.bytes = new_value;
+        guard.bandwidth.expiration = new_expiration;
+        guard.bytes_delta_since_sync += new_value;
+    }
+
     pub(crate) async fn expire_bandwidth(&self) {
         let mut guard = self.inner.write().await;
 

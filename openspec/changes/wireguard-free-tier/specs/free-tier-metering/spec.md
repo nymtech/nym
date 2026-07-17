@@ -2,26 +2,40 @@
 
 ### Requirement: Per-public-key free-tier record
 
-The gateway SHALL maintain a per-public-key free-tier record holding the last-claim timestamp, the session start (for time metering), and an `is_free` flag. The last claim SHALL be stored as an absolute timestamp (not a boolean or bare date) so that the single-claim guard is evaluated by elapsed time at read, and no record ever needs a scheduled reset. This record SHALL be the source of truth for a peer's free-tier status, since the persisted client type does not distinguish free peers.
+The gateway SHALL maintain a per-public-key free-tier record holding a single grant timestamp (`granted_at`) and an `is_free` flag. `granted_at` is an absolute timestamp that drives BOTH nested windows - the session time cap (`now - granted_at >= time_cap`) and the rolling refill guard (`now - granted_at < claim_window`) - so no separate "session start" field is needed and no record ever needs a scheduled reset. The record is keyed by public key and SHALL persist independently of the WireGuard peer - so the single-claim guard survives peer removal (otherwise exhaustion-removal would drop the record and let a re-presented token refill the allowance) and a future mid-trial resume remains possible - and is the source of truth for a peer's free-tier status since the persisted client type does not distinguish free peers.
 
-#### Scenario: Record created on free registration
+#### Scenario: Record created on a fresh free claim
 
-- **WHEN** a peer is admitted on a free-tier token
-- **THEN** a free-tier record is created for its public key with the last-claim timestamp set to now, the session start recorded, and `is_free` true
+- **WHEN** a peer is admitted on a fresh free-tier claim
+- **THEN** a free-tier record is created for its public key with `granted_at` set to now and `is_free` true
 
 ### Requirement: Rolling single-claim guard
 
-A public key whose last claim was less than the claim window (a network constant, e.g. 24h) ago SHALL NOT receive a fresh allowance on a subsequent registration. The guard is evaluated as `now - last_claim < window` at registration time - never by a scheduled per-record reset - so a token cannot be re-presented to refill the allowance.
+A public key whose `granted_at` is less than the claim window (a network constant, e.g. 24h) ago SHALL NOT receive a FRESH allowance on a subsequent registration. The guard governs new grants only (resumes of an active trial are separate - see below) and is evaluated as `now - granted_at < window` at read - never by a scheduled per-record reset - so a token cannot be re-presented to refill the allowance.
 
-#### Scenario: Second claim within the window is refused
+#### Scenario: Fresh claim within the window is refused
 
-- **WHEN** a public key whose last claim is within the claim window registers again with a free-tier token
+- **WHEN** a public key whose spent trial is within the claim window registers again with a free-tier token
 - **THEN** the gateway does not grant a fresh allowance
 
 #### Scenario: Claim allowed once the window has elapsed
 
-- **WHEN** more than the claim window has elapsed since the public key's last claim
-- **THEN** a fresh free allowance may be granted and the last-claim timestamp is updated
+- **WHEN** more than the claim window has elapsed since `granted_at`
+- **THEN** a fresh free allowance may be granted and `granted_at` is updated to now
+
+### Requirement: Reconnecting within the trial resumes the same allowance
+
+Reconnecting while still inside the trial window SHALL resume the existing allowance - the remaining bytes and remaining time measured from `granted_at`, not a fresh grant - and SHALL NOT require re-presenting the token, nor be blocked by the single-claim guard (which governs new grants only). Because the record is keyed by public key and outlives the WireGuard peer, a peer idle-reaped mid-trial still resumes on reconnect instead of being forced into a new, guard-blocked claim. Time is wall-clock from `granted_at`; disconnecting does not pause it.
+
+#### Scenario: Reconnect mid-trial resumes the remaining allowance
+
+- **WHEN** a free peer reconnects while still within its trial window with bytes remaining
+- **THEN** it resumes with its remaining bytes and time, no fresh allowance is granted, and no token is required
+
+#### Scenario: Idle-reaped peer still resumes within the trial
+
+- **WHEN** a free peer whose WireGuard peer was reaped reconnects within the trial window and re-presents its token
+- **THEN** the gateway resumes the existing record's remaining allowance rather than treating it as a new (guard-blocked) claim
 
 ### Requirement: Volume metering
 

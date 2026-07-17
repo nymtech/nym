@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use bandwidth::BandwidthManager;
 use clients::{ClientManager, ClientType};
 use models::{
-    Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
-    VerifiedTicket, WireguardPeer,
+    Client, FreeTierRecord, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal,
+    StoredMessage, VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::shared_key::SharedSymmetricKey;
@@ -24,6 +24,7 @@ use tracing::{debug, error, log::LevelFilter};
 pub mod bandwidth;
 mod clients;
 pub mod error;
+mod free_tier;
 mod inboxes;
 pub mod models;
 mod shared_keys;
@@ -52,6 +53,7 @@ pub struct GatewayStorage {
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
     wireguard_peer_manager: wireguard_peers::WgPeerManager,
+    free_tier_manager: free_tier::FreeTierManager,
 }
 
 impl GatewayStorage {
@@ -152,7 +154,8 @@ impl GatewayStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
-            ticket_manager: TicketStorageManager::new(connection_pool),
+            ticket_manager: TicketStorageManager::new(connection_pool.clone()),
+            free_tier_manager: free_tier::FreeTierManager::new(connection_pool),
         })
     }
 }
@@ -591,6 +594,41 @@ impl BandwidthGatewayStorage for GatewayStorage {
     ) -> Result<(), GatewayStorageError> {
         self.wireguard_peer_manager
             .update_peer_psk(public_key, psk)
+            .await?;
+        Ok(())
+    }
+
+    async fn set_free_tier_record(
+        &self,
+        public_key: &str,
+        granted_at: OffsetDateTime,
+        is_free: bool,
+    ) -> Result<(), GatewayStorageError> {
+        self.free_tier_manager
+            .set_record(public_key, granted_at, is_free)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_free_tier_record(
+        &self,
+        public_key: &str,
+    ) -> Result<Option<FreeTierRecord>, GatewayStorageError> {
+        Ok(self.free_tier_manager.get_record(public_key).await?)
+    }
+
+    async fn remove_free_tier_record(&self, public_key: &str) -> Result<(), GatewayStorageError> {
+        self.free_tier_manager.remove_record(public_key).await?;
+        Ok(())
+    }
+
+    async fn set_free_tier_is_free(
+        &self,
+        public_key: &str,
+        is_free: bool,
+    ) -> Result<(), GatewayStorageError> {
+        self.free_tier_manager
+            .set_is_free(public_key, is_free)
             .await?;
         Ok(())
     }

@@ -11,9 +11,13 @@
 //!   NYM_FREE_TIER_NETNS_TESTS=1 sudo -E cargo test -p nym-free-tier-enforcement \
 //!       --test datapath -- --ignored --nocapture
 
-// #![cfg(target_os = "linux")]
+#![cfg(target_os = "linux")]
 #![allow(clippy::panic)]
 
+use nym_free_tier_enforcement::{
+    CommandRunner, CommandSpec, EnforcementError, PeerAddrs, RateLimitPool,
+};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::process::Command;
 
 /// Run a command, returning its captured output.
@@ -56,6 +60,157 @@ impl Drop for NetnsGuard {
         for ns in self.0 {
             let _ = Command::new("ip").args(["netns", "del", ns]).status();
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// task-4 rate-limit-pool validation: drive the REAL RateLimitPool in a namespace
+// ---------------------------------------------------------------------------
+
+/// Shared forward-topology addressing (node forwards client <-> {allowed, other}).
+const FWD_CLIENT_IP: &str = "10.0.1.2";
+const FWD_ALLOWED_IP: &str = "10.0.2.2";
+const FWD_OTHER_IP: &str = "10.0.3.2";
+/// The node's veth facing the client - download (node -> client) egresses here, so it
+/// is the interface the rate-limit pool shapes.
+const FWD_CLIENT_DEV: &str = "ftvcn";
+
+/// Build a "node forwards a client to an allowlisted + an other endpoint" topology
+/// into the four given namespaces (fixed device names + addressing).
+fn build_forward_topology(client: &str, node: &str, allowed: &str, other: &str) {
+    for ns in [client, node, allowed, other] {
+        must(&["ip", "netns", "add", ns]);
+        must(&["ip", "netns", "exec", ns, "ip", "link", "set", "lo", "up"]);
+    }
+
+    let sysctl = |key: &str, val: &str| {
+        must(&[
+            "ip",
+            "netns",
+            "exec",
+            node,
+            "sh",
+            "-c",
+            &format!("echo {val} > /proc/sys/net/ipv4/{key}"),
+        ]);
+    };
+    sysctl("ip_forward", "1");
+    sysctl("conf/all/rp_filter", "0");
+    sysctl("conf/default/rp_filter", "0");
+
+    let link =
+        |leaf: &str, node_dev: &str, leaf_dev: &str, node_cidr: &str, leaf_cidr: &str, gw: &str| {
+            must(&[
+                "ip", "link", "add", node_dev, "type", "veth", "peer", "name", leaf_dev,
+            ]);
+            must(&["ip", "link", "set", node_dev, "netns", node]);
+            must(&["ip", "link", "set", leaf_dev, "netns", leaf]);
+            must(&[
+                "ip", "netns", "exec", node, "ip", "addr", "add", node_cidr, "dev", node_dev,
+            ]);
+            must(&[
+                "ip", "netns", "exec", node, "ip", "link", "set", node_dev, "up",
+            ]);
+            must(&[
+                "ip", "netns", "exec", leaf, "ip", "addr", "add", leaf_cidr, "dev", leaf_dev,
+            ]);
+            must(&[
+                "ip", "netns", "exec", leaf, "ip", "link", "set", leaf_dev, "up",
+            ]);
+            must(&[
+                "ip", "netns", "exec", leaf, "ip", "route", "add", "default", "via", gw,
+            ]);
+        };
+    link(
+        client,
+        FWD_CLIENT_DEV,
+        "ftvc",
+        "10.0.1.1/24",
+        "10.0.1.2/24",
+        "10.0.1.1",
+    );
+    link(
+        allowed,
+        "ftvan",
+        "ftva",
+        "10.0.2.1/24",
+        "10.0.2.2/24",
+        "10.0.2.1",
+    );
+    link(
+        other,
+        "ftvon",
+        "ftvo",
+        "10.0.3.1/24",
+        "10.0.3.2/24",
+        "10.0.3.1",
+    );
+}
+
+/// Ping `ip` from the given namespace with `count` packets of `size`-byte payload.
+fn ping(ns: &str, ip: &str, count: &str, size: &str) -> bool {
+    sh(&[
+        "ip", "netns", "exec", ns, "ping", "-c", count, "-W", "2", "-s", size, ip,
+    ])
+    .status
+    .success()
+}
+
+/// Bytes an HTB class has sent, parsed from `tc -s class show` (0 if not found).
+fn class_sent_bytes(ns: &str, dev: &str, classid: &str) -> u64 {
+    let out = sh(&[
+        "ip", "netns", "exec", ns, "tc", "-s", "class", "show", "dev", dev,
+    ]);
+    let text = String::from_utf8_lossy(&out.stdout);
+    let needle = format!(" {classid} ");
+    let mut in_target = false;
+    for line in text.lines() {
+        if line.trim_start().starts_with("class ") {
+            in_target = line.contains(&needle);
+        } else if in_target {
+            if let Some(pos) = line.find("Sent ") {
+                return line[pos + 5..]
+                    .split_whitespace()
+                    .next()
+                    .and_then(|n| n.parse().ok())
+                    .unwrap_or(0);
+            }
+        }
+    }
+    0
+}
+
+/// Executes a manager's [`CommandSpec`] inside a network namespace (prefixing
+/// `ip netns exec <ns>`), so the real `RateLimitPool` drives a kernel we can inspect.
+struct NetnsRunner {
+    ns: String,
+}
+
+impl CommandRunner for NetnsRunner {
+    fn execute(&self, cmd: &CommandSpec, ignore_failure: bool) -> Result<(), EnforcementError> {
+        let output = Command::new("ip")
+            .arg("netns")
+            .arg("exec")
+            .arg(&self.ns)
+            .arg(&cmd.program)
+            .args(&cmd.args)
+            .output()
+            .map_err(|source| EnforcementError::Spawn {
+                program: cmd.program.clone(),
+                source,
+            })?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            if ignore_failure {
+                eprintln!("  (ignored) netns `{}`: {stderr}", cmd.rendered());
+                return Ok(());
+            }
+            return Err(EnforcementError::CommandFailed {
+                command: cmd.rendered(),
+                stderr,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -308,5 +463,88 @@ fn forward_garden_allowlist() {
     assert!(
         !client_reaches(OTHER_IP),
         "garden: client should NOT reach any endpoint outside the allowlist"
+    );
+}
+
+/// Drive the REAL [`RateLimitPool`] against a namespace and prove task 4's one
+/// unproven assumption: that `iptables CLASSIFY` actually steers a peer's download
+/// into the HTB pool class, while the walled-garden whitelist stays in the unlimited
+/// default class. Uses the class byte counters (`tc -s class show`) rather than
+/// throughput, so it is a fast, deterministic classification check.
+#[test]
+#[ignore = "needs linux + root + NET_ADMIN; run via netns/run.sh"]
+fn rate_limit_pool_classifies_download_and_exempts_whitelist() {
+    if !netns_tests_enabled() {
+        eprintln!(
+            "SKIP: set NYM_FREE_TIER_NETNS_TESTS=1 (see netns/run.sh) to run the free-tier netns datapath tests"
+        );
+        return;
+    }
+    if !is_root() {
+        eprintln!("SKIP: free-tier netns tests require root (NET_ADMIN)");
+        return;
+    }
+
+    const CLIENT: &str = "ftc_client";
+    const NODE: &str = "ftc_node";
+    const ALLOWED: &str = "ftc_allowed";
+    const OTHER: &str = "ftc_other";
+    let _guard = NetnsGuard(&[CLIENT, NODE, ALLOWED, OTHER]);
+
+    build_forward_topology(CLIENT, NODE, ALLOWED, OTHER);
+
+    // sanity: forwarding works before we shape anything
+    assert!(
+        ping(CLIENT, FWD_ALLOWED_IP, "1", "56"),
+        "baseline reach allowed"
+    );
+    assert!(
+        ping(CLIENT, FWD_OTHER_IP, "1", "56"),
+        "baseline reach other"
+    );
+
+    // the actual manager, executing its commands inside the node namespace: pool on
+    // the client-facing device, with the allowlisted (purchase) endpoint exempt.
+    let pool = RateLimitPool::new(
+        FWD_CLIENT_DEV,
+        125_000, // ~1 Mbit/s; irrelevant to a classification (not throughput) check
+        vec![FWD_ALLOWED_IP.parse::<IpAddr>().unwrap()],
+        Box::new(NetnsRunner {
+            ns: NODE.to_string(),
+        }),
+    );
+    pool.setup().expect("pool setup should apply cleanly");
+    pool.add_peer(&PeerAddrs {
+        v4: FWD_CLIENT_IP.parse::<Ipv4Addr>().unwrap(),
+        v6: Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 2),
+    })
+    .expect("adding the peer should apply cleanly");
+
+    // (A) exemption: download FROM the whitelisted endpoint must NOT be pooled. Ping
+    // ONLY ALLOWED (so the pool counter starts clean) - it stays reachable, and the
+    // pool class must have counted nothing.
+    for _ in 0..5 {
+        assert!(
+            ping(CLIENT, FWD_ALLOWED_IP, "1", "1200"),
+            "whitelisted endpoint stays reachable under the pool"
+        );
+    }
+    assert_eq!(
+        class_sent_bytes(NODE, FWD_CLIENT_DEV, "1:10"),
+        0,
+        "download from the whitelisted endpoint must stay in the unlimited class, not the pool"
+    );
+
+    // (B) classification: download from a NON-whitelisted endpoint must be pooled - the
+    // per-peer CLASSIFY rule steers it into the HTB pool class.
+    for _ in 0..5 {
+        assert!(
+            ping(CLIENT, FWD_OTHER_IP, "1", "1200"),
+            "non-whitelisted endpoint stays reachable (shaping paces, it does not drop)"
+        );
+    }
+    assert!(
+        class_sent_bytes(NODE, FWD_CLIENT_DEV, "1:10") > 0,
+        "download to a pooled peer from a non-whitelisted endpoint must land in the pool class"
     );
 }

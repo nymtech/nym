@@ -13,6 +13,7 @@ use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
@@ -62,6 +63,12 @@ pub struct GatewayTasksConfig {
 pub struct FreeTier {
     /// Whether this gateway accepts free-tier capability tokens at registration.
     pub enabled: bool,
+
+    /// Endpoints reachable at full speed from inside the
+    /// walled garden and exempt from the rate-limit pool.
+    /// Covers both address families.
+    #[serde(default)]
+    pub walled_garden_whitelist: Vec<IpAddr>,
 
     #[serde(default)]
     pub debug: FreeTierDebug,

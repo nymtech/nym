@@ -2,6 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Free-tier datapath enforcement for `nym-node` (Linux-only): the shared `tc`
-//! rate-limit pool and the `iptables` walled-garden managers. `nym-node` wires
-//! these in; the network-namespace integration tests under `tests/` exercise the
-//! datapath against a real kernel. The managers themselves land with tasks 4 and 5.
+//! rate-limit pool and (task 5) the `iptables` walled-garden managers. `nym-node`
+//! wires these in; the network-namespace integration tests under `tests/` exercise
+//! the datapath against a real kernel.
+//!
+//! Managers emit [`CommandSpec`]s that a [`CommandRunner`] executes - the split keeps
+//! command generation unit-testable without root, while the netns harness validates
+//! the live behaviour. [`RateLimitPool`] lands task 4; the garden manager lands task 5
+//! and reuses the same command/runner/[`PeerAddrs`] seams.
+
+use std::net::{Ipv4Addr, Ipv6Addr};
+
+pub use command::{CommandRunner, CommandSpec, SystemCommandRunner};
+pub use error::EnforcementError;
+pub use tc::RateLimitPool;
+
+mod command;
+mod error;
+mod iptables;
+mod tc;
+
+/// A free peer's dual-stack tunnel addresses (its WireGuard allowed IPs). Both
+/// families are always present, so enforcement rules are added and removed as a pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeerAddrs {
+    pub v4: Ipv4Addr,
+    pub v6: Ipv6Addr,
+}

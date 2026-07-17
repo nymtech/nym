@@ -28,9 +28,7 @@ use nym_credential_verification::{
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
 use nym_credentials::ecash::utils::ecash_date_offset;
-use nym_credentials_interface::{
-    ecash_today, Bandwidth, BandwidthCredential, CredentialSpendingData,
-};
+use nym_credentials_interface::{Bandwidth, BandwidthCredential, CredentialSpendingData};
 use nym_crypto::asymmetric::x25519;
 use nym_free_tier_check::{validate_free_tier_jwt, FreeTierPurpose, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_gateway_requests::models::CredentialSpendingRequest;

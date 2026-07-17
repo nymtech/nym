@@ -6933,6 +6933,10 @@ dependencies = [
 [[package]]
 name = "nym-free-tier-enforcement"
 version = "1.21.3"
+dependencies = [
+ "thiserror 2.0.18",
+ "tracing",
+]
 
 [[package]]
 name = "nym-gateway"

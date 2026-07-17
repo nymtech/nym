@@ -12,5 +12,9 @@ rust-version.workspace = true
 readme.workspace = true
 publish = true
 
+[dependencies]
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
 [lints]
 workspace = true

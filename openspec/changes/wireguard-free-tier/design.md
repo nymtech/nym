@@ -15,7 +15,7 @@ sequenceDiagram
     participant VpnApi as VPN-API (external)
     participant CP as credential-proxy
     participant GW as Gateway - registration
-    participant ENF as Gateway - enforcement (tc + iptables)
+    participant ENF as Gateway - enforcement (tc + nftables)
 
     App->>VpnApi: request free-tier token (over clearnet)
     Note over VpnApi: per-IP issuance limit (external repo)
@@ -40,7 +40,7 @@ sequenceDiagram
         ENF->>ENF: meter bytes used and elapsed session time
     end
     Note over ENF: volume OR time exhausted
-    ENF->>ENF: leave tc pool (full speed) + insert iptables -s peerIP -j NYM-GARDEN
+    ENF->>ENF: send_to_garden: remove peer from pool set + add to garden set (nft)
     Note over App,ENF: walled garden - only the purchase endpoint reachable
 
     opt buy subscription (reconnect-to-upgrade in v1; in-session in v2)
@@ -71,10 +71,54 @@ stateDiagram-v2
         counts toward "# active free users" metric
     end note
     note right of Garden
-        iptables allowlist (purchase endpoint only)
+        nft garden set (purchase endpoint only)
         left the tc pool - full speed, slot freed
     end note
 ```
+
+### Datapath: packet flow through the rules
+
+All enforcement lives in one `nft` table `inet nym_free_tier` (built by `FreeTierEnforcement::setup`) plus a `tc` HTB shaper on the WireGuard interface. A peer's OUTBOUND traffic only meets the `confine` chain (which governs what it can reach); its DOWNLOAD only meets the `classify` chain + `tc` (which governs how fast) - because each chain is scoped to `nymwg` on the direction it cares about. A peer's state is just which sets it belongs to; the facade transitions move it between them.
+
+```mermaid
+flowchart TB
+    peer(["Free peer · WireGuard iface nymwg"])
+
+    peer -->|"OUTBOUND: peer → Internet<br/>FORWARD hook · iifname nymwg"| confine
+    peer -->|"DOWNLOAD: Internet → peer<br/>POSTROUTING hook · oifname nymwg"| classify
+
+    subgraph GARDEN["nft chain: confine (hook forward, priority -1) - what the peer may reach"]
+        confine{"src ∈ garden_v4/6 ?"}
+        confine -->|"no (pooled or paid)"| passthru["fall through → normal forwarding<br/>(reaches everything)"]
+        confine -->|"yes (exhausted)"| gallow{"dst ∈ allow_v4/6 ?"}
+        gallow -->|"yes"| gacc["ACCEPT - reach purchase endpoint"]
+        gallow -->|"no"| gdrop["DROP - walled off"]
+    end
+
+    subgraph POOL["nft chain: classify (hook postrouting) + tc HTB - the rate the peer gets"]
+        classify{"src ∈ allow_v4/6 ?"}
+        classify -->|"yes (from purchase endpoint)"| exempt["return - no mark"]
+        classify -->|"no"| poolq{"dst (this peer) ∈ pool_v4/6 ?"}
+        poolq -->|"yes"| mark["meta priority set 1:10"]
+        poolq -->|"no"| nomark["no mark"]
+        exempt --> htb
+        nomark --> htb
+        mark --> htb
+        htb{"tc HTB egress on nymwg"}
+        htb -->|"priority 1:10"| c10["class 1:10 - shared pool (rate-limited)"]
+        htb -->|"default (1:1)"| c1["class 1:1 - full speed"]
+    end
+```
+
+The three peer states fall straight out of set membership (the facade's transitions just move the peer between sets):
+
+| state | in `pool_*` | in `garden_*` | can reach | download rate |
+|---|---|---|---|---|
+| active trial (`admit`) | yes | - | everything | rate-limited, except whitelist = full speed |
+| exhausted (`send_to_garden`) | - | yes | whitelist only | full speed (only path left is the exempt whitelist) |
+| paid / released (`release`) | - | - | everything | full speed |
+
+Two things this makes visible: the whitelist (`allow_*`) set is shared - it is the `return` in `classify` AND the `accept` in `confine`, which is why the purchase endpoint is both full-speed and reachable in the garden; and a gardened peer's non-whitelist traffic is dropped on the outbound side, so its download classification never comes into play - the two chains compose without having to agree.
 
 ## Goals / Non-Goals
 

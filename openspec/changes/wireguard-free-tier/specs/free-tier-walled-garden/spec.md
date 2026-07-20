@@ -18,19 +18,28 @@ A peer in the walled garden SHALL be removed from the rate-limit pool (restored 
 - **WHEN** a garden peer attempts to reach an address outside the allowlist
 - **THEN** the traffic is dropped, while traffic to the allowlisted purchase endpoint succeeds at full speed
 
-### Requirement: Node-ensured iptables chain separated from operator rules
+### Requirement: Node-ensured table separated from operator rules
 
-The garden SHALL be enforced by an `iptables` chain (`NYM-GARDEN`, plus a node-owned parent chain jumped from `FORWARD`) that the node ENSURES idempotently at startup, rather than relying on an operator setup script. The node creates the chains and the single `FORWARD` jump if absent - inserting the jump at a safe position ahead of any operator `ACCEPT`, since the garden is `DROP`-based and therefore ordering-sensitive - using a check-exists probe so it neither duplicates the jump nor disturbs an operator who chose to pre-create it. Beyond that one additive jump, the node manages ONLY per-peer membership within its own chains (inserting/deleting `-s <peerIP>` rules) and MUST NOT modify or reorder operator-managed base rules. Ensuring the scaffolding in the node (not only a setup script) keeps the free tier working across reboots and upgrades, where kernel iptables state would otherwise be lost or stale, and mirrors how the rate-limit pool self-creates its own chain and jump.
+The garden SHALL be enforced by a `forward`-hook chain in the node-owned shared `nftables` table (`inet nym_free_tier`, which also holds the rate-limit pool) that the node ENSURES idempotently at startup, rather than relying on an operator setup script. The chain SHALL sit at a priority ahead of the operator/iptables filter chains, since the garden is `DROP`-based and therefore ordering-sensitive, and it SHALL live in the node's own table so it never modifies operator-managed rules. Per-peer membership is a SET ELEMENT, not a rule, so confining or releasing a peer never touches any chain. Ensuring the scaffolding in the node (not an operator script) keeps the free tier working across reboots and upgrades, where kernel firewall state would otherwise be lost or stale.
 
-#### Scenario: Node toggles only its own chain
+#### Scenario: Node toggles only its own set
 
 - **WHEN** the node moves a peer into or out of the garden
-- **THEN** it inserts or deletes only that peer's rule in its own chain and leaves operator-managed rules untouched
+- **THEN** it adds or removes only that peer's element in its own set and leaves operator-managed rules untouched
 
 #### Scenario: Scaffolding is present after a reboot without operator action
 
-- **WHEN** the node starts and the `NYM-GARDEN` scaffolding is absent (e.g. a reboot cleared iptables)
-- **THEN** the node creates the chains and the `FORWARD` jump itself, so the garden is enforceable without a separate operator step
+- **WHEN** the node starts and the garden table is absent (e.g. a reboot cleared the ruleset)
+- **THEN** the node creates its table itself, so the garden is enforceable without a separate operator step
+
+### Requirement: Garden membership scales to large peer counts
+
+The set of confined peers and the purchase-endpoint whitelist SHALL each be a kernel set (an `nftables` named set) matched by a single rule, NOT one rule per peer or per whitelist entry. The per-packet garden decision and the per-peer confine/release cost SHALL therefore be independent of the number of confined peers and the whitelist size.
+
+#### Scenario: Per-packet decision stays flat as confinement grows
+
+- **WHEN** many peers are confined to the garden
+- **THEN** the garden decision remains a single set lookup per packet rather than a linear chain scan, and confining or releasing a peer is a set update rather than an iptables chain rewrite
 
 ### Requirement: Reconcile-before-serve, unpersisted, fail-closed
 
@@ -48,7 +57,7 @@ The node SHALL rebuild the garden chain's per-peer contents from its free-tier s
 
 ### Requirement: Explicit teardown of node-applied enforcement rules
 
-Because the node deliberately does not remove its enforcement rules on shutdown (persist-while-down, above), it SHALL provide an explicit `nym-node` command that removes ALL free-tier routing state the node applies: the rate-limit pool (tc qdisc / classes and its mangle classify chain + jump) and the walled-garden chains + `FORWARD` jump + per-peer rules, in both address families. The command SHALL be idempotent and tolerant of already-absent rules, so it is safe to run after a non-graceful crash, when disabling the free tier, or when decommissioning the node.
+Because the node deliberately does not remove its enforcement rules on shutdown (persist-while-down, above), it SHALL provide an explicit `nym-node` command that removes ALL free-tier routing state the node applies: the rate-limit pool's tc qdisc / classes and the single shared `nftables` table `inet nym_free_tier` (which holds both the pool and the garden, v4 and v6). The command SHALL be idempotent and tolerant of already-absent state, so it is safe to run after a non-graceful crash, when disabling the free tier, or when decommissioning the node.
 
 #### Scenario: Operator wipes leftover rules after a crash
 
@@ -84,7 +93,7 @@ Once the claim window has elapsed (`now - granted_at >= claim_window`), a return
 
 ### Requirement: Walled garden is dual-stack (IPv4 + IPv6)
 
-Each free peer holds both an IPv4 and an IPv6 tunnel address, so the garden SHALL be enforced in both `iptables` and `ip6tables`: the `NYM-GARDEN` chain and its jump scaffolding exist in both, the node inserts/deletes the peer's rule for BOTH its v4 and v6 tunnel address, and the purchase-endpoint allowlist covers the endpoint's v4 and v6 addresses. A peer confined in one family but reachable on the other has an escape route.
+Each free peer holds both an IPv4 and an IPv6 tunnel address, so the garden SHALL cover both families. In the `inet` table the confine chain matches both `ip` and `ip6`, the node adds/removes BOTH the peer's v4 and v6 tunnel address (into per-family sets), and the purchase-endpoint allowlist covers the endpoint's v4 and v6 addresses. A peer confined in one family but reachable on the other has an escape route.
 
 #### Scenario: Garden confines both address families
 

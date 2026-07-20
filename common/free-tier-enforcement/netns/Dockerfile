@@ -7,7 +7,7 @@ FROM rust:slim-bookworm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         iproute2 \
-        iptables \
+        nftables \
         iputils-ping \
         ca-certificates \
         pkg-config \

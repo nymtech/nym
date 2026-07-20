@@ -18,6 +18,15 @@ Total free-tier bandwidth SHALL be bounded by the pool ceiling regardless of the
 - **WHEN** the number of active free peers grows large
 - **THEN** their aggregate throughput never exceeds the configured pool ceiling
 
+### Requirement: Membership scales to large peer counts
+
+Per-peer pool membership SHALL be a kernel set (an `nftables` named set) matched by a single classifier rule, NOT one rule per peer. The per-packet classification cost and the per-peer add/remove cost SHALL therefore be independent of the number of pooled peers (target: 10k+), and the whitelist exemption SHALL likewise be a single set-matched rule rather than one rule per entry.
+
+#### Scenario: Per-packet cost stays flat as the pool grows
+
+- **WHEN** the number of pooled peers grows large
+- **THEN** classification remains a single set lookup per packet rather than a linear chain scan, and adding or removing a peer is a set update rather than an iptables chain rewrite
+
 ### Requirement: Always-admit with graceful degradation
 
 The gateway SHALL admit free-tier peers rather than rejecting them when the pool is busy; contention SHALL manifest as reduced per-peer throughput, not refused connections.
@@ -29,7 +38,7 @@ The gateway SHALL admit free-tier peers rather than rejecting them when the pool
 
 ### Requirement: Purchase endpoint bypasses the rate-limit pool at full speed
 
-A free-tier peer SHALL reach the purchase-endpoint allowlist at full speed even while its other traffic is confined to the shared rate-limit pool. The gateway SHALL enforce this with a higher-priority traffic-control filter that matches the allowlisted destinations and steers them to the default unlimited class, ordered ahead of the per-peer pool classifier. The exemption SHALL cover both shaping directions and both address families, and SHALL reuse the same purchase-endpoint allowlist as the walled garden (a single source of truth). The exemption is static for a free peer and does not toggle on exhaustion: the walled-garden transition changes only the fallthrough for non-allowlisted traffic (rate-limited pool while on trial, dropped once exhausted).
+A free-tier peer SHALL reach the purchase-endpoint allowlist at full speed even while its other traffic is confined to the shared rate-limit pool. The gateway SHALL enforce this with a rule that matches the allowlisted destinations and skips classification - leaving them in the unlimited default class - ordered ahead of the per-peer pool classifier. The exemption SHALL cover both shaping directions and both address families, and SHALL reuse the same purchase-endpoint allowlist as the walled garden (a single source of truth). The exemption is static for a free peer and does not toggle on exhaustion: the walled-garden transition changes only the fallthrough for non-allowlisted traffic (rate-limited pool while on trial, dropped once exhausted).
 
 Traffic to the purchase endpoint still counts against the free byte allowance, because metering is measured at the WireGuard interface counter (total peer traffic, not per-destination). The exemption governs throughput, not accounting; this is acceptable because the checkout flow is small and it keeps the free allowance a single number.
 

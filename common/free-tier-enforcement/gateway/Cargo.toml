@@ -1,0 +1,42 @@
+[package]
+name = "nym-free-tier-gateway-harness"
+description = "Host-side driver that registers and tunnels against the local free-tier gateway harness (test-only)"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+bs58 = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+hex = { workspace = true }
+rand = { workspace = true }
+rand09 = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "io-util", "time"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+
+nym-bandwidth-controller = { path = "../../bandwidth-controller" }
+nym-bin-common = { path = "../../bin-common", features = ["basic_tracing"] }
+nym-credentials-interface = { path = "../../credentials-interface" }
+nym-crypto = { path = "../../crypto" }
+nym-kkt-ciphersuite = { path = "../../nym-kkt-ciphersuite" }
+nym-lp = { path = "../../nym-lp" }
+nym-lp-data = { path = "../../nym-lp-data" }
+nym-node-requests = { path = "../../../nym-node/nym-node-requests", features = ["client"] }
+nym-registration-client = { path = "../../../nym-registration-client" }
+nym-registration-common = { path = "../../registration" }
+nym-smol-dvpn = { path = "../../../sdk/rust/smol-dvpn" }
+
+[lints]
+workspace = true

@@ -59,6 +59,7 @@ members = [
     "common/exit-policy",
     "common/free-tier-check",
     "common/free-tier-enforcement",
+    "common/free-tier-enforcement/gateway",
     "common/gateway-requests",
     "common/gateway-stats-storage",
     "common/gateway-storage",

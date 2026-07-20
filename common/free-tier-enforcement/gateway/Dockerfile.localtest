@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+#
+# Local free-tier gateway harness (Milestone A: boot an unbonded, standalone
+# nym-node entry gateway with the free tier enabled).
+#
+# This is NOT the production image (`nym-node/Dockerfile`). Deliberately dropped:
+#   * the `harbor.nymte.ch` base registry (that only resolves on the Nym VPN);
+#   * the `nym-cli` download + the bonding entrypoint (we never bond);
+#   * any mainnet dependency - the node runs with `--standalone`, so it makes no
+#     nym-api / nyx-chain / nym-node calls and needs no network egress.
+#
+# Build from the repo root:
+#   docker build -f common/free-tier-enforcement/gateway/Dockerfile.localtest -t nym-free-tier-localtest .
+# (or just use ./run.sh). See README.md.
+
+FROM rust:latest AS builder
+
+WORKDIR /usr/src/nym
+COPY ./ ./
+
+# Cache the cargo registry + target dir so incremental rebuilds are fast; the
+# cache mount is not part of the image layer, so copy the binary out to a stable
+# path for the runtime stage to pick up.
+# Cache the cargo registry + target dir so incremental rebuilds are fast; the
+# cache mount is not part of the image layer, so copy the binary out to a stable
+# path for the runtime stage to pick up.
+RUN --mount=type=cache,target=/usr/src/nym/target \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release -p nym-node \
+    && cp target/release/nym-node /nym-node
+
+FROM ubuntu:24.04
+
+WORKDIR /nym
+
+# nftables + iproute2 (tc): the free-tier enforcement datapath.
+# iptables (iptables-nft on 24.04) + jq: run the real operator NAT script
+#   (network-tunnel-manager.sh) so WG traffic is masqueraded out to the internet,
+#   recreating the production env the native-nft walled garden filters ahead of.
+# wireguard-tools: the gateway tunnel.
+# iputils-ping / curl + ca-certificates: datapath + boot smoke checks.
+# Retries + no HTTP pipelining works around the intermittent "invalid signature"
+# apt failures seen on Docker Desktop (corrupted index downloads). If it still
+# fails, restart Docker Desktop (VM clock drift) and/or `docker builder prune -f`.
+RUN printf 'Acquire::Retries "3";\nAcquire::http::Pipeline-Depth "0";\nAcquire::http::No-Cache "true";\n' \
+        > /etc/apt/apt.conf.d/99-harness-robust \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        nftables \
+        iproute2 \
+        iptables \
+        jq \
+        wireguard-tools \
+        iputils-ping \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /nym-node ./nym-node
+COPY ./scripts/nym-node-setup/network-tunnel-manager.sh ./network-tunnel-manager.sh
+COPY ./common/free-tier-enforcement/gateway/entrypoint.localtest.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh ./network-tunnel-manager.sh
+
+ENTRYPOINT [ "./entrypoint.sh" ]

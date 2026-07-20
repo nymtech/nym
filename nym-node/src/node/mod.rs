@@ -76,7 +76,6 @@ use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use nym_validator_client::signing::signer::OfflineSigner;
 use nym_validator_client::{DirectSecp256k1HdWallet, QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
@@ -93,7 +92,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
 pub use nym_gateway::node::ActiveClientsStore;
@@ -782,11 +781,12 @@ impl NymNode {
             gateway_tasks_builder.set_wireguard_data(wg_data.into());
         }
 
+        // resolve the free-tier signer key: enabled requires a configured signer
+        // public key (fail loud rather than silently accepting no free-tier tokens)
+        let free_tier_signer = self.config.gateway_tasks.free_tier.signer()?;
+
         let wg_peer_registrator = gateway_tasks_builder
-            .build_peer_registrator(
-                upgrade_mode_common_state.clone(),
-                self.config.gateway_tasks.free_tier.enabled,
-            )
+            .build_peer_registrator(upgrade_mode_common_state.clone(), free_tier_signer)
             .await?;
 
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {
@@ -861,20 +861,22 @@ impl NymNode {
                 return Err(NymNodeError::WireguardDataUnavailable);
             };
 
-            let authenticator = gateway_tasks_builder
-                .build_wireguard_authenticator(
-                    peer_registrator,
-                    upgrade_mode_common_state.clone(),
-                    topology_provider,
-                )
-                .await?;
-            let started_authenticator = authenticator.start_service_provider().await?;
-            active_clients_store.insert_embedded(started_authenticator.handle);
+            if self.config.wireguard.allow_legacy_authenticator {
+                let authenticator = gateway_tasks_builder
+                    .build_wireguard_authenticator(
+                        peer_registrator,
+                        upgrade_mode_common_state.clone(),
+                        topology_provider,
+                    )
+                    .await?;
+                let started_authenticator = authenticator.start_service_provider().await?;
+                active_clients_store.insert_embedded(started_authenticator.handle);
 
-            info!(
-                "started authenticator at: {}",
-                started_authenticator.on_start_data.address
-            );
+                info!(
+                    "started authenticator at: {}",
+                    started_authenticator.on_start_data.address
+                );
+            }
 
             gateway_tasks_builder
                 .try_start_wireguard(upgrade_mode_common_state)
@@ -1534,6 +1536,20 @@ impl NymNode {
             self.config.wireguard.enabled
         );
         debug!("config: {:#?}", self.config);
+
+        if self.config.debug.standalone {
+            warn!(
+                "the node is being run in standalone mode - its features will be limited and will not be accessible"
+            );
+        }
+
+        if self.config.debug.testnet {
+            warn!("the node is being run in testnet mode - some of its features will be disabled")
+        }
+
+        if self.config.lp.debug.use_mock_ecash {
+            warn!("the node is using mock ecash - this MUST not be enabled on mainnet")
+        }
 
         // ##### START HTTP SERVER #####
         let bind_address = self.config.http.bind_address;

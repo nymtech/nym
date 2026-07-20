@@ -312,6 +312,17 @@ pub async fn start_wireguard(
     }
 
     wg_api.create_interface()?;
+
+    // Bring the interface administratively up before assigning addresses/routes.
+    // The kernel backend sets IFF_UP inside create_interface, but the userspace
+    // (BoringTun) backend creates the TUN device DOWN and leaves link-up to the
+    // caller - without this, the peer routing route add fails with ENETDOWN
+    // ("Network is down"). No-op on the kernel path (interface already up).
+    std::process::Command::new("ip")
+        .args(["link", "set", "dev", &ifname, "up"])
+        .output()
+        .inspect_err(|e| tracing::error!("Failed to bring up wireguard interface: {e:?}"))?;
+
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),

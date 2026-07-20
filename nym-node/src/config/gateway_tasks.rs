@@ -10,7 +10,10 @@ use nym_config::defaults::{
 };
 use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
+use nym_crypto::asymmetric::ed25519::{
+    self,
+    serde_helpers::{bs58_ed25519_pubkey, option_bs58_ed25519_pubkey},
+};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::IpAddr;
@@ -56,13 +59,19 @@ pub struct GatewayTasksConfig {
 }
 
 /// Configuration of the free tier: rate-limited, walled-garden access granted
-/// via a credential-proxy-signed capability JWT. Off unless enabled. The
-/// verification key is reused from [`UpgradeModeWatcher::attester_public_key`].
+/// via a credential-proxy-signed capability JWT. Off unless enabled.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct FreeTier {
     /// Whether this gateway accepts free-tier capability tokens at registration.
     pub enabled: bool,
+
+    /// Public key of the free-tier JWT signer (the credential proxy). Capability
+    /// tokens are verified offline directly against this key. This is the signer
+    /// tier (equivalent to an upgrade-mode `authorised_jwt_issuer`), NOT the
+    /// upgrade-mode attester. Required when `enabled`.
+    #[serde(default, with = "option_bs58_ed25519_pubkey")]
+    pub signer_public_key: Option<ed25519::PublicKey>,
 
     /// Endpoints reachable at full speed from inside the
     /// walled garden and exempt from the rate-limit pool.
@@ -72,6 +81,21 @@ pub struct FreeTier {
 
     #[serde(default)]
     pub debug: FreeTierDebug,
+}
+
+impl FreeTier {
+    pub fn signer(&self) -> Result<Option<ed25519::PublicKey>, NymNodeError> {
+        if !self.enabled {
+            return Ok(None);
+        }
+
+        let Some(signer_public_key) = self.signer_public_key else {
+            return Err(NymNodeError::ConfigValidationFailure {
+                error: "free tier is enabled but no `signer_public_key` is configured".to_string(),
+            });
+        };
+        Ok(Some(signer_public_key))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

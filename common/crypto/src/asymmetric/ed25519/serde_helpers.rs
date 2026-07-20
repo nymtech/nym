@@ -17,6 +17,34 @@ pub mod bs58_ed25519_pubkey {
     }
 }
 
+pub mod option_bs58_ed25519_pubkey {
+    use super::*;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(
+        key: &Option<PublicKey>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        key.map(|key| key.to_base58_string()).serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<PublicKey>, D::Error> {
+        match Option::<String>::deserialize(deserializer)? {
+            None => Ok(None),
+            Some(s) => {
+                if s.is_empty() {
+                    Ok(None)
+                } else {
+                    Some(PublicKey::from_base58_string(&s).map_err(serde::de::Error::custom))
+                        .transpose()
+                }
+            }
+        }
+    }
+}
+
 pub mod vec_bs58_ed25519_pubkey {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer, ser::SerializeSeq};
@@ -124,6 +152,29 @@ mod tests {
         assert_eq!(empty, empty_de);
         assert_eq!(single_key, single_key_de);
         assert_eq!(three_keys, three_keys_de);
+
+        Ok(())
+    }
+
+    #[test]
+    fn option_bs58_ed25519_pubkey_json() -> anyhow::Result<()> {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct KeyWrapper(#[serde(with = "option_bs58_ed25519_pubkey")] Option<PublicKey>);
+
+        let none = KeyWrapper(None);
+        let some = KeyWrapper(Some(PublicKey::from_base58_string(
+            "Be9wH7xuXBRJAuV1pC7MALZv6a61RvWQ3SypsNarqTt",
+        )?));
+
+        let se_none = serde_json::to_string(&none)?;
+        let se_some = serde_json::to_string(&some)?;
+        assert_eq!(se_none, r#"null"#);
+        assert_eq!(se_some, r#""Be9wH7xuXBRJAuV1pC7MALZv6a61RvWQ3SypsNarqTt""#);
+
+        assert_eq!(none, serde_json::from_str::<KeyWrapper>(&se_none)?);
+        assert_eq!(some, serde_json::from_str::<KeyWrapper>(&se_some)?);
+        // an empty string decodes to None (mirrors the x25519 option helper)
+        assert_eq!(none, serde_json::from_str::<KeyWrapper>(r#""""#)?);
 
         Ok(())
     }

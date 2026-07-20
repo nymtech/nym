@@ -67,6 +67,7 @@ impl Display for PeerHandle {
 }
 
 impl PeerHandle {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         public_key: Key,
         host_information: Arc<RwLock<Host>>,

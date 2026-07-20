@@ -29,7 +29,7 @@ use nym_credential_verification::{
 };
 use nym_credentials::ecash::utils::ecash_date_offset;
 use nym_credentials_interface::{Bandwidth, BandwidthCredential, CredentialSpendingData};
-use nym_crypto::asymmetric::x25519;
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_free_tier_check::{validate_free_tier_jwt, FreeTierPurpose, CREDENTIAL_PROXY_JWT_ISSUER};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::{FreeTierRecord, PersistedBandwidth};
@@ -69,8 +69,10 @@ pub struct PeerRegistrator {
     /// to remotely trigger the recheck
     pub(crate) upgrade_mode: UpgradeModeDetails,
 
-    /// Whether this gateway accepts free-tier capability tokens at registration.
-    pub(crate) free_tier_enabled: bool,
+    /// Public key of the free-tier JWT signer. `Some` iff the free tier is enabled;
+    /// capability tokens are verified offline directly against this key. This is the
+    /// signer tier (the credential proxy), NOT the upgrade-mode attester.
+    pub(crate) free_tier_signer: Option<ed25519::PublicKey>,
 
     /// Registrations in progress
     pub(crate) pending_registrations: PendingRegistrations,
@@ -126,13 +128,13 @@ impl PeerRegistrator {
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         peer_manager: PeerManager,
         upgrade_mode: UpgradeModeDetails,
-        free_tier_enabled: bool,
+        free_tier_signer: Option<ed25519::PublicKey>,
     ) -> Self {
         PeerRegistrator {
             ecash_verifier,
             peer_manager,
             upgrade_mode,
-            free_tier_enabled,
+            free_tier_signer,
             pending_registrations: Default::default(),
         }
     }
@@ -146,6 +148,10 @@ impl PeerRegistrator {
 
     fn upgrade_mode_enabled(&self) -> bool {
         self.upgrade_mode.enabled()
+    }
+
+    fn free_tier_enabled(&self) -> bool {
+        self.free_tier_signer.is_some()
     }
 
     fn keypair(&self) -> &Arc<x25519::KeyPair> {
@@ -299,15 +305,14 @@ impl PeerRegistrator {
                 Ok(())
             }
             BandwidthCredential::FreeTier { token } => {
-                if !self.free_tier_enabled {
+                let Some(signer) = self.free_tier_signer else {
                     return Err(GatewayWireguardError::FreeTierDisabled);
-                }
+                };
 
                 // verify the capability token offline against the configured
-                // (upgrade-mode) attester key
-                let attester = self.upgrade_mode.state().attester_pubkey();
+                // free-tier signer key (the credential proxy)
                 let claims =
-                    validate_free_tier_jwt(&token, &attester, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
+                    validate_free_tier_jwt(&token, &signer, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
 
                 // renewal tokens grant no free bandwidth - they belong straight in the
                 // purchase walled garden, which does not exist yet, so reject for now

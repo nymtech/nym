@@ -328,6 +328,13 @@ pub(crate) struct WireguardArgs {
         env = NYMNODE_WG_USERSPACE_ARG
     )]
     pub(crate) wireguard_userspace: Option<bool>,
+
+    /// Specifies whether the legacy authenticator for mixnet registration is going to be enabled
+    #[clap(
+        long,
+        env = NYMNODE_WG_ALLOW_LEGACY_AUTHENTICATOR_ARG
+    )]
+    pub(crate) allow_legacy_authenticator: Option<bool>,
 }
 
 impl WireguardArgs {
@@ -358,6 +365,10 @@ impl WireguardArgs {
 
         if let Some(userspace) = self.wireguard_userspace {
             section.use_userspace = userspace
+        }
+
+        if let Some(allow_legacy_authenticator) = self.allow_legacy_authenticator {
+            section.allow_legacy_authenticator = allow_legacy_authenticator;
         }
 
         section
@@ -485,6 +496,23 @@ pub(crate) struct EntryGatewayArgs {
     )]
     #[zeroize(skip)]
     pub(crate) upgrade_mode_attester_public_key: Option<ed25519::PublicKey>,
+
+    /// Whether this gateway accepts free-tier capability tokens at registration.
+    #[clap(
+        long,
+        env = NYMNODE_FREE_TIER_ENABLED_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) free_tier_enabled: Option<bool>,
+
+    /// Public key of the free-tier JWT signer (the credential proxy). Required when
+    /// the free tier is enabled; capability tokens are verified offline against it.
+    #[clap(
+        long,
+        env = NYMNODE_FREE_TIER_SIGNER_PUBKEY_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) free_tier_signer_public_key: Option<ed25519::PublicKey>,
 }
 
 impl EntryGatewayArgs {
@@ -517,6 +545,12 @@ impl EntryGatewayArgs {
         }
         if let Some(upgrade_mode_attester_public_key) = self.upgrade_mode_attester_public_key {
             section.upgrade_mode.attester_public_key = upgrade_mode_attester_public_key
+        }
+        if let Some(free_tier_enabled) = self.free_tier_enabled {
+            section.free_tier.enabled = free_tier_enabled
+        }
+        if let Some(free_tier_signer_public_key) = self.free_tier_signer_public_key {
+            section.free_tier.signer_public_key = Some(free_tier_signer_public_key)
         }
 
         section

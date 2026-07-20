@@ -604,6 +604,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
         },
         wireguard: Wireguard {
             enabled: old_cfg.wireguard.enabled,
+            allow_legacy_authenticator: true,
             bind_address: old_cfg.wireguard.bind_address,
             private_ipv4: old_cfg.wireguard.private_ipv4,
             private_ipv6: old_cfg.wireguard.private_ipv6,

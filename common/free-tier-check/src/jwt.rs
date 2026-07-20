@@ -64,12 +64,15 @@ pub fn generate_free_tier_jwt(
     jwt_keys.sign(claim).unwrap()
 }
 
-/// Verify a free-tier JWT offline against a configured attester public key.
+/// Verify a free-tier JWT offline against the configured signer public key.
 /// No network, no attestation, no delegation: the token must be signed
-/// directly by `attester_public_key`.
+/// directly by `signer_public_key`. This key is the free-tier JWT signer
+/// (the credential proxy), equivalent to an upgrade-mode `authorised_jwt_issuer`
+/// and NOT the upgrade-mode attester, which is a delegating root that never
+/// signs tokens itself.
 pub fn validate_free_tier_jwt(
     token: &str,
-    attester_public_key: &ed25519::PublicKey,
+    signer_public_key: &ed25519::PublicKey,
     expected_issuer: Option<&str>,
 ) -> Result<FreeTierClaims, FreeTierCheckError> {
     let mut opts = VerificationOptions::default();
@@ -77,7 +80,7 @@ pub fn validate_free_tier_jwt(
         opts.allowed_issuers = Some(HashSet::from_iter(vec![issuer.to_string()]));
     }
 
-    let claims = attester_public_key
+    let claims = signer_public_key
         .to_jwt_compatible_key()
         .verify_token::<FreeTierClaims>(token, Some(opts))
         .map_err(|source| FreeTierCheckError::JwtVerificationFailure { source })?

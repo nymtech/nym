@@ -208,6 +208,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
     let wg_opts = LocalWireguardOpts {
         config: super::Wireguard {
             enabled: config.wireguard.enabled,
+            allow_legacy_authenticator: config.wireguard.allow_legacy_authenticator,
             bind_address: config.wireguard.bind_address,
             private_ipv4: config.wireguard.private_ipv4,
             private_ipv6: config.wireguard.private_ipv6,

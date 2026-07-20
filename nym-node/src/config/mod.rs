@@ -1052,6 +1052,9 @@ pub struct Wireguard {
     /// Specifies whether the wireguard service is enabled on this node.
     pub enabled: bool,
 
+    /// Specifies whether the legacy authenticator is allowed to be used.
+    pub allow_legacy_authenticator: bool,
+
     /// Socket address this node will use for binding its wireguard interface.
     /// default: `[::]:51822`
     pub bind_address: SocketAddr,
@@ -1094,6 +1097,7 @@ impl Wireguard {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         Wireguard {
             enabled: false,
+            allow_legacy_authenticator: true,
             bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_TUNNEL_PORT),
             private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
             private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,

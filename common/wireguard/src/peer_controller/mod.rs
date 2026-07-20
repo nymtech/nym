@@ -296,6 +296,12 @@ impl PeerController {
         if let Err(e) = self.wg_api.configure_peer(peer) {
             nym_metrics::inc!("wg_peer_addition_failed");
             nym_metrics::inc!("wg_config_errors_total");
+            // log explicitly: this error otherwise only surfaces as a bumped metric,
+            // and a failed peer-add shows up to the client as a registration timeout
+            error!(
+                "failed to configure wireguard peer {}: {e}",
+                peer.public_key.to_string()
+            );
             return Err(e.into());
         }
 

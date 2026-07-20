@@ -295,7 +295,7 @@ impl GatewayTasksBuilder {
     pub async fn build_peer_registrator(
         &mut self,
         upgrade_mode_details: UpgradeModeDetails,
-        free_tier_enabled: bool,
+        free_tier_signer: Option<ed25519::PublicKey>,
     ) -> Result<Option<PeerRegistrator>, GatewayError> {
         let Some(wireguard_data) = &self.wireguard_data else {
             return Ok(None);
@@ -306,7 +306,7 @@ impl GatewayTasksBuilder {
             self.ecash_manager().await?,
             peer_manager,
             upgrade_mode_details,
-            free_tier_enabled,
+            free_tier_signer,
         )))
     }
 

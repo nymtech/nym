@@ -55,6 +55,14 @@ pub(crate) struct Args {
     )]
     pub(crate) local: bool,
 
+    /// Flag specifying this node will be running in a standalone setting.
+    #[clap(
+        long,
+        default_value_t = false,
+        env = NYMNODE_STANDALONE_ARG
+    )]
+    pub(crate) standalone: bool,
+
     /// Specifies the current mode(s) of this nym-node.
     #[clap(
         long,

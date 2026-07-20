@@ -1156,6 +1156,10 @@ pub struct Debug {
 
     /// Specifies whether this node runs in testnet mode thus allowing it to route packets on local interfaces
     pub testnet: bool,
+
+    /// Specifies whether this node runs in a 'standalone' mode, i.e. without connection to nym-apis,
+    /// the nyx chain or other nym nodes.
+    pub standalone: bool,
 }
 
 impl Debug {
@@ -1169,6 +1173,7 @@ impl Default for Debug {
             topology_cache_ttl: Self::DEFAULT_TOPOLOGY_CACHE_TTL,
             routing_nodes_check_interval: Self::DEFAULT_ROUTING_NODES_CHECK_INTERVAL,
             testnet: false,
+            standalone: false,
         }
     }
 }

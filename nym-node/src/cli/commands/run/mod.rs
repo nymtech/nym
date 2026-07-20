@@ -47,6 +47,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     let bonding_info_path = args.bonding_information_output.clone();
     let init_only = args.init_only;
     let local = args.local;
+    let standalone = args.standalone;
     let accepted_operator_terms_and_conditions = args.accept_operator_terms_and_conditions;
 
     if !accepted_operator_terms_and_conditions {
@@ -104,6 +105,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     let mut config = config;
     if local {
         config.debug.testnet = true
+    }
+    if standalone {
+        config.debug.standalone = true;
     }
 
     let nym_node = NymNode::new(config)

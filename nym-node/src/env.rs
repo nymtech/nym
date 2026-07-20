@@ -10,6 +10,7 @@ pub mod vars {
 
     pub const NYMNODE_DENY_INIT_ARG: &str = "NYMNODE_DENY_INIT";
     pub const NYMNODE_LOCAL_ARG: &str = "NYMNODE_LOCAL";
+    pub const NYMNODE_STANDALONE_ARG: &str = "NYMNODE_STANDALONE";
     pub const NYMNODE_INIT_ONLY_ARG: &str = "NYMNODE_INIT_ONLY";
 
     pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";

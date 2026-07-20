@@ -98,6 +98,7 @@ use zeroize::Zeroizing;
 
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
+use nym_validator_client::models::KeyRotationId;
 
 pub mod bonding_information;
 pub mod description;
@@ -398,6 +399,12 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
     }
 }
 
+#[derive(Default)]
+struct KnownNetworkMonitors {
+    ip_addresses: HashSet<IpAddr>,
+    nodes: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>>,
+}
+
 pub struct NymNode {
     config: Config,
     accepted_operator_terms_and_conditions: bool,
@@ -430,6 +437,16 @@ pub struct NymNode {
 }
 
 impl NymNode {
+    async fn current_rotation_id(config: &Config) -> Result<KeyRotationId, NymNodeError> {
+        if config.debug.standalone {
+            // we're not going to be rotating keys, so we don't have to keep it in sync
+            info!("running in standalone mode, using hardcoded key rotation id");
+            return Ok(0);
+        }
+
+        Ok(get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?)
+    }
+
     pub(crate) async fn initialise(
         config: &Config,
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
@@ -447,8 +464,7 @@ impl NymNode {
         let mlkem = generate_keypair_mlkem(&mut rng09);
         let mceliece = generate_keypair_mceliece(&mut rng09);
 
-        let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
+        let current_rotation_id = Self::current_rotation_id(&config).await?;
         let _ = SphinxKeyManager::initialise_new(
             &mut rng,
             current_rotation_id,
@@ -525,8 +541,7 @@ impl NymNode {
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
-        let current_rotation_id =
-            get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
+        let current_rotation_id = Self::current_rotation_id(&config).await?;
 
         let ed25519_identity_keys = load_ed25519_identity_keypair(
             &config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -673,6 +688,7 @@ impl NymNode {
             client,
             routing_filter,
             noise_view,
+            self.config.debug.standalone,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await
@@ -1079,6 +1095,11 @@ impl NymNode {
         &self,
         client: &NymApisClient,
     ) -> Result<(), NymNodeError> {
+        if self.config.debug.standalone {
+            info!("skipping remote API cache refresh, running in standalone mode");
+            return Ok(());
+        }
+
         info!("attempting to request described cache refresh from nym-api(s)...");
 
         client
@@ -1088,6 +1109,11 @@ impl NymNode {
     }
 
     pub(crate) fn start_verloc_measurements(&self) {
+        if self.config.debug.standalone {
+            info!("skipping verloc setup, running in standalone mode");
+            return;
+        }
+
         info!(
             "Starting the [verloc] round-trip-time measurer on {} ...",
             self.config.verloc.bind_address
@@ -1271,6 +1297,12 @@ impl NymNode {
         nym_apis_client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
     ) -> Result<(), NymNodeError> {
+        if self.config.debug.standalone {
+            // no need to rotate sphinx keys if we're not going to be part of any network
+            info!("skipping key rotation setup, running in standalone mode");
+            return Ok(());
+        }
+
         let managed_keys = self.take_managed_sphinx_keys()?;
         let rotation_state = nym_apis_client.get_key_rotation_info().await?;
 
@@ -1391,7 +1423,12 @@ impl NymNode {
         Ok(())
     }
 
-    async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
+    async fn known_network_monitors(&self) -> Result<KnownNetworkMonitors, NymNodeError> {
+        if self.config.debug.standalone {
+            info!("skipping network monitors setup, running in standalone mode");
+            return Ok(KnownNetworkMonitors::default());
+        }
+
         // 1. create a nyx rpc client
         // (TODO: we should have unified client later on for all chain interactions)
         let client = QueryHttpRpcNyxdClient::connect_with_network_details(
@@ -1400,7 +1437,40 @@ impl NymNode {
         )?;
 
         // 2. run the queries to retrieve all agents
-        Ok(client.get_all_network_monitor_agents().await?)
+        let known_network_monitors = client.get_all_network_monitor_agents().await?;
+
+        // 3. process them into formats required by routing filter (ip addresses)
+        // and noise (mapping to known key)
+        let mut known_network_monitor_ips = HashSet::new();
+        let mut known_network_monitor_nodes: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>> =
+            HashMap::new();
+        for agent in known_network_monitors {
+            let Ok(x25519_pubkey) = x25519::PublicKey::from_base58_string(&agent.bs58_x25519_noise)
+            else {
+                error!(
+                    "network monitor agent {} has announced an invalid noise key - ignoring",
+                    agent.mixnet_address
+                );
+                continue;
+            };
+
+            let ip = agent.mixnet_address.ip();
+            known_network_monitor_ips.insert(ip);
+
+            let entry = known_network_monitor_nodes.entry(ip).or_default();
+            entry.push(NetworkMonitorAgentNode {
+                port: agent.mixnet_address.port(),
+                key: VersionedNoiseKeyV1 {
+                    supported_version: agent.noise_version.into(),
+                    x25519_pubkey,
+                },
+            })
+        }
+
+        Ok(KnownNetworkMonitors {
+            ip_addresses: known_network_monitor_ips,
+            nodes: known_network_monitor_nodes,
+        })
     }
 
     async fn setup_nyx_chain_watcher(
@@ -1408,6 +1478,11 @@ impl NymNode {
         network_monitors_handle: RoutableNetworkMonitors,
         noise_network_view: NoiseNetworkView,
     ) -> Result<(), NymNodeError> {
+        if self.config.debug.standalone {
+            info!("skipping nyx chain watcher setup, running in standalone mode");
+            return Ok(());
+        }
+
         // START: module creation
         let Some(Ok(contract_address)) = self
             .network
@@ -1439,6 +1514,14 @@ impl NymNode {
 
         watcher.build_and_start().await?;
         Ok(())
+    }
+
+    fn start_network_refresher(&self, refresher: NetworkRefresher) {
+        if self.config.debug.standalone {
+            info!("skipping network refresher setup, running in standalone mode");
+            return;
+        }
+        refresher.start();
     }
 
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
@@ -1482,38 +1565,12 @@ impl NymNode {
         // obtain the initial list of known network monitors
         let known_network_monitors = self.known_network_monitors().await?;
 
-        let mut known_network_monitor_ips = HashSet::new();
-        let mut known_network_monitor_nodes: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>> =
-            HashMap::new();
-        for agent in known_network_monitors {
-            let Ok(x25519_pubkey) = x25519::PublicKey::from_base58_string(&agent.bs58_x25519_noise)
-            else {
-                error!(
-                    "network monitor agent {} has announced an invalid noise key - ignoring",
-                    agent.mixnet_address
-                );
-                continue;
-            };
-
-            let ip = agent.mixnet_address.ip();
-            known_network_monitor_ips.insert(ip);
-
-            let entry = known_network_monitor_nodes.entry(ip).or_default();
-            entry.push(NetworkMonitorAgentNode {
-                port: agent.mixnet_address.port(),
-                key: VersionedNoiseKeyV1 {
-                    supported_version: agent.noise_version.into(),
-                    x25519_pubkey,
-                },
-            })
-        }
-
         // build routing filter
         let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet)
-            .with_known_network_monitors(known_network_monitor_ips);
+            .with_known_network_monitors(known_network_monitors.ip_addresses);
         let network_monitors_ref = routing_filter.known_network_monitors_handle();
 
-        let noise_view = NoiseNetworkView::new_with_agents(known_network_monitor_nodes);
+        let noise_view = NoiseNetworkView::new_with_agents(known_network_monitors.nodes);
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
             .build_network_refresher(
@@ -1522,6 +1579,7 @@ impl NymNode {
                 noise_view.clone(),
             )
             .await?;
+        let network = network_refresher.cached_network();
 
         // setup nyx chain watcher (currently only used for updating the network monitors view)
         self.setup_nyx_chain_watcher(network_monitors_ref, noise_view.clone())
@@ -1557,8 +1615,7 @@ impl NymNode {
             active_egress_mixnet_connections,
         );
 
-        let network = network_refresher.cached_network();
-        network_refresher.start();
+        self.start_network_refresher(network_refresher);
 
         // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)
         self.start_gateway_tasks(

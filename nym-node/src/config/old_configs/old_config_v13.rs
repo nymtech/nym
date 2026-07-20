@@ -921,6 +921,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
             topology_cache_ttl: old_cfg.debug.topology_cache_ttl,
             routing_nodes_check_interval: old_cfg.debug.routing_nodes_check_interval,
             testnet: old_cfg.debug.testnet,
+            standalone: false,
         },
     };
     Ok(cfg)

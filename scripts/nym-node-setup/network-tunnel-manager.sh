@@ -847,7 +847,8 @@ apply_port_allowlist() {
   echo "applying allowed port list into ${NYM_CHAIN}"
 
   configure_exit_dns_and_icmp
-
+  
+  # keep redundant ports commented out for governance transparency
   declare -A PORT_MAPPINGS=(
     ["FTP"]="20-21"
     ["SSH"]="22"

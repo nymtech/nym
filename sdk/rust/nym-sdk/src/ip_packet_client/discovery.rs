@@ -64,6 +64,17 @@ pub async fn retrieve_exit_nodes_with_performance(
     let mut described = Vec::new();
 
     for exit in exit_gateways {
+        // We fetch all nodes above, then keep only those declaring the exit-IPR
+        // role (an exit gateway can be network-requester-only); others don't serve
+        // an IPR, so a v9 connect to them just times out.
+        //
+        // TODO(ipr-perf): rewrite this selection when IPR performance monitoring
+        // lands — fetch only exit gateways and rank on measured IPR health, since
+        // directory `performance` doesn't predict IPR usability.
+        if !exit.supported_roles.exit_ipr {
+            continue;
+        }
+
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
             continue;
         };

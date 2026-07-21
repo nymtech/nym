@@ -32,7 +32,19 @@ impl NymAsyncDevice {
     ) -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        capabilities.max_transmission_unit = 1500;
+        // Client MTU capped to the IPR egress TUN (1420 bytes, see
+        // common/tun/src/linux/tun_device.rs). A 1500-byte client advertises an MSS
+        // that invites full-size segments the TUN then drops with ICMP frag-needed,
+        // black-holing large downloads; nothing clamps the MSS or negotiates the
+        // MTU. 1280 on Android to match nym-vpn-client. SMOLMIX_MTU overrides.
+        #[cfg(target_os = "android")]
+        const DEFAULT_MTU: usize = 1280;
+        #[cfg(not(target_os = "android"))]
+        const DEFAULT_MTU: usize = 1420;
+        capabilities.max_transmission_unit = std::env::var("SMOLMIX_MTU")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_MTU);
         capabilities.max_burst_size = Some(1);
 
         Self {

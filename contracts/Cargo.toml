@@ -60,27 +60,27 @@ schemars = "0.8.16"
 
 thiserror = "2.0.11"
 
-easy-addr = { version = "1.21.0", path = "../common/cosmwasm-smart-contracts/easy_addr" }
+easy-addr = { version = "1.21.4", path = "../common/cosmwasm-smart-contracts/easy_addr" }
 # For local development with modifications, add a [patch.crates-io] section (see bottom of file)
-nym-coconut-dkg-common = "1.21.0"
-nym-contracts-common = "1.21.0"
-nym-contracts-common-testing = "1.21.0"
-nym-crypto = { version = "1.21.0", default-features = false }
-nym-ecash-contract-common = "1.21.0"
-nym-group-contract-common = "1.21.0"
-nym-mixnet-contract-common = "1.21.0"
-nym-multisig-contract-common = "1.21.0"
-nym-network-monitors-contract-common = "1.21.0"
-nym-network-defaults = { version = "1.21.0", default-features = false }
-nym-performance-contract-common = "1.21.0"
-nym-pool-contract-common = "1.21.0"
-nym-vesting-contract-common = "1.21.0"
+nym-coconut-dkg-common = "1.21.4"
+nym-contracts-common = "1.21.4"
+nym-contracts-common-testing = "1.21.4"
+nym-crypto = { version = "1.21.4", default-features = false }
+nym-ecash-contract-common = "1.21.4"
+nym-group-contract-common = "1.21.4"
+nym-mixnet-contract-common = "1.21.4"
+nym-multisig-contract-common = "1.21.4"
+nym-network-monitors-contract-common = "1.21.4"
+nym-network-defaults = { version = "1.21.4", default-features = false }
+nym-performance-contract-common = "1.21.4"
+nym-pool-contract-common = "1.21.4"
+nym-vesting-contract-common = "1.21.4"
 
 # Aliases for crates that some contracts import under different names
-contracts-common = { version = "1.21.0", package = "nym-contracts-common" }
-mixnet-contract-common = { version = "1.21.0", package = "nym-mixnet-contract-common" }
-vesting-contract-common = { version = "1.21.0", package = "nym-vesting-contract-common" }
-nym-node-families-contract-common = { version = "1.21.0", package = "nym-node-families-contract-common" }
+contracts-common = { version = "1.21.4", package = "nym-contracts-common" }
+mixnet-contract-common = { version = "1.21.4", package = "nym-mixnet-contract-common" }
+vesting-contract-common = { version = "1.21.4", package = "nym-vesting-contract-common" }
+nym-node-families-contract-common = { version = "1.21.4", package = "nym-node-families-contract-common" }
 
 # Internal contract workspace members (for cross-contract testing)
 cw3-flex-multisig = { version = "2.0.0", path = "multisig/cw3-flex-multisig" }
@@ -109,3 +109,9 @@ nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-co
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-group-contract-common = { path = "../common/cosmwasm-smart-contracts/group-contract" }
+nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-performance-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-performance-contract" }
+nym-pool-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-pool-contract" }
+nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }

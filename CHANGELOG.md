@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.14-amsterdam] (2026-07-21)
+
+- bugfix: don't use hickory DNS for resolving gateway hostname within the NM ([#6955])
+- [BandwidthController ] Manual restock command ([#6952])
+- bugfix: allow single topology retrieval retry upon data being fetched across epochs ([#6951])
+- [BandwidthController] Step 2 start of stack ([#6937])
+- bugfix: make sure new routes are displayed in nym-credential-proxy swagger page ([#6924])
+- Mechanism to Notify HTTP Client of Network Reconfiguration ([#6923])
+- Max/bump docs sdk version ([#6922])
+- Max/socks5 autodiscovery ([#6920])
+- plumbing for configurable EG ([#6888])
+
+[#6955]: https://github.com/nymtech/nym/pull/6955
+[#6952]: https://github.com/nymtech/nym/pull/6952
+[#6951]: https://github.com/nymtech/nym/pull/6951
+[#6937]: https://github.com/nymtech/nym/pull/6937
+[#6924]: https://github.com/nymtech/nym/pull/6924
+[#6923]: https://github.com/nymtech/nym/pull/6923
+[#6922]: https://github.com/nymtech/nym/pull/6922
+[#6920]: https://github.com/nymtech/nym/pull/6920
+[#6888]: https://github.com/nymtech/nym/pull/6888
+
 ## [2026.13-ziller] (2026-07-07)
 
 - crates release: bump version to 1.21.3 ([#6916])

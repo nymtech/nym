@@ -36,6 +36,12 @@ impl GatewayClientConfig {
     }
 
     #[must_use]
+    pub fn with_hickory_dns(mut self, use_hickory_dns: bool) -> Self {
+        self.connection.use_hickory_dns = use_hickory_dns;
+        self
+    }
+
+    #[must_use]
     pub fn with_reconnection_attempts(mut self, reconnection_attempts: usize) -> Self {
         self.connection.reconnection_attempts = reconnection_attempts;
         self
@@ -62,6 +68,9 @@ pub struct Connection {
 
     /// Delay between each subsequent reconnection attempt.
     pub reconnection_backoff: Duration,
+
+    /// Specifies whether the hostname of the client should be resolved using the hickory DNS resolver.
+    pub use_hickory_dns: bool,
 }
 
 impl Connection {
@@ -80,6 +89,7 @@ impl Default for Connection {
             should_reconnect_on_failure: true,
             reconnection_attempts: Self::DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: Self::DEFAULT_RECONNECTION_BACKOFF,
+            use_hickory_dns: true,
         }
     }
 }

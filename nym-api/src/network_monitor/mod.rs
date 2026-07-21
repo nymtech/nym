@@ -17,7 +17,7 @@ use crate::node_status_api::NodeStatusCache;
 use crate::storage::NymApiStorage;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
-use crate::support::nyxd;
+use crate::support::{config, nyxd};
 use futures::channel::mpsc;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_bandwidth_controller::BandwidthController;
@@ -38,16 +38,16 @@ pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
-pub(crate) fn setup<'a>(
-    config: &'a Config,
+pub(crate) fn setup(
+    config: &Config,
     nym_contract_cache: &MixnetContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
-) -> NetworkMonitorBuilder<'a> {
+) -> NetworkMonitorBuilder {
     NetworkMonitorBuilder::new(
-        config,
+        config.network_monitor.clone(),
         nyxd_client,
         storage.to_owned(),
         nym_contract_cache.clone(),
@@ -56,8 +56,8 @@ pub(crate) fn setup<'a>(
     )
 }
 
-pub(crate) struct NetworkMonitorBuilder<'a> {
-    config: &'a Config,
+pub(crate) struct NetworkMonitorBuilder {
+    config: config::NetworkMonitor,
     nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
     contract_cache: MixnetContractCache,
@@ -65,9 +65,9 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     node_status_cache: NodeStatusCache,
 }
 
-impl<'a> NetworkMonitorBuilder<'a> {
+impl NetworkMonitorBuilder {
     pub(crate) fn new(
-        config: &'a Config,
+        config: config::NetworkMonitor,
         nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
         contract_cache: MixnetContractCache,
@@ -105,7 +105,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             self.contract_cache,
             self.described_cache,
             self.node_status_cache,
-            self.config.network_monitor.debug.per_node_test_packets,
+            self.config.debug.per_node_test_packets,
             Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
@@ -114,11 +114,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = {
             BandwidthController::new(
                 nym_credential_storage::initialise_persistent_storage(
-                    &self
-                        .config
-                        .network_monitor
-                        .storage_paths
-                        .credentials_database_path,
+                    &self.config.storage_paths.credentials_database_path,
                 )
                 .await,
             )
@@ -130,7 +126,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_request_sender = bandwidth_controller.get_request_sender();
 
         let packet_sender = new_packet_sender(
-            self.config,
+            &self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
             bandwidth_request_sender,
@@ -142,15 +138,14 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&encryption_keypair),
             ack_key,
         );
-        let summary_producer =
-            new_summary_producer(self.config.network_monitor.debug.per_node_test_packets);
+        let summary_producer = new_summary_producer(self.config.debug.per_node_test_packets);
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
         );
 
         let monitor = Monitor::new(
-            &self.config.network_monitor,
+            &self.config,
             packet_preparer,
             packet_sender,
             received_processor,
@@ -212,7 +207,7 @@ fn new_packet_preparer(
 }
 
 fn new_packet_sender(
-    config: &Config,
+    config: &config::NetworkMonitor,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<ed25519::KeyPair>,
     bandwidth_request_sender: BandwidthControllerRequestSender,

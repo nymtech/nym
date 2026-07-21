@@ -217,11 +217,21 @@ impl Tunnel {
         // Configure smoltcp: raw IP mode (no Ethernet), /32 for the allocated IP,
         // default route via unspecified (the IPR does the actual routing).
         let iface_config = Config::new(HardwareAddress::Ip);
-        let net_config = NetConfig::new(
+        let mut net_config = NetConfig::new(
             iface_config,
             IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32),
             vec![IpAddress::from(Ipv4Address::UNSPECIFIED)],
         );
+
+        // The TCP socket buffer is the TCP receive window; over a high-RTT mixnet
+        // path the default 8 KiB caps throughput at window/RTT (a few KB/s).
+        // SMOLMIX_TCP_BUF overrides it so we can measure the window's effect.
+        if let Ok(buf) = std::env::var("SMOLMIX_TCP_BUF") {
+            if let Ok(size) = buf.parse::<usize>() {
+                net_config.buffer_size.tcp_rx_size = size;
+                net_config.buffer_size.tcp_tx_size = size;
+            }
+        }
 
         // Net::new spawns the smoltcp reactor as a background task. After this,
         // tcp_connect/udp_bind create sockets managed by that reactor.

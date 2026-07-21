@@ -28,14 +28,50 @@ pub struct WasmDevice {
     tx_stats: TxStats,
 }
 
+/// Default client MTU. 1280 on Android (matching mobile, as nym-vpn-client does),
+/// 1420 elsewhere, both at or below the IPR's 1420-byte egress TUN so large
+/// downloads are not black-holed. On non-wasm targets (native unit tests) the sniff
+/// is unavailable, so we return 1420.
+fn default_mtu() -> usize {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if is_android() {
+            1280
+        } else {
+            1420
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        1420
+    }
+}
+
+/// Sniff the platform from `navigator.userAgent`. Reads the property off the JS
+/// global via reflection so it works in both `Window` and `WorkerGlobalScope`
+/// contexts without pulling in extra web-sys features. Falls back to `false` (1420)
+/// if the property is missing.
+#[cfg(target_arch = "wasm32")]
+fn is_android() -> bool {
+    use wasm_bindgen::JsValue;
+    let global = js_sys::global();
+    js_sys::Reflect::get(&global, &JsValue::from_str("navigator"))
+        .ok()
+        .and_then(|nav| js_sys::Reflect::get(&nav, &JsValue::from_str("userAgent")).ok())
+        .and_then(|ua| ua.as_string())
+        .map(|ua| ua.to_ascii_lowercase().contains("android"))
+        .unwrap_or(false)
+}
+
 impl WasmDevice {
     pub fn new() -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Match the standard Ethernet MTU (1500). 1500 keeps a
-        // packet (plus its LP/IPR framing and SURB headers) within a single
-        // Sphinx packet's payload, avoiding LP-layer fragmentation.
-        capabilities.max_transmission_unit = 1500;
+        // Client MTU. The IPR egress TUN is 1420 bytes, so a 1500-byte client
+        // black-holes large downloads: full-size segments are dropped with ICMP
+        // frag-needed at the TUN, with no MSS clamp or MTU negotiation to warn us.
+        // Match nym-vpn-client: 1280 on Android to align with mobile, 1420 elsewhere.
+        capabilities.max_transmission_unit = default_mtu();
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM
@@ -400,6 +436,8 @@ mod tests {
         let dev = WasmDevice::new();
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        assert_eq!(caps.max_transmission_unit, 1500);
+        // Native test target: default_mtu() returns 1420 (the wasm user-agent sniff
+        // only runs on wasm32).
+        assert_eq!(caps.max_transmission_unit, 1420);
     }
 }

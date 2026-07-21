@@ -28,7 +28,7 @@ const PEERS_V6: &str = "garden_v6";
 const CHAIN_PRIORITY: &str = "-1";
 
 /// The walled-garden builder (v1).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct WalledGarden {
     interface: String,
 }

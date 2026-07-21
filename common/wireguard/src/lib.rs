@@ -17,6 +17,7 @@ use tracing::error;
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 
 pub mod error;
+mod free_tier_controller;
 pub mod ip_pool;
 pub mod peer_controller;
 pub mod peer_handle;
@@ -241,6 +242,51 @@ pub struct WireguardData {
     pub use_userspace: bool,
 }
 
+/// Free-tier datapath enforcement parameters, threaded from node config into WireGuard
+/// startup so the rate-limit pool + walled garden are scaffolded on the interface.
+/// Its presence means the free tier is enabled.
+#[derive(Debug, Clone)]
+pub struct FreeTierEnforcementConfig {
+    /// Aggregate rate-limit pool ceiling, in bytes per second.
+    pub pool_bytes_per_second: u64,
+
+    /// Purchase-endpoint allowlist, reachable at full speed from the garden and exempt
+    /// from the pool (both address families).
+    pub walled_garden_whitelist: Vec<IpAddr>,
+}
+
+/// How a persisted free-tier peer should be re-enforced at startup (task 5.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReconcileClass {
+    /// Active trial: keep it in the rate-limit pool.
+    Pool,
+
+    /// Exhausted by time or bytes: confine it to the walled garden.
+    Garden,
+
+    /// Not a free peer (no record, or upgraded to paid): no free-tier enforcement.
+    Unenforced,
+}
+
+/// Classify a persisted peer for the startup reconcile from its free-tier state. A peer
+/// is gardened once EITHER limit is spent (mirrors the whichever-first exhaustion in the
+/// peer handle), so a returning exhausted peer is confined before it forwards a packet.
+fn classify_for_reconcile(
+    is_free: bool,
+    elapsed_secs: i64,
+    available_bandwidth: i64,
+    time_cap_secs: i64,
+) -> ReconcileClass {
+    if !is_free {
+        return ReconcileClass::Unenforced;
+    }
+    if elapsed_secs >= time_cap_secs || available_bandwidth <= 0 {
+        ReconcileClass::Garden
+    } else {
+        ReconcileClass::Pool
+    }
+}
+
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
@@ -251,10 +297,14 @@ pub async fn start_wireguard(
     shutdown_token: nym_task::ShutdownToken,
     wireguard_data: WireguardData,
     use_userspace: bool,
+    free_tier_enforcement: Option<FreeTierEnforcementConfig>,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    use crate::free_tier_controller::FreeTierController;
+    use crate::peer_handle::PeerFreeTier;
     use base64::{Engine, prelude::BASE64_STANDARD};
     use defguard_wireguard_rs::InterfaceConfiguration;
     use ip_network::IpNetwork;
+    use nym_free_tier_enforcement::PeerAddrs;
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
@@ -268,29 +318,63 @@ pub async fn start_wireguard(
     let mut wg_api = WgApiWrapper::new(&ifname, use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
 
+    // Build the free-tier enforcement facade once (when enabled): used to reconcile the
+    // datapath below (task 5.5) and handed to the PeerController for per-peer admit /
+    // walled-garden transitions (tasks 4.4 / 5.4).
+    let free_tier_controller = match free_tier_enforcement {
+        Some(cfg) => FreeTierController::new_enabled(ifname.clone(), cfg),
+        None => FreeTierController::new_disabled(),
+    };
+
+    // Free-tier startup reconcile (task 5.5): while loading persisted peers, partition
+    // the free ones into the rate-limit pool (active trial) vs the walled garden
+    // (exhausted) so the datapath scaffolding can be rebuilt from state below, before
+    // any peer traffic is forwarded.
+    let free_tier_enabled = free_tier_controller.free_tier_enabled();
+    let now = time::OffsetDateTime::now_utc();
+    let time_cap_secs = nym_network_defaults::constants::FREE_TIER_TRIAL_TIME_CAP.as_secs() as i64;
+    let mut pooled_peers: Vec<PeerAddrs> = Vec::new();
+    let mut gardened_peers: Vec<PeerAddrs> = Vec::new();
+
     for peer in peers.iter() {
-        let bandwidth_manager = peer_handle::SharedBandwidthStorageManager::new(
-            Arc::new(RwLock::new(
-                PeerController::generate_bandwidth_manager(
-                    ecash_manager.storage(),
-                    &peer.public_key,
-                )
-                .await?,
-            )),
-            peer.allowed_ips.clone(),
-        );
-        let free_tier_granted_at = ecash_manager
+        let bandwidth_manager =
+            PeerController::generate_bandwidth_manager(ecash_manager.storage(), &peer.public_key)
+                .await?;
+
+        let free_tier_record = ecash_manager
             .storage()
             .get_free_tier_record(&peer.public_key.to_string())
-            .await?
-            .filter(|r| r.is_free)
-            .map(|r| r.granted_at);
+            .await?;
+        let peer_free_tier = PeerFreeTier::from_storage_record(free_tier_record);
+
+        if free_tier_enabled
+            && let Some(granted_at) = peer_free_tier.granted_at()
+            && let Some(ip_pair) = crate::ip_pool::allocated_ip_pair(peer)
+        {
+            let addrs = ip_pair.as_free_tier_peers();
+            let elapsed_secs = (now - granted_at).whole_seconds();
+            match classify_for_reconcile(
+                peer_free_tier.is_free_tier(),
+                elapsed_secs,
+                bandwidth_manager.available_bandwidth().await,
+                time_cap_secs,
+            ) {
+                ReconcileClass::Pool => pooled_peers.push(addrs),
+                ReconcileClass::Garden => gardened_peers.push(addrs),
+                ReconcileClass::Unenforced => {}
+            }
+        }
+
+        let bandwidth_manager = peer_handle::SharedBandwidthStorageManager::new(
+            Arc::new(RwLock::new(bandwidth_manager)),
+            peer.allowed_ips.clone(),
+        );
         peer_bandwidth_managers.insert(
             peer.public_key.clone(),
             peer_controller::PeerHandleSeed {
                 bandwidth_manager,
                 peer: peer.clone(),
-                free_tier_granted_at,
+                free_tier: peer_free_tier,
             },
         );
     }
@@ -322,6 +406,15 @@ pub async fn start_wireguard(
         .args(["link", "set", "dev", &ifname, "up"])
         .output()
         .inspect_err(|e| tracing::error!("Failed to bring up wireguard interface: {e:?}"))?;
+
+    // Free-tier datapath enforcement (task 5.5): build the rate-limit pool + walled
+    // garden scaffolding and rebuild per-peer membership from persisted state now - after
+    // the interface exists (tc needs it) but before it is configured with peers and
+    // begins forwarding - so a returning garden peer is confined from its first packet.
+    // `reconcile` teardown-then-creates, so it is idempotent across restarts. A failure
+    // here (e.g. `nft`/`tc` missing) IS the startup preflight: surface it and fail node
+    // startup, never degrade to serving free peers unrestricted.
+    free_tier_controller.reconcile(&pooled_peers, &gardened_peers)?;
 
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -395,9 +488,60 @@ pub async fn start_wireguard(
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
         upgrade_mode_status,
+        free_tier_controller,
         shutdown_token,
     );
     tokio::spawn(async move { controller.run().await });
 
     Ok(wg_api)
+}
+
+#[cfg(test)]
+mod reconcile_tests {
+    use super::{ReconcileClass, classify_for_reconcile};
+
+    const CAP: i64 = 600; // FREE_TIER_TRIAL_TIME_CAP placeholder for the test
+
+    #[test]
+    fn paid_peer_is_unenforced() {
+        // is_free == false -> upgraded to paid, no free-tier enforcement even if fresh.
+        assert_eq!(
+            classify_for_reconcile(false, 0, 100, CAP),
+            ReconcileClass::Unenforced
+        );
+    }
+
+    #[test]
+    fn fresh_free_peer_with_bytes_is_pooled() {
+        assert_eq!(
+            classify_for_reconcile(true, 0, 100, CAP),
+            ReconcileClass::Pool
+        );
+    }
+
+    #[test]
+    fn time_exhausted_free_peer_is_gardened() {
+        // at the cap and beyond -> gardened (boundary is inclusive, mirrors the handle).
+        assert_eq!(
+            classify_for_reconcile(true, CAP, 100, CAP),
+            ReconcileClass::Garden
+        );
+        assert_eq!(
+            classify_for_reconcile(true, CAP + 1, 100, CAP),
+            ReconcileClass::Garden
+        );
+    }
+
+    #[test]
+    fn byte_exhausted_free_peer_is_gardened() {
+        // within the time cap but out of bytes -> gardened (whichever-first exhaustion).
+        assert_eq!(
+            classify_for_reconcile(true, 10, 0, CAP),
+            ReconcileClass::Garden
+        );
+        assert_eq!(
+            classify_for_reconcile(true, 10, -5, CAP),
+            ReconcileClass::Garden
+        );
+    }
 }

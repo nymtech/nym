@@ -14,6 +14,7 @@ use nym_crypto::asymmetric::ed25519::{
     self,
     serde_helpers::{bs58_ed25519_pubkey, option_bs58_ed25519_pubkey},
 };
+use nym_wireguard::FreeTierEnforcementConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::IpAddr;
@@ -95,6 +96,16 @@ impl FreeTier {
             });
         };
         Ok(Some(signer_public_key))
+    }
+
+    pub fn enforcement_config(&self) -> Option<FreeTierEnforcementConfig> {
+        if !self.enabled {
+            return None;
+        }
+        Some(FreeTierEnforcementConfig {
+            pool_bytes_per_second: self.debug.pool_bandwidth_per_second.as_u64(),
+            walled_garden_whitelist: self.walled_garden_whitelist.clone(),
+        })
     }
 }
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
+use crate::free_tier_controller::FreeTierController;
+use crate::ip_pool::ip_pair_from_allowed_ips;
 use crate::peer_controller::PeerControlRequest;
 use crate::peer_storage_manager::{CachedPeerManager, PeerInformation};
 use defguard_wireguard_rs::{host::Host, key::Key, net::IpAddrMask};
@@ -9,6 +11,7 @@ use futures::channel::oneshot;
 use nym_credential_verification::OutOfBandwidthResultExt;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_credential_verification::upgrade_mode::UpgradeModeStatus;
+use nym_gateway_storage::models::FreeTierRecord;
 use nym_network_defaults::constants::FREE_TIER_TRIAL_TIME_CAP;
 use nym_task::ShutdownToken;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
@@ -42,6 +45,46 @@ impl SharedBandwidthStorageManager {
     }
 }
 
+#[derive(Copy, Clone)]
+pub(crate) struct PeerFreeTier {
+    /// Grant timestamp for a free-tier peer, if this is one. `Some` enables the
+    /// wall-clock session time cap; `None` for paid/upgrade peers (no cap).
+    granted_at: Option<OffsetDateTime>,
+
+    /// Set once this peer has been confined to the walled garden, so the exhaustion
+    /// transition is applied at most once (subsequent ticks are a no-op).
+    gardened: bool,
+}
+
+impl PeerFreeTier {
+    pub(crate) fn new_peer(granted_at: Option<OffsetDateTime>) -> Self {
+        Self {
+            granted_at,
+            gardened: false,
+        }
+    }
+
+    pub(crate) fn granted_at(&self) -> Option<OffsetDateTime> {
+        self.granted_at
+    }
+
+    pub(crate) fn is_free_tier(&self) -> bool {
+        self.granted_at.is_some()
+    }
+
+    pub(crate) fn from_storage_record(record: Option<FreeTierRecord>) -> Self {
+        let Some(record) = record else {
+            return Self::new_peer(None);
+        };
+
+        if record.is_free {
+            Self::new_peer(Some(record.granted_at))
+        } else {
+            Self::new_peer(None)
+        }
+    }
+}
+
 pub struct PeerHandle {
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
@@ -50,9 +93,10 @@ pub struct PeerHandle {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
 
-    /// Grant timestamp for a free-tier peer, if this is one. `Some` enables the
-    /// wall-clock session time cap; `None` for paid/upgrade peers (no cap).
-    free_tier_granted_at: Option<OffsetDateTime>,
+    /// Datapath enforcement facade, present when the free tier is enabled.
+    free_tier_controller: FreeTierController,
+
+    free_tier: PeerFreeTier,
 
     /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
     /// their bandwidth metered.
@@ -75,7 +119,8 @@ impl PeerHandle {
         bandwidth_storage_manager: SharedBandwidthStorageManager,
         request_tx: mpsc::Sender<PeerControlRequest>,
         upgrade_mode: UpgradeModeStatus,
-        free_tier_granted_at: Option<OffsetDateTime>,
+        free_tier: PeerFreeTier,
+        free_tier_manager: FreeTierController,
         shutdown_token: &ShutdownToken,
     ) -> Self {
         let timeout_check_interval =
@@ -88,7 +133,8 @@ impl PeerHandle {
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
-            free_tier_granted_at,
+            free_tier_controller: free_tier_manager,
+            free_tier,
             upgrade_mode,
             shutdown_token,
         }
@@ -125,11 +171,50 @@ impl PeerHandle {
     /// Whether this peer is a free-tier peer whose wall-clock session time cap has
     /// elapsed since its grant. Always false for non-free (paid/upgrade) peers.
     fn free_tier_time_exhausted(&self) -> bool {
-        let Some(granted_at) = self.free_tier_granted_at else {
+        let Some(granted_at) = self.free_tier.granted_at else {
             return false;
         };
         let elapsed_secs = (OffsetDateTime::now_utc() - granted_at).whole_seconds();
         elapsed_secs >= FREE_TIER_TRIAL_TIME_CAP.as_secs() as i64
+    }
+
+    /// Confine a free-tier peer to the walled garden (leave the pool, add the garden
+    /// rule; the session stays connected). Returns `true` if the peer was confined;
+    /// `false` if it is not gardenable (paid peer, no enforcement, missing dual-stack
+    /// IPs, or the command failed) and should therefore be removed instead. Fail-closed:
+    /// a failed confine returns `false` so the caller removes it rather than leaving it
+    /// unrestricted.
+    fn confine_to_garden(&self, reason: &str) -> bool {
+        if !self.free_tier.is_free_tier() {
+            return false;
+        }
+
+        let Some(pair) = ip_pair_from_allowed_ips(self.bandwidth_storage_manager.allowed_ips())
+        else {
+            warn!("{self} exhausted but has no dual-stack tunnel IPs; cannot confine to garden");
+            return false;
+        };
+        debug!("{self} exhausted ({reason}); confining it to the walled garden");
+        self.free_tier_controller
+            .confine_to_garden(pair)
+            .unwrap_or_else(|err| {
+                error!("{self}: failed to confine to the walled garden ({err}); removing instead");
+                false
+            })
+    }
+
+    /// A free peer whose allowance is spent is confined to the walled garden and stays
+    /// connected; any other exhausted peer (paid, or no enforcement) is removed as
+    /// before. Returns whether the handle should stay active.
+    async fn handle_exhaustion(&mut self, reason: &str) -> Result<bool, Error> {
+        if self.confine_to_garden(reason) {
+            self.free_tier.gardened = true;
+            return Ok(true);
+        }
+        debug!("{self} is exhausted ({reason}), removing it");
+        let success = self.remove_peer().await?;
+        self.cached_peer.remove_peer();
+        Ok(!success)
     }
 
     async fn active_peer(&mut self, kernel_peer: PeerInformation) -> Result<bool, Error> {
@@ -138,14 +223,17 @@ impl PeerHandle {
             return Ok(false);
         };
 
+        // Already confined to the garden: it stays connected but its allowance is spent,
+        // so skip re-transitioning and further metering (the transition is idempotent,
+        // but this avoids repeating the nft calls every tick).
+        if self.free_tier.gardened {
+            return Ok(true);
+        }
+
         // free-tier session time cap: wall-clock from the grant, independent of the
-        // byte allowance. Suspended during upgrade mode, like byte metering. v1 action
-        // mirrors byte exhaustion (remove the peer); task 5 will route it to the garden.
+        // byte allowance. Suspended during upgrade mode, like byte metering.
         if !self.upgrade_mode.enabled() && self.free_tier_time_exhausted() {
-            debug!("{self} reached its free-tier session time cap, removing it");
-            let success = self.remove_peer().await?;
-            self.cached_peer.remove_peer();
-            return Ok(!success);
+            return self.handle_exhaustion("session time cap").await;
         }
 
         let spent_bandwidth = kernel_peer.consumed_kernel_bandwidth(&cached_peer);
@@ -164,10 +252,7 @@ impl PeerHandle {
                 .await
                 .is_out_of_bandwidth()
             {
-                debug!("{self} is out of bandwidth, removing it");
-                let success = self.remove_peer().await?;
-                self.cached_peer.remove_peer();
-                return Ok(!success);
+                return self.handle_exhaustion("out of bandwidth").await;
             }
         }
 

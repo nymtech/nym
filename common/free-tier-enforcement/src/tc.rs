@@ -30,7 +30,7 @@ const UNLIMITED_CLASSID: &str = "1:1";
 const UNLIMITED_RATE: &str = "10gbit";
 
 /// The rate-limit pool builder (download direction, v1).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct RateLimitPool {
     interface: String,
     pool_rate_bits_per_sec: u64,

@@ -878,8 +878,13 @@ impl NymNode {
                 );
             }
 
+            // Free tier: hand the datapath enforcement params (pool ceiling + garden
+            // whitelist) to WireGuard startup so the pool + walled garden are scaffolded
+            // and reconciled from state before peers are served. `None` = free tier off.
+            let free_tier_enforcement = self.config.gateway_tasks.free_tier.enforcement_config();
+
             gateway_tasks_builder
-                .try_start_wireguard(upgrade_mode_common_state)
+                .try_start_wireguard(upgrade_mode_common_state, free_tier_enforcement)
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
         } else {

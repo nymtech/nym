@@ -1,8 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::free_tier_controller::FreeTierController;
 pub use crate::ip_pool::IpPair;
 use crate::ip_pool::allocated_ip_pair;
+use crate::peer_handle::PeerFreeTier;
 use crate::{
     IpPool,
     error::{Error, Result},
@@ -33,7 +35,6 @@ use std::{
     net::IpAddr,
     time::{Duration, SystemTime},
 };
-use time::OffsetDateTime;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
@@ -47,7 +48,7 @@ pub mod mock;
 pub(crate) struct PeerHandleSeed {
     pub(crate) bandwidth_manager: SharedBandwidthStorageManager,
     pub(crate) peer: Peer,
-    pub(crate) free_tier_granted_at: Option<OffsetDateTime>,
+    pub(crate) free_tier: PeerFreeTier,
 }
 
 /// Registration data for a new peer (without pre-allocated IPs)
@@ -162,6 +163,8 @@ pub struct PeerController {
     timeout_check_interval: IntervalStream,
     ip_cleanup_interval: IntervalStream,
 
+    free_tier_controller: FreeTierController,
+
     /// Flag indicating whether the system is undergoing an upgrade and thus peers shouldn't be getting
     /// their bandwidth metered.
     upgrade_mode: UpgradeModeStatus,
@@ -180,6 +183,7 @@ impl PeerController {
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         upgrade_mode: UpgradeModeStatus,
+        free_tier_controller: FreeTierController,
         shutdown_token: nym_task::ShutdownToken,
     ) -> Self {
         let timeout_check_interval =
@@ -196,7 +200,8 @@ impl PeerController {
                 seed.bandwidth_manager.clone(),
                 request_tx.clone(),
                 upgrade_mode.clone(),
-                seed.free_tier_granted_at,
+                seed.free_tier,
+                free_tier_controller.clone(),
                 &shutdown_token,
             );
             let public_key = public_key.clone();
@@ -221,6 +226,7 @@ impl PeerController {
             request_rx,
             timeout_check_interval,
             ip_cleanup_interval,
+            free_tier_controller,
             upgrade_mode,
             shutdown_token,
         }
@@ -313,13 +319,26 @@ impl PeerController {
             peer.allowed_ips.clone(),
         );
         let cached_peer_manager = CachedPeerManager::new(peer);
-        let free_tier_granted_at = self
+        let free_tier_record = self
             .ecash_verifier
             .storage()
             .get_free_tier_record(&peer.public_key.to_string())
             .await?
-            .filter(|r| r.is_free)
-            .map(|r| r.granted_at);
+            .filter(|r| r.is_free);
+        let peer_free_tier = PeerFreeTier::from_storage_record(free_tier_record);
+
+        // task 4.4: admit a newly-registered free peer into the rate-limit pool. A
+        // failure is logged, not fatal: an un-pooled peer gets full speed but is still
+        // byte-metered (no confinement bypass), so we don't fail the registration over it.
+        if peer_free_tier.is_free_tier() {
+            if let Err(err) = self.free_tier_controller.admit_peer(ip_pair) {
+                error!(
+                    "failed to admit free peer {} into the rate-limit pool: {err}",
+                    peer.public_key
+                );
+            }
+        }
+
         let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
@@ -327,7 +346,8 @@ impl PeerController {
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
             self.upgrade_mode.clone(),
-            free_tier_granted_at,
+            peer_free_tier,
+            self.free_tier_controller.clone(),
             &self.shutdown_token,
         );
         self.bw_storage_managers
@@ -817,6 +837,7 @@ pub fn start_controller(
         request_tx,
         request_rx,
         UpgradeModeStatus::default(),
+        FreeTierController::default(),
         shutdown_manager.child_shutdown_token(),
     );
     tokio::spawn(async move { peer_controller.run().await });

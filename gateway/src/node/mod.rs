@@ -561,6 +561,7 @@ impl GatewayTasksBuilder {
     pub async fn try_start_wireguard(
         &mut self,
         _upgrade_mode_details: UpgradeModeDetails,
+        _free_tier_enforcement: Option<nym_wireguard::FreeTierEnforcementConfig>,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         let _ = self.metrics.clone();
         let _ = self.shutdown_tracker.clone();
@@ -571,6 +572,7 @@ impl GatewayTasksBuilder {
     pub async fn try_start_wireguard(
         &mut self,
         upgrade_mode_details: UpgradeModeDetails,
+        free_tier_enforcement: Option<nym_wireguard::FreeTierEnforcementConfig>,
     ) -> Result<
         nym_wireguard_private_metadata_server::ShutdownHandles,
         Box<dyn std::error::Error + Send + Sync>,
@@ -611,6 +613,7 @@ impl GatewayTasksBuilder {
             self.shutdown_tracker.clone_shutdown_token(),
             wireguard_data,
             use_userspace,
+            free_tier_enforcement,
         )
         .await?;
 

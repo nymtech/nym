@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use defguard_wireguard_rs::host::Peer;
+use defguard_wireguard_rs::net::IpAddrMask;
 use ipnetwork::IpNetwork;
 use rand::seq::IteratorRandom;
 use std::collections::HashMap;
@@ -19,12 +20,16 @@ use std::time::Instant;
 
 // helper to convert peer's allocation into an `IpPair`
 pub fn allocated_ip_pair(peer: &Peer) -> Option<IpPair> {
-    for allowed_ip in &peer.allowed_ips {
-        // Extract IPv4 and IPv6 from peer's allowed_ips
+    ip_pair_from_allowed_ips(&peer.allowed_ips)
+}
+
+/// Extract the dual-stack `IpPair` (v4 + v6) from a set of WireGuard allowed IPs.
+pub fn ip_pair_from_allowed_ips(allowed_ips: &[IpAddrMask]) -> Option<IpPair> {
+    for allowed_ip in allowed_ips {
+        // Extract IPv4 and IPv6 from the allowed IPs
         if let IpAddr::V4(ipv4) = allowed_ip.address {
             // Find corresponding IPv6
-            if let Some(ipv6_mask) = peer
-                .allowed_ips
+            if let Some(ipv6_mask) = allowed_ips
                 .iter()
                 .find(|ip| matches!(ip.address, IpAddr::V6(_)))
                 && let IpAddr::V6(ipv6) = ipv6_mask.address
@@ -45,6 +50,13 @@ pub struct IpPair {
 impl IpPair {
     pub fn new(ipv4: Ipv4Addr, ipv6: Ipv6Addr) -> Self {
         IpPair { ipv4, ipv6 }
+    }
+
+    pub fn as_free_tier_peers(&self) -> nym_free_tier_enforcement::PeerAddrs {
+        nym_free_tier_enforcement::PeerAddrs {
+            v4: self.ipv4,
+            v6: self.ipv6,
+        }
     }
 }
 

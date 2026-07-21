@@ -9163,6 +9163,7 @@ dependencies = [
  "nym-credential-verification",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-free-tier-enforcement",
  "nym-gateway-requests",
  "nym-gateway-storage",
  "nym-metrics",

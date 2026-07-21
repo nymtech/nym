@@ -30,6 +30,7 @@ tracing = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-free-tier-enforcement = { workspace = true }
 nym-gateway-storage = { workspace = true }
 nym-gateway-requests = { workspace = true }
 nym-authenticator-requests = { workspace = true }

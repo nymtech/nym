@@ -21,6 +21,7 @@ use std::sync::Arc;
 /// garden, both in one shared `inet nym_free_tier` table.
 #[derive(Clone)]
 pub struct FreeTierEnforcement {
+    interface: String,
     pool: RateLimitPool,
     garden: WalledGarden,
     whitelist: Vec<IpAddr>,
@@ -39,11 +40,17 @@ impl FreeTierEnforcement {
     ) -> Self {
         let interface = interface.into();
         FreeTierEnforcement {
+            interface: interface.clone(),
             pool: RateLimitPool::new(interface.clone(), pool_bytes_per_sec),
             garden: WalledGarden::new(interface),
             whitelist,
             runner,
         }
+    }
+
+    /// The WireGuard interface name.
+    pub fn interface(&self) -> &str {
+        &self.interface
     }
 
     /// Build the whole datapath skeleton: the HTB pool, the shared table with both

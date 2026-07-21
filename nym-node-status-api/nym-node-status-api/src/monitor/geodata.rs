@@ -15,7 +15,7 @@ impl IpInfoClient {
     }
 
     pub(crate) async fn locate_ip(&self, ip: impl AsRef<str>) -> anyhow::Result<Location> {
-        let url = format!("https://ipinfo.io/{}?token={}", ip.as_ref(), &self.token);
+        let url = format!("https://ipinfo.io/{}?token={}", ip.as_ref(), self.token);
         let response = self
             .client
             .get(url)
@@ -43,7 +43,7 @@ impl IpInfoClient {
     pub(crate) async fn check_remaining_bandwidth(
         &self,
     ) -> anyhow::Result<ipinfo::MeResponseRequests> {
-        let url = format!("https://ipinfo.io/me?token={}", &self.token);
+        let url = format!("https://ipinfo.io/me?token={}", self.token);
         let response = self
             .client
             .get(url)

@@ -31,10 +31,7 @@ pub async fn balance(args: Args, client: QueryClient, address_from_mnemonic: Opt
     let vesting_address = account_id.to_string();
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    info!(
-        "Getting vesting schedule information for {}...",
-        &vesting_address
-    );
+    info!("Getting vesting schedule information for {vesting_address}...",);
 
     let original_vesting = client.original_vesting(&vesting_address).await;
 
@@ -51,8 +48,7 @@ pub async fn balance(args: Args, client: QueryClient, address_from_mnemonic: Opt
                 .unwrap_or_else(|| Coin::new(0u128, denom));
 
             println!(
-                "Account {} has\n{} vested with\n{} available to be withdrawn to the main account (balance {})",
-                &account_id,
+                "Account {account_id} has\n{} vested with\n{} available to be withdrawn to the main account (balance {})",
                 pretty_cosmwasm_coin(&res.amount),
                 pretty_coin(&spendable_coins),
                 pretty_coin(&liquid_account_balance),

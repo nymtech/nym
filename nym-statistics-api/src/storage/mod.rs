@@ -52,7 +52,7 @@ impl StatisticsStorage {
             })
             .connect_with(connect_options)
             .await
-            .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
+            .map_err(|err| anyhow!("Failed to connect to {connection_url}: {err}"))?;
 
         MIGRATOR.run(&pool).await?;
 

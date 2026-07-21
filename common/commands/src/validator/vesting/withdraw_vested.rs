@@ -25,10 +25,7 @@ pub async fn execute(args: Args, client: SigningClient) {
     let vesting_address = account_id.to_string();
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    info!(
-        "Getting vesting schedule information for {}...",
-        &vesting_address
-    );
+    info!("Getting vesting schedule information for {vesting_address}...");
 
     let original_vesting = client.original_vesting(&vesting_address).await;
 
@@ -45,8 +42,7 @@ pub async fn execute(args: Args, client: SigningClient) {
                 .unwrap_or_else(|| Coin::new(0u128, denom));
 
             println!(
-                "Account {} has\n{} vested with {} available to be withdrawn to the main account (balance {})",
-                &account_id,
+                "Account {account_id} has\n{} vested with {} available to be withdrawn to the main account (balance {})",
                 pretty_cosmwasm_coin(&res.amount),
                 pretty_coin(&spendable_coins),
                 pretty_coin(&liquid_account_balance),
@@ -61,10 +57,8 @@ pub async fn execute(args: Args, client: SigningClient) {
             };
 
             info!(
-                "Withdrawing {} ({}) from {}...",
-                pretty_coin(&amount),
-                &amount,
-                &account_id
+                "Withdrawing {} ({amount}) from {account_id}...",
+                pretty_coin(&amount)
             );
 
             match client.withdraw_vested_coins(amount, None).await {
@@ -73,14 +67,11 @@ pub async fn execute(args: Args, client: SigningClient) {
                     println!("SUCCESS ✅");
                     println!(
                         "Nodesguru: https://nym.explorers.guru/transaction/{}",
-                        &res.transaction_hash
+                        res.transaction_hash
                     );
-                    println!(
-                        "Mintscan: https://ping.pub/nyx/tx/{}",
-                        &res.transaction_hash
-                    );
-                    println!("Transaction hash: {}", &res.transaction_hash);
-                    println!("Gas used: {}", &res.gas_info.gas_used);
+                    println!("Mintscan: https://ping.pub/nyx/tx/{}", res.transaction_hash);
+                    println!("Transaction hash: {}", res.transaction_hash);
+                    println!("Gas used: {}", res.gas_info.gas_used);
                     println!();
                 }
                 Err(e) => show_error(e),
@@ -103,8 +94,7 @@ pub async fn execute(args: Args, client: SigningClient) {
                 .unwrap_or_else(|| Coin::new(0u128, denom));
 
             println!(
-                "After withdrawal, account {} has\n{} vested with {} available to be withdrawn to the main account (balance {})",
-                &account_id,
+                "After withdrawal, account {account_id} has\n{} vested with {} available to be withdrawn to the main account (balance {})",
                 pretty_cosmwasm_coin(&res.amount),
                 pretty_coin(&spendable_coins),
                 pretty_coin(&liquid_account_balance),

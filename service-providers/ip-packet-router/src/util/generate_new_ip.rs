@@ -59,6 +59,49 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
+    // Hammer the brute-force IP allocator as the /16 pool fills, measuring
+    // per-allocation latency and how often it falsely returns NoAvailableIp
+    // despite free addresses. Run: cargo test -p nym-ip-packet-router
+    // allocator_latency_vs_fill -- --nocapture --ignored
+    #[test]
+    #[ignore]
+    fn allocator_latency_vs_fill() {
+        use std::net::Ipv6Addr;
+        use std::time::Instant;
+        let total: u32 = 65533;
+        println!(
+            "\n{:>5} {:>7} {:>8} {:>12} {:>14}",
+            "fill%", "clients", "allocs", "us/alloc", "NoAvailableIp"
+        );
+        for pct in [0u32, 25, 50, 75, 90, 95, 98, 99] {
+            let fill = (total as u64 * pct as u64 / 100) as u16;
+            let mut v4: HashMap<Ipv4Addr, ()> = HashMap::with_capacity(fill as usize);
+            let mut v6: HashMap<Ipv6Addr, ()> = HashMap::with_capacity(fill as usize);
+            for lb in 2u16..2u16.saturating_add(fill) {
+                v4.insert(Ipv4Addr::new(10, 0, (lb >> 8) as u8, (lb & 255) as u8), ());
+                v6.insert(Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, lb), ());
+            }
+            let n = 5000;
+            let start = Instant::now();
+            let mut none = 0;
+            for _ in 0..n {
+                if find_new_ips(&v4, &v6).is_none() {
+                    none += 1;
+                }
+            }
+            let el = start.elapsed();
+            println!(
+                "{:>5} {:>7} {:>8} {:>12.2} {:>10} ({:>4.1}%)",
+                pct,
+                v4.len(),
+                n,
+                el.as_nanos() as f64 / n as f64 / 1000.0,
+                none,
+                100.0 * none as f64 / n as f64
+            );
+        }
+    }
+
     #[test]
     fn verify_ip_generation() {
         let mut map = HashSet::with_capacity(65533);

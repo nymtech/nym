@@ -497,10 +497,10 @@ pub async fn submit_metrics(database_url: Option<&String>) -> anyhow::Result<()>
         info!("Submitting metrics to {}", *NYM_API_URL);
         let client = reqwest::Client::new();
 
-        let node_submit_url = format!("{}/{V1_API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
+        let node_submit_url = format!("{}/{V1_API_VERSION}/{STATUS}/{SUBMIT_NODE}", *NYM_API_URL);
         let gateway_submit_url = format!(
             "{}/{V1_API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}",
-            &*NYM_API_URL
+            *NYM_API_URL
         );
 
         info!("Submitting {} mixnode measurements", node_stats.len());

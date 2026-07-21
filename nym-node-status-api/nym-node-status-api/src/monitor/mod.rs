@@ -137,13 +137,9 @@ impl Monitor {
         tracing::info!("🟣 described nodes: {}", described_nodes.len());
 
         let gateways = described_nodes
-            .iter()
-            .filter_map(|(_, node)| {
-                if node.description.declared_role.entry || node.description.declared_role.exit_ipr {
-                    Some(node)
-                } else {
-                    None
-                }
+            .values()
+            .filter(|node| {
+                node.description.declared_role.entry || node.description.declared_role.exit_ipr
             })
             .collect::<Vec<_>>();
 

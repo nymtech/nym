@@ -21,13 +21,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .context("Failed to perform SQLx migrations")?;
 
-        #[cfg(target_family = "unix")]
-        println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
-
-        #[cfg(target_family = "windows")]
-        // for some strange reason we need to add a leading `/` to the windows path even though it's
-        // not a valid windows path... but hey, it works...
-        println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
+        println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", database_path);
     }
 
     Ok(())

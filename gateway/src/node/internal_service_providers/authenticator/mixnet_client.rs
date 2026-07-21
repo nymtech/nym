@@ -3,6 +3,7 @@
 
 use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
+use nym_service_providers_common::storage::EmbeddedProviderStorage;
 use nym_task::ShutdownTracker;
 
 use crate::node::internal_service_providers::authenticator::{
@@ -24,19 +25,18 @@ pub async fn create_mixnet_client(
 ) -> Result<nym_sdk::mixnet::MixnetClient, AuthenticatorError> {
     let debug_config = config.debug;
 
-    let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
+    let storage = EmbeddedProviderStorage::from_paths(paths.clone(), &debug_config)
+        .await
+        .map_err(|err| AuthenticatorError::FailedToSetupMixnetClient {
+            source: Box::new(err.into()),
+        })?;
 
-    let mut client_builder =
-        nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
-            .await
-            .map_err(|err| AuthenticatorError::FailedToSetupMixnetClient {
-                source: Box::new(err),
-            })?
-            .network_details(NymNetworkDetails::new_from_env())
-            .debug_config(debug_config)
-            .custom_shutdown(shutdown)
-            .with_wait_for_gateway(wait_for_gateway)
-            .with_wait_for_initial_topology(wait_for_topology);
+    let mut client_builder = nym_sdk::mixnet::MixnetClientBuilder::new_with_storage(storage)
+        .network_details(NymNetworkDetails::new_from_env())
+        .debug_config(debug_config)
+        .custom_shutdown(shutdown)
+        .with_wait_for_gateway(wait_for_gateway)
+        .with_wait_for_initial_topology(wait_for_topology);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

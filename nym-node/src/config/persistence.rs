@@ -330,7 +330,8 @@ impl NetworkRequesterPaths {
             },
             gateway_registrations: self.gateway_registrations.clone(),
 
-            // not needed for embedded providers
+            // not needed for embedded providers: they use EmbeddedProviderStorage, which
+            // ignores these paths and uses an ephemeral, in-memory credential store.
             credentials_database: Default::default(),
             credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
@@ -411,7 +412,8 @@ impl IpPacketRouterPaths {
             },
             gateway_registrations: self.gateway_registrations.clone(),
 
-            // not needed for embedded providers
+            // not needed for embedded providers: they use EmbeddedProviderStorage, which
+            // ignores these paths and uses an ephemeral, in-memory credential store.
             credentials_database: Default::default(),
             credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
@@ -492,7 +494,8 @@ impl AuthenticatorPaths {
             },
             gateway_registrations: self.gateway_registrations.clone(),
 
-            // not needed for embedded providers
+            // not needed for embedded providers: they use EmbeddedProviderStorage, which
+            // ignores these paths and uses an ephemeral, in-memory credential store.
             credentials_database: Default::default(),
             credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),

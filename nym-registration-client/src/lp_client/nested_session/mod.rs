@@ -318,6 +318,12 @@ impl NestedLpSession {
                 Err(LpClientError::RegistrationRejected { reason })
             }
             LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
+            LpDvpnRegistrationResponseMessageContent::RestrictedRegistration(res) => {
+                warn!(
+                    "free-tier allowance is spent: access is restricted to the purchase endpoint until access is bought"
+                );
+                Ok(res.config)
+            }
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 Err(LpClientError::unexpected_response(
                     "received request for additional dvpn data after sending credential!",
@@ -414,6 +420,14 @@ impl NestedLpSession {
                 return Err(LpClientError::RegistrationRejected { reason });
             }
             LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
+            LpDvpnRegistrationResponseMessageContent::RestrictedRegistration(res) => {
+                // returning free peer whose allowance is spent: the tunnel works but is
+                // confined to the purchase endpoint until access is bought.
+                warn!(
+                    "free-tier allowance is spent: access is restricted to the purchase endpoint until access is bought"
+                );
+                res.config
+            }
             LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
                 // we're registering for the first time with this gateway - we need to attach a credential
 

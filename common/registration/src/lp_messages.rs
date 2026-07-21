@@ -190,6 +190,21 @@ impl LpRegistrationResponse {
         }
     }
 
+    /// Create a completed-but-restricted dVPN response: the returning free peer's tunnel
+    /// works, but its allowance is spent and it is confined to the purchase-endpoint garden.
+    pub fn restricted_dvpn(config: WireguardRegistrationData) -> Self {
+        Self {
+            status: RegistrationStatus::Completed,
+            response_data: LpRegistrationResponseData::Dvpn {
+                data: LpDvpnRegistrationResponseMessage {
+                    content: LpDvpnRegistrationResponseMessageContent::RestrictedRegistration(
+                        dvpn::RestrictedRegistrationResponse { config },
+                    ),
+                },
+            },
+        }
+    }
+
     pub fn success_mixnet(config: LpMixnetGatewayData) -> Self {
         Self {
             status: RegistrationStatus::Completed,
@@ -331,6 +346,10 @@ pub mod dvpn {
         RequiresCredential(RequiresCredentialResponse),
         CompletedRegistration(CompletedRegistrationResponse),
         RegistrationFailure(RegistrationFailureResponse),
+        // NOTE: new variants MUST be appended at the end. bincode encodes the variant by
+        // declaration index, so appending keeps the existing variants byte-identical on the
+        // wire (old<->new peers still interoperate for those); reordering would break it.
+        RestrictedRegistration(RestrictedRegistrationResponse),
     }
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -346,6 +365,16 @@ pub mod dvpn {
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     pub struct RequiresCredentialResponse;
+
+    /// A returning free-tier peer whose allowance is spent (within the claim window): the
+    /// registration completes and its tunnel works, but the peer is confined to the
+    /// purchase-endpoint walled garden until it buys access. A distinct variant (not a flag
+    /// on `CompletedRegistrationResponse`) keeps the bincode wire backward-compatible.
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+    pub struct RestrictedRegistrationResponse {
+        /// Gateway configuration data for dVPN mode (WireGuard).
+        pub config: WireguardRegistrationData,
+    }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct RegistrationFailureResponse {
@@ -499,6 +528,28 @@ mod tests {
         };
         assert_eq!(complete.config, cfg);
         assert!(!complete.upgrade_mode);
+    }
+
+    #[test]
+    fn test_lp_registration_response_restricted_dvpn_roundtrips() {
+        let cfg = create_test_wg_config();
+
+        let response = LpRegistrationResponse::restricted_dvpn(cfg);
+        assert!(response.status.is_successful());
+
+        // round-trips through bincode into the dedicated RestrictedRegistration variant
+        let bytes = response.serialise().unwrap();
+        let parsed = LpRegistrationResponse::try_deserialise(&bytes).unwrap();
+
+        let LpRegistrationResponseData::Dvpn { data } = parsed.response_data else {
+            panic!("unexpected response")
+        };
+        let LpDvpnRegistrationResponseMessageContent::RestrictedRegistration(restricted) =
+            data.content
+        else {
+            panic!("expected a RestrictedRegistration variant")
+        };
+        assert_eq!(restricted.config, cfg);
     }
 
     #[test]

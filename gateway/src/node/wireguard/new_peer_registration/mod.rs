@@ -57,6 +57,8 @@ mod helpers;
 mod lp;
 mod pending;
 
+use lp::ExistingPeerOutcome;
+
 #[derive(Clone)]
 pub struct PeerRegistrator {
     /// Handle for the structure managing verification of the ecash credentials for the bandwidth control
@@ -493,12 +495,23 @@ impl PeerRegistrator {
             return Ok(pending_registration);
         }
 
-        // 2. check if there is already a peer associated with this sender,
-        // if so, retrieve the "final" data without additional processing,
-        // but do update stored PSK
-        if let Some(existing_registration) = self.check_existing_lp_peer(remote_public).await? {
-            self.update_peer_psk(remote_public, psk).await?;
-            return Ok(existing_registration);
+        // 2. check if there is already a peer associated with this sender; if so, branch on
+        // its free-tier state. `psk` is consumed exactly once per path (no clone): resume
+        // refreshes the stored PSK, re-claim hands it to the pending (applied at finalisation).
+        if let Some(outcome) = self.check_existing_lp_peer(remote_public).await? {
+            return match outcome {
+                ExistingPeerOutcome::Resume { config, restricted } => {
+                    self.update_peer_psk(remote_public, psk).await?;
+                    Ok(if restricted {
+                        LpRegistrationResponse::restricted_dvpn(config)
+                    } else {
+                        LpRegistrationResponse::success_dvpn(config, self.upgrade_mode_enabled())
+                    })
+                }
+                ExistingPeerOutcome::Reclaim { allocated_ips } => Ok(self
+                    .start_lp_reclaim(remote_public, psk, allocated_ips, receiver_index)
+                    .await),
+            };
         }
 
         // 3. process fresh registration request

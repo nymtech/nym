@@ -7782,7 +7782,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "4.6.2"
+version = "4.6.3"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -8434,7 +8434,7 @@ dependencies = [
 
 [[package]]
 name = "nym-statistics-api"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "axum",

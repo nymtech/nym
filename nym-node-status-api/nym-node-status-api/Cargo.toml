@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.6.2"
+version = "4.6.3"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -56,7 +56,11 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "time", "postgres"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "time",
+    "postgres",
+] }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }

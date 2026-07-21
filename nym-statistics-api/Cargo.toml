@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-statistics-api"
-version = "0.3.1"
+version = "0.3.2"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -39,12 +39,8 @@ utoipauto.workspace = true
 
 #internal
 nym-bin-common = { workspace = true }
-nym-http-api-common = { workspace = true, features = [
-    "middleware",
-] }
-nym-statistics-common = { workspace = true, features = [
-    "openapi",
-] }
+nym-http-api-common = { workspace = true, features = ["middleware"] }
+nym-statistics-common = { workspace = true, features = ["openapi"] }
 nym-task = { workspace = true }
 
 nym-http-api-client = { workspace = true }

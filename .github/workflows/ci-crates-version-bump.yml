@@ -68,8 +68,8 @@ jobs:
         run: |
           # Bump published main-workspace crate pins so contracts stay aligned with the release.
           sed -i '\|path = "../common/|s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' contracts/Cargo.toml
-          sed -i -E 's/^(nym-[a-z0-9-]+ = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
-          sed -i -E 's/^(nym-[a-z0-9-]+ = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
           sed -i -E 's/^((contracts-common|mixnet-contract-common|vesting-contract-common|nym-node-families-contract-common) = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
 
       - name: Bump versions

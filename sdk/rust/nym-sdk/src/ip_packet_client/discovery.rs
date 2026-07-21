@@ -64,6 +64,15 @@ pub async fn retrieve_exit_nodes_with_performance(
     let mut described = Vec::new();
 
     for exit in exit_gateways {
+        // Only nodes that actually declare the exit-IPR role. A mixnode can carry
+        // a leftover `ip_packet_router` description in its self-description;
+        // selecting it hands the client an IPR that is not served, so the v9
+        // connect times out. Filtering on the declared role is what distinguishes
+        // real exit gateways from mixnodes that merely advertise an IPR address.
+        if !exit.supported_roles.exit_ipr {
+            continue;
+        }
+
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
             continue;
         };

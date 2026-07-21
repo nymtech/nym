@@ -292,6 +292,12 @@ pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient,
 
     let mut candidates: Vec<(Recipient, u8)> = Vec::new();
     for exit in exits {
+        // Only nodes that actually declare the exit-IPR role. A mixnode can carry
+        // a leftover `ip_packet_router` description; selecting it hands the client
+        // an IPR that is not served, so the v9 connect times out.
+        if !exit.supported_roles.exit_ipr {
+            continue;
+        }
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
             continue;
         };

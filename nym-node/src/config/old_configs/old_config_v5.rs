@@ -627,6 +627,7 @@ impl AuthenticatorPathsV5 {
 
             // not needed for embedded providers
             credentials_database: Default::default(),
+            credential_requests_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
         }
     }

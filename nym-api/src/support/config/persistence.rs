@@ -22,7 +22,7 @@ pub const DEFAULT_CACHES_DIRECTORY: &str = ".cache";
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NetworkMonitorPaths {
     // TODO: this should contain the path to the database holding the results, but changing it would break backwards compatibility
     /// Path to the database containing bandwidth credentials of this client.

@@ -1,13 +1,15 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
 use crate::error::Result;
+use nym_bandwidth_controller::{error::BandwidthControllerError, BandwidthController};
+use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_credential_storage::storage::Storage;
-use nym_credential_utils::utils::issue_credential;
 use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
-use std::ops::Deref;
 use zeroize::Zeroizing;
 
 /// Represents a client that can be used to acquire bandwidth.
@@ -17,10 +19,8 @@ use zeroize::Zeroizing;
 /// The way to create this client is by calling
 /// [`crate::mixnet::DisconnectedMixnetClient::create_bandwidth_client`] on the associated mixnet
 /// client.
-pub struct BandwidthAcquireClient<St: Storage + Clone> {
-    client: DirectSigningHttpRpcNyxdClient,
-    storage: St,
-    client_id: Zeroizing<Vec<u8>>,
+pub struct BandwidthAcquireClient<St: Storage> {
+    bandwidth_controller: BandwidthController<St>,
     ticketbook_type: TicketType,
 }
 
@@ -29,7 +29,7 @@ where
     St: Storage + 'static,
 {
     #[allow(clippy::result_large_err)]
-    pub(crate) fn new(
+    pub(crate) async fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: St,
@@ -39,27 +39,29 @@ where
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
         let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
-        let client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+        let client = Arc::new(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             config,
             nyxd_url,
             mnemonic.parse()?,
-        )?;
+        )?);
+
+        let credential_fetcher =
+            NyxdCredentialFetcher::new(client, ":memory:", Zeroizing::new(client_id))
+                .await
+                .map_err(|e| BandwidthControllerError::fetcher_error(Box::new(e)))?;
+        let bandwidth_controller =
+            BandwidthController::new(storage.clone()).with_credential_fetcher(credential_fetcher);
+
         Ok(Self {
-            client,
-            storage,
-            client_id: client_id.into(),
+            bandwidth_controller,
             ticketbook_type,
         })
     }
 
     pub async fn acquire(&self) -> Result<()> {
-        issue_credential(
-            &self.client,
-            &self.storage,
-            self.client_id.deref(),
-            self.ticketbook_type,
-        )
-        .await?;
+        self.bandwidth_controller
+            .fetch_ticketbook(self.ticketbook_type)
+            .await?;
         Ok(())
     }
 }

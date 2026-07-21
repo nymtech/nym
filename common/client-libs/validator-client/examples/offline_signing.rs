@@ -17,7 +17,7 @@ async fn main() {
     let prefix = "n";
     let denom: Denom = "unym".parse().unwrap();
     let signer_mnemonic: bip39::Mnemonic = "<MNEMONIC WITH FUNDS HERE>".parse().unwrap();
-    let validator = "https://rpc.sandbox.nymtech.net";
+    let validator = "https://validator-sandbox-1.nymtech.net";
     let to_address: AccountId = "n1pefc2utwpy5w78p2kqdsfmpjxfwmn9d39k5mqa".parse().unwrap();
 
     let signer = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, signer_mnemonic).unwrap();

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM emergency_credential",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "439d97f742b286b0dd80f105a6ffb69add98a532534c74bc2bf90f7e45e6de6a"
+}

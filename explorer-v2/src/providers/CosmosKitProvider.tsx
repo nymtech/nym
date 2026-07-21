@@ -18,7 +18,7 @@ const nymSandbox: Chain = {
   apis: {
     rpc: [
       {
-        address: "https://rpc.sandbox.nymtech.net",
+        address: "https://validator-sandbox-1.nymtech.net",
       },
     ],
   },

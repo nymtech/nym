@@ -11,8 +11,12 @@ use tracing::instrument;
 use crate::{
     error::BandwidthControllerError,
     requests::{BandwidthControllerRequest, ReturnSender},
-    BandwidthTicketProvider, EcashTicketRequest, PreparedCredential, PreparedCredentialMetadata,
+    ticketbooks::AvailableTicketbooks,
+    traits::CredentialFetcher,
+    BandwidthTicketProvider, CredentialPublicDataFetcher, EcashTicketRequest, PreparedCredential,
+    PreparedCredentialMetadata,
 };
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct BandwidthControllerRequestSender {
@@ -70,6 +74,140 @@ impl BandwidthControllerRequestSender {
             .send(BandwidthControllerRequest::AttemptRevertSpending(
                 tx, metadata,
             ))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Installs the credential fetcher; the controller immediately restocks any low types.
+    #[instrument(skip(self, credential_fetcher))]
+    pub async fn set_credential_fetcher(
+        &self,
+        credential_fetcher: Arc<impl CredentialFetcher + 'static>,
+    ) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::SetCredentialFetcher(
+                tx,
+                Some(credential_fetcher),
+            ))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Removes the credential fetcher; no further automatic restocking happens until one is set.
+    #[instrument(skip(self))]
+    pub async fn unset_credential_fetcher(&self) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::SetCredentialFetcher(tx, None))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Installs the global-data fetcher used to retrieve missing ecash signing materials.
+    #[instrument(skip(self, public_data_fetcher))]
+    pub async fn set_public_data_fetcher(
+        &self,
+        public_data_fetcher: Arc<impl CredentialPublicDataFetcher + 'static>,
+    ) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::SetPublicDataFetcher(
+                tx,
+                Some(public_data_fetcher),
+            ))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Removes the global-data fetcher.
+    #[instrument(skip(self))]
+    pub async fn unset_public_data_fetcher(&self) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::SetPublicDataFetcher(tx, None))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Cancels in-flight fetches, drops the fetcher, clears stored credentials, and fails any parked
+    /// readiness waiters. Used to fully de-provision the controller.
+    #[instrument(skip(self))]
+    pub async fn reset(&self) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::Reset(tx))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Removes stored emergency (upgrade-mode) credentials, leaving ticketbooks intact.
+    #[instrument(skip(self))]
+    pub async fn clear_emergency_credentials(&self) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::ClearEmergencyCredentials(tx))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Returns the currently stored ticketbooks.
+    #[instrument(skip(self))]
+    pub async fn get_available_ticketbooks(
+        &self,
+    ) -> Result<AvailableTicketbooks, BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::GetAvailableTicketbooks(tx))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
+    /// Kicks off a background restock for the given ticket types
+    /// Returns once the restock is scheduled - it does not wait for the fetches to finish
+    /// (use [`Self::wait_for_ticketbooks`] for that).
+    ///
+    /// Not to be used lightly: the automatic triggers (ticket handout, timer, fetcher install)
+    /// already keep every type stocked. This is a manual safety valve, not a routine call.
+    #[instrument(skip(self))]
+    pub async fn restock_ticketbooks(
+        &self,
+        types: Vec<TicketType>,
+    ) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::RestockTicketbooks(tx, types))
+            .map_err(BandwidthControllerError::internal)?;
+        rx.await.map_err(BandwidthControllerError::internal)?
+    }
+
+    /// Kicks off a background restock for every ticket type running low or about to expire.
+    /// Returns once the restock is scheduled, not once the fetches finish.
+    #[instrument(skip(self))]
+    pub async fn restock_all_ticketbooks(&self) -> Result<(), BandwidthControllerError> {
+        self.restock_ticketbooks(AvailableTicketbooks::ticketbook_types())
+            .await
+    }
+
+    /// Resolves once every listed type is usable (stocked or covered by upgrade mode). Errors if a
+    /// required type is neither stocked nor being fetched; otherwise waits while the unsatisfied
+    /// ones are still in flight.
+    #[instrument(skip(self))]
+    pub async fn wait_for_ticketbooks(
+        &self,
+        types: Vec<TicketType>,
+    ) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::WaitForTicketbooks(tx, types))
             .map_err(|_| BandwidthControllerError::ChannelClosed)?;
         rx.await
             .map_err(|_| BandwidthControllerError::ChannelClosed)?

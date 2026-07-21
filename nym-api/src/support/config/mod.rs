@@ -610,7 +610,7 @@ impl Default for AddressCacheConfig {
 }
 
 // this got separated into 2 structs so that we could have a sane `default` implementation for the latter
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     pub enabled: bool,
@@ -631,7 +631,7 @@ impl NetworkMonitor {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct NetworkMonitorDebug {
     //  Mixnodes and gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.

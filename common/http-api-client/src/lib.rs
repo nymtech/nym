@@ -143,6 +143,8 @@ use http::header::USER_AGENT;
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
+use std::sync::Mutex;
+use std::time::Instant;
 
 pub mod registry;
 
@@ -230,6 +232,14 @@ static SHARED_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
         }
     }
 });
+
+pub(crate) static SHARED_NETWORK_RECONFIGURATION: LazyLock<Arc<Mutex<Option<Instant>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(None)));
+
+/// Indicate to the shared marker that a network reconfiguration happened.
+pub fn network_reconfigured() {
+    *SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Some(Instant::now());
+}
 
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
@@ -487,6 +497,10 @@ impl HttpClientError {
             url: Box::new(url),
             source: ReqwestErrorWrapper(source),
         }
+    }
+
+    pub fn is_data_inconsistency(&self) -> bool {
+        matches!(self, HttpClientError::InternalResponseInconsistency { .. })
     }
 }
 
@@ -1150,6 +1164,8 @@ impl ApiClientCore for Client {
             self.apply_hosts_to_req(&mut req);
             let url: Url = req.url().clone().into();
 
+            let request_start = Instant::now();
+
             #[cfg(target_arch = "wasm32")]
             let response: Result<Response, HttpClientError> = {
                 let client = self
@@ -1184,12 +1200,17 @@ impl ApiClientCore for Client {
                     return Ok(resp);
                 }
                 Err(err) => {
+                    let last_network_reconfiguration =
+                        *SHARED_NETWORK_RECONFIGURATION.lock().unwrap();
+                    let network_reconfigured =
+                        last_network_reconfiguration.is_some_and(|last| last > request_start);
+
                     #[cfg(target_arch = "wasm32")]
                     let is_network_err = err.is_timeout();
                     #[cfg(not(target_arch = "wasm32"))]
                     let is_network_err = might_be_network_interference(&err);
 
-                    if is_network_err {
+                    if is_network_err & !network_reconfigured {
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
 

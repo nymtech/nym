@@ -9,6 +9,7 @@
 
 export interface SetupMixTunnelOpts {
   preferredIpr?: string | undefined;
+  preferredGateway?: string | undefined;
   clientId?: string | undefined;
   forceTls?: boolean;
   disablePoissonTraffic?: boolean;

@@ -7,9 +7,10 @@ use anyhow::{anyhow, bail};
 use clap::ArgGroup;
 use clap::Parser;
 use log::info;
+use nym_bandwidth_controller::BandwidthController;
+use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
-use nym_credential_utils::utils;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
@@ -18,7 +19,9 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tempfile::NamedTempFile;
+use zeroize::Zeroizing;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -81,16 +84,18 @@ async fn issue_client_ticketbook(
         "using credentials store at '{}'",
         credentials_store.display()
     );
-
+    let requests_store = loaded.try_get_credential_requests_store()?;
     let persistent_storage = initialise_persistent_storage(credentials_store).await;
     let private_id_key: ed25519::PrivateKey = nym_pemstore::load_key(private_id_key)?;
-    utils::issue_credential(
-        &client,
-        &persistent_storage,
-        &private_id_key.to_bytes(),
-        ticketbook_type,
+
+    let fetcher = NyxdCredentialFetcher::new(
+        Arc::new(client),
+        requests_store,
+        Zeroizing::new(private_id_key.to_bytes().to_vec()),
     )
     .await?;
+    let controller = BandwidthController::new(persistent_storage).with_credential_fetcher(fetcher);
+    controller.fetch_ticketbook(ticketbook_type).await?;
 
     Ok(())
 }
@@ -103,12 +108,24 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     let temp_credential_store_file = NamedTempFile::new()?;
     let credential_store_path = temp_credential_store_file.into_temp_path();
 
-    let credentials_store = initialise_persistent_storage(credential_store_path).await;
+    let credentials_store = initialise_persistent_storage(&credential_store_path).await;
 
-    utils::issue_credential(&client, &credentials_store, &secret, args.ticketbook_type).await?;
+    // throwaway file for the fetcher's pending-deposit recovery data
+    let pending_requests_file = NamedTempFile::new()?;
+    let pending_requests_path = pending_requests_file.into_temp_path();
 
-    let ticketbook = credentials_store
-        .get_next_unspent_usable_ticketbook(args.ticketbook_type.to_string(), 0)
+    let fetcher = NyxdCredentialFetcher::new(
+        Arc::new(client),
+        &pending_requests_path,
+        Zeroizing::new(secret),
+    )
+    .await?;
+    let controller =
+        BandwidthController::new(credentials_store.clone()).with_credential_fetcher(fetcher);
+    controller.fetch_ticketbook(args.ticketbook_type).await?;
+
+    let ticketbook = controller
+        .get_next_usable_ticketbook(args.ticketbook_type, 0)
         .await?
         .ok_or(anyhow!("we just issued a ticketbook, it must be present!"))?
         .ticketbook;

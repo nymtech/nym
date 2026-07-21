@@ -32,6 +32,7 @@ log = { workspace = true }
 rand = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+strum = { workspace = true }
 thiserror = { workspace = true }
 tempfile = { workspace = true }
 time = { workspace = true, features = ["parsing", "formatting"] }
@@ -51,6 +52,7 @@ nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
 nym-contracts-common = { workspace = true }
 nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true, features = ["recovery"] }
 nym-mixnet-contract-common = { workspace = true }
 nym-vesting-contract-common = { workspace = true }
 nym-coconut-dkg-common = { workspace = true }
@@ -62,8 +64,7 @@ nym-client-core = { workspace = true }
 nym-config = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
-nym-credential-storage = { workspace = true }
-nym-credential-utils = { workspace = true }
+nym-credential-storage = { workspace = true, features = ["persistent-storage"] }
 nym-id = { workspace = true }
 nym-credential-proxy-requests = { workspace = true }
 

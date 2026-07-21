@@ -78,6 +78,7 @@ nym-authenticator-requests = { workspace = true }
 nym-client-core = { workspace = true, features = ["cli"] }
 nym-id = { workspace = true }
 nym-service-provider-requests-common = { workspace = true }
+nym-service-providers-common = { workspace = true }
 nym-registration-common = { path = "../common/registration" }
 
 nym-lp-data.workspace = true

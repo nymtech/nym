@@ -109,3 +109,9 @@ nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-co
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-families-contract-common = { path = "../common/cosmwasm-smart-contracts/node-families-contract" }
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-group-contract-common = { path = "../common/cosmwasm-smart-contracts/group-contract" }
+nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-performance-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-performance-contract" }
+nym-pool-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-pool-contract" }
+nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }

@@ -67,6 +67,16 @@ impl FreeTierController {
         Ok(true)
     }
 
+    /// Release a peer from ALL free-tier enforcement (pool + walled garden), restoring full
+    /// unrestricted access. Idempotent. Used when a formerly-free peer upgrades to paid.
+    pub(crate) fn release_peer(&self, peer_ips: IpPair) -> Result<bool, EnforcementError> {
+        let Some(inner) = &self.inner else {
+            return Ok(false);
+        };
+        inner.enforcement.release(&peer_ips.as_free_tier_peers())?;
+        Ok(true)
+    }
+
     pub(crate) fn reconcile(
         &self,
         pooled: &[PeerAddrs],

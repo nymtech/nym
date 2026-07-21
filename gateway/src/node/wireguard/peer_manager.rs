@@ -96,6 +96,32 @@ impl PeerManager {
         Ok(())
     }
 
+    /// Release a formerly-free peer (that has upgraded to paid) from free-tier enforcement -
+    /// clears both the rate-limit pool and the walled garden for its tunnel IPs.
+    pub async fn release_free_tier(&self, peer_ips: IpPair) -> Result<(), GatewayWireguardError> {
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::ReleaseFreeTier {
+            peer_ips,
+            response_tx,
+        };
+        self.wireguard_gateway_data
+            .peer_tx()
+            .send(msg)
+            .await
+            .map_err(|_| GatewayWireguardError::PeerInteractionStopped)?;
+
+        response_rx
+            .await
+            .map_err(|_| GatewayWireguardError::internal("no response for free-tier release"))?
+            .map_err(|err| {
+                GatewayWireguardError::InternalError(format!(
+                    "free-tier release could not be performed: {err:?}"
+                ))
+            })?;
+
+        Ok(())
+    }
+
     pub async fn add_peer(&self, peer: Peer) -> Result<(), GatewayWireguardError> {
         let controller_start = Instant::now();
         let (response_tx, response_rx) = oneshot::channel();

@@ -45,6 +45,7 @@ use nym_registration_common::LpRegistrationResponse;
 use nym_sdk::mixnet::Recipient;
 use nym_service_provider_requests_common::Protocol;
 use nym_task::ShutdownToken;
+use nym_wireguard::ip_pool::IpPair;
 use nym_wireguard::WireguardConfig;
 use std::sync::Arc;
 use std::time::Duration;
@@ -283,16 +284,55 @@ impl PeerRegistrator {
         }
     }
 
+    /// If this peer still carries an active free-tier record, treat a paid credential as a
+    /// reconnect-to-upgrade (task 5.6): flip the record to paid and release the peer from ALL
+    /// free-tier enforcement (rate-limit pool + walled garden), restoring full unrestricted
+    /// access. Releasing is best-effort - a failure is logged, not fatal: `is_free` is now
+    /// false, so a restart's reconcile would drop it from enforcement anyway.
+    async fn upgrade_free_tier_peer_if_needed(
+        &self,
+        public_key: &str,
+        peer_ips: IpPair,
+    ) -> Result<(), GatewayWireguardError> {
+        let was_free = self
+            .ecash_verifier
+            .storage()
+            .get_free_tier_record(public_key)
+            .await?
+            .map(|r| r.is_free)
+            .unwrap_or(false);
+        if !was_free {
+            return Ok(());
+        }
+
+        self.ecash_verifier
+            .storage()
+            .set_free_tier_is_free(public_key, false)
+            .await?;
+
+        if let Err(e) = self.peer_manager.release_free_tier(peer_ips).await {
+            tracing::warn!(
+                "failed to release upgraded peer {public_key} from free-tier enforcement: {e}"
+            );
+        }
+        Ok(())
+    }
+
     async fn handle_final_credential_claim(
         &self,
         claim: BandwidthClaim,
         client_id: i64,
         public_key: &str,
+        peer_ips: IpPair,
     ) -> Result<(), GatewayWireguardError> {
         match claim.credential {
             BandwidthCredential::ZkNym(zk_nym) => {
                 // if we got zk-nym, we just try to verify it
                 self.credential_verification(*zk_nym, client_id).await?;
+                // reconnect-to-upgrade: a formerly-free peer presenting a paid credential
+                // clears its free-tier flag + enforcement (task 5.6).
+                self.upgrade_free_tier_peer_if_needed(public_key, peer_ips)
+                    .await?;
                 Ok(())
             }
             BandwidthCredential::UpgradeModeJWT { token } => {
@@ -349,6 +389,7 @@ impl PeerRegistrator {
             IpAddrMask::new(private_ipv4.into(), 32),
             IpAddrMask::new(private_ipv6.into(), 128),
         ];
+        let peer_ips = IpPair::new(private_ipv4, private_ipv6);
 
         let typ = credential.kind;
         let public_key = peer.public_key.to_string();
@@ -362,7 +403,7 @@ impl PeerRegistrator {
 
         // 3. verify the credential
         if let Err(err) = self
-            .handle_final_credential_claim(credential, client_id, &public_key)
+            .handle_final_credential_claim(credential, client_id, &public_key, peer_ips)
             .await
         {
             // 3.1. on failure -> remove the inserted peer

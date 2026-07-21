@@ -74,6 +74,7 @@ pub enum PeerControlRequestType {
     UpdatePeerPsk { peer_key: KeyWrapper },
     AllocatePeerIpPair {},
     ReleaseIpPair { ip_pair: IpPair },
+    ReleaseFreeTier { ip_pair: IpPair },
     RemovePeer { key: KeyWrapper },
     QueryPeer { key: KeyWrapper },
     CheckActivePeer { key: KeyWrapper },
@@ -90,6 +91,7 @@ impl PeerControlRequestType {
             PeerControlRequestType::UpdatePeerPsk { peer_key } => Some(peer_key.clone()),
             PeerControlRequestType::AllocatePeerIpPair {} => None,
             PeerControlRequestType::ReleaseIpPair { .. } => None,
+            PeerControlRequestType::ReleaseFreeTier { .. } => None,
             PeerControlRequestType::RemovePeer { key } => Some(key.clone()),
             PeerControlRequestType::QueryPeer { key } => Some(key.clone()),
             PeerControlRequestType::GetClientBandwidthByKey { key } => Some(key.clone()),
@@ -121,6 +123,9 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             }
             PeerControlRequest::ReleaseIpPair { ip_pair, .. } => {
                 PeerControlRequestType::ReleaseIpPair { ip_pair: *ip_pair }
+            }
+            PeerControlRequest::ReleaseFreeTier { peer_ips, .. } => {
+                PeerControlRequestType::ReleaseFreeTier { ip_pair: *peer_ips }
             }
             PeerControlRequest::RemovePeer { key, .. } => {
                 PeerControlRequestType::RemovePeer { key: key.into() }
@@ -288,6 +293,9 @@ impl MockPeerController {
                 response_tx,
                 ip_pair: _,
             } => response_tx.send_downcasted(response.content),
+            PeerControlRequest::ReleaseFreeTier { response_tx, .. } => {
+                response_tx.send_downcasted(response.content)
+            }
             PeerControlRequest::RemovePeer { response_tx, .. } => {
                 let key = typ.peer_key_unchecked();
                 if response.success {

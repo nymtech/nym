@@ -106,6 +106,12 @@ pub enum PeerControlRequest {
         key: Key,
         response_tx: oneshot::Sender<RemovePeerControlResponse>,
     },
+    /// Release a peer from free-tier enforcement (pool + walled garden) - a formerly-free
+    /// peer that has upgraded to paid. Keyed by the peer's dual-stack tunnel IPs.
+    ReleaseFreeTier {
+        peer_ips: IpPair,
+        response_tx: oneshot::Sender<ReleaseFreeTierControlResponse>,
+    },
     QueryPeer {
         key: Key,
         response_tx: oneshot::Sender<QueryPeerControlResponse>,
@@ -139,6 +145,7 @@ pub type UpdatePeerPskControlResponse = Result<()>;
 pub type AllocatePeerControlResponse = Result<IpPair>;
 pub type ReleaseIpPairControlResponse = Result<()>;
 pub type RemovePeerControlResponse = Result<()>;
+pub type ReleaseFreeTierControlResponse = Result<()>;
 pub type QueryPeerControlResponse = Result<Option<Peer>>;
 pub type CheckActivePeerResponse = Result<bool>;
 pub type GetClientBandwidthControlResponse = Result<ClientBandwidth>;
@@ -630,6 +637,21 @@ impl PeerController {
             }
             PeerControlRequest::RemovePeer { key, response_tx } => {
                 response_tx.send(self.remove_peer(&key).await).ok();
+            }
+            PeerControlRequest::ReleaseFreeTier {
+                peer_ips,
+                response_tx,
+            } => {
+                let res = self
+                    .free_tier_controller
+                    .release_peer(peer_ips)
+                    .map(|_| ())
+                    .map_err(|e| {
+                        Error::Internal(format!(
+                            "failed to release peer from free-tier enforcement: {e}"
+                        ))
+                    });
+                response_tx.send(res).ok();
             }
             PeerControlRequest::QueryPeer { key, response_tx } => {
                 response_tx

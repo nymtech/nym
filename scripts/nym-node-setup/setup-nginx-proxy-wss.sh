@@ -105,6 +105,10 @@ rm -f "${SITES_EN}/wss-config-nym" "${SITES_AVAIL}/wss-config-nym" || true
 ###############################################################################
 # step 4: HTTP vhost (ACME challenge + redirect to HTTPS) - always enabled
 ###############################################################################
+
+CERT_EXISTS=false
+[[ -s "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]] && CERT_EXISTS=true
+
 cat > "${HTTP_CONF}" <<EOF
 server {
     listen 80;
@@ -121,7 +125,7 @@ server {
     }
 
     location / {
-        return 301 https://\$host\$request_uri;
+$( $CERT_EXISTS && echo "        return 301 https://\$host\$request_uri;" || echo "        try_files \$uri /index.html;" )
     }
 }
 EOF

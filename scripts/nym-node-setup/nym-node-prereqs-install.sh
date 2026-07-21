@@ -7,6 +7,7 @@ fi
 
 # Non-interactive so nothing blocks on a prompt during automated setup
 export DEBIAN_FRONTEND=noninteractive
+set -euo pipefail
 
 echo -e "\n* * * Installing needed prerequisites * * *"
 

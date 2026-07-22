@@ -7,6 +7,7 @@ pub mod codec;
 pub mod icmp_utils;
 pub mod response_helpers;
 pub mod sign;
+pub mod v10;
 pub mod v6;
 pub mod v7;
 pub mod v8;
@@ -43,6 +44,7 @@ mod tests {
 // version 7: Add signature support (for the future)
 // version 8: Anonymous sends
 // version 9: LP-framed transport (SphinxStream)
+// version 10: IPR reports its accepted MTU in the connect response
 // response_helpers: shared IPR response parsing (nym-ip-packet-client + nym-sdk)
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -25,6 +25,9 @@ pub enum IprResponseError {
 
     #[error("connect denied: {0:?}")]
     ConnectDenied(crate::v8::response::ConnectFailureReason),
+
+    #[error("expected v10 connect control response")]
+    UnexpectedV10Response,
 }
 
 pub enum MixnetMessageOutcome {
@@ -65,6 +68,27 @@ pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, IprR
         _ => Err(IprResponseError::UnexpectedResponse(
             IpPacketResponseData::Control(control_response),
         )),
+    }
+}
+
+/// Parse a v10 connect response, returning the allocated IPs and the IPR's MTU.
+/// Separate from [`parse_connect_response`] as it decodes the v10 response tree.
+pub fn parse_connect_response_v10(
+    response: crate::v10::response::IpPacketResponse,
+) -> Result<crate::v10::response::ConnectSuccess, IprResponseError> {
+    use crate::v10::response::{ConnectResponseReply, ControlResponse, IpPacketResponseData};
+
+    let control_response = match response.data {
+        IpPacketResponseData::Control(c) => c,
+        _ => return Err(IprResponseError::UnexpectedV10Response),
+    };
+
+    match *control_response {
+        ControlResponse::Connect(connect_resp) => match connect_resp.reply {
+            ConnectResponseReply::Success(success) => Ok(success),
+            ConnectResponseReply::Failure(reason) => Err(IprResponseError::ConnectDenied(reason)),
+        },
+        _ => Err(IprResponseError::UnexpectedV10Response),
     }
 }
 

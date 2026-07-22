@@ -56,6 +56,111 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
+<VarInfo/>
+
+## `v2026.14-amsterdam`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.14-amsterdam)
+- [`nym-node`](nodes/nym-node.mdx) version `1.36.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-07-21T11:45:30.166650623Z
+Build Version:      1.36.0
+Commit SHA:         1bff1b388b3a2d5fb2dc299c5e9462d44893a5bd
+Commit Date:        2026-07-21T13:38:39.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.92.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info" emoji="ℹ️">
+[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed and  [`network-tunnel-manager` (NTM) is updated](https://github.com/nymtech/nym/pull/6959). Please update your exit policy following [these steps](#nip-13-update).
+</Callout>
+
+In this release, we bring several news and updates. First of all, **we would like to express our gratitude to the Nym operators, which constantly brings feedback and ideas for improvement and consistently improves the Nym network. Thank you all!**
+
+- **Performance measurements update:** Improvement of DNS resolution of hostnames within the Network Monitor should lead to performance measurement (`routing_score`) precision
+
+- [**CMD Reward Tracker**](/operators/tools#cmd-reward-tracker): Now faster and updated ([PR \#6959](https://github.com/nymtech/nym/pull/6959))
+
+- [**Nym Node CLI**](/operators/tools#nym-node-cli): Single node auto-install tool is updated and fully functional ([PR \#6964](https://github.com/nymtech/nym/pull/6964))
+
+#### NIP-13 Update
+
+- **[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed & [NTM updated](https://github.com/nymtech/nym/pull/6959): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
+
+### Features
+
+- [BandwidthController improvements](https://github.com/nymtech/nym/pull/6937): Redesigned credential acquisition and ticketbook management with proactive restocking, improved readiness handling, and more reliable recovery flows, improving gateway bandwidth availability and operational reliability.
+- [Manual BandwidthController restock command](https://github.com/nymtech/nym/pull/6952): Added a manual ticketbook restock mechanism, allowing operators and internal components to explicitly trigger restocking when needed while keeping automatic threshold-based restocking behaviour.
+- [SOCKS5 autodiscovery and country-based requester selection](https://github.com/nymtech/nym/pull/6920): Added SOCKS5 requester autodiscovery with optional country-based selection, simplifying client configuration and improving connectivity workflows.
+
+### Bugfixes
+
+- [Improved topology retrieval reliability](https://github.com/nymtech/nym/pull/6951): Added safer retry handling for topology retrieval when inconsistent data is returned across epochs, improving resilience and preventing invalid network state usage.
+- [Avoid Hickory DNS resolution for gateway hostname](https://github.com/nymtech/nym/pull/6955): Fixed gateway hostname resolution issues by changing gateway hostname resolution handling in Network Manager, improving reliability in environments with different DNS configurations.
+- [HTTP client network reconfiguration handling](https://github.com/nymtech/nym/pull/6923): Improved retry behaviour after network changes by preventing unnecessary host rotation and fronting activation when failures are caused by recent network reconfiguration.
+
+### Refactors & Maintenance
+
+- [SDK documentation version updates](https://github.com/nymtech/nym/pull/6922): Updated SDK and crate version references across documentation and CI workflows to keep developer resources aligned with current releases.
+
 ## `v2026.13-ziller`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.13-ziller)

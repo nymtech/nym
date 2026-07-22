@@ -68,6 +68,35 @@ pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, IprR
     }
 }
 
+/// Parse a v10 connect response, returning the allocated IPs and the IPR's MTU.
+/// Separate from [`parse_connect_response`] as it decodes the v10 response tree.
+pub fn parse_connect_response_v10(
+    response: crate::v10::response::IpPacketResponse,
+) -> Result<crate::v10::response::ConnectSuccess, IprResponseError> {
+    use crate::v10::response::{ConnectResponseReply, ControlResponse, IpPacketResponseData};
+
+    // A well-behaved v10 IPR answers a connect request with a connect reply;
+    // anything else is a protocol violation the caller treats as a failed connect.
+    let unexpected = || {
+        IprResponseError::ConnectDenied(crate::v8::response::ConnectFailureReason::Other(
+            "unexpected response to v10 connect request".into(),
+        ))
+    };
+
+    let control_response = match response.data {
+        IpPacketResponseData::Control(c) => c,
+        _ => return Err(unexpected()),
+    };
+
+    match *control_response {
+        ControlResponse::Connect(connect_resp) => match connect_resp.reply {
+            ConnectResponseReply::Success(success) => Ok(success),
+            ConnectResponseReply::Failure(reason) => Err(IprResponseError::ConnectDenied(reason)),
+        },
+        _ => Err(unexpected()),
+    }
+}
+
 // Extracted from:
 //   nym-ip-packet-client/src/listener.rs — IprListener::handle_reconstructed_message()
 //   sdk/rust/nym-sdk/src/ip_packet_client/listener.rs — handle_ipr_response()

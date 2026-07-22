@@ -7,6 +7,7 @@ pub mod codec;
 pub mod icmp_utils;
 pub mod response_helpers;
 pub mod sign;
+pub mod v10;
 pub mod v6;
 pub mod v7;
 pub mod v8;
@@ -19,6 +20,14 @@ pub const MAX_NON_STREAM_VERSION: u8 = v8::VERSION;
 /// First IPR protocol version that **requires** the SphinxStream (LP) transport for non-stream
 /// mixnet sends, matching the node-side enforcement in `ip-packet-router`.
 pub const SPHINX_STREAM_VERSION_THRESHOLD: u8 = v9::VERSION;
+
+/// Client MTU advertised on mobile/Android, where carrier last-mile caps bite
+/// regardless of the IPR.
+pub const CLIENT_MTU_MOBILE: u16 = 1280;
+
+/// Client MTU fallback for IPRs that predate MTU negotiation (the v10 connect
+/// response); at or below the historic 1420-byte IPR TUN.
+pub const CLIENT_MTU_FALLBACK: u16 = 1420;
 
 #[cfg(test)]
 mod tests {
@@ -43,6 +52,7 @@ mod tests {
 // version 7: Add signature support (for the future)
 // version 8: Anonymous sends
 // version 9: LP-framed transport (SphinxStream)
+// version 10: IPR reports its accepted MTU in the connect response
 // response_helpers: shared IPR response parsing (nym-ip-packet-client + nym-sdk)
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

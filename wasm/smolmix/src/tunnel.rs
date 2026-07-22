@@ -284,11 +284,25 @@ impl WasmTunnel {
         let smolmix_tracker = shutdown_handle.child_tracker();
         let state = state::State::new(smolmix_tracker.clone_shutdown_token());
 
-        let ipr_address = match opts.ipr_address {
-            Some(addr) => addr,
+        let (ipr_address, node_version) = match opts.ipr_address {
+            Some(addr) => {
+                // Best-effort: read the node's version from the directory to pick
+                // the protocol version. Not found ⇒ None ⇒ connect defaults to v9.
+                let version = match ipr::lookup_node_version(&nym_api_urls, &addr).await {
+                    Ok(version) => Some(version),
+                    Err(e) => {
+                        crate::util::debug_log!(
+                            "[smolmix] IPR version lookup failed ({e}); defaulting to v9"
+                        );
+                        None
+                    }
+                };
+                (addr, version)
+            }
             None => {
                 nym_wasm_utils::console_log!("[smolmix] no IPR specified, auto-discovering...");
-                ipr::discover_ipr(&nym_api_urls).await?
+                let (addr, version) = ipr::discover_ipr(&nym_api_urls).await?;
+                (addr, Some(version))
             }
         };
 
@@ -300,6 +314,7 @@ impl WasmTunnel {
             stream_id,
             opts.surbs,
             opts.tuning.connect_timeout,
+            node_version.as_ref(),
         )
         .await?;
 
@@ -424,6 +439,7 @@ impl WasmTunnel {
 
     /// Open the LP stream + run the IPR connect handshake. Returns the IPs the
     /// IPR allocated and the MTU it reported (`None` against a pre-v10 IPR).
+    #[allow(clippy::too_many_arguments)]
     async fn ipr_handshake(
         client_input: &Arc<ClientInput>,
         receiver: &mut ipr::ReconstructedReceiver,
@@ -431,6 +447,7 @@ impl WasmTunnel {
         stream_id: u64,
         surbs: ipr::SurbsConfig,
         connect_timeout: Duration,
+        node_version: Option<&semver::Version>,
     ) -> Result<(IpPair, Option<u16>), FetchError> {
         nym_wasm_utils::console_log!("[smolmix] connecting to IPR...");
         let (allocated_ips, negotiated_mtu) = ipr::open_and_connect(
@@ -440,6 +457,7 @@ impl WasmTunnel {
             stream_id,
             surbs,
             connect_timeout,
+            node_version,
         )
         .await?;
         nym_wasm_utils::console_log!("[smolmix] IPR connected");

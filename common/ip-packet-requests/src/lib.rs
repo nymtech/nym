@@ -29,6 +29,25 @@ pub const CLIENT_MTU_MOBILE: u16 = 1280;
 /// response); at or below the historic 1420-byte IPR TUN.
 pub const CLIENT_MTU_FALLBACK: u16 = 1420;
 
+/// Highest IPR protocol version a node's release supports, from each version's
+/// `MIN_RELEASE_VERSION`. Lets a client pick the protocol up front from the
+/// node's directory version instead of probing. `None` means the node is too old
+/// for even v9.
+///
+/// Note: a semver pre-release sorts below its release triple, so a node reporting
+/// e.g. `1.37.0-rc.1` gates one rung down to v9, and `1.30.0-rc.1` to `None`. That
+/// is a safe degrade (lose MTU or defer to the call site's v9 default, still
+/// connect) and only affects the exact `1.37.0-*` / `1.30.0-*` bands.
+pub fn best_supported_version(node_version: &semver::Version) -> Option<u8> {
+    if *node_version >= v10::MIN_RELEASE_VERSION {
+        Some(v10::VERSION)
+    } else if *node_version >= v9::MIN_RELEASE_VERSION {
+        Some(v9::VERSION)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -42,6 +61,26 @@ mod tests {
         assert_eq!(MAX_NON_STREAM_VERSION, 8);
         assert_eq!(SPHINX_STREAM_VERSION_THRESHOLD, 9);
         const _: () = assert!(SPHINX_STREAM_VERSION_THRESHOLD > MAX_NON_STREAM_VERSION);
+    }
+
+    #[test]
+    fn best_supported_version_ladder() {
+        use semver::Version;
+        let v = |s: &str| Version::parse(s).unwrap();
+
+        assert_eq!(best_supported_version(&v("1.37.0")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.37.1")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.40.0")), Some(v10::VERSION));
+        assert_eq!(best_supported_version(&v("1.36.9")), Some(v9::VERSION));
+        assert_eq!(best_supported_version(&v("1.30.0")), Some(v9::VERSION));
+        assert_eq!(best_supported_version(&v("1.29.9")), None);
+        // Pre-release sorts below the release triple: 1.37.0-rc gates down to v9,
+        // but 1.37.1-rc is still >= 1.37.0 so it maps to v10.
+        assert_eq!(best_supported_version(&v("1.37.0-rc.1")), Some(v9::VERSION));
+        assert_eq!(
+            best_supported_version(&v("1.37.1-rc.1")),
+            Some(v10::VERSION)
+        );
     }
 }
 

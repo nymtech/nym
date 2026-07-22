@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::ip_packet_client::{
-    discovery::{create_nym_api_client, get_best_ipr},
+    discovery::{create_nym_api_client, get_best_ipr, lookup_node_version},
     handle_ipr_response,
     listener::check_ipr_message_version,
     MixnetMessageOutcome,
@@ -11,6 +11,7 @@ use crate::Error;
 use bytes::Bytes;
 use nym_ip_packet_requests::response_helpers;
 use nym_ip_packet_requests::{
+    best_supported_version,
     v10::{self, response::IpPacketResponse as IpPacketResponseV10},
     v9::{self, response::IpPacketResponse},
     IpPair,
@@ -18,13 +19,17 @@ use nym_ip_packet_requests::{
 use nym_network_defaults::NymNetworkDetails;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// v10 probe deadline. A pre-v10 IPR silently drops the request, so this timeout
-/// (not a reply) triggers the v9 fallback; a real v10 connect takes ~1-2s.
-const IPR_V10_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+/// Cap on the v10 connect attempt when a v9 fallback is still reachable. During a
+/// rollout the directory version can lead the running IPR (directory says 1.37,
+/// process still v9), so a v10 request to it never gets answered; bound the wait
+/// well under `IPR_CONNECT_TIMEOUT` so the fallback fires promptly rather than
+/// after the full 60 s. Kept generously above a healthy v10 connect (~1-2 s) so a
+/// merely-slow node isn't downgraded spuriously.
+const IPR_V10_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// A bidirectional tunnel for sending and receiving IP packets through the mixnet.
 ///
@@ -63,8 +68,8 @@ impl IpMixStream {
         let network_defaults = NymNetworkDetails::new_mainnet();
         let api_client =
             create_nym_api_client(network_defaults.nym_api_urls.ok_or(Error::NoNymAPIUrl)?)?;
-        let ipr_address = get_best_ipr(api_client).await?;
-        Self::new_with_ipr(ipr_address).await
+        let (ipr_address, node_version) = get_best_ipr(api_client).await?;
+        Self::connect(ipr_address, Some(node_version)).await
     }
 
     /// Connect to a specific IPR address.
@@ -74,11 +79,39 @@ impl IpMixStream {
     /// [`IpMixStream::new`] instead.
     pub async fn new_with_ipr(ipr_address: Recipient) -> Result<Self, Error> {
         nym_network_defaults::setup_env(None::<&str>);
+        let node_version = Self::lookup_ipr_version(&ipr_address).await;
+        Self::connect(ipr_address, node_version).await
+    }
+
+    /// Best-effort version lookup for an explicit IPR address, from the directory
+    /// of the env-configured network. `None` (node not in the directory: custom
+    /// deployment, brand-new node, or lookup failure) leaves connect defaulting to
+    /// v9 rather than hard-failing.
+    async fn lookup_ipr_version(ipr_address: &Recipient) -> Option<semver::Version> {
+        let urls = NymNetworkDetails::new_from_env().nym_api_urls?;
+        let api_client = create_nym_api_client(urls).ok()?;
+        match lookup_node_version(&api_client, ipr_address.gateway()).await {
+            Ok(version) => Some(version),
+            // Distinguish a transient nym-api failure from a legitimately-absent
+            // node in the logs; both degrade to v9, so keep returning None.
+            Err(e) => {
+                debug!("IPR version lookup failed ({e}); defaulting to v9");
+                None
+            }
+        }
+    }
+
+    /// Open the mixnet stream and run the version-gated connect handshake.
+    async fn connect(
+        ipr_address: Recipient,
+        node_version: Option<semver::Version>,
+    ) -> Result<Self, Error> {
         let mut client = MixnetClient::connect_new().await?;
         let mut stream = client.open_stream(ipr_address, Some(10)).await?;
 
         info!("Connecting to IP packet router at {ipr_address}");
-        let (allocated_ips, negotiated_mtu) = Self::connect_tunnel(&mut stream).await?;
+        let (allocated_ips, negotiated_mtu) =
+            Self::connect_tunnel(&mut stream, node_version.as_ref()).await?;
         info!(
             "Connected — IPv4: {}, IPv6: {}, MTU: {}",
             allocated_ips.ipv4,
@@ -124,21 +157,56 @@ impl IpMixStream {
         }
     }
 
-    /// Connect, trying v10 (which reports the IPR's MTU) then falling back to v9.
-    /// Returns the allocated IPs and, on the v10 path, the reported MTU.
-    async fn connect_tunnel(stream: &mut MixnetStream) -> Result<(IpPair, Option<u16>), Error> {
-        match Self::connect_v10(stream).await {
-            Ok((ips, mtu)) => Ok((ips, Some(mtu))),
-            Err(e) => {
-                debug!("v10 connect failed ({e}); falling back to v9");
-                let ips = Self::connect_v9(stream).await?;
-                Ok((ips, None))
+    /// Connect using the IPR protocol version the node's release supports, chosen
+    /// from its directory version rather than a per-connect probe. `None` version
+    /// (unknown node) defaults to v9. Returns the allocated IPs and, on v10, the MTU.
+    async fn connect_tunnel(
+        stream: &mut MixnetStream,
+        node_version: Option<&semver::Version>,
+    ) -> Result<(IpPair, Option<u16>), Error> {
+        // SMOLMIX_IPR_VERSION overrides the node version used for protocol gating
+        // (semver, e.g. "1.37.0"). Test/debug knob for exercising a protocol
+        // version against a node the directory reports as older, such as a local
+        // IPR that isn't a directory node. Read here in the native SDK only; the
+        // wasm/smolmix build cannot read process env. Mirrors SMOLMIX_MTU.
+        let forced = match std::env::var("SMOLMIX_IPR_VERSION") {
+            Ok(raw) => match semver::Version::parse(&raw) {
+                Ok(version) => Some(version),
+                Err(e) => {
+                    warn!("ignoring unparseable SMOLMIX_IPR_VERSION='{raw}': {e}");
+                    None
+                }
+            },
+            Err(_) => None,
+        };
+        let node_version = forced.as_ref().or(node_version);
+        if node_version.is_none() {
+            debug!("no directory version for IPR node; connecting v9 (MTU unreported)");
+        }
+
+        let use_v10 = node_version.and_then(best_supported_version) == Some(v10::VERSION);
+        if use_v10 {
+            match Self::connect_v10(stream, IPR_V10_ATTEMPT_TIMEOUT).await {
+                Ok((ips, mtu)) => return Ok((ips, Some(mtu))),
+                // The directory version can lead the running IPR (mid-upgrade,
+                // stale describe cache), so retry v9 rather than hard-failing.
+                Err(Error::IPRConnectResponseTimeout) => {
+                    debug!("v10 connect timed out; retrying v9");
+                }
+                Err(e) => return Err(e),
             }
         }
+        let ips = Self::connect_v9(stream).await?;
+        Ok((ips, None))
     }
 
     /// v10 connect: reports the IPR's accepted MTU alongside the allocated IPs.
-    async fn connect_v10(stream: &mut MixnetStream) -> Result<(IpPair, u16), Error> {
+    /// `deadline` bounds the wait so a v9 fallback stays responsive (see
+    /// [`IPR_V10_ATTEMPT_TIMEOUT`]).
+    async fn connect_v10(
+        stream: &mut MixnetStream,
+        deadline: Duration,
+    ) -> Result<(IpPair, u16), Error> {
         let (request, request_id) = v10::new_connect_request(None);
         debug!("Sending v10 connect request with ID: {request_id}");
 
@@ -148,7 +216,7 @@ impl IpMixStream {
             .await
             .map_err(|_| Error::MessageSendingFailure)?;
 
-        let timeout = tokio::time::sleep(IPR_V10_PROBE_TIMEOUT);
+        let timeout = tokio::time::sleep(deadline);
         tokio::pin!(timeout);
 
         loop {
@@ -159,7 +227,8 @@ impl IpMixStream {
                 result = stream.recv() => {
                     let data = result.ok_or(Error::IPRClientStreamClosed)?;
 
-                    // Ignore non-v10 frames; the probe timeout handles a silent IPR.
+                    // Ignore stragglers from an earlier version; we selected v10
+                    // from the node's directory version.
                     if data.first() != Some(&v10::VERSION) {
                         continue;
                     }

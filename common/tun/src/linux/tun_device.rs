@@ -57,10 +57,8 @@ fn setup_tokio_tun_device(
     netmask: Ipv4Addr,
 ) -> Result<tokio_tun::Tun, TunDeviceError> {
     log::info!("Creating TUN device with: address={address}, netmask={netmask}");
-    // Read MTU size from env variable NYM_MTU_SIZE, else default to 1420.
-    let mtu = std::env::var("NYM_MTU_SIZE")
-        .map(|mtu| mtu.parse().expect("NYM_MTU_SIZE must be a valid integer"))
-        .unwrap_or(1420);
+    // Shared with the value v10 reports to clients (configured_ipr_tun_mtu).
+    let mtu = crate::configured_ipr_tun_mtu() as i32;
     log::info!("Using MTU size: {mtu}");
     Ok(tokio_tun::Tun::builder()
         .name(name)

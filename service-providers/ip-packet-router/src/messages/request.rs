@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod v10;
 mod v6;
 mod v7;
 mod v8;
@@ -139,6 +140,16 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .sender_tag
                     .ok_or(IpPacketRouterError::MissingSenderTag)?;
                 Ok(v9::convert(request_v8, sender_tag))
+            }
+            10 => {
+                let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::MissingSenderTag)?;
+                Ok(v10::convert(request_v8, sender_tag))
             }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");

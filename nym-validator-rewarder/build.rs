@@ -22,6 +22,5 @@ async fn main() -> anyhow::Result<()> {
 
     println!("cargo:rustc-env=DATABASE_URL=sqlite://{database_path}");
 
-
     Ok(())
 }

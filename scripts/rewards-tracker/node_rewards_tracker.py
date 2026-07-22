@@ -6,12 +6,12 @@ This script fetches operators rewards based on provided Nyx account addresses pr
 Output is:
     1. Printet table in terminal
     2. Sheet with complete info stored in data/node-balances.csv
-    3. Hiostorical data yaml file stored in data/data.yaml - this file should not be changed by hand, as
+    3. Historical data yaml file stored in data/data.yaml - this file should not be changed by hand, as
     all values older than 30 days get auto-removed
 Before you start fill first column of data/wallet-addresses.csv with your Nyx account addresses and (optionally) second column
 with a tag, for example "mysquad" and "personal" to get sorted output per entity.
 
-NOT THAT IF YOU HAVE ADMIN ACCESS TO NODES UNDER SEVERAL ENTITIES - THEY MUST BE REGISTERED TO THE SAME FAMILY ! ! !
+NOTE THAT IF YOU HAVE ADMIN ACCESS TO NODES UNDER SEVERAL ENTITIES - THEY MUST BE REGISTERED TO THE SAME FAMILY ! ! !
 """
 
 import csv

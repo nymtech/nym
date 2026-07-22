@@ -76,13 +76,72 @@ cargo Profile:      release
 
 ### Operator & Developer Updates
 
-- performance update: fixed/improved DNS resolution of hostnames within the network monitor
-  - kudos to operators
-- reward tracker: https://github.com/nymtech/nym/pull/6969
-- node cli: https://github.com/nymtech/nym/pull/6964
-- nip-13: https://github.com/nymtech/nym/pull/6959 and https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb
-- add ntm steps
+<Callout type="info" emoji="ℹ️">
+[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed and  [`network-tunnel-manager` (NTM) is updated](https://github.com/nymtech/nym/pull/6959). Please update your exit policy following [these steps](#nip--13-update).
+</Callout>
 
+In this release, we bring several news and updates. First of all, **we would like to share grattitude to Nym operator community, constantly bringing feedback and ideas of improvement, consistently improving Nym network. Thank you all!** 
+
+- **Performance measurements update:** Improvement of DNS resolution of hostnames within the Network Monitor should lead to performance measurement (`routing_score`) precision
+
+- [**CMD Reward Tracker**](/operators/tools#cmd-reward-tracker): Now faster and updated ([PR \#6959](https://github.com/nymtech/nym/pull/6959))
+
+- [**Nym Node CLI](/operators/tools#nym-node-cli)**: Single node auto-install tool is updated and fully functional ([PR \#6964](https://github.com/nymtech/nym/pull/6964))
+
+#### NIP-13 Update
+
+- **[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed & [NTM updated](https://github.com/nymtech/nym/pull/6959): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
 
 ### Features
 

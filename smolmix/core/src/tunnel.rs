@@ -196,6 +196,8 @@ impl Tunnel {
             .map_err(|_| SmolmixError::NotConnected)?;
 
         let allocated_ips = *ipr_stream.allocated_ips();
+        // Read before the bridge consumes the stream. `None` => v9 IPR (device default).
+        let negotiated_mtu = ipr_stream.negotiated_mtu();
 
         // Two channel pairs connect the bridge (async mixnet I/O) to the async
         // device adapter (polled by tokio-smoltcp for raw IP packets):
@@ -212,7 +214,7 @@ impl Tunnel {
 
         // NymAsyncDevice wraps the channel ends as Stream + Sink, which is all
         // tokio-smoltcp needs to drive the smoltcp Interface internally.
-        let device = NymAsyncDevice::new(incoming_rx, outgoing_tx);
+        let device = NymAsyncDevice::new(incoming_rx, outgoing_tx, negotiated_mtu);
 
         // Configure smoltcp: raw IP mode (no Ethernet), /32 for the allocated IP,
         // default route via unspecified (the IPR does the actual routing).

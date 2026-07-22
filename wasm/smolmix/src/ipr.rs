@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use nym_ip_packet_requests::IpPair;
 use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
+use nym_ip_packet_requests::v10::{self, response::IpPacketResponse as IpPacketResponseV10};
 use nym_lp_data::packet::frame::{
     LpFrame, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
@@ -61,10 +62,9 @@ impl Default for SurbsConfig {
 /// Type alias for the channel receiving batches of reconstructed messages.
 pub type ReconstructedReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
-/// Open an LP stream to the IPR and perform the v9 connect handshake.
-///
-/// Sends an LP Open frame (seq=0, empty payload), then a ConnectRequest
-/// (Data seq=0), and waits for a ConnectSuccess response with allocated IPs.
+/// Open an LP stream and run the connect handshake: Open frame, then a v10
+/// connect (Data seq=0), falling back to v9 (seq=1) for pre-v10 IPRs. Returns
+/// the allocated IPs and, on the v10 path, the reported MTU.
 pub async fn open_and_connect(
     client_input: &Arc<ClientInput>,
     receiver: &mut ReconstructedReceiver,
@@ -72,25 +72,125 @@ pub async fn open_and_connect(
     stream_id: u64,
     surbs: SurbsConfig,
     connect_timeout: Duration,
-) -> Result<IpPair, FetchError> {
+) -> Result<(IpPair, Option<u16>), FetchError> {
     nym_wasm_utils::console_log!("[ipr] sending connect handshake...");
     crate::util::debug_log!("[ipr] stream={stream_id:#018x}");
 
-    // 1. Send LP Open frame (empty payload, seq=0); establishes the stream
+    // 1. Send LP Open frame (empty payload, seq=0); establishes the stream.
+    // Data frames have their own seq space; Open's seq field is independent.
     let open_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Open, 0, &[]);
     send_to_ipr(client_input, ipr_address, open_frame, surbs.open).await?;
 
-    // 2. Send v9 ConnectRequest as LP Data frame (seq=0).
-    // Data frames have their own seq space; Open's seq field is independent.
+    // 2. Try v10 (Data seq=0), falling back to v9 (seq=1). A pre-v10 IPR drops the
+    // request silently, so a short probe deadline drives the fallback.
+    let v10_probe_timeout = connect_timeout.min(Duration::from_secs(5));
+    match connect_v10(
+        client_input,
+        receiver,
+        ipr_address,
+        stream_id,
+        0,
+        surbs,
+        v10_probe_timeout,
+    )
+    .await
+    {
+        Ok(success) => Ok((success.ips, Some(success.mtu))),
+        Err(e) => {
+            crate::util::debug_log!("[ipr] v10 connect failed ({e}); falling back to v9");
+            let ips = connect_v9(
+                client_input,
+                receiver,
+                ipr_address,
+                stream_id,
+                1,
+                surbs,
+                connect_timeout,
+            )
+            .await?;
+            Ok((ips, None))
+        }
+    }
+}
+
+/// v10 connect: Data frame at `seq`; returns the IPR's MTU + allocated IPs.
+async fn connect_v10(
+    client_input: &Arc<ClientInput>,
+    receiver: &mut ReconstructedReceiver,
+    ipr_address: &Recipient,
+    stream_id: u64,
+    seq: u32,
+    surbs: SurbsConfig,
+    connect_timeout: Duration,
+) -> Result<nym_ip_packet_requests::v10::response::ConnectSuccess, FetchError> {
+    let (request, request_id) = v10::new_connect_request(None);
+    let request_bytes = request
+        .to_bytes()
+        .map_err(|e| FetchError::Tunnel(format!("failed to serialise v10 connect request: {e}")))?;
+    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
+    send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
+
+    wasmtimer::tokio::timeout(connect_timeout, async {
+        loop {
+            let batch = receiver
+                .next()
+                .await
+                .ok_or_else(|| FetchError::Tunnel("message channel closed".into()))?;
+
+            for msg in batch {
+                let Some((attrs, content)) = decode_lp_stream(&msg.message) else {
+                    continue;
+                };
+                if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
+                    continue;
+                }
+
+                // Ignore non-v10 frames; the probe timeout handles a silent IPR.
+                if content.first() != Some(&v10::VERSION) {
+                    continue;
+                }
+
+                let response = match IpPacketResponseV10::from_bytes(&content) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        crate::util::debug_error!(
+                            "[ipr] malformed v10 response on our stream (dropped): {e}"
+                        );
+                        continue;
+                    }
+                };
+                if response.id() != Some(request_id) {
+                    continue;
+                }
+                return nym_ip_packet_requests::response_helpers::parse_connect_response_v10(
+                    response,
+                )
+                .map_err(|e| FetchError::Tunnel(format!("IPR connect denied: {e}")));
+            }
+        }
+    })
+    .await
+    .map_err(|_| FetchError::Tunnel("IPR v10 connect timed out".into()))?
+}
+
+/// v9 connect: pre-v10 path, no MTU reported.
+async fn connect_v9(
+    client_input: &Arc<ClientInput>,
+    receiver: &mut ReconstructedReceiver,
+    ipr_address: &Recipient,
+    stream_id: u64,
+    seq: u32,
+    surbs: SurbsConfig,
+    connect_timeout: Duration,
+) -> Result<IpPair, FetchError> {
     let (request, request_id) = v9::new_connect_request(None);
     let request_bytes = request
         .to_bytes()
         .map_err(|e| FetchError::Tunnel(format!("failed to serialise connect request: {e}")))?;
-    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, 0, &request_bytes);
+    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
     send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
 
-    // 3. Wait for ConnectSuccess response
-    let ip_pair = wasmtimer::tokio::timeout(connect_timeout, async {
+    wasmtimer::tokio::timeout(connect_timeout, async {
         loop {
             let batch = receiver
                 .next()
@@ -119,9 +219,6 @@ pub async fn open_and_connect(
                 let response = match IpPacketResponse::from_bytes(&content) {
                     Ok(r) => r,
                     Err(e) => {
-                        // Decoded as LP for our stream + msg_type, but content
-                        // didn't parse as an IPR response. Logged for the same
-                        // reason as the outer decode failure above.
                         crate::util::debug_error!(
                             "[ipr] malformed IpPacketResponse on our stream (dropped): {e}"
                         );
@@ -139,9 +236,7 @@ pub async fn open_and_connect(
         }
     })
     .await
-    .map_err(|_| FetchError::Tunnel("IPR connect timed out".into()))??;
-
-    Ok(ip_pair)
+    .map_err(|_| FetchError::Tunnel("IPR connect timed out".into()))?
 }
 
 /// Bundle an IP packet and send it to the IPR as an LP-framed DataRequest.

@@ -28,23 +28,16 @@ pub struct WasmDevice {
     tx_stats: TxStats,
 }
 
-/// Default client MTU: 1280 on Android (matching mobile, as nym-vpn-client does),
-/// 1420 elsewhere. Both sit at or below the IPR's 1420-byte egress TUN so large
-/// downloads are not black-holed. Native (non-wasm) unit tests cannot sniff the
-/// platform, so they fall back to 1420.
-fn default_mtu() -> usize {
+/// Client MTU: Android keeps its mobile MTU (1280); elsewhere use the IPR-reported
+/// MTU (v10) or 1420 for pre-v10 IPRs. Native tests can't sniff, so take the else.
+fn client_mtu(negotiated: Option<u16>) -> usize {
     #[cfg(target_arch = "wasm32")]
     {
         if is_android() {
-            1280
-        } else {
-            1420
+            return usize::from(nym_ip_packet_requests::CLIENT_MTU_MOBILE);
         }
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        1420
-    }
+    usize::from(negotiated.unwrap_or(nym_ip_packet_requests::CLIENT_MTU_FALLBACK))
 }
 
 /// Sniff the platform from `navigator.userAgent`. Reads the property off the JS
@@ -64,14 +57,11 @@ fn is_android() -> bool {
 }
 
 impl WasmDevice {
-    pub fn new() -> Self {
+    pub fn new(negotiated_mtu: Option<u16>) -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Client MTU capped to the IPR egress TUN (1420 bytes). A 1500-byte client
-        // advertises an MSS that invites full-size segments the TUN then drops with
-        // ICMP frag-needed, black-holing large downloads; nothing clamps the MSS or
-        // negotiates the MTU. See default_mtu for the per-platform values.
-        capabilities.max_transmission_unit = default_mtu();
+        // See client_mtu for the per-platform MTU choice.
+        capabilities.max_transmission_unit = client_mtu(negotiated_mtu);
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM
@@ -401,7 +391,7 @@ mod tests {
 
     #[test]
     fn push_rx_and_receive() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         dev.push_rx(vec![1, 2, 3]);
 
         let now = Instant::from_millis(0);
@@ -412,7 +402,7 @@ mod tests {
 
     #[test]
     fn transmit_and_drain() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         let now = Instant::from_millis(0);
 
         let tx = dev.transmit(now).expect("should get tx token");
@@ -427,17 +417,17 @@ mod tests {
 
     #[test]
     fn empty_receive_returns_none() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         assert!(dev.receive(Instant::from_millis(0)).is_none());
     }
 
     #[test]
     fn capabilities_are_ip_mode() {
-        let dev = WasmDevice::new();
+        let dev = WasmDevice::new(None);
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        // Native test target: default_mtu() returns 1420 (the wasm user-agent sniff
-        // only runs on wasm32).
+        // Native test target with no negotiated MTU: client_mtu(None) is 1420 (the
+        // wasm user-agent sniff only runs on wasm32).
         assert_eq!(caps.max_transmission_unit, 1420);
     }
 }

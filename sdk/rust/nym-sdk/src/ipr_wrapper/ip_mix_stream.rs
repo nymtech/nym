@@ -11,6 +11,7 @@ use crate::Error;
 use bytes::Bytes;
 use nym_ip_packet_requests::response_helpers;
 use nym_ip_packet_requests::{
+    v10::{self, response::IpPacketResponse as IpPacketResponseV10},
     v9::{self, response::IpPacketResponse},
     IpPair,
 };
@@ -20,6 +21,10 @@ use tokio::io::AsyncWriteExt;
 use tracing::{debug, info};
 
 const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// v10 probe deadline. A pre-v10 IPR silently drops the request, so this timeout
+/// (not a reply) triggers the v9 fallback; a real v10 connect takes ~1-2s.
+const IPR_V10_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A bidirectional tunnel for sending and receiving IP packets through the mixnet.
 ///
@@ -45,6 +50,8 @@ pub struct IpMixStream {
     stream: MixnetStream,
     client: MixnetClient,
     allocated_ips: IpPair,
+    /// MTU reported by the IPR in a v10 connect response; `None` against a v9 IPR.
+    negotiated_mtu: Option<u16>,
     connected: bool,
 }
 
@@ -71,16 +78,21 @@ impl IpMixStream {
         let mut stream = client.open_stream(ipr_address, Some(10)).await?;
 
         info!("Connecting to IP packet router at {ipr_address}");
-        let allocated_ips = Self::connect_tunnel(&mut stream).await?;
+        let (allocated_ips, negotiated_mtu) = Self::connect_tunnel(&mut stream).await?;
         info!(
-            "Connected — IPv4: {}, IPv6: {}",
-            allocated_ips.ipv4, allocated_ips.ipv6
+            "Connected — IPv4: {}, IPv6: {}, MTU: {}",
+            allocated_ips.ipv4,
+            allocated_ips.ipv6,
+            negotiated_mtu
+                .map(|m| m.to_string())
+                .unwrap_or_else(|| "v9 (unreported)".into())
         );
 
         Ok(Self {
             stream,
             client,
             allocated_ips,
+            negotiated_mtu,
             connected: true,
         })
     }
@@ -91,6 +103,12 @@ impl IpMixStream {
 
     pub fn allocated_ips(&self) -> &IpPair {
         &self.allocated_ips
+    }
+
+    /// The MTU the IPR reported in its v10 connect response, or `None` if the IPR
+    /// only speaks v9 (in which case the caller applies a conservative default).
+    pub fn negotiated_mtu(&self) -> Option<u16> {
+        self.negotiated_mtu
     }
 
     pub fn is_connected(&self) -> bool {
@@ -106,9 +124,65 @@ impl IpMixStream {
         }
     }
 
-    async fn connect_tunnel(stream: &mut MixnetStream) -> Result<IpPair, Error> {
+    /// Connect, trying v10 (which reports the IPR's MTU) then falling back to v9.
+    /// Returns the allocated IPs and, on the v10 path, the reported MTU.
+    async fn connect_tunnel(stream: &mut MixnetStream) -> Result<(IpPair, Option<u16>), Error> {
+        match Self::connect_v10(stream).await {
+            Ok((ips, mtu)) => Ok((ips, Some(mtu))),
+            Err(e) => {
+                debug!("v10 connect failed ({e}); falling back to v9");
+                let ips = Self::connect_v9(stream).await?;
+                Ok((ips, None))
+            }
+        }
+    }
+
+    /// v10 connect: reports the IPR's accepted MTU alongside the allocated IPs.
+    async fn connect_v10(stream: &mut MixnetStream) -> Result<(IpPair, u16), Error> {
+        let (request, request_id) = v10::new_connect_request(None);
+        debug!("Sending v10 connect request with ID: {request_id}");
+
+        let request_bytes = request.to_bytes()?;
+        stream
+            .write_all(&request_bytes)
+            .await
+            .map_err(|_| Error::MessageSendingFailure)?;
+
+        let timeout = tokio::time::sleep(IPR_V10_PROBE_TIMEOUT);
+        tokio::pin!(timeout);
+
+        loop {
+            tokio::select! {
+                _ = &mut timeout => {
+                    return Err(Error::IPRConnectResponseTimeout);
+                }
+                result = stream.recv() => {
+                    let data = result.ok_or(Error::IPRClientStreamClosed)?;
+
+                    // Ignore non-v10 frames; the probe timeout handles a silent IPR.
+                    if data.first() != Some(&v10::VERSION) {
+                        continue;
+                    }
+
+                    if let Ok(response) = IpPacketResponseV10::from_bytes(&data) {
+                        if response.id() == Some(request_id) {
+                            return response_helpers::parse_connect_response_v10(response)
+                                .map(|success| (success.ips, success.mtu))
+                                .map_err(|e| match e {
+                                    response_helpers::IprResponseError::ConnectDenied(r) => Error::ConnectDenied(r),
+                                    other => Error::IPRMessageVersionCheckFailed(other.to_string()),
+                                });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// v9 connect: pre-v10 path, no MTU reported.
+    async fn connect_v9(stream: &mut MixnetStream) -> Result<IpPair, Error> {
         let (request, request_id) = v9::new_connect_request(None);
-        debug!("Sending connect request with ID: {}", request_id);
+        debug!("Sending v9 connect request with ID: {request_id}");
 
         let request_bytes = request.to_bytes()?;
         stream

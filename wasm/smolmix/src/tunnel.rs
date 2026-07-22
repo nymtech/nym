@@ -293,7 +293,7 @@ impl WasmTunnel {
         };
 
         let stream_id: u64 = rand::random();
-        let allocated_ips = Self::ipr_handshake(
+        let (allocated_ips, negotiated_mtu) = Self::ipr_handshake(
             &client_input,
             &mut reconstructed_receiver,
             &ipr_address,
@@ -305,6 +305,7 @@ impl WasmTunnel {
 
         let NetworkStack { stack, notify } = Self::init_network_stack(
             allocated_ips,
+            negotiated_mtu,
             client_input.clone(),
             reconstructed_receiver,
             ipr_address,
@@ -421,8 +422,8 @@ impl WasmTunnel {
         })
     }
 
-    /// Open the LP stream + run the IPR v9 connect handshake. Returns the
-    /// IPs the IPR allocated for this tunnel.
+    /// Open the LP stream + run the IPR connect handshake. Returns the IPs the
+    /// IPR allocated and the MTU it reported (`None` against a pre-v10 IPR).
     async fn ipr_handshake(
         client_input: &Arc<ClientInput>,
         receiver: &mut ipr::ReconstructedReceiver,
@@ -430,9 +431,9 @@ impl WasmTunnel {
         stream_id: u64,
         surbs: ipr::SurbsConfig,
         connect_timeout: Duration,
-    ) -> Result<IpPair, FetchError> {
+    ) -> Result<(IpPair, Option<u16>), FetchError> {
         nym_wasm_utils::console_log!("[smolmix] connecting to IPR...");
-        let allocated_ips = ipr::open_and_connect(
+        let (allocated_ips, negotiated_mtu) = ipr::open_and_connect(
             client_input,
             receiver,
             ipr_address,
@@ -443,11 +444,12 @@ impl WasmTunnel {
         .await?;
         nym_wasm_utils::console_log!("[smolmix] IPR connected");
         crate::util::debug_log!(
-            "[smolmix] allocated IPv4: {}, IPv6: {}",
+            "[smolmix] allocated IPv4: {}, IPv6: {}, MTU: {:?}",
             allocated_ips.ipv4,
             allocated_ips.ipv6,
+            negotiated_mtu,
         );
-        Ok(allocated_ips)
+        Ok((allocated_ips, negotiated_mtu))
     }
 
     /// Build the smoltcp interface, spawn the reactor + bridge, and return
@@ -455,6 +457,7 @@ impl WasmTunnel {
     #[allow(clippy::too_many_arguments)]
     fn init_network_stack(
         allocated_ips: IpPair,
+        negotiated_mtu: Option<u16>,
         client_input: Arc<ClientInput>,
         reconstructed_receiver: ipr::ReconstructedReceiver,
         ipr_address: Recipient,
@@ -463,7 +466,7 @@ impl WasmTunnel {
         state: &state::State,
         data_surbs: u32,
     ) -> NetworkStack {
-        let mut device = WasmDevice::new();
+        let mut device = WasmDevice::new(negotiated_mtu);
         let iface_config = Config::new(HardwareAddress::Ip);
         let mut iface = smoltcp::iface::Interface::new(iface_config, &mut device, smoltcp_now());
 

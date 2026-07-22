@@ -132,11 +132,7 @@ pub async fn vesting_update_pledge(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
     let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
-    log::info!(
-        ">>> Pledge update, current pledge {}, new pledge {}",
-        &current_pledge,
-        &new_pledge,
-    );
+    log::info!(">>> Pledge update, current pledge {current_pledge}, new pledge {new_pledge}");
 
     let res = match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {

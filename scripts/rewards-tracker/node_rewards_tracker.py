@@ -6,12 +6,10 @@ This script fetches operators rewards based on provided Nyx account addresses pr
 Output is:
     1. Printet table in terminal
     2. Sheet with complete info stored in data/node-balances.csv
-    3. Historical data yaml file stored in data/data.yaml - this file should not be changed by hand, as
+    3. Hiostorical data yaml file stored in data/data.yaml - this file should not be changed by hand, as
     all values older than 30 days get auto-removed
-Before you start fill first column of data/wallet-addresses.csv with your Nyx account addresses and (optionally) second column
+Before you start fill first column of data/wallet-addresses with your Nyx account addresses and (optionally) second column
 with a tag, for example "mysquad" and "personal" to get sorted output per entity.
-
-NOTE THAT IF YOU HAVE ADMIN ACCESS TO NODES UNDER SEVERAL ENTITIES - THEY MUST BE REGISTERED TO THE SAME FAMILY ! ! !
 """
 
 import csv
@@ -111,27 +109,26 @@ def _fetch_all_page_pagesize(url: str, page_size: int = 1000, timeout: int = 60)
     """
     out: List[Any] = []
     page = 0
-    seen_first_batch_len: Optional[int] = None
+    first_batch: Optional[List[Any]] = None
     while True:
         data = _get_json(url, {"page": page, "size": page_size}, timeout=timeout)
         items, total = _extract_items_and_total(data)
         if not items:
             break
-        out.extend(items)
 
         # Authoritative stop: we have everything the server says exists.
-        if total >= 0 and len(out) >= total:
+        if total >= 0 and len(out) + len(items) >= total:
+            out.extend(items)
             break
 
-        # Non-paginating API guard: if the first response already returned the
-        # full total (page/size ignored), a second page would duplicate it.
-        if total >= 0 and len(items) >= total:
+        # Degenerate guard: total unknown and the server keeps returning the
+        # exact same content regardless of page — bail rather than loop.
+        if total < 0 and first_batch is not None and items == first_batch:
             break
+        if first_batch is None:
+            first_batch = items
 
-        # Degenerate guard: server keeps returning a full page but reports no
-        # total and never shrinks — bail rather than loop.
-        if seen_first_batch_len is None:
-            seen_first_batch_len = len(items)
+        out.extend(items)
         if len(items) < page_size:
             break
 

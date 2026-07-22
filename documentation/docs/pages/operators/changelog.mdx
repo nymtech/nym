@@ -80,17 +80,19 @@ SERINKO FILL: NIP, CLI, TRACKER, PERF IMPROVEMENT
 
 ### Features
 
-MERVE PLS FILL 
+- [BandwidthController improvements](https://github.com/nymtech/nym/pull/6937): Redesigned credential acquisition and ticketbook management with proactive restocking, improved readiness handling, and more reliable recovery flows, improving gateway bandwidth availability and operational reliability.
+- [Manual BandwidthController restock command](https://github.com/nymtech/nym/pull/6952): Added a manual ticketbook restock mechanism, allowing operators and internal components to explicitly trigger restocking when needed while keeping automatic threshold-based restocking behaviour.
+- [SOCKS5 autodiscovery and country-based requester selection](https://github.com/nymtech/nym/pull/6920): Added SOCKS5 requester autodiscovery with optional country-based selection, simplifying client configuration and improving connectivity workflows.
 
 ### Bugfixes
 
-MERVE PLS FILL 
-
+- [Improved topology retrieval reliability](https://github.com/nymtech/nym/pull/6951): Added safer retry handling for topology retrieval when inconsistent data is returned across epochs, improving resilience and preventing invalid network state usage.
+- [Avoid Hickory DNS resolution for gateway hostname](https://github.com/nymtech/nym/pull/6955): Fixed gateway hostname resolution issues by changing gateway hostname resolution handling in Network Manager, improving reliability in environments with different DNS configurations.
+- [HTTP client network reconfiguration handling](https://github.com/nymtech/nym/pull/6923): Improved retry behaviour after network changes by preventing unnecessary host rotation and fronting activation when failures are caused by recent network reconfiguration.
 
 ### Refactors & Maintenance
 
-MERVE PLS FILL 
-
+- [SDK documentation version updates](https://github.com/nymtech/nym/pull/6922): Updated SDK and crate version references across documentation and CI workflows to keep developer resources aligned with current releases.
 
 ## `v2026.13-ziller`
 

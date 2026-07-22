@@ -105,6 +105,7 @@ allow = [
     "OpenSSL",
     "Zlib",
     "CDLA-Permissive-2.0",
+    "AGPL-3.0",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -123,6 +124,7 @@ exceptions = [
     { allow = ["GPL-3.0"], crate = "nym-node" },
     { allow = ["GPL-3.0"], crate = "nym-validator-rewarder" },
     { allow = ["GPL-3.0"], crate = "nym-ip-packet-router" },
+    { allow = ["AGPL-3.0-or-later"], crate = "nym-bridges" },
 ]
 
 # Some crates don't have (easily) machine readable licensing information,

@@ -34,9 +34,7 @@ use nym_free_tier_check::{validate_free_tier_jwt, FreeTierPurpose, CREDENTIAL_PR
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::models::{FreeTierRecord, PersistedBandwidth};
 use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_network_defaults::constants::{
-    FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES, FREE_TIER_CLAIM_WINDOW, FREE_TIER_TRIAL_TIME_CAP,
-};
+use nym_network_defaults::constants::{FREE_TIER_CLAIM_WINDOW, FREE_TIER_TRIAL_TIME_CAP};
 use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_registration_common::dvpn::{
     LpDvpnRegistrationFinalisation, LpDvpnRegistrationInitialRequest,
@@ -45,8 +43,8 @@ use nym_registration_common::LpRegistrationResponse;
 use nym_sdk::mixnet::Recipient;
 use nym_service_provider_requests_common::Protocol;
 use nym_task::ShutdownToken;
-use nym_wireguard::ip_pool::IpPair;
 use nym_wireguard::WireguardConfig;
+use nym_wireguard_types::PeerPublicKey;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -72,13 +70,20 @@ pub struct PeerRegistrator {
     /// to remotely trigger the recheck
     pub(crate) upgrade_mode: UpgradeModeDetails,
 
-    /// Public key of the free-tier JWT signer. `Some` iff the free tier is enabled;
-    /// capability tokens are verified offline directly against this key. This is the
-    /// signer tier (the credential proxy), NOT the upgrade-mode attester.
-    pub(crate) free_tier_signer: Option<ed25519::PublicKey>,
+    pub(crate) free_tier_config: FreeTierRegistrationConfig,
 
     /// Registrations in progress
     pub(crate) pending_registrations: PendingRegistrations,
+}
+
+/// Free-tier settings the registrator needs, bundled so callers pass one value.
+#[derive(Clone, Copy)]
+pub struct FreeTierRegistrationConfig {
+    /// Signer public key; `Some` iff the free tier is enabled.
+    pub signer: Option<ed25519::PublicKey>,
+
+    /// Byte allowance seeded for a new trial.
+    pub allowance_bytes: u64,
 }
 
 /// Outcome of evaluating a free-tier token against the peer's existing record.
@@ -131,13 +136,13 @@ impl PeerRegistrator {
         ecash_verifier: Arc<dyn EcashManager + Send + Sync>,
         peer_manager: PeerManager,
         upgrade_mode: UpgradeModeDetails,
-        free_tier_signer: Option<ed25519::PublicKey>,
+        free_tier_config: FreeTierRegistrationConfig,
     ) -> Self {
         PeerRegistrator {
             ecash_verifier,
             peer_manager,
             upgrade_mode,
-            free_tier_signer,
+            free_tier_config,
             pending_registrations: Default::default(),
         }
     }
@@ -154,7 +159,7 @@ impl PeerRegistrator {
     }
 
     fn free_tier_enabled(&self) -> bool {
-        self.free_tier_signer.is_some()
+        self.free_tier_config.signer.is_some()
     }
 
     fn keypair(&self) -> &Arc<x25519::KeyPair> {
@@ -227,7 +232,7 @@ impl PeerRegistrator {
 
         manager
             .set_bandwidth_to(
-                Bandwidth::new_unchecked(FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES),
+                Bandwidth::new_unchecked(self.free_tier_config.allowance_bytes),
                 // use offset of 1 to avoid immediately expiring all bandwidth if claimed at 23:59
                 ecash_date_offset(1),
             )
@@ -292,7 +297,7 @@ impl PeerRegistrator {
     async fn upgrade_free_tier_peer_if_needed(
         &self,
         public_key: &str,
-        peer_ips: IpPair,
+        peer_public_key: PeerPublicKey,
     ) -> Result<(), GatewayWireguardError> {
         let was_free = self
             .ecash_verifier
@@ -310,11 +315,32 @@ impl PeerRegistrator {
             .set_free_tier_is_free(public_key, false)
             .await?;
 
-        if let Err(e) = self.peer_manager.release_free_tier(peer_ips).await {
+        // Release keyed by the peer's public key; the peer controller resolves its tunnel
+        // IPs. Best-effort - a failure is logged, not fatal (`is_free` is now false, so a
+        // restart's reconcile drops it from enforcement regardless).
+        if let Err(e) = self.peer_manager.release_free_tier(peer_public_key).await {
             tracing::warn!(
                 "failed to release upgraded peer {public_key} from free-tier enforcement: {e}"
             );
         }
+        Ok(())
+    }
+
+    /// Handle a renewal free-tier token (task 5.7): grant NO bandwidth. Ensure the bandwidth
+    /// row exists (at zero, so the peer handle can be built) and record the peer as a
+    /// free-tier peer with no allowance, so it classifies into - and is reconciled into - the
+    /// walled garden. The peer controller confines it when the peer is added; it is never
+    /// pooled or per-IP limited.
+    async fn confine_renewal_peer(
+        &self,
+        public_key: &str,
+        client_id: i64,
+    ) -> Result<(), GatewayWireguardError> {
+        self.credential_storage_preparation(client_id).await?;
+        self.ecash_verifier
+            .storage()
+            .set_free_tier_record(public_key, OffsetDateTime::now_utc(), true)
+            .await?;
         Ok(())
     }
 
@@ -323,7 +349,7 @@ impl PeerRegistrator {
         claim: BandwidthClaim,
         client_id: i64,
         public_key: &str,
-        peer_ips: IpPair,
+        peer_public_key: PeerPublicKey,
     ) -> Result<(), GatewayWireguardError> {
         match claim.credential {
             BandwidthCredential::ZkNym(zk_nym) => {
@@ -331,7 +357,7 @@ impl PeerRegistrator {
                 self.credential_verification(*zk_nym, client_id).await?;
                 // reconnect-to-upgrade: a formerly-free peer presenting a paid credential
                 // clears its free-tier flag + enforcement (task 5.6).
-                self.upgrade_free_tier_peer_if_needed(public_key, peer_ips)
+                self.upgrade_free_tier_peer_if_needed(public_key, peer_public_key)
                     .await?;
                 Ok(())
             }
@@ -347,7 +373,7 @@ impl PeerRegistrator {
                 Ok(())
             }
             BandwidthCredential::FreeTier { token } => {
-                let Some(signer) = self.free_tier_signer else {
+                let Some(signer) = self.free_tier_config.signer else {
                     return Err(GatewayWireguardError::FreeTierDisabled);
                 };
 
@@ -356,10 +382,12 @@ impl PeerRegistrator {
                 let claims =
                     validate_free_tier_jwt(&token, &signer, Some(CREDENTIAL_PROXY_JWT_ISSUER))?;
 
-                // renewal tokens grant no free bandwidth - they belong straight in the
-                // purchase walled garden, which does not exist yet, so reject for now
+                // renewal tokens grant NO free bandwidth (task 5.7): the peer is recorded as
+                // a free-tier peer with no allowance and confined straight to the purchase
+                // walled garden (by the peer controller when it is added). new-user tokens go
+                // through the grant/claim path.
                 if claims.purpose == FreeTierPurpose::Renewal {
-                    return Err(GatewayWireguardError::FreeTierRenewalNotSupported);
+                    return self.confine_renewal_peer(public_key, client_id).await;
                 }
 
                 self.grant_or_resume_free_tier(public_key, client_id).await
@@ -389,7 +417,6 @@ impl PeerRegistrator {
             IpAddrMask::new(private_ipv4.into(), 32),
             IpAddrMask::new(private_ipv6.into(), 128),
         ];
-        let peer_ips = IpPair::new(private_ipv4, private_ipv6);
 
         let typ = credential.kind;
         let public_key = peer.public_key.to_string();
@@ -403,7 +430,12 @@ impl PeerRegistrator {
 
         // 3. verify the credential
         if let Err(err) = self
-            .handle_final_credential_claim(credential, client_id, &public_key, peer_ips)
+            .handle_final_credential_claim(
+                credential,
+                client_id,
+                &public_key,
+                pending.data.peer_key,
+            )
             .await
         {
             // 3.1. on failure -> remove the inserted peer

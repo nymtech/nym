@@ -6,7 +6,8 @@ use crate::config::persistence::GatewayTasksPaths;
 use crate::error::NymNodeError;
 use bytesize::ByteSize;
 use nym_config::defaults::{
-    DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS, mainnet, var_names,
+    DEFAULT_CLIENT_LISTENING_PORT, FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES, TICKETBOOK_VALIDITY_DAYS,
+    mainnet, var_names,
 };
 use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
@@ -14,6 +15,7 @@ use nym_crypto::asymmetric::ed25519::{
     self,
     serde_helpers::{bs58_ed25519_pubkey, option_bs58_ed25519_pubkey},
 };
+use nym_gateway::node::wireguard::FreeTierRegistrationConfig;
 use nym_wireguard::FreeTierEnforcementConfig;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -85,6 +87,18 @@ pub struct FreeTier {
 }
 
 impl FreeTier {
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        if self.enabled {
+            if self.signer_public_key.is_none() {
+                return Err(NymNodeError::ConfigValidationFailure {
+                    error: "free tier is enabled but no `signer_public_key` is configured"
+                        .to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
     pub fn signer(&self) -> Result<Option<ed25519::PublicKey>, NymNodeError> {
         if !self.enabled {
             return Ok(None);
@@ -107,6 +121,18 @@ impl FreeTier {
             walled_garden_whitelist: self.walled_garden_whitelist.clone(),
         })
     }
+
+    pub fn registration_config(&self) -> FreeTierRegistrationConfig {
+        FreeTierRegistrationConfig {
+            allowance_bytes: self.debug.bandwidth_allowance.as_u64(),
+            signer: self.signer_public_key,
+        }
+    }
+
+    /// Byte allowance seeded for a new free-tier trial.
+    pub fn bandwidth_allowance_bytes(&self) -> u64 {
+        self.debug.bandwidth_allowance.as_u64()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,17 +142,24 @@ pub struct FreeTierDebug {
     /// Aggregate bandwidth dedicated to the shared free-tier rate-limit pool,
     /// per second (e.g. "10 MiB"). All free users share this ceiling.
     pub pool_bandwidth_per_second: ByteSize,
+
+    /// Byte allowance seeded for a new free-tier trial (e.g. "100 MB"). Exhausting it
+    /// (or the session time cap) moves the peer to the walled garden.
+    pub bandwidth_allowance: ByteSize,
 }
 
 impl FreeTierDebug {
     // placeholder pending tuning
     pub const DEFAULT_POOL_BANDWIDTH_PER_SECOND: ByteSize = ByteSize::mib(10);
+    pub const DEFAULT_BANDWIDTH_ALLOWANCE: ByteSize =
+        ByteSize::b(FREE_TIER_BANDWIDTH_ALLOWANCE_BYTES);
 }
 
 impl Default for FreeTierDebug {
     fn default() -> Self {
         FreeTierDebug {
             pool_bandwidth_per_second: Self::DEFAULT_POOL_BANDWIDTH_PER_SECOND,
+            bandwidth_allowance: Self::DEFAULT_BANDWIDTH_ALLOWANCE,
         }
     }
 }
@@ -318,6 +351,11 @@ impl GatewayTasksConfig {
             free_tier: FreeTier::default(),
             debug: Default::default(),
         })
+    }
+
+    pub fn validate(&self) -> Result<(), NymNodeError> {
+        self.free_tier.validate()?;
+        Ok(())
     }
 }
 

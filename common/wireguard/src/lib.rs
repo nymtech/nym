@@ -255,9 +255,11 @@ pub struct FreeTierEnforcementConfig {
     pub walled_garden_whitelist: Vec<IpAddr>,
 }
 
-/// How a persisted free-tier peer should be re-enforced at startup (task 5.5).
+/// How a free-tier peer should be enforced from its record + remaining bytes. Used both by
+/// the startup reconcile (task 5.5) and when a peer is (re-)added (tasks 4.4 / 5.7), so an
+/// active peer is pooled while a spent one (exhausted trial, or a renewal) is gardened.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ReconcileClass {
+pub(crate) enum ReconcileClass {
     /// Active trial: keep it in the rate-limit pool.
     Pool,
 
@@ -271,7 +273,7 @@ enum ReconcileClass {
 /// Classify a persisted peer for the startup reconcile from its free-tier state. A peer
 /// is gardened once EITHER limit is spent (mirrors the whichever-first exhaustion in the
 /// peer handle), so a returning exhausted peer is confined before it forwards a packet.
-fn classify_for_reconcile(
+pub(crate) fn classify_for_reconcile(
     is_free: bool,
     elapsed_secs: i64,
     available_bandwidth: i64,

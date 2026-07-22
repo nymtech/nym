@@ -49,7 +49,7 @@ use nym_bin_common::{bin_info, bin_info_owned};
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_gateway::node::wireguard::PeerRegistrator;
+use nym_gateway::node::wireguard::{FreeTierRegistrationConfig, PeerRegistrator};
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
@@ -781,12 +781,19 @@ impl NymNode {
             gateway_tasks_builder.set_wireguard_data(wg_data.into());
         }
 
-        // resolve the free-tier signer key: enabled requires a configured signer
+        // resolve the free-tier settings: enabled requires a configured signer
         // public key (fail loud rather than silently accepting no free-tier tokens)
-        let free_tier_signer = self.config.gateway_tasks.free_tier.signer()?;
+        let free_tier = FreeTierRegistrationConfig {
+            signer: self.config.gateway_tasks.free_tier.signer()?,
+            allowance_bytes: self
+                .config
+                .gateway_tasks
+                .free_tier
+                .bandwidth_allowance_bytes(),
+        };
 
         let wg_peer_registrator = gateway_tasks_builder
-            .build_peer_registrator(upgrade_mode_common_state.clone(), free_tier_signer)
+            .build_peer_registrator(upgrade_mode_common_state.clone(), free_tier)
             .await?;
 
         if let Some(wg_peer_registrator) = wg_peer_registrator.as_ref() {

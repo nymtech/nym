@@ -98,12 +98,13 @@ impl PeerManager {
 
     /// Release a formerly-free peer (that has upgraded to paid) from free-tier enforcement -
     /// clears both the rate-limit pool and the walled garden for its tunnel IPs.
-    pub async fn release_free_tier(&self, peer_ips: IpPair) -> Result<(), GatewayWireguardError> {
+    pub async fn release_free_tier(
+        &self,
+        pub_key: PeerPublicKey,
+    ) -> Result<(), GatewayWireguardError> {
+        let key = Key::new(pub_key.to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
-        let msg = PeerControlRequest::ReleaseFreeTier {
-            peer_ips,
-            response_tx,
-        };
+        let msg = PeerControlRequest::ReleaseFreeTier { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
@@ -370,7 +371,7 @@ impl PeerManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::wireguard::PeerRegistrator;
+    use crate::node::wireguard::{FreeTierRegistrationConfig, PeerRegistrator};
     use crate::nym_authenticator::config::Authenticator;
     use defguard_wireguard_rs::net::IpAddrMask;
     use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
@@ -493,7 +494,10 @@ mod tests {
                 ecash_manager.clone(),
                 peer_manager.clone(),
                 upgrade_mode_details,
-                None,
+                FreeTierRegistrationConfig {
+                    signer: None,
+                    allowance_bytes: 0,
+                },
             );
 
             TestSetup {

@@ -4,7 +4,7 @@
 use crate::error::EnforcementError;
 use std::fmt::Display;
 use std::process::Command;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// A single external command invocation (program + args). The `tc` / `iptables`
 /// managers emit these; keeping commands as data makes the managers unit-testable
@@ -69,7 +69,9 @@ impl CommandRunner for SystemCommandRunner {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
             if ignore_failure {
-                warn!("ignoring failure of `{cmd}`: {stderr}");
+                // Expected for idempotent teardown / "remove before add" (deleting a
+                // table/element that does not exist yet), so log at debug, not warn.
+                debug!("ignoring failure of `{cmd}`: {stderr}");
                 return Ok(());
             }
             return Err(EnforcementError::CommandFailed {

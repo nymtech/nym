@@ -6,5 +6,5 @@ pub mod new_peer_registration;
 pub mod peer_manager;
 
 pub use error::GatewayWireguardError;
-pub use new_peer_registration::PeerRegistrator;
+pub use new_peer_registration::{FreeTierRegistrationConfig, PeerRegistrator};
 pub use peer_manager::PeerManager;

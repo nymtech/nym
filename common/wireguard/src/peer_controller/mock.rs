@@ -74,7 +74,7 @@ pub enum PeerControlRequestType {
     UpdatePeerPsk { peer_key: KeyWrapper },
     AllocatePeerIpPair {},
     ReleaseIpPair { ip_pair: IpPair },
-    ReleaseFreeTier { ip_pair: IpPair },
+    ReleaseFreeTier { key: KeyWrapper },
     RemovePeer { key: KeyWrapper },
     QueryPeer { key: KeyWrapper },
     CheckActivePeer { key: KeyWrapper },
@@ -91,7 +91,7 @@ impl PeerControlRequestType {
             PeerControlRequestType::UpdatePeerPsk { peer_key } => Some(peer_key.clone()),
             PeerControlRequestType::AllocatePeerIpPair {} => None,
             PeerControlRequestType::ReleaseIpPair { .. } => None,
-            PeerControlRequestType::ReleaseFreeTier { .. } => None,
+            PeerControlRequestType::ReleaseFreeTier { key } => Some(key.clone()),
             PeerControlRequestType::RemovePeer { key } => Some(key.clone()),
             PeerControlRequestType::QueryPeer { key } => Some(key.clone()),
             PeerControlRequestType::GetClientBandwidthByKey { key } => Some(key.clone()),
@@ -124,8 +124,8 @@ impl From<&PeerControlRequest> for PeerControlRequestType {
             PeerControlRequest::ReleaseIpPair { ip_pair, .. } => {
                 PeerControlRequestType::ReleaseIpPair { ip_pair: *ip_pair }
             }
-            PeerControlRequest::ReleaseFreeTier { peer_ips, .. } => {
-                PeerControlRequestType::ReleaseFreeTier { ip_pair: *peer_ips }
+            PeerControlRequest::ReleaseFreeTier { key, .. } => {
+                PeerControlRequestType::ReleaseFreeTier { key: key.into() }
             }
             PeerControlRequest::RemovePeer { key, .. } => {
                 PeerControlRequestType::RemovePeer { key: key.into() }

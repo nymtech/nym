@@ -513,6 +513,35 @@ pub(crate) struct EntryGatewayArgs {
     )]
     #[zeroize(skip)]
     pub(crate) free_tier_signer_public_key: Option<ed25519::PublicKey>,
+
+    /// (hidden tuning knob) Purchase-endpoint allowlist reachable from the walled garden and
+    /// exempt from the rate-limit pool (comma-separated IPs, both address families).
+    #[clap(
+        long,
+        hide = true,
+        value_delimiter = ',',
+        env = NYMNODE_FREE_TIER_WALLED_GARDEN_WHITELIST_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) free_tier_walled_garden_whitelist: Option<Vec<IpAddr>>,
+
+    /// (hidden tuning knob) Aggregate free-tier rate-limit pool ceiling, per second (e.g. "10 MiB").
+    #[clap(
+        long,
+        hide = true,
+        env = NYMNODE_FREE_TIER_POOL_BANDWIDTH_PER_SECOND_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) free_tier_pool_bandwidth_per_second: Option<bytesize::ByteSize>,
+
+    /// (hidden tuning knob) Byte allowance seeded for a new free-tier trial (e.g. "100 MB").
+    #[clap(
+        long,
+        hide = true,
+        env = NYMNODE_FREE_TIER_BANDWIDTH_ALLOWANCE_ARG
+    )]
+    #[zeroize(skip)]
+    pub(crate) free_tier_bandwidth_allowance: Option<bytesize::ByteSize>,
 }
 
 impl EntryGatewayArgs {
@@ -551,6 +580,15 @@ impl EntryGatewayArgs {
         }
         if let Some(free_tier_signer_public_key) = self.free_tier_signer_public_key {
             section.free_tier.signer_public_key = Some(free_tier_signer_public_key)
+        }
+        if let Some(whitelist) = self.free_tier_walled_garden_whitelist.take() {
+            section.free_tier.walled_garden_whitelist = whitelist
+        }
+        if let Some(pool_rate) = self.free_tier_pool_bandwidth_per_second {
+            section.free_tier.debug.pool_bandwidth_per_second = pool_rate
+        }
+        if let Some(allowance) = self.free_tier_bandwidth_allowance {
+            section.free_tier.debug.bandwidth_allowance = allowance
         }
 
         section

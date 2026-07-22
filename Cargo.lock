@@ -6943,6 +6943,7 @@ name = "nym-free-tier-gateway-harness"
 version = "1.21.3"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bs58",
  "clap",
  "hex",
@@ -6950,6 +6951,7 @@ dependencies = [
  "nym-bin-common",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-free-tier-check",
  "nym-kkt-ciphersuite",
  "nym-lp",
  "nym-lp-data",
@@ -6961,9 +6963,12 @@ dependencies = [
  "rand 0.9.2",
  "reqwest 0.13.4",
  "serde",
+ "time",
  "tokio",
+ "tokio-rustls 0.26.4",
  "tracing",
  "tracing-subscriber",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]

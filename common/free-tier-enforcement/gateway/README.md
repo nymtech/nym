@@ -53,6 +53,37 @@ Under Docker, `run_docker.sh` publishes the ports a client needs (each overridab
 
 The WireGuard private-metadata endpoint is served in-tunnel, not on a separate host port, so it needs no mapping.
 
+## Demo: the free-tier lifecycle (trial -> throttle -> walled garden)
+
+Once the runtime wiring is deployed to a real Linux gateway (`deploy_vps.sh`), the driver can demonstrate the whole lifecycle client-side. The driver mints a `NewUser` free-tier capability token from the signer key (`--free-tier`), and `--download <url>` bulk-downloads a file through the tunnel (TLS + redirects handled), timed, reporting throughput - or `BLOCKED` if the garden drops it mid-transfer.
+
+Gateway config for the demo - three hidden `nym-node` knobs (hidden from `--help`; set here via `.env`, no config-file edit or rebuild):
+- `NYMNODE_FREE_TIER_WALLED_GARDEN_WHITELIST` = the IP of ONE file endpoint (the "purchase endpoint" stand-in), e.g. OVH `141.95.207.211` (comma-separate for several).
+- `NYMNODE_FREE_TIER_POOL_BANDWIDTH_PER_SECOND` = low (e.g. `2 MB`) so the throttle is visible below the link speed.
+- `NYMNODE_FREE_TIER_BANDWIDTH_ALLOWANCE` = below the download size (e.g. `20 MB`) so the trial exhausts into the garden quickly.
+
+All three default from the network-defaults constants; the `.env` already carries demo values. A redeploy applies changes on every start (no config wipe).
+
+Known plain large-file endpoints (HTTPS): `https://proof.ovh.net/files/10Mb.dat` / `100Mb.dat` (`141.95.207.211`); `https://nym-bandwidth-monitoring.ops-d86.workers.dev/100mb.dat` (Cloudflare anycast `172.67.215.180` / `104.21.43.13` - whitelist both if using it as the purchase endpoint). The driver prints the resolved IP of each download so you know what to whitelist.
+
+**Throttle (free vs paid):** download the same non-whitelisted file with and without `--free-tier` and compare the reported MB/s:
+```bash
+cargo run -p nym-free-tier-gateway-harness -- --gateway-http http://<ip>:8080 --gateway-ip <ip> \
+    --free-tier --download https://proof.ovh.net/files/10Mb.dat     # throttled to the pool
+cargo run -p nym-free-tier-gateway-harness -- --gateway-http http://<ip>:8080 --gateway-ip <ip> \
+    --download https://proof.ovh.net/files/10Mb.dat                 # "paid" (mock zk-nym), full speed
+```
+
+**Exhaustion -> garden** (single `--free-tier` run; downloads run sequentially on one tunnel):
+```bash
+cargo run -p nym-free-tier-gateway-harness -- --gateway-http http://<ip>:8080 --gateway-ip <ip> --free-tier \
+    --download https://nym-bandwidth-monitoring.ops-d86.workers.dev/100mb.dat \  # exhausts -> stalls (BLOCKED)
+    --download https://proof.ovh.net/files/10Mb.dat \                            # non-whitelist -> BLOCKED
+    --download https://<whitelisted-endpoint>/<file>                             # whitelist -> still OK
+```
+
+Watch the gateway logs for the transition markers (temporary demo logs, prefixed `>>>>> FREE-TIER:`): `ADMITTED ... TO RATE-LIMIT POOL`, `MOVING ... TO WALLED GARDEN`, `CONFINED ... AT REGISTRATION` (renewal), `RELEASED ... (upgraded to paid)`.
+
 ## The test signer keypair
 
 Free-tier capability JWTs are verified offline against a single signer public key (the credential-proxy tier, not the upgrade-mode attester). The harness pins a throwaway keypair in `.env`:

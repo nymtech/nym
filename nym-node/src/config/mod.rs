@@ -469,6 +469,7 @@ impl Config {
     pub fn validate(&self) -> Result<(), NymNodeError> {
         self.nyx.validate()?;
         self.mixnet.validate()?;
+        self.gateway_tasks.validate()?;
 
         // it's not allowed to run mixnode mode alongside entry mode
         if self.modes.mixnode && self.modes.entry {

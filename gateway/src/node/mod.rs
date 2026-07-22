@@ -36,7 +36,7 @@ use tracing::*;
 use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
-use crate::node::wireguard::{PeerManager, PeerRegistrator};
+use crate::node::wireguard::{FreeTierRegistrationConfig, PeerManager, PeerRegistrator};
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
@@ -295,7 +295,7 @@ impl GatewayTasksBuilder {
     pub async fn build_peer_registrator(
         &mut self,
         upgrade_mode_details: UpgradeModeDetails,
-        free_tier_signer: Option<ed25519::PublicKey>,
+        free_tier: FreeTierRegistrationConfig,
     ) -> Result<Option<PeerRegistrator>, GatewayError> {
         let Some(wireguard_data) = &self.wireguard_data else {
             return Ok(None);
@@ -306,7 +306,7 @@ impl GatewayTasksBuilder {
             self.ecash_manager().await?,
             peer_manager,
             upgrade_mode_details,
-            free_tier_signer,
+            free_tier,
         )))
     }
 

@@ -4,6 +4,8 @@
 
 The gateway SHALL rate-limit free-tier peers via a single shared traffic-control pool on the `nymwg` interface, shaping both directions (egress to the peer and ingress from the peer). A free peer SHALL be placed in the pool at registration by a per-peer classifier keyed on the peer's IP.
 
+> **v1 status / implication (see tasks 4.1 + 7.2):** only the EGRESS (download-to-peer) direction is shaped in v1. `tc` shapes egress, and the download path egresses `nymwg` so the `nft` POSTROUTING classifier tags it before the HTB qdisc; upload INGRESSES `nymwg`, where the classifier runs too late and `tc` ingress can only police, not shape - proper upload shaping needs a separate IFB-device + `tc u32` mechanism, deferred to the dual-direction harness (7.2). **Implication:** during a trial a free peer's upload RATE is not capped by the pool. Total VOLUME is still bounded - the byte allowance is metered from the WireGuard interface counters (peer traffic in both directions) and exhaustion still routes to the garden - so this is an instantaneous-upload-rate gap, not an uncapped-usage hole. Acceptable for v1 (the pool's purpose is aggregate cost control, and volume is capped); ingress shaping is the follow-up.
+
 #### Scenario: Free peer is shaped within the shared pool
 
 - **WHEN** free peers are active and generating traffic

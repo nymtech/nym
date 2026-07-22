@@ -67,6 +67,17 @@ impl FreeTierController {
         Ok(true)
     }
 
+    /// Confine a peer to the walled garden only (garden set-add, no pool change). Used when a
+    /// peer is added already spent - an exhausted returning peer or a renewal (task 5.7) that
+    /// was never in the pool. Distinct from `confine_to_garden`, which also leaves the pool.
+    pub(crate) fn confine_peer(&self, peer_ips: IpPair) -> Result<bool, EnforcementError> {
+        let Some(inner) = &self.inner else {
+            return Ok(false);
+        };
+        inner.enforcement.confine(&peer_ips.as_free_tier_peers())?;
+        Ok(true)
+    }
+
     /// Release a peer from ALL free-tier enforcement (pool + walled garden), restoring full
     /// unrestricted access. Idempotent. Used when a formerly-free peer upgrades to paid.
     pub(crate) fn release_peer(&self, peer_ips: IpPair) -> Result<bool, EnforcementError> {

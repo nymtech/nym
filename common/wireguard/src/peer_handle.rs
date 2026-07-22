@@ -20,7 +20,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(Clone)]
 pub(crate) struct SharedBandwidthStorageManager {
@@ -194,7 +194,8 @@ impl PeerHandle {
             warn!("{self} exhausted but has no dual-stack tunnel IPs; cannot confine to garden");
             return false;
         };
-        debug!("{self} exhausted ({reason}); confining it to the walled garden");
+        // TEMP: demo log, remove after the demo
+        info!(">>>>> FREE-TIER: MOVING PEER {self} TO WALLED GARDEN ({reason})");
         self.free_tier_controller
             .confine_to_garden(pair)
             .unwrap_or_else(|err| {

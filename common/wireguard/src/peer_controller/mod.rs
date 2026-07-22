@@ -25,6 +25,7 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
+use nym_network_defaults::constants::FREE_TIER_TRIAL_TIME_CAP;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::prometheus_wrapper::{PROMETHEUS_METRICS, PrometheusMetric};
 use nym_wireguard_types::{
@@ -35,6 +36,7 @@ use std::{
     net::IpAddr,
     time::{Duration, SystemTime},
 };
+use time::OffsetDateTime;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::{StreamExt, wrappers::IntervalStream};
 use tracing::{debug, error, info, trace};
@@ -107,9 +109,10 @@ pub enum PeerControlRequest {
         response_tx: oneshot::Sender<RemovePeerControlResponse>,
     },
     /// Release a peer from free-tier enforcement (pool + walled garden) - a formerly-free
-    /// peer that has upgraded to paid. Keyed by the peer's dual-stack tunnel IPs.
+    /// peer that has upgraded to paid. Keyed by pubkey (like `RemovePeer`); the controller
+    /// resolves the peer's tunnel IPs.
     ReleaseFreeTier {
-        peer_ips: IpPair,
+        key: Key,
         response_tx: oneshot::Sender<ReleaseFreeTierControlResponse>,
     },
     QueryPeer {
@@ -318,11 +321,12 @@ impl PeerController {
             return Err(e.into());
         }
 
+        let bandwidth_manager =
+            Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
+                .await?;
+        let available_bandwidth = bandwidth_manager.available_bandwidth().await;
         let bandwidth_storage_manager = SharedBandwidthStorageManager::new(
-            Arc::new(RwLock::new(
-                Self::generate_bandwidth_manager(self.ecash_verifier.storage(), &peer.public_key)
-                    .await?,
-            )),
+            Arc::new(RwLock::new(bandwidth_manager)),
             peer.allowed_ips.clone(),
         );
         let cached_peer_manager = CachedPeerManager::new(peer);
@@ -330,19 +334,48 @@ impl PeerController {
             .ecash_verifier
             .storage()
             .get_free_tier_record(&peer.public_key.to_string())
-            .await?
-            .filter(|r| r.is_free);
-        let peer_free_tier = PeerFreeTier::from_storage_record(free_tier_record);
+            .await?;
+        let peer_free_tier = PeerFreeTier::from_storage_record(free_tier_record.clone());
 
-        // task 4.4: admit a newly-registered free peer into the rate-limit pool. A
-        // failure is logged, not fatal: an un-pooled peer gets full speed but is still
-        // byte-metered (no confinement bypass), so we don't fail the registration over it.
-        if peer_free_tier.is_free_tier() {
-            if let Err(err) = self.free_tier_controller.admit_peer(ip_pair) {
-                error!(
-                    "failed to admit free peer {} into the rate-limit pool: {err}",
-                    peer.public_key
-                );
+        // Classify the free peer from its record + remaining bytes (mirrors the startup
+        // reconcile) and apply the matching datapath enforcement: an active trial -> pool
+        // (task 4.4); an already-spent peer -> walled garden (task 5.7 renewal, or an
+        // exhausted returning peer); a non-free / upgraded peer -> nothing. `admit` would
+        // undo a garden peer's confinement, so a spent peer must NOT be pooled. A failure is
+        // logged, not fatal (kernel byte metering still applies; no confinement bypass).
+        if let Some(record) = &free_tier_record {
+            if record.is_free {
+                let elapsed_secs = (OffsetDateTime::now_utc() - record.granted_at).whole_seconds();
+                let result = match crate::classify_for_reconcile(
+                    true,
+                    elapsed_secs,
+                    available_bandwidth,
+                    FREE_TIER_TRIAL_TIME_CAP.as_secs() as i64,
+                ) {
+                    crate::ReconcileClass::Pool => {
+                        // TEMP: demo log, remove after the demo
+                        info!(
+                            ">>>>> FREE-TIER: ADMITTED PEER {} TO RATE-LIMIT POOL",
+                            peer.public_key
+                        );
+                        self.free_tier_controller.admit_peer(ip_pair)
+                    }
+                    crate::ReconcileClass::Garden => {
+                        // TEMP: demo log, remove after the demo
+                        info!(
+                            ">>>>> FREE-TIER: CONFINED PEER {} TO WALLED GARDEN AT REGISTRATION",
+                            peer.public_key
+                        );
+                        self.free_tier_controller.confine_peer(ip_pair)
+                    }
+                    crate::ReconcileClass::Unenforced => Ok(false),
+                };
+                if let Err(err) = result {
+                    error!(
+                        "failed to apply free-tier enforcement for peer {}: {err}",
+                        peer.public_key
+                    );
+                }
             }
         }
 
@@ -452,6 +485,28 @@ impl PeerController {
                     .find(|ip_mask| ip_mask.address == ip)
                     .and(Some(key.clone()))
             }))
+    }
+
+    /// Release a peer (by pubkey) from free-tier enforcement - resolves its tunnel IPs from
+    /// storage and clears them from the pool + walled garden. A no-op if the peer or its IPs
+    /// are gone (nothing to release) or the free tier is disabled.
+    async fn handle_release_free_tier(&self, key: &Key) -> Result<()> {
+        let Some(peer) = self.handle_query_peer_by_key(key).await? else {
+            return Ok(());
+        };
+        let Some(ip_pair) = allocated_ip_pair(&peer) else {
+            return Ok(());
+        };
+        // TEMP: demo log, remove after the demo
+        info!(">>>>> FREE-TIER: RELEASED PEER {key} FROM FREE-TIER (upgraded to paid)");
+        self.free_tier_controller
+            .release_peer(ip_pair)
+            .map(|_| ())
+            .map_err(|e| {
+                Error::Internal(format!(
+                    "failed to release peer from free-tier enforcement: {e}"
+                ))
+            })
     }
 
     async fn handle_query_peer_by_key(&self, key: &Key) -> Result<Option<Peer>> {
@@ -638,20 +693,10 @@ impl PeerController {
             PeerControlRequest::RemovePeer { key, response_tx } => {
                 response_tx.send(self.remove_peer(&key).await).ok();
             }
-            PeerControlRequest::ReleaseFreeTier {
-                peer_ips,
-                response_tx,
-            } => {
-                let res = self
-                    .free_tier_controller
-                    .release_peer(peer_ips)
-                    .map(|_| ())
-                    .map_err(|e| {
-                        Error::Internal(format!(
-                            "failed to release peer from free-tier enforcement: {e}"
-                        ))
-                    });
-                response_tx.send(res).ok();
+            PeerControlRequest::ReleaseFreeTier { key, response_tx } => {
+                response_tx
+                    .send(self.handle_release_free_tier(&key).await)
+                    .ok();
             }
             PeerControlRequest::QueryPeer { key, response_tx } => {
                 response_tx

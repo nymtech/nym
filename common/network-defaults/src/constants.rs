@@ -68,4 +68,8 @@ pub mod mixnet_vpn {
     pub const NYM_TUN_DEVICE_NETMASK_V4: Ipv4Addr = Ipv4Addr::new(255, 255, 0, 0);
     pub const NYM_TUN_DEVICE_ADDRESS_V6: Ipv6Addr = Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 0x1); // fc00::1
     pub const NYM_TUN_DEVICE_NETMASK_V6: &str = "112";
+
+    /// Default MTU (bytes) for the IPR egress TUN, reported to v10 clients as the
+    /// largest IP packet the IPR will accept. Override with the `NYM_MTU_SIZE` env var.
+    pub const DEFAULT_IPR_TUN_MTU: u16 = 1500;
 }

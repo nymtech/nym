@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod v10;
 mod v6;
 mod v7;
 mod v8;
@@ -10,6 +11,7 @@ use nym_ip_packet_requests::{
     IpPair, v6::response::IpPacketResponse as IpPacketResponseV6,
     v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
+    v10::response::IpPacketResponse as IpPacketResponseV10,
 };
 
 use crate::{
@@ -131,6 +133,7 @@ impl VersionedResponse {
             ClientVersion::V7 => IpPacketResponseV7::try_from(self)?.to_bytes(),
             ClientVersion::V8 => IpPacketResponseV8::try_from(self)?.to_bytes(),
             ClientVersion::V9 => IpPacketResponseV8::try_from(self)?.to_bytes(),
+            ClientVersion::V10 => IpPacketResponseV10::try_from(self)?.to_bytes(),
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
     }

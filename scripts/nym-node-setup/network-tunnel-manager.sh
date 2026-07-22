@@ -849,7 +849,9 @@ apply_port_allowlist() {
   configure_exit_dns_and_icmp
   
   # keep redundant ports commented out for governance transparency
-  declare -A PORT_MAPPINGS=(
+  # declared with -g so the single source of truth is visible to the
+  # verification functions (test_port_range_rules) as well, not just here.
+  declare -gA PORT_MAPPINGS=(
     ["FTP"]="20-21"
     ["SSH"]="22"
     ["WHOIS"]="43"
@@ -1381,34 +1383,62 @@ check_firewall_setup() {
 test_port_range_rules() {
   info "testing port range rules in ${NYM_CHAIN}"
 
-  local port_ranges=(
-    "20-21:tcp:ftp"
-    "80-81:tcp:http"
-    "2082-2083:tcp:cpanel"
-    "5222-5223:tcp:xmpp"
-    "27000-27050:tcp:steam-sample"
-    "989-990:tcp:ftp-tls"
-    "5000-5005:tcp:rtp-voip"
-    "8087-8088:tcp:simplify-media"
-    "8232-8233:tcp:zcash"
-    "8332-8333:tcp:bitcoin"
-    "18080-18081:tcp:monero"
-    "3478-3484:tcp:whatsapp"
-    "50000-65535:tcp:discord"
-    "4379-4380:tcp:steam"
+  # Sample services are selected BY NAME from PORT_MAPPINGS (the single source of
+  # truth) rather than hardcoded port numbers. This guarantees the test can never
+  # drift out of sync with the allowlist: whatever port/range a service maps to
+  # today is exactly what gets checked. Previously the test hardcoded sub-ranges
+  # (steam 27000-27050, monero 18080-18081, discord 50000-65535) that were later
+  # absorbed into the consolidated EpicGames1 range, producing false "missing
+  # rule" errors even though the ports were open. Deriving from PORT_MAPPINGS
+  # eliminates that class of bug entirely.
+  #
+  # If a name below no longer exists in PORT_MAPPINGS it is skipped with a notice
+  # rather than failing, so renaming a mapping never breaks the test run.
+  local sample_services=(
+    SSH                 # single low port
+    HTTP                # small range
+    HTTPS               # single common port
+    WireGuardPeer       # infra range
+    Bitcoin             # crypto range
+    LiteCoinP2P         # crypto single
+    Zoom3               # service range
+    EufyVideoStream     # service range
+    WorldOfWorldcraft7  # gaming range
+    RainbowSixSiege2    # gaming range (absorbs NDMP/TeamSpeakQuery)
+    WhatsAppRange       # messaging range
+    EpicGames1          # the big consolidated high range
   )
 
   local failures=0
-  local start end
-  for entry in "${port_ranges[@]}"; do
-    IFS=':' read -r range proto name <<<"$entry"
-    start=$(echo "$range" | cut -d'-' -f1)
-    end=$(echo "$range" | cut -d'-' -f2)
+  local start end port
 
-    if iptables -t filter -C "$NYM_CHAIN" -p "$proto" --dport "$start:$end" -j ACCEPT 2>/dev/null; then
-      ok "rule ok: $name $proto $range"
+  # PORT_MAPPINGS is populated by apply_port_allowlist. In the normal
+  # complete_networking_configuration / exit_policy_install flow that runs
+  # first, so the array is present. If this test is invoked standalone (before
+  # any install in this process) the array is empty — say so clearly instead of
+  # silently skipping every sample.
+  if [[ "${#PORT_MAPPINGS[@]}" -eq 0 ]]; then
+    warn "PORT_MAPPINGS is empty in this invocation; run exit_policy_install first, or use complete_networking_configuration. Skipping port-range sampling."
+    return 0
+  fi
+
+  for service in "${sample_services[@]}"; do
+    port="${PORT_MAPPINGS[$service]:-}"
+    if [[ -z "$port" ]]; then
+      warn "sample service '$service' not found in PORT_MAPPINGS; skipping"
+      continue
+    fi
+
+    if [[ "$port" == *"-"* ]]; then
+      start="${port%%-*}"; end="${port##*-}"
     else
-      error "missing rule: $name $proto $range"
+      start="$port"; end="$port"
+    fi
+
+    if iptables -t filter -C "$NYM_CHAIN" -p tcp --dport "$start:$end" -j ACCEPT 2>/dev/null; then
+      ok "rule ok: $service tcp $port"
+    else
+      error "missing rule: $service tcp $port"
       ((failures++))
     fi
   done

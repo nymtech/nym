@@ -56,7 +56,7 @@ impl Storage {
             .acquire_timeout(acquire_timeout)
             .connect_with(connect_options)
             .await
-            .map_err(|err| anyhow!("Failed to connect to {}: {}", &connection_url, err))?;
+            .map_err(|err| anyhow!("Failed to connect to {connection_url}: {err}"))?;
 
         if env::var("SKIP_MIGRATIONS").unwrap_or_default() != "true" {
             MIGRATOR.run(&pool).await?;

@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
                 .write_all(&serialised)
                 .await
                 .expect("couldn't write to stream");
-            println!(">> client sent {}: {} bytes", &i, msg.message_bytes.len());
+            println!(">> client sent {i}: {} bytes", msg.message_bytes.len());
             let delay = rng.gen_range(3.0..7.0);
             tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
         }

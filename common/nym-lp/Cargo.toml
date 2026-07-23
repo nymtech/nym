@@ -17,7 +17,8 @@ thiserror = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
 tracing = { workspace = true }
-rand09 = { workspace = true }
+rand010 = { workspace = true }
+getrandom04 = { workspace = true }
 tls_codec = { workspace = true }
 tokio = { workspace = true, features = ["net", "io-util"] }
 
@@ -28,7 +29,7 @@ nym-kkt-ciphersuite = { workspace = true }
 nym-lp-data.workspace = true
 
 # libcrux dependencies for PSQ (Post-Quantum PSK derivation)
-libcrux-psq = { workspace = true, features = ["test-utils"] }
+libcrux-psq = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 

@@ -30,7 +30,8 @@ use nym_registration_client::{LpClientError, LpRegistrationClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
-use rand09::SeedableRng;
+use rand010::SeedableRng;
+use rand010::rngs::SysRng;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
@@ -172,8 +173,8 @@ pub async fn lp_registration_probe(
     let mut lp_outcome = LpProbeResults::default();
 
     // Generate X25519 keypair for this connection
-    let mut rng09 = rand09::rngs::StdRng::from_os_rng();
-    let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng09));
+    let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
+    let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
 
     // Create LP registration client
     let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
@@ -218,7 +219,7 @@ pub async fn lp_registration_probe(
     let register_result = tokio::time::timeout(
         Duration::from_secs(15),
         client.register_dvpn(
-            &mut rng09,
+            &mut rng010,
             &wg_keypair,
             &gateway_identity,
             bandwidth_controller,

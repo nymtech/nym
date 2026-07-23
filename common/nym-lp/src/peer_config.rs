@@ -7,7 +7,7 @@ use libcrux_psq::handshake::types::Authenticator;
 use nym_crypto::hkdf::blake3::derive_key_blake3_multi_input;
 use nym_kkt::keys::EncapsulationKey;
 use nym_lp_data::packet::header::LpReceiverIndex;
-use rand09::{self, CryptoRng, Rng};
+use rand010::{self, CryptoRng, Rng, RngExt};
 use tls_codec::Serialize;
 use zeroize::Zeroize;
 
@@ -324,7 +324,7 @@ mod test {
 
     #[test]
     fn test_pack_config() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
 
         // Node to node, no censorship resistance
         {
@@ -450,7 +450,7 @@ mod test {
 
     #[test]
     fn test_failures() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
         // Hop with id 15 must be an exit node
         assert!(LpPeerConfig::new(&mut rng, 15, false, false, false).is_err());
 

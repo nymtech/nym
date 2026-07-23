@@ -18,7 +18,8 @@ use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_kkt::key_utils::{
     generate_keypair_mceliece, generate_keypair_mlkem, generate_lp_keypair_x25519,
 };
-use rand09::SeedableRng;
+use rand010::SeedableRng;
+use rand010::rngs::SysRng;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -553,7 +554,7 @@ pub async fn try_upgrade_config_v12<P: AsRef<Path>>(
         public_mceliece_lp_key_file: keys_dir.join(DEFAULT_MCELIECE_PUBLIC_KEY_FILENAME),
     };
 
-    let mut rng = rand09::rngs::StdRng::from_os_rng();
+    let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
     // generate new keys for LP
     info!("generating new LP x25519 DH keypair");

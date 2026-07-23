@@ -255,6 +255,9 @@ pub enum NymNodeError {
 
     #[error(transparent)]
     ChainWatcherFailure(#[from] ScraperError),
+
+    #[error("failed to generate randomness: {0}")]
+    RngFailure(#[from] getrandom04::Error),
 }
 
 impl From<EntryGatewayError> for NymNodeError {

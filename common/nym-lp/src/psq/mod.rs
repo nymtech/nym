@@ -146,7 +146,7 @@ mod tests {
     use nym_kkt::responder::KKTResponder;
     use nym_kkt_ciphersuite::{Ciphersuite, HashFunction, KEM, SignatureScheme};
     use nym_test_utils::helpers::{
-        DeterministicRng09Send, deterministic_rng_09, u64_seeded_rng_09,
+        DeterministicRng010Send, deterministic_rng_09, u64_seeded_rng_09,
     };
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::{Leak, TimeboxedSpawnable};
@@ -177,8 +177,8 @@ mod tests {
             let handshake_resp =
                 PSQHandshakeState::new(conn_resp, resp).as_responder(ResponderData::default());
 
-            let init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
-            let resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
+            let init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
 
             // similarly leak the rngs to get the static lifetimes
             let init_rng = init_rng.leak();
@@ -253,8 +253,8 @@ mod tests {
                     .with_initiator_kem_hashes(init_remote.expected_kem_key_digests),
             );
 
-            let init_rng = DeterministicRng09Send::new(u64_seeded_rng_09(1));
-            let resp_rng = DeterministicRng09Send::new(u64_seeded_rng_09(2));
+            let init_rng = DeterministicRng010Send::new(u64_seeded_rng_09(1));
+            let resp_rng = DeterministicRng010Send::new(u64_seeded_rng_09(2));
 
             // similarly leak the rngs to get the static lifetimes
             let init_rng = init_rng.leak();
@@ -366,7 +366,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand09::rng(),
+                rand010::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -374,7 +374,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand09::rng(),
+                rand010::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )
@@ -550,7 +550,7 @@ mod tests {
             let initiator_ciphersuite =
                 initiator::build_psq_ciphersuite(&init, &resp_remote, &encapsulation_key).unwrap();
             let mut initiator = initiator::build_psq_principal(
-                rand09::rng(),
+                rand010::rng(),
                 protocol_version,
                 initiator_ciphersuite,
             )
@@ -558,7 +558,7 @@ mod tests {
 
             let responder_ciphersuite = responder::build_psq_ciphersuite(&resp, kem).unwrap();
             let mut responder = responder::build_psq_principal(
-                rand09::rng(),
+                rand010::rng(),
                 protocol_version,
                 responder_ciphersuite,
             )

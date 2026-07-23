@@ -21,7 +21,8 @@ use nym_sphinx_anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx_framing::codec::NymCodec;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use rand::SeedableRng;
-use rand09::SeedableRng as SeedableRng09;
+use rand010::rngs::{StdRng, SysRng};
+use rand010::SeedableRng as SeedableRng010;
 use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -89,8 +90,8 @@ impl SpeedtestClient {
     pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Self {
         let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rngs::OsRng));
         let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rngs::OsRng));
-        let mut rng09 = rand09::rngs::StdRng::from_os_rng();
-        let lp_keypair = DHKeyPair::new(&mut rng09);
+        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng).unwrap();
+        let lp_keypair = DHKeyPair::new(&mut rng010);
         let rng = ChaCha8Rng::from_entropy();
 
         Self {

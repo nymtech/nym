@@ -17,7 +17,7 @@ use crate::{
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_kkt_ciphersuite::KEM;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
@@ -86,7 +86,7 @@ impl KKTFrame {
         version_byte: u8,
     ) -> Result<KKTRequestEncryptionResult, KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         let ephemeral_keypair = DHKeyPair::new(rng);
 

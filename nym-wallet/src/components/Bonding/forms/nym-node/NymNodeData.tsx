@@ -48,6 +48,7 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
       open
       onOk={handleNext}
       onClose={onClose}
+      disableBackdropClose
       header="Bond Nym Node"
       subHeader={`Step ${step}/3`}
       okLabel="Next"

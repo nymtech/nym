@@ -57,6 +57,7 @@ const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
       open
       onOk={handleRequestValidation}
       onClose={onClose}
+      disableBackdropClose
       header="Bond Nym Node"
       subHeader={`Step ${step}/3`}
       okLabel="Next"

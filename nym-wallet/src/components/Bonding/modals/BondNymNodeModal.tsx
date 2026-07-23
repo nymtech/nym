@@ -49,6 +49,7 @@ export const BondNymNodeModal = ({
         header="Bond details"
         fee={fee}
         onClose={onClose}
+        disableBackdropClose
         onPrev={resetFeeState}
         onConfirm={handleConfirm}
       >

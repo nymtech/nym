@@ -13,8 +13,9 @@ export const ConfirmTx: FCWithChildren<{
   onConfirm: () => Promise<void>;
   onClose?: () => void;
   onPrev: () => void;
+  disableBackdropClose?: boolean;
   children?: React.ReactNode;
-}> = ({ open, fee, onConfirm, onClose, header, subheader, onPrev, children }) => (
+}> = ({ open, fee, onConfirm, onClose, header, subheader, onPrev, disableBackdropClose, children }) => (
   <SimpleModal
     open={open}
     header={header}
@@ -22,6 +23,7 @@ export const ConfirmTx: FCWithChildren<{
     okLabel="Confirm"
     onOk={onConfirm}
     onClose={onClose}
+    disableBackdropClose={disableBackdropClose}
     onBack={onPrev}
   >
     <Box sx={{ mt: 3 }}>

@@ -19,11 +19,10 @@ module.exports = mergeWithRules({
 })(commonConfig, {
   mode: 'development',
   devtool: 'inline-source-map',
-  // The mock e2e build runs in development mode, where some deps (e.g. prop-types) use a
-  // `require('object-assign')`-style transitive. webpack.common sets `resolve.modules` to
-  // absolute dirs only, which disables the normal per-module node_modules walk and breaks
-  // pnpm's nested symlinks. Re-add the relative walk so those resolve. (Merged/appended.)
-  ...(MOCK_FAMILIES ? { resolve: { modules: ['node_modules'] } } : {}),
+  // webpack.common sets `resolve.modules` to absolute dirs only, which disables the normal
+  // per-module node_modules walk and breaks pnpm's nested symlinks (prop-types → object-assign,
+  // webpack-dev-server / react-refresh clients, etc.). Re-add the relative walk.
+  resolve: { modules: ['node_modules'] },
   module: {
     rules: [
       {

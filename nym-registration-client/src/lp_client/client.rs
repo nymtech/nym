@@ -10,7 +10,9 @@ use crate::lp_client::helpers::{
 };
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
-use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
+use nym_bandwidth_controller::{
+    BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND, SpendTimeProvider,
+};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::Ciphersuite;
@@ -30,7 +32,6 @@ use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
@@ -434,6 +435,7 @@ where
         &mut self,
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_provider: &dyn SpendTimeProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
@@ -444,7 +446,7 @@ where
                 ticket_type,
                 gateway_identity,
                 DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc(),
+                spend_time_provider.spend_time(),
             )
             .await
             .map_err(|e| {
@@ -542,6 +544,7 @@ where
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_provider: &dyn SpendTimeProvider,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -595,8 +598,13 @@ where
                 // we're registering for the first time with this gateway - we need to attach a credential
 
                 // 8. retrieve credential from the controller
-                self.finalise_dvpn_registration(*gateway_identity, bandwidth_provider, ticket_type)
-                    .await?
+                self.finalise_dvpn_registration(
+                    *gateway_identity,
+                    bandwidth_provider,
+                    spend_time_provider,
+                    ticket_type,
+                )
+                .await?
             }
         };
 
@@ -646,6 +654,7 @@ where
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_provider: &dyn SpendTimeProvider,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -688,6 +697,7 @@ where
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
+            spend_time_provider,
             ticket_type,
         )
         .await

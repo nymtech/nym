@@ -8,11 +8,12 @@ use crate::error::RegistrationClientError;
 use crate::types::{MixnetRegistrationResult, RegistrationResult, WireguardRegistrationResult};
 use nym_authenticator_client::AuthClientMixnetListenerHandle;
 use nym_authenticator_client::{AuthClientMixnetListener, AuthenticatorClient};
-use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_bandwidth_controller::{BandwidthTicketProvider, SpendTimeProvider};
 use nym_credentials_interface::TicketType;
 use nym_ip_packet_client::IprClientConnect;
 use nym_registration_common::AssignedAddresses;
 use nym_sdk::mixnet::{EventReceiver, MixnetClient, Recipient};
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 pub struct MixnetBasedRegistrationClient {
@@ -20,6 +21,7 @@ pub struct MixnetBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) mixnet_client_address: Recipient,
     pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
+    pub(crate) spend_time_provider: Arc<dyn SpendTimeProvider>,
     pub(crate) cancel_token: CancellationToken,
     pub(crate) event_rx: EventReceiver,
 }
@@ -148,10 +150,16 @@ impl MixnetBasedRegistrationClient {
             self.config.exit.node.ip_address,
         );
 
-        let entry_fut = entry_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardEntry);
-        let exit_fut = exit_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardExit);
+        let entry_fut = entry_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            self.spend_time_provider.as_ref(),
+            TicketType::V1WireguardEntry,
+        );
+        let exit_fut = exit_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            self.spend_time_provider.as_ref(),
+            TicketType::V1WireguardExit,
+        );
 
         let (entry, exit) = match Box::pin(
             self.cancel_token

@@ -9,7 +9,7 @@ use crate::lp_client::helpers::to_lp_remote_peer;
 use crate::lp_client::{LpRegistrationClient, NestedLpSession};
 use crate::types::{RegistrationResult, WireguardRegistrationResult};
 
-use nym_bandwidth_controller::BandwidthTicketProvider;
+use nym_bandwidth_controller::{BandwidthTicketProvider, SpendTimeProvider};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
@@ -23,6 +23,7 @@ use tracing::warn;
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
+    pub(crate) spend_time_provider: Arc<dyn SpendTimeProvider>,
     pub(crate) cancel_token: CancellationToken,
 }
 
@@ -110,6 +111,7 @@ impl LpBasedRegistrationClient {
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
                 &*self.bandwidth_provider,
+                self.spend_time_provider.as_ref(),
                 TicketType::V1WireguardExit,
             )
             .await
@@ -129,6 +131,7 @@ impl LpBasedRegistrationClient {
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_provider,
+                self.spend_time_provider.as_ref(),
                 TicketType::V1WireguardEntry,
             )
             .await

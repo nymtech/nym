@@ -61,6 +61,7 @@ impl RegistrationClientBuilder {
         let mixnet_client_startup_timeout = self.config.mixnet_client_startup_timeout;
 
         let bc_request_sender = self.config.bandwidth_request_sender.clone();
+        let spend_time_provider = self.config.spend_time_provider.clone();
 
         let builder =
             MixnetClientBuilder::new_with_storage(storage).event_tx(EventSender(event_tx));
@@ -86,6 +87,7 @@ impl RegistrationClientBuilder {
             cancel_token,
             mixnet_client_address,
             bandwidth_provider: Box::new(bc_request_sender),
+            spend_time_provider,
             event_rx,
         })
     }
@@ -93,10 +95,12 @@ impl RegistrationClientBuilder {
     async fn build_lp(self) -> Result<LpBasedRegistrationClient, RegistrationClientError> {
         let config = self.config.registration_client_config();
         let bc_request_sender = self.config.bandwidth_request_sender;
+        let spend_time_provider = self.config.spend_time_provider.clone();
 
         Ok(LpBasedRegistrationClient {
             config,
             bandwidth_provider: Box::new(bc_request_sender),
+            spend_time_provider,
             cancel_token: self.config.cancel_token.clone(),
         })
     }

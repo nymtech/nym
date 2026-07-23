@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
+use nym_bandwidth_controller::{SpendTimeProvider, SystemSpendTimeProvider};
 use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
@@ -38,6 +39,11 @@ pub struct BuilderConfig {
     pub data_path: PathBuf,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
+    /// Supplies the timestamp used when spending bandwidth credentials during registration.
+    /// Defaults to the raw system clock; callers tracking clock skew against a remote server
+    /// (e.g. the VPN API) can provide a corrected time source instead.
+    #[builder(default = Arc::new(SystemSpendTimeProvider) as Arc<dyn SpendTimeProvider>)]
+    pub spend_time_provider: Arc<dyn SpendTimeProvider>,
     pub cancel_token: CancellationToken,
 
     // Toggle

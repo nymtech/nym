@@ -68,7 +68,7 @@ Because the Exit Gateway removes the Sphinx layers, whatever is inside is visibl
 Treat the Exit Gateway exactly as you would a VPN exit or a Tor exit node: it can inspect whatever you send past it. The difference Nym adds is that the exit doesn't know who's sending the traffic. Protect the payload with TLS or equivalent. If the exit operator matters to you, pin one, but the control depends on the exit type:
 
 - **IPR-backed clients** (`smolmix` and the `mix-*` packages): set the preferred IPR (`preferredIpr` in the TypeScript and wasm packages; see each package page for the native equivalent).
-- **SOCKS5 module (network requester):** pass a fixed requester address to `Socks5MixnetClient::connect_new(...)`, or constrain the jurisdiction with the discovery builder (`discover().countries([...])`).
+- **SOCKS5 module (network requester):** pin a specific requester with `NetworkRequesterSelector::exact(...)`, or constrain the jurisdiction with `NetworkRequesterSelector::in_countries([...])`, passing either to `Socks5MixnetClient::connect_with(...)`.
 </Callout>
 
 ## What the mixnet does not protect

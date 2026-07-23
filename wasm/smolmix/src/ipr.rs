@@ -447,7 +447,7 @@ pub(crate) async fn discover_ipr(
         picked.2,
         picked.0
     );
-    Ok((picked.0, picked.2))
+    Ok((picked.0, picked.2.clone()))
 }
 
 /// Look up a node's release version by its identity (the gateway in an IPR

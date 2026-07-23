@@ -336,6 +336,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
+    #[allow(clippy::too_many_arguments)]
     pub async fn register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
@@ -449,6 +450,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
+    #[allow(clippy::too_many_arguments)]
     pub async fn handshake_and_register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,

@@ -647,6 +647,7 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
+    #[allow(clippy::too_many_arguments)]
     pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,

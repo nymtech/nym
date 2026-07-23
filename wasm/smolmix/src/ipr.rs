@@ -96,30 +96,39 @@ pub async fn open_and_connect(
             "[ipr] no directory version for node; connecting v9 (MTU unreported)"
         );
     }
-    let use_v10 = node_version.and_then(nym_ip_packet_requests::best_supported_version)
-        == Some(nym_ip_packet_requests::v10::VERSION);
-    if use_v10 {
-        // Bound the v10 attempt so the v9 fallback below stays responsive.
-        let v10_timeout = connect_timeout.min(IPR_V10_ATTEMPT_TIMEOUT);
-        match connect_v10(
-            client_input,
-            receiver,
-            ipr_address,
-            stream_id,
-            0,
-            surbs,
-            v10_timeout,
-        )
-        .await
-        {
-            Ok(success) => return Ok((success.ips, Some(success.mtu))),
-            // Directory version can lead the running IPR; retry v9. seq=0 again is
-            // safe, since the IPR doesn't dedup uplink frames by seq.
-            Err(FetchError::Timeout) => {
-                crate::util::debug_log!("[ipr] v10 connect timed out; retrying v9");
+    // Fall through to the v9 connect below unless we settle on v10. A v10 timeout
+    // also falls through, since the directory version can lead the running IPR.
+    match node_version.and_then(nym_ip_packet_requests::best_supported_version) {
+        Some(v) if v == nym_ip_packet_requests::v10::VERSION => {
+            // Bound the v10 attempt so the v9 fallback below stays responsive.
+            let v10_timeout = connect_timeout.min(IPR_V10_ATTEMPT_TIMEOUT);
+            match connect_v10(
+                client_input,
+                receiver,
+                ipr_address,
+                stream_id,
+                0,
+                surbs,
+                v10_timeout,
+            )
+            .await
+            {
+                Ok(success) => return Ok((success.ips, Some(success.mtu))),
+                // Directory version can lead the running IPR; retry v9. seq=0 again is
+                // safe, since the IPR doesn't dedup uplink frames by seq.
+                Err(FetchError::Timeout) => {
+                    crate::util::debug_log!("[ipr] v10 connect timed out; retrying v9");
+                }
+                Err(e) => return Err(e),
             }
-            Err(e) => return Err(e),
         }
+        Some(v) if v == nym_ip_packet_requests::v9::VERSION => {}
+        Some(other) => {
+            crate::util::debug_log!(
+                "[ipr] node advertises unsupported IPR version v{other}; connecting v9"
+            );
+        }
+        None => {} // unknown node, logged above
     }
     let ips = connect_v9(
         client_input,

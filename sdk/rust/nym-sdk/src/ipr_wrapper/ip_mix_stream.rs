@@ -29,6 +29,25 @@ const IPR_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 /// merely-slow node isn't downgraded spuriously.
 const IPR_V10_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// Env var overriding the node version used for IPR protocol gating (semver,
+/// e.g. "1.37.0"). Debug knob for exercising a protocol version against a node
+/// the directory reports as older, such as a local IPR that isn't a directory
+/// node. Native SDK only; the wasm/smolmix build cannot read process env.
+/// Mirrors `SMOLMIX_MTU`.
+const SMOLMIX_IPR_VERSION_ENV: &str = "SMOLMIX_IPR_VERSION";
+
+/// Parse the [`SMOLMIX_IPR_VERSION_ENV`] override; `None` if unset or unparseable.
+fn forced_ipr_version() -> Option<semver::Version> {
+    let raw = std::env::var(SMOLMIX_IPR_VERSION_ENV).ok()?;
+    match semver::Version::parse(&raw) {
+        Ok(version) => Some(version),
+        Err(e) => {
+            warn!("ignoring unparseable {SMOLMIX_IPR_VERSION_ENV}='{raw}': {e}");
+            None
+        }
+    }
+}
+
 /// A bidirectional tunnel for sending and receiving IP packets through the mixnet.
 ///
 /// Wraps a [`MixnetStream`] (opened to an IPR exit gateway) and provides a
@@ -168,37 +187,28 @@ impl IpMixStream {
         stream: &mut MixnetStream,
         node_version: Option<&semver::Version>,
     ) -> Result<(IpPair, Option<u16>, u8), Error> {
-        // SMOLMIX_IPR_VERSION overrides the node version used for protocol gating
-        // (semver, e.g. "1.37.0"). Test/debug knob for exercising a protocol
-        // version against a node the directory reports as older, such as a local
-        // IPR that isn't a directory node. Read here in the native SDK only; the
-        // wasm/smolmix build cannot read process env. Mirrors SMOLMIX_MTU.
-        let forced = match std::env::var("SMOLMIX_IPR_VERSION") {
-            Ok(raw) => match semver::Version::parse(&raw) {
-                Ok(version) => Some(version),
-                Err(e) => {
-                    warn!("ignoring unparseable SMOLMIX_IPR_VERSION='{raw}': {e}");
-                    None
-                }
-            },
-            Err(_) => None,
-        };
+        let forced = forced_ipr_version();
         let node_version = forced.as_ref().or(node_version);
         if node_version.is_none() {
             debug!("no directory version for IPR node; connecting v9 (MTU unreported)");
         }
 
-        let use_v10 = node_version.and_then(best_supported_version) == Some(v10::VERSION);
-        if use_v10 {
-            match Self::connect_v10(stream, IPR_V10_ATTEMPT_TIMEOUT).await {
-                Ok((ips, mtu)) => return Ok((ips, Some(mtu), v10::VERSION)),
-                // The directory version can lead the running IPR (mid-upgrade,
-                // stale describe cache), so retry v9 rather than hard-failing.
-                Err(Error::IPRConnectResponseTimeout) => {
-                    debug!("v10 connect timed out; retrying v9");
+        // Fall through to the v9 connect below unless we settle on v10. A v10
+        // timeout also falls through, since the directory version can lead the
+        // running IPR (mid-upgrade, stale describe cache).
+        match node_version.and_then(best_supported_version) {
+            Some(v) if v == v10::VERSION => {
+                match Self::connect_v10(stream, IPR_V10_ATTEMPT_TIMEOUT).await {
+                    Ok((ips, mtu)) => return Ok((ips, Some(mtu), v10::VERSION)),
+                    Err(Error::IPRConnectResponseTimeout) => {
+                        debug!("v10 connect timed out; retrying v9");
+                    }
+                    Err(e) => return Err(e),
                 }
-                Err(e) => return Err(e),
             }
+            Some(v) if v == v9::VERSION => {}
+            Some(other) => warn!("node advertises unsupported IPR version v{other}; connecting v9"),
+            None => {} // unknown node, logged above
         }
         let ips = Self::connect_v9(stream).await?;
         Ok((ips, None, v9::VERSION))

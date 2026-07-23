@@ -39,8 +39,9 @@ export const urls = (networkName?: Network) =>
         networkExplorer: 'https://explorer.nym.spectredao.net',
       }
     : {
-        blockExplorer: `https://${networkName}-blocks.nymtech.net`,
-        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
+        mixnetExplorer: 'https://sandbox-blocks.nymtech.net/sandbox/',
+        blockExplorer: 'https://sandbox-blocks.nymtech.net/sandbox',
+        networkExplorer: 'https://sandbox-blocks.nymtech.net/sandbox',
       };
 
 type TLoginType = 'mnemonic' | 'password';

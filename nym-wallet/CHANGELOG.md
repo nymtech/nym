@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.2.24] (2026-07-23)
+
+- Point sandbox block and account explorer links at sandbox-blocks.nymtech.net ([#6972])
+- Stop bonding confirmation modals from closing when clicking outside ([#6972])
+- Add Nym Swap to the buy NYM exchanges list ([#6972])
+
+[#6972]: https://github.com/nymtech/nym/pull/6972
+
 ## [v1.2.23] (2026-06-24)
 
 - Add Node Families tab and behaviour ([#6900])

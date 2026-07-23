@@ -11,7 +11,7 @@ The Nym desktop wallet enables you to use the Nym network and take advantage of 
 
 ## Installation prerequisites - Linux / Mac
 
-- `Yarn`
+- `pnpm`
 - `NodeJS >= v16.8.0`
 - `Rust & cargo >= v1.56`
 
@@ -41,9 +41,10 @@ If problems persist on Wayland, try preloading the system client library (path m
 
 ## Installation
 
-Inside the `nym-wallet` directory, run the following command:
+From the `nym` repo root (pnpm workspace), run:
+
 ```
-yarn install
+pnpm install
 ```
 
 ## Populate environment variables
@@ -78,7 +79,7 @@ To launch the wallet, navigate to the directory and run the following command: `
 
 Run the following command from the `nym-wallet` folder
 ```
-yarn build
+pnpm run build
 ```
 The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:
 

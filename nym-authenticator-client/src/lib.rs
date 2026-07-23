@@ -8,7 +8,7 @@ use nym_registration_common::WireguardConfiguration;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
+use time::{Duration as TimeDuration, OffsetDateTime};
 use tracing::{debug, error, trace, warn};
 
 use crate::error::Result;
@@ -210,7 +210,7 @@ impl AuthenticatorClient {
     async fn produce_bandwidth_claim(
         &self,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time: Option<OffsetDateTime>,
+        spend_time_skew: Option<TimeDuration>,
         upgrade_mode_enabled: bool,
         ticketbook_type: TicketType,
     ) -> Result<BandwidthClaim> {
@@ -240,7 +240,7 @@ impl AuthenticatorClient {
                 ticketbook_type,
                 self.auth_recipient.gateway(),
                 DEFAULT_TICKETS_TO_SPEND,
-                spend_time.unwrap_or_else(OffsetDateTime::now_utc),
+                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
             )
             .await
             .map_err(|source| AuthenticationClientError::GetTicket {
@@ -264,7 +264,7 @@ impl AuthenticatorClient {
     pub async fn register_wireguard(
         &mut self,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time: Option<OffsetDateTime>,
+        spend_time_skew: Option<TimeDuration>,
         ticketbook_type: TicketType,
     ) -> std::result::Result<WireguardConfiguration, RegistrationError> {
         debug!("Registering with the wg gateway...");
@@ -321,7 +321,7 @@ impl AuthenticatorClient {
                 let bandwidth_claim = self
                     .produce_bandwidth_claim(
                         bandwidth_provider,
-                        spend_time,
+                        spend_time_skew,
                         upgrade_mode_enabled,
                         ticketbook_type,
                     )

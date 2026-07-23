@@ -14,7 +14,7 @@ use nym_sdk::{
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use time::OffsetDateTime;
+use time::Duration as TimeDuration;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
@@ -39,12 +39,15 @@ pub struct BuilderConfig {
     pub data_path: PathBuf,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
-    /// Timestamp used when spending bandwidth credentials during registration. Defaults to
-    /// `None`, in which case the raw system clock is used at the point of spend; callers
-    /// tracking clock skew against a remote server (e.g. the VPN API) can provide a corrected
-    /// timestamp instead.
+    /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
+    /// during registration - `None` means the raw system clock is used as-is. This is an
+    /// *offset*, not a materialised timestamp: it gets applied to the clock reading taken right
+    /// before it's actually needed (which can be significantly later - e.g. after the mixnet
+    /// client connects), so callers tracking clock skew against a remote server (e.g. the VPN
+    /// API) should provide the skew itself rather than a timestamp computed up-front, or the
+    /// correction may go stale by the time it's used.
     #[builder(default)]
-    pub spend_time: Option<OffsetDateTime>,
+    pub spend_time_skew: Option<TimeDuration>,
     pub cancel_token: CancellationToken,
 
     // Toggle

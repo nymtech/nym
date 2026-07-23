@@ -30,7 +30,7 @@ use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
+use time::{Duration as TimeDuration, OffsetDateTime};
 use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
@@ -434,7 +434,7 @@ where
         &mut self,
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time: Option<OffsetDateTime>,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
@@ -445,7 +445,7 @@ where
                 ticket_type,
                 gateway_identity,
                 DEFAULT_TICKETS_TO_SPEND,
-                spend_time.unwrap_or_else(OffsetDateTime::now_utc),
+                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
             )
             .await
             .map_err(|e| {
@@ -543,7 +543,7 @@ where
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time: Option<OffsetDateTime>,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -600,7 +600,7 @@ where
                 self.finalise_dvpn_registration(
                     *gateway_identity,
                     bandwidth_provider,
-                    spend_time,
+                    spend_time_skew,
                     ticket_type,
                 )
                 .await?
@@ -653,7 +653,7 @@ where
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time: Option<OffsetDateTime>,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -696,7 +696,7 @@ where
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
-            spend_time,
+            spend_time_skew,
             ticket_type,
         )
         .await

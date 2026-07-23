@@ -1,6 +1,7 @@
 {
   "index": "Overview",
   "concepts": "Key Concepts",
+
   "sep-intro": {
     "type": "separator"
   },
@@ -9,9 +10,8 @@
     "title": "Rust"
   },
   "smolmix": "smolmix (TCP/UDP tunnel)",
-  "rust": {
-    "title": "nym-sdk"
-  },
+  "rust": "nym-sdk",
+
   "-": {
     "type": "separator",
     "title": "TypeScript"
@@ -24,6 +24,7 @@
   "mix-websocket": "mix-websocket (ws / wss)",
   "mix-architecture": "mix-* Family Architecture",
   "typescript": "Raw Messaging SDK",
+
   "sep-extras": {
     "type": "separator"
   },

@@ -24,9 +24,7 @@ use crate::lp_client::helpers::{
     LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
 };
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
-use nym_bandwidth_controller::{
-    BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND, SpendTimeProvider,
-};
+use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
@@ -45,6 +43,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tracing::{debug, warn};
 
 pub(crate) mod connection;
@@ -228,7 +227,7 @@ impl NestedLpSession {
         outer_client: &mut LpRegistrationClient<S>,
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_provider: &dyn SpendTimeProvider,
+        spend_time: Option<OffsetDateTime>,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData>
     where
@@ -243,7 +242,7 @@ impl NestedLpSession {
                 ticket_type,
                 gateway_identity,
                 DEFAULT_TICKETS_TO_SPEND,
-                spend_time_provider.spend_time(),
+                spend_time.unwrap_or_else(OffsetDateTime::now_utc),
             )
             .await
             .map_err(|e| {
@@ -344,7 +343,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_provider: &dyn SpendTimeProvider,
+        spend_time: Option<OffsetDateTime>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -407,7 +406,7 @@ impl NestedLpSession {
                     outer_client,
                     *gateway_identity,
                     bandwidth_provider,
-                    spend_time_provider,
+                    spend_time,
                     ticket_type,
                 )
                 .await?
@@ -457,7 +456,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_provider: &dyn SpendTimeProvider,
+        spend_time: Option<OffsetDateTime>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -473,7 +472,7 @@ impl NestedLpSession {
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
-            spend_time_provider,
+            spend_time,
             ticket_type,
         )
         .await
@@ -515,7 +514,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_provider: &dyn SpendTimeProvider,
+        spend_time: Option<OffsetDateTime>,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -568,7 +567,7 @@ impl NestedLpSession {
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
-            spend_time_provider,
+            spend_time,
             ticket_type,
         )
         .await

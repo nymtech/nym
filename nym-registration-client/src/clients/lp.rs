@@ -9,13 +9,14 @@ use crate::lp_client::helpers::to_lp_remote_peer;
 use crate::lp_client::{LpRegistrationClient, NestedLpSession};
 use crate::types::{RegistrationResult, WireguardRegistrationResult};
 
-use nym_bandwidth_controller::{BandwidthTicketProvider, SpendTimeProvider};
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
 use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
@@ -23,7 +24,7 @@ use tracing::warn;
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
-    pub(crate) spend_time_provider: Arc<dyn SpendTimeProvider>,
+    pub(crate) spend_time: Option<OffsetDateTime>,
     pub(crate) cancel_token: CancellationToken,
 }
 
@@ -111,7 +112,7 @@ impl LpBasedRegistrationClient {
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
                 &*self.bandwidth_provider,
-                self.spend_time_provider.as_ref(),
+                self.spend_time,
                 TicketType::V1WireguardExit,
             )
             .await
@@ -131,7 +132,7 @@ impl LpBasedRegistrationClient {
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_provider,
-                self.spend_time_provider.as_ref(),
+                self.spend_time,
                 TicketType::V1WireguardEntry,
             )
             .await

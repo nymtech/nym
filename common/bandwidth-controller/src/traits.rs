@@ -69,26 +69,6 @@ impl<T: BandwidthTicketProvider + ?Sized + Send> BandwidthTicketProvider for Box
     }
 }
 
-/// Provides the current time to timestamp bandwidth credential spends with (the `spend_time`
-/// passed to [`BandwidthTicketProvider::get_ecash_ticket`]).
-///
-/// Exists so callers that track clock skew against a remote server (e.g. the VPN API) can supply
-/// a corrected timestamp instead of the raw local clock, without this crate - or any credential
-/// requesting code using it - needing to know anything about how that skew is tracked.
-pub trait SpendTimeProvider: Send + Sync {
-    fn spend_time(&self) -> OffsetDateTime;
-}
-
-/// Default [`SpendTimeProvider`] that just reads the local system clock.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct SystemSpendTimeProvider;
-
-impl SpendTimeProvider for SystemSpendTimeProvider {
-    fn spend_time(&self) -> OffsetDateTime {
-        OffsetDateTime::now_utc()
-    }
-}
-
 /// Boxed, dyn-compatible fetcher error. Deliberately a boxed trait object rather than an associated
 /// type on [`CredentialFetcher`]: an associated type would make the trait dyn-incompatible, and the
 /// controller wraps it in its own [`crate::error::BandwidthControllerError`] anyway.

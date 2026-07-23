@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
-use nym_bandwidth_controller::{SpendTimeProvider, SystemSpendTimeProvider};
 use nym_registration_common::NymNodeInformation;
 use nym_sdk::{
     DebugConfig, NymNetworkDetails, RememberMe, TopologyProvider, UserAgent,
@@ -15,6 +14,7 @@ use nym_sdk::{
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
+use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
@@ -39,11 +39,12 @@ pub struct BuilderConfig {
     pub data_path: PathBuf,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
-    /// Supplies the timestamp used when spending bandwidth credentials during registration.
-    /// Defaults to the raw system clock; callers tracking clock skew against a remote server
-    /// (e.g. the VPN API) can provide a corrected time source instead.
-    #[builder(default = Arc::new(SystemSpendTimeProvider) as Arc<dyn SpendTimeProvider>)]
-    pub spend_time_provider: Arc<dyn SpendTimeProvider>,
+    /// Timestamp used when spending bandwidth credentials during registration. Defaults to
+    /// `None`, in which case the raw system clock is used at the point of spend; callers
+    /// tracking clock skew against a remote server (e.g. the VPN API) can provide a corrected
+    /// timestamp instead.
+    #[builder(default)]
+    pub spend_time: Option<OffsetDateTime>,
     pub cancel_token: CancellationToken,
 
     // Toggle

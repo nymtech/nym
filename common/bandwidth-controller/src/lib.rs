@@ -11,7 +11,7 @@ pub use nym_credentials_interface::TicketType;
 pub use ticketbooks::AvailableTicketbooks;
 pub use traits::{
     BandwidthTicketProvider, CredentialFetcher, CredentialFetcherError,
-    CredentialPublicDataFetcher, FetcherError, SpendTimeProvider, SystemSpendTimeProvider,
+    CredentialPublicDataFetcher, FetcherError,
 };
 
 pub mod config;

@@ -7,7 +7,9 @@ use tracing::{error, info, warn};
 use crate::{
     IpPair,
     codec::MultiIpPacketCodec,
-    v8::response::{
+    // v9 re-exports v8's response tree unchanged; naming v9 keeps the shared
+    // (non-v10) connect/data path on the current stream version, not the floor.
+    v9::response::{
         ConnectResponseReply, ControlResponse, InfoLevel, IpPacketResponse, IpPacketResponseData,
     },
 };
@@ -24,7 +26,7 @@ pub enum IprResponseError {
     UnexpectedResponse(String),
 
     #[error("connect denied: {0:?}")]
-    ConnectDenied(crate::v8::response::ConnectFailureReason),
+    ConnectDenied(crate::ConnectFailureReason),
 }
 
 pub enum MixnetMessageOutcome {

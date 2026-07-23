@@ -10,6 +10,10 @@ pub mod v10;
 pub mod v8;
 pub mod v9;
 
+/// Connect-failure reason. Defined once in v8 and reused unchanged by v9 and v10,
+/// so the shared connect path names it here rather than picking a version.
+pub use v8::response::ConnectFailureReason;
+
 /// Highest IPR protocol version that is allowed to be sent as a **non-stream** mixnet payload
 /// (i.e. not wrapped in `LpFrameKind::SphinxStream`).
 pub const MAX_NON_STREAM_VERSION: u8 = v8::VERSION;

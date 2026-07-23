@@ -462,6 +462,7 @@ mod tests {
                         &wg_keypair,
                         gateway_identity,
                         &client_data.ticket_provider,
+                        None,
                         TicketType::V1WireguardEntry,
                     )
                     .timeboxed()
@@ -533,6 +534,7 @@ mod tests {
                     &wg_keypair,
                     gateway_identity,
                     &client_data.ticket_provider,
+                    None,
                     TicketType::V1WireguardEntry,
                 )
                 .timeboxed()
@@ -702,6 +704,7 @@ mod tests {
                     &client_data.base.x25519_wg_keys,
                     exit.base.identity.public_key(),
                     &client_data.ticket_provider,
+                    None,
                     TicketType::V1WireguardExit,
                 )
                 .timeboxed()
@@ -714,6 +717,7 @@ mod tests {
                     &client_data.base.x25519_wg_keys,
                     entry.base.identity.public_key(),
                     &client_data.ticket_provider,
+                    None,
                     TicketType::V1WireguardEntry,
                 )
                 .timeboxed()

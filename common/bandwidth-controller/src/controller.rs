@@ -155,7 +155,7 @@ impl<St: Storage> BandwidthController<St> {
                 _ = topup_interval.tick() => {
                     let _ = self.print_info().await;
                     self.ensure_global_data().await;
-                    self.check_and_restock(AvailableTicketbooks::ticketbook_types()).await;
+                    self.check_and_restock(self.config.managed_ticket_types.clone()).await;
                 }
                 (typ, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
                     self.on_fetch_complete(typ, res).await;
@@ -195,8 +195,12 @@ impl<St: Storage> BandwidthController<St> {
                     )
                     .await;
                 return_sender.send(credential_result);
-                // a ticket was just requested for this type - top it up if it's now running low
-                self.check_and_restock(vec![ticket_type]).await;
+                // a ticket was just requested for this type - top it up if it's now running low, but
+                // only if it's a managed type (don't start depositing for a type this controller
+                // isn't configured to proactively restock, e.g. a leftover ticketbook of another kind)
+                if self.config.managed_ticket_types.contains(&ticket_type) {
+                    self.check_and_restock(vec![ticket_type]).await;
+                }
             }
             BandwidthControllerRequest::UpgradeModeToken(return_sender) => {
                 return_sender.send(self.get_upgrade_mode_token().await)
@@ -246,7 +250,7 @@ impl<St: Storage> BandwidthController<St> {
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
         self.credential_fetcher = fetcher;
-        self.check_and_restock(AvailableTicketbooks::ticketbook_types())
+        self.check_and_restock(self.config.managed_ticket_types.clone())
             .await;
     }
 
@@ -441,7 +445,7 @@ impl<St: Storage> BandwidthController<St> {
 
         for typ in ticketbook_types {
             tracing::debug!("Checking credential stock for {typ} ticket");
-            if available.needs_restock(typ, self.config) {
+            if available.needs_restock(typ, &self.config) {
                 tracing::debug!("{typ} tickets need a restock");
                 self.ensure_stocked(typ);
             }
@@ -570,7 +574,7 @@ impl<St: Storage> BandwidthController<St> {
 
         let mut tickets_readiness = HashMap::new();
         for typ in AvailableTicketbooks::ticketbook_types() {
-            let status = if available.contains_minimal_tickets(typ, self.config) {
+            let status = if available.contains_minimal_tickets(typ, &self.config) {
                 ReadinessStatus::Ready
             } else if self.is_in_flight(typ) {
                 ReadinessStatus::InFlight
@@ -801,7 +805,7 @@ impl<St: Storage> BandwidthController<St> {
         for ticketbook in ticketbooks_info {
             if ticketbook.has_expired() {
                 tracing::debug!("Expired ticketbook: {ticketbook}");
-            } else if ticketbook.expired_soon(OffsetDateTime::now_utc(), self.config) {
+            } else if ticketbook.expired_soon(OffsetDateTime::now_utc(), &self.config) {
                 tracing::info!("Soon expired ticketbook: {ticketbook}");
             } else {
                 tracing::info!("Ticketbook: {ticketbook}");

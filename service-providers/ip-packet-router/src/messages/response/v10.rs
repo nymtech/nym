@@ -22,11 +22,6 @@ impl TryFrom<VersionedResponse> for IpPacketResponseV10 {
     fn try_from(response: VersionedResponse) -> Result<Self, Self::Error> {
         let version = response.version.into_u8();
         let data = match response.response {
-            Response::StaticConnect { .. } => {
-                return Err(IpPacketRouterError::UnsupportedResponse(format!(
-                    "Static connect response is not supported in version {version}"
-                )));
-            }
             Response::DynamicConnect { request_id, reply } => IpPacketResponseDataV10::Control(
                 Box::new(ControlResponseV10::Connect(ConnectResponseV10 {
                     request_id,

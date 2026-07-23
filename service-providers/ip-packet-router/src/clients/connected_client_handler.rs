@@ -7,8 +7,6 @@ use std::time::Duration;
 use bytes::{Bytes, BytesMut};
 use nym_ip_packet_requests::{
     codec::{IprPacket, MultiIpPacketCodec},
-    v6::response::IpPacketResponse as IpPacketResponseV6,
-    v7::response::IpPacketResponse as IpPacketResponseV7,
     v8::response::IpPacketResponse as IpPacketResponseV8,
     v9, v10,
 };
@@ -215,8 +213,6 @@ fn create_ip_packet_response(
 ) -> std::result::Result<Vec<u8>, bincode::Error> {
     let packets = BytesMut::from(packets).freeze();
     match client_version {
-        ClientVersion::V6 => IpPacketResponseV6::new_ip_packet(packets).to_bytes(),
-        ClientVersion::V7 => IpPacketResponseV7::new_ip_packet(packets).to_bytes(),
         ClientVersion::V8 => IpPacketResponseV8::new_ip_packet(packets).to_bytes(),
         ClientVersion::V9 => v9::new_ip_packet_response(packets).to_bytes(),
         ClientVersion::V10 => v10::new_ip_packet_response(packets).to_bytes(),

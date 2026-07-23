@@ -6,10 +6,7 @@ pub mod codec;
 #[cfg(feature = "test-utils")]
 pub mod icmp_utils;
 pub mod response_helpers;
-pub mod sign;
 pub mod v10;
-pub mod v6;
-pub mod v7;
 pub mod v8;
 pub mod v9;
 
@@ -72,6 +69,7 @@ mod tests {
     }
 }
 
+// Wire-protocol history (v8 is the current floor; v3-v7 removed):
 // version 3: initial version
 // version 4: IPv6 support
 // version 5: Add severity level to info response
@@ -105,10 +103,4 @@ fn make_bincode_serializer() -> impl bincode::Options {
     bincode::DefaultOptions::new()
         .with_big_endian()
         .with_varint_encoding()
-}
-
-fn generate_random() -> u64 {
-    use rand::RngCore;
-    let mut rng = rand::rngs::OsRng;
-    rng.next_u64()
 }

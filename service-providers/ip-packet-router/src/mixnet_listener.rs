@@ -10,12 +10,12 @@ use crate::{
         ClientVersion,
         request::{
             ControlRequest, DataRequest, DisconnectRequest, DynamicConnectRequest, HealthRequest,
-            IpPacketRequest, PingRequest, StaticConnectRequest,
+            IpPacketRequest, PingRequest,
         },
         response::{
             DisconnectFailureReason, DisconnectResponse, DynamicConnectFailureReason,
             DynamicConnectSuccess, HealthResponse, InfoLevel, InfoResponse, InfoResponseReply,
-            Response, StaticConnectFailureReason, StaticConnectResponse, VersionedResponse,
+            Response, VersionedResponse,
         },
     },
     request_filter::RequestFilter,
@@ -147,122 +147,6 @@ impl MixnetListener {
         }
 
         Ok(responses)
-    }
-
-    // Receiving a static connect request from a client with an IP provided that we assign to them,
-    // if it's available. If it's not available, we send a failure response.
-    async fn on_static_connect_request(
-        &mut self,
-        connect_request: StaticConnectRequest,
-        stream_id: Option<u64>,
-    ) -> PacketHandleResult {
-        log::info!(
-            "Received static connect request from {}",
-            connect_request.sent_by
-        );
-
-        let version = connect_request.version;
-        let sent_by = connect_request.sent_by;
-        let request_id = connect_request.request_id;
-        let requested_ips = connect_request.ips;
-        let buffer_timeout = connect_request
-            .buffer_timeout
-            .map(Duration::from_millis)
-            .unwrap_or(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
-
-        // Check that the IP is available in the set of connected clients
-        let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
-
-        // Check that the client_id address isn't already registered
-        let is_client_id_taken = self.connected_clients.is_client_connected(&sent_by);
-
-        let response = match (is_ip_taken, is_client_id_taken) {
-            (true, true) if stream_id.is_some() => {
-                // Stream-mode reconnect: tear down the old handler (which has a
-                // stale stream_id) and create a fresh one for the new stream.
-                log::info!("Stream-mode client reconnecting, replacing handler");
-                self.connected_clients.disconnect_client(&sent_by);
-
-                let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
-                    sent_by.clone(),
-                    buffer_timeout,
-                    version,
-                    self.mixnet_client.split_sender(),
-                    stream_id,
-                );
-                self.connected_clients.connect(
-                    requested_ips,
-                    sent_by.clone(),
-                    forward_from_tun_tx,
-                    close_tx,
-                    handle,
-                );
-                Response::StaticConnect {
-                    request_id,
-                    reply: StaticConnectResponse::Success,
-                }
-            }
-            (true, true) => {
-                log::info!("Connecting an already connected client");
-                if self
-                    .connected_clients
-                    .update_activity(&requested_ips)
-                    .await
-                    .is_err()
-                {
-                    log::error!("Failed to update activity for client");
-                };
-                Response::StaticConnect {
-                    request_id,
-                    reply: StaticConnectResponse::Success,
-                }
-            }
-            (false, false) => {
-                log::info!("Connecting a new client");
-
-                // Spawn the ConnectedClientHandler for the new client
-                let (forward_from_tun_tx, close_tx, handle) = ConnectedClientHandler::start(
-                    sent_by.clone(),
-                    buffer_timeout,
-                    version,
-                    self.mixnet_client.split_sender(),
-                    stream_id,
-                );
-
-                // Register the new client in the set of connected clients
-                self.connected_clients.connect(
-                    requested_ips,
-                    sent_by.clone(),
-                    forward_from_tun_tx,
-                    close_tx,
-                    handle,
-                );
-                Response::StaticConnect {
-                    request_id,
-                    reply: StaticConnectResponse::Success,
-                }
-            }
-            (true, false) => {
-                log::info!("Requested IP is not available");
-                Response::StaticConnect {
-                    request_id,
-                    reply: StaticConnectFailureReason::RequestedIpAlreadyInUse.into(),
-                }
-            }
-            (false, true) => {
-                log::info!("Nym address is already registered");
-                Response::StaticConnect {
-                    request_id,
-                    reply: StaticConnectFailureReason::ClientAlreadyConnected.into(),
-                }
-            }
-        };
-
-        Ok(Some(VersionedResponse {
-            version,
-            reply_to: sent_by,
-            response,
-        }))
     }
 
     fn on_dynamic_connect_request(
@@ -413,7 +297,6 @@ impl MixnetListener {
         stream_id: Option<u64>,
     ) -> PacketHandleResult {
         match control_request {
-            ControlRequest::StaticConnect(r) => self.on_static_connect_request(r, stream_id).await,
             ControlRequest::DynamicConnect(r) => self.on_dynamic_connect_request(r, stream_id),
             ControlRequest::Disconnect(r) => self.on_disconnect_request(r),
             ControlRequest::Ping(r) => self.on_ping_request(r),

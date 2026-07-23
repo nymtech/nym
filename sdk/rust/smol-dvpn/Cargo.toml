@@ -60,7 +60,7 @@ rustls-pki-types = "1"
 # implementation (cert-pinning verifier, ALPN, dialing) instead of being
 # reimplemented here — see `bridge.rs`. Not yet on crates.io, so pulled via git;
 # `cargo publish` of this crate is blocked until `nym-bridges` is released.
-nym-bridges = { git = "https://github.com/nymtech/nym-bridges", rev = "dc4a7bf8da10d6bb6621379a2e87766da9e069cd" }
+nym-bridges = "0.1.2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "io-util", "net"] }

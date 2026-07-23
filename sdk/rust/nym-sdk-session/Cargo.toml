@@ -12,7 +12,8 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 rust-version.workspace = true
-publish = false
+readme.workspace = true
+publish = true
 
 [dependencies]
 nym-validator-client = { workspace = true }

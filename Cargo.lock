@@ -6100,7 +6100,8 @@ dependencies = [
 [[package]]
 name = "nym-bridges"
 version = "0.1.2"
-source = "git+https://github.com/nymtech/nym-bridges?rev=dc4a7bf8da10d6bb6621379a2e87766da9e069cd#dc4a7bf8da10d6bb6621379a2e87766da9e069cd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "549055569a0fdcc2af37e5eee39b4502011fe51dc863676dacd40f6cee65e39e"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

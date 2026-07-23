@@ -61,18 +61,21 @@ pub async fn retrieve_exit_nodes_with_performance(
         .map(|described| (described.ed25519_identity_key(), described))
         .collect::<HashMap<_, _>>();
 
-    let exit_gateways = client.get_all_basic_nodes_with_metadata().await?.nodes;
+    let exit_gateways = client
+        .get_all_basic_exit_assigned_nodes_with_metadata()
+        .await?
+        .nodes;
 
     let mut described = Vec::new();
 
     for exit in exit_gateways {
-        // We fetch all nodes above, then keep only those declaring the exit-IPR
-        // role (an exit gateway can be network-requester-only); others don't serve
-        // an IPR, so a v9 connect to them just times out.
+        // Keep only nodes declaring the exit-IPR role (an exit gateway can be
+        // network-requester-only); others don't serve an IPR, so a v9 connect to
+        // them just times out.
         //
         // TODO(ipr-perf): rewrite this selection when IPR performance monitoring
-        // lands — fetch only exit gateways and rank on measured IPR health, since
-        // directory `performance` doesn't predict IPR usability.
+        // lands — rank on measured IPR health, since directory `performance`
+        // doesn't predict IPR usability.
         if !exit.supported_roles.exit_ipr {
             continue;
         }

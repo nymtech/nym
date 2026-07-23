@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_bandwidth_controller::{FetcherError, error::FetcherErrorKind};
+use nym_bandwidth_controller::{FetcherError, TicketType, error::FetcherErrorKind};
 use nym_credentials::error::Error as CredentialsError;
 use nym_validator_client::coconut::EcashApiError;
 use thiserror::Error;
@@ -30,6 +30,14 @@ pub enum NyxdFetcherError {
 
     #[error("did not receive a valid response for aggregated data ({typ}) from ANY nym-api")]
     ExhaustedApiQueries { typ: String },
+
+    /// A fresh deposit was requested for a ticketbook type outside the fetcher's allowed set.
+    /// Recovery of already-paid deposits is never blocked by this.
+    #[error("ticketbook type {requested} is not permitted by this fetcher (allowed: {allowed:?})")]
+    TicketbookTypeNotAllowed {
+        requested: TicketType,
+        allowed: Vec<TicketType>,
+    },
 }
 
 impl FetcherError for NyxdFetcherError {
@@ -46,6 +54,10 @@ impl FetcherError for NyxdFetcherError {
             NyxdFetcherError::NoThreshold => FetcherErrorKind::Other,
 
             NyxdFetcherError::CredentialError(_) => FetcherErrorKind::Other,
+
+            // Deliberately mapped to `Other` (not a new `FetcherErrorKind` variant): downstream
+            // consumers may match `FetcherErrorKind` exhaustively, and it is not `#[non_exhaustive]`.
+            NyxdFetcherError::TicketbookTypeNotAllowed { .. } => FetcherErrorKind::Other,
         }
     }
 }

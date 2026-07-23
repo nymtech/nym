@@ -84,6 +84,17 @@ pub struct BandwidthController<St> {
 
     // callers parked on `wait_for_ticketbooks`, re-evaluated whenever a fetch completes
     pending_readiness: Vec<ReadinessRequest>,
+
+    // ticket types the proactive restock paths (periodic sweep, fetcher-install restock) manage.
+    // Defaults to every non-mixnet-exit type; scope it down to avoid depositing for types a
+    // consumer never uses. Spend-triggered restock targets only the spent type and ignores this.
+    managed_ticket_types: Vec<TicketType>,
+
+    // whether the controller proactively deposits/restocks in the background (periodic sweep,
+    // post-spend top-up, fetcher-install restock). Defaults to `true` (prior behaviour). Set to
+    // `false` to run purely for spending existing stock without ever making background deposits;
+    // explicit `restock_ticketbooks` requests still work as a manual valve.
+    auto_restock: bool,
 }
 
 impl<St: Storage> BandwidthController<St> {
@@ -101,11 +112,33 @@ impl<St: Storage> BandwidthController<St> {
             credential_fetcher: None,
             in_flight: InFlightFetches::new(),
             pending_readiness: Vec::new(),
+            managed_ticket_types: AvailableTicketbooks::ticketbook_types(),
+            auto_restock: true,
         }
     }
     #[must_use]
     pub fn with_config(mut self, config: BandwidthControllerConfig) -> Self {
         self.config = config;
+        self
+    }
+
+    /// Restrict the ticket types the controller proactively restocks (periodic sweep and
+    /// fetcher-install restock). Defaults to every non-mixnet-exit type. Spend-triggered restock
+    /// after a ticket handout always targets the spent type regardless of this setting.
+    #[must_use]
+    pub fn with_managed_ticket_types(mut self, types: Vec<TicketType>) -> Self {
+        self.managed_ticket_types = types;
+        self
+    }
+
+    /// Enable or disable proactive background restocking (periodic sweep, post-spend top-up, and
+    /// fetcher-install restock). Defaults to `true`. When `false`, the controller only spends
+    /// existing stock and fetches missing global data; it never deposits on its own, though an
+    /// explicit `restock_ticketbooks` request still works as a manual valve. Useful for consumers
+    /// that provision a fixed amount up front and do not want background spending of funds.
+    #[must_use]
+    pub fn with_auto_restock(mut self, auto_restock: bool) -> Self {
+        self.auto_restock = auto_restock;
         self
     }
 
@@ -155,7 +188,9 @@ impl<St: Storage> BandwidthController<St> {
                 _ = topup_interval.tick() => {
                     let _ = self.print_info().await;
                     self.ensure_global_data().await;
-                    self.check_and_restock(AvailableTicketbooks::ticketbook_types()).await;
+                    if self.auto_restock {
+                        self.check_and_restock(self.managed_ticket_types.clone()).await;
+                    }
                 }
                 (typ, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
                     self.on_fetch_complete(typ, res).await;
@@ -196,7 +231,9 @@ impl<St: Storage> BandwidthController<St> {
                     .await;
                 return_sender.send(credential_result);
                 // a ticket was just requested for this type - top it up if it's now running low
-                self.check_and_restock(vec![ticket_type]).await;
+                if self.auto_restock {
+                    self.check_and_restock(vec![ticket_type]).await;
+                }
             }
             BandwidthControllerRequest::UpgradeModeToken(return_sender) => {
                 return_sender.send(self.get_upgrade_mode_token().await)
@@ -246,8 +283,10 @@ impl<St: Storage> BandwidthController<St> {
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
         self.credential_fetcher = fetcher;
-        self.check_and_restock(AvailableTicketbooks::ticketbook_types())
-            .await;
+        if self.auto_restock {
+            self.check_and_restock(self.managed_ticket_types.clone())
+                .await;
+        }
     }
 
     // Removes fetcher, stops in flight requests, clear credentials, answer all readiness request with unavailable

@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{collections::HashSet, path::Path, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use nym_bandwidth_controller::{
@@ -47,6 +47,17 @@ pub struct NyxdCredentialFetcher<C> {
     public_data_fetcher: NyxdGlobalDataFetcher<C>,
     // serialises on-chain deposits so concurrent fetches can't race the account sequence number.
     deposit_lock: tokio::sync::Mutex<()>,
+    // when `Some`, fresh deposits are only made for ticket types in this set; `None` allows all
+    // (the default, preserving prior behaviour). Recovery of already-paid deposits is never gated.
+    allowed_ticketbook_types: Option<HashSet<TicketType>>,
+}
+
+/// Whether a fresh deposit is permitted for `ticketbook_type` given an optional restriction set.
+/// `None` allows all types (the default); `Some(set)` allows only the listed types.
+fn deposit_allowed(allowed: &Option<HashSet<TicketType>>, ticketbook_type: TicketType) -> bool {
+    allowed
+        .as_ref()
+        .is_none_or(|allowed| allowed.contains(&ticketbook_type))
 }
 
 impl<C> NyxdCredentialFetcher<C>
@@ -73,7 +84,24 @@ where
             pending_storage,
             public_data_fetcher,
             deposit_lock: tokio::sync::Mutex::new(()),
+            allowed_ticketbook_types: None,
         })
+    }
+
+    /// Restrict the ticket types this fetcher will make *fresh* on-chain deposits for. Recovery of
+    /// already-paid deposits is unaffected. Without this, all types are permitted (prior behaviour).
+    #[must_use]
+    pub fn with_allowed_ticketbook_types(
+        mut self,
+        types: impl IntoIterator<Item = TicketType>,
+    ) -> Self {
+        self.allowed_ticketbook_types = Some(types.into_iter().collect());
+        self
+    }
+
+    /// Whether a fresh deposit is permitted for `ticketbook_type` under the current restriction.
+    fn deposit_allowed(&self, ticketbook_type: TicketType) -> bool {
+        deposit_allowed(&self.allowed_ticketbook_types, ticketbook_type)
     }
 
     async fn block_until_ecash_is_available(&self) -> Result<(), NyxdFetcherError> {
@@ -329,6 +357,21 @@ where
             }
         };
 
+        // Gate goes AFTER recovery (already-paid deposits are always honoured) and BEFORE any fresh
+        // deposit, so a restricted fetcher never spends funds on a disallowed type.
+        if !self.deposit_allowed(ticketbook_type) {
+            let allowed = self
+                .allowed_ticketbook_types
+                .as_ref()
+                .map(|s| s.iter().copied().collect())
+                .unwrap_or_default();
+            return Err(NyxdFetcherError::TicketbookTypeNotAllowed {
+                requested: ticketbook_type,
+                allowed,
+            }
+            .into());
+        }
+
         let ticketbook_expiration = ecash_default_expiration_date();
 
         info!("Starting to deposit funds, don't kill the process");
@@ -458,5 +501,39 @@ pub(crate) mod recovery {
                 .await
                 .map_err(NyxdFetcherError::from)?)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::deposit_allowed;
+    use nym_bandwidth_controller::TicketType;
+    use std::collections::HashSet;
+
+    #[test]
+    fn no_restriction_allows_all_types() {
+        let allowed = None;
+        assert!(deposit_allowed(&allowed, TicketType::V1WireguardEntry));
+        assert!(deposit_allowed(&allowed, TicketType::V1WireguardExit));
+        assert!(deposit_allowed(&allowed, TicketType::V1MixnetEntry));
+    }
+
+    #[test]
+    fn restriction_permits_only_listed_types() {
+        let allowed = Some(HashSet::from([
+            TicketType::V1WireguardEntry,
+            TicketType::V1WireguardExit,
+        ]));
+        assert!(deposit_allowed(&allowed, TicketType::V1WireguardEntry));
+        assert!(deposit_allowed(&allowed, TicketType::V1WireguardExit));
+        // the hard requirement: a wireguard-scoped fetcher never deposits for mixnet types
+        assert!(!deposit_allowed(&allowed, TicketType::V1MixnetEntry));
+        assert!(!deposit_allowed(&allowed, TicketType::V1MixnetExit));
+    }
+
+    #[test]
+    fn empty_restriction_permits_nothing() {
+        let allowed = Some(HashSet::new());
+        assert!(!deposit_allowed(&allowed, TicketType::V1WireguardEntry));
     }
 }

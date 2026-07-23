@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::ip_packet_client::{
     discovery::{create_nym_api_client, get_best_ipr, lookup_node_version},
-    handle_ipr_response,
-    listener::check_ipr_message_version,
     MixnetMessageOutcome,
 };
 use crate::mixnet::{MixnetClient, MixnetStream, Recipient};
@@ -57,6 +55,10 @@ pub struct IpMixStream {
     allocated_ips: IpPair,
     /// MTU reported by the IPR in a v10 connect response; `None` against a v9 IPR.
     negotiated_mtu: Option<u16>,
+    /// The IPR protocol version this tunnel connected with (v9 or v10). Stamped
+    /// on outgoing data requests and expected on every inbound frame: the IPR
+    /// mirrors the connect version on all traffic for the connection's lifetime.
+    protocol_version: u8,
     connected: bool,
 }
 
@@ -110,7 +112,7 @@ impl IpMixStream {
         let mut stream = client.open_stream(ipr_address, Some(10)).await?;
 
         info!("Connecting to IP packet router at {ipr_address}");
-        let (allocated_ips, negotiated_mtu) =
+        let (allocated_ips, negotiated_mtu, protocol_version) =
             Self::connect_tunnel(&mut stream, node_version.as_ref()).await?;
         info!(
             "Connected — IPv4: {}, IPv6: {}, MTU: {}",
@@ -126,6 +128,7 @@ impl IpMixStream {
             client,
             allocated_ips,
             negotiated_mtu,
+            protocol_version,
             connected: true,
         })
     }
@@ -159,11 +162,12 @@ impl IpMixStream {
 
     /// Connect using the IPR protocol version the node's release supports, chosen
     /// from its directory version rather than a per-connect probe. `None` version
-    /// (unknown node) defaults to v9. Returns the allocated IPs and, on v10, the MTU.
+    /// (unknown node) defaults to v9. Returns the allocated IPs, the MTU (v10
+    /// only), and the protocol version the tunnel settled on.
     async fn connect_tunnel(
         stream: &mut MixnetStream,
         node_version: Option<&semver::Version>,
-    ) -> Result<(IpPair, Option<u16>), Error> {
+    ) -> Result<(IpPair, Option<u16>, u8), Error> {
         // SMOLMIX_IPR_VERSION overrides the node version used for protocol gating
         // (semver, e.g. "1.37.0"). Test/debug knob for exercising a protocol
         // version against a node the directory reports as older, such as a local
@@ -187,7 +191,7 @@ impl IpMixStream {
         let use_v10 = node_version.and_then(best_supported_version) == Some(v10::VERSION);
         if use_v10 {
             match Self::connect_v10(stream, IPR_V10_ATTEMPT_TIMEOUT).await {
-                Ok((ips, mtu)) => return Ok((ips, Some(mtu))),
+                Ok((ips, mtu)) => return Ok((ips, Some(mtu), v10::VERSION)),
                 // The directory version can lead the running IPR (mid-upgrade,
                 // stale describe cache), so retry v9 rather than hard-failing.
                 Err(Error::IPRConnectResponseTimeout) => {
@@ -197,7 +201,7 @@ impl IpMixStream {
             }
         }
         let ips = Self::connect_v9(stream).await?;
-        Ok((ips, None))
+        Ok((ips, None, v9::VERSION))
     }
 
     /// v10 connect: reports the IPR's accepted MTU alongside the allocated IPs.
@@ -239,6 +243,7 @@ impl IpMixStream {
                                 .map(|success| (success.ips, success.mtu))
                                 .map_err(|e| match e {
                                     response_helpers::IprResponseError::ConnectDenied(r) => Error::ConnectDenied(r),
+                                    response_helpers::IprResponseError::UnexpectedResponse(d) => Error::UnexpectedResponseType(d),
                                     other => Error::IPRMessageVersionCheckFailed(other.to_string()),
                                 });
                         }
@@ -270,7 +275,13 @@ impl IpMixStream {
                 result = stream.recv() => {
                     let data = result.ok_or(Error::IPRClientStreamClosed)?;
 
-                    check_ipr_message_version(&data)?;
+                    // Skip frames from another version rather than aborting: in the
+                    // v10-to-v9 fallback a late v10 response can land here, and it
+                    // must not kill a v9 connect that would otherwise succeed.
+                    if data.first() != Some(&v9::VERSION) {
+                        debug!("ignoring frame with unexpected version during v9 connect");
+                        continue;
+                    }
                     if let Ok(response) = IpPacketResponse::from_bytes(&data) {
                         if response.id() == Some(request_id) {
                             return response_helpers::parse_connect_response(response)
@@ -286,10 +297,15 @@ impl IpMixStream {
         }
     }
 
-    /// Send an IP packet through the tunnel.
+    /// Send an IP packet through the tunnel, stamped with the connect-time
+    /// protocol version so requests and responses stay on one version.
     pub async fn send_ip_packet(&mut self, packet: &[u8]) -> Result<(), Error> {
         self.check_connected()?;
-        let request = v9::new_data_request(packet.to_vec().into());
+        let request = if self.protocol_version == v10::VERSION {
+            v10::new_data_request(packet.to_vec().into())
+        } else {
+            v9::new_data_request(packet.to_vec().into())
+        };
         let request_bytes = request.to_bytes()?;
         self.stream
             .write_all(&request_bytes)
@@ -311,18 +327,29 @@ impl IpMixStream {
             Ok(Some(data)) => data,
         };
 
-        match handle_ipr_response(&data) {
-            Ok(Some(MixnetMessageOutcome::IpPackets(packets))) => {
+        // The IPR mirrors the connect-time version on all traffic (data included),
+        // so gate on the negotiated version, not a fixed one. Skip a mismatched
+        // frame rather than tearing down the tunnel over one stray frame.
+        if data.first() != Some(&self.protocol_version) {
+            warn!(
+                "ignoring frame with version {:?}, expected v{}",
+                data.first(),
+                self.protocol_version
+            );
+            return Ok(Vec::new());
+        }
+
+        match response_helpers::handle_ipr_response(&data) {
+            Some(MixnetMessageOutcome::IpPackets(packets)) => {
                 debug!("Extracted {} IP packets", packets.len());
                 Ok(packets)
             }
-            Ok(Some(MixnetMessageOutcome::Disconnect)) => {
+            Some(MixnetMessageOutcome::Disconnect) => {
                 info!("Received disconnect");
                 self.connected = false;
                 Err(Error::IprTunnelDisconnected)
             }
-            Ok(None) => Ok(Vec::new()),
-            Err(e) => Err(e),
+            None => Ok(Vec::new()),
         }
     }
 

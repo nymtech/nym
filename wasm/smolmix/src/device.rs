@@ -29,7 +29,7 @@ pub struct WasmDevice {
 }
 
 /// Client MTU: Android keeps its mobile MTU (1280); elsewhere use the IPR-reported
-/// MTU (v10) or 1420 for pre-v10 IPRs. Native tests can't sniff, so take the else.
+/// MTU (v10) or 1420 for pre-v10 IPRs.
 fn client_mtu(negotiated: Option<u16>) -> usize {
     #[cfg(target_arch = "wasm32")]
     {
@@ -426,8 +426,7 @@ mod tests {
         let dev = WasmDevice::new(None);
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        // Native test target with no negotiated MTU: client_mtu(None) is 1420 (the
-        // wasm user-agent sniff only runs on wasm32).
+        // Native target: the Android sniff is wasm-only, so client_mtu(None) is always the 1420 fallback.
         assert_eq!(caps.max_transmission_unit, 1420);
     }
 }

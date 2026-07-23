@@ -260,14 +260,11 @@ The bridge protocol (see §14 for sources):
   and `ED25519`-only verify schemes. The client is anonymous
   (`with_no_client_auth()`).
 - **Delegate the QUIC connection to the `nym-bridges` client; add only the datapath
-  framing on top.** `nym-smol-dvpn` depends on the `nym-bridges` crate (git-pinned)
-  and uses its `transport::quic::{transport_conn, ClientOptions}` to establish the
-  cert-pinned, ALPN-`hq-29` connection, so the client can never drift from the bridge
-  server. On top of that connection this crate adds the WireGuard datapath: one
-  reliable `open_bi()` stream carrying 2-byte-length-framed WG packets. Because the
-  protocol is versioned `"0"` and explicitly unstable, the dependency is pinned to a
-  commit, and publishing `nym-smol-dvpn` to crates.io is blocked until `nym-bridges`
-  is released.
+  framing on top.** `nym-smol-dvpn` depends on the `nym-bridges` crate (published to
+  crates.io) and uses its `transport::quic::{transport_conn, ClientOptions}` to
+  establish the cert-pinned, ALPN-`hq-29` connection, so the client can never drift
+  from the bridge server. On top of that connection this crate adds the WireGuard
+  datapath: one reliable `open_bi()` stream carrying 2-byte-length-framed WG packets.
 - **Session liveness.** `nym-bridges` does not set QUIC keep-alive or a BBR
   congestion controller; WireGuard's own persistent-keepalive keeps the long-lived
   session (and its NAT mapping) alive.
@@ -370,17 +367,26 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
   cancellation token (or an explicit `shutdown()`).
 - While connected, `smol-dvpn` runs background tasks: the boringtun timer pump,
   the transport receive loop, the DNS resolver, and a **bandwidth top-up task**.
-- **Top-up during a live tunnel:** the `BandwidthController` keeps the *store*
-  stocked, but fresh tickets must be *pushed to the gateways* to extend the
-  session. This uses the gateway `metadata` endpoint
-  (`wireguard-private-metadata` client: `topup_bandwidth(CredentialSpendingData)
-  -> available_bandwidth`, and `available_bandwidth()` to watch remaining). The
-  top-up task spends a stored ticket before bandwidth is exhausted.
-- The metadata endpoint is reached **through the tunnel**. The reference confirms
-  this: its metadata endpoint IP is included in the entry peer's `allowed_ips`
-  alongside the exit endpoint, and it is served over an in-tunnel TCP proxy. In our
-  model the metadata endpoint is just another destination reachable via
-  `smol-core`'s `tcp_connect` on the running tunnel.
+- **Two distinct top-up layers.** These are separate and independently controlled:
+  1. *Gateway-side top-up* (extending a live tunnel): fresh tickets are *pushed to
+     the gateways* via the `metadata` endpoint to raise `available_bandwidth`. This
+     spends **already-stored** tickets, so it costs nothing new and is **on by
+     default** for session-built tunnels — the tunnel stays alive without the caller
+     writing plumbing. It can be disabled or run in monitor-only mode.
+  2. *Chain-side restock* (buying **new** ticketbooks by depositing NYM): handled by
+     the `BandwidthController` and **opt-in** via `SessionConfig::automatic_topups`,
+     because a ticketbook is large (≈37.5 GB) and over-requesting costs the
+     implementer NYM. When off, the controller runs with auto-restock disabled and
+     only spends existing stock.
+- **The metadata client dials through the tunnel.** The metadata endpoint IP is in
+  the entry peer's `allowed_ips` and is served in-tunnel; `smol-dvpn` reaches it with
+  a hyper HTTP/1 client over the tunnel's own `TunnelConnector`, never the host
+  network — so top-up traffic cannot leak the client's real IP.
+- **Bandwidth events.** Monitoring is decoupled from acting: the tunnel emits
+  `BandwidthEvent`s (`Low`/`ToppedUp`/`TopupFailed`/`Exhausted`) on a broadcast
+  channel (`Tunnel::bandwidth_events()`) whenever a metadata endpoint is known, even
+  with automatic top-up disabled — so an implementer can prompt the user to obtain
+  more ticketbooks and drive top-up themselves.
 
 ## 11. Public API
 

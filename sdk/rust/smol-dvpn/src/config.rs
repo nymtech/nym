@@ -10,19 +10,23 @@
 
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
-/// Fixed exit client source port — the reference `DEFAULT_EXIT_WG_CLIENT_PORT`
-/// (two_hop_config.rs:17). Used as a fallback when a dynamic port is not bound.
+use boringtun::x25519::{PublicKey, StaticSecret};
+
+/// Fixed *client source port* used inside the two-hop inner IPv4/UDP frame — the exit tunnel's
+/// packets are framed with this as their UDP source port before being encapsulated to the entry
+/// gateway (matching the reference `DEFAULT_EXIT_WG_CLIENT_PORT`, two_hop_config.rs:17). It is NOT a
+/// port any node listens on; it only identifies the client side of the inner exit flow.
 pub const DEFAULT_EXIT_WG_CLIENT_PORT: u16 = 54001;
 
-/// One WireGuard peer/hop. All key material is raw 32-byte x25519, keeping the
-/// datapath independent of any particular crypto wrapper type.
+/// One WireGuard peer/hop. Keys are the datapath's native `boringtun` x25519 types (strongly typed,
+/// so a public and secret key can't be transposed), rather than raw byte arrays.
 #[derive(Clone)]
 pub struct PeerConfig {
     /// The gateway's WireGuard public key (x25519).
-    pub gateway_public_key: [u8; 32],
-    /// The client's WireGuard private key for this hop (x25519).
-    pub client_private_key: [u8; 32],
-    /// LP-negotiated preshared key, if any.
+    pub gateway_public_key: PublicKey,
+    /// The client's WireGuard secret key for this hop (x25519).
+    pub client_private_key: StaticSecret,
+    /// LP-negotiated preshared key, if any (a symmetric 32-byte key, not an x25519 key).
     pub preshared_key: Option<[u8; 32]>,
     /// The gateway's WireGuard UDP endpoint.
     pub endpoint: SocketAddr,
@@ -34,12 +38,15 @@ pub struct PeerConfig {
 
 impl std::fmt::Debug for PeerConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Never print key material.
+        // Show non-secret fields (the gateway public key is not secret); never print the client
+        // secret key or the preshared key.
         f.debug_struct("PeerConfig")
+            .field("gateway_public_key", &self.gateway_public_key.as_bytes())
+            .field("client_private_key", &"<redacted>")
+            .field("preshared_key", &self.preshared_key.map(|_| "<redacted>"))
             .field("endpoint", &self.endpoint)
             .field("assigned_ipv4", &self.assigned_ipv4)
             .field("assigned_ipv6", &self.assigned_ipv6)
-            .field("preshared_key", &self.preshared_key.map(|_| "<redacted>"))
             .finish()
     }
 }
@@ -70,8 +77,17 @@ impl MtuConfig {
 }
 
 impl Default for MtuConfig {
+    /// Mobile targets (iOS/Android) default to the smaller [`MtuConfig::MOBILE`] values; all other
+    /// targets default to [`MtuConfig::DESKTOP`].
     fn default() -> Self {
-        Self::DESKTOP
+        #[cfg(any(target_os = "ios", target_os = "android"))]
+        {
+            Self::MOBILE
+        }
+        #[cfg(not(any(target_os = "ios", target_os = "android")))]
+        {
+            Self::DESKTOP
+        }
     }
 }
 

@@ -19,7 +19,10 @@ use futures::StreamExt;
 use smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig, TcpStream, UdpSocket};
 
 use crate::connectors::TunnelConnector;
-use crate::topup::{run_topup, BandwidthCredentialSource, TopupConfig};
+use crate::topup::{
+    event_channel, run_topup, BandwidthCredentialSource, BandwidthEvent, TopupConfig,
+};
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
@@ -32,6 +35,10 @@ use crate::transport::{direct_transport, SocketProtector, WgReceiver, WgSender};
 
 /// boringtun timer pump interval.
 const TIMER_INTERVAL: Duration = Duration::from_millis(250);
+
+/// Backoff after a transient (Direct UDP) transport recv error, so a persistently failing socket
+/// does not busy-loop the datapath.
+const TRANSPORT_ERROR_BACKOFF: Duration = Duration::from_millis(100);
 
 /// A shared, swappable handle to the current smol-core stack. Swapped in place
 /// when the MTU changes at runtime (see [`Tunnel::set_mtu`]).
@@ -80,6 +87,14 @@ enum TransportChoice {
     Quic(BridgeParams),
 }
 
+/// Bandwidth monitoring/top-up settings for the tunnel: the endpoint + thresholds to poll, and an
+/// optional credential source. With a source, the tunnel tops up automatically; without one it only
+/// emits [`BandwidthEvent`]s so the caller can react.
+struct TopupSpec {
+    config: TopupConfig,
+    source: Option<Arc<dyn BandwidthCredentialSource>>,
+}
+
 /// Builder for a [`Tunnel`].
 pub struct TunnelBuilder {
     entry: PeerConfig,
@@ -88,7 +103,7 @@ pub struct TunnelBuilder {
     transport: TransportChoice,
     protector: Option<SocketProtector>,
     cancel: Option<CancellationToken>,
-    topup: Option<(TopupConfig, Arc<dyn BandwidthCredentialSource>)>,
+    topup: Option<TopupSpec>,
 }
 
 impl TunnelBuilder {
@@ -143,14 +158,30 @@ impl TunnelBuilder {
     }
 
     /// Run a background bandwidth top-up task: poll the gateway `metadata`
-    /// endpoint and spend stored tickets (via `source`) before the registered
-    /// bandwidth is exhausted. Stops with the tunnel.
+    /// endpoint **through the tunnel** and spend stored tickets (via `source`)
+    /// before the registered bandwidth is exhausted. Also emits
+    /// [`BandwidthEvent`]s (see [`Tunnel::bandwidth_events`]). Stops with the tunnel.
     pub fn bandwidth_topup(
         mut self,
         config: TopupConfig,
         source: Arc<dyn BandwidthCredentialSource>,
     ) -> Self {
-        self.topup = Some((config, source));
+        self.topup = Some(TopupSpec {
+            config,
+            source: Some(source),
+        });
+        self
+    }
+
+    /// Monitor bandwidth without automatic top-up: poll the gateway `metadata`
+    /// endpoint through the tunnel and emit [`BandwidthEvent`]s (see
+    /// [`Tunnel::bandwidth_events`]) so the caller can react (e.g. prompt the user
+    /// to buy more ticketbooks). No tickets are ever spent.
+    pub fn bandwidth_monitor(mut self, config: TopupConfig) -> Self {
+        self.topup = Some(TopupSpec {
+            config,
+            source: None,
+        });
         self
     }
 
@@ -174,6 +205,11 @@ pub struct Tunnel {
     mtu: RwLock<MtuConfig>,
     // Hands the datapath the new stack's channels when the stack is swapped.
     swap_tx: mpsc::UnboundedSender<StackChannels>,
+    // Serialises `set_mtu` so a concurrent pair can't leave the published stack and the datapath's
+    // channels referring to different stacks.
+    swap_lock: std::sync::Mutex<()>,
+    // Broadcasts bandwidth monitor/top-up events to subscribers.
+    events_tx: broadcast::Sender<BandwidthEvent>,
 }
 
 impl Tunnel {
@@ -256,13 +292,26 @@ impl Tunnel {
             cancel.clone(),
         ));
 
-        // Optional background bandwidth top-up task.
-        let topup_task = builder
-            .topup
-            .map(|(cfg, source)| tokio::spawn(run_topup(cfg, source, cancel.clone())));
+        let shared_stack: SharedStack = Arc::new(RwLock::new(Arc::new(stack)));
+
+        // Bandwidth events are always available (empty until a monitor/top-up runs).
+        let events_tx = event_channel();
+
+        // Optional background bandwidth monitor/top-up task, dialling the metadata
+        // endpoint through this tunnel's connector.
+        let topup_task = builder.topup.map(|spec| {
+            let connector = TunnelConnector::new(shared_stack.clone());
+            tokio::spawn(run_topup(
+                spec.config,
+                spec.source,
+                connector,
+                events_tx.clone(),
+                cancel.clone(),
+            ))
+        });
 
         Ok(Tunnel {
-            stack: Arc::new(RwLock::new(Arc::new(stack))),
+            stack: shared_stack,
             cancel,
             task: Some(task),
             topup_task,
@@ -272,6 +321,8 @@ impl Tunnel {
             two_hop,
             mtu: RwLock::new(builder.config.mtu),
             swap_tx,
+            swap_lock: std::sync::Mutex::new(()),
+            events_tx,
         })
     }
 
@@ -288,7 +339,12 @@ impl Tunnel {
     pub fn set_mtu(&self, mtu: MtuConfig) -> Result<()> {
         let interface_mtu = if self.two_hop { mtu.exit } else { mtu.entry };
         let (stack, channels) = build_stack(self.assigned, self.ipv6, self.dns, interface_mtu);
-        // Hand the running datapath the new stack's channels, then publish it.
+        // Serialise the whole swap so two concurrent calls can't interleave their channel-send and
+        // stack-publish steps and leave `self.stack` and the datapath's channels out of sync.
+        let _swap = self.swap_lock.lock().expect("swap lock poisoned");
+        // Hand the running datapath the new stack's channels FIRST, then publish the new stack. The
+        // datapath's `select!` is `biased` with the swap branch first, so it adopts the new channels
+        // before it can observe the old `stack_out_rx` closing when the old stack is dropped here.
         self.swap_tx
             .unbounded_send(channels)
             .map_err(|_| DvpnError::Transport("datapath has stopped".into()))?;
@@ -296,6 +352,13 @@ impl Tunnel {
         *self.mtu.write().expect("mtu lock poisoned") = mtu;
         info!(mtu = interface_mtu, "tunnel MTU updated at runtime");
         Ok(())
+    }
+
+    /// Subscribe to [`BandwidthEvent`]s from the monitor/top-up task. Works whether the tunnel was
+    /// built with `bandwidth_topup` (auto top-up) or `bandwidth_monitor` (events only); with
+    /// neither, no events are ever emitted.
+    pub fn bandwidth_events(&self) -> broadcast::Receiver<BandwidthEvent> {
+        self.events_tx.subscribe()
     }
 
     /// Open a TCP connection through the tunnel.
@@ -398,6 +461,30 @@ async fn datapath(
 
     loop {
         tokio::select! {
+            // `biased`: check the swap and cancel branches before the data branches. This is what
+            // makes a runtime MTU change safe: when `set_mtu` sends new channels and then drops the
+            // old stack (closing `stack_out_rx`), both the swap branch and the `stack_out_rx`
+            // closure become ready at once; taking the swap FIRST adopts the new channels so the
+            // closed-`stack_out_rx` `None => break` never fires and the tunnel survives the resize.
+            biased;
+
+            // Runtime MTU change: swap to the rebuilt stack's channels while
+            // keeping the WireGuard engine/session intact.
+            maybe_swap = swap_rx.next() => {
+                match maybe_swap {
+                    Some((new_out_rx, new_in_tx)) => {
+                        debug!("datapath swapping stack channels (runtime MTU change)");
+                        stack_out_rx = new_out_rx;
+                        stack_in_tx = new_in_tx;
+                    }
+                    // `swap_tx` was dropped — the tunnel is being torn down (Drop also fires
+                    // `cancel`). Because this biased branch is polled first, we must break on its
+                    // closure; otherwise `swap_rx.next()` returns `Ready(None)` every poll and
+                    // starves the cancel branch, spinning the task at 100% CPU.
+                    None => break,
+                }
+            }
+
             _ = cancel.cancelled() => {
                 debug!("datapath cancelled");
                 break;
@@ -426,8 +513,16 @@ async fn datapath(
                         send_all(&mut sender, out.to_network).await;
                     }
                     Err(e) => {
-                        // Transient on Direct UDP; fatal on a closed bridge stream.
-                        debug!("transport recv error: {e}");
+                        if receiver.is_bridge() {
+                            // A closed QUIC bridge stream cannot recover: stop the datapath rather
+                            // than spin re-reading a permanently failed transport.
+                            warn!("bridge transport failed, stopping datapath: {e}");
+                            break;
+                        }
+                        // Direct UDP: transient. Back off briefly so a persistently failing socket
+                        // doesn't busy-loop the CPU.
+                        debug!("transport recv error (transient): {e}");
+                        tokio::time::sleep(TRANSPORT_ERROR_BACKOFF).await;
                     }
                 }
             }
@@ -435,16 +530,6 @@ async fn datapath(
             _ = ticker.tick() => {
                 let out = engine.update_timers();
                 send_all(&mut sender, out.to_network).await;
-            }
-
-            // Runtime MTU change: swap to the rebuilt stack's channels while
-            // keeping the WireGuard engine/session intact.
-            maybe_swap = swap_rx.next() => {
-                if let Some((new_out_rx, new_in_tx)) = maybe_swap {
-                    debug!("datapath swapping stack channels (runtime MTU change)");
-                    stack_out_rx = new_out_rx;
-                    stack_in_tx = new_in_tx;
-                }
             }
         }
     }

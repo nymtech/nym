@@ -19,6 +19,7 @@
 //! ```
 
 use std::future::Future;
+use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
@@ -65,7 +66,18 @@ impl Service<Uri> for TunnelConnector {
                 Some("http") => 80,
                 _ => 443,
             });
-            let stream = stack.tcp_connect_host(&host, port).await?;
+            // An IP-literal host (including a bracketed IPv6 form from `Uri::host()`, e.g.
+            // "[::1]") must connect directly — routing it through DNS would turn "10.0.0.1" into a
+            // bogus A-query. Only real hostnames fall through to the in-tunnel resolver.
+            let unbracketed = host
+                .strip_prefix('[')
+                .and_then(|h| h.strip_suffix(']'))
+                .unwrap_or(&host);
+            let stream = if let Ok(ip) = unbracketed.parse::<IpAddr>() {
+                stack.tcp_connect(SocketAddr::new(ip, port)).await?
+            } else {
+                stack.tcp_connect_host(&host, port).await?
+            };
             Ok(TokioIo::new(stream))
         })
     }

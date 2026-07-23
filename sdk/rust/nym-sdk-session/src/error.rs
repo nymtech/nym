@@ -7,8 +7,12 @@ use std::net::SocketAddr;
 #[derive(thiserror::Error, Debug)]
 pub enum SessionError {
     /// Failed to construct or talk to the nyxd chain client.
-    #[error("chain client error: {0}")]
-    Chain(String),
+    #[error("nyxd chain client error: {0}")]
+    Nyxd(#[from] nym_validator_client::nyxd::error::NyxdError),
+
+    /// A nym-api request failed.
+    #[error("nym-api error: {0}")]
+    Api(String),
 
     /// The configured network has no usable validator/API endpoint.
     #[error("network details contain no usable {which} endpoint")]

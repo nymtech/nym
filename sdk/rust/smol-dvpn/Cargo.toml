@@ -46,6 +46,17 @@ nym-http-api-client = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-wireguard-private-metadata-client = { workspace = true }
 nym-wireguard-private-metadata-shared = { workspace = true }
+# In-tunnel metadata client: the top-up HTTP requests are dialled through the
+# tunnel's own `TunnelConnector` (hyper) rather than the host network, so a
+# long-lived tunnel tops up without leaking the client's real IP.
+http-body-util = { workspace = true }
+serde_json = { workspace = true }
+# The ready-made credential source adapter over a bandwidth ticket provider (e.g.
+# the session's controller sender). `nym-bandwidth-controller` is a `common/`
+# crate, so depending on it here does not invert the session↔datapath direction.
+nym-bandwidth-controller = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+time = { workspace = true }
 
 # --- Crate-local deps: deliberately NOT promoted to the workspace dependency
 # --- table. The userspace WireGuard engine and the QUIC bridge stack live only
@@ -58,8 +69,8 @@ rustls-pki-types = "1"
 
 # The QUIC bridge client is delegated to the canonical `nym-bridges`
 # implementation (cert-pinning verifier, ALPN, dialing) instead of being
-# reimplemented here — see `bridge.rs`. Not yet on crates.io, so pulled via git;
-# `cargo publish` of this crate is blocked until `nym-bridges` is released.
+# reimplemented here — see `bridge.rs`. Published to crates.io, so this is a
+# normal versioned dependency.
 nym-bridges = "0.1.2"
 
 [dev-dependencies]

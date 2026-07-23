@@ -76,6 +76,8 @@ pub async fn new_session(data_dir: &str) -> Session {
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
             data_path: data_dir.into(),
             dvpn_directory_url: Some(dvpn_directory_url()),
+            automatic_topups: None,
+            bandwidth_provider: None,
         },
         tokio_util::sync::CancellationToken::new(),
     )
@@ -123,6 +125,54 @@ pub async fn build_tunnel(reg: &Registration, use_quic: bool) -> Result<Tunnel, 
         let entry = peer_from_hop(&reg.entry);
         Ok(TunnelBuilder::single_hop(entry).connect().await?)
     }
+}
+
+/// Bring up a tunnel with gateway-side bandwidth top-up wired in — the recommended default for a
+/// long-lived, session-built tunnel. Spends already-stored tickets (obtained via the session's
+/// bandwidth provider) against the in-tunnel `metadata` endpoint before bandwidth runs out, and
+/// exposes [`nym_smol_dvpn::BandwidthEvent`]s via `tunnel.bandwidth_events()`.
+///
+/// The bandwidth top-up meters at the exit gateway (the sole hop for one-hop), so it spends
+/// `WgRole::Exit` tickets there.
+pub async fn build_tunnel_with_topup(
+    reg: &Registration,
+    session: &Session,
+    metadata_url: String,
+    use_quic: bool,
+) -> Result<Tunnel, BoxError> {
+    use nym_credentials_interface::TicketType;
+    use nym_smol_dvpn::{ProviderCredentialSource, TopupConfig};
+
+    // The metering gateway is the exit (or the sole gateway for one-hop).
+    let (metering, ticket_type) = match reg.exit.as_ref() {
+        Some(exit) => (exit, TicketType::V1WireguardExit),
+        None => (&reg.entry, TicketType::V1WireguardEntry),
+    };
+
+    let source = std::sync::Arc::new(ProviderCredentialSource::new(
+        session.bandwidth_provider(),
+        metering.gateway_identity,
+        ticket_type,
+    ));
+
+    let mut builder = if let Some(exit) = reg.exit.as_ref() {
+        let entry = peer_from_hop(&reg.entry);
+        let exit = peer_from_hop(exit);
+        let mut b = TunnelBuilder::two_hop(entry, exit);
+        if use_quic {
+            let qb = reg
+                .entry
+                .bridge
+                .as_ref()
+                .ok_or("QUIC requested but the entry hop carries no bridge params")?;
+            b = b.quic_bridge(bridge_params(qb));
+        }
+        b
+    } else {
+        TunnelBuilder::single_hop(peer_from_hop(&reg.entry))
+    };
+    builder = builder.bandwidth_topup(TopupConfig::new(metadata_url), source);
+    Ok(builder.connect().await?)
 }
 
 // --- CLI --------------------------------------------------------------------
@@ -250,8 +300,8 @@ pub fn describe(cli: &Cli) -> String {
 /// Map a session hop into the datapath's transport-agnostic peer config.
 pub fn peer_from_hop(hop: &HopConfig) -> PeerConfig {
     PeerConfig {
-        gateway_public_key: hop.wg_config.public_key.to_bytes(),
-        client_private_key: hop.client_private_key.to_bytes(),
+        gateway_public_key: hop.wg_config.public_key.to_bytes().into(),
+        client_private_key: hop.client_private_key.to_bytes().into(),
         preshared_key: hop.wg_config.psk.as_ref().map(|p| *p.as_bytes()),
         endpoint: hop.wg_config.endpoint,
         assigned_ipv4: hop.wg_config.private_ipv4,

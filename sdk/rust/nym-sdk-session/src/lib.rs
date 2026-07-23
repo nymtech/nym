@@ -15,13 +15,13 @@
 //! use nym_sdk_session::{GatewaySpec, Session, SessionConfig};
 //! use tokio_util::sync::CancellationToken;
 //!
-//! let config = SessionConfig {
-//!     mnemonic: "..".parse()?,
-//!     network: nym_network_defaults::NymNetworkDetails::new_mainnet(),
-//!     credential_store_path: None,
-//!     data_path: "/tmp/dvpn".into(),
-//!     dvpn_directory_url: None,
-//! };
+//! // Provisions once and tops up a live tunnel from stored tickets; opt into background
+//! // re-issuance with `.with_automatic_topups(..)`.
+//! let config = SessionConfig::new(
+//!     "..".parse()?,
+//!     nym_network_defaults::NymNetworkDetails::new_mainnet(),
+//!     "/tmp/dvpn".into(),
+//! );
 //! let session = Session::new(config, CancellationToken::new()).await?;
 //!
 //! // Two-hop: entry in Germany, random exit.

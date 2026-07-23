@@ -59,18 +59,25 @@ impl StackConfig {
     }
 
     /// Set the assigned IPv6 address.
+    ///
+    /// **Warning:** dual-stack is not yet wired end-to-end — `tokio-smoltcp` 0.5 binds a single
+    /// interface address, so today the stack operates as IPv4-only and this address has no effect on
+    /// routing. Accepted for forward-compatibility only.
+    #[must_use]
     pub fn with_ipv6(mut self, ipv6: Ipv6Addr) -> Self {
         self.ipv6 = Some(ipv6);
         self
     }
 
     /// Set the interface MTU.
+    #[must_use]
     pub fn with_mtu(mut self, mtu: usize) -> Self {
         self.mtu = mtu;
         self
     }
 
     /// Set the per-socket TCP buffer size (the TCP window; see [`DEFAULT_TCP_BUFFER`]).
+    #[must_use]
     pub fn with_tcp_buffer(mut self, tcp_buffer: usize) -> Self {
         self.tcp_buffer = tcp_buffer;
         self
@@ -116,6 +123,7 @@ impl Stack {
     }
 
     /// Override the tunnel DNS configuration (upstream server, timeout).
+    #[must_use]
     pub fn with_dns_config(mut self, dns: DnsConfig) -> Self {
         self.dns = dns;
         self
@@ -150,11 +158,20 @@ impl Stack {
     /// Resolve `host` to IP addresses over the tunnel, using the configured
     /// upstream DNS server. Each query travels through a stack UDP socket, not
     /// the host resolver.
+    ///
+    /// A host that is already an IP literal is returned as-is with no DNS query.
     pub async fn resolve(&self, host: &str) -> Result<Vec<IpAddr>> {
-        dns::resolve(&self.net, &self.dns, host).await
+        if let Ok(ip) = host.parse::<IpAddr>() {
+            return Ok(vec![ip]);
+        }
+        // AAAA is only queried once the stack has an IPv6 address; otherwise an AAAA answer would be
+        // unroutable on this v4-only interface.
+        let want_ipv6 = self.config.ipv6.is_some();
+        dns::resolve(&self.net, &self.dns, host, want_ipv6).await
     }
 
     /// Resolve `host` and open a TCP connection to the first address on `port`.
+    /// An IP-literal `host` connects directly, without a DNS query.
     pub async fn tcp_connect_host(&self, host: &str, port: u16) -> Result<TcpStream> {
         let addrs = self.resolve(host).await?;
         let addr = SocketAddr::new(addrs[0], port);

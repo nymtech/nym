@@ -57,6 +57,8 @@ async fn run() -> Result<(), String> {
             credential_store_path: Some("smol-dvpn-topup-creds.db".into()),
             data_path: "smol-dvpn-topup-data".into(),
             dvpn_directory_url: None,
+            automatic_topups: None,
+            bandwidth_provider: None,
         },
         CancellationToken::new(),
     )

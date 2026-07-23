@@ -9,11 +9,11 @@
 //! equivalent of `smolmix`'s in-mixnet DNS approach.
 
 use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
-use hickory_proto::op::{Message, MessageType, OpCode, Query};
+use hickory_proto::op::{Message, MessageType, OpCode, Query, ResponseCode};
 use hickory_proto::rr::{Name, RData, RecordType};
+use tokio::time::Instant;
 use tokio_smoltcp::Net;
 
 use crate::error::{Result, SmolCoreError};
@@ -24,10 +24,6 @@ pub const DEFAULT_DNS_SERVER: SocketAddr =
 
 /// Default per-query timeout.
 pub const DEFAULT_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
-
-// Monotonic-ish DNS transaction id source (single in-flight query per socket,
-// but distinct ids avoid confusing a resolver that reuses a socket).
-static TXN_ID: AtomicU16 = AtomicU16::new(1);
 
 /// Configuration for the tunnel DNS resolver.
 #[derive(Clone, Copy, Debug)]
@@ -47,29 +43,47 @@ impl Default for DnsConfig {
     }
 }
 
-/// Resolve `host` to a list of IP addresses over the given stack, querying both
-/// A and AAAA records. Every DNS packet is sent through a stack UDP socket.
-pub(crate) async fn resolve(net: &Net, cfg: &DnsConfig, host: &str) -> Result<Vec<IpAddr>> {
+/// Resolve `host` to a list of IP addresses over the given stack.
+///
+/// Queries A, and AAAA only when `want_ipv6` is set — the stack binds a single IPv4 `/32` today, so
+/// returning an AAAA answer would hand callers an unroutable address. (When dual-stack lands, the
+/// two queries can be issued concurrently with `join!`.)
+pub(crate) async fn resolve(
+    net: &Net,
+    cfg: &DnsConfig,
+    host: &str,
+    want_ipv6: bool,
+) -> Result<Vec<IpAddr>> {
     let name = Name::from_utf8(host).map_err(|e| SmolCoreError::DnsProto(e.to_string()))?;
 
+    let mut rtypes = vec![RecordType::A];
+    if want_ipv6 {
+        rtypes.push(RecordType::AAAA);
+    }
+
     let mut addrs = Vec::new();
-    // A and AAAA are independent queries; collect whatever resolves.
-    for rtype in [RecordType::A, RecordType::AAAA] {
+    let mut last_err = None;
+    for rtype in rtypes {
         match query_one(net, cfg, &name, rtype).await {
             Ok(mut a) => addrs.append(&mut a),
-            // A missing AAAA (or vice versa) is normal; only propagate if both
-            // fail, which surfaces as an empty set below.
+            // A missing record of one type is normal.
             Err(SmolCoreError::DnsNoRecords { .. }) => {}
-            Err(e) => tracing::debug!("DNS {rtype} query for {host} failed: {e}"),
+            // Remember a server failure / protocol / timeout error, but don't let a failing query
+            // for one record type discard addresses another type already resolved (e.g. AAAA
+            // SERVFAILs while A succeeded). Only surface it if nothing resolves at all.
+            Err(e) => last_err = Some(e),
         }
     }
 
-    if addrs.is_empty() {
-        return Err(SmolCoreError::DnsNoRecords {
-            name: host.to_string(),
-        });
+    if !addrs.is_empty() {
+        return Ok(addrs);
     }
-    Ok(addrs)
+    if let Some(e) = last_err {
+        return Err(e);
+    }
+    Err(SmolCoreError::DnsNoRecords {
+        name: host.to_string(),
+    })
 }
 
 async fn query_one(
@@ -78,7 +92,9 @@ async fn query_one(
     name: &Name,
     rtype: RecordType,
 ) -> Result<Vec<IpAddr>> {
-    let id = TXN_ID.fetch_add(1, Ordering::Relaxed);
+    // A random transaction id gives off-path spoof resistance; it is validated on the response
+    // below (together with the source address). Do not replace with a predictable counter.
+    let id: u16 = rand::random();
 
     let mut msg = Message::new(id, MessageType::Query, OpCode::Query);
     msg.metadata.recursion_desired = true;
@@ -92,30 +108,79 @@ async fn query_one(
         .await?;
     socket.send_to(&query_bytes, cfg.server).await?;
 
+    // Read until a datagram matches our transaction id AND comes from the configured server, or the
+    // timeout elapses. A single `recv` would let any stray/spurious datagram delivered to this
+    // ephemeral port defeat the lookup with no chance to recover.
+    let deadline = Instant::now() + cfg.timeout;
     let mut buf = vec![0u8; 1500];
-    let (len, _src) = tokio::time::timeout(cfg.timeout, socket.recv_from(&mut buf))
-        .await
-        .map_err(|_| SmolCoreError::DnsTimeout {
-            name: name.to_utf8(),
-        })??;
+    loop {
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .filter(|d| !d.is_zero())
+            .ok_or_else(|| SmolCoreError::DnsTimeout {
+                name: name.to_utf8(),
+            })?;
 
-    let response =
-        Message::from_vec(&buf[..len]).map_err(|e| SmolCoreError::DnsProto(e.to_string()))?;
+        let (len, src) = match tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
+            Ok(res) => res?,
+            Err(_) => {
+                return Err(SmolCoreError::DnsTimeout {
+                    name: name.to_utf8(),
+                })
+            }
+        };
 
-    let addrs: Vec<IpAddr> = response
-        .answers
-        .iter()
-        .filter_map(|record| match &record.data {
-            RData::A(a) => Some(IpAddr::V4(a.0)),
-            RData::AAAA(aaaa) => Some(IpAddr::V6(aaaa.0)),
-            _ => None,
-        })
-        .collect();
+        // Discard datagrams that did not come from the configured server.
+        if src != cfg.server {
+            tracing::debug!("DNS: ignoring datagram from unexpected source {src}");
+            continue;
+        }
 
-    if addrs.is_empty() {
-        return Err(SmolCoreError::DnsNoRecords {
-            name: name.to_utf8(),
-        });
+        let response = match Message::from_vec(&buf[..len]) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::debug!("DNS: ignoring undecodable datagram: {e}");
+                continue;
+            }
+        };
+
+        // Discard responses whose id does not match our query.
+        if response.metadata.id != id {
+            tracing::debug!("DNS: ignoring response with mismatched id");
+            continue;
+        }
+
+        // Distinguish a server-side failure from a genuinely empty answer.
+        match response.metadata.response_code {
+            ResponseCode::NoError => {}
+            ResponseCode::NXDomain => {
+                return Err(SmolCoreError::DnsNoRecords {
+                    name: name.to_utf8(),
+                })
+            }
+            other => {
+                return Err(SmolCoreError::DnsServerFailure {
+                    name: name.to_utf8(),
+                    rcode: other.to_string(),
+                })
+            }
+        }
+
+        let addrs: Vec<IpAddr> = response
+            .answers
+            .iter()
+            .filter_map(|record| match &record.data {
+                RData::A(a) => Some(IpAddr::V4(a.0)),
+                RData::AAAA(aaaa) => Some(IpAddr::V6(aaaa.0)),
+                _ => None,
+            })
+            .collect();
+
+        if addrs.is_empty() {
+            return Err(SmolCoreError::DnsNoRecords {
+                name: name.to_utf8(),
+            });
+        }
+        return Ok(addrs);
     }
-    Ok(addrs)
 }

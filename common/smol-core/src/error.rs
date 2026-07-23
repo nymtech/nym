@@ -25,6 +25,11 @@ pub enum SmolCoreError {
     /// DNS lookup returned no address records.
     #[error("no address records for {name}")]
     DnsNoRecords { name: String },
+
+    /// The DNS server returned a failure response code (e.g. SERVFAIL, REFUSED) — distinct from a
+    /// genuinely empty/NXDOMAIN result, and (unlike NXDOMAIN) typically retryable.
+    #[error("DNS server returned {rcode} for {name}")]
+    DnsServerFailure { name: String, rcode: String },
 }
 
 /// Convenient result alias for `smol-core`.

@@ -10,8 +10,12 @@
 //! ```sh
 //! set -a; source envs/sandbox.env; source .claude/.secrets/sandbox.env; set +a
 //! MNEMONIC="$NYX_ACCOUNT_MNEMONIC" \
-//!   cargo test -p nym-smol-dvpn --test live_bringup -- --ignored --nocapture
+//!   cargo test -p nym-smol-dvpn --test live_bringup -- --ignored --nocapture --test-threads=1
 //! ```
+//!
+//! Run with `--test-threads=1`: both tests deposit from the same chain account, so running
+//! them concurrently races the account sequence number (one deposit fails with an
+//! "account sequence mismatch"). Serially, both pass.
 //!
 //! It also demonstrates the intended `nym-sdk-session` → `nym-smol-dvpn` glue:
 //! mapping a `Registration`'s per-hop `HopConfig` into the datapath `PeerConfig`.
@@ -28,8 +32,8 @@ use tokio_util::sync::CancellationToken;
 /// Map a session hop into the datapath's transport-agnostic peer config.
 fn peer_from_hop(hop: &HopConfig) -> PeerConfig {
     PeerConfig {
-        gateway_public_key: hop.wg_config.public_key.to_bytes(),
-        client_private_key: hop.client_private_key.to_bytes(),
+        gateway_public_key: hop.wg_config.public_key.to_bytes().into(),
+        client_private_key: hop.client_private_key.to_bytes().into(),
         preshared_key: hop.wg_config.psk.as_ref().map(|p| *p.as_bytes()),
         endpoint: hop.wg_config.endpoint,
         assigned_ipv4: hop.wg_config.private_ipv4,
@@ -56,6 +60,8 @@ async fn new_session(data_dir: &str) -> Option<Session> {
             credential_store_path: Some(format!("{data_dir}/creds.db").into()),
             data_path: data_dir.into(),
             dvpn_directory_url: None,
+            automatic_topups: None,
+            bandwidth_provider: None,
         },
         cancel,
     )

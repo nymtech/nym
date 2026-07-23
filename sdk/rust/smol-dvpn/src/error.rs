@@ -6,10 +6,6 @@ use thiserror::Error;
 /// Errors from the `smol-dvpn` datapath.
 #[derive(Error, Debug)]
 pub enum DvpnError {
-    /// A boringtun WireGuard operation failed.
-    #[error("WireGuard error: {0}")]
-    WireGuard(String),
-
     /// A transport (UDP / QUIC bridge) operation failed.
     #[error("transport error: {0}")]
     Transport(String),

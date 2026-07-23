@@ -30,6 +30,7 @@ futures = { workspace = true }
 tracing = { workspace = true }
 thiserror.workspace = true
 hickory-proto = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = [

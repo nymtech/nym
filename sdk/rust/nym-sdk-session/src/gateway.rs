@@ -82,17 +82,15 @@ pub struct GatewayInfo {
     pub name: Option<String>,
 }
 
-/// A node is usable for dVPN only if it advertises WireGuard, an authenticator,
-/// and LP data, and fulfils the required role.
-fn wg_capable(desc: &NymNodeDescriptionV2, role: WgRole) -> bool {
+/// A node is usable for dVPN only if it advertises WireGuard, an authenticator, and LP data.
+///
+/// The node's declared mixnet entry/exit role is deliberately NOT checked: dVPN does not
+/// distinguish entry from exit nodes (that role only constrains mixnet mode), so any
+/// WireGuard-capable node can serve either dVPN hop. `role` is retained for API symmetry and future
+/// use but no longer filters the candidate set.
+fn wg_capable(desc: &NymNodeDescriptionV2, _role: WgRole) -> bool {
     let d = &desc.description;
-    if d.wireguard.is_none() || d.lewes_protocol.is_none() || d.authenticator.is_none() {
-        return false;
-    }
-    match role {
-        WgRole::Entry => d.declared_role.entry,
-        WgRole::Exit => d.declared_role.can_operate_exit_gateway(),
-    }
+    d.wireguard.is_some() && d.lewes_protocol.is_some() && d.authenticator.is_some()
 }
 
 /// Build the LP information block for a node, verifying its LP signature and
@@ -224,7 +222,7 @@ fn quic_ok(
 /// is returned. `exclude` (the already-chosen hop's identity, e.g. the entry when
 /// picking the exit) is never selected, so a two-hop tunnel gets distinct gateways.
 pub(crate) fn select(
-    nodes: Vec<NymNodeDescriptionV2>,
+    nodes: &[NymNodeDescriptionV2],
     spec: &GatewaySpec,
     role: WgRole,
     directory: Option<&DvpnDirectory>,
@@ -238,10 +236,10 @@ pub(crate) fn select(
                 return Err(SessionError::SameGatewaySelected(id.to_base58_string()));
             }
             let desc = nodes
-                .into_iter()
+                .iter()
                 .find(|n| &n.ed25519_identity_key() == id)
                 .ok_or_else(|| SessionError::GatewayNotFound(id.to_base58_string()))?;
-            if !wg_capable(&desc, role) {
+            if !wg_capable(desc, role) {
                 return Err(SessionError::NoWireguardGateway);
             }
             if !quic_ok(directory, require_quic, id) {
@@ -249,11 +247,11 @@ pub(crate) fn select(
                     spec: id.to_base58_string(),
                 });
             }
-            build_and_enrich(&desc, directory)
+            build_and_enrich(desc, directory)
         }
         GatewaySpec::Country(cc) => {
-            let candidates: Vec<_> = nodes
-                .into_iter()
+            let candidates: Vec<&NymNodeDescriptionV2> = nodes
+                .iter()
                 .filter(|n| {
                     let id = n.ed25519_identity_key();
                     !excluded(&id)
@@ -278,8 +276,8 @@ pub(crate) fn select(
             build_and_enrich(desc, directory)
         }
         GatewaySpec::Random => {
-            let candidates: Vec<_> = nodes
-                .into_iter()
+            let candidates: Vec<&NymNodeDescriptionV2> = nodes
+                .iter()
                 .filter(|n| {
                     let id = n.ed25519_identity_key();
                     !excluded(&id) && wg_capable(n, role) && quic_ok(directory, require_quic, &id)
@@ -317,7 +315,7 @@ mod tests {
     fn identity_not_found_over_empty_set() {
         let id = random_identity();
         let err = select(
-            vec![],
+            &[],
             &GatewaySpec::Identity(id),
             WgRole::Entry,
             None,
@@ -340,7 +338,7 @@ mod tests {
             ed25519::PublicKey::from_base58_string("Gejc2CnSRFUxK6519ewmWM66ytDZbbuXytwLUgytCQUD")
                 .unwrap();
         let err = select(
-            vec![],
+            &[],
             &GatewaySpec::Identity(id),
             WgRole::Exit,
             None,
@@ -358,7 +356,7 @@ mod tests {
     #[test]
     fn country_no_match_over_empty_set() {
         let err = select(
-            vec![],
+            &[],
             &GatewaySpec::Country("CH".into()),
             WgRole::Exit,
             None,
@@ -375,32 +373,18 @@ mod tests {
 
     #[test]
     fn random_no_gateway_over_empty_set() {
-        let err = select(
-            vec![],
-            &GatewaySpec::Random,
-            WgRole::Entry,
-            None,
-            false,
-            None,
-        )
-        .err()
-        .expect("expected selection error");
+        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, false, None)
+            .err()
+            .expect("expected selection error");
         assert!(matches!(err, SessionError::NoWireguardGateway));
     }
 
     #[test]
     fn require_quic_without_directory_fails() {
         // With no directory (None), requiring QUIC can never be satisfied.
-        let err = select(
-            vec![],
-            &GatewaySpec::Random,
-            WgRole::Entry,
-            None,
-            true,
-            None,
-        )
-        .err()
-        .expect("expected selection error");
+        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, true, None)
+            .err()
+            .expect("expected selection error");
         assert!(matches!(err, SessionError::NoQuicGateway { .. }));
     }
 

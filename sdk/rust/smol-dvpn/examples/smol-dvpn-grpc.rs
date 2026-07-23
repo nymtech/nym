@@ -39,8 +39,8 @@ fn parse_gateway(spec: &str) -> Result<GatewaySpec, String> {
 
 fn peer_from_hop(hop: &HopConfig) -> PeerConfig {
     PeerConfig {
-        gateway_public_key: hop.wg_config.public_key.to_bytes(),
-        client_private_key: hop.client_private_key.to_bytes(),
+        gateway_public_key: hop.wg_config.public_key.to_bytes().into(),
+        client_private_key: hop.client_private_key.to_bytes().into(),
         preshared_key: hop.wg_config.psk.as_ref().map(|p| *p.as_bytes()),
         endpoint: hop.wg_config.endpoint,
         assigned_ipv4: hop.wg_config.private_ipv4,
@@ -77,6 +77,8 @@ async fn run() -> Result<(), String> {
             credential_store_path: Some("smol-dvpn-grpc-creds.db".into()),
             data_path: "smol-dvpn-grpc-data".into(),
             dvpn_directory_url: None,
+            automatic_topups: None,
+            bandwidth_provider: None,
         },
         CancellationToken::new(),
     )

@@ -42,8 +42,8 @@ pub use config::{DnsMode, MtuConfig, PeerConfig, TunnelConfig, DEFAULT_EXIT_WG_C
 pub use connectors::TunnelConnector;
 pub use error::{DvpnError, Result};
 pub use topup::{
-    query_available_bandwidth, topup_bandwidth, BandwidthCredentialSource, CredentialFuture,
-    TopupConfig,
+    query_available_bandwidth, topup_bandwidth, BandwidthCredentialSource, BandwidthEvent,
+    CredentialFuture, ProviderCredentialSource, TopupConfig,
 };
 pub use transport::SocketProtector;
 pub use tunnel::{Tunnel, TunnelBuilder};

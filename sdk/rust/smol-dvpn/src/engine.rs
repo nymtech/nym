@@ -7,7 +7,9 @@
 //! nesting. Every method returns an [`EngineOutput`]
 //! splitting work into inner IP packets destined for the smol-core stack and
 //! outer WireGuard packets destined for the active transport. The engine is
-//! driven from a single task, so the `Tunn`s need no locking.
+//! driven from a single task, so the `Tunn`s need no locking — and, for the same
+//! reason, it owns one reusable scratch buffer that boringtun encrypts/decrypts
+//! into, rather than allocating (and zero-filling) a fresh 64 KiB buffer per packet.
 //!
 //! Handshake note: the entry handshake runs directly; the exit handshake is
 //! tunnelled through the entry `Tunn`. boringtun drives retransmission via
@@ -18,12 +20,16 @@
 use std::net::SocketAddrV4;
 
 use boringtun::noise::{Tunn, TunnResult};
-use boringtun::x25519::{PublicKey, StaticSecret};
 
 use crate::config::PeerConfig;
 use crate::framing::{build_ipv4_udp, parse_ipv4_udp};
 
-const MAX: usize = 65535;
+/// Size of the engine's reusable encrypt/decrypt scratch buffer: the maximum a WireGuard/UDP
+/// datagram can be (64 KiB). It is allocated once per engine and reused for every packet, so — unlike
+/// the previous per-call `vec![0u8; 65535]` — there is no per-packet allocation or zero-fill. Sized
+/// to the maximum so no packet is ever dropped for want of buffer space, regardless of the
+/// configured MTU (which callers can set arbitrarily large).
+const SCRATCH_LEN: usize = 65535;
 
 /// The split output of an engine operation.
 #[derive(Default)]
@@ -35,68 +41,90 @@ pub(crate) struct EngineOutput {
 }
 
 fn make_tunn(peer: &PeerConfig, index: u32) -> Tunn {
-    let secret = StaticSecret::from(peer.client_private_key);
-    let public = PublicKey::from(peer.gateway_public_key);
-    Tunn::new(secret, public, peer.preshared_key, None, index, None)
+    Tunn::new(
+        peer.client_private_key.clone(),
+        peer.gateway_public_key,
+        peer.preshared_key,
+        None,
+        index,
+        None,
+    )
 }
 
-/// Encapsulate one plaintext packet; returns the single transport datagram if
+/// Encapsulate one plaintext packet into `scratch`; returns the single transport datagram if
 /// boringtun produced one (data or a handshake message).
-fn encap(tunn: &mut Tunn, plaintext: &[u8]) -> Option<Vec<u8>> {
-    let mut out = vec![0u8; MAX];
-    match tunn.encapsulate(plaintext, &mut out) {
+fn encap(tunn: &mut Tunn, scratch: &mut [u8], plaintext: &[u8]) -> Option<Vec<u8>> {
+    match tunn.encapsulate(plaintext, scratch) {
         TunnResult::WriteToNetwork(p) => Some(p.to_vec()),
+        TunnResult::Err(e) => {
+            tracing::warn!("wireguard encapsulate error: {e:?}");
+            None
+        }
         _ => None,
     }
 }
 
-/// Decapsulate one transport datagram, draining boringtun's queue. Returns
+/// Decapsulate one transport datagram into `scratch`, draining boringtun's queue. Returns
 /// (inner packets recovered, network responses to send back).
-fn decap(tunn: &mut Tunn, datagram: &[u8]) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+fn decap(tunn: &mut Tunn, scratch: &mut [u8], datagram: &[u8]) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
     let mut inner = Vec::new();
     let mut net = Vec::new();
-    let mut out = vec![0u8; MAX];
-    match tunn.decapsulate(None, datagram, &mut out) {
+    // Each `decapsulate` borrows `scratch` for the lifetime of its result, so copy the result out
+    // (releasing the borrow at the statement end) before the next call reuses the same buffer.
+    let queued = match tunn.decapsulate(None, datagram, scratch) {
         TunnResult::WriteToTunnelV4(p, _) | TunnResult::WriteToTunnelV6(p, _) => {
             inner.push(p.to_vec());
+            false
         }
         TunnResult::WriteToNetwork(p) => {
             net.push(p.to_vec());
-            // Drain any further queued network packets.
-            loop {
-                let mut o2 = vec![0u8; MAX];
-                match tunn.decapsulate(None, &[], &mut o2) {
-                    TunnResult::WriteToNetwork(p) => net.push(p.to_vec()),
-                    _ => break,
-                }
+            true
+        }
+        _ => false,
+    };
+    if queued {
+        // Drain any further queued network packets.
+        loop {
+            match tunn.decapsulate(None, &[], scratch) {
+                TunnResult::WriteToNetwork(p) => net.push(p.to_vec()),
+                _ => break,
             }
         }
-        _ => {}
     }
     (inner, net)
 }
 
 /// Timer maintenance; returns the single packet boringtun wants sent, if any.
-fn timer(tunn: &mut Tunn) -> Option<Vec<u8>> {
-    let mut out = vec![0u8; MAX];
-    match tunn.update_timers(&mut out) {
+fn timer(tunn: &mut Tunn, scratch: &mut [u8]) -> Option<Vec<u8>> {
+    match tunn.update_timers(scratch) {
         TunnResult::WriteToNetwork(p) => Some(p.to_vec()),
         _ => None,
     }
 }
 
-fn handshake_init(tunn: &mut Tunn) -> Option<Vec<u8>> {
-    let mut out = vec![0u8; MAX];
-    match tunn.format_handshake_initiation(&mut out, false) {
+fn handshake_init(tunn: &mut Tunn, scratch: &mut [u8]) -> Option<Vec<u8>> {
+    match tunn.format_handshake_initiation(scratch, false) {
         TunnResult::WriteToNetwork(p) => Some(p.to_vec()),
         _ => None,
     }
+}
+
+/// Frame + entry-encapsulate an exit-bound packet (two-hop only).
+fn wrap_for_exit(
+    entry: &mut Tunn,
+    scratch: &mut [u8],
+    tunnel_src: SocketAddrV4,
+    exit_endpoint: SocketAddrV4,
+    exit_packet: &[u8],
+) -> Option<Vec<u8>> {
+    let carrier = build_ipv4_udp(tunnel_src, exit_endpoint, exit_packet);
+    encap(entry, scratch, &carrier)
 }
 
 // A single long-lived instance per tunnel; the inter-variant size difference is
 // immaterial (no bulk storage), so boxing would only add indirection.
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum WgEngine {
+enum Inner {
     SingleHop {
         tunn: Tunn,
     },
@@ -110,10 +138,19 @@ pub(crate) enum WgEngine {
     },
 }
 
+/// The userspace WireGuard engine: the `Tunn`(s) plus a reusable encrypt/decrypt scratch buffer.
+pub(crate) struct WgEngine {
+    inner: Inner,
+    scratch: Box<[u8]>,
+}
+
 impl WgEngine {
     pub(crate) fn single_hop(peer: &PeerConfig) -> Self {
-        WgEngine::SingleHop {
-            tunn: make_tunn(peer, 0),
+        WgEngine {
+            inner: Inner::SingleHop {
+                tunn: make_tunn(peer, 0),
+            },
+            scratch: vec![0u8; SCRATCH_LEN].into_boxed_slice(),
         }
     }
 
@@ -123,43 +160,36 @@ impl WgEngine {
         tunnel_src: SocketAddrV4,
         exit_endpoint: SocketAddrV4,
     ) -> Self {
-        WgEngine::TwoHop {
-            entry: make_tunn(entry, 0),
-            exit: make_tunn(exit, 1),
-            tunnel_src,
-            exit_endpoint,
+        WgEngine {
+            inner: Inner::TwoHop {
+                entry: make_tunn(entry, 0),
+                exit: make_tunn(exit, 1),
+                tunnel_src,
+                exit_endpoint,
+            },
+            scratch: vec![0u8; SCRATCH_LEN].into_boxed_slice(),
         }
-    }
-
-    /// Frame + entry-encapsulate an exit-bound packet (two-hop only).
-    fn wrap_for_exit(
-        entry: &mut Tunn,
-        tunnel_src: SocketAddrV4,
-        exit_endpoint: SocketAddrV4,
-        exit_packet: &[u8],
-    ) -> Option<Vec<u8>> {
-        let carrier = build_ipv4_udp(tunnel_src, exit_endpoint, exit_packet);
-        encap(entry, &carrier)
     }
 
     /// Encrypt one application IP packet from the stack.
     pub(crate) fn encapsulate_app(&mut self, app: &[u8]) -> EngineOutput {
         let mut out = EngineOutput::default();
-        match self {
-            WgEngine::SingleHop { tunn } => {
-                if let Some(p) = encap(tunn, app) {
+        let WgEngine { inner, scratch } = self;
+        match inner {
+            Inner::SingleHop { tunn } => {
+                if let Some(p) = encap(tunn, scratch, app) {
                     out.to_network.push(p);
                 }
             }
-            WgEngine::TwoHop {
+            Inner::TwoHop {
                 entry,
                 exit,
                 tunnel_src,
                 exit_endpoint,
             } => {
-                if let Some(c_exit) = encap(exit, app) {
+                if let Some(c_exit) = encap(exit, scratch, app) {
                     if let Some(c_entry) =
-                        Self::wrap_for_exit(entry, *tunnel_src, *exit_endpoint, &c_exit)
+                        wrap_for_exit(entry, scratch, *tunnel_src, *exit_endpoint, &c_exit)
                     {
                         out.to_network.push(c_entry);
                     }
@@ -172,19 +202,20 @@ impl WgEngine {
     /// Decrypt one incoming outer WireGuard packet from the transport.
     pub(crate) fn decapsulate_incoming(&mut self, wg: &[u8]) -> EngineOutput {
         let mut out = EngineOutput::default();
-        match self {
-            WgEngine::SingleHop { tunn } => {
-                let (inner, net) = decap(tunn, wg);
-                out.to_stack = inner;
+        let WgEngine { inner, scratch } = self;
+        match inner {
+            Inner::SingleHop { tunn } => {
+                let (inner_pkts, net) = decap(tunn, scratch, wg);
+                out.to_stack = inner_pkts;
                 out.to_network = net;
             }
-            WgEngine::TwoHop {
+            Inner::TwoHop {
                 entry,
                 exit,
                 tunnel_src,
                 exit_endpoint,
             } => {
-                let (carriers, entry_net) = decap(entry, wg);
+                let (carriers, entry_net) = decap(entry, scratch, wg);
                 out.to_network.extend(entry_net); // entry handshake responses (direct)
                 for carrier in carriers {
                     let Some(parsed) = parse_ipv4_udp(&carrier) else {
@@ -197,11 +228,11 @@ impl WgEngine {
                         continue;
                     }
                     // parsed.payload is the exit-gateway WireGuard packet.
-                    let (app_pkts, exit_net) = decap(exit, &parsed.payload);
+                    let (app_pkts, exit_net) = decap(exit, scratch, &parsed.payload);
                     out.to_stack.extend(app_pkts);
                     for c_exit in exit_net {
                         if let Some(c_entry) =
-                            Self::wrap_for_exit(entry, *tunnel_src, *exit_endpoint, &c_exit)
+                            wrap_for_exit(entry, scratch, *tunnel_src, *exit_endpoint, &c_exit)
                         {
                             out.to_network.push(c_entry);
                         }
@@ -215,24 +246,25 @@ impl WgEngine {
     /// Timer maintenance (keepalive / handshake / rekey).
     pub(crate) fn update_timers(&mut self) -> EngineOutput {
         let mut out = EngineOutput::default();
-        match self {
-            WgEngine::SingleHop { tunn } => {
-                if let Some(p) = timer(tunn) {
+        let WgEngine { inner, scratch } = self;
+        match inner {
+            Inner::SingleHop { tunn } => {
+                if let Some(p) = timer(tunn, scratch) {
                     out.to_network.push(p);
                 }
             }
-            WgEngine::TwoHop {
+            Inner::TwoHop {
                 entry,
                 exit,
                 tunnel_src,
                 exit_endpoint,
             } => {
-                if let Some(p) = timer(entry) {
+                if let Some(p) = timer(entry, scratch) {
                     out.to_network.push(p);
                 }
-                if let Some(c_exit) = timer(exit) {
+                if let Some(c_exit) = timer(exit, scratch) {
                     if let Some(c_entry) =
-                        Self::wrap_for_exit(entry, *tunnel_src, *exit_endpoint, &c_exit)
+                        wrap_for_exit(entry, scratch, *tunnel_src, *exit_endpoint, &c_exit)
                     {
                         out.to_network.push(c_entry);
                     }
@@ -245,27 +277,28 @@ impl WgEngine {
     /// Kick the initial handshake(s).
     pub(crate) fn initiate_handshakes(&mut self) -> EngineOutput {
         let mut out = EngineOutput::default();
-        match self {
-            WgEngine::SingleHop { tunn } => {
-                if let Some(p) = handshake_init(tunn) {
+        let WgEngine { inner, scratch } = self;
+        match inner {
+            Inner::SingleHop { tunn } => {
+                if let Some(p) = handshake_init(tunn, scratch) {
                     out.to_network.push(p);
                 }
             }
-            WgEngine::TwoHop {
+            Inner::TwoHop {
                 entry,
                 exit,
                 tunnel_src,
                 exit_endpoint,
             } => {
-                if let Some(p) = handshake_init(entry) {
+                if let Some(p) = handshake_init(entry, scratch) {
                     out.to_network.push(p);
                 }
                 // Kick the (tunnelled) exit handshake; if the entry session is
                 // not up yet this queues behind the entry handshake and the
                 // timer pump retransmits until it establishes.
-                if let Some(c_exit) = handshake_init(exit) {
+                if let Some(c_exit) = handshake_init(exit, scratch) {
                     if let Some(c_entry) =
-                        Self::wrap_for_exit(entry, *tunnel_src, *exit_endpoint, &c_exit)
+                        wrap_for_exit(entry, scratch, *tunnel_src, *exit_endpoint, &c_exit)
                     {
                         out.to_network.push(c_entry);
                     }

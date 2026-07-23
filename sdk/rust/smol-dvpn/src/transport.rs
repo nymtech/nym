@@ -17,6 +17,10 @@ use tokio::net::UdpSocket;
 use crate::bridge::{QuicBridgeReceiver, QuicBridgeSender};
 use crate::error::{DvpnError, Result};
 
+/// Size of the reusable Direct-UDP receive buffer: the maximum a UDP datagram can be (64 KiB). The
+/// `Direct` receiver allocates it once and reuses it across recvs, so — unlike the previous per-recv
+/// `vec![0u8; 65535]` — there is no per-packet allocation. Sized to the maximum so a datagram is
+/// never truncated regardless of the configured MTU.
 const MAX_WG_PACKET: usize = 65535;
 
 /// A hook invoked with a freshly-created socket's file descriptor so the host
@@ -54,7 +58,11 @@ pub(crate) enum WgSender {
 /// Receiving half of the active WireGuard packet transport.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum WgReceiver {
-    Direct(Arc<UdpSocket>),
+    Direct {
+        sock: Arc<UdpSocket>,
+        /// Reused across recvs so a fresh buffer isn't allocated per packet.
+        buf: Box<[u8]>,
+    },
     Quic(QuicBridgeReceiver),
 }
 
@@ -72,14 +80,18 @@ impl WgSender {
 }
 
 impl WgReceiver {
+    /// Whether this is the QUIC bridge transport (whose recv errors are fatal — a closed stream
+    /// cannot recover), as opposed to Direct UDP (whose recv errors are transient).
+    pub(crate) fn is_bridge(&self) -> bool {
+        matches!(self, WgReceiver::Quic(_))
+    }
+
     /// Receive exactly one WireGuard packet.
     pub(crate) async fn recv(&mut self) -> Result<Vec<u8>> {
         match self {
-            WgReceiver::Direct(sock) => {
-                let mut buf = vec![0u8; MAX_WG_PACKET];
-                let n = sock.recv(&mut buf).await?;
-                buf.truncate(n);
-                Ok(buf)
+            WgReceiver::Direct { sock, buf } => {
+                let n = sock.recv(buf).await?;
+                Ok(buf[..n].to_vec())
             }
             WgReceiver::Quic(receiver) => receiver.recv().await,
         }
@@ -112,5 +124,11 @@ pub(crate) async fn direct_transport(
         .map_err(|e| DvpnError::Transport(format!("connect to entry gateway failed: {e}")))?;
 
     let sock = Arc::new(sock);
-    Ok((WgSender::Direct(sock.clone()), WgReceiver::Direct(sock)))
+    Ok((
+        WgSender::Direct(sock.clone()),
+        WgReceiver::Direct {
+            sock,
+            buf: vec![0u8; MAX_WG_PACKET].into_boxed_slice(),
+        },
+    ))
 }

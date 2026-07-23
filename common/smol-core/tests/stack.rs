@@ -174,3 +174,145 @@ async fn dns_resolves_over_stack_socket() {
         "resolved addrs {addrs:?} missing expected {expected}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resolve_ip_literal_skips_dns() {
+    // No DNS server is reachable on the peer; an IP-literal host must resolve immediately with no
+    // query (a bogus lookup for "10.0.0.9" would hang/fail).
+    let (a, _b) = pair();
+    let addrs = tokio::time::timeout(Duration::from_secs(2), a.resolve("10.0.0.9"))
+        .await
+        .expect("IP-literal resolution must not block on DNS")
+        .expect("resolve ip literal");
+    assert_eq!(addrs, vec![IpAddr::V4(Ipv4Addr::new(10, 0, 0, 9))]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dns_ignores_mismatched_id() {
+    use hickory_proto::op::{Message, MessageType, OpCode};
+    use hickory_proto::rr::{rdata::A, RData, Record};
+
+    let (a, b) = pair();
+    let dns = b.udp_socket_on(53).await.expect("bind dns");
+    // Reply with a deliberately wrong transaction id (a spoofing stand-in): the resolver must
+    // discard it and, with no valid reply arriving, time out rather than accept the bogus address.
+    tokio::spawn(async move {
+        let mut buf = vec![0u8; 1500];
+        while let Ok((n, src)) = dns.recv_from(&mut buf).await {
+            let req = match Message::from_vec(&buf[..n]) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            let q = req.queries[0].clone();
+            let mut resp = Message::new(
+                req.metadata.id.wrapping_add(1),
+                MessageType::Response,
+                OpCode::Query,
+            );
+            resp.add_query(q.clone());
+            resp.add_answer(Record::from_rdata(
+                q.name().clone(),
+                300,
+                RData::A(A(Ipv4Addr::new(1, 2, 3, 4))),
+            ));
+            let _ = dns.send_to(&resp.to_vec().unwrap(), src).await;
+        }
+    });
+
+    let a = a.with_dns_config(DnsConfig {
+        server: format!("{B_IP}:53").parse().unwrap(),
+        timeout: Duration::from_secs(2),
+    });
+    let err = tokio::time::timeout(TIMEOUT, a.resolve("example.com"))
+        .await
+        .expect("resolve should have returned")
+        .expect_err("a mismatched-id response must not resolve");
+    assert!(
+        matches!(err, smol_core::SmolCoreError::DnsTimeout { .. }),
+        "expected DnsTimeout, got {err:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dns_servfail_is_distinct() {
+    use hickory_proto::op::{Message, MessageType, OpCode, ResponseCode};
+
+    let (a, b) = pair();
+    let dns = b.udp_socket_on(53).await.expect("bind dns");
+    tokio::spawn(async move {
+        let mut buf = vec![0u8; 1500];
+        while let Ok((n, src)) = dns.recv_from(&mut buf).await {
+            let req = match Message::from_vec(&buf[..n]) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            let mut resp = Message::new(req.metadata.id, MessageType::Response, OpCode::Query);
+            resp.add_query(req.queries[0].clone());
+            resp.metadata.response_code = ResponseCode::ServFail;
+            let _ = dns.send_to(&resp.to_vec().unwrap(), src).await;
+        }
+    });
+
+    let a = a.with_dns_config(DnsConfig {
+        server: format!("{B_IP}:53").parse().unwrap(),
+        timeout: Duration::from_secs(3),
+    });
+    let err = tokio::time::timeout(TIMEOUT, a.resolve("example.com"))
+        .await
+        .expect("resolve should have returned")
+        .expect_err("SERVFAIL must surface as an error");
+    assert!(
+        matches!(err, smol_core::SmolCoreError::DnsServerFailure { .. }),
+        "expected DnsServerFailure, got {err:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dns_v4_only_stack_skips_aaaa() {
+    use hickory_proto::op::{Message, MessageType, OpCode};
+    use hickory_proto::rr::{rdata::A, RData, Record, RecordType};
+    use std::sync::{Arc, Mutex};
+
+    let (a, b) = pair();
+    let dns = b.udp_socket_on(53).await.expect("bind dns");
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let seen_srv = seen.clone();
+    tokio::spawn(async move {
+        let mut buf = vec![0u8; 1500];
+        while let Ok((n, src)) = dns.recv_from(&mut buf).await {
+            let req = match Message::from_vec(&buf[..n]) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            let q = req.queries[0].clone();
+            seen_srv.lock().unwrap().push(q.query_type());
+            let mut resp = Message::new(req.metadata.id, MessageType::Response, OpCode::Query);
+            resp.add_query(q.clone());
+            if q.query_type() == RecordType::A {
+                resp.add_answer(Record::from_rdata(
+                    q.name().clone(),
+                    300,
+                    RData::A(A(Ipv4Addr::new(5, 6, 7, 8))),
+                ));
+            }
+            let _ = dns.send_to(&resp.to_vec().unwrap(), src).await;
+        }
+    });
+
+    // Default StackConfig has no IPv6 address, so the resolver must query A only.
+    let a = a.with_dns_config(DnsConfig {
+        server: format!("{B_IP}:53").parse().unwrap(),
+        timeout: TIMEOUT,
+    });
+    let addrs = tokio::time::timeout(TIMEOUT, a.resolve("example.com"))
+        .await
+        .expect("resolve timed out")
+        .expect("resolve");
+    assert!(addrs.contains(&IpAddr::V4(Ipv4Addr::new(5, 6, 7, 8))));
+
+    let seen = seen.lock().unwrap();
+    assert!(
+        seen.iter().all(|t| *t == RecordType::A),
+        "a v4-only stack must not send AAAA queries, saw {seen:?}"
+    );
+}

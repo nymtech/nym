@@ -14,18 +14,16 @@ Shared by both mixnet and dVPN modes.
 use nym_sdk_session::{Session, SessionConfig, GatewaySpec};
 use tokio_util::sync::CancellationToken;
 
-let session = Session::new(
-    SessionConfig {
-        mnemonic,
-        network,                         // NymNetworkDetails (e.g. sandbox)
-        credential_store_path: Some("creds.db".into()),
-        data_path: "session-data".into(),
-        dvpn_directory_url: None,        // Some(url) → gateway monikers + QUIC selection
-    },
-    CancellationToken::new(),
-).await?;
+let config = SessionConfig::new(mnemonic, network, "session-data".into())
+    .with_credential_store_path("creds.db");
+    // .with_dvpn_directory_url(url)        // gateway monikers + QUIC selection
+    // .with_automatic_topups(RestockPolicy::default())  // opt in to background re-issuance
+let session = Session::new(config, CancellationToken::new()).await?;
 
-// Issue + persist the WireGuard ticketbooks (deposits NYM if needed).
+// Issue + persist the WireGuard ticketbooks (deposits NYM if needed). By default the
+// session provisions once and never deposits in the background; a live tunnel still
+// tops up from already-stored tickets. Opt into background re-issuance with
+// `SessionConfig::with_automatic_topups`.
 session.ensure_ticketbooks(/* two_hop = */ true).await?;
 
 // Two-hop registration by country codes:

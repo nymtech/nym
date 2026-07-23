@@ -16,10 +16,11 @@
 //! and forwards to its WireGuard port); there is no QUIC one-hop mode and no
 //! gateway-selection handshake.
 //!
-//! Note: [`nym_bridges`] dials `addresses[0]` (the directory lists the bridge's
-//! IPv6 address first) and binds dual-stack `[::]:0`; it does not set QUIC
-//! keep-alive/BBR. WireGuard's own persistent-keepalive keeps the long-lived
-//! session and its NAT mapping alive.
+//! Note: [`nym_bridges`] dials the first address it is given and binds dual-stack
+//! `[::]:0`; it does not set QUIC keep-alive/BBR. The directory lists a bridge's
+//! IPv6 address first, but clients are IPv4-only for now, so [`connect`] reorders
+//! the candidates to put IPv4 first before handing them over. WireGuard's own
+//! persistent-keepalive keeps the long-lived session and its NAT mapping alive.
 
 use std::net::SocketAddr;
 use std::sync::Once;
@@ -43,8 +44,9 @@ static INSTALL_PROVIDER: Once = Once::new();
 /// Bridge connection parameters, sourced from the gateway directory / VPN API.
 #[derive(Clone, Debug)]
 pub struct BridgeParams {
-    /// Candidate bridge socket addresses (dialed in order; the directory lists
-    /// the IPv6 address first).
+    /// Candidate bridge socket addresses. The directory lists a bridge's IPv6
+    /// address first; [`connect`] reorders these to prefer IPv4 (clients are
+    /// IPv4-only for now) before the bridge client dials the first one.
     pub addresses: Vec<SocketAddr>,
     /// SNI host to present (falls back to the bridge IP string if `None`).
     pub sni_host: Option<String>,
@@ -114,8 +116,13 @@ pub(crate) async fn connect(
         let _ = rustls::crypto::ring::default_provider().install_default();
     });
 
+    // The bridge client dials the first address; the directory lists IPv6 first but clients are
+    // IPv4-only for now, so prefer IPv4 (stable sort keeps relative order within each family).
+    let mut addresses = params.addresses.clone();
+    addresses.sort_by_key(|a| a.is_ipv6());
+
     let options = ClientOptions {
-        addresses: params.addresses.clone(),
+        addresses,
         host: params.sni_host.clone(),
         id_pubkey: params.id_pubkey_base64.clone(),
     };

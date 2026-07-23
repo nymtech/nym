@@ -22,10 +22,10 @@
 
 ## 4. Reviewer pass (before archiving)
 
-- [ ] 4.1 Confirm the `proposal.md` "Why" and the limitation notes (static keys, ignored acks, unwired blacklist, eager receiver spawn) match operational understanding.
+- [x] 4.1 Confirm the `proposal.md` "Why" and the limitation notes (static keys, ignored acks, unwired blacklist, eager receiver spawn) match operational understanding. **Reviewed 2026-07-23**: maintainer confirmed the documents.
 - [x] 4.2 Walk `design.md` Decisions 1-12 and the open questions; confirm each rationale matches team reasoning, especially Decision 4 (blacklist) and Decision 6 (static keys). **Resolved 2026-07-23**: all six open questions walked through with the maintainer and resolved as document/keep (no code changes, no follow-on changes) - see design.md "Resolved Questions". Q1 gained the credentials/ticket-usage rationale (Decision 6); Q5 sharpened to "abandoned/vestigial dead code" (Decision 4 + the spec's route-verification requirement); Q6 kept documented as inert; Q4 kept as a future idea; Q2 is accepted tech-debt; Q3 is moot given Q5.
-- [ ] 4.3 Walk `specs/network-monitor/spec.md` requirement by requirement; for each disagreement decide whether the spec is wrong (edit the spec) or the implementation is wrong (open a follow-on change). In particular ratify or reject the current-state gap in "Candidate routes are verified all-or-nothing" (unwired blacklist / overlapping routes).
+- [x] 4.3 Walk `specs/network-monitor/spec.md` requirement by requirement; for each disagreement decide whether the spec is wrong (edit the spec) or the implementation is wrong (open a follow-on change). In particular ratify or reject the current-state gap in "Candidate routes are verified all-or-nothing" (unwired blacklist / overlapping routes). **Reviewed 2026-07-23**: maintainer accepted the spec, including the vestigial-blacklist current-state gap. Adversarial bug review surfaced separate candidate issues (readiness-gate math, mixnode-traffic funnel through one route gateway, NaN-on-empty-run) - noted for follow-on changes, not blockers to ratifying current behaviour.
 
 ## 5. Archive the change
 
-- [ ] 5.1 Once reviewed and accepted, run `openspec archive network-monitor-spec` to promote `specs/network-monitor/spec.md` into `openspec/specs/network-monitor/spec.md` as the canonical spec.
+- [x] 5.1 Once reviewed and accepted, run `openspec archive network-monitor-spec` to promote `specs/network-monitor/spec.md` into `openspec/specs/network-monitor/spec.md` as the canonical spec. **Archived 2026-07-23.**

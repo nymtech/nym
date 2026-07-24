@@ -16,7 +16,6 @@ use nym_crypto::asymmetric::ed25519;
 use nym_lp::peer::DHKeyPair;
 use rand09::{CryptoRng, RngCore, SeedableRng};
 use std::sync::Arc;
-use time::Duration as TimeDuration;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
@@ -24,7 +23,6 @@ use tracing::warn;
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
     pub(crate) bandwidth_provider: Box<dyn BandwidthTicketProvider>,
-    pub(crate) spend_time_skew: Option<TimeDuration>,
     pub(crate) cancel_token: CancellationToken,
 }
 
@@ -112,7 +110,7 @@ impl LpBasedRegistrationClient {
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
                 &*self.bandwidth_provider,
-                self.spend_time_skew,
+                self.config.spend_time_skew,
                 TicketType::V1WireguardExit,
             )
             .await
@@ -132,7 +130,7 @@ impl LpBasedRegistrationClient {
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_provider,
-                self.spend_time_skew,
+                self.config.spend_time_skew,
                 TicketType::V1WireguardEntry,
             )
             .await

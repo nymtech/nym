@@ -40,12 +40,7 @@ pub struct BuilderConfig {
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
     /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
-    /// during registration - `None` means the raw system clock is used as-is. This is an
-    /// *offset*, not a materialised timestamp: it gets applied to the clock reading taken right
-    /// before it's actually needed (which can be significantly later - e.g. after the mixnet
-    /// client connects), so callers tracking clock skew against a remote server (e.g. the VPN
-    /// API) should provide the skew itself rather than a timestamp computed up-front, or the
-    /// correction may go stale by the time it's used.
+    /// during registration - `None` means the raw system clock is used as-is.
     #[builder(default)]
     pub spend_time_skew: Option<TimeDuration>,
     pub cancel_token: CancellationToken,
@@ -108,6 +103,7 @@ impl BuilderConfig {
             exit: self.exit_node.clone(),
             mode: self.mode,
             lp_registration_config: self.lp_registration_config,
+            spend_time_skew: self.spend_time_skew,
         }
     }
 

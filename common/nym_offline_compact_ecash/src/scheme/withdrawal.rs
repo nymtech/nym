@@ -116,6 +116,7 @@ fn compute_private_attribute_commitments(
 
     (openings, commitments)
 }
+
 /// Generates a non-identity hash of joined commitment.
 ///
 /// This function attempts to create a valid joined commitment and hash by
@@ -129,9 +130,14 @@ fn generate_non_identity_h(
     v: &Scalar,
     expiration_date: Scalar,
     t_type: Scalar,
-) -> (G1Projective, G1Projective, Scalar) {
+) -> Result<(G1Projective, G1Projective, Scalar)> {
     let gamma = params.gammas();
+    if gamma.len() < 4 {
+        return Err(CompactEcashError::IncompatibleConstruction);
+    }
 
+    // SAFETY: we have ensured we have at least 4 gammas
+    #[allow(clippy::indexing_slicing)]
     loop {
         let joined_commitment_opening = params.random_scalar();
 
@@ -146,11 +152,11 @@ fn generate_non_identity_h(
 
         // Check if the joined_commitment_hash is not the identity element
         if !bool::from(joined_commitment_hash.is_identity()) {
-            return (
+            return Ok((
                 joined_commitment,
                 joined_commitment_hash,
                 joined_commitment_opening,
-            );
+            ));
         }
     }
 }
@@ -191,7 +197,7 @@ pub fn withdrawal_request(
 
     // Generate a non-identity commitment hash
     let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
-        generate_non_identity_h(params, sk_user, &v, expiration_date, t_type);
+        generate_non_identity_h(params, sk_user, &v, expiration_date, t_type)?;
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![&sk_user.sk, &v];
@@ -213,7 +219,7 @@ pub fn withdrawal_request(
         joined_commitment_opening: &joined_commitment_opening,
         private_attributes_openings: &private_attributes_openings,
     };
-    let zk_proof = WithdrawalReqProof::construct(&instance, &witness);
+    let zk_proof = WithdrawalReqProof::construct(&instance, &witness)?;
 
     // Create and return WithdrawalRequest and RequestInfo
     Ok((
@@ -264,6 +270,12 @@ pub fn request_verify(
         return Err(CompactEcashError::IdentityCommitmentHash);
     }
 
+    if gamma.len() < 4 {
+        return Err(CompactEcashError::IncompatibleConstruction);
+    }
+
+    // SAFETY: we have ensured we have at least 4 gammas
+    #[allow(clippy::indexing_slicing)]
     let expected_commitment_hash = hash_g1(
         (req.joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
     );
@@ -304,8 +316,9 @@ fn sign_expiration_date(
     joined_commitment_hash: &G1Projective,
     expiration_date: EncodedDate,
     sk_auth: &SecretKeyAuth,
-) -> G1Projective {
-    joined_commitment_hash * (sk_auth.ys[2] * date_scalar(expiration_date))
+) -> Result<G1Projective> {
+    let el = sk_auth.ys.get(2).ok_or(CompactEcashError::KeyTooShort)?;
+    Ok(joined_commitment_hash * (el * date_scalar(expiration_date)))
 }
 
 /// Signs a transaction type using a joined commitment hash and a secret key.
@@ -327,8 +340,9 @@ fn sign_t_type(
     joined_commitment_hash: &G1Projective,
     t_type: EncodedTicketType,
     sk_auth: &SecretKeyAuth,
-) -> G1Projective {
-    joined_commitment_hash * (sk_auth.ys[3] * type_scalar(t_type))
+) -> Result<G1Projective> {
+    let el = sk_auth.ys.get(3).ok_or(CompactEcashError::KeyTooShort)?;
+    Ok(joined_commitment_hash * (el * type_scalar(t_type)))
 }
 
 /// Issues a blinded signature for a withdrawal request, after verifying its integrity.
@@ -370,14 +384,13 @@ pub fn issue(
         .map(|(pc, yi)| pc * yi)
         .sum();
     // Sign the expiration date
-    //SAFETY: key length was verified before
     let expiration_date_sign = sign_expiration_date(
         &withdrawal_req.joined_commitment_hash,
         expiration_date,
         sk_auth,
-    );
+    )?;
     // Sign the type
-    let t_type_sign = sign_t_type(&withdrawal_req.joined_commitment_hash, t_type, sk_auth);
+    let t_type_sign = sign_t_type(&withdrawal_req.joined_commitment_hash, t_type, sk_auth)?;
     // Combine both signatures
     let signature = blind_signatures
         + withdrawal_req.joined_commitment_hash * sk_auth.x
@@ -584,7 +597,7 @@ mod tests {
 
         // Generate the commitment and hash
         let (_, joined_commitment_hash, _) =
-            generate_non_identity_h(params, &sk_user, &v, expiration_date, t_type);
+            generate_non_identity_h(params, &sk_user, &v, expiration_date, t_type).unwrap();
 
         // Ensure that the joined_commitment_hash is not the identity element
         assert!(

@@ -120,6 +120,7 @@ pub fn hash_to_scalar<M: AsRef<[u8]>>(msg: M) -> Scalar {
     let mut output = vec![Scalar::zero()];
 
     Scalar::hash_to_field::<ExpandMsgXmd<sha2::Sha256>, _>([msg], SCALAR_HASH_DOMAIN, &mut output);
+    #[allow(clippy::indexing_slicing)]
     output[0]
 }
 
@@ -136,6 +137,7 @@ pub fn try_deserialize_scalar_vec(expected_len: u64, bytes: &[u8]) -> Result<Vec
     for i in 0..expected_len as usize {
         //SAFETY : casting 32 len slice into 32 len array
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let s_bytes = bytes[i * 32..(i + 1) * 32].try_into().unwrap();
         let s = match Scalar::from_bytes(&s_bytes).into() {
             None => return Err(CompactEcashError::ScalarDeserializationFailure),
@@ -225,6 +227,7 @@ pub fn check_vk_pairing(
     if &vk.alpha != *dkg_values.first().as_ref().unwrap() {
         return false;
     }
+    #[allow(clippy::indexing_slicing)]
     let dkg_betas = &dkg_values[1..];
     if dkg_betas
         .iter()
@@ -293,9 +296,9 @@ mod tests {
         // y = x^4 - 5x^2 + 2x - 3, at x = 3 (exp: 39)
         let poly = Polynomial {
             coefficients: vec![
-                (-Scalar::from(3)),
+                -Scalar::from(3),
                 Scalar::from(2),
-                (-Scalar::from(5)),
+                -Scalar::from(5),
                 Scalar::zero(),
                 Scalar::from(1),
             ],

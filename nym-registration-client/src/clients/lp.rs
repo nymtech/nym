@@ -110,6 +110,7 @@ impl LpBasedRegistrationClient {
                 &self.config.exit.keys,
                 &self.config.exit.node.identity,
                 &*self.bandwidth_provider,
+                self.config.spend_time_skew,
                 TicketType::V1WireguardExit,
             )
             .await
@@ -129,6 +130,7 @@ impl LpBasedRegistrationClient {
                 &self.config.entry.keys,
                 &self.config.entry.node.identity,
                 &*self.bandwidth_provider,
+                self.config.spend_time_skew,
                 TicketType::V1WireguardEntry,
             )
             .await

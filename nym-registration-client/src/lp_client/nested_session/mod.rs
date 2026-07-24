@@ -43,7 +43,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use time::OffsetDateTime;
+use time::{Duration as TimeDuration, OffsetDateTime};
 use tracing::{debug, warn};
 
 pub(crate) mod connection;
@@ -227,6 +227,7 @@ impl NestedLpSession {
         outer_client: &mut LpRegistrationClient<S>,
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData>
     where
@@ -241,7 +242,7 @@ impl NestedLpSession {
                 ticket_type,
                 gateway_identity,
                 DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc(),
+                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
             )
             .await
             .map_err(|e| {
@@ -335,6 +336,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
+    #[allow(clippy::too_many_arguments)]
     pub async fn register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
@@ -342,6 +344,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -404,6 +407,7 @@ impl NestedLpSession {
                     outer_client,
                     *gateway_identity,
                     bandwidth_provider,
+                    spend_time_skew,
                     ticket_type,
                 )
                 .await?
@@ -446,6 +450,7 @@ impl NestedLpSession {
     /// - Forwarding through entry gateway fails
     /// - Response decryption/deserialization fails
     /// - Gateway rejects the registration
+    #[allow(clippy::too_many_arguments)]
     pub async fn handshake_and_register_dvpn<S, R>(
         &mut self,
         outer_client: &mut LpRegistrationClient<S>,
@@ -453,6 +458,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -468,6 +474,7 @@ impl NestedLpSession {
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
+            spend_time_skew,
             ticket_type,
         )
         .await
@@ -509,6 +516,7 @@ impl NestedLpSession {
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -561,6 +569,7 @@ impl NestedLpSession {
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
+            spend_time_skew,
             ticket_type,
         )
         .await

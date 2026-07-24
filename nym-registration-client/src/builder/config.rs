@@ -14,6 +14,7 @@ use nym_sdk::{
 #[cfg(unix)]
 use std::os::fd::RawFd;
 use std::{path::PathBuf, sync::Arc, time::Duration};
+use time::Duration as TimeDuration;
 use tokio_util::sync::CancellationToken;
 use typed_builder::TypedBuilder;
 
@@ -38,6 +39,10 @@ pub struct BuilderConfig {
     pub data_path: PathBuf,
     pub mode: RegistrationMode,
     pub bandwidth_request_sender: BandwidthControllerRequestSender,
+    /// Clock skew to apply to the system clock when timestamping bandwidth credentials spent
+    /// during registration - `None` means the raw system clock is used as-is.
+    #[builder(default)]
+    pub spend_time_skew: Option<TimeDuration>,
     pub cancel_token: CancellationToken,
 
     // Toggle
@@ -98,6 +103,7 @@ impl BuilderConfig {
             exit: self.exit_node.clone(),
             mode: self.mode,
             lp_registration_config: self.lp_registration_config,
+            spend_time_skew: self.spend_time_skew,
         }
     }
 

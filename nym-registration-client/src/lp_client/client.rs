@@ -30,7 +30,7 @@ use rand09::{CryptoRng, RngCore};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
+use time::{Duration as TimeDuration, OffsetDateTime};
 use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
@@ -434,6 +434,7 @@ where
         &mut self,
         gateway_identity: ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardRegistrationData> {
         tracing::debug!("Acquiring bandwidth credential for registration");
@@ -444,7 +445,7 @@ where
                 ticket_type,
                 gateway_identity,
                 DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc(),
+                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
             )
             .await
             .map_err(|e| {
@@ -542,6 +543,7 @@ where
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
@@ -595,8 +597,13 @@ where
                 // we're registering for the first time with this gateway - we need to attach a credential
 
                 // 8. retrieve credential from the controller
-                self.finalise_dvpn_registration(*gateway_identity, bandwidth_provider, ticket_type)
-                    .await?
+                self.finalise_dvpn_registration(
+                    *gateway_identity,
+                    bandwidth_provider,
+                    spend_time_skew,
+                    ticket_type,
+                )
+                .await?
             }
         };
 
@@ -640,12 +647,14 @@ where
     /// # Note
     /// Unlike `register()`, this method handles the full flow including handshake.
     /// Do NOT call `perform_handshake()` before this method.
+    #[allow(clippy::too_many_arguments)]
     pub async fn handshake_and_register_with_retry<R>(
         &mut self,
         rng: &mut R,
         wg_keypair: &x25519::KeyPair,
         gateway_identity: &ed25519::PublicKey,
         bandwidth_provider: &dyn BandwidthTicketProvider,
+        spend_time_skew: Option<TimeDuration>,
         ticket_type: TicketType,
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
@@ -688,6 +697,7 @@ where
             wg_keypair,
             gateway_identity,
             bandwidth_provider,
+            spend_time_skew,
             ticket_type,
         )
         .await

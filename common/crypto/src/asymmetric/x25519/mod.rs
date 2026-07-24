@@ -180,6 +180,9 @@ impl PublicKey {
             });
         }
         let mut bytes = [0; PUBLIC_KEY_SIZE];
+
+        // SAFETY: we just checked the length of the input
+        #[allow(clippy::indexing_slicing)]
         bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
         Ok(Self::from_byte_array(&bytes))
     }
@@ -338,6 +341,9 @@ impl PrivateKey {
             });
         }
         let mut bytes = [0; 32];
+
+        // SAFETY: we just checked the length of the input
+        #[allow(clippy::indexing_slicing)]
         bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
         Ok(Self(x25519_dalek::StaticSecret::from(bytes)))
     }

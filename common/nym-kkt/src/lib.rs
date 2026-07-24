@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![deny(clippy::indexing_slicing)]
+#![cfg_attr(test, allow(clippy::indexing_slicing))]
+
 pub mod carrier;
 pub mod error;
 pub mod frame;

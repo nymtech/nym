@@ -69,6 +69,9 @@ pub fn sign_coin_indices(
     let m2: Scalar = constants::TYPE_IDX;
 
     let vk_bytes = vk.to_bytes();
+
+    // SAFETY: we checked for the key length
+    #[allow(clippy::indexing_slicing)]
     let partial_s_exponent = sk_auth.x + sk_auth.ys[1] * m1 + sk_auth.ys[2] * m2;
 
     let sign_index = |index: u64| {
@@ -80,6 +83,7 @@ pub fn sign_coin_indices(
         let h = hash_g1(concatenated_bytes);
 
         // Sign the attributes
+        #[allow(clippy::indexing_slicing)]
         let s_exponent = partial_s_exponent + sk_auth.ys[0] * m0;
 
         // Create the signature struct
@@ -133,6 +137,9 @@ where
     }
     let m1: Scalar = constants::TYPE_IDX;
     let m2: Scalar = constants::TYPE_IDX;
+
+    // SAFETY: we checked for the key length
+    #[allow(clippy::indexing_slicing)]
     let partially_signed = vk_auth.alpha + vk_auth.beta_g2[1] * m1 + vk_auth.beta_g2[2] * m2;
     let vk_bytes = vk.to_bytes();
 
@@ -160,6 +167,7 @@ where
         // h: H(vk, l)
         // si: h^{xi + yi[0] * mi0 + yi[1] * m1 + yi[2] * m2}
         // X: g2^{x + y[0] * mi0 + yi[1] * m1 + yi[2] * m2}
+        #[allow(clippy::indexing_slicing)]
         pairing_terms.push((sig, vk_auth.beta_g2[0] * m0 + partially_signed));
     }
 

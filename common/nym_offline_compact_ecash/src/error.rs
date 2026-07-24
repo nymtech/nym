@@ -70,6 +70,9 @@ pub enum CompactEcashError {
     #[error("could not decode base 58 string - {0}")]
     MalformedString(#[from] bs58::decode::Error),
 
+    #[error("the provided construct is not compatible with the provided arguments")]
+    IncompatibleConstruction,
+
     #[error("failed to verify coin indices signatures")]
     CoinIndicesSignatureVerification,
 

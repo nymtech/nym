@@ -1,16 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod v6;
-mod v7;
+mod v10;
 mod v8;
 mod v9;
 
-use nym_ip_packet_requests::{
-    IpPair, v6::request::IpPacketRequest as IpPacketRequestV6,
-    v7::request::IpPacketRequest as IpPacketRequestV7,
-    v8::request::IpPacketRequest as IpPacketRequestV8,
-};
+use nym_ip_packet_requests::v8::request::IpPacketRequest as IpPacketRequestV8;
 use nym_sdk::mixnet::ReconstructedMessage;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use std::fmt;
@@ -34,20 +29,10 @@ pub(crate) struct DataRequest {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ControlRequest {
-    StaticConnect(StaticConnectRequest),
     DynamicConnect(DynamicConnectRequest),
     Disconnect(DisconnectRequest),
     Ping(PingRequest),
     Health(HealthRequest),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct StaticConnectRequest {
-    pub(crate) version: ClientVersion,
-    pub(crate) request_id: u64,
-    pub(crate) sent_by: ConnectedClientId,
-    pub(crate) ips: IpPair,
-    pub(crate) buffer_timeout: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -103,23 +88,6 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
 
         let request_version = request_version[0];
         match request_version {
-            6 => {
-                let request_v6 = IpPacketRequestV6::from_reconstructed_message(reconstructed)
-                    .map_err(
-                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
-                    )?;
-                Ok(IpPacketRequest::from(request_v6))
-            }
-            7 => {
-                let request_v7 = IpPacketRequestV7::from_reconstructed_message(reconstructed)
-                    .map_err(
-                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
-                    )?;
-                request_v7
-                    .verify()
-                    .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })?;
-                Ok(IpPacketRequest::from(request_v7))
-            }
             8 => {
                 let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
                     .map_err(
@@ -140,6 +108,16 @@ impl TryFrom<&ReconstructedMessage> for IpPacketRequest {
                     .ok_or(IpPacketRouterError::MissingSenderTag)?;
                 Ok(v9::convert(request_v8, sender_tag))
             }
+            10 => {
+                let request_v8 = IpPacketRequestV8::from_reconstructed_message(reconstructed)
+                    .map_err(
+                        |source| IpPacketRouterError::FailedToDeserializeTaggedPacket { source },
+                    )?;
+                let sender_tag = reconstructed
+                    .sender_tag
+                    .ok_or(IpPacketRouterError::MissingSenderTag)?;
+                Ok(v10::convert(request_v8, sender_tag))
+            }
             _ => {
                 log::info!("Received packet with invalid version: v{request_version}");
                 Err(IpPacketRouterError::InvalidPacketVersion(request_version))
@@ -153,7 +131,6 @@ impl IpPacketRequest {
         match self {
             IpPacketRequest::Data(r) => r.version,
             IpPacketRequest::Control(c) => match c {
-                ControlRequest::StaticConnect(r) => r.version,
                 ControlRequest::DynamicConnect(r) => r.version,
                 ControlRequest::Disconnect(r) => r.version,
                 ControlRequest::Ping(r) => r.version,
@@ -175,7 +152,6 @@ impl fmt::Display for IpPacketRequest {
 impl fmt::Display for ControlRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ControlRequest::StaticConnect(_) => write!(f, "StaticConnect"),
             ControlRequest::DynamicConnect(_) => write!(f, "DynamicConnect"),
             ControlRequest::Disconnect(_) => write!(f, "Disconnect"),
             ControlRequest::Ping(_) => write!(f, "Ping"),

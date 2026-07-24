@@ -25,6 +25,9 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "REWARDING_VALIDATOR_ADDRESS";
 pub const NYXD: &str = "NYXD";
 pub const NYM_API: &str = "NYM_API";
 pub const NYM_APIS: &str = "NYM_APIS";
+
+// Overrides the IPR egress TUN MTU (bytes).
+pub const NYM_MTU_SIZE: &str = "NYM_MTU_SIZE";
 pub const NYXD_WEBSOCKET: &str = "NYXD_WS";
 pub const NYXD_QUERY_LITE: &str = "NYXD_LITE";
 pub const NYXD_WS_LITE: &str = "NYXD_WS_LITE";

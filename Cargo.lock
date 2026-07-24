@@ -8578,6 +8578,7 @@ version = "1.21.4"
 dependencies = [
  "etherparse",
  "log",
+ "nym-network-defaults",
  "nym-wireguard-types",
  "thiserror 2.0.18",
  "tokio",

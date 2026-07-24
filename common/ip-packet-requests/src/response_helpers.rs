@@ -7,7 +7,9 @@ use tracing::{error, info, warn};
 use crate::{
     IpPair,
     codec::MultiIpPacketCodec,
-    v8::response::{
+    // v9 re-exports v8's response tree unchanged; naming v9 keeps the shared
+    // (non-v10) connect/data path on the current stream version, not the floor.
+    v9::response::{
         ConnectResponseReply, ControlResponse, InfoLevel, IpPacketResponse, IpPacketResponseData,
     },
 };
@@ -20,11 +22,11 @@ pub enum IprResponseError {
     #[error("version mismatch: received v{received}, expected v{expected}")]
     VersionMismatch { expected: u8, received: u8 },
 
-    #[error("expected control response, got {0:?}")]
-    UnexpectedResponse(IpPacketResponseData),
+    #[error("unexpected response to connect request: {0}")]
+    UnexpectedResponse(String),
 
     #[error("connect denied: {0:?}")]
-    ConnectDenied(crate::v8::response::ConnectFailureReason),
+    ConnectDenied(crate::ConnectFailureReason),
 }
 
 pub enum MixnetMessageOutcome {
@@ -54,7 +56,14 @@ pub fn check_ipr_message_version(data: &[u8], expected: u8) -> Result<(), IprRes
 pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, IprResponseError> {
     let control_response = match response.data {
         IpPacketResponseData::Control(c) => c,
-        other => return Err(IprResponseError::UnexpectedResponse(other)),
+        // Described by length, not Debug: a data response carries a full packet
+        // bundle and would dump kilobytes of bytes into the error string.
+        IpPacketResponseData::Data(d) => {
+            return Err(IprResponseError::UnexpectedResponse(format!(
+                "data response ({} bytes)",
+                d.ip_packet.len()
+            )));
+        }
     };
 
     match *control_response {
@@ -62,9 +71,36 @@ pub fn parse_connect_response(response: IpPacketResponse) -> Result<IpPair, IprR
             ConnectResponseReply::Success(success) => Ok(success.ips),
             ConnectResponseReply::Failure(reason) => Err(IprResponseError::ConnectDenied(reason)),
         },
-        _ => Err(IprResponseError::UnexpectedResponse(
-            IpPacketResponseData::Control(control_response),
-        )),
+        other => Err(IprResponseError::UnexpectedResponse(format!("{other:?}"))),
+    }
+}
+
+/// Parse a v10 connect response, returning the allocated IPs and the IPR's MTU.
+/// Same logic as [`parse_connect_response`], but over the v10 response tree
+/// (which carries the `mtu` field).
+pub fn parse_connect_response_v10(
+    response: crate::v10::response::IpPacketResponse,
+) -> Result<crate::v10::response::ConnectSuccess, IprResponseError> {
+    use crate::v10::response::{ConnectResponseReply, ControlResponse, IpPacketResponseData};
+
+    let control_response = match response.data {
+        IpPacketResponseData::Control(c) => c,
+        // Described by length, not Debug: a data response carries a full packet
+        // bundle and would dump kilobytes of bytes into the error string.
+        IpPacketResponseData::Data(d) => {
+            return Err(IprResponseError::UnexpectedResponse(format!(
+                "data response ({} bytes)",
+                d.ip_packet.len()
+            )));
+        }
+    };
+
+    match *control_response {
+        ControlResponse::Connect(connect_resp) => match connect_resp.reply {
+            ConnectResponseReply::Success(success) => Ok(success),
+            ConnectResponseReply::Failure(reason) => Err(IprResponseError::ConnectDenied(reason)),
+        },
+        other => Err(IprResponseError::UnexpectedResponse(format!("{other:?}"))),
     }
 }
 

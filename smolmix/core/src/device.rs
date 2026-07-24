@@ -29,10 +29,11 @@ impl NymAsyncDevice {
     pub(crate) fn new(
         rx: mpsc::UnboundedReceiver<Vec<u8>>,
         tx: mpsc::UnboundedSender<Vec<u8>>,
+        negotiated_mtu: Option<u16>,
     ) -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        capabilities.max_transmission_unit = 1500;
+        capabilities.max_transmission_unit = client_mtu(negotiated_mtu);
         capabilities.max_burst_size = Some(1);
 
         Self {
@@ -41,6 +42,23 @@ impl NymAsyncDevice {
             capabilities,
         }
     }
+}
+
+/// Client MTU precedence: `SMOLMIX_MTU` override > Android's mobile MTU > the
+/// IPR-negotiated MTU (v10 connect response) > a fallback for pre-v10 IPRs.
+fn client_mtu(negotiated: Option<u16>) -> usize {
+    #[cfg(target_os = "android")]
+    const PLATFORM_MTU: Option<u16> = Some(nym_ip_packet_requests::CLIENT_MTU_MOBILE);
+    #[cfg(not(target_os = "android"))]
+    const PLATFORM_MTU: Option<u16> = None;
+
+    let mtu = std::env::var("SMOLMIX_MTU")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .or(PLATFORM_MTU)
+        .or(negotiated)
+        .unwrap_or(nym_ip_packet_requests::CLIENT_MTU_FALLBACK);
+    usize::from(mtu)
 }
 
 // tokio-smoltcp's reactor polls poll_next() to pull packets into the smoltcp

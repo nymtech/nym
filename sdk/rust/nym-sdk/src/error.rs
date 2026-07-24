@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_ip_packet_requests::v8::response::{ConnectFailureReason, IpPacketResponseData};
+use nym_ip_packet_requests::ConnectFailureReason;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
@@ -117,8 +117,8 @@ pub enum Error {
     #[error("stream closed")]
     IPRClientStreamClosed,
 
-    #[error("expected control response, got {0:?}")]
-    UnexpectedResponseType(IpPacketResponseData),
+    #[error("unexpected response to connect request: {0}")]
+    UnexpectedResponseType(String),
 
     #[error("connect denied: {0:?}")]
     ConnectDenied(ConnectFailureReason),

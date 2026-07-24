@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-tunnel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared mixnet tunnel lifecycle for smolmix-based SDKs (mix-fetch, mix-dns, mix-websocket).",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

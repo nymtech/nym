@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-websocket",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "WebSocket-like class that routes WS/WSS traffic through the Nym mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

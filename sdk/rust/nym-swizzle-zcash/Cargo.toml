@@ -1,0 +1,29 @@
+# Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-swizzle-zcash-example"
+description = "Live example: fetching Zcash compact blocks from a lightwalletd over gRPC with nym-swizzle overlapping chunking"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository = "https://github.com/nymtech/nym/sdk/rust/nym-swizzle-zcash/"
+rust-version.workspace = true
+publish = false
+
+# This lives in its own crate rather than as an `examples/` file inside
+# `nym-swizzle` on purpose: `nym-swizzle` guarantees that every one of its
+# non-dev dependencies compiles to `wasm32-unknown-unknown`, and a gRPC/TLS
+# stack does not. Keeping the network example out here preserves that
+# guarantee (and keeps `cargo test -p nym-swizzle` fast).
+
+[dependencies]
+nym-swizzle = { workspace = true }
+
+futures = { workspace = true }
+# tonic-prost 0.14 is built against prost 0.14, not the workspace's 0.13
+prost = "0.14"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tonic = { workspace = true, features = ["channel", "tls-ring", "tls-webpki-roots"] }
+tonic-prost = "0.14"

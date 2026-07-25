@@ -46,6 +46,20 @@ cargo run -p nym-swizzle --example poisson_sampling
 cargo run -p nym-swizzle --example seeded_vrf
 ```
 
+### Live example: Zcash lightwalletd over gRPC
+
+`nym-swizzle-zcash-example` fetches real compact blocks from a public
+lightwalletd (`zec.rocks`), comparing a direct fetch against overlapping
+chunking, verifying complete coverage and reporting the wastage:
+
+```sh
+cargo run --release -p nym-swizzle-zcash-example
+```
+
+It lives in its own crate (`sdk/rust/nym-swizzle-zcash`) rather than in
+`examples/` here, because a gRPC/TLS stack does not compile to wasm and would
+break this crate's dependency guarantee.
+
 ## Profiling harness
 
 A development-time harness proves the statistical claims (delay

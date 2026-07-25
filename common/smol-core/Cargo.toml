@@ -1,0 +1,42 @@
+# Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "smol-core"
+description = "Transport-agnostic pure-Rust userspace smoltcp TCP/IP stack: turns a bidirectional stream of raw IP packets into tokio TcpStream/UdpSocket sockets plus a tunnel-scoped DNS resolver"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
+
+[dependencies]
+smoltcp = { workspace = true, features = [
+    "std",
+    "medium-ip",
+    "proto-ipv4",
+    "proto-ipv6",
+    "socket-tcp",
+    "socket-udp",
+] }
+tokio = { workspace = true, features = ["time"] }
+tokio-smoltcp = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+thiserror.workspace = true
+hickory-proto = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "rt-multi-thread",
+    "time",
+    "net",
+] }

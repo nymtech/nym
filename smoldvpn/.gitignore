@@ -1,0 +1,10 @@
+# Runtime artifacts from live integration tests / example CLIs (credential
+# stores, fetcher recovery DBs). Never commit these.
+/live-*/
+# Per-example data dir (`data/<example>/<network>`), plus the legacy flat dirs.
+/data/
+/*-data/
+/smoldvpn-*-creds.db
+*.db
+*.db-shm
+*.db-wal

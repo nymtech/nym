@@ -1,0 +1,113 @@
+# Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "smoldvpn"
+description = "Pure-Rust userspace 1-/2-hop WireGuard dVPN datapath (boringtun on smol-core) exposing tokio socket surfaces, with an optional QUIC bridge transport"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
+
+[dependencies]
+smol-core = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "time", "sync", "io-util", "net"] }
+tokio-util = { workspace = true, features = ["codec", "rt"] }
+futures = { workspace = true }
+tracing = { workspace = true }
+thiserror.workspace = true
+bytes = { workspace = true }
+smoltcp = { workspace = true, features = [
+    "std",
+    "medium-ip",
+    "proto-ipv4",
+    "proto-ipv6",
+    "socket-udp",
+    "socket-tcp",
+] }
+
+# Connector adapters (Phase 5): expose the tunnel to tonic/hyper/reqwest.
+hyper = { workspace = true, features = ["client", "http1", "http2"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+tower = { workspace = true }
+http = { workspace = true }
+pin-project = { workspace = true }
+
+# Bandwidth top-up (task 4.9): the gateway `metadata` endpoint client. The
+# BandwidthCredential is supplied by the caller, keeping the datapath decoupled
+# from the provisioning facade.
+nym-http-api-client = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-wireguard-private-metadata-client = { workspace = true }
+nym-wireguard-private-metadata-shared = { workspace = true }
+# In-tunnel metadata client: the top-up HTTP requests are dialled through the
+# tunnel's own `TunnelConnector` (hyper) rather than the host network, so a
+# long-lived tunnel tops up without leaking the client's real IP.
+http-body-util = { workspace = true }
+serde_json = { workspace = true }
+# The ready-made credential source adapter over a bandwidth ticket provider (e.g.
+# the session's controller sender). `nym-bandwidth-controller` is a `common/`
+# crate, so depending on it here does not invert the session↔datapath direction.
+nym-bandwidth-controller = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+time = { workspace = true }
+
+# --- Crate-local deps: deliberately NOT promoted to the workspace dependency
+# --- table. The userspace WireGuard engine and the QUIC bridge stack live only
+# --- here, keeping the WG/QUIC dependency surface contained to this crate.
+boringtun = "0.7.1"
+quinn = "0.11"
+quinn-proto = "0.11"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+rustls-pki-types = "1"
+
+# The QUIC bridge client is delegated to the canonical `nym-bridges`
+# implementation (cert-pinning verifier, ALPN, dialing) instead of being
+# reimplemented here — see `bridge.rs`. Published to crates.io, so this is a
+# normal versioned dependency.
+nym-bridges = "0.1.2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "io-util", "net"] }
+rcgen = { version = "0.13", features = ["pem", "crypto"] }
+# Example only: demonstrate a real tonic gRPC request through the tunnel using
+# tonic-health's ready-made client (no custom proto/build.rs).
+tonic = { workspace = true, features = ["transport"] }
+tonic-health = "0.14"
+# Examples: HTTPS-over-tunnel (ipinfo.io) + zcash lightwalletd gRPC (manual
+# tonic client with hand-written prost messages — no proto/build.rs).
+tonic-prost = "0.14"
+# Must match tonic-prost's prost major (0.14); the workspace prost is 0.13, and
+# prost-derive hardcodes the `::prost` path, so the example pins 0.14 directly.
+prost = { version = "0.14", features = ["derive"] }
+tokio-rustls = { workspace = true }
+webpki-roots = { workspace = true }
+serde_json = { workspace = true }
+# Conformance test only: derive the base58 SNI a nym-bridge server certificate
+# is issued for (CN/SAN = base58 identity key), and encode the mock server's
+# base64 identity.
+bs58 = "0.5"
+base64 = { workspace = true }
+# Example CLIs only (keep the library decoupled from the provisioning facade).
+nym-sdk-session = { workspace = true }
+nym-crypto = { workspace = true }
+nym-network-defaults = { workspace = true }
+bip39 = { workspace = true }
+tokio-util = { workspace = true }
+# Examples install a `tracing` subscriber so the crate's datapath/handshake
+# logs are visible (honours `RUST_LOG`, defaulting to `smoldvpn=info`).
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[[example]]
+name = "smoldvpn-config"
+path = "examples/smoldvpn-config.rs"
+
+[[example]]
+name = "smoldvpn-topup"
+path = "examples/smoldvpn-topup.rs"

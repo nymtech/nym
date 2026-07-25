@@ -1,0 +1,64 @@
+# Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-sdk-session"
+description = "Provisioning facade over nym-registration-client + nym-bandwidth-controller + the credential store: from a mnemonic it issues/persists zk-nym WireGuard ticketbooks, selects gateways, and registers them"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+nym-validator-client = { workspace = true }
+nym-http-api-client = { workspace = true }
+nym-bandwidth-controller = { workspace = true }
+nym-bandwidth-fetcher = { workspace = true }
+nym-credential-storage = { workspace = true }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-ecash-time = { workspace = true }
+time = { workspace = true }
+nym-registration-client = { workspace = true }
+nym-registration-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-network-defaults = { workspace = true }
+nym-api-requests = { workspace = true }
+nym-authenticator-requests = { workspace = true }
+nym-kkt-ciphersuite = { workspace = true }
+nym-lp = { workspace = true }
+nym-lp-data = { workspace = true }
+nym-sphinx-addressing = { workspace = true }
+nym-task = { workspace = true }
+
+async-trait = { workspace = true }
+bip39 = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+rand09 = { workspace = true }
+semver = { workspace = true }
+reqwest = { workspace = true, features = ["rustls", "json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
+tokio-util = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+# `test-util` enables the paused virtual clock used by the signer-timeout tests.
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+# Signer-failure tests fabricate a real threshold-signed ticketbook (no chain, no funds).
+nym-compact-ecash = { workspace = true }
+# HTTP-level signer-fault harness: fabricate DKG verification-key shares so the
+# real NyxdGlobalDataFetcher discovers local mock nym-apis (no chain).
+nym-coconut-dkg-common = { workspace = true }
+cosmwasm-std = { workspace = true }

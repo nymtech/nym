@@ -8518,6 +8518,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-swizzle-zcash-example"
+version = "1.21.5-rc.1"
+dependencies = [
+ "futures",
+ "nym-swizzle",
+ "prost 0.14.3",
+ "tokio",
+ "tonic 0.14.6",
+ "tonic-prost",
+]
+
+[[package]]
 name = "nym-task"
 version = "1.21.5-rc.1"
 dependencies = [
@@ -12878,6 +12890,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]

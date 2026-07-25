@@ -155,6 +155,7 @@ members = [
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
     "sdk/rust/nym-swizzle",
+    "sdk/rust/nym-swizzle-zcash",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",

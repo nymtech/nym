@@ -10,6 +10,7 @@ edition = "2021"
 license.workspace = true
 repository = "https://github.com/nymtech/nym/sdk/rust/nym-swizzle-zcash/"
 rust-version.workspace = true
+readme = "README.md"
 publish = false
 
 # This lives in its own crate rather than as an `examples/` file inside

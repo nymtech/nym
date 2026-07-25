@@ -8848,6 +8848,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-swizzle"
+version = "1.21.5-rc.1"
+dependencies = [
+ "futures",
+ "getrandom 0.2.17",
+ "log",
+ "plotters",
+ "rand 0.8.6",
+ "rand_chacha 0.3.1",
+ "rand_distr",
+ "tokio",
+ "wasmtimer",
+]
+
+[[package]]
 name = "nym-task"
 version = "1.21.5-rc.3"
 dependencies = [

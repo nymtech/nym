@@ -154,6 +154,7 @@ members = [
     "sdk/ffi/go",
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
+    "sdk/rust/nym-swizzle",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -496,6 +497,7 @@ nym-pemstore = { version = "1.21.5-rc.1", path = "common/pemstore" }
 nym-performance-contract-common = { version = "1.21.5-rc.1", path = "common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-sdk = { version = "1.21.5-rc.1", path = "sdk/rust/nym-sdk" }
 nym-serde-helpers = { version = "1.21.5-rc.1", path = "common/serde-helpers" }
+nym-swizzle = { version = "1.21.5-rc.1", path = "sdk/rust/nym-swizzle" }
 nym-service-providers-common = { version = "1.21.5-rc.1", path = "service-providers/common" }
 nym-service-provider-requests-common = { version = "1.21.5-rc.1", path = "common/service-provider-requests-common" }
 nym-socks5-client-core = { version = "1.21.5-rc.1", path = "common/socks5-client-core" }

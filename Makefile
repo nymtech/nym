@@ -120,7 +120,7 @@ sdk-typescript-build:
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
 
-WASM_CRATES = nym-client-wasm
+WASM_CRATES = nym-client-wasm nym-swizzle
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings

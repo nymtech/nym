@@ -7,6 +7,7 @@ on:
       - "wasm/**"
       - "clients/client-core/**"
       - "common/**"
+      - "sdk/rust/nym-swizzle/**"
       - ".github/workflows/ci-sdk-wasm.yml"
 
 jobs:

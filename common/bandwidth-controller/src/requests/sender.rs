@@ -178,6 +178,7 @@ impl BandwidthControllerRequestSender {
     /// Not to be used lightly: the automatic triggers (ticket handout, timer, fetcher install)
     /// already keep every type stocked. This is a manual safety valve, not a routine call.
     #[instrument(skip(self))]
+    #[doc(hidden)]
     pub async fn restock_ticketbooks(
         &self,
         types: Vec<TicketType>,
@@ -192,6 +193,7 @@ impl BandwidthControllerRequestSender {
     /// Kicks off a background restock for every ticket type running low or about to expire.
     /// Returns once the restock is scheduled, not once the fetches finish.
     #[instrument(skip(self))]
+    #[doc(hidden)]
     pub async fn restock_all_ticketbooks(&self) -> Result<(), BandwidthControllerError> {
         self.restock_ticketbooks(AvailableTicketbooks::ticketbook_types())
             .await

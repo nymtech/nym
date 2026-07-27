@@ -7,10 +7,10 @@ use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot};
 use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender, ReturnSender};
 use crate::ticketbooks::AvailableTicketbooks;
 use crate::traits::{CredentialFetcher, CredentialPublicDataFetcher};
+use crate::NymCredential;
 use crate::{
     BandwidthTicketProvider, PreparedCredential, PreparedCredentialMetadata, UPGRADE_MODE_JWT_TYPE,
 };
-use crate::{NymCredential, DEFAULT_TICKETS_TO_SPEND};
 
 use nym_credential_storage::models::EmergencyCredentialContent;
 use nym_credential_storage::models::RetrievedTicketbook;
@@ -419,6 +419,7 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     /// Tries to retrieve one of the stored, unused credentials for the given type that hasn't yet expired.
+    /// This is spending a ticket
     pub async fn get_next_usable_ticketbook(
         &self,
         ticketbook_type: TicketType,
@@ -482,10 +483,14 @@ impl<St: Storage> BandwidthController<St> {
         };
 
         for typ in ticketbook_types {
-            tracing::debug!("Checking credential stock for {typ} ticket");
-            if available.needs_restock(typ, &self.config) {
-                tracing::debug!("{typ} tickets need a restock");
-                self.ensure_stocked(typ);
+            if self.config.managed_ticket_types.contains(&typ) {
+                tracing::debug!("Checking credential stock for {typ} ticket");
+                if available.needs_restock(typ, &self.config) {
+                    tracing::debug!("{typ} tickets need a restock");
+                    self.ensure_stocked(typ);
+                }
+            } else {
+                tracing::debug!("Credential {typ} is not managed, check and restock skipped");
             }
         }
     }
@@ -632,23 +637,22 @@ impl<St: Storage> BandwidthController<St> {
     /// The `(epoch, date)` global data needed to spend the given types: for each stocked type, that
     /// of the ticketbook that would be taken next. A type with no usable ticketbook contributes
     /// nothing (its requirement is the ticketbook itself, tracked separately).
+    ///
+    /// Read-only - it peeks at the next-usable ticketbook's metadata without withdrawing (unlike
+    /// [`Self::get_next_usable_ticketbook`], which is the actual spend path).
     async fn required_global_data(
         &self,
         ticket_types: &[TicketType],
     ) -> Result<Vec<(EpochId, Date)>, BandwidthControllerError> {
-        let mut needed = Vec::new();
-        for &typ in ticket_types {
-            if let Some(next) = self
-                .get_next_usable_ticketbook(typ, DEFAULT_TICKETS_TO_SPEND)
-                .await?
-            {
-                needed.push((
-                    next.ticketbook.epoch_id(),
-                    next.ticketbook.expiration_date(),
-                ));
-            }
-        }
-        Ok(needed)
+        let available = self.get_available_ticketbooks().await?;
+        Ok(ticket_types
+            .iter()
+            .filter_map(|&typ| {
+                available
+                    .next_usable(typ)
+                    .map(|ticketbook| (ticketbook.epoch_id, ticketbook.expiration))
+            })
+            .collect())
     }
 
     /// Re-evaluates parked `wait_for_ticketbooks` callers after stock/in-flight state changed,
@@ -778,13 +782,10 @@ impl<St: Storage> BandwidthController<St> {
             .await
             .map_err(BandwidthControllerError::credential_storage_error)?;
 
-        let required = ticketbooks
-            .iter()
+        let required = AvailableTicketbooks::try_from(ticketbooks)?
+            .filter(|ticketbook| !ticketbook.has_expired())
             .flat_map(|ticketbook| {
-                GlobalDataRequest::for_ticketbook(
-                    EpochId::from(ticketbook.epoch_id),
-                    ticketbook.expiration_date,
-                )
+                GlobalDataRequest::for_ticketbook(ticketbook.epoch_id, ticketbook.expiration)
             })
             .collect::<HashSet<_>>();
 

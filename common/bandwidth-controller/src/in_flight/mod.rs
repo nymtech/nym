@@ -11,36 +11,101 @@ use nym_credentials_interface::TicketType;
 use nym_task::ShutdownToken;
 use tokio::sync::oneshot;
 
-use crate::traits::{CredentialFetcher, CredentialFetcherError};
+use crate::in_flight::global_data::{GlobalData, GlobalDataRequest};
+use crate::traits::{CredentialFetcher, CredentialFetcherError, CredentialPublicDataFetcher};
 use crate::NymCredential;
 
-/// Outcome of the cancellable fetching task.
-/// Some(result) if it ran to completion, `None` if it was cancelled
-type CredentialResult = Option<Result<Vec<NymCredential>, CredentialFetcherError>>;
+pub(crate) mod global_data;
 
-/// Outcome of awaiting a fetch task's result channel: the fetched credentials (or a fetcher
-/// error), `Ok(None)` if the task was cancelled, `Err(RecvError)` if the task dropped its sender (panic).
-pub(crate) type FetchResult = Result<CredentialResult, oneshot::error::RecvError>;
-
-/// A single background ticketbook fetch.
-///
-/// The result travels back over the `oneshot`: a task that finishes normally sends `Some(result)`,
-/// a task cancelled via `cancel` sends `None`, and a task that panics drops the sender without
-/// sending, so the receiver resolves to `Err(RecvError)`.
-struct InFlightFetch {
-    // cancels the in-flight fetch (reset / shutdown); the cancellation still drains as `Ok(None)`
-    cancel: ShutdownToken,
-    result: oneshot::Receiver<CredentialResult>,
+/// Identifies (and thereby de-duplicates) a background fetch: a single [`InFlightFetches`] map holds
+/// both ticketbook and global-signing-data fetches, keyed by this.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum FetchKey {
+    Ticketbook(TicketType),
+    GlobalData(GlobalDataRequest),
 }
 
-/// Tracks background ticketbook fetches keyed per ticket type, so the same type is never requested
-/// twice while a fetch is pending. Owns each fetch's cancel handle and result receiver; the
-/// controller drains completions via [`Self::next_result`] and persists them.
+impl From<TicketType> for FetchKey {
+    fn from(ticket_type: TicketType) -> Self {
+        Self::Ticketbook(ticket_type)
+    }
+}
+
+impl From<GlobalDataRequest> for FetchKey {
+    fn from(request: GlobalDataRequest) -> Self {
+        Self::GlobalData(request)
+    }
+}
+
+/// Everything needed to run one background fetch: what to fetch, plus the fetcher to run it with.
 ///
-/// results are reported back over a channel
+/// Kept separate from [`FetchKey`] (the map key) because a fetcher isn't hashable - the key is
+/// derived from the job via [`FetchJob::key`].
+pub(crate) enum FetchJob {
+    Ticketbook {
+        ticket_type: TicketType,
+        fetcher: Arc<dyn CredentialFetcher>,
+    },
+    GlobalData {
+        request: GlobalDataRequest,
+        fetcher: Arc<dyn CredentialPublicDataFetcher>,
+    },
+}
+
+impl FetchJob {
+    fn key(&self) -> FetchKey {
+        match self {
+            FetchJob::Ticketbook { ticket_type, .. } => (*ticket_type).into(),
+            FetchJob::GlobalData { request, .. } => (*request).into(),
+        }
+    }
+
+    /// Runs the fetch and tags the result with what kind it was, so completion handling doesn't
+    /// have to correlate it back to the key.
+    async fn run(self) -> Result<FetchedData, CredentialFetcherError> {
+        match self {
+            FetchJob::Ticketbook {
+                ticket_type,
+                fetcher,
+            } => fetcher
+                .fetch_ticketbooks(ticket_type)
+                .await
+                .map(FetchedData::Ticketbooks),
+            FetchJob::GlobalData { request, fetcher } => {
+                request.fetch(&*fetcher).await.map(FetchedData::GlobalData)
+            }
+        }
+    }
+}
+
+/// What a completed fetch produced, for the controller to persist. The variant always matches the
+/// [`FetchKey`] the fetch was spawned under.
+pub(crate) enum FetchedData {
+    Ticketbooks(Vec<NymCredential>),
+    GlobalData(GlobalData),
+}
+
+/// What a finished fetch task hands back: `Some(result)` if it ran to completion (success or fetcher
+/// error), or `None` if it was cancelled before finishing.
+type FinishedFetch = Option<Result<FetchedData, CredentialFetcherError>>;
+
+/// What draining a completed fetch yields: the [`FinishedFetch`], or `Err(RecvError)` if the task
+/// dropped its result sender without sending - i.e. it panicked.
+pub(crate) type FetchResult = Result<FinishedFetch, oneshot::error::RecvError>;
+
+/// A single tracked fetch: the handle to cancel it, and the channel its result comes back on.
+struct TrackedFetch {
+    // cancels the in-flight fetch (reset / shutdown); the cancellation still drains as `Ok(None)`
+    cancel: ShutdownToken,
+    result: oneshot::Receiver<FinishedFetch>,
+}
+
+/// Tracks background fetches keyed by [`FetchKey`], so the same key is never requested twice while a
+/// fetch is pending. Owns each fetch's cancel handle and result receiver; the controller drains
+/// completions via [`Self::next_result`] and persists them.
 #[derive(Default)]
 pub(crate) struct InFlightFetches {
-    fetches: HashMap<TicketType, InFlightFetch>,
+    fetches: HashMap<FetchKey, TrackedFetch>,
 }
 
 impl InFlightFetches {
@@ -52,59 +117,55 @@ impl InFlightFetches {
         self.fetches.is_empty()
     }
 
-    pub(crate) fn contains(&self, ticket_type: TicketType) -> bool {
-        self.fetches.contains_key(&ticket_type)
+    pub(crate) fn is_in_flight(&self, key: impl Into<FetchKey>) -> bool {
+        self.fetches.contains_key(&key.into())
     }
 
-    /// Spawns a background fetch for `ticketbook_type` and tracks it. The caller is expected to
-    /// skip types already in flight (see [`Self::contains`]).
-    pub(crate) fn spawn(&mut self, ticket_type: TicketType, fetcher: Arc<dyn CredentialFetcher>) {
-        // Defense in depth, don't overwrite existing fetch
-        if self.fetches.contains_key(&ticket_type) {
-            tracing::warn!("a {ticket_type} fetch is already in flight; not spawning a duplicate");
+    /// Spawns a background fetch and tracks it, unless one is already in flight for the same key.
+    pub(crate) fn spawn(&mut self, job: FetchJob) {
+        let key = job.key();
+        if self.is_in_flight(key) {
+            tracing::warn!("a {key:?} fetch is already in flight; not spawning a duplicate");
             return;
         }
         let cancel = ShutdownToken::new();
         let (tx, result) = oneshot::channel();
-        let task_cancel = cancel.clone();
+        self.fetches.insert(
+            key,
+            TrackedFetch {
+                cancel: cancel.clone(),
+                result,
+            },
+        );
         nym_task::spawn_future(async move {
-            // If the task succeeds, we return Some(result)
-            // If it gets cancelled it will be `None`
-            // If it panics, tx will be dropped and `rx` will observe a `RecvError`
-            // In all cases, we have a result
-            let res = task_cancel
-                .run_until_cancelled(fetcher.fetch_ticketbooks(ticket_type))
-                .await;
-            let _ = tx.send(res);
+            let finished = cancel.run_until_cancelled(job.run()).await;
+            let _ = tx.send(finished);
         });
-        self.fetches
-            .insert(ticket_type, InFlightFetch { cancel, result });
     }
 
-    /// Awaits the first tracked fetch to complete, then forgets it, yielding its ticket type and
-    /// the received value.
+    /// Awaits the first tracked fetch to complete, then forgets it, yielding its key and result.
     ///
     /// Cancel-safe, so it can sit in a `select!`: the completed fetch is removed only after its
     /// result is ready, with no `await` in between. With no fetches tracked this stays pending
     /// forever - guard the call site with [`Self::is_empty`].
-    pub(crate) async fn next_result(&mut self) -> (TicketType, FetchResult) {
-        let (ticket_type, result) = poll_fn(|cx| {
-            for (typ, fetch) in self.fetches.iter_mut() {
+    pub(crate) async fn next_result(&mut self) -> (FetchKey, FetchResult) {
+        let (key, result) = poll_fn(|cx| {
+            for (key, fetch) in self.fetches.iter_mut() {
                 if let Poll::Ready(res) = Pin::new(&mut fetch.result).poll(cx) {
-                    return Poll::Ready((*typ, res));
+                    return Poll::Ready((*key, res));
                 }
             }
             Poll::Pending
         })
         .await;
 
-        self.fetches.remove(&ticket_type);
-        (ticket_type, result)
+        self.fetches.remove(&key);
+        (key, result)
     }
 
-    /// Cancels every in-flight fetch, stopping the underlying network work. Entries are left in
-    /// place so each cancellation drains as `Ok(None)` through [`Self::next_result`] and is removed
-    /// then, rather than being dropped silently.
+    /// Cancels every in-flight fetch, stopping the underlying work. Entries are left in place so
+    /// each cancellation drains as `Ok(None)` through [`Self::next_result`] and is removed then,
+    /// rather than being dropped silently.
     pub(crate) fn cancel_all(&self) {
         for fetch in self.fetches.values() {
             fetch.cancel.cancel();
@@ -143,6 +204,10 @@ mod tests {
 
     const TYPE: TicketType = TicketType::V1MixnetEntry;
 
+    fn key() -> FetchKey {
+        FetchKey::Ticketbook(TYPE)
+    }
+
     #[derive(Debug, thiserror::Error)]
     #[error("mock fetch failure")]
     struct MockFetchError;
@@ -168,6 +233,13 @@ mod tests {
 
     fn fetcher(behaviour: Behaviour) -> Arc<dyn CredentialFetcher> {
         Arc::new(MockFetcher { behaviour })
+    }
+
+    fn job(ticket_type: TicketType, behaviour: Behaviour) -> FetchJob {
+        FetchJob::Ticketbook {
+            ticket_type,
+            fetcher: fetcher(behaviour),
+        }
     }
 
     #[async_trait]
@@ -223,32 +295,32 @@ mod tests {
         let mut fetches = InFlightFetches::new();
         assert!(fetches.is_empty());
 
-        fetches.spawn(TYPE, fetcher(Behaviour::Hang));
+        fetches.spawn(job(TYPE, Behaviour::Hang));
 
-        assert!(fetches.contains(TYPE));
+        assert!(fetches.is_in_flight(TYPE));
         assert!(!fetches.is_empty());
     }
 
     #[tokio::test]
     async fn completed_fetch_bubbles_up_and_frees_slot() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TYPE, fetcher(Behaviour::Succeed));
+        fetches.spawn(job(TYPE, Behaviour::Succeed));
 
-        let (typ, result) = fetches.next_result().await;
+        let (fetched_key, result) = fetches.next_result().await;
 
-        assert_eq!(typ, TYPE);
-        assert!(matches!(result, Ok(Some(Ok(_)))));
+        assert_eq!(fetched_key, key());
+        assert!(matches!(result, Ok(Some(Ok(FetchedData::Ticketbooks(_))))));
         assert!(fetches.is_empty());
     }
 
     #[tokio::test]
     async fn failed_fetch_bubbles_up_as_ok_some_err() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TYPE, fetcher(Behaviour::Fail));
+        fetches.spawn(job(TYPE, Behaviour::Fail));
 
-        let (typ, result) = fetches.next_result().await;
+        let (fetched_key, result) = fetches.next_result().await;
 
-        assert_eq!(typ, TYPE);
+        assert_eq!(fetched_key, key());
         assert!(matches!(result, Ok(Some(Err(_)))));
         assert!(fetches.is_empty());
     }
@@ -256,12 +328,12 @@ mod tests {
     #[tokio::test]
     async fn cancelled_fetch_bubbles_up_as_ok_none() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TYPE, fetcher(Behaviour::Hang));
+        fetches.spawn(job(TYPE, Behaviour::Hang));
 
         fetches.cancel_all();
-        let (typ, result) = fetches.next_result().await;
+        let (fetched_key, result) = fetches.next_result().await;
 
-        assert_eq!(typ, TYPE);
+        assert_eq!(fetched_key, key());
         assert!(matches!(result, Ok(None)));
         assert!(fetches.is_empty());
     }
@@ -269,23 +341,23 @@ mod tests {
     #[tokio::test]
     async fn spawning_a_duplicate_type_is_refused_and_leaves_the_first_fetch_intact() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TYPE, fetcher(Behaviour::Hang));
+        fetches.spawn(job(TYPE, Behaviour::Hang));
         // second spawn for the same type must not overwrite/orphan the first
-        fetches.spawn(TYPE, fetcher(Behaviour::Succeed));
+        fetches.spawn(job(TYPE, Behaviour::Succeed));
 
         assert_eq!(fetches.fetches.len(), 1);
         // the surviving fetch is the original hanging one: it only drains once cancelled
         fetches.cancel_all();
-        let (typ, result) = fetches.next_result().await;
-        assert_eq!(typ, TYPE);
+        let (fetched_key, result) = fetches.next_result().await;
+        assert_eq!(fetched_key, key());
         assert!(matches!(result, Ok(None)));
     }
 
     #[tokio::test]
     async fn cancel_and_join_drains_everything_and_empties_the_map() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TicketType::V1MixnetEntry, fetcher(Behaviour::Hang));
-        fetches.spawn(TicketType::V1MixnetExit, fetcher(Behaviour::Hang));
+        fetches.spawn(job(TicketType::V1MixnetEntry, Behaviour::Hang));
+        fetches.spawn(job(TicketType::V1MixnetExit, Behaviour::Hang));
 
         fetches.cancel_and_join().await;
 
@@ -295,13 +367,13 @@ mod tests {
     #[tokio::test]
     async fn panicked_fetch_bubbles_up_as_recv_error_and_frees_slot() {
         let mut fetches = InFlightFetches::new();
-        fetches.spawn(TYPE, fetcher(Behaviour::Panic));
+        fetches.spawn(job(TYPE, Behaviour::Panic));
 
         // the spawned task panics; tokio isolates it and the dropped sender surfaces as RecvError,
         // freeing the slot so the type can be retried (a panic backtrace is printed - expected).
-        let (typ, result) = fetches.next_result().await;
+        let (fetched_key, result) = fetches.next_result().await;
 
-        assert_eq!(typ, TYPE);
+        assert_eq!(fetched_key, key());
         assert!(result.is_err());
         assert!(fetches.is_empty());
     }

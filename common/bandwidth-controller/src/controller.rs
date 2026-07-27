@@ -3,14 +3,14 @@
 
 use crate::config::BandwidthControllerConfig;
 use crate::error::BandwidthControllerError;
-use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot, ReadinessStatus};
-use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender};
+use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot};
+use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender, ReturnSender};
 use crate::ticketbooks::AvailableTicketbooks;
 use crate::traits::{CredentialFetcher, CredentialPublicDataFetcher};
-use crate::NymCredential;
 use crate::{
     BandwidthTicketProvider, PreparedCredential, PreparedCredentialMetadata, UPGRADE_MODE_JWT_TYPE,
 };
+use crate::{NymCredential, DEFAULT_TICKETS_TO_SPEND};
 
 use nym_credential_storage::models::EmergencyCredentialContent;
 use nym_credential_storage::models::RetrievedTicketbook;
@@ -27,7 +27,6 @@ use nym_validator_client::nym_api::EpochId;
 
 use async_trait::async_trait;
 use log::error;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -217,7 +216,7 @@ impl<St: Storage> BandwidthController<St> {
             }
 
             BandwidthControllerRequest::SetPublicDataFetcher(return_sender, fetcher) => {
-                self.public_data_fetcher = fetcher;
+                self.handle_set_public_data_fetcher(fetcher).await;
                 return_sender.send(Ok(()))
             }
             BandwidthControllerRequest::Reset(return_sender) => {
@@ -238,11 +237,8 @@ impl<St: Storage> BandwidthController<St> {
                 return_sender.send(Ok(()))
             }
             BandwidthControllerRequest::WaitForTicketbooks(return_sender, ticket_types) => {
-                self.handle_wait_for_ticketbooks(ReadinessRequest {
-                    return_sender,
-                    ticket_types,
-                })
-                .await
+                self.handle_wait_for_ticketbooks(return_sender, ticket_types)
+                    .await
             }
         }
     }
@@ -252,13 +248,26 @@ impl<St: Storage> BandwidthController<St> {
         if let Some(old_fetcher) = self.credential_fetcher.take() {
             old_fetcher.cleanup().await;
         }
-        // Explicit upcast required because of the option
-        self.public_data_fetcher = fetcher
+        // a credential fetcher is also a public-data fetcher (explicit upcast through the Option)
+        let public_data_fetcher = fetcher
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
+        self.handle_set_public_data_fetcher(public_data_fetcher)
+            .await;
+
         self.credential_fetcher = fetcher;
         self.check_and_restock(self.config.managed_ticket_types.clone())
             .await;
+    }
+
+    async fn handle_set_public_data_fetcher(
+        &mut self,
+        fetcher: Option<Arc<dyn CredentialPublicDataFetcher>>,
+    ) {
+        self.public_data_fetcher = fetcher;
+        // the public-data fetcher is what provisions global data, so installing one lets us fetch
+        // anything the stored ticketbooks are still missing
+        self.prefetch_global_data().await;
     }
 
     // Removes fetcher, stops in flight requests, clear credentials, answer all readiness request with unavailable
@@ -295,11 +304,28 @@ impl<St: Storage> BandwidthController<St> {
         self.get_available_ticketbooks().await
     }
 
-    async fn handle_wait_for_ticketbooks(&mut self, request: ReadinessRequest) {
+    async fn handle_wait_for_ticketbooks(
+        &mut self,
+        return_sender: ReturnSender<()>,
+        ticket_types: Vec<TicketType>,
+    ) {
+        // resolve the concrete global data those types need to be spendable (epoch + date of the
+        // ticketbook that would be taken); empty for a type that isn't stocked yet - it's refreshed
+        // once a ticketbook lands (see `resolve_pending_waiters`)
+        let global_data = self
+            .required_global_data(&ticket_types)
+            .await
+            .unwrap_or_default();
+        let request = ReadinessRequest {
+            return_sender,
+            ticket_types,
+            global_data,
+        };
+
         let snapshot = match self.build_readiness_snapshot(None).await {
             Ok(snapshot) => snapshot,
             Err(err) => {
-                // transient storage failure - leave waiters parked for the next state change
+                // transient storage failure - leave the waiter parked for the next state change
                 tracing::warn!("could not assess ticketbook readiness: {err}");
                 self.pending_readiness.push(request);
                 return;
@@ -572,34 +598,57 @@ impl<St: Storage> BandwidthController<St> {
     // Ticketbook readiness
     // ---------------------------------------------------------------------
 
+    /// Gathers the current stock, stored global data, in-flight fetches and any fetch failure, and
+    /// hands them to [`ReadinessSnapshot::build`] to assemble - the controller just collects, the
+    /// snapshot does the bookkeeping.
     async fn build_readiness_snapshot(
         &self,
         failure: Option<FetchFailure>,
     ) -> Result<ReadinessSnapshot, BandwidthControllerError> {
         let upgrade_mode = self.get_upgrade_mode_token().await?.is_some();
+
         let available = self.get_available_ticketbooks().await?;
+        let stocked_types = AvailableTicketbooks::ticketbook_types()
+            .into_iter()
+            .filter(|typ| available.contains_minimal_tickets(*typ, &self.config))
+            .collect();
 
-        let mut tickets_readiness = HashMap::new();
-        for typ in AvailableTicketbooks::ticketbook_types() {
-            let status = if available.contains_minimal_tickets(typ, &self.config) {
-                ReadinessStatus::Ready
-            } else if self.in_flight.is_in_flight(typ) {
-                ReadinessStatus::InFlight
-            } else {
-                match failure.as_ref() {
-                    Some(failure) if failure.ticket_type == typ => {
-                        ReadinessStatus::FetchFailed(failure.error.to_string())
-                    }
-                    _ => ReadinessStatus::Unavailable,
-                }
-            };
-            tickets_readiness.insert(typ, status);
-        }
+        let available_global_data = self
+            .storage
+            .get_available_global_data()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
 
-        Ok(ReadinessSnapshot {
+        Ok(ReadinessSnapshot::build(
             upgrade_mode,
-            tickets_readiness,
-        })
+            stocked_types,
+            self.in_flight.in_flight_ticketbooks(),
+            failure,
+            available_global_data,
+            self.in_flight.in_flight_global_data(),
+        ))
+    }
+
+    /// The `(epoch, date)` global data needed to spend the given types: for each stocked type, that
+    /// of the ticketbook that would be taken next. A type with no usable ticketbook contributes
+    /// nothing (its requirement is the ticketbook itself, tracked separately).
+    async fn required_global_data(
+        &self,
+        ticket_types: &[TicketType],
+    ) -> Result<Vec<(EpochId, Date)>, BandwidthControllerError> {
+        let mut needed = Vec::new();
+        for &typ in ticket_types {
+            if let Some(next) = self
+                .get_next_usable_ticketbook(typ, DEFAULT_TICKETS_TO_SPEND)
+                .await?
+            {
+                needed.push((
+                    next.ticketbook.epoch_id(),
+                    next.ticketbook.expiration_date(),
+                ));
+            }
+        }
+        Ok(needed)
     }
 
     /// Re-evaluates parked `wait_for_ticketbooks` callers after stock/in-flight state changed,
@@ -619,12 +668,18 @@ impl<St: Storage> BandwidthController<St> {
 
         tracing::debug!("Readiness snapshot : {:#?}", snapshot);
 
-        let requests = std::mem::take(&mut self.pending_readiness);
-
-        let still_waiting = requests
-            .into_iter()
-            .filter_map(|request| request.try_resolve(&snapshot))
-            .collect();
+        let mut still_waiting = Vec::new();
+        for mut request in std::mem::take(&mut self.pending_readiness) {
+            // a newly-stored ticketbook can introduce global-data requirements a still-unstocked
+            // type didn't have when it was parked, so refresh them before evaluating
+            request.global_data = self
+                .required_global_data(&request.ticket_types)
+                .await
+                .unwrap_or_default();
+            if let Some(request) = request.try_resolve(&snapshot) {
+                still_waiting.push(request);
+            }
+        }
 
         self.pending_readiness = still_waiting;
     }
@@ -706,18 +761,24 @@ impl<St: Storage> BandwidthController<St> {
             .ok_or(BandwidthControllerError::MissingExpirationDateSignatures { epoch_id })
     }
 
-    /// The global signing data a stored ticketbook needs to be spent but that isn't in local
-    /// storage yet.
-    async fn missing_global_data(&self) -> Vec<GlobalDataRequest> {
-        let ticketbooks = match self.storage.get_ticketbooks_info().await {
-            Ok(ticketbooks) => ticketbooks,
-            Err(err) => {
-                tracing::warn!("could not read ticketbooks to assess global data: {err}");
-                return Vec::new();
-            }
-        };
+    /// The global signing data referenced by a stored ticketbook whose fetch (master key, coin
+    /// index or expiration signatures) isn't in local storage yet.
+    async fn missing_global_data(
+        &self,
+    ) -> Result<Vec<GlobalDataRequest>, BandwidthControllerError> {
+        let available_global_data = self
+            .storage
+            .get_available_global_data()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
 
-        let required: HashSet<GlobalDataRequest> = ticketbooks
+        let ticketbooks = self
+            .storage
+            .get_ticketbooks_info()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
+
+        let required = ticketbooks
             .iter()
             .flat_map(|ticketbook| {
                 GlobalDataRequest::for_ticketbook(
@@ -725,55 +786,44 @@ impl<St: Storage> BandwidthController<St> {
                     ticketbook.expiration_date,
                 )
             })
+            .collect::<HashSet<_>>();
+
+        let missing = required
+            .into_iter()
+            .filter(|request| {
+                let present = match *request {
+                    GlobalDataRequest::MasterVerificationKey(epoch_id) => available_global_data
+                        .master_verification_key_epochs
+                        .contains(&epoch_id),
+                    GlobalDataRequest::CoinIndexSignatures(epoch_id) => available_global_data
+                        .coin_index_signature_epochs
+                        .contains(&epoch_id),
+                    GlobalDataRequest::ExpirationDateSignatures {
+                        epoch_id,
+                        expiration_date,
+                    } => available_global_data
+                        .expiration_date_signatures
+                        .contains(&(epoch_id, expiration_date)),
+                };
+                !present
+            })
             .collect();
 
-        let mut missing = Vec::new();
-        for request in required {
-            match self.global_data_present(&request).await {
-                Ok(true) => {}
-                Ok(false) => missing.push(request),
-                Err(err) => tracing::warn!("could not check global data {request:?}: {err}"),
-            }
-        }
-        missing
-    }
-
-    /// Whether the requested global data is already in local storage.
-    async fn global_data_present(
-        &self,
-        request: &GlobalDataRequest,
-    ) -> Result<bool, BandwidthControllerError> {
-        let present = match *request {
-            GlobalDataRequest::MasterVerificationKey(epoch_id) => self
-                .storage
-                .get_master_verification_key(epoch_id)
-                .await
-                .map_err(BandwidthControllerError::credential_storage_error)?
-                .is_some(),
-            GlobalDataRequest::CoinIndexSignatures(epoch_id) => self
-                .storage
-                .get_coin_index_signatures(epoch_id)
-                .await
-                .map_err(BandwidthControllerError::credential_storage_error)?
-                .is_some(),
-            GlobalDataRequest::ExpirationDateSignatures {
-                epoch_id,
-                expiration_date,
-            } => self
-                .storage
-                .get_expiration_date_signatures(expiration_date, epoch_id)
-                .await
-                .map_err(BandwidthControllerError::credential_storage_error)?
-                .is_some(),
-        };
-        Ok(present)
+        Ok(missing)
     }
 
     /// Kicks off background fetches for any missing global signing data. Only local storage reads
     /// happen inline; the (slow) network fetches run off the event loop and are persisted by
     /// `on_global_data_fetch_complete`, so the loop stays responsive instead of blocking.
     async fn prefetch_global_data(&mut self) {
-        for request in self.missing_global_data().await {
+        let missing = match self.missing_global_data().await {
+            Ok(missing) => missing,
+            Err(err) => {
+                tracing::warn!("could not assess global data for prefetch: {err}");
+                return;
+            }
+        };
+        for request in missing {
             self.spawn_global_data_fetch(request);
         }
     }
@@ -781,7 +831,14 @@ impl<St: Storage> BandwidthController<St> {
     /// Fetches and persists any missing global signing data inline. Blocking - only used on a
     /// non-running controller, where there's no event loop to drain a background fetch.
     async fn ensure_global_data(&self) {
-        for request in self.missing_global_data().await {
+        let missing = match self.missing_global_data().await {
+            Ok(missing) => missing,
+            Err(err) => {
+                tracing::warn!("could not assess global data: {err}");
+                return;
+            }
+        };
+        for request in missing {
             if let Err(err) = self.fetch_and_store_global_data(request).await {
                 tracing::warn!("failed to ensure global data ({request:?}): {err}");
             }
@@ -847,26 +904,25 @@ impl<St: Storage> BandwidthController<St> {
         request: GlobalDataRequest,
         received: FetchResult,
     ) {
-        let data = match received {
-            Ok(Some(Ok(FetchedData::GlobalData(data)))) => data,
+        match received {
+            Ok(Some(Ok(FetchedData::GlobalData(data)))) => {
+                if let Err(err) = self.persist_global_data(data).await {
+                    tracing::warn!("failed to persist prefetched global data ({request:?}): {err}");
+                }
+            }
             Ok(Some(Err(err))) => {
-                tracing::warn!("failed to prefetch global data ({request:?}): {err}");
-                return;
+                tracing::warn!("failed to prefetch global data ({request:?}): {err}")
             }
-            Ok(None) => {
-                tracing::debug!("global data prefetch cancelled: {request:?}");
-                return;
-            }
+            Ok(None) => tracing::debug!("global data prefetch cancelled: {request:?}"),
             // the task panicked (or, impossibly, returned a non-global-data payload)
             Ok(Some(Ok(_))) | Err(_) => {
-                tracing::error!("a global data prefetch task ({request:?}) terminated abnormally");
-                return;
+                tracing::error!("a global data prefetch task ({request:?}) terminated abnormally")
             }
-        };
-
-        if let Err(err) = self.persist_global_data(data).await {
-            tracing::warn!("failed to persist prefetched global data ({request:?}): {err}");
         }
+
+        // global data settling (landed or failed) can flip a stocked type's readiness, so waiters
+        // blocked on it need re-evaluating
+        self.resolve_pending_waiters(None).await;
     }
 
     // ---------------------------------------------------------------------

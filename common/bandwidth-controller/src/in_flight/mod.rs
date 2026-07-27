@@ -121,6 +121,28 @@ impl InFlightFetches {
         self.fetches.contains_key(&key.into())
     }
 
+    /// The ticket types whose fetch is currently in flight.
+    pub(crate) fn in_flight_ticketbooks(&self) -> Vec<TicketType> {
+        self.fetches
+            .keys()
+            .filter_map(|key| match key {
+                FetchKey::Ticketbook(ticket_type) => Some(*ticket_type),
+                FetchKey::GlobalData(_) => None,
+            })
+            .collect()
+    }
+
+    /// The global-data pieces whose fetch is currently in flight.
+    pub(crate) fn in_flight_global_data(&self) -> Vec<GlobalDataRequest> {
+        self.fetches
+            .keys()
+            .filter_map(|key| match key {
+                FetchKey::GlobalData(request) => Some(*request),
+                FetchKey::Ticketbook(_) => None,
+            })
+            .collect()
+    }
+
     /// Spawns a background fetch and tracks it, unless one is already in flight for the same key.
     pub(crate) fn spawn(&mut self, job: FetchJob) {
         let key = job.key();

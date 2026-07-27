@@ -1,0 +1,133 @@
+---
+title: "Nym Rust SDK: SOCKS5 Proxy Module"
+description: "Use the Nym Rust SDK SOCKS5 module to route any SOCKS4/4a/5-capable application through the Mixnet. Covers Socks5MixnetClient, the socks5h proxy URL, automatic Network Requester discovery, country-based selection, and a reqwest example."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-06-29"
+---
+
+# SOCKS5 Module
+
+import { Callout } from 'nextra/components'
+
+The `socks5` module provides [`Socks5MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): a local SOCKS5 proxy that routes any SOCKS4, SOCKS4a, or SOCKS5-capable application's traffic through the Mixnet. Your application connects to a standard SOCKS5 proxy on `localhost`; the client forwards that traffic over the Mixnet to a [**Network Requester**](/network/infrastructure/exit-services#network-requester) running on an Exit Gateway, which makes the real request on your behalf.
+
+<Callout type="warning">
+This is a **proxy-mode** integration, not end-to-end. Unlike the [Mixnet](./mixnet) and [Stream](./stream) modules (where both sides run a Nym client), traffic here leaves the Mixnet at an Exit Gateway and continues to the destination over the public internet. The Mixnet anonymises the sender; protecting the payload (TLS) is your application's job. See [Exit security](/developers/concepts/exit-security) for the full model: what each hop sees, the trust boundaries, and how it compares with Tor and VPNs.
+</Callout>
+
+## How it works
+
+```text
+Your machine
+   Application (reqwest, curl, a browser, ...)
+       │  SOCKS5  (socks5h://127.0.0.1:1080)
+       ▼
+   Socks5MixnetClient  (local listener + MixnetClient)
+       │  Sphinx packets
+       ▼
+   Entry Gateway → 3 mix layers → Exit Gateway
+                                      │  Network Requester
+                                      ▼  makes the real request
+                                  Destination (clearnet)
+```
+
+The client chops the TCP stream into Sphinx packets, sends them through the Mixnet, and the Network Requester at the exit reassembles the stream and performs the request, returning the response the same way. The application never has to know the Mixnet exists.
+
+## Quick example
+
+You need the Nym address of a **Network Requester** (a service running on an Exit Gateway), or you can let the SDK discover one ([Automatic discovery](#automatic-discovery)). Point an HTTP client at the SOCKS5 URL the client exposes, and every request travels through the Mixnet:
+
+```rust
+use nym_sdk::mixnet::Socks5MixnetClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Connect to a Network Requester service provider over the Mixnet.
+    // This opens a local SOCKS5 listener (default 127.0.0.1:1080).
+    let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
+
+    // Point any SOCKS5-capable HTTP client at the proxy URL.
+    let proxy = reqwest::Proxy::all(client.socks5_url())?;
+    let http = reqwest::Client::builder().proxy(proxy).build()?;
+
+    // This request now travels through the Mixnet and exits at the requester.
+    let body = http.get("https://nymtech.net").send().await?.text().await?;
+    println!("{body}");
+
+    client.disconnect().await;
+    Ok(())
+}
+```
+
+`reqwest` must be built with its `socks` feature enabled, or `Proxy::all` will reject the `socks5h://` URL at runtime. The `setup_tracing_logger()` call is optional logging from the `nym-bin-common` crate; drop it if you do not want the dependency.
+
+<Callout type="info">
+`socks5_url()` returns a **`socks5h://`** URL, not `socks5://`. The trailing `h` tells the HTTP client to hand the hostname to the proxy and let the Network Requester resolve DNS at the exit, rather than resolving locally and leaking the destination through a local DNS query.
+</Callout>
+
+To combine the SOCKS5 proxy with other builder options (persistent keys via `StoragePaths`, custom configuration), attach a `Socks5` config to `MixnetClientBuilder` instead of using `connect_new`:
+
+```rust
+use nym_sdk::mixnet;
+
+let socks5_config = mixnet::Socks5::new("provider_nym_address...".to_string());
+let client = mixnet::MixnetClientBuilder::new_ephemeral()
+    .socks5_config(socks5_config)
+    .build()?
+    .connect_to_mixnet_via_socks5()
+    .await?;
+```
+
+## Automatic discovery
+
+You do not have to hardcode a Network Requester address. [`connect_with`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html#method.connect_with) takes a `NetworkRequesterSelector` describing how to pick one plus an optional listener address, and connects in a single call. There are three selectors; the third, country-restricted discovery, has [its own section below](#selecting-by-country):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+// Any available requester, weighted by performance (None = default 127.0.0.1:1080):
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::any(), None).await?;
+
+// A specific requester you already know:
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::exact("address...")?, None).await?;
+```
+
+For `any`, discovery queries the mainnet directory for Exit Gateways that advertise a Network Requester and selects one weighted by performance. Discovery always queries mainnet, regardless of the network the client itself is configured for.
+
+### Selecting by country
+
+To constrain where your traffic leaves the Mixnet, build the requester with [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes. The chosen requester must have declared a location in one of them (see the warning below):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+let requester = NetworkRequesterSelector::in_countries(["CH", "DE"])?;   // Switzerland or Germany
+
+// Listen on 127.0.0.1:1081 instead of the default 1080:
+let client = Socks5MixnetClient::connect_with(requester, Some("127.0.0.1:1081".parse()?)).await?;
+```
+
+Codes are case-insensitive and validated up front, so a typo fails immediately rather than at connect time. Passing more than one code means "any of these".
+
+<Callout type="warning">
+A requester's location is **self-reported by its operator and optional**. Requesters that have not declared a location are excluded once you set a country filter, so a narrow filter can return `NoGatewayInCountries` even when requesters exist there but have not advertised one. Discovery does not silently fall back to another country: an empty result is an error, since routing through an unintended jurisdiction would defeat the point of asking.
+</Callout>
+
+## SDK module or standalone binary
+
+The same proxy logic ships two ways. They are interchangeable on the wire; choose by how you want to run it:
+
+| | Use it when |
+|---|---|
+| **`socks5` module** (this page) | You want the proxy embedded in a Rust application and managed in-process, alongside other SDK clients. |
+| [**Standalone `nym-socks5-client`**](/developers/clients/socks5) | You want a language-agnostic local proxy binary that any application (in any language) can point at, with no code changes. |
+
+## Further reading
+
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): all methods, configuration, and types
+- [Example: SOCKS5 proxy](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/socks5.rs): select a requester (auto-discover, pin by country, or a known address) and proxy a request
+- [Standalone SOCKS5 client](/developers/clients/socks5): the language-agnostic binary form
+- [Exit security](/developers/concepts/exit-security): what an Exit Gateway can observe in proxy mode

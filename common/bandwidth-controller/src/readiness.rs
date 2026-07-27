@@ -140,14 +140,17 @@ impl ReadinessSnapshot {
                 .unwrap_or(ReadinessStatus::Unavailable)
         });
         // spending a `(epoch, date)` ticketbook needs all three of its global-data pieces present
-        let global_data = request.global_data.iter().flat_map(|&(epoch_id, expiration_date)| {
-            [
-                self.master_key_readiness.get(&epoch_id),
-                self.coin_index_readiness.get(&epoch_id),
-                self.expiration_readiness.get(&(epoch_id, expiration_date)),
-            ]
-            .map(|status| status.cloned().unwrap_or(ReadinessStatus::Unavailable))
-        });
+        let global_data = request
+            .global_data
+            .iter()
+            .flat_map(|&(epoch_id, expiration_date)| {
+                [
+                    self.master_key_readiness.get(&epoch_id),
+                    self.coin_index_readiness.get(&epoch_id),
+                    self.expiration_readiness.get(&(epoch_id, expiration_date)),
+                ]
+                .map(|status| status.cloned().unwrap_or(ReadinessStatus::Unavailable))
+            });
 
         tickets
             .chain(global_data)
@@ -191,7 +194,9 @@ impl ReadinessRequest {
             }
             ReadinessStatus::FetchFailed(reason) => {
                 self.return_sender
-                    .send(Err(BandwidthControllerError::TicketbookFetchFailed { reason }));
+                    .send(Err(BandwidthControllerError::TicketbookFetchFailed {
+                        reason,
+                    }));
                 None
             }
         }

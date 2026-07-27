@@ -251,8 +251,8 @@ impl<St: Storage> BandwidthController<St> {
         let public_data_fetcher = fetcher
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
-        self.handle_set_public_data_fetcher(public_data_fetcher)
-            .await;
+        self.public_data_fetcher = public_data_fetcher;
+        // No need to run a global data fetch here, check_and_restock does it
 
         self.credential_fetcher = fetcher;
         self.check_and_restock(self.config.managed_ticket_types.clone())

@@ -156,7 +156,6 @@ impl<St: Storage> BandwidthController<St> {
                 }
                 _ = topup_interval.tick() => {
                     let _ = self.print_info().await;
-                    self.prefetch_global_data().await;
                     self.check_and_restock(self.config.managed_ticket_types.clone()).await;
                 }
                 (key, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
@@ -473,6 +472,7 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     /// Restocks the given ticket types that are running low or about to expire.
+    /// Also checks the global_data
     async fn check_and_restock(&mut self, ticketbook_types: Vec<TicketType>) {
         let available = match self.get_available_ticketbooks().await {
             Ok(available) => available,
@@ -493,6 +493,7 @@ impl<St: Storage> BandwidthController<St> {
                 tracing::debug!("Credential {typ} is not managed, check and restock skipped");
             }
         }
+        self.prefetch_global_data().await;
     }
 
     /// Spawns a background fetch for `ticket_type` unless one is already in flight for it.

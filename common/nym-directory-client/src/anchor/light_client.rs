@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 use tendermint_light_client::light_client::Options;
 use tendermint_light_client::types::{
-    Hash, SignedHeader, Time, TrustThreshold, TrustedBlockState, UntrustedBlockState,
+    Hash, Time, TrustThreshold, TrustedBlockState, UntrustedBlockState,
 };
 use tendermint_light_client::verifier::{ProdVerifier, Verdict, Verifier};
 use tokio::sync::Mutex;
@@ -138,7 +138,7 @@ impl<C> LightClientAnchor<C> {
 
     /// Attach head persistence
     #[must_use]
-    pub fn with_store<S>(mut self, store: S) -> Self {
+    pub fn with_store<S: CheckpointStore + 'static>(mut self, store: S) -> Self {
         self.store = Some(Box::new(store));
         self
     }
@@ -159,45 +159,7 @@ where
         base: &TrustedAnchorState,
         target: Height,
     ) -> Result<Option<Checkpoint>, DirectoryClientError> {
-        let commit_res = self.client.commit(target).await?;
-        if !commit_res.canonical {
-            return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
-        }
-        let validators = ValidatorSet::without_proposer(
-            self.client.get_all_validators(target).await?.validators,
-        );
-        // the new trusted state at `target` must carry the validator set of `target + 1` as its
-        // next-validators (that is what skip verification checks the next commit's overlap against).
-        let next = Height::from(target.value() as u32 + 1);
-        let next_validators =
-            ValidatorSet::without_proposer(self.client.get_all_validators(next).await?.validators);
-
-        // pass `next_validators` so the verifier ties it to the verified header's
-        // `next_validators_hash` (`next_validators_match`); otherwise the RPC-supplied set we
-        // store for the next skip hop would be trusted blindly.
-        let untrusted = UntrustedBlockState {
-            signed_header: &commit_res.signed_header,
-            validators: &validators,
-            next_validators: Some(&next_validators),
-        };
-        let trusted = base.as_trusted_block_state();
-        let now = Time::now();
-
-        match self
-            .verifier
-            .verify_update_header(untrusted, trusted, &self.options, now)
-        {
-            Verdict::Success => Ok(Some(Checkpoint {
-                height: target,
-                signed_header: commit_res.signed_header,
-                validators,
-                next_validators,
-            })),
-            Verdict::NotEnoughTrust(_) => Ok(None),
-            Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
-                err.to_string(),
-            )),
-        }
+        verify_header_against(&self.client, &self.verifier, &self.options, base, target).await
     }
 
     /// Advance `base` forward to `target` using skip verification with bisection, caching every
@@ -304,6 +266,88 @@ where
 
         get_trusted_directory_digest(&self.client, &self.directory_contract, height, app_hash).await
     }
+}
+
+/// Core Tendermint light-client verification of the header at `target` against `base`, factored out
+/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance (and thus
+/// without a directory contract address). Returns the verified block as a [`Checkpoint`] on
+/// success, `None` on insufficient trust overlap (the anchor bisects), `Err` on hard failure.
+async fn verify_header_against<C>(
+    client: &C,
+    verifier: &ProdVerifier,
+    options: &Options,
+    base: &TrustedAnchorState,
+    target: Height,
+) -> Result<Option<Checkpoint>, DirectoryClientError>
+where
+    C: TendermintRpcClientExt + Send + Sync,
+{
+    let commit_res = client.commit(target).await?;
+    if !commit_res.canonical {
+        return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
+    }
+    let validators =
+        ValidatorSet::without_proposer(client.get_all_validators(target).await?.validators);
+    // the new trusted state at `target` must carry the validator set of `target + 1` as its
+    // next-validators (that is what skip verification checks the next commit's overlap against).
+    let next = Height::from(target.value() as u32 + 1);
+    let next_validators =
+        ValidatorSet::without_proposer(client.get_all_validators(next).await?.validators);
+
+    // pass `next_validators` so the verifier ties it to the verified header's
+    // `next_validators_hash` (`next_validators_match`); otherwise the RPC-supplied set we
+    // store for the next skip hop would be trusted blindly.
+    let untrusted = UntrustedBlockState {
+        signed_header: &commit_res.signed_header,
+        validators: &validators,
+        next_validators: Some(&next_validators),
+    };
+    let trusted = base.as_trusted_block_state();
+    let now = Time::now();
+
+    match verifier.verify_update_header(untrusted, trusted, options, now) {
+        Verdict::Success => Ok(Some(Checkpoint {
+            height: target,
+            signed_header: commit_res.signed_header,
+            validators,
+            next_validators,
+        })),
+        Verdict::NotEnoughTrust(_) => Ok(None),
+        Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
+            err.to_string(),
+        )),
+    }
+}
+
+/// Validate that `checkpoint` is a usable light-client seed by advancing exactly one hop forward -
+/// verifying block `checkpoint.height + 1` against it, with `client` as the block source - without
+/// constructing a [`LightClientAnchor`] (so callers need not supply a directory contract address).
+///
+/// This runs the real verification predicates: the fetched next block's commit must carry >2/3 of
+/// the checkpoint's `next_validators`' voting power, and that set must hash to the checkpoint
+/// header's `next_validators_hash`. A malformed, tampered, or non-chaining checkpoint is rejected.
+/// Returns the verified `height + 1` [`Checkpoint`].
+///
+/// Requires block `checkpoint.height + 2` to be committed (the verifier reads the next block's own
+/// next-validators). The offline minting tool ensures this by defaulting to `latest - 2`.
+pub async fn verify_checkpoint_advances_one_hop<C>(
+    client: &C,
+    checkpoint: &Checkpoint,
+    options: &Options,
+) -> Result<Checkpoint, DirectoryClientError>
+where
+    C: TendermintRpcClientExt + Send + Sync,
+{
+    let base: TrustedAnchorState = checkpoint.clone().into();
+    let target = Height::from(checkpoint.height.value() as u32 + 1);
+    verify_header_against(client, &ProdVerifier::default(), options, &base, target)
+        .await?
+        .ok_or_else(|| {
+            DirectoryClientError::LightClientVerificationFailed(
+                "checkpoint could not advance a single adjacent hop: insufficient validator overlap"
+                    .to_string(),
+            )
+        })
 }
 
 #[cfg(test)]
@@ -455,13 +499,13 @@ mod tests {
 
         // anchor with a file-backed store; querying the checkpoint height advances the head to
         // 24499897, which the forward branch must persist
-        let anchor = LightClientAnchor::new_with_store(
+        let anchor = LightClientAnchor::new(
             full_mock(),
             mock_contract(0),
             checkpoint(),
             test_options(FAR_FUTURE),
-            Box::new(FileCheckpointStore::new(&path)),
-        );
+        )
+        .with_store(FileCheckpointStore::new(&path));
         anchor
             .trusted_app_hash(Height::from(CHECKPOINT))
             .await

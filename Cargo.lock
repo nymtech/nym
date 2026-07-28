@@ -9609,6 +9609,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nyx-checkpoint-updater"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-directory-client",
+ "nym-validator-client",
+ "serde_json",
+ "time",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "nyxd-scraper-psql"
 version = "0.1.0"
 dependencies = [

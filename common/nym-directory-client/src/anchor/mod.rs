@@ -18,7 +18,9 @@ pub mod proven;
 pub mod light_client;
 
 #[cfg(feature = "light-client")]
-pub use light_client::{LightClientAnchor, nyx_default_options};
+pub use light_client::{
+    LightClientAnchor, nyx_default_options, verify_checkpoint_advances_one_hop,
+};
 
 /// A directory digest trusted at a specific height.
 pub struct TrustedDigest {

@@ -65,15 +65,22 @@
 
 ## 6. Offline minting dev-binary
 
-- [ ] 6.1 Create a maintainer-only binary (not the user-facing nym-cli) that reuses `fetch_checkpoint` + the datum
-  encoder + `nym-crypto` signing
-- [ ] 6.2 Args via `clap`: root private key as an arg with `env = "..."`; trusted `--rpc`; `--minted-at` override;
-  height/pin flag
-- [ ] 6.3 Self-verify before writing: construct a `LightClientAnchor` from the minted checkpoint and advance one hop;
-  abort on failure
-- [ ] 6.4 Regenerate the dedicated constant file wholesale and emit a `// minted <time> from height <h> via <rpc>`
-  header comment
-- [ ] 6.5 Test: mint -> verify round-trip with a test key; deterministic output given pinned inputs
+- [x] 6.1 Maintainer-only binary `tools/internal/nyx-checkpoint-updater` (not the user-facing nym-cli), reusing
+  `Checkpoint::fetch` (= `fetch_checkpoint`) + `SignedCheckpoint::new` (datum encoder + `nym-crypto` signing)
+- [x] 6.2 Args via `clap`: root private key with `env`; trusted `--rpc`; `--minted-at` override; `--height` pin
+  (default `latest - 2`, so both the checkpoint's `height + 1` set and the `height + 2` block the self-verify hop needs
+  are already committed); plus `--repo-root`/`--out` for locating the datum file
+- [x] 6.3 Self-verify before writing: advance the minted checkpoint one light-client hop via
+  `verify_checkpoint_advances_one_hop` (extracted from `verify_hop`; no `LightClientAnchor`, hence no dummy directory
+  contract address), aborting before persistence on failure
+- [x] 6.4 Write the `SignedCheckpoint` datum wholesale as JSON to the sibling `directory_checkpoint.json` (embedded by a
+  static `directory_checkpoint.rs` via `include_str!`) - no Rust source is rewritten and no header comment is emitted:
+  provenance (`created_at` + height) is authenticated inside the datum, and the source `--rpc` belongs in the commit
+  message
+- [x] 6.5 Tool tests dropped as redundant - mint->verify round-trip, wrong-key/tamper rejection, JSON datum parse-back +
+  root-signature verification, and serde determinism are all covered by `nym-directory-client` lib tests
+  (`checkpoint/mod.rs` §1.4 and `checkpoint/provider.rs`), which already own the shared real-nyx fixture. `fetch` and the
+  self-verify hop ride on the existing `light_client.rs` anchor tests
 
 ## 7. Producer wiring (`nym-api/src/directory/cache`)
 

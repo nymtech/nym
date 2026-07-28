@@ -191,6 +191,7 @@ members = [
     "nym-geolocator/nym-geolocator-requests",
     "common/nym-directory-client",
     "common/directory-attestation",
+    "tools/internal/nyx-checkpoint-updater",
 ]
 
 default-members = [

@@ -99,11 +99,11 @@ A loader SHALL obtain a datum from a provider, verify its root signature, apply 
 
 ### Requirement: Offline checkpoint minting tool
 
-The system SHALL provide a maintainer-only offline tool (a dedicated binary, not the user-facing CLI) that fetches a checkpoint from a trusted RPC, signs it with the root key, and regenerates the hardcoded constant file for commit. The tool SHALL accept the root private key as an argument that can also be sourced from an environment variable. Before writing, the tool SHALL self-verify the minted checkpoint by constructing a `LightClientAnchor` from it and advancing at least one verification hop, aborting on failure. Given pinned inputs (including an overridable mint timestamp), the tool's output SHALL be deterministic.
+The system SHALL provide a maintainer-only offline tool (a dedicated binary, not the user-facing CLI) that fetches a checkpoint from a trusted RPC, signs it with the root key, and regenerates the compiled-in checkpoint datum for commit. The tool SHALL accept the root private key as an argument that can also be sourced from an environment variable. Before writing, the tool SHALL self-verify the minted checkpoint by advancing it at least one light-client verification hop against the RPC, aborting on failure. Given pinned inputs (including an overridable mint timestamp), the tool's output SHALL be deterministic.
 
 #### Scenario: Minted checkpoint is self-verified before writing
 - **WHEN** the tool mints a checkpoint from a given RPC
-- **THEN** it constructs a `LightClientAnchor` from the result and advances one hop, and it aborts without writing if that fails
+- **THEN** it advances the minted checkpoint at least one light-client verification hop, and it aborts without writing if that fails
 
 #### Scenario: Key is sourced from the environment in production
 - **WHEN** the root private key argument is not passed explicitly but the corresponding environment variable is set

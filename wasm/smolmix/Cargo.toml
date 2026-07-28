@@ -1,5 +1,5 @@
 [package]
-name = "smolmix-wasm"
+name = "nym-smolmix-wasm"
 version = "0.1.0"
 authors = { workspace = true }
 edition = { workspace = true }
@@ -86,7 +86,7 @@ features = ["wasm_js"]
 [features]
 # Default: build all three JS entry points (mixFetch, mixWebSocket, mixDNS).
 # TS SDK packages that only need a subset can disable defaults and opt in:
-#   smolmix-wasm = { ..., default-features = false, features = ["fetch"] }
+#   nym-smolmix-wasm = { ..., default-features = false, features = ["fetch"] }
 default = ["dns", "fetch", "websocket"]
 
 # Expose the JS `mixDNS(hostname)` entry point.

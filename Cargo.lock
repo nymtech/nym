@@ -8460,6 +8460,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-smolmix-wasm"
+version = "0.1.0"
+dependencies = [
+ "async-tungstenite",
+ "bytes",
+ "futures",
+ "futures-rustls",
+ "getrandom 0.2.17",
+ "getrandom 0.4.2",
+ "hickory-proto",
+ "http 1.4.1",
+ "http-body-util",
+ "hyper 1.10.1",
+ "js-sys",
+ "nym-bin-common",
+ "nym-ip-packet-requests",
+ "nym-lp-data",
+ "nym-validator-client",
+ "nym-wasm-client-core",
+ "nym-wasm-utils",
+ "rand 0.8.6",
+ "rustls 0.23.40",
+ "rustls-pki-types",
+ "rustls-rustcrypto",
+ "semver 1.0.28",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "smoltcp 0.12.0 (git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b)",
+ "thiserror 2.0.18",
+ "tokio",
+ "tsify",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasmtimer",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "nym-socks5-client"
 version = "1.1.81"
 dependencies = [
@@ -11853,45 +11892,6 @@ checksum = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523"
 dependencies = [
  "borsh",
  "serde_core",
-]
-
-[[package]]
-name = "smolmix-wasm"
-version = "0.1.0"
-dependencies = [
- "async-tungstenite",
- "bytes",
- "futures",
- "futures-rustls",
- "getrandom 0.2.17",
- "getrandom 0.4.2",
- "hickory-proto",
- "http 1.4.1",
- "http-body-util",
- "hyper 1.10.1",
- "js-sys",
- "nym-bin-common",
- "nym-ip-packet-requests",
- "nym-lp-data",
- "nym-validator-client",
- "nym-wasm-client-core",
- "nym-wasm-utils",
- "rand 0.8.6",
- "rustls 0.23.40",
- "rustls-pki-types",
- "rustls-rustcrypto",
- "semver 1.0.28",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "smoltcp 0.12.0 (git+https://github.com/nymtech/smoltcp?rev=62ac5b8b3287d4773694f19a3b55e4c004354a0b)",
- "thiserror 2.0.18",
- "tokio",
- "tsify",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasmtimer",
- "webpki-roots 0.26.11",
 ]
 
 [[package]]

@@ -6920,6 +6920,7 @@ dependencies = [
  "prost 0.13.5",
  "rand 0.8.6",
  "serde",
+ "serde_json",
  "tendermint-light-client",
  "tendermint-proto",
  "thiserror 2.0.19",

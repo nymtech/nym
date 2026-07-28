@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::anchor::checkpoint::Checkpoint;
+use crate::anchor::checkpoint::NYX_TRUSTING_PERIOD;
 use crate::anchor::helpers::get_trusted_directory_digest;
 use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
@@ -18,20 +19,6 @@ use tendermint_light_client::types::{
 use tendermint_light_client::verifier::{ProdVerifier, Verdict, Verifier};
 use tokio::sync::Mutex;
 use tracing::debug;
-
-/// The light-client trusting period for nyx - the single source of truth.
-///
-/// Both [`nyx_default_options`] (the anchor's verification options) and the checkpoint
-/// loader's staleness check (`header_time + NYX_TRUSTING_PERIOD < now`) read this constant, so
-/// the two can never drift apart.
-///
-/// INVARIANT: this MUST stay strictly below nyx's chain unbonding period (21 days), with a
-/// safety margin. Beyond the unbonding period the weak-subjectivity guarantee breaks: a
-/// validator set that controlled the chain at the checkpoint height could, once fully
-/// unbonded (and thus no longer slashable), forge an alternate history that a client still
-/// treating the checkpoint as "trusted" would accept. 18 days leaves a 3-day margin. If nyx's
-/// unbonding period is ever shortened, this value MUST be revisited.
-pub const NYX_TRUSTING_PERIOD: Duration = Duration::from_secs(18 * 24 * 60 * 60);
 
 /// Sane defaults for the Nym mainnet: trust threshold 1/3 (required for skip/bisection
 /// verification), the [`NYX_TRUSTING_PERIOD`], and a 5-second clock-drift allowance.

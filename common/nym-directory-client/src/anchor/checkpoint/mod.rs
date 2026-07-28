@@ -18,8 +18,28 @@ use nym_validator_client::nyxd::{
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tendermint_proto::types::{SignedHeader as RawSignedHeader, ValidatorSet as RawValidatorSet};
 use time::OffsetDateTime;
+use tracing::warn;
+
+pub mod fetcher;
+pub mod provider;
+pub mod store;
+
+/// The light-client trusting period for nyx - the single source of truth.
+///
+/// Both [`crate::anchor::light_client::nyx_default_options`] (the anchor's verification options) and the checkpoint
+/// loader's staleness check (`header_time + NYX_TRUSTING_PERIOD < now`) read this constant, so
+/// the two can never drift apart.
+///
+/// INVARIANT: this MUST stay strictly below nyx's chain unbonding period (21 days), with a
+/// safety margin. Beyond the unbonding period the weak-subjectivity guarantee breaks: a
+/// validator set that controlled the chain at the checkpoint height could, once fully
+/// unbonded (and thus no longer slashable), forge an alternate history that a client still
+/// treating the checkpoint as "trusted" would accept. 18 days leaves a 3-day margin. If nyx's
+/// unbonding period is ever shortened, this value MUST be revisited.
+pub const NYX_TRUSTING_PERIOD: Duration = Duration::from_secs(18 * 24 * 60 * 60);
 
 /// Domain-separation tag for the checkpoint signing payload, so a root signature over a
 /// checkpoint can never be interpreted as an upgrade-mode attestation, a digest snapshot, a
@@ -73,6 +93,15 @@ impl Checkpoint {
             &RawValidatorSet::from(self.next_validators.clone()).encode_to_vec(),
         );
         blake3::hash(&buf).into()
+    }
+
+    /// True if the checkpoint can no longer seed a light client at wall-clock `now`: its signed
+    /// block time plus [`NYX_TRUSTING_PERIOD`] is at or before `now`.
+    pub(crate) fn is_stale(&self, now: OffsetDateTime) -> bool {
+        let header_time: OffsetDateTime = self.signed_header.header.time.into();
+        let expiry = header_time + NYX_TRUSTING_PERIOD;
+
+        now >= expiry
     }
 }
 
@@ -143,6 +172,22 @@ impl SignedCheckpoint {
         root.verify(self.signing_payload(), &self.signature)
             .map_err(|_| DirectoryClientError::InvalidCheckpointSignature)
     }
+
+    /// Return `signed`'s checkpoint iff its root signature verifies against `root`. Shared by every
+    /// signed provider.
+    pub(crate) fn verify_from_source(
+        self,
+        root: &ed25519::PublicKey,
+        source: &str,
+    ) -> Option<Checkpoint> {
+        match self.verify(root) {
+            Ok(()) => Some(self.checkpoint),
+            Err(err) => {
+                warn!("ignoring {source} checkpoint with an invalid root signature: {err}");
+                None
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -150,16 +195,15 @@ mod tests {
     use super::*;
     use crate::test_support::checkpoint;
     use nym_test_utils::helpers::dummy_ed25519_keypair;
+    use time::macros::datetime;
 
     // a fixed instant, so signing is deterministic across runs
-    fn minted_at() -> OffsetDateTime {
-        OffsetDateTime::from_unix_timestamp(1_751_463_730).unwrap()
-    }
+    const MINTED_AT: OffsetDateTime = datetime!(2026-07-02 13:42:10+00:00);
 
     #[test]
     fn sign_then_verify_round_trips() {
         let root = dummy_ed25519_keypair(1);
-        let signed = SignedCheckpoint::new(checkpoint(), minted_at(), root.private_key());
+        let signed = SignedCheckpoint::new(checkpoint(), MINTED_AT, root.private_key());
         assert!(signed.verify(root.public_key()).is_ok());
     }
 
@@ -167,7 +211,7 @@ mod tests {
     fn verification_fails_under_a_different_root_key() {
         let root = dummy_ed25519_keypair(1);
         let impostor = dummy_ed25519_keypair(2);
-        let signed = SignedCheckpoint::new(checkpoint(), minted_at(), root.private_key());
+        let signed = SignedCheckpoint::new(checkpoint(), MINTED_AT, root.private_key());
         assert!(matches!(
             signed.verify(impostor.public_key()),
             Err(DirectoryClientError::InvalidCheckpointSignature)
@@ -177,7 +221,7 @@ mod tests {
     #[test]
     fn tampering_with_the_checkpoint_breaks_verification() {
         let root = dummy_ed25519_keypair(1);
-        let mut signed = SignedCheckpoint::new(checkpoint(), minted_at(), root.private_key());
+        let mut signed = SignedCheckpoint::new(checkpoint(), MINTED_AT, root.private_key());
         // swap in a checkpoint claiming a different height: the proto commitment changes
         signed.checkpoint.height = signed.checkpoint.height.increment();
         assert!(matches!(
@@ -189,7 +233,7 @@ mod tests {
     #[test]
     fn signer_and_verifier_agree_on_the_committed_bytes() {
         let cp = checkpoint();
-        let ts = minted_at();
+        let ts = MINTED_AT;
         // the payload a fresh signer would produce equals the one a verifier recomputes
         let a = cp.signing_payload(&ts);
         let b =
@@ -200,7 +244,7 @@ mod tests {
     #[test]
     fn payload_is_domain_separated() {
         let cp = checkpoint();
-        let payload = cp.signing_payload(&minted_at());
+        let payload = cp.signing_payload(&MINTED_AT);
         // the domain tag leads the payload, so a signature over an identically-structured
         // payload under any other tag cannot be reinterpreted as a checkpoint signature
         assert!(payload.starts_with(DIRECTORY_CHECKPOINT_DOMAIN_TAG));
@@ -211,7 +255,7 @@ mod tests {
         let foreign_sig = root.private_key().sign(untagged);
         let signed = SignedCheckpoint {
             checkpoint: cp,
-            created_at: minted_at(),
+            created_at: MINTED_AT,
             signature: foreign_sig,
         };
         assert!(signed.verify(root.public_key()).is_err());

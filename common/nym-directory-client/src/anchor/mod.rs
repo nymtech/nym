@@ -12,9 +12,10 @@ use nym_validator_client::nyxd::Height;
 pub mod attested;
 pub mod checkpoint;
 mod helpers;
+pub mod proven;
+
 #[cfg(feature = "light-client")]
 pub mod light_client;
-pub mod proven;
 
 #[cfg(feature = "light-client")]
 pub use light_client::{LightClientAnchor, nyx_default_options};

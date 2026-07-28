@@ -215,10 +215,11 @@ impl DirectorySubset for TestSubset {
 
 // --- shared real-nyx checkpoint fixture (also used by the light-client anchor suite) ---
 
-use crate::anchor::checkpoint::Checkpoint;
+use crate::anchor::checkpoint::{Checkpoint, SignedCheckpoint};
 use cosmrs::rpc::endpoint::{commit, validators};
 use nym_validator_client::nyxd::Response as _;
 use nym_validator_client::nyxd::{Height, ValidatorSet};
+use time::OffsetDateTime;
 
 /// Height of the shared checkpoint fixture (a real `nyx` mainnet block).
 pub(crate) const CHECKPOINT_HEIGHT: u32 = 24499896;
@@ -248,4 +249,15 @@ pub(crate) fn checkpoint() -> Checkpoint {
         validators: ValidatorSet::without_proposer(validators.validators),
         next_validators: ValidatorSet::without_proposer(next_validators.validators),
     }
+}
+
+pub(crate) fn signed_checkpoint(
+    root: &ed25519::KeyPair,
+    created_at: OffsetDateTime,
+) -> SignedCheckpoint {
+    SignedCheckpoint::new(checkpoint(), created_at, root.private_key())
+}
+
+pub(crate) fn signed_datum(root: &ed25519::KeyPair, created_at: OffsetDateTime) -> String {
+    serde_json::to_string(&signed_checkpoint(root, created_at)).unwrap()
 }

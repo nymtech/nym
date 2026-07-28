@@ -37,23 +37,24 @@
 
 ## 4. Checkpoint providers and loader (`nym-directory-client`)
 
-- [ ] 4.1 Define the `CheckpointProvider` abstraction (each impl yields a trusted, non-stale `Checkpoint` or nothing)
-- [ ] 4.2 Implement the stored provider (reads the persisted head from the `CheckpointStore`; staleness-checked; no root
-  sig) and the hardcoded-constant provider (reads and root-verifies the serialized datum from the `network-defaults`
-  constant)
-- [ ] 4.3 Implement the HTTPS provider fetching + root-verifying from a configurable, env-overridable well-known URL (
-  mirror `UPGRADE_MODE_ATTESTATION_URL` -> `.wellknown/directory/checkpoint.json`)
-- [ ] 4.4 Implement the loader: try providers in order stored -> hardcoded -> HTTPS, first valid (non-stale,
-  sig-verified) wins; derive staleness (`header_time + trusting_period < now`); build `LightClientAnchor` from the
-  chosen base; typed errors when all sources fail, no anchor constructed
-- [ ] 4.5 Tests (test root key + `MockRpcClient` nyx fixtures): fresh stored head preferred (no network); fresh-boot
-  falls back to hardcoded; aged-out seed falls back to HTTPS; bad-sig source rejected; stale checkpoint rejected at
-  load; `created_at` does not affect validity
+- [x] 4.1 Define the `CheckpointProvider` abstraction (async `candidate()` yields a verified `Checkpoint` or nothing;
+  staleness centralized in the loader) - `anchor/checkpoint_source.rs`
+- [x] 4.2 Implement the stored provider (reads the persisted head from the `CheckpointStore`; no root sig) and the
+  hardcoded-constant provider (parses + root-verifies the JSON datum; empty = absent)
+- [x] 4.3 Implement the HTTPS provider - transport injected via a `CheckpointFetcher` trait (assoc. `Error:
+  std::error::Error`; returns the concrete `SignedCheckpoint`), so the lib stays HTTP-free; root-verifies before use.
+  The concrete reqwest fetcher + the env-overridable well-known URL are supplied by nym-api in §7
+- [x] 4.4 Implement the loader `load_checkpoint(providers, now)`: try in order stored -> hardcoded -> HTTPS, first
+  non-stale candidate wins; staleness = `header_time + NYX_TRUSTING_PERIOD <= now`; `NoValidCheckpointSource` if none.
+  (Returns the chosen `Checkpoint`; anchor construction is the caller's job via §5.2)
+- [x] 4.5 Tests: stored preferred over hardcoded; fresh-boot falls back to hardcoded; aged-out seeds fall back to HTTPS;
+  bad-sig hardcoded + HTTPS rejected; stale candidates yield no source; HTTPS transport failure ignored
 
 ## 5. Verified-head persistence (`nym-directory-client`)
 
-- [ ] 5.1 Define `CheckpointStore { load() -> Option<Checkpoint>, save(&Checkpoint) }`; add a file-backed impl (JSON)
-  and a no-op/in-memory impl for tests (shared by the stored provider's read side and the anchor's write side)
+- [x] 5.1 Define `CheckpointStore { load() -> Option<Checkpoint>, save(&Checkpoint) }`; `FileCheckpointStore` (JSON) +
+  `InMemoryCheckpointStore` for tests (shared by the stored provider's read side and the anchor's write side) -
+  `anchor/checkpoint_source.rs`
 - [ ] 5.2 Add `LightClientAnchor::new_with_store(base, store)` where `base` is the checkpoint the loader selected; the
   anchor writes its advanced head to the store (write side only - source selection is the loader's job)
 - [ ] 5.3 Persist the advanced head once per producer refresher tick (not per hop)

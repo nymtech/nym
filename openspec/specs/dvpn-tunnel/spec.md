@@ -5,7 +5,7 @@ Defines the nym-smoldvpn userspace WireGuard tunnel: boringtun datapath, single/
 ## Requirements
 ### Requirement: Userspace WireGuard datapath with boringtun
 
-`smoldvpn` SHALL implement the WireGuard datapath using `boringtun` in userspace,
+`nym-smoldvpn` SHALL implement the WireGuard datapath using `boringtun` in userspace,
 with no OS `tun` device and no root. It MUST NOT use `defguard_wireguard_rs`,
 `wireguard-go`, or any Go/FFI engine. Each WireGuard peer's public key and preshared
 key SHALL be taken from the session's registration output.

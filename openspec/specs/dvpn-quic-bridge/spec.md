@@ -2,9 +2,7 @@
 
 ## Purpose
 Defines the WgPacketTransport data-plane abstraction and the QUIC bridge client used to front the two-hop entry gateway leg in nym-smoldvpn.
-
 ## Requirements
-
 ### Requirement: WgPacketTransport abstraction with three data-plane modes
 
 The datapath SHALL send and receive one WireGuard packet per operation through a
@@ -25,7 +23,7 @@ mode.
 
 ### Requirement: QUIC bridge client reimplemented inline
 
-The QUIC bridge client SHALL be implemented inline in `smoldvpn` using `quinn`
+The QUIC bridge client SHALL be implemented inline in `nym-smoldvpn` using `quinn`
 declared in the crate's own `Cargo.toml`, and SHALL NOT depend on the `nym_bridges`
 crate. It SHALL byte-match the bridge protocol: ALPN `hq-29`; ed25519-based server
 certificate pinning (SNI/CN ∈ alt-names and certificate SPKI equal to the pinned
@@ -45,7 +43,7 @@ length.
 
 #### Scenario: No dependency on nym_bridges crate
 - **WHEN** the crate is built
-- **THEN** `smoldvpn` does not depend on the `nym_bridges` crate
+- **THEN** `nym-smoldvpn` does not depend on the `nym_bridges` crate
 
 ### Requirement: Bridge parameters from the gateway directory
 
@@ -87,3 +85,4 @@ carried over the QUIC bridge. Only the WireGuard data plane may use the bridge.
 - **WHEN** a tunnel is set up with QUIC bridging enabled
 - **THEN** LP registration is performed directly first, and only the subsequent
   WireGuard data plane uses the QUIC bridge
+

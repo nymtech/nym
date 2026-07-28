@@ -27,10 +27,10 @@
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
-export const NYM_SDK_VERSION = "1.21.5-rc.2";
+export const NYM_SDK_VERSION = "1.21.5-rc.3";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "1.21.5-rc.2";
+export const SMOLMIX_VERSION = "1.21.5-rc.3";
 
 // nym-smoldvpn standalone crate
 export const SMOLDVPN_VERSION = "1.21.5-rc.3";

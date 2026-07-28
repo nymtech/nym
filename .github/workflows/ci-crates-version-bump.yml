@@ -60,17 +60,19 @@ jobs:
 
       - name: Update workspace dependencies
         run: |
-          # Match any semver version on lines with `path = `, not just the current workspace version.
-          # This catches entries whose version has drifted (e.g. nym-sqlx-pool-guard at 1.2.0).
-          sed -i '/path = /s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' Cargo.toml
+          # Match any version string on lines with `path = `, not just the current workspace version.
+          # The `[0-9][^"]*` pattern deliberately matches pre-release suffixes too (e.g. 1.21.5-rc.3):
+          # a strict X.Y.Z pattern silently skips every rc bump, and also misses drifted pins
+          # (e.g. nym-sqlx-pool-guard at 1.2.0).
+          sed -i '/path = /s/version = "[0-9][^"]*"/version = "${{ inputs.version }}"/g' Cargo.toml
 
       - name: Update contracts workspace dependencies
         run: |
           # Bump published main-workspace crate pins so contracts stay aligned with the release.
-          sed -i '\|path = "../common/|s/version = "[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"/version = "${{ inputs.version }}"/g' contracts/Cargo.toml
-          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
-          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
-          sed -i -E 's/^((contracts-common|mixnet-contract-common|vesting-contract-common|nym-node-families-contract-common) = \{ version = )"[0-9]+\.[0-9]+\.[0-9]+"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i '\|path = "../common/|s/version = "[0-9][^"]*"/version = "${{ inputs.version }}"/g' contracts/Cargo.toml
+          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E '/path = /! s/^(nym-[a-z0-9-]+ = \{ version = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
+          sed -i -E 's/^((contracts-common|mixnet-contract-common|vesting-contract-common|nym-node-families-contract-common) = \{ version = )"[0-9][^"]*"/\1"${{ inputs.version }}"/' contracts/Cargo.toml
 
       - name: Bump versions
         run: |

@@ -19,6 +19,8 @@ blake3 = { workspace = true }
 futures = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
+tendermint-proto = { workspace = true }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 cosmrs = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

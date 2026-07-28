@@ -596,6 +596,7 @@ cosmrs = { version = "0.22.0" }
 cosmos-sdk-proto = { version = "0.27.0" }
 ibc-proto = { version = "0.52.0" }
 tendermint = "0.40.4"
+tendermint-proto = "0.40.4"
 tendermint-light-client = "0.40.4"
 tendermint-rpc = "0.40.4"
 prost = { version = "0.13", default-features = false }

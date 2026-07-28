@@ -1,9 +1,9 @@
 ## 1. Datum format and verification (`nym-directory-client`)
 
-- [ ] 1.1 Define `SignedCheckpoint { checkpoint: Checkpoint, created_at, root_signature }` (alongside `Checkpoint` in `nym-directory-client`) with an advisory `created_at` using the `time::serde::rfc3339` pattern
-- [ ] 1.2 Build the signing payload `domain_tag || chain_id || height || sha256(proto_encode(checkpoint))` using `nym-directory-attestation`'s domain-tag helpers for the wrapper and Tendermint's `Protobuf` encoding for the checkpoint; use a checkpoint domain tag distinct from upgrade-mode/snapshot/subset/node-entry
-- [ ] 1.3 Implement root-signature verification over the payload (recompute the proto commitment on verify); add a typed error for signature failure
-- [ ] 1.4 Unit tests: sign+verify round-trip with a test root key; wrong-key and tampered-checkpoint rejection; signer/verifier produce identical committed bytes; assert a checkpoint signature does not validate as an upgrade-mode payload (domain separation)
+- [x] 1.1 Define `SignedCheckpoint { checkpoint: Checkpoint, created_at, root_signature }` (alongside `Checkpoint` in `nym-directory-client`) with an advisory `created_at` using the `time::serde::rfc3339` pattern
+- [x] 1.2 Build the signing payload `domain_tag || chain_id || height || blake3(proto_encode(checkpoint))` using `nym-directory-attestation`'s domain-tag helpers for the wrapper and Tendermint's `Protobuf` encoding for the checkpoint; use a checkpoint domain tag distinct from upgrade-mode/snapshot/subset/node-entry
+- [x] 1.3 Implement root-signature verification over the payload (recompute the proto commitment on verify); add a typed error for signature failure
+- [x] 1.4 Unit tests: sign+verify round-trip with a test root key; wrong-key and tampered-checkpoint rejection; signer/verifier produce identical committed bytes; domain-separation (tag is load-bearing). Shared real-nyx `Checkpoint` fixture relocated from `light_client.rs` tests into `test_support` (single-sourced; both suites reuse it)
 
 ## 2. Root-key rename and backward-compatible aliasing (`common/network-defaults`)
 

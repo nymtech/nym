@@ -10,7 +10,7 @@
 //! ```sh
 //! set -a; source envs/sandbox.env; source .claude/.secrets/sandbox.env; set +a
 //! MNEMONIC="$NYX_ACCOUNT_MNEMONIC" \
-//!   cargo test -p smoldvpn --test live_bringup -- --ignored --nocapture --test-threads=1
+//!   cargo test -p nym-smoldvpn --test live_bringup -- --ignored --nocapture --test-threads=1
 //! ```
 //!
 //! Run with `--test-threads=1`: both tests deposit from the same chain account, so running
@@ -26,7 +26,7 @@ use std::net::IpAddr;
 
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{GatewaySpec, HopConfig, Registration, Session, SessionConfig};
-use smoldvpn::{MtuConfig, PeerConfig, Tunnel, TunnelBuilder};
+use nym_smoldvpn::{MtuConfig, PeerConfig, Tunnel, TunnelBuilder};
 use tokio_util::sync::CancellationToken;
 
 /// Map a session hop into the datapath's transport-agnostic peer config.

@@ -12,7 +12,7 @@
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p smoldvpn --example smoldvpn-grpc -- \
+//!   cargo run -p nym-smoldvpn --example smoldvpn-grpc -- \
 //!     --gateway <spec> --target <host:port> [--service <name>]
 
 use std::process::ExitCode;
@@ -20,7 +20,7 @@ use std::process::ExitCode;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{GatewaySpec, HopConfig, Session, SessionConfig, WgRole};
-use smoldvpn::{PeerConfig, TunnelBuilder};
+use nym_smoldvpn::{PeerConfig, TunnelBuilder};
 use tokio_util::sync::CancellationToken;
 use tonic::transport::Endpoint;
 use tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
@@ -32,7 +32,7 @@ const ESTABLISH_BOUND: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Install a `tracing` subscriber so example narration and the crate's
 /// datapath/handshake logs are visible. Honours `RUST_LOG`
-/// (e.g. `RUST_LOG=smoldvpn=debug`); when unset it defaults to this example
+/// (e.g. `RUST_LOG=nym_smoldvpn=debug`); when unset it defaults to this example
 /// plus `smoldvpn` and `boringtun` at `info`.
 fn init_logging() {
     let _ = tracing_subscriber::fmt()
@@ -42,7 +42,7 @@ fn init_logging() {
                 // `module_path!()` is this example's crate — its own log target.
                 let example = module_path!().split("::").next().unwrap_or("");
                 tracing_subscriber::EnvFilter::new(format!(
-                    "{example}=info,smoldvpn=info,boringtun=info"
+                    "{example}=info,nym_smoldvpn=info,boringtun=info"
                 ))
             }),
         )

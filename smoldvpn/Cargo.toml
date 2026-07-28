@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [package]
-name = "smoldvpn"
+name = "nym-smoldvpn"
 description = "Pure-Rust userspace 1-/2-hop WireGuard dVPN datapath (boringtun on nym-smol-core) exposing tokio socket surfaces, with an optional QUIC bridge transport"
 version.workspace = true
 authors.workspace = true
@@ -101,7 +101,7 @@ nym-network-defaults = { workspace = true }
 bip39 = { workspace = true }
 tokio-util = { workspace = true }
 # Examples install a `tracing` subscriber so the crate's datapath/handshake
-# logs are visible (honours `RUST_LOG`, defaulting to `smoldvpn=info`).
+# logs are visible (honours `RUST_LOG`, defaulting to `nym_smoldvpn=info`).
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [[example]]

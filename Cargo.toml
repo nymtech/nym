@@ -543,7 +543,7 @@ nyxd-scraper-shared = { version = "1.21.5-rc.2", path = "common/nyxd-scraper-sha
 
 nym-smol-core = { version = "1.21.5-rc.2", path = "common/smol-core" }
 nym-smolmix = { version = "1.21.5-rc.2", path = "smolmix/core" }
-# TODO add smoldvpn here whatever you end up with name-wise 
+nym-smoldvpn = { version = "1.21.5-rc.2", path = "smoldvpn" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

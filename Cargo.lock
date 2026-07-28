@@ -8375,6 +8375,91 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-smol-core"
+version = "1.21.5-rc.2"
+dependencies = [
+ "futures",
+ "hickory-proto",
+ "rand 0.8.6",
+ "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-smoltcp",
+ "tracing",
+]
+
+[[package]]
+name = "nym-smoldvpn"
+version = "1.21.5-rc.2"
+dependencies = [
+ "base64 0.22.1",
+ "bip39",
+ "boringtun",
+ "bs58",
+ "bytes",
+ "futures",
+ "http 1.4.1",
+ "http-body-util",
+ "hyper 1.10.1",
+ "hyper-util",
+ "nym-bandwidth-controller",
+ "nym-bridges",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-http-api-client",
+ "nym-network-defaults",
+ "nym-sdk-session",
+ "nym-smol-core",
+ "nym-wireguard-private-metadata-client",
+ "nym-wireguard-private-metadata-shared",
+ "pin-project",
+ "prost 0.14.3",
+ "quinn",
+ "quinn-proto",
+ "rcgen 0.13.2",
+ "rustls 0.23.40",
+ "rustls-pki-types",
+ "serde_json",
+ "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tokio-util",
+ "tonic 0.14.6",
+ "tonic-health",
+ "tonic-prost",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
+name = "nym-smolmix"
+version = "1.21.5-rc.2"
+dependencies = [
+ "futures",
+ "hickory-proto",
+ "hickory-resolver",
+ "http-body-util",
+ "hyper 1.10.1",
+ "hyper-util",
+ "nym-bin-common",
+ "nym-ip-packet-requests",
+ "nym-sdk",
+ "nym-smol-core",
+ "reqwest 0.13.4",
+ "rustls 0.23.40",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tokio-tungstenite",
+ "tracing",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "nym-socks5-client"
 version = "1.1.81"
 dependencies = [
@@ -11761,20 +11846,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 
 [[package]]
-name = "smol-core"
-version = "1.21.5-rc.2"
-dependencies = [
- "futures",
- "hickory-proto",
- "rand 0.8.6",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "thiserror 2.0.18",
- "tokio",
- "tokio-smoltcp",
- "tracing",
-]
-
-[[package]]
 name = "smol_str"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11782,77 +11853,6 @@ checksum = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523"
 dependencies = [
  "borsh",
  "serde_core",
-]
-
-[[package]]
-name = "smoldvpn"
-version = "1.21.5-rc.2"
-dependencies = [
- "base64 0.22.1",
- "bip39",
- "boringtun",
- "bs58",
- "bytes",
- "futures",
- "http 1.4.1",
- "http-body-util",
- "hyper 1.10.1",
- "hyper-util",
- "nym-bandwidth-controller",
- "nym-bridges",
- "nym-credentials-interface",
- "nym-crypto",
- "nym-http-api-client",
- "nym-network-defaults",
- "nym-sdk-session",
- "nym-wireguard-private-metadata-client",
- "nym-wireguard-private-metadata-shared",
- "pin-project",
- "prost 0.14.3",
- "quinn",
- "quinn-proto",
- "rcgen 0.13.2",
- "rustls 0.23.40",
- "rustls-pki-types",
- "serde_json",
- "smol-core",
- "smoltcp 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "tokio-rustls 0.26.4",
- "tokio-util",
- "tonic 0.14.6",
- "tonic-health",
- "tonic-prost",
- "tower",
- "tracing",
- "tracing-subscriber",
- "webpki-roots 0.26.11",
-]
-
-[[package]]
-name = "smolmix"
-version = "1.21.5-rc.2"
-dependencies = [
- "futures",
- "hickory-proto",
- "hickory-resolver",
- "http-body-util",
- "hyper 1.10.1",
- "hyper-util",
- "nym-bin-common",
- "nym-ip-packet-requests",
- "nym-sdk",
- "reqwest 0.13.4",
- "rustls 0.23.40",
- "smol-core",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls 0.26.4",
- "tokio-tungstenite",
- "tracing",
- "webpki-roots 0.26.11",
 ]
 
 [[package]]

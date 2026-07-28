@@ -15,9 +15,9 @@
 //! and QUIC-tunnelling two-hop (see [`BridgeParams`]).
 //!
 //! ```no_run
-//! # async fn example(entry: smoldvpn::PeerConfig, exit: smoldvpn::PeerConfig)
+//! # async fn example(entry: nym_smoldvpn::PeerConfig, exit: nym_smoldvpn::PeerConfig)
 //! # -> Result<(), Box<dyn std::error::Error>> {
-//! use smoldvpn::TunnelBuilder;
+//! use nym_smoldvpn::TunnelBuilder;
 //!
 //! let tunnel = TunnelBuilder::two_hop(entry, exit).connect().await?;
 //! let mut tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;

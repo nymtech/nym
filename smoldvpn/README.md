@@ -1,4 +1,4 @@
-# smoldvpn
+# nym-smoldvpn
 
 A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath built on
 [`boringtun`](https://docs.rs/boringtun) and [`nym-smol-core`](../common/smol-core),
@@ -6,7 +6,7 @@ with no OS `tun` device and no root. Application traffic flows through the
 tunnel over ordinary tokio socket surfaces (`TcpStream`, `UdpSocket`, and
 `tonic`/`hyper` connectors).
 
-## What can I use `smoldvpn` for?
+## What can I use `nym-smoldvpn` for?
 
 Tunnel some or all of your app's internet traffic over the Nym network, in
 1-hop or 2-hop dVPN mode, from Rust. You don't stand up an OS-wide VPN; the
@@ -65,7 +65,7 @@ The datapath is decoupled from provisioning: build a `PeerConfig` per hop
 `TunnelBuilder`.
 
 ```rust
-use smoldvpn::{TunnelBuilder, PeerConfig, BridgeParams};
+use nym_smoldvpn::{TunnelBuilder, PeerConfig, BridgeParams};
 
 // Two-hop over direct UDP:
 let tunnel = TunnelBuilder::two_hop(entry, exit)
@@ -110,7 +110,7 @@ Build `--release`: `boringtun` is much slower in debug, which dominates the
 tunnel timing:
 
 ```sh
-MNEMONIC="<funded mnemonic>" cargo run --release -p smoldvpn --example two-hop-ip
+MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smoldvpn --example two-hop-ip
 ```
 
 ### Command-line options
@@ -146,7 +146,7 @@ Notes:
   QUIC-capable entry matches the requested country/identity, selection fails with
   `NoQuicGateway`.
 
-Examples (`…` = `MNEMONIC="…" cargo run --release -p smoldvpn`):
+Examples (`…` = `MNEMONIC="…" cargo run --release -p nym-smoldvpn`):
 
 ```sh
 # Random two-hop, show the IP relocate:
@@ -207,7 +207,7 @@ repo's sandbox env file and provide a funded sandbox mnemonic:
 set -a; source envs/sandbox.env; set +a      # nyxd / nym-api / contract addresses
 export MNEMONIC="<funded sandbox mnemonic>"   # deposits NYM + issues ticketbooks
 
-cargo run --release -p smoldvpn --example two-hop-ip
+cargo run --release -p nym-smoldvpn --example two-hop-ip
 ```
 
 - Build `--release`: `boringtun`'s userspace crypto is much slower in a debug
@@ -221,13 +221,13 @@ cargo run --release -p smoldvpn --example two-hop-ip
   `data/two-hop-ip/sandbox/`).
 - `DVPN_DIRECTORY_URL` defaults to the sandbox dVPN directory (used for gateway
   monikers and QUIC-bridge discovery); override it for another network.
-- Renamed from `nym-smol-dvpn` (2026-07): the crate is now `smoldvpn` at the
-  repo root, matching `smolmix`. Migration for local state and habits:
-  `RUST_LOG` targets are now `smoldvpn=…` (was `nym_smol_dvpn=…`); the
-  `smol-dvpn-*` examples are now `smoldvpn-*`, so any local
-  `data/smol-dvpn-*` directories should be renamed to `data/smoldvpn-*` to
-  keep their credentials. `zcash-sync`, `two-hop-ip`, `two-hop-quic` and
-  their data directories are unaffected.
+- Renamed to `nym-smoldvpn` (previously `smoldvpn`, and originally
+  `nym-smol-dvpn`); the crate lives at the repo root. Migration for local state
+  and habits: `RUST_LOG` targets are now `nym_smoldvpn=…` (was `smoldvpn=…`, and
+  `nym_smol_dvpn=…` before that); the `smol-dvpn-*` examples are now
+  `smoldvpn-*`, so any local `data/smol-dvpn-*` directories should be renamed to
+  `data/smoldvpn-*` to keep their credentials. `zcash-sync`, `two-hop-ip`,
+  `two-hop-quic` and their data directories are unaffected.
 - Registration reuse: successful gateway registrations are persisted by
   `nym-sdk-session` (`registrations.json` next to `creds.db`, per network +
   gateway + role) and reused on later runs against the same gateways, spending
@@ -239,8 +239,8 @@ cargo run --release -p smoldvpn --example two-hop-ip
 - Logging: the examples emit their progress/results as `tracing` logs (on
   **stderr**) rather than `println!`, and install a subscriber so they appear out
   of the box. The default filter (when `RUST_LOG` is unset) is the running
-  example plus `smoldvpn` and `boringtun` at `info`. Override with
-  `RUST_LOG`, e.g. `RUST_LOG=smoldvpn=debug` for the full datapath/handshake
+  example plus `nym-smoldvpn` and `boringtun` at `info`. Override with
+  `RUST_LOG`, e.g. `RUST_LOG=nym_smoldvpn=debug` for the full datapath/handshake
   detail, or `RUST_LOG=debug` for everything. Stdout is reserved for genuine
   output (the `smoldvpn-config` WireGuard config and `--help` text), so e.g.
   `cargo run … --example smoldvpn-config > wg0.conf` stays clean.
@@ -268,7 +268,7 @@ WG/QUIC dependency surface contained to this crate.
 
 ## Tests
 
-`cargo test -p smoldvpn` includes the QUIC bridge conformance test (framing
+`cargo test -p nym-smoldvpn` includes the QUIC bridge conformance test (framing
 + ed25519-SPKI pinning, positive and negative) against a local mock bridge.
 End-to-end tunnel bring-up against a live Nym gateway is validated separately
 (needs credentials + network).
@@ -294,7 +294,7 @@ Related capabilities in sibling crates:
 
 ## License
 
-`smoldvpn` is licensed under the **Apache License, Version 2.0**
+`nym-smoldvpn` is licensed under the **Apache License, Version 2.0**
 ([`Apache-2.0`](../LICENSES/Apache-2.0.txt)). Unless you explicitly state otherwise,
 any contribution intentionally submitted for inclusion in this crate shall be
 licensed as above, without any additional terms or conditions.

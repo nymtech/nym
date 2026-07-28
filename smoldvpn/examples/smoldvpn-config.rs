@@ -11,7 +11,7 @@
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p smoldvpn --example smoldvpn-config -- --gateway <spec>
+//!   cargo run -p nym-smoldvpn --example smoldvpn-config -- --gateway <spec>
 //!
 //! `<spec>` is `random`, a two-letter country code (e.g. `CH`), or a gateway
 //! ed25519 identity (base58). The network defaults to sandbox; override with
@@ -65,7 +65,7 @@ fn base64_encode(input: &[u8]) -> String {
 
 /// Install a `tracing` subscriber so example narration and the crate's
 /// datapath/handshake logs are visible. Honours `RUST_LOG`
-/// (e.g. `RUST_LOG=smoldvpn=debug`); when unset it defaults to this example
+/// (e.g. `RUST_LOG=nym_smoldvpn=debug`); when unset it defaults to this example
 /// plus `smoldvpn` and `boringtun` at `info`. The emitted WireGuard config
 /// still goes to stdout via `println!`, so it can be redirected to a file.
 fn init_logging() {
@@ -76,7 +76,7 @@ fn init_logging() {
                 // `module_path!()` is this example's crate — its own log target.
                 let example = module_path!().split("::").next().unwrap_or("");
                 tracing_subscriber::EnvFilter::new(format!(
-                    "{example}=info,smoldvpn=info,boringtun=info"
+                    "{example}=info,nym_smoldvpn=info,boringtun=info"
                 ))
             }),
         )

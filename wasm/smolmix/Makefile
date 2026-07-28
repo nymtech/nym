@@ -7,10 +7,11 @@ TASKSET ?= taskset -c 0-11
 .PHONY: build build-rust build-debug build-release-opt check-fmt dev dev-build \
         internal-dev-install mark-pkg-private test test\:smoke test\:suite
 
-build: build-rust mark-pkg-private
+build: build-rust
 
 build-rust:
 	$(TASKSET) wasm-pack build --scope nymproject --target web --out-name smolmix_wasm
+	$(MAKE) mark-pkg-private
 
 build-debug:
 	$(TASKSET) wasm-pack build --debug --scope nymproject --target web --out-name smolmix_wasm --features debug

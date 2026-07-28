@@ -29,10 +29,11 @@
 
 ## 3. Trusting period and single source of truth
 
-- [ ] 3.1 Raise the production trusting period to 18 days in `nyx_default_options` (`anchor/light_client.rs`)
-- [ ] 3.2 Expose the trusting period from one location so the loader's staleness check and the anchor's options read the
-  same value
-- [ ] 3.3 Add a doc/invariant note that the trusting period must stay below the chain unbonding period (nyx 21 days)
+- [x] 3.1 Raise the production trusting period to 18 days in `nyx_default_options` (`anchor/light_client.rs`)
+- [x] 3.2 Expose the trusting period from one location (`NYX_TRUSTING_PERIOD` const in `anchor/light_client.rs`); both
+  `nyx_default_options` and the loader's staleness check read it
+- [x] 3.3 Add a doc/invariant note that the trusting period must stay strictly below the nyx unbonding period (21 days)
+  with margin, on `NYX_TRUSTING_PERIOD`
 
 ## 4. Checkpoint providers and loader (`nym-directory-client`)
 

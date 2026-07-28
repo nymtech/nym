@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    AvailableGlobalData, BasicTicketbookInformation, EmergencyCredential,
+    EmergencyCredentialContent, RetrievedTicketbook,
 };
 use async_trait::async_trait;
 use nym_compact_ecash::VerificationKeyAuth;
@@ -100,6 +100,10 @@ pub trait Storage: Clone + Send + Sync {
         &self,
         signatures: &AggregatedExpirationDateSignatures,
     ) -> Result<(), Self::StorageError>;
+
+    /// Returns the epochs (and expiration dates) for which global signing data is present, without
+    /// loading the data itself - a cheap way to tell what's already provisioned.
+    async fn get_available_global_data(&self) -> Result<AvailableGlobalData, Self::StorageError>;
 
     async fn get_emergency_credential(
         &self,

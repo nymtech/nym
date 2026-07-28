@@ -22,6 +22,15 @@ pub struct BasicTicketbookInformation {
     pub used_tickets: u32,
 }
 
+/// The global signing data currently held in storage, identified by epoch (and expiration date for
+/// the expiration-date signatures) - without loading the (large) data itself.
+#[derive(Debug, Default)]
+pub struct AvailableGlobalData {
+    pub master_verification_key_epochs: Vec<u64>,
+    pub coin_index_signature_epochs: Vec<u64>,
+    pub expiration_date_signatures: Vec<(u64, Date)>,
+}
+
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
 #[derive(Zeroize, ZeroizeOnDrop, Clone)]
 pub struct StoredIssuedTicketbook {

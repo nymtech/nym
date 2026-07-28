@@ -24,7 +24,7 @@
 //! let (outbound_tx, _outbound_rx) = mpsc::unbounded::<Vec<u8>>();
 //! let (_inbound_tx, inbound_rx) = mpsc::unbounded::<Vec<u8>>();
 //!
-//! let device = ChannelDevice::new(inbound_rx, outbound_tx, DEFAULT_MTU);
+//! let device = ChannelDevice::new(inbound_rx, outbound_tx, Some(DEFAULT_MTU));
 //! let stack = Stack::new(device, StackConfig::new("10.0.0.2".parse()?));
 //!
 //! let _tcp = stack.tcp_connect("1.1.1.1:443".parse()?).await?;

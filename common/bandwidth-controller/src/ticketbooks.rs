@@ -6,6 +6,7 @@ use std::fmt;
 use nym_credential_storage::models::BasicTicketbookInformation;
 use nym_credentials_interface::TicketType;
 use nym_ecash_time::{Date, EcashTime, OffsetDateTime};
+use nym_validator_client::nym_api::EpochId;
 use strum::IntoEnumIterator;
 
 use crate::{config::BandwidthControllerConfig, error::BandwidthControllerError};
@@ -15,6 +16,7 @@ pub struct AvailableTicketbook {
     pub id: i64,
     pub typ: TicketType,
     pub expiration: Date,
+    pub epoch_id: EpochId,
     pub issued_tickets: u32,
     pub claimed_tickets: u32,
     pub ticket_size: u64,
@@ -63,9 +65,10 @@ impl fmt::Display for AvailableTicketbook {
 
         write!(
             f,
-            "{{ id: {}, type: {}, tickets: {}/{}, size: {}, remaining: {}/{}, {} }}",
+            "{{ id: {}, type: {}, epoch_id: {}, tickets: {}/{}, size: {}, remaining: {}/{}, {} }}",
             self.id,
             self.typ,
+            self.epoch_id,
             self.remaining_tickets(),
             self.issued_tickets,
             self.ticket_size_si(),
@@ -88,6 +91,7 @@ impl TryFrom<BasicTicketbookInformation> for AvailableTicketbook {
             id: value.id,
             typ,
             expiration: value.expiration_date,
+            epoch_id: EpochId::from(value.epoch_id),
             issued_tickets: value.total_tickets,
             claimed_tickets: value.used_tickets,
             ticket_size: typ.to_repr().bandwidth_value(),
@@ -120,6 +124,14 @@ impl AvailableTicketbooks {
         self.ticketbooks
             .iter()
             .filter(move |ticketbook| ticketbook.typ == typ)
+    }
+
+    /// The ticketbook that would be spent next for `typ`: the soonest-expiring usable one, mirroring
+    /// storage's selection. Read-only - for its metadata (epoch/date), without withdrawing.
+    pub(crate) fn next_usable(&self, typ: TicketType) -> Option<&AvailableTicketbook> {
+        self.tickets_by_type(typ)
+            .filter(|ticketbook| !ticketbook.has_expired() && ticketbook.remaining_tickets() > 0)
+            .min_by_key(|ticketbook| ticketbook.expiration)
     }
 
     pub fn remaining_tickets_long_lasting(

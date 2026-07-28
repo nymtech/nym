@@ -1,66 +1,66 @@
 # smoldvpn
 
-A pure-Rust, userspace **1-/2-hop WireGuard dVPN datapath** built on
-[`boringtun`](https://docs.rs/boringtun) and [`smol-core`](../../../common/smol-core),
-with **no OS `tun` device and no root**. Application traffic flows through the
-tunnel via ordinary tokio socket surfaces (`TcpStream`, `UdpSocket`, and
+A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath built on
+[`boringtun`](https://docs.rs/boringtun) and [`smol-core`](../common/smol-core),
+with no OS `tun` device and no root. Application traffic flows through the
+tunnel over ordinary tokio socket surfaces (`TcpStream`, `UdpSocket`, and
 `tonic`/`hyper` connectors).
 
 ## What can I use `smoldvpn` for?
 
-Tunnel some or all of your app's internet traffic over the Nym network — in
-**1-hop or 2-hop dVPN mode** — straight from Rust. You don't stand up an
-OS-wide VPN; the tunnel is **scoped to the sockets your app opens through it**.
-This is *not* an OS-level kill-switch: traffic your app sends over ordinary
-(non-tunnel) sockets, and the host's own DNS, still go out normally and are **not**
-protected. For the traffic you *do* route through it, closing the tunnel cuts that
-traffic off — a per-socket kill-switch for the flows you opted in. Routing *all* of
-an app's traffic (and preventing leaks around it) is the integrator's
-responsibility.
+Tunnel some or all of your app's internet traffic over the Nym network, in
+1-hop or 2-hop dVPN mode, from Rust. You don't stand up an OS-wide VPN; the
+tunnel is scoped to the sockets your app opens through it. This is not an
+OS-level kill-switch: traffic your app sends over ordinary (non-tunnel)
+sockets, and the host's own DNS, still go out normally and are not protected.
+For the traffic you do route through it, closing the tunnel cuts that traffic
+off, so it acts as a per-socket kill-switch for the flows you opted in.
+Routing all of an app's traffic (and preventing leaks around it) is the
+integrator's responsibility.
 
 How it works, end to end:
 
 1. **Get unlinkable credentials.** Your app acquires zk-nym ticketbooks to pay
-   for access to the Nym network. Because they're zero-knowledge, there's **no
-   link between the payment and the network usage** it unlocks.
+   for access to the Nym network. Because they're zero-knowledge, there is no
+   link between the payment and the network usage it unlocks.
 2. **Register with individual gateways.** Each hop registers separately and is
-   handed its **own unique WireGuard identity** — there is no centralised, shared
-   WireGuard public key. The network is run by **independent operators**, so
-   trust isn't concentrated in one party.
+   handed its own unique WireGuard identity; there is no centralised, shared
+   WireGuard public key. The network is run by independent operators, so trust
+   isn't concentrated in one party.
 3. **Send traffic through tokio.** Drive the tunnel with ordinary async
-   primitives — `AsyncRead`/`AsyncWrite`, `TcpStream`, `UdpSocket` — and layer
-   crates like `tonic` or `hyper` on top to send **gRPC, HTTP, or anything else**
-   inside your app-specific tunnel. Under the hood it's WireGuard: **fast, with
-   very small per-packet header overhead**.
+   primitives (`AsyncRead`/`AsyncWrite`, `TcpStream`, `UdpSocket`) and layer
+   crates like `tonic` or `hyper` on top to send gRPC, HTTP, or anything else
+   inside your app-specific tunnel. Under the hood it is WireGuard, so
+   per-packet header overhead stays small.
 
-Blocked by a censor doing **Deep Packet Inspection**? Flip on the **QUIC bridge**
+To get around a censor doing deep packet inspection, turn on the QUIC bridge
 transport ([Data-plane modes](#data-plane-modes)): the WireGuard tunnel rides inside a QUIC
 connection to a Nym network bridge, so on the wire it looks like ordinary QUIC
 rather than WireGuard/UDP.
 
-### Don't want your users to touch NYM tokens?
+### Using the crate without your users holding NYM
 
-Your end-users **don't have to acquire or hold NYM** to use the Nym network. Run
-the [`nym-credential-proxy`](../../../nym-credential-proxy/nym-credential-proxy) —
-an authenticated service you operate that **gifts zk-nyms to your users** on their
+Your end-users don't have to acquire or hold NYM to use the Nym network. Run
+the [`nym-credential-proxy`](../nym-credential-proxy/nym-credential-proxy), an
+authenticated service you operate that issues zk-nyms to your users on their
 behalf. Your app authenticates to the proxy, the proxy issues the unlinkable
-credentials, and your users get Nym access with zero crypto onboarding.
+credentials, and your users get Nym access without handling any tokens.
 
 ## Data-plane modes
 
 Three modes, selected on the builder:
 
-- **one-hop** — a single `boringtun` `Tunn` to one gateway.
-- **two-hop** — nested `Tunn`s: the exit tunnel's ciphertext is framed as an
+- **one-hop**: a single `boringtun` `Tunn` to one gateway.
+- **two-hop**: nested `Tunn`s. The exit tunnel's ciphertext is framed as an
   inner IP/UDP datagram (via `smoltcp::wire`) and re-encrypted by the entry
   tunnel.
-- **QUIC-tunnelling two-hop** — the entry leg is fronted by an inline QUIC
+- **QUIC-tunnelling two-hop**: the entry leg is fronted by an inline QUIC
   bridge (ALPN `hq-29`, ed25519-SPKI pinning, 2-byte length framing) for
   clients blocked from pure UDP. QUIC only ever fronts the two-hop entry leg.
 
 ## Usage
 
-The datapath is **decoupled from provisioning**: build a `PeerConfig` per hop
+The datapath is decoupled from provisioning: build a `PeerConfig` per hop
 (e.g. by mapping a `nym-sdk-session` registration) and hand it to a
 `TunnelBuilder`.
 
@@ -93,8 +93,8 @@ let tunnel = TunnelBuilder::two_hop(entry, exit)
 ## Examples
 
 Runnable end-to-end demos live in `examples/` (shared setup is in
-`examples/common/`). **All need a funded `MNEMONIC`** and a live Nym network —
-see [Developers](#developers) for pointing at sandbox.
+`examples/common/`). All need a funded `MNEMONIC` and a live Nym network; see
+[Developers](#developers) for pointing at sandbox.
 
 | Example | What it does |
 |---|---|
@@ -106,7 +106,7 @@ see [Developers](#developers) for pointing at sandbox.
 | `zcash-sync` | Time syncing the last N Zcash compact blocks (default 10,000, `--blocks <N>`) from a public `lightwalletd` (`zec.rocks:443`, gRPC-over-TLS) directly vs. through the tunnel, and compare throughput. |
 
 Run one with (see [Developers](#developers) to set the sandbox env first).
-**Build `--release`** — `boringtun` is much slower in debug, which dominates the
+Build `--release`: `boringtun` is much slower in debug, which dominates the
 tunnel timing:
 
 ```sh
@@ -133,13 +133,13 @@ after `--`, e.g. `cargo run … --example two-hop-ip -- --entry DE --quic`):
 | `<SPEC>` | Selection |
 |---|---|
 | `random` | Any WireGuard-capable gateway (the default). |
-| `<CC>` | A two-letter ISO 3166 country code, e.g. `DE`, `CH` — a random gateway in that country. |
+| `<CC>` | A two-letter ISO 3166 country code, e.g. `DE`, `CH`: a random gateway in that country. |
 | `<identity>` | An exact gateway ed25519 identity key (base58). |
 
 Notes:
 - `two-hop-quic` is QUIC + two-hop by definition; it still honours
   `--entry`/`--exit`/`--gateway` but ignores `--one-hop`/`--quic`.
-- **QUIC only fronts the two-hop entry leg** — `--quic --one-hop` is rejected.
+- QUIC only fronts the two-hop entry leg, so `--quic --one-hop` is rejected.
 - QUIC-entry selection needs a **dVPN gateway-directory URL** so the session can
   discover QUIC-bridge-capable gateways and their bridge params. The examples
   default to the sandbox directory; override with `DVPN_DIRECTORY_URL`. If no
@@ -230,8 +230,8 @@ cargo run --release -p smoldvpn --example two-hop-ip
   their data directories are unaffected.
 - Registration reuse: successful gateway registrations are persisted by
   `nym-sdk-session` (`registrations.json` next to `creds.db`, per network +
-  gateway + role) and reused on later runs against the same gateways — **zero
-  tickets spent** until the gateway-side allowance actually depletes. The
+  gateway + role) and reused on later runs against the same gateways, spending
+  zero tickets until the gateway-side allowance actually depletes. The
   examples gate bring-up on `Tunnel::await_established` (15s bound; healthy
   establishment is ~100ms) and, when a cached registration's peer is gone,
   invalidate it and register fresh automatically (`reusing cached
@@ -242,7 +242,7 @@ cargo run --release -p smoldvpn --example two-hop-ip
   example plus `smoldvpn` and `boringtun` at `info`. Override with
   `RUST_LOG`, e.g. `RUST_LOG=smoldvpn=debug` for the full datapath/handshake
   detail, or `RUST_LOG=debug` for everything. Stdout is reserved for genuine
-  output — the `smoldvpn-config` WireGuard config and `--help` text — so e.g.
+  output (the `smoldvpn-config` WireGuard config and `--help` text), so e.g.
   `cargo run … --example smoldvpn-config > wg0.conf` stays clean.
 
 ## Features
@@ -276,26 +276,26 @@ End-to-end tunnel bring-up against a live Nym gateway is validated separately
 ## Design
 
 See the architecture docs in
-[`docs/design/sdk/smoldvpn/`](../../../docs/design/sdk/smoldvpn/) and the
+[`docs/design/smoldvpn/`](../docs/design/smoldvpn/) and the
 OpenSpec capability specs this crate implements:
 
-- [`dvpn-tunnel`](../../../openspec/specs/dvpn-tunnel/spec.md) — the userspace
+- [`dvpn-tunnel`](../openspec/specs/dvpn-tunnel/spec.md): the userspace
   WireGuard datapath, tunnel modes, lifecycle, DNS, MTU, and top-up.
-- [`dvpn-quic-bridge`](../../../openspec/specs/dvpn-quic-bridge/spec.md) — the
+- [`dvpn-quic-bridge`](../openspec/specs/dvpn-quic-bridge/spec.md): the
   `WgPacketTransport` abstraction and the QUIC bridge transport.
-- [`dvpn-tools`](../../../openspec/specs/dvpn-tools/spec.md) — the example CLIs
+- [`dvpn-tools`](../openspec/specs/dvpn-tools/spec.md): the example CLIs
   (config export, bandwidth top-up, gRPC/IP/Zcash demos).
 
 Related capabilities in sibling crates:
-[`dvpn-session`](../../../openspec/specs/dvpn-session/spec.md) (provisioning,
+[`dvpn-session`](../openspec/specs/dvpn-session/spec.md) (provisioning,
 `nym-sdk-session`) and
-[`smol-core-stack`](../../../openspec/specs/smol-core-stack/spec.md) (the
+[`smol-core-stack`](../openspec/specs/smol-core-stack/spec.md) (the
 `smol-core` TCP/IP stack).
 
 ## License
 
 `smoldvpn` is licensed under the **Apache License, Version 2.0**
-([`Apache-2.0`](../../../LICENSES/Apache-2.0.txt)). Unless you explicitly state otherwise,
+([`Apache-2.0`](../LICENSES/Apache-2.0.txt)). Unless you explicitly state otherwise,
 any contribution intentionally submitted for inclusion in this crate shall be
 licensed as above, without any additional terms or conditions.
 

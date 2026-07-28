@@ -1,7 +1,7 @@
 # dvpn-tunnel Specification
 
 ## Purpose
-Defines the smoldvpn userspace WireGuard tunnel: boringtun datapath, single/two-hop modes, tokio traffic surfaces, lifecycle, DNS, MTU, and bandwidth top-up.
+Defines the nym-smoldvpn userspace WireGuard tunnel: boringtun datapath, single/two-hop modes, tokio traffic surfaces, lifecycle, DNS, MTU, and bandwidth top-up.
 ## Requirements
 ### Requirement: Userspace WireGuard datapath with boringtun
 

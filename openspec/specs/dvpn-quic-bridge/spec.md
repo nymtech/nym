@@ -1,7 +1,7 @@
 # dvpn-quic-bridge Specification
 
 ## Purpose
-Defines the WgPacketTransport data-plane abstraction and the QUIC bridge client used to front the two-hop entry gateway leg in smoldvpn.
+Defines the WgPacketTransport data-plane abstraction and the QUIC bridge client used to front the two-hop entry gateway leg in nym-smoldvpn.
 
 ## Requirements
 

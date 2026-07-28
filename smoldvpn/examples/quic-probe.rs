@@ -8,24 +8,24 @@
 //!   1. **raw**   — a bare `quinn` handshake (ALPN `hq-29`, cert verification
 //!      DISABLED). Success ⇒ the bridge server is reachable and speaks our
 //!      QUIC/ALPN; a timeout ⇒ infra (UDP unreachable).
-//!   2. **pinned** — our real `smoldvpn::probe_bridge` (ed25519 cert
+//!   2. **pinned** — our real `nym_smoldvpn::probe_bridge` (ed25519 cert
 //!      pinning + `open_bi`). A failure here while raw succeeds ⇒ our bug.
 //!
 //! Defaults to the two known sandbox QUIC gateways; override with
 //! `--addr <ip:port> --sni <host> --id <base64-ed25519>`.
 //!
 //! Usage (no mnemonic/network needed — this only touches the bridge):
-//!   cargo run --release -p smoldvpn --example quic-probe
+//!   cargo run --release -p nym-smoldvpn --example quic-probe
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use nym_smoldvpn::{probe_bridge, BridgeParams};
 use quinn::crypto::rustls::QuicClientConfig;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, SignatureScheme};
-use smoldvpn::{probe_bridge, BridgeParams};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
@@ -152,7 +152,7 @@ async fn probe_target(name: &str, addr: &str, sni: &str, id_b64: &str) {
 
 /// Install a `tracing` subscriber so example narration and the crate's
 /// datapath/handshake logs are visible. Honours `RUST_LOG`
-/// (e.g. `RUST_LOG=smoldvpn=debug`); when unset it defaults to this example
+/// (e.g. `RUST_LOG=nym_smoldvpn=debug`); when unset it defaults to this example
 /// plus `smoldvpn` and `boringtun` at `info`.
 fn init_logging() {
     let _ = tracing_subscriber::fmt()
@@ -162,7 +162,7 @@ fn init_logging() {
                 // `module_path!()` is this example's crate — its own log target.
                 let example = module_path!().split("::").next().unwrap_or("");
                 tracing_subscriber::EnvFilter::new(format!(
-                    "{example}=info,smoldvpn=info,boringtun=info"
+                    "{example}=info,nym_smoldvpn=info,boringtun=info"
                 ))
             }),
         )

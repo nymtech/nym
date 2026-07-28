@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig, TcpStream, UdpSocket};
+use nym_smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig, TcpStream, UdpSocket};
 
 use crate::connectors::TunnelConnector;
 use crate::topup::{

@@ -1,7 +1,7 @@
 # smol-core-stack Specification
 
 ## Purpose
-Defines smol-core, the transport-agnostic userspace TCP/IP stack, its TCP/UDP/DNS socket surfaces, and the smolmix refactor onto it.
+Defines nym-smol-core, the transport-agnostic userspace TCP/IP stack, its TCP/UDP/DNS socket surfaces, and the smolmix refactor onto it.
 ## Requirements
 ### Requirement: Transport-agnostic userspace TCP/IP stack
 

@@ -18,7 +18,7 @@ The `TcpStream` type implements tokio's `AsyncRead`/`AsyncWrite` traits and `Udp
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │  Your application (TLS, HTTP, WebSocket, DNS, etc.)          │
-│       └─ smolmix::TcpStream / UdpSocket                      │
+│       └─ nym_smolmix::TcpStream / UdpSocket                      │
 │            └─ smoltcp (userspace TCP/IP)                     │
 │                 └─ Nym mixnet → IPR exit gateway → internet  │
 └──────────────────────────────────────────────────────────────┘
@@ -43,8 +43,8 @@ Add `smolmix` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-smolmix = "1.21.5-rc.1"
-nym-bin-common = { version = "1.21.5-rc.1", features = ["basic_tracing"] }
+nym-smolmix = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -61,7 +61,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 For unreleased changes, import directly from the repository:
 
 ```toml
-smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
+nym-smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 ```
 
 ## When to use smolmix
@@ -89,7 +89,7 @@ The full model (what each hop sees, trust boundaries, and a comparison with Tor 
 Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough.
 
 ```sh
-cargo run -p smolmix --example <name>
+cargo run -p nym-smolmix --example <name>
 ```
 
 All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Recipient` address to `Tunnel::builder().ipr_address()`).
@@ -107,4 +107,4 @@ The internal stack (smoltcp reactor, device adapter, bridge task, packet flow) i
 
 ## API reference
 
-Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix).
+Full API documentation is available on [docs.rs/nym-smolmix](https://docs.rs/nym-smolmix).

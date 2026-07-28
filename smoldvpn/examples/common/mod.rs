@@ -24,9 +24,9 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{
     GatewayInfo, GatewaySpec, HopConfig, QuicBridge, Registration, Session, SessionConfig, WgRole,
 };
+use nym_smoldvpn::{BridgeParams, PeerConfig, Tunnel, TunnelBuilder};
 use rustls::pki_types::ServerName;
 use serde_json::Value;
-use smoldvpn::{BridgeParams, PeerConfig, Tunnel, TunnelBuilder};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio_rustls::TlsConnector;
 use tower::Service;
@@ -45,7 +45,7 @@ pub fn init_crypto() {
 
 /// Install a `tracing` subscriber so example narration and the crate's
 /// datapath/handshake logs are visible. Honours `RUST_LOG`
-/// (e.g. `RUST_LOG=smoldvpn=debug`); when unset it defaults to the running
+/// (e.g. `RUST_LOG=nym_smoldvpn=debug`); when unset it defaults to the running
 /// example plus `smoldvpn` and `boringtun` at `info`. Idempotent — the
 /// `try_` initialiser makes a second call a no-op.
 pub fn init_logging() {
@@ -57,7 +57,7 @@ pub fn init_logging() {
                 // root is the example's own log target, so its `info!` shows.
                 let example = module_path!().split("::").next().unwrap_or("");
                 tracing_subscriber::EnvFilter::new(format!(
-                    "{example}=info,smoldvpn=info,boringtun=info"
+                    "{example}=info,nym_smoldvpn=info,boringtun=info"
                 ))
             }),
         )
@@ -172,7 +172,7 @@ pub async fn build_tunnel(reg: &Registration, use_quic: bool) -> Result<Tunnel, 
 /// Bring up a tunnel with gateway-side bandwidth top-up wired in — the recommended default for a
 /// long-lived, session-built tunnel. Spends already-stored tickets (obtained via the session's
 /// bandwidth provider) against the in-tunnel `metadata` endpoint before bandwidth runs out, and
-/// exposes [`smoldvpn::BandwidthEvent`]s via `tunnel.bandwidth_events()`.
+/// exposes [`nym_smoldvpn::BandwidthEvent`]s via `tunnel.bandwidth_events()`.
 ///
 /// The bandwidth top-up meters at the exit gateway (the sole hop for one-hop), so it spends
 /// `WgRole::Exit` tickets there.
@@ -183,7 +183,7 @@ pub async fn build_tunnel_with_topup(
     use_quic: bool,
 ) -> Result<Tunnel, BoxError> {
     use nym_credentials_interface::TicketType;
-    use smoldvpn::{ProviderCredentialSource, TopupConfig};
+    use nym_smoldvpn::{ProviderCredentialSource, TopupConfig};
 
     // The metering gateway is the exit (or the sole gateway for one-hop).
     let (metering, ticket_type) = match reg.exit.as_ref() {

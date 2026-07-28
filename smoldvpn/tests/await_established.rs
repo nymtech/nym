@@ -15,7 +15,7 @@ use std::time::Duration;
 use boringtun::noise::{Tunn, TunnResult};
 use boringtun::x25519::{PublicKey, StaticSecret};
 use nym_crypto::asymmetric::x25519;
-use smoldvpn::{NotEstablished, PeerConfig, TunnelBuilder};
+use nym_smoldvpn::{NotEstablished, PeerConfig, TunnelBuilder};
 
 /// Run an async test body on a manually-built runtime and force-stop it after.
 /// The smol-core stack parks workers in tokio's blocking pool that outlive the

@@ -17,7 +17,7 @@
 //! ```no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use futures::channel::mpsc;
-//! use smol_core::{ChannelDevice, Stack, StackConfig, DEFAULT_MTU};
+//! use nym_smol_core::{ChannelDevice, Stack, StackConfig, DEFAULT_MTU};
 //!
 //! // `inbound_*` carry IP packets from the transport into the stack;
 //! // `outbound_*` carry stack-produced IP packets back to the transport.

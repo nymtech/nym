@@ -42,7 +42,7 @@ Three modes, selected on the builder:
 
 `nym-smoldvpn` requires [`tokio`](https://docs.rs/tokio) and runs on native targets. The datapath, the `boringtun` timer pump, and the userspace IP stack all run on the tokio runtime, so the crate is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to drive it from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
 
-There is no WebAssembly build: the crate compiles the WireGuard datapath for native platforms (desktop, server, and, via `uniffi`/NDK, mobile). For browser and WebView targets, use the mixnet-based [mix-* packages](/developers/mix-architecture) instead.
+There is no WebAssembly build: the crate compiles the WireGuard datapath for native platforms (desktop, server, and mobile). It provides iOS/Android MTU defaults and a `SocketProtector` hook for the egress socket on Linux and Android, but ships no mobile FFI bindings of its own. For browser and WebView targets, use the mixnet-based [mix-* packages](/developers/mix-architecture) instead.
 
 ## Installation
 
@@ -144,7 +144,7 @@ Runnable end-to-end examples live in [`smoldvpn/examples/`](https://github.com/n
 MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smoldvpn --example <name>
 ```
 
-Build `--release`: `boringtun`'s userspace crypto is much slower in a debug build, which dominates the through-tunnel timing. The IP and QUIC examples accept `--entry`, `--exit`, `--gateway` and `--quic` after `--` to select gateways and transport (see docs.rs for the full option set).
+Build `--release`: `boringtun`'s userspace crypto is much slower in a debug build, which dominates the through-tunnel timing. The `two-hop-ip`, `two-hop-quic`, and `zcash-sync` examples share a common option set passed after `--` (`--entry`, `--exit`, `--gateway`, `--quic`, and more) to select gateways and transport; see the example sources for the full set.
 
 | Example | Source | What it demonstrates |
 |---|---|---|

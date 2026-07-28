@@ -99,6 +99,16 @@ tunnel.shutdown().await;
 
 Closing the tunnel cuts the traffic routed through it, so it acts as a per-socket kill-switch for the flows you opted in.
 
+## Credentials
+
+Access to the gateways is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym). Your application funds them by depositing NYM from a mnemonic, which issues the WireGuard ticketbooks it needs. Because the credentials are zero-knowledge, the payment stays unlinkable to the network usage it unlocks.
+
+Ticketbooks are issued once and cached locally, then reused on later runs, so bringing the tunnel up and down does not re-spend. New tickets are drawn only as the gateway-side bandwidth allowance is consumed.
+
+### Running it without your users holding NYM
+
+Your end-users do not have to acquire or hold NYM. Run the [`nym-credential-proxy`](https://github.com/nymtech/nym/tree/develop/nym-credential-proxy/nym-credential-proxy), an authenticated service you operate that issues zk-nyms on their behalf: your app authenticates to the proxy, the proxy issues the unlinkable credentials, and your users get Nym access without handling any tokens.
+
 ## When to use nym-smoldvpn
 
 | | nym-smoldvpn | smolmix | Stream module | SOCKS client |

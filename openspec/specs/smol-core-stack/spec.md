@@ -5,7 +5,7 @@ Defines nym-smol-core, the transport-agnostic userspace TCP/IP stack, its TCP/UD
 ## Requirements
 ### Requirement: Transport-agnostic userspace TCP/IP stack
 
-`smol-core` SHALL provide a pure-Rust, `tokio`-async userspace TCP/IP stack driven by
+`nym-smol-core` SHALL provide a pure-Rust, `tokio`-async userspace TCP/IP stack driven by
 a caller-supplied bidirectional transport of raw IP packets (`Vec<u8>`), with no OS
 `tun` device and no elevated privileges. It MUST NOT depend on Go, a gVisor netstack,
 or any FFI network stack.
@@ -79,11 +79,11 @@ IPv6 addresses (the AAAA query is skipped).
 
 ### Requirement: smolmix refactored onto smol-core
 
-The existing `smolmix` crate SHALL be refactored to consume `smol-core` for its
+The existing `smolmix` crate SHALL be refactored to consume `nym-smol-core` for its
 stack, while preserving its existing public API.
 
 #### Scenario: smolmix public API unchanged
-- **WHEN** `smolmix` is rebuilt on top of `smol-core`
+- **WHEN** `smolmix` is rebuilt on top of `nym-smol-core`
 - **THEN** existing `smolmix` public items (e.g. `Tunnel`, `tcp_connect`,
   `udp_socket`) continue to compile and behave as before
 

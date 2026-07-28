@@ -2,12 +2,10 @@
 
 ## Purpose
 Defines the nym-smoldvpn example CLIs and tools: config export, bandwidth top-up, gRPC-through-tunnel, public-IP relocation, and Zcash sync benchmarks.
-
 ## Requirements
-
 ### Requirement: WireGuard config export CLI (single-hop)
 
-`smoldvpn` SHALL provide a `smoldvpn-config` example CLI that performs an LP
+`nym-smoldvpn` SHALL provide a `smoldvpn-config` example CLI that performs an LP
 registration against a single gateway (`--gateway <spec>`) and prints a plain
 WireGuard configuration usable with stock `wg`/`wg-quick`, including the client
 private key and assigned address, and the peer's gateway public key, LP-negotiated
@@ -25,7 +23,7 @@ preshared key, endpoint, and allowed IPs.
 
 ### Requirement: Bandwidth top-up CLI
 
-`smoldvpn` SHALL provide a `smoldvpn-topup` example CLI that spends a stored ticket
+`nym-smoldvpn` SHALL provide a `smoldvpn-topup` example CLI that spends a stored ticket
 against the gateway `metadata` endpoint to extend the available bandwidth of an
 existing registration.
 
@@ -36,7 +34,7 @@ existing registration.
 
 ### Requirement: gRPC-through-tunnel example
 
-`smoldvpn` SHALL provide a `smoldvpn-grpc` example that brings up a tunnel and
+`nym-smoldvpn` SHALL provide a `smoldvpn-grpc` example that brings up a tunnel and
 issues a real `tonic` gRPC request through it via the tunnel connector.
 
 #### Scenario: gRPC request over the tunnel
@@ -46,7 +44,7 @@ issues a real `tonic` gRPC request through it via the tunnel connector.
 
 ### Requirement: Public-IP relocation examples
 
-`smoldvpn` SHALL provide `two-hop-ip` and `two-hop-quic` examples that query a public
+`nym-smoldvpn` SHALL provide `two-hop-ip` and `two-hop-quic` examples that query a public
 IP-echo service directly and then through the tunnel, demonstrating that the observed
 public IP/location becomes the exit gateway's. `two-hop-quic` SHALL front the entry
 leg with a QUIC bridge (selecting a QUIC-capable entry gateway).
@@ -63,7 +61,7 @@ leg with a QUIC bridge (selecting a QUIC-capable entry gateway).
 
 ### Requirement: Zcash compact-block sync benchmark example
 
-`smoldvpn` SHALL provide a `zcash-sync` example that syncs a configurable number of
+`nym-smoldvpn` SHALL provide a `zcash-sync` example that syncs a configurable number of
 Zcash compact blocks (default 10,000, selectable with `--blocks <N>`) from a public
 `lightwalletd` over gRPC-over-TLS both directly and through the tunnel, and reports the
 throughput of each.
@@ -89,3 +87,4 @@ two-hop).
 #### Scenario: Reject QUIC with single-hop
 - **WHEN** the user passes `--quic --one-hop`
 - **THEN** the example exits with an error explaining QUIC is two-hop-entry only
+

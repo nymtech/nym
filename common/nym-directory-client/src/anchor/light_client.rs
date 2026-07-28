@@ -3,6 +3,7 @@
 
 use crate::anchor::checkpoint::Checkpoint;
 use crate::anchor::checkpoint::NYX_TRUSTING_PERIOD;
+use crate::anchor::checkpoint::store::CheckpointStore;
 use crate::anchor::helpers::get_trusted_directory_digest;
 use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
@@ -63,12 +64,12 @@ impl TrustedAnchorState {
         }
     }
 
-    fn advance(&mut self, signed_header: SignedHeader, next_validators: ValidatorSet) {
-        self.chain_id = signed_header.header.chain_id.clone();
-        self.header_time = signed_header.header.time;
-        self.height = signed_header.header.height;
-        self.next_validators_hash = signed_header.header.next_validators_hash;
-        self.next_validators = next_validators;
+    fn advance(&mut self, checkpoint: &Checkpoint) {
+        self.chain_id = checkpoint.signed_header.header.chain_id.clone();
+        self.header_time = checkpoint.signed_header.header.time;
+        self.height = checkpoint.signed_header.header.height;
+        self.next_validators_hash = checkpoint.signed_header.header.next_validators_hash;
+        self.next_validators = checkpoint.next_validators.clone();
     }
 }
 
@@ -97,9 +98,14 @@ pub struct LightClientAnchor<C> {
     options: Options,
 
     verifier: ProdVerifier,
+
+    /// Optional write side: when present, the anchor persists its advanced head here (the read
+    /// side is the loader's stored provider). See [`CheckpointStore`].
+    store: Option<Box<dyn CheckpointStore>>,
 }
 
 impl<C> LightClientAnchor<C> {
+    /// Construct an anchor seeded from `checkpoint`, without head persistence.
     pub fn new(
         client: C,
         directory_contract: AccountId,
@@ -126,7 +132,15 @@ impl<C> LightClientAnchor<C> {
             }),
             options,
             verifier: ProdVerifier::default(),
+            store: None,
         }
+    }
+
+    /// Attach head persistence
+    #[must_use]
+    pub fn with_store<S>(mut self, store: S) -> Self {
+        self.store = Some(Box::new(store));
+        self
     }
 }
 
@@ -136,15 +150,15 @@ where
 {
     /// Verify the header at `target` directly against `base` via the Tendermint light-client rule.
     ///
-    /// Returns `Some((signed_header, next_validators))` on success (`next_validators` is the
-    /// set at `target + 1`, ready to become the new trusted state's next-validators),
-    /// `None` when the trusted validator overlap is insufficient (caller should bisect),
-    /// `Err` on hard verification failures or RPC errors.
+    /// Returns the verified block as a [`Checkpoint`] on success (carrying `target`'s signed
+    /// header, its own validator set, and the set at `target + 1` ready to become the new
+    /// trusted state's next-validators), `None` when the trusted validator overlap is
+    /// insufficient (caller should bisect), `Err` on hard verification failures or RPC errors.
     async fn verify_hop(
         &self,
         base: &TrustedAnchorState,
         target: Height,
-    ) -> Result<Option<(SignedHeader, ValidatorSet)>, DirectoryClientError> {
+    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
         let commit_res = self.client.commit(target).await?;
         if !commit_res.canonical {
             return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
@@ -173,7 +187,12 @@ where
             .verifier
             .verify_update_header(untrusted, trusted, &self.options, now)
         {
-            Verdict::Success => Ok(Some((commit_res.signed_header, next_validators))),
+            Verdict::Success => Ok(Some(Checkpoint {
+                height: target,
+                signed_header: commit_res.signed_header,
+                validators,
+                next_validators,
+            })),
             Verdict::NotEnoughTrust(_) => Ok(None),
             Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
                 err.to_string(),
@@ -188,30 +207,33 @@ where
     /// `NotEnoughTrust` it bisects: verifies the midpoint, advances `base` to it in place, then
     /// retries the target. Depth is O(log(target - base)). `base` is `&mut` so the below-head
     /// walk (over a local checkpoint clone) makes progress without touching the persisted head.
+    /// Returns the [`Checkpoint`] for the final verified `target` (so a caller advancing the real
+    /// head can persist it), or `None` if `base` was already at/past `target`.
     async fn walk_to(
         &self,
         base: &mut TrustedAnchorState,
         cache: &mut BTreeMap<Height, AppHash>,
         target: Height,
-    ) -> Result<(), DirectoryClientError> {
+    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
         let current = base.height;
         if current >= target {
-            return Ok(());
+            return Ok(None);
         }
         debug!("light-client: advancing from {current} to {target}",);
 
-        if let Some((signed_header, next_validators)) = self.verify_hop(base, target).await? {
+        if let Some(checkpoint) = self.verify_hop(base, target).await? {
             // `header[target]` commits the app state at `target - 1` (CometBFT off-by-one); this
             // holds for any verified header, including bisection midpoints.
             cache.insert(
                 Height::from(target.value() as u32 - 1),
-                signed_header.header.app_hash.clone(),
+                checkpoint.signed_header.header.app_hash.clone(),
             );
-            base.advance(signed_header, next_validators);
-            return Ok(());
+            base.advance(&checkpoint);
+            return Ok(Some(checkpoint));
         }
 
-        // NotEnoughTrust: bisect.
+        // NotEnoughTrust: bisect. The midpoint's checkpoint is discarded; the final `target` walk
+        // yields the head checkpoint.
         let mid = Height::from((current.value() as u32 + target.value() as u32) / 2);
         debug!("light-client: bisecting [{current}, {target}] via midpoint {mid}");
         Box::pin(self.walk_to(base, cache, mid)).await?;
@@ -235,12 +257,21 @@ where
                     checkpoint: state.checkpoint.height.value(),
                 });
             }
+            // below the head: walk a throwaway clone; the head did not move, so nothing to persist
             let mut local = state.checkpoint.clone();
             self.walk_to(&mut local, &mut state.app_hash_cache, target)
-                .await
+                .await?;
+            Ok(())
         } else {
-            self.walk_to(&mut state.trusted, &mut state.app_hash_cache, target)
-                .await
+            // forward of the head: the head advances, so persist the new head (once per advance,
+            // not per bisection hop). A missing store is simply a no-op.
+            let head = self
+                .walk_to(&mut state.trusted, &mut state.app_hash_cache, target)
+                .await?;
+            if let (Some(store), Some(head)) = (&self.store, head) {
+                store.save(&head);
+            }
+            Ok(())
         }
     }
 }
@@ -412,6 +443,54 @@ mod tests {
         let state = anchor.state.lock().await;
         assert_eq!(state.trusted.height, Height::from(24499897u32));
         assert!(state.app_hash_cache.contains_key(&Height::from(CHECKPOINT)));
+    }
+
+    #[tokio::test]
+    async fn advanced_head_is_persisted_and_reseeds_a_fresh_loader() {
+        use crate::anchor::checkpoint::provider::{StoredCheckpointProvider, load_checkpoint};
+        use crate::anchor::checkpoint::store::{CheckpointStore, FileCheckpointStore};
+
+        let path = std::env::temp_dir().join("nym-dc-persist-reseed.json");
+        let _ = std::fs::remove_file(&path);
+
+        // anchor with a file-backed store; querying the checkpoint height advances the head to
+        // 24499897, which the forward branch must persist
+        let anchor = LightClientAnchor::new_with_store(
+            full_mock(),
+            mock_contract(0),
+            checkpoint(),
+            test_options(FAR_FUTURE),
+            Box::new(FileCheckpointStore::new(&path)),
+        );
+        anchor
+            .trusted_app_hash(Height::from(CHECKPOINT))
+            .await
+            .unwrap();
+
+        // the persisted head is the advanced height...
+        let persisted = FileCheckpointStore::new(&path).load().unwrap();
+        assert_eq!(persisted.height, Height::from(24499897u32));
+
+        // ...and it reseeds a fresh loader run via the stored provider (a `now` within the
+        // trusting period of the head's ~2026-07-02 block time)
+        let provider = StoredCheckpointProvider::new(FileCheckpointStore::new(&path));
+        let now = time::macros::datetime!(2026-07-05 00:00:00 +00:00);
+        let reseeded = load_checkpoint(&[&provider], now).await.unwrap();
+        assert_eq!(reseeded.height, Height::from(24499897u32));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn anchor_without_a_store_still_advances() {
+        // build_anchor uses `new` (no store): verification/advance must work regardless
+        let anchor = build_anchor(full_mock(), test_options(FAR_FUTURE));
+        anchor
+            .trusted_app_hash(Height::from(CHECKPOINT))
+            .await
+            .unwrap();
+        let state = anchor.state.lock().await;
+        assert_eq!(state.trusted.height, Height::from(24499897u32));
     }
 
     #[tokio::test]

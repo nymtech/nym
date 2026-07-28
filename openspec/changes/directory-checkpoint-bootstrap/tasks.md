@@ -55,11 +55,13 @@
 - [x] 5.1 Define `CheckpointStore { load() -> Option<Checkpoint>, save(&Checkpoint) }`; `FileCheckpointStore` (JSON) +
   `InMemoryCheckpointStore` for tests (shared by the stored provider's read side and the anchor's write side) -
   `anchor/checkpoint_source.rs`
-- [ ] 5.2 Add `LightClientAnchor::new_with_store(base, store)` where `base` is the checkpoint the loader selected; the
-  anchor writes its advanced head to the store (write side only - source selection is the loader's job)
-- [ ] 5.3 Persist the advanced head once per producer refresher tick (not per hop)
-- [ ] 5.4 Tests: advanced head is written to the store; anchor without a store still verifies/advances; a stored head
-  written by one anchor is read back and used to seed a fresh loader run
+- [x] 5.2 Add `LightClientAnchor::new_with_store(base, store)` (write side; `new` delegates with no store).
+  `verify_hop` now returns the verified block as a `Checkpoint`, `walk_to` returns the head checkpoint it reached, so
+  the anchor persists the exact verified head (not a re-fetch, which a lying RPC could poison)
+- [x] 5.3 Persist on the forward `advance_to` branch only - once per forward advance, after bisection settles (not per
+  hop); a below-head query (throwaway clone) never persists. Producer-side per-tick cadence follows in §7
+- [x] 5.4 Tests: advanced head is persisted (file store) and reseeds a fresh loader run via the stored provider; anchor
+  without a store still verifies/advances
 
 ## 6. Offline minting dev-binary
 

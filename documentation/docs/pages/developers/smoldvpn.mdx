@@ -75,7 +75,7 @@ nym-smoldvpn = { git = "https://github.com/nymtech/nym", branch = "develop" }
 
 ## Usage
 
-Build a `PeerConfig` per hop (for example by mapping a `nym-sdk-session` registration) and hand it to a `TunnelBuilder`:
+The datapath is decoupled from provisioning: build a `PeerConfig` per hop (for example by mapping a [`nym-sdk-session`](https://docs.rs/nym-sdk-session) registration, the provisioning facade that issues ticketbooks, selects gateways, and registers them) and hand it to a `TunnelBuilder`:
 
 ```rust
 use nym_smoldvpn::{TunnelBuilder, PeerConfig, BridgeParams};
@@ -95,6 +95,12 @@ let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
     .await?;
 
 tunnel.shutdown().await;
+
+// QUIC-bridged two-hop (front the entry leg for clients blocked from plain WireGuard/UDP):
+let tunnel = TunnelBuilder::two_hop(entry, exit)
+    .quic_bridge(BridgeParams { addresses, sni_host, id_pubkey_base64 })
+    .connect()
+    .await?;
 ```
 
 Closing the tunnel cuts the traffic routed through it, so it acts as a per-socket kill-switch for the flows you opted in.

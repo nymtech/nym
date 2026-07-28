@@ -6,7 +6,7 @@ bidirectional stream of raw IP packets (`Vec<u8>`) into tokio-native
 OS `tun` device and no elevated privileges**, and no Go / gVisor / FFI netstack.
 
 It is the shared stack beneath [`smolmix`](../../smolmix) (the 5-hop mixnet
-tunnel) and [`smoldvpn`](../../sdk/rust/smoldvpn) (the WireGuard dVPN
+tunnel) and [`nym-smoldvpn`](../../smoldvpn) (the WireGuard dVPN
 datapath).
 
 ## Concept
@@ -48,5 +48,5 @@ socket.
 ## Design
 
 See the architecture docs in
-[`docs/design/sdk/smoldvpn/`](../../docs/design/sdk/smoldvpn/) and the
+[`docs/design/smoldvpn/`](../../docs/design/smoldvpn/) and the
 [`smol-core-stack`](../../openspec/specs/smol-core-stack/spec.md) OpenSpec capability.

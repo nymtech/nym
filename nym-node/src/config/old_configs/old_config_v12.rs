@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::helpers::log_error_and_return;
+use crate::config::helpers::{log_error_and_return, resolve_attester_pubkey};
 use crate::config::old_configs::old_config_v13::{
     ConfigV13, GatewayTasksConfigDebugV13, GatewayTasksConfigV13, KeysPathsV13, LpConfigV13,
     LpDebugV13, NymNodePathsV13,
@@ -219,7 +219,7 @@ impl UpgradeModeWatcherV12 {
         info!("\t- url: {}", mainnet::UPGRADE_MODE_ATTESTATION_URL);
         info!(
             "\t- attester public key: {}",
-            mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            mainnet::ROOT_ATTESTER_ED25519_BS58_PUBKEY
         );
 
         // SAFETY:
@@ -230,7 +230,7 @@ impl UpgradeModeWatcherV12 {
             .expect("invalid default upgrade mode attestation URL");
 
         #[allow(clippy::expect_used)]
-        let attester_public_key = mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+        let attester_public_key = mainnet::ROOT_ATTESTER_ED25519_BS58_PUBKEY
             .parse()
             .expect("invalid default upgrade mode attester public key");
 
@@ -256,15 +256,6 @@ impl UpgradeModeWatcherV12 {
             ));
         };
 
-        let Ok(env_attester_pubkey) =
-            env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
-        else {
-            return log_error_and_return(format!(
-                "'{}' is not set whilst the env is set to be configured",
-                var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
-            ));
-        };
-
         let attestation_url = match env_attestation_url.parse() {
             Ok(url) => url,
             Err(err) => {
@@ -274,14 +265,7 @@ impl UpgradeModeWatcherV12 {
             }
         };
 
-        let attester_public_key = match env_attester_pubkey.parse() {
-            Ok(public_key) => public_key,
-            Err(err) => {
-                return log_error_and_return(format!(
-                    "provided attester public key {env_attester_pubkey} is invalid: {err}!"
-                ));
-            }
-        };
+        let attester_public_key = resolve_attester_pubkey()?;
 
         Ok(UpgradeModeWatcherV12 {
             enabled: true,

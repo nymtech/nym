@@ -1,8 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::anchor::checkpoint::Checkpoint;
 use crate::anchor::helpers::get_trusted_directory_digest;
-use crate::anchor::{Checkpoint, DirectoryTrustAnchor, TrustedDigest};
+use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
 use async_trait::async_trait;
 use cosmrs::AccountId;

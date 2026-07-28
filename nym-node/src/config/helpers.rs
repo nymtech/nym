@@ -5,11 +5,14 @@ use super::LocalWireguardOpts;
 use crate::config::Config;
 use crate::error::NymNodeError;
 use clap::crate_version;
+use nym_config::defaults::var_names;
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
 use nym_gateway::nym_authenticator;
-use tracing::error;
+use std::env;
+use tracing::{error, warn};
 
 // a temporary solution until further refactoring is made
 fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
@@ -234,4 +237,43 @@ pub(crate) fn log_error_and_return<T>(msg: impl Into<String>) -> Result<T, NymNo
     let msg = msg.into();
     error!("{msg}");
     Err(NymNodeError::config_validation_failure(msg))
+}
+
+pub(crate) fn resolve_attester_pubkey() -> Result<ed25519::PublicKey, NymNodeError> {
+    // check current env value
+    if let Ok(env_attester_pubkey) = env::var(var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY) {
+        return match env_attester_pubkey.parse() {
+            Ok(key) => Ok(key),
+            Err(err) => log_error_and_return(format!(
+                "provided attester public key {env_attester_pubkey} is invalid: {err}!"
+            )),
+        };
+    }
+
+    // check the old env value
+    let Ok(env_attester_pubkey) = env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
+    else {
+        return log_error_and_return(format!(
+            "neither '{}' nor '{}' (legacy) is set whilst the env is set to be configured",
+            var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY,
+            var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        ));
+    };
+
+    warn!(
+        "using deprecated '{}' env variable for the attester public key. consider migrating to '{}' instead.",
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY
+    );
+
+    let attester_public_key = match env_attester_pubkey.parse() {
+        Ok(public_key) => public_key,
+        Err(err) => {
+            return log_error_and_return(format!(
+                "provided attester public key {env_attester_pubkey} is invalid: {err}!"
+            ));
+        }
+    };
+
+    Ok(attester_public_key)
 }

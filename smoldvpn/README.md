@@ -269,7 +269,7 @@ WG/QUIC dependency surface contained to this crate.
 ## Tests
 
 `cargo test -p nym-smoldvpn` includes the QUIC bridge conformance test (framing
-+ ed25519-SPKI pinning, positive and negative) against a local mock bridge.
+and ed25519-SPKI pinning, positive and negative) against a local mock bridge.
 End-to-end tunnel bring-up against a live Nym gateway is validated separately
 (needs credentials + network).
 

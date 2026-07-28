@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK."
+description: "Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, nym-smoldvpn, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-06-09"
@@ -56,6 +56,7 @@ In a browser or WebView, your app talks to that WASM client through JS bindings 
 |---|---|
 | [`nym-sdk`](/developers/rust) | End-to-end mixnet messaging, `AsyncRead`/`AsyncWrite` byte streams, client pooling. Start with the [Tour](/developers/rust/tour). |
 | [`smolmix`](/developers/smolmix) | `TcpStream` and `UdpSocket` over the mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem. |
+| [`nym-smoldvpn`](/developers/smoldvpn) | A userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients. |
 
 ### TypeScript
 

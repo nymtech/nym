@@ -10,6 +10,7 @@
     "title": "Rust"
   },
   "smolmix": "smolmix (TCP/UDP tunnel)",
+  "smoldvpn": "nym-smoldvpn (WireGuard dVPN)",
   "rust": "nym-sdk",
 
   "-": {

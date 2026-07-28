@@ -16,17 +16,17 @@ import { RUST_MSRV, SMOLDVPN_VERSION } from '../../components/versions'
 The tunnel is scoped to the sockets your app opens through it, not the whole host. It hands you ordinary tokio socket surfaces: a `TcpStream` and `UdpSocket` that implement tokio's `AsyncRead`/`AsyncWrite` and `send_to`/`recv_from`, plus a `connector` you can hand to [`tonic`](https://docs.rs/tonic) or [`hyper`](https://docs.rs/hyper) to send gRPC, HTTP, or anything else through the tunnel.
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  Your application (gRPC, HTTP, TLS, DNS, etc.)              │
-│       └─ nym_smoldvpn::Tunnel (TcpStream / UdpSocket / connector) │
-│            └─ boringtun WireGuard + userspace smoltcp stack  │
-│                 └─ entry gateway → exit gateway → internet   │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  Your application (gRPC, HTTP, TLS, DNS, etc.)                   │
+│       └─ nym_smoldvpn::Tunnel (TcpStream / UdpSocket / connector)│
+│            └─ boringtun WireGuard + userspace smoltcp stack      │
+│                 └─ entry gateway → exit gateway → internet       │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 Traffic exits at the exit gateway. The exit IP is the gateway's, not yours. This is a per-socket datapath, not an OS-wide VPN: traffic your app sends over ordinary (non-tunnel) sockets, and the host's own DNS, still go out normally. Routing all of an app's traffic and preventing leaks around the tunnel is the integrator's responsibility.
 
-Access to the Nym network is paid for with zk-nym ticketbooks, so there is no link between the payment and the network usage it unlocks. Each hop registers with its gateway separately and receives its own WireGuard identity, so there is no shared, centralised WireGuard key.
+Access to the Nym network is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym), so there is no link between the payment and the network usage it unlocks. Each hop registers with its gateway separately and receives its own WireGuard identity, so there is no shared, centralised WireGuard key.
 
 ## Data-plane modes
 

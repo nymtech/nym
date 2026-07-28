@@ -48,7 +48,7 @@ already uses), referred to here as "the smoltcp stack".
   common/smol-core            smoltcp stack: channels<IP packet Vec<u8>> → TcpStream / UdpSocket / DNS.
                               Pure tokio + Rust. WASM-capable. No opinion on transport.
       ├── smolmix             + IPR / mixnet bridge          (5-hop)   [exists → refactor onto smol-core]
-      └── sdk/rust/smoldvpn/  crate smoldvpn
+      └── smoldvpn/  crate smoldvpn
           (smoldvpn)     + boringtun WG datapath        (1-/2-hop) [NEW]
 
   sdk/rust/nym-sdk-session    ticketbooks (bandwidth-controller) + gateway registration
@@ -68,7 +68,7 @@ already uses), referred to here as "the smoltcp stack".
 - **Dependency isolation (required):** every *new* dependency `smoldvpn` needs
   — `boringtun`, `quinn`, `quinn-proto`, `nym_bridges` (git, pinned), and anything
   else not already used elsewhere — is declared **directly in
-  `sdk/rust/smoldvpn/Cargo.toml`**, *not* promoted to the workspace-root
+  `smoldvpn/Cargo.toml`**, *not* promoted to the workspace-root
   `[workspace.dependencies]` table. Deps already in the workspace table (e.g.
   `smoltcp`, `tokio`, `tokio-smoltcp`, the `nym-*` crates) continue to use
   `workspace = true`. This keeps the WG/QUIC dependency surface contained to this
@@ -455,7 +455,7 @@ Traffic surfaces to expose (all reuse `smol-core`):
 - Thin `tonic_channel(..)` / `reqwest_client(..)` conveniences over that connector.
 - `allocated_ips()`, `available_bandwidth()`, `shutdown()`.
 
-## 12. Example CLIs (in `sdk/rust/smoldvpn/examples`)
+## 12. Example CLIs (in `smoldvpn/examples`)
 
 - **`smoldvpn-config --gateway <spec>`** — performs an LP registration against a
   **single gateway** and prints a **plain WireGuard config** (`[Interface]

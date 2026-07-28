@@ -5,13 +5,13 @@ WireGuard dVPN datapath. It is background for contributors and integrators who
 want to understand *how* the pieces fit together.
 
 > **Building on top of `smoldvpn`?** Start with the crate README at
-> [`sdk/rust/smoldvpn/README.md`](../../../../sdk/rust/smoldvpn/README.md) — it
+> [`smoldvpn/README.md`](../../../smoldvpn/README.md) — it
 > covers the public API, examples, and how to run against a live network. This
 > document is the design rationale behind that API.
 
 ## Names at a glance
 
-- **`smoldvpn`** — the dVPN datapath crate. Directory: `sdk/rust/smoldvpn/`.
+- **`smoldvpn`** — the dVPN datapath crate. Directory: `smoldvpn/`.
 - **`nym-sdk-session`** — the shared provisioning facade crate (ticketbooks +
   gateway registration), used by both mixnet and dvpn modes. In `sdk/rust`.
 - **`smol-core`** — the transport-agnostic smoltcp stack. In `common/`.
@@ -54,7 +54,7 @@ Most of the machinery already existed in the monorepo; the new work is narrow.
 common/smol-core                 smoltcp stack: channels<IP packet> → TcpStream / UdpSocket / DNS.
                                  Pure tokio + Rust, WASM-capable, transport-agnostic.
     ├── smolmix                  + IPR / mixnet bridge         (5-hop)
-    └── sdk/rust/smoldvpn/      crate smoldvpn
+    └── smoldvpn/      crate smoldvpn
         (smoldvpn)          + boringtun WG datapath       (1- or 2-hop)
                                  + GatewayTransport::{ Direct | QuicBridge }  (quinn; crate-local)
 
@@ -76,13 +76,13 @@ only unique job is the boringtun WireGuard datapath and the transport strategy.
 
 The normative behaviour lives in the OpenSpec capability specs, one per concern:
 
-- [`dvpn-tunnel`](../../../../openspec/specs/dvpn-tunnel/spec.md) — the `smoldvpn`
+- [`dvpn-tunnel`](../../../openspec/specs/dvpn-tunnel/spec.md) — the `smoldvpn`
   userspace WireGuard datapath, tunnel modes, lifecycle, DNS, MTU, and top-up.
-- [`dvpn-quic-bridge`](../../../../openspec/specs/dvpn-quic-bridge/spec.md) — the
+- [`dvpn-quic-bridge`](../../../openspec/specs/dvpn-quic-bridge/spec.md) — the
   `WgPacketTransport` abstraction and the QUIC bridge transport.
-- [`dvpn-tools`](../../../../openspec/specs/dvpn-tools/spec.md) — the example CLIs
+- [`dvpn-tools`](../../../openspec/specs/dvpn-tools/spec.md) — the example CLIs
   (config export, bandwidth top-up, gRPC/IP/Zcash demos).
-- [`dvpn-session`](../../../../openspec/specs/dvpn-session/spec.md) — `nym-sdk-session`
+- [`dvpn-session`](../../../openspec/specs/dvpn-session/spec.md) — `nym-sdk-session`
   provisioning: ticketbook issuance, credential storage, gateway selection/registration.
-- [`smol-core-stack`](../../../../openspec/specs/smol-core-stack/spec.md) — `smol-core`,
+- [`smol-core-stack`](../../../openspec/specs/smol-core-stack/spec.md) — `smol-core`,
   the transport-agnostic userspace TCP/IP stack.

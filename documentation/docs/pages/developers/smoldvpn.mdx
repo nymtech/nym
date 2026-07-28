@@ -120,8 +120,6 @@ WireGuard encrypts your traffic to the gateway(s). Past the **exit gateway** it 
 
 In two-hop mode no single gateway links your identity to your destination: the entry gateway sees your address but only nested ciphertext, and the exit gateway sees the destination but not your address. The exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS, the exit only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
 
-For the general principle of what an exit can and cannot observe once traffic reaches clearnet, see [Exit security](/developers/concepts/exit-security).
-
 ## Examples
 
 Runnable end-to-end examples live in [`smoldvpn/examples/`](https://github.com/nymtech/nym/tree/develop/smoldvpn/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough. They need a funded `MNEMONIC` and a live Nym network.

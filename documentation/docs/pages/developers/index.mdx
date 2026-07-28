@@ -28,6 +28,10 @@ The table below maps those two answers to a package.
 **Mobile is a host, not a runtime.** The same phone can run either row. Compile the Rust SDK to a native library (`uniffi` plus [`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) for an iOS XCFramework, or [`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) for Android `jniLibs/`), or load the WASM packages inside a WebView (Capacitor, Cordova, Ionic, WKWebView, Android WebView). The SDK ships [FFI bindings](/developers/rust/ffi) for Go and C/C++ only; for Swift or Kotlin you generate your own from the [`sdk/ffi/shared`](https://github.com/nymtech/nym/tree/develop/sdk/ffi) uniffi crate. The WebView path needs no Nym-specific native code. On Android the native path has a [TLS bootstrap gotcha](/developers/rust/mixnet/troubleshooting#android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error).
 </Callout>
 
+<Callout type="info">
+**Throughput over the mixnet, threat model permitting.** To move large amounts of data faster than the Sphinx mixnet, [`nym-smoldvpn`](/developers/smoldvpn) tunnels your tokio traffic over a userspace WireGuard dVPN (1-/2-hop, exit to clearnet) instead. This trades the mixnet's metadata protection for WireGuard-level throughput, so choose it only where that trade suits your threat model. A general integration guide is coming soon.
+</Callout>
+
 ## End-to-end or proxy
 
 The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.

@@ -26,7 +26,7 @@ use std::task::{Context, Poll};
 
 use http::Uri;
 use hyper_util::rt::TokioIo;
-use smol_core::{Stack, TcpStream};
+use nym_smol_core::{Stack, TcpStream};
 use tower::Service;
 
 use crate::error::DvpnError;

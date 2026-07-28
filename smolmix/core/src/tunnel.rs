@@ -14,7 +14,7 @@ use std::sync::Arc;
 use futures::channel::mpsc;
 pub use nym_ip_packet_requests::IpPair;
 use nym_sdk::ipr_wrapper::IpMixStream;
-use smol_core::{ChannelDevice, Stack, StackConfig};
+use nym_smol_core::{ChannelDevice, Stack, StackConfig};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -23,7 +23,7 @@ use crate::bridge::{BridgeShutdownHandle, NymIprBridge};
 use crate::SmolmixError;
 
 pub use nym_sdk::mixnet::Recipient;
-pub use smol_core::{TcpStream, UdpSocket};
+pub use nym_smol_core::{TcpStream, UdpSocket};
 
 struct ShutdownState {
     bridge_shutdown: BridgeShutdownHandle,

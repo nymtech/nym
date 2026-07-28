@@ -4,7 +4,7 @@
 //! # smoldvpn
 //!
 //! A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath built on
-//! [`boringtun`](https://docs.rs/boringtun) and [`smol_core`], with **no OS
+//! [`boringtun`](https://docs.rs/boringtun) and [`nym_smol_core`], with **no OS
 //! `tun` device and no root**. Application traffic flows through the tunnel via
 //! ordinary tokio socket surfaces ([`TcpStream`], [`UdpSocket`], and the
 //! `tonic`/`hyper`/`reqwest` connectors in [`connectors`]).
@@ -49,4 +49,4 @@ pub use transport::SocketProtector;
 pub use tunnel::{NotEstablished, Tunnel, TunnelBuilder};
 
 /// tokio socket types produced by the tunnel (re-exported from `smol-core`).
-pub use smol_core::{TcpStream, UdpSocket};
+pub use nym_smol_core::{TcpStream, UdpSocket};

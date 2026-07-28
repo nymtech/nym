@@ -12,7 +12,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 use futures::channel::mpsc;
-use smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig};
+use nym_smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const A_IP: &str = "10.0.0.1";
@@ -228,7 +228,7 @@ async fn dns_ignores_mismatched_id() {
         .expect("resolve should have returned")
         .expect_err("a mismatched-id response must not resolve");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsTimeout { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsTimeout { .. }),
         "expected DnsTimeout, got {err:?}"
     );
 }
@@ -262,7 +262,7 @@ async fn dns_servfail_is_distinct() {
         .expect("resolve should have returned")
         .expect_err("SERVFAIL must surface as an error");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsServerFailure { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsServerFailure { .. }),
         "expected DnsServerFailure, got {err:?}"
     );
 }
@@ -355,7 +355,7 @@ async fn dns_rejects_truncated_response() {
         .expect("resolve should have returned")
         .expect_err("a truncated response must not resolve");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsTruncated { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsTruncated { .. }),
         "expected DnsTruncated, got {err:?}"
     );
 }

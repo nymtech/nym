@@ -3,7 +3,7 @@
 
 [package]
 name = "smoldvpn"
-description = "Pure-Rust userspace 1-/2-hop WireGuard dVPN datapath (boringtun on smol-core) exposing tokio socket surfaces, with an optional QUIC bridge transport"
+description = "Pure-Rust userspace 1-/2-hop WireGuard dVPN datapath (boringtun on nym-smol-core) exposing tokio socket surfaces, with an optional QUIC bridge transport"
 version.workspace = true
 authors.workspace = true
 edition = "2021"
@@ -16,7 +16,7 @@ readme = "README.md"
 publish = true
 
 [dependencies]
-smol-core = { workspace = true }
+nym-smol-core = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros", "time", "sync", "io-util", "net"] }
 tokio-util = { workspace = true, features = ["codec", "rt"] }
 futures = { workspace = true }

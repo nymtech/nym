@@ -1,7 +1,7 @@
 # smoldvpn
 
 A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath built on
-[`boringtun`](https://docs.rs/boringtun) and [`smol-core`](../common/smol-core),
+[`boringtun`](https://docs.rs/boringtun) and [`nym-smol-core`](../common/smol-core),
 with no OS `tun` device and no root. Application traffic flows through the
 tunnel over ordinary tokio socket surfaces (`TcpStream`, `UdpSocket`, and
 `tonic`/`hyper` connectors).
@@ -250,9 +250,9 @@ cargo run --release -p smoldvpn --example two-hop-ip
 - `CancellationToken` aborts setup or tears down the long-lived tunnel;
   `shutdown()` is equivalent. Issued tickets are never touched by this crate.
 - Configurable, runtime-adjustable per-hop MTU via `Tunnel::set_mtu()` (rebuilds
-  the smol-core interface while preserving the WireGuard session; reference
+  the nym-smol-core interface while preserving the WireGuard session; reference
   defaults: overhead 80/hop; desktop 1420/1340; mobile 1360/1280).
-- DNS-in-tunnel by default (configurable), via the `smol-core` resolver.
+- DNS-in-tunnel by default (configurable), via the `nym-smol-core` resolver.
 - Throughput-tuned stack: a 512 KiB TCP window (vs smoltcp's 8 KiB default) and
   an unbounded device burst, so bulk transfers aren't window/BDP-throttled on
   higher-RTT two-hop paths (`StackConfig::with_tcp_buffer` tunes it).
@@ -290,7 +290,7 @@ Related capabilities in sibling crates:
 [`dvpn-session`](../openspec/specs/dvpn-session/spec.md) (provisioning,
 `nym-sdk-session`) and
 [`smol-core-stack`](../openspec/specs/smol-core-stack/spec.md) (the
-`smol-core` TCP/IP stack).
+`nym-smol-core` TCP/IP stack).
 
 ## License
 

@@ -13,7 +13,7 @@ readme = "src/ARCHITECTURE.md"
 publish = true
 
 [dependencies]
-smol-core = { workspace = true }
+nym-smol-core = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }

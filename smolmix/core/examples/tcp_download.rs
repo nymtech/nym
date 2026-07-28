@@ -12,14 +12,14 @@
 //! ```text
 //! hyper (HTTP/1.1 client, keep-alive)
 //!   └─ tokio-rustls (TLS encryption)
-//!        └─ smolmix::TcpStream (TCP over mixnet)
+//!        └─ nym_smolmix::TcpStream (TCP over mixnet)
 //!             └─ smoltcp (userspace TCP/IP)
 //!                  └─ Nym mixnet → IPR exit gateway → internet
 //! ```
 //!
 //! ```sh
-//! cargo run -p smolmix --example tcp_download
-//! cargo run -p smolmix --example tcp_download -- --ipr <IPR_ADDRESS>
+//! cargo run -p nym-smolmix --example tcp_download
+//! cargo run -p nym-smolmix --example tcp_download -- --ipr <IPR_ADDRESS>
 //! ```
 
 use std::net::Ipv4Addr;
@@ -31,8 +31,8 @@ use http_body_util::{BodyExt, Empty};
 use hyper::body::Bytes;
 use hyper::client::conn::http1;
 use hyper_util::rt::TokioIo;
+use nym_smolmix::Tunnel;
 use rustls::pki_types::ServerName;
-use smolmix::Tunnel;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 

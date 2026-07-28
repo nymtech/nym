@@ -542,7 +542,7 @@ nym-wasm-utils = { version = "1.21.5-rc.2", path = "common/wasm/utils", default-
 nyxd-scraper-shared = { version = "1.21.5-rc.2", path = "common/nyxd-scraper-shared" }
 
 nym-smol-core = { version = "1.21.5-rc.2", path = "common/smol-core" }
-smolmix = { version = "1.21.5-rc.2", path = "smolmix/core" }
+nym-smolmix = { version = "1.21.5-rc.2", path = "smolmix/core" }
 # TODO add smoldvpn here whatever you end up with name-wise 
 
 # coconut/DKG related

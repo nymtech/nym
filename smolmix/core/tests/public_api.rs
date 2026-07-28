@@ -8,7 +8,7 @@
 //! catching an accidental API break without needing a live mixnet. Behavioural
 //! regression is covered by the crate's examples run against a live mixnet.
 
-use smolmix::{IpPair, Recipient, SmolmixError, TcpStream, Tunnel, TunnelBuilder, UdpSocket};
+use nym_smolmix::{IpPair, Recipient, SmolmixError, TcpStream, Tunnel, TunnelBuilder, UdpSocket};
 
 // Every referenced path must exist with its current name and arity.
 #[allow(unused, clippy::no_effect)]

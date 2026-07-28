@@ -56,7 +56,7 @@ struct TunnelInner {
 ///
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// use smolmix::Tunnel;
+/// use nym_smolmix::Tunnel;
 /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 ///
 /// let tunnel = Tunnel::new().await?;
@@ -96,13 +96,13 @@ pub struct Tunnel {
 ///
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// use smolmix::Tunnel;
+/// use nym_smolmix::Tunnel;
 ///
 /// // Auto-discover the best IPR:
 /// let tunnel = Tunnel::builder().build().await?;
 ///
 /// // Or specify an IPR exit node:
-/// use smolmix::Recipient;
+/// use nym_smolmix::Recipient;
 /// let ipr: Recipient = "gateway-address...".parse()?;
 /// let tunnel = Tunnel::builder().ipr_address(ipr).build().await?;
 /// # Ok(())
@@ -141,7 +141,7 @@ impl Tunnel {
     ///
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// use smolmix::Tunnel;
+    /// use nym_smolmix::Tunnel;
     /// let tunnel = Tunnel::builder().build().await?;
     /// # Ok(())
     /// # }
@@ -156,7 +156,7 @@ impl Tunnel {
     ///
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// use smolmix::Tunnel;
+    /// use nym_smolmix::Tunnel;
     /// let tunnel = Tunnel::new().await?;
     /// let tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
     /// # Ok(())
@@ -172,7 +172,7 @@ impl Tunnel {
     ///
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// use smolmix::{Recipient, Tunnel};
+    /// use nym_smolmix::{Recipient, Tunnel};
     /// let ipr: Recipient = "gateway-address...".parse()?;
     /// let tunnel = Tunnel::new_with_ipr(ipr).await?;
     /// # Ok(())
@@ -253,7 +253,7 @@ impl Tunnel {
     /// Raw HTTP request:
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// # let tunnel = nym_smolmix::Tunnel::new().await?;
     /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
     ///
     /// let mut tcp = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
@@ -268,7 +268,7 @@ impl Tunnel {
     /// TLS via tokio-rustls (the stream stands in for `tokio::net::TcpStream`):
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// # let tunnel = nym_smolmix::Tunnel::new().await?;
     /// use rustls::pki_types::ServerName;
     /// use tokio_rustls::TlsConnector;
     ///
@@ -296,7 +296,7 @@ impl Tunnel {
     /// Send a DNS query and read the response:
     /// ```no_run
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let tunnel = smolmix::Tunnel::new().await?;
+    /// # let tunnel = nym_smolmix::Tunnel::new().await?;
     /// let udp = tunnel.udp_socket().await?;
     ///
     /// // Send a raw DNS query to Cloudflare

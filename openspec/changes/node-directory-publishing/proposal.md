@@ -1,0 +1,33 @@
+## Why
+
+The verifiable directory pipeline is built end-to-end except for its input side: the directory contract, the three trust anchors, the nym-api attestation producer, and the retrieval client all exist, but **no nym-node ever writes its entry to the contract**. `DirectorySigningClient::set_node_entry` has zero callers, so the contract is empty and the producer has nothing to serve. This change fills that gap - the nym-node caller that serialises, signs, and submits a node's data to the directory contract.
+
+It is deliberately **plumbing-first**: the exact payloads a node publishes (a `NodeDescription`, wireguard info, service-provider info, keys, ...) are still being decided and will be backfilled later on this branch. What must exist now is the publisher subsystem and its general logic, with `sphinx_key` wired through as the one concrete, genuinely-useful example (it rotates, so it exercises the runtime-republish path).
+
+## What Changes
+
+- **New nym-node `DirectoryPublisher` subsystem** - a single event-driven background task that is the sole writer to the directory contract for this node. It owns the per-node sequence, ed25519 signing over `node_signing_payload`, reconcile-before-write, and bounded retry. Spawned fire-and-forget; a directory outage or contract bug can never gate node operation.
+- **`DirectoryUpdate` event channel + producers** - the publisher consumes an mpsc channel of update events. A startup bootstrap emits the static payloads once; `KeyRotationController` emits the current `SphinxKeys` payload on each key change; future runtime-updatable data adds one more producer with a `Sender` handle. The "startup-only vs rotation-driven" cadence becomes *which producer emits when*, not two code paths.
+- **`DirectoryPayload` enum keyed to `KnownLabel`** - the closed set of publishable categories, mirroring the contract's whitelist. Payloads are encoded with **prost (protobuf)** (`BTreeMap` for determinism, no `.proto`) for forward compatibility - a later field added under a new tag is skipped by older readers. The payload types + codec live in a **new standalone leaf crate `nym-directory-types`** (deps ≈ `prost` + `thiserror`), so a thin consumer that only decodes a node entry pulls neither the attestation crate's weight (`cosmrs`/`blake3`/`nym-lthash`/quorum logic) nor the rustc-1.86 wasm contract crate. Only `SphinxKeys` is populated in this change.
+- **Reconcile loop + event wakeups** - the publisher's backbone is a periodic reconcile *sweep* that drives on-chain state toward a desired snapshot; event wakeups (rotation, future runtime sources) give low-latency updates between sweeps. Both diff derived canonical bytes against a per-sweep cache and write only on a real change; the startup snapshot (first sweep) covers every payload, including the sphinx key.
+- **Deletion of orphaned entries** - the sweep also deletes any published entry whose label the node knows but that is no longer in the desired snapshot (e.g. a label removed from the whitelist; the contract's delete path needs only a bonded, correctly-sequenced signature, not a whitelisted label). Entries under labels the node does not recognise are left untouched.
+- **Label-whitelist reconciliation** - the node's compile-time `KnownLabel::ALL` and the contract's admin-governed whitelist can diverge across versions. The publisher reconciles against the contract's current `get_allowed_labels()`: it skips (and warns about) any payload whose label is not currently whitelisted (removed or ahead of the deployed contract) instead of issuing a doomed write, and warns when the contract advertises a label the node binary does not recognise.
+- **Startup preflight (soft-fail)** - resolve `node_id` and confirm the node is bonded (via the mixnet contract), and confirm the relayer account can pay for writes (via nym-api's per-node `ChainInteractionCapabilities::can_send_transactions()`). On any failure the publisher logs a clear, actionable error and enters a **dormant state with a long back-off re-check**, so a later bond or top-up recovers it without a node restart. The node always continues running normally.
+- **`KeyRotationController` gains a `DirectoryUpdate` sender** and emits after it mutates keys (pre-announce / swap / purge). Its behaviour is otherwise unchanged.
+- **Opt-in configuration** - a new hidden `[directory]` config section; the publisher runs only when an `enabled` flag is set and a directory contract address is configured. Tuning knobs (sphinx cadence, retry/back-off) are CLI/env-overridable but `clap(hide = true)`.
+
+## Capabilities
+
+### New Capabilities
+- `directory-node-publisher`: the nym-node subsystem that publishes a node's signed entries to the directory contract - the event-driven publisher, its reconcile-before-write write path (sequence + ed25519 signing + retry), the startup preflight with dormant back-off, the `DirectoryPayload`/`DirectoryUpdate` model, and the opt-in configuration gate.
+
+### Modified Capabilities
+<!-- None. The directory contract already treats `data` as opaque and defines `KnownLabel::SphinxKeys`; adding payload encoders to nym-directory-attestation and a DirectoryUpdate sender to KeyRotationController are code changes under Impact, not spec-requirement changes to any existing capability. -->
+
+## Impact
+
+- **New code**: a new leaf crate `nym-directory-types` (`SphinxKeys` prost payload type + canonical codec); a nym-node module (e.g. `nym-node/src/node/directory_publisher/`) for the publisher task, reconcile sweep, event model, write/delete path, preflight, config, and the node-side `DirectoryPayload` enum. `KnownLabel` stays in `nym-directory-contract-common`; `nym-directory-attestation` is unchanged.
+- **Modified code**: `KeyRotationController` (add a `DirectoryUpdate` sender + emit calls at its three key-mutation points); nym-node config (new `[directory]` section + hidden tuning flags); nym-node startup wiring (`start_nym_node_tasks` spawns the publisher via `shutdown_tracker().try_spawn_named`).
+- **Reused, unchanged**: `DirectorySigningClient::{set_node_entry, delete_node_entry}`, `DirectoryQueryClient::{get_node_entries, get_node_entry, get_sequence}`, `node_signing_payload`, the node's ed25519 identity keypair and secp256k1 relayer account (`node_chain_address`), the existing `NymApisClient` (annotation query) and `MixnetQueryClient` (bond lookup).
+- **External systems**: writes cost gas on the node's own chain account (or a feegrant); no new deployment beyond a configured directory contract address per network.
+- **No consumer/wire-format impact** in this change: payloads other than `sphinx_key` are deferred, and the contract treats `data` as opaque bytes.

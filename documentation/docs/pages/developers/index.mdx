@@ -7,6 +7,35 @@ lastUpdated: "2026-06-09"
 ---
 
 import { Callout } from 'nextra/components'
+import dynamic from 'next/dynamic'
+import { getGenericScenario } from '../../lib/privacy-model/examples/generic'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const archE2E = getGenericScenario('end-to-end')
+export const archProxy = {
+  ...getGenericScenario('mixnet'),
+  topology: {
+    nodes: [
+      { id: 'c', kind: 'client', col: 0 },
+      { id: 'e', kind: 'entry', col: 1 },
+      { id: 'm1', kind: 'mix', col: 2 },
+      { id: 'm2', kind: 'mix', col: 3 },
+      { id: 'm3', kind: 'mix', col: 4 },
+      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW', components: ['Network Requester (NR)', 'IP Packet Router (IPR)'] },
+      { id: 'd', kind: 'destination', col: 6 },
+    ],
+    routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
+  },
+}
+export const archDvpn = getGenericScenario('dvpn-single')
+export const archBrowser = {
+  ...getGenericScenario('mixnet'),
+  nodeLabels: { client: 'Browser + WASM client' },
+}
 
 # Overview
 
@@ -16,6 +45,10 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 2. **Approach**: do you control both sides of the connection (**end-to-end**), or are you reaching a third-party service through the mixnet (**proxy**)?
 
 The table below maps those two answers to a package.
+
+<Callout type="info">
+**Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
+</Callout>
 
 ## Choosing a package
 
@@ -38,11 +71,15 @@ The runtime axis is about where your code runs: a native process has raw sockets
 
 **End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
 
-![](/images/developers/nym-arch-client-to-client.png)
+<NetworkDiagram item={archE2E} />
 
 **Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
 
-![](/images/developers/nym-arch-ip-routing.png)
+<NetworkDiagram item={archProxy} />
+
+**dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
+
+<NetworkDiagram item={archDvpn} />
 
 <Callout type="warning">
 Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
@@ -50,7 +87,11 @@ Past the Exit Gateway, traffic travels the public internet like any other connec
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
 
-![](/images/developers/nym-browser-arch.png)
+<NetworkDiagram item={archBrowser} />
+
+<Callout type="info">
+The dVPN path is native-only: [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build. Its WireGuard datapath (`boringtun`) and userspace IP stack run on the tokio runtime and compile for native targets only, so a browser or WebView cannot load it. In those runtimes, use the mixnet-based mix-* packages instead.
+</Callout>
 
 ## Packages
 

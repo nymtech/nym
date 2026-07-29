@@ -25,9 +25,9 @@ const L1_NOTE = {
   vantage:
     "Sees only what your application makes public, out of band from the connection itself.",
   observes:
-    "Whatever is public for your application — for example, a public ledger, a directory, or a status page.",
+    "Whatever is public for your application, for example a public ledger, a directory, or a status page.",
   cannotObserve: "Anything your application does not publish.",
-  cost: "Free — it reads public data.",
+  cost: "Free. It reads public data.",
 };
 
 export function ActorsReference() {

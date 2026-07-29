@@ -190,3 +190,9 @@ export const BROWSING_SCENARIOS: Scenario[] = [
 export function getBrowsingScenario(id: string): Scenario | undefined {
   return BROWSING_SCENARIOS.find((s) => s.id === id);
 }
+
+export function requireBrowsingScenario(id: string): Scenario {
+  const s = getBrowsingScenario(id);
+  if (!s) throw new Error(`unknown browsing scenario: ${id}`);
+  return s;
+}

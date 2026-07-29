@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { NodeGlyph } from "./NodeGlyph";
 import { PacketAnatomy } from "./PacketAnatomy";
@@ -25,6 +25,7 @@ const PAD_X = 60;
 
 export function MixnetDeepDive() {
   const reduced = useReducedMotion();
+  const nodesPerLayerId = useId();
   const [mode, setMode] = useState<Mode>("mixnet");
   const [nodesPerLayer, setNodesPerLayer] = useState(6);
   const [playing, setPlaying] = useState(true);
@@ -179,11 +180,12 @@ export function MixnetDeepDive() {
         </button>
         {mode === "mixnet" && (
           <div className="slider-row" style={{ minWidth: 200 }}>
-            <label>
+            <label htmlFor={nodesPerLayerId}>
               <span>Mix nodes / layer</span>
               <span>{nodesPerLayer}</span>
             </label>
             <input
+              id={nodesPerLayerId}
               type="range"
               min={3}
               max={12}
@@ -232,7 +234,15 @@ export function MixnetDeepDive() {
 
       {/* Canvas */}
       <div className="diagram-wrap">
-        <svg viewBox={`0 0 ${WIDTH} ${height}`} role="img">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${height}`}
+          role="img"
+          aria-label={
+            mode === "mixnet"
+              ? "Animated diagram: packets take independent random routes through three mix layers between the entry and exit gateways, with cover traffic looping among mix nodes, so output order differs from input order"
+              : "Animated diagram: packets pass straight through from client to destination via a dVPN entry and exit gateway, preserving order and timing"
+          }
+        >
           {/* links: entry to each L1, L(i) to L(i+1) fully connected, L3 to exit */}
           {mode === "mixnet" && (
             <g opacity={0.18} stroke="var(--mode-mixnet)" strokeWidth={1}>

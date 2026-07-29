@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { NodeGlyph } from "./NodeGlyph";
 import { PacketAnatomy } from "./PacketAnatomy";
@@ -16,6 +16,7 @@ const ENTRY_REQUESTS = ["/feed", "/search", "/assets", "/status", "/upload"];
 
 export function DvpnCoverTraffic() {
   const reduced = useReducedMotion();
+  const clientsId = useId();
   const [clients, setClients] = useState(10);
   const [playing, setPlaying] = useState(true);
 
@@ -68,11 +69,12 @@ export function DvpnCoverTraffic() {
           </button>
         )}
         <div className="slider-row" style={{ minWidth: 240 }}>
-          <label>
+          <label htmlFor={clientsId}>
             <span>Clients (spread over {NUM_ENTRIES} entry gateways)</span>
             <span>{clients}</span>
           </label>
           <input
+            id={clientsId}
             type="range"
             min={NUM_ENTRIES}
             max={20}
@@ -81,7 +83,7 @@ export function DvpnCoverTraffic() {
             onChange={(e) => setClients(Number(e.target.value))}
           />
         </div>
-        <span className="badge accent">Anonymity set ≈ {clients}</span>
+        <span className="badge accent">{clients} clients share the exit</span>
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -98,7 +100,11 @@ export function DvpnCoverTraffic() {
       </div>
 
       <div className="diagram-wrap">
-        <svg viewBox={`0 0 ${WIDTH} ${height}`} role="img">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${height}`}
+          role="img"
+          aria-label={`Diagram: ${clients} clients spread across ${NUM_ENTRIES} entry gateways, all routed through a single exit gateway to the destination, which sees every request arriving from one exit IP`}
+        >
           {/* client to entry links */}
           <g opacity={0.22} stroke="var(--mode-dvpn)" strokeWidth={1.1} strokeDasharray="5 4">
             {clientPts.map((c, i) => (
@@ -203,8 +209,8 @@ export function DvpnCoverTraffic() {
             entry gateway, and clients sharing an entry gateway send similar
             requests, so the destination sees a mix of requests it cannot bind to
             any client. With {clients} clients across {NUM_ENTRIES} gateways the
-            anonymity set is large. (dVPN hides the IP but not timing; pair with
-            mixnet mode for timing safety.)
+            destination-facing anonymity set is large. (dVPN hides the IP but not
+            timing; pair with mixnet mode for timing safety.)
           </p>
         </div>
       </div>

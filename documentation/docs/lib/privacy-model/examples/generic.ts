@@ -1,4 +1,4 @@
-// Generic (application-agnostic) scenarios for the abstract spine pages — the
+// Generic (application-agnostic) scenarios for the abstract spine pages: the
 // two-layer model, the actors/vectors/properties references, and the decision
 // tool. The destination is an unlabelled "destination" node and the prose names
 // no application. Worked examples (wallet, messaging, browsing) live in their
@@ -23,7 +23,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
     title: "Unprotected on the open internet",
     shortTitle: "Unprotected",
     summary:
-      "The client talks to the destination directly. Identity and contents arrive together — the baseline everything else improves on.",
+      "The client talks to the destination directly. Identity and contents arrive together, the baseline everything else improves on.",
     paths: [
       {
         id: "direct",
@@ -38,7 +38,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
       p1L3G: cell("no", "L3L and L3G collapse into one observer"),
     },
     performance: { fastSync: "yes" },
-    requires: "—",
+    requires: "None",
     actorAssessment: [
       {
         actor: "L2",
@@ -51,7 +51,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
         p1: "no",
         p2: "no",
         residual: [
-          "Everything is exposed with no adversarial effort — this is the baseline network protection must improve on.",
+          "Everything is exposed with no adversarial effort. This is the baseline network protection must improve on.",
         ],
       },
       {
@@ -69,7 +69,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
     ],
     pros: [],
     cons: ["Needs IP hiding, then timing and content discipline"],
-    fit: ["Baseline only — offers no protection"],
+    fit: ["Baseline only: offers no protection"],
   },
   {
     id: "vpn",
@@ -83,10 +83,10 @@ export const GENERIC_SCENARIOS: Scenario[] = [
       p1L2: cell("yes", "hides the client IP; the destination sees the VPN's exit IP"),
       p2L2: cell("no", "connection state groups requests; the exit IP re-identifies across sessions"),
       p1L3L: cell("no", "no in-transit timing protection"),
-      p1L3G: cell("no", "the operator sees both ends — effectively a global observer"),
+      p1L3G: cell("no", "the operator sees both ends, effectively a global observer"),
     },
     performance: { fastSync: "yes" },
-    requires: "—",
+    requires: "None",
     actorAssessment: [
       {
         actor: "L2",
@@ -99,7 +99,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
         ],
       },
       { actor: "L3L", sees: ["Activity fingerprint (no in-transit protection)"], cantSee: [], residual: [] },
-      { actor: "L3G", sees: ["Both ends — a single operator can act as a global observer"], cantSee: [], residual: [] },
+      { actor: "L3G", sees: ["Both ends: a single operator can act as a global observer"], cantSee: [], residual: [] },
     ],
     pros: ["Fast"],
     cons: ["A single operator sees both ends", "Add timing and content discipline"],
@@ -108,7 +108,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
   {
     id: "dvpn-single",
     kind: "scenario",
-    title: "dVPN — 2-hop, single exit",
+    title: "dVPN: 2-hop, single exit",
     shortTitle: "dVPN · single exit",
     summary:
       "A 2-hop WireGuard tunnel (entry + exit gateway) hides the client IP. A single fixed exit leaves requests linkable at the destination within a session and weak across sessions.",
@@ -130,10 +130,10 @@ export const GENERIC_SCENARIOS: Scenario[] = [
         p2: "no",
         residual: [
           "P2 fails within a session: the tunnel delivers one NATed flow. Across sessions, linkage depends on crowding at the exit IP.",
-          "Rotate the exit per request to restore P2 — see the multi-exit configuration.",
+          "Rotate the exit per request to restore P2. See the multi-exit configuration.",
         ],
       },
-      { actor: "L3L", sees: ["Activity fingerprint — WireGuard adds no cover and preserves packet timing"], cantSee: [], residual: [] },
+      { actor: "L3L", sees: ["Activity fingerprint: WireGuard adds no cover and preserves packet timing"], cantSee: [], residual: [] },
       {
         actor: "L3G",
         sees: ["End-to-end flow correlation"],
@@ -144,13 +144,13 @@ export const GENERIC_SCENARIOS: Scenario[] = [
       },
     ],
     pros: ["Fast", "Deployable today"],
-    cons: ["A fixed exit is a linking key — rotate per request"],
+    cons: ["A fixed exit is a linking key: rotate per request"],
     fit: ["The minimum: hides IP; add exit rotation and baseline hygiene"],
   },
   {
     id: "dvpn-multi",
     kind: "scenario",
-    title: "dVPN — 2-hop, multiple exits",
+    title: "dVPN: 2-hop, multiple exits",
     shortTitle: "dVPN · multi-exit",
     topology: multipathDvpnTopology(3),
     summary:
@@ -179,7 +179,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
           "P2 holds given per-request exit rotation plus baseline hygiene. The anonymity set is all clients reaching that destination via Nym.",
         ],
       },
-      { actor: "L3L", sees: ["Activity fingerprint (same as single-exit — no cover, timing preserved)"], cantSee: [], residual: [] },
+      { actor: "L3L", sees: ["Activity fingerprint (same as single-exit: no cover, timing preserved)"], cantSee: [], residual: [] },
       { actor: "L3G", sees: ["End-to-end flow correlation (same as single-exit)"], cantSee: [], residual: [] },
     ],
     pros: ["The destination sees traffic from all exit gateways, not the client", "Fast dVPN speeds"],
@@ -189,7 +189,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
   {
     id: "mixnet",
     kind: "scenario",
-    title: "Mixnet to a clearnet destination — single exit",
+    title: "Mixnet to a clearnet destination: single exit",
     shortTitle: "Mixnet · single exit",
     summary:
       "Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson sending, and cover traffic. The exit gateway then forwards to the destination over the public internet. Strong against network observers; against the destination a fixed exit behaves like a single dVPN exit.",
@@ -210,12 +210,12 @@ export const GENERIC_SCENARIOS: Scenario[] = [
     ],
     matrix: {
       p1L2: cell("yes", "destination sees the exit gateway's IP, not the client"),
-      p2L2: cell("no", "a fixed exit behaves like a single dVPN exit at the destination — rotate the exit per request"),
+      p2L2: cell("no", "a fixed exit behaves like a single dVPN exit at the destination: rotate the exit per request"),
       p1L3L: cell("yes", "constant-size packets, Poisson rate, cover traffic"),
       p1L3G: cell("partial", "resists per-packet correlation; long bulk flows weaken it"),
     },
     performance: { fastSync: "no", note: "5-hop + mixing delays" },
-    requires: "— (single exit)",
+    requires: "None (single exit)",
     actorAssessment: [
       {
         actor: "L2",
@@ -258,11 +258,11 @@ export const GENERIC_SCENARIOS: Scenario[] = [
   {
     id: "mixnet-rotating",
     kind: "scenario",
-    title: "Mixnet — rotating exits",
+    title: "Mixnet: rotating exits",
     shortTitle: "Mixnet · rotating exit",
     topology: multipathMixnetTopology(3),
     summary:
-      "The same mixnet path, but requests are spread across several exit gateways. Rotating the exit per request restores unlinkability at the destination — the mixnet analogue of multi-exit dVPN. Still slow.",
+      "The same mixnet path, but requests are spread across several exit gateways. Rotating the exit per request restores unlinkability at the destination, the mixnet analogue of multi-exit dVPN. Still slow.",
     paths: [
       { id: "mix-a", label: "Exit A", mode: "mixnet", stages: ["client", "entry", "mix", "mix", "mix", "exit", "destination"] },
       { id: "mix-b", label: "Exit B", mode: "mixnet", stages: ["client", "entry", "mix", "mix", "mix", "exit", "destination"] },
@@ -303,7 +303,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
   {
     id: "hybrid",
     kind: "scenario",
-    title: "Hybrid — dVPN for bulk, mixnet for sensitive",
+    title: "Hybrid: dVPN for bulk, mixnet for sensitive",
     shortTitle: "Hybrid",
     recommended: true,
     topology: hybridTopology({
@@ -336,7 +336,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
           "The two streams share no session state (different transports, different IPs). Sensitive requests are unlinkable to the bulk profile and to each other via per-request rotation and decorrelated timing.",
         ],
       },
-      { actor: "L3L", sees: ["That the client uses the bulk transport (fingerprintable)"], cantSee: ["Sensitive requests (routed over the mixnet — unobservable)"], p1: "partial", residual: [] },
+      { actor: "L3L", sees: ["That the client uses the bulk transport (fingerprintable)"], cantSee: ["Sensitive requests (routed over the mixnet, unobservable)"], p1: "partial", residual: [] },
       {
         actor: "L3G",
         sees: ["The bulk flow (correlatable)"],
@@ -352,7 +352,7 @@ export const GENERIC_SCENARIOS: Scenario[] = [
   {
     id: "end-to-end",
     kind: "scenario",
-    title: "End to end — both ends run Nym",
+    title: "End to end: both ends run Nym",
     shortTitle: "End to end",
     summary:
       "Both ends run Nym. Traffic never leaves the mixnet and there is no exit gateway or clearnet destination. The peer is reached end to end and never learns your IP; replies return through the mixnet via SURBs.",
@@ -411,4 +411,10 @@ export const GENERIC_SCENARIOS: Scenario[] = [
 
 export function getGenericScenario(id: string): Scenario | undefined {
   return GENERIC_SCENARIOS.find((s) => s.id === id);
+}
+
+export function requireGenericScenario(id: string): Scenario {
+  const s = getGenericScenario(id);
+  if (!s) throw new Error(`unknown generic scenario: ${id}`);
+  return s;
 }

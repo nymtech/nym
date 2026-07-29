@@ -8,7 +8,7 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { getGenericScenario } from '../../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from '../../../lib/privacy-model/examples/generic'
 import { MetadataPanel } from '../../../components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
@@ -16,8 +16,8 @@ export const NetworkDiagram = dynamic(
   { ssr: false },
 )
 
-export const mixnetIpr = getGenericScenario('mixnet')
-export const endToEnd = getGenericScenario('end-to-end')
+export const mixnetIpr = requireGenericScenario('mixnet')
+export const endToEnd = requireGenericScenario('end-to-end')
 
 # The two-layer model
 

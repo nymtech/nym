@@ -37,7 +37,7 @@ export const MODE_META: Record<Mode, ModeMeta> = {
     label: "Direct",
     colorVar: "--mode-direct",
     dashed: true,
-    description: "Unprotected connection — no IP or timing protection.",
+    description: "Unprotected connection: no IP or timing protection.",
   },
   vpn: {
     label: "VPN",

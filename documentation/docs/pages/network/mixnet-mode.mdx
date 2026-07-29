@@ -10,14 +10,14 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { LewesPending } from '../../components/lewes-pending'
-import { getGenericScenario } from '../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from '../../lib/privacy-model/examples/generic'
 
 export const NetworkDiagram = dynamic(
   () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
   { ssr: false },
 )
 
-export const mixScenario = getGenericScenario('mixnet')
+export const mixScenario = requireGenericScenario('mixnet')
 
 Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
 

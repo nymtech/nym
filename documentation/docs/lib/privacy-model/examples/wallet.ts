@@ -18,7 +18,7 @@ export const WALLET_L1: ThreatActor = {
   vantage: "Knows only what is publicly visible on the chain.",
   observes: ["Public on-chain data (including public migration amounts)"],
   cannotObserve: ["Anything off-chain"],
-  cost: "Free — the public chain.",
+  cost: "Free, the public chain.",
 };
 
 export const WALLET_INVARIANTS: Invariant[] = [
@@ -28,7 +28,7 @@ export const WALLET_INVARIANTS: Invariant[] = [
     statement:
       "The adversary cannot link a user identifier (e.g. client IP address) to a balance, even approximately. Since migration amounts are public, the invariant survives only as long as no migration transaction, and no group of them, is attributable to the user.",
     dependsOn:
-      "P1 at every actor plus V2/V3 discipline — attribution can be direct (a broadcast from the user's home IP) or transitive (a broadcast linkable to attributable activity such as a sync session).",
+      "P1 at every actor plus V2/V3 discipline. Attribution can be direct (a broadcast from the user's home IP) or transitive (a broadcast linkable to attributable activity such as a sync session).",
   },
   {
     id: "B",
@@ -55,7 +55,7 @@ export const WALLET_SCENARIOS: Scenario[] = [
     shortTitle: "Unprotected",
     nodeLabels: WALLET_LABELS,
     summary:
-      "The wallet talks to lightwalletd directly. Identity and contents arrive together — the baseline everything else improves on.",
+      "The wallet talks to lightwalletd directly. Identity and contents arrive together, the baseline everything else improves on.",
     paths: [
       {
         id: "direct",
@@ -70,7 +70,7 @@ export const WALLET_SCENARIOS: Scenario[] = [
       p1L3G: cell("no", "L3L and L3G collapse into one observer"),
     },
     performance: { fastSync: "yes" },
-    requires: "—",
+    requires: "None",
     actorAssessment: [
       {
         actor: "L2",
@@ -83,7 +83,7 @@ export const WALLET_SCENARIOS: Scenario[] = [
         p1: "no",
         p2: "no",
         residual: [
-          "Both invariants fail with no adversarial effort — this is the baseline network protection must improve on.",
+          "Both invariants fail with no adversarial effort. This is the baseline network protection must improve on.",
         ],
       },
       {
@@ -103,12 +103,12 @@ export const WALLET_SCENARIOS: Scenario[] = [
     cons: [
       "Needs IP, timing and block-height obfuscation (request blocks out of order + buffer)",
     ],
-    fit: ["Baseline only — offers no protection"],
+    fit: ["Baseline only: offers no protection"],
   },
   {
     id: "mixnet-ipr",
     kind: "scenario",
-    title: "Mixnet via exit proxy (IP packet router) — single IPR",
+    title: "Mixnet via exit proxy (IP packet router): single IPR",
     shortTitle: "Mixnet · single IPR",
     nodeLabels: WALLET_LABELS,
     summary:
@@ -130,12 +130,12 @@ export const WALLET_SCENARIOS: Scenario[] = [
     ],
     matrix: {
       p1L2: cell("yes", "destination sees the exit/IPR IP, not the client"),
-      p2L2: cell("no", "a fixed IPR behaves like dVPN single-exit at the destination — rotate the IPR per request"),
+      p2L2: cell("no", "a fixed IPR behaves like dVPN single-exit at the destination: rotate the IPR per request"),
       p1L3L: cell("yes", "constant-size packets, Poisson rate, cover traffic"),
       p1L3G: cell("partial", "resists per-packet correlation; long bulk flows weaken it"),
     },
     performance: { fastSync: "no", note: "5-hop + mixing delays" },
-    requires: "—  (single IPR)",
+    requires: "None (single IPR)",
     actorAssessment: [
       {
         actor: "L2",
@@ -145,7 +145,7 @@ export const WALLET_SCENARIOS: Scenario[] = [
         p2: "no",
         residual: [
           "The wallet's TCP connection to lightwalletd is an ordinary end-to-end connection arriving from the exit's IP. Per-packet unlinkability in transit does not translate into request unlinkability at the destination.",
-          "With a fixed IPR, P2 behaves exactly like the dVPN single-exit case — rotate the IPR per request to restore it.",
+          "With a fixed IPR, P2 behaves exactly like the dVPN single-exit case: rotate the IPR per request to restore it.",
         ],
       },
       {
@@ -164,7 +164,7 @@ export const WALLET_SCENARIOS: Scenario[] = [
         cantSee: [],
         p1: "partial",
         residual: [
-          "The extent to which bulk transfers of many packets can be correlated over time is an open question. The mixnet is strongest for small, independent messages and weakest for bulk sync — one reason bulk sync does not belong on the mixnet (the other is throughput).",
+          "The extent to which bulk transfers of many packets can be correlated over time is an open question. The mixnet is strongest for small, independent messages and weakest for bulk sync, one reason bulk sync does not belong on the mixnet (the other is throughput).",
         ],
       },
     ],
@@ -179,4 +179,10 @@ export const WALLET_SCENARIOS: Scenario[] = [
 
 export function getWalletScenario(id: string): Scenario | undefined {
   return WALLET_SCENARIOS.find((s) => s.id === id);
+}
+
+export function requireWalletScenario(id: string): Scenario {
+  const s = getWalletScenario(id);
+  if (!s) throw new Error(`unknown wallet scenario: ${id}`);
+  return s;
 }

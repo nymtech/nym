@@ -8,7 +8,7 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { getBrowsingScenario } from '../../../../lib/privacy-model/examples/browsing'
+import { requireBrowsingScenario } from '../../../../lib/privacy-model/examples/browsing'
 import { MetadataPanel } from '../../../../components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
@@ -16,8 +16,8 @@ export const NetworkDiagram = dynamic(
   { ssr: false },
 )
 
-export const unprotected = getBrowsingScenario('unprotected')
-export const dvpnMulti = getBrowsingScenario('dvpn-multi')
+export const unprotected = requireBrowsingScenario('unprotected')
+export const dvpnMulti = requireBrowsingScenario('dvpn-multi')
 
 # Web Browsing
 

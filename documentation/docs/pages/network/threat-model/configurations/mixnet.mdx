@@ -1,21 +1,16 @@
 ---
-title: "Mixnet — single exit"
+title: "Mixnet · single exit"
 description: "A 5-hop mixnet with mixing delays and cover traffic: strong against network observers; a fixed exit behaves like a single dVPN exit at the destination."
 schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-07-29"
 ---
 
-import dynamic from 'next/dynamic'
-import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
+import { GenericScenarioView } from '../../../../components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from '../../../../lib/privacy-model/examples/generic'
 
-export const GenericScenarioView = dynamic(
-  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
-  { ssr: false },
-)
+export const scenario = requireGenericScenario('mixnet')
 
-export const scenario = getGenericScenario('mixnet')
-
-# Mixnet — single exit
+# Mixnet · single exit
 
 <GenericScenarioView scenario={scenario} />

@@ -8,16 +8,16 @@ lastUpdated: "2026-06-09"
 
 import { Callout } from 'nextra/components'
 import dynamic from 'next/dynamic'
-import { getGenericScenario } from '../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from '../../lib/privacy-model/examples/generic'
 
 export const NetworkDiagram = dynamic(
   () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
   { ssr: false },
 )
 
-export const archE2E = getGenericScenario('end-to-end')
+export const archE2E = requireGenericScenario('end-to-end')
 export const archProxy = {
-  ...getGenericScenario('mixnet'),
+  ...requireGenericScenario('mixnet'),
   topology: {
     nodes: [
       { id: 'c', kind: 'client', col: 0 },
@@ -31,9 +31,9 @@ export const archProxy = {
     routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
   },
 }
-export const archDvpn = getGenericScenario('dvpn-single')
+export const archDvpn = requireGenericScenario('dvpn-single')
 export const archBrowser = {
-  ...getGenericScenario('mixnet'),
+  ...requireGenericScenario('mixnet'),
   nodeLabels: { client: 'Browser + WASM client' },
 }
 

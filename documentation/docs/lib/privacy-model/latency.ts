@@ -1,4 +1,4 @@
-// Illustrative latency model. NOT measured values — a pedagogical model:
+// Illustrative latency model. NOT measured values, a pedagogical model:
 // total = Σ geographic propagation per hop + Σ per-mix-layer mixing delay
 // (mixnet only). dVPN/direct incur propagation only; mixnet adds mixing delay
 // at each mix layer (the "5-hop + mixing delays" cost).

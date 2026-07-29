@@ -188,3 +188,9 @@ export const MESSAGING_SCENARIOS: Scenario[] = [
 export function getMessagingScenario(id: string): Scenario | undefined {
   return MESSAGING_SCENARIOS.find((s) => s.id === id);
 }
+
+export function requireMessagingScenario(id: string): Scenario {
+  const s = getMessagingScenario(id);
+  if (!s) throw new Error(`unknown messaging scenario: ${id}`);
+  return s;
+}

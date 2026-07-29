@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { GEO_BANDS, type LatencyParams } from "../../lib/privacy-model/latency";
 
 export function LatencyControls({
@@ -12,14 +13,17 @@ export function LatencyControls({
   /** Mixing delay only applies to mixnet routes; hide it otherwise. */
   showMixing?: boolean;
 }) {
+  const geoId = useId();
+  const mixId = useId();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div className="slider-row">
-        <label>
+        <label htmlFor={geoId}>
           <span>Geographic delay / hop</span>
           <span>{params.geoMsPerHop} ms</span>
         </label>
         <input
+          id={geoId}
           type="range"
           min={40}
           max={300}
@@ -47,11 +51,12 @@ export function LatencyControls({
 
       {showMixing && (
         <div className="slider-row">
-          <label>
+          <label htmlFor={mixId}>
             <span>Mixing delay / layer</span>
             <span>{params.mixDelayMs} ms</span>
           </label>
           <input
+            id={mixId}
             type="range"
             min={0}
             max={250}

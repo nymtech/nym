@@ -8,7 +8,7 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { getWalletScenario } from '../../../../lib/privacy-model/examples/wallet'
+import { requireWalletScenario } from '../../../../lib/privacy-model/examples/wallet'
 import { MetadataPanel } from '../../../../components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
@@ -16,8 +16,8 @@ export const NetworkDiagram = dynamic(
   { ssr: false },
 )
 
-export const unprotected = getWalletScenario('unprotected')
-export const mixnet = getWalletScenario('mixnet-ipr')
+export const unprotected = requireWalletScenario('unprotected')
+export const mixnet = requireWalletScenario('mixnet-ipr')
 
 # Wallet Sync
 

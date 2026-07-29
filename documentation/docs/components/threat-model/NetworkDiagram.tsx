@@ -274,7 +274,7 @@ export function NetworkDiagram({
       }
       // Responses (downloads) start only after the first request has travelled
       // all the way to the destination (its full traversal time), not merely a
-      // slot later — so IPR→client never precedes client→…→destination.
+      // slot later, so the reply never precedes the request reaching the destination.
       const dlBase = uploads > 0 ? routeBase + routeDuration(r) + 0.3 : routeBase;
       for (let d = 0; d < downloads; d++) {
         specs.push({

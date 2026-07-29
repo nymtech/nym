@@ -46,7 +46,7 @@ export interface DiagramRoute {
   /** Ordered node ids the route traverses. */
   nodeIds: string[];
   note?: string;
-  /** Return path via SURBs (pre-computed reply routes) — drawn distinctly. */
+  /** Return path via SURBs (pre-computed reply routes), drawn distinctly. */
   surb?: boolean;
   /** Route long spans (>1 column) with right-angled (elbow) connectors. */
   orthogonal?: boolean;
@@ -98,7 +98,7 @@ export type ActorId = "L1" | "L2" | "L3L" | "L3G";
 export type VectorId = "V1" | "V2" | "V3";
 /** Unlinkability property. */
 export type PropertyId = "P1" | "P2";
-/** Invariant that must hold — defined per worked example. */
+/** Invariant that must hold, defined per worked example. */
 export type InvariantId = string;
 /** Which of the two layers a countermeasure lives in. */
 export type Layer = "transport" | "hygiene";
@@ -145,7 +145,7 @@ export interface Invariant {
   dependsOn: string;
 }
 
-/** Performance descriptor — orthogonal to privacy. */
+/** Performance descriptor, orthogonal to privacy. */
 export interface Performance {
   fastSync: Tri;
   note?: string;
@@ -162,13 +162,13 @@ export interface MatrixCell {
 
 /** The matrix row for a scenario/config (privacy only). */
 export interface ScenarioMatrix {
-  /** P1 via V1 at L2 — is the client IP hidden from the destination? */
+  /** P1 via V1 at L2: is the client IP hidden from the destination? */
   p1L2: MatrixCell;
-  /** P2 via V1 at L2 — are requests unlinkable to each other at the destination? */
+  /** P2 via V1 at L2: are requests unlinkable to each other at the destination? */
   p2L2: MatrixCell;
-  /** P1 via V2 at L3L — local network observer. */
+  /** P1 via V2 at L3L: local network observer. */
   p1L3L: MatrixCell;
-  /** P1 via V2 at L3G — global network observer. */
+  /** P1 via V2 at L3G: global network observer. */
   p1L3G: MatrixCell;
 }
 
@@ -192,7 +192,7 @@ export interface Scenario {
   paths: RoutePath[];
   /** Privacy matrix row. */
   matrix: ScenarioMatrix;
-  /** Performance (throughput) — shown as a separate strip, not a privacy column. */
+  /** Performance (throughput), shown as a separate strip, not a privacy column. */
   performance: Performance;
   /** What the configuration requires to be deployed. */
   requires: string;

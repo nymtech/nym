@@ -1,23 +1,18 @@
 ---
-title: "Mixnet — rotating exits"
+title: "Mixnet · rotating exits"
 description: "The mixnet with rotating exits restores request unlinkability at the destination. Strong against the network, still slow."
 schemaType: "TechArticle"
 section: "Network"
 lastUpdated: "2026-07-29"
 ---
 
-import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
+import { GenericScenarioView } from '../../../../components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from '../../../../lib/privacy-model/examples/generic'
 
-export const GenericScenarioView = dynamic(
-  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
-  { ssr: false },
-)
+export const scenario = requireGenericScenario('mixnet-rotating')
 
-export const scenario = getGenericScenario('mixnet-rotating')
-
-# Mixnet — rotating exits
+# Mixnet · rotating exits
 
 <Callout type="warning">
 Per-request exit rotation is not available in the Nym SDKs yet. This

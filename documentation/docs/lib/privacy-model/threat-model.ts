@@ -1,4 +1,4 @@
-// The generic Nym threat model — the app-agnostic spine.
+// The generic Nym threat model: the app-agnostic spine.
 //
 // Sourced from Claudia Diaz's note "Network privacy" (§2–§3, §5) and
 // generalised (decision D1): the primary adversary is "the destination", not
@@ -17,14 +17,14 @@ export const ACTORS: ThreatActor[] = [
     id: "L2",
     name: "The destination",
     vantage:
-      "Is, or has compromised, the service the application connects to — the server on the other end of the session.",
+      "Is, or has compromised, the service the application connects to: the server on the other end of the session.",
     observes: [
       "The source IP of incoming connections",
       "The fine-grained arrival time of every request",
       "The complete contents of each request: which endpoints or resources are fetched, the parameters, the operation, and the payload",
     ],
     cannotObserve: ["Only what the client never sends it"],
-    cost: "Cheap and privileged. To run or compromise a service needs no network-wide vantage — it is the one party the user must talk to directly.",
+    cost: "Cheap and privileged. To run or compromise a service needs no network-wide vantage. It is the one party the user must talk to directly.",
     primary: true,
   },
   {
@@ -61,7 +61,7 @@ export const PROPERTIES: Property[] = [
     id: "P1",
     name: "Request-identity unlinkability",
     definition:
-      "The adversary cannot attribute a given request to the user — for example, through the client IP address.",
+      "The adversary cannot attribute a given request to the user, for example through the client IP address.",
   },
   {
     id: "P2",
@@ -86,9 +86,9 @@ export const VECTORS: Vector[] = [
       "The source IP the destination observes, the TCP/TLS connection state, the tunnel session, and any application-layer session identifiers.",
     observableFrom: ["L2"],
     countermeasures: [
-      { text: "Relaying — hides the client IP", layer: "transport", against: ["L2"] },
+      { text: "Relaying: hides the client IP", layer: "transport", against: ["L2"] },
       {
-        text: "Short-lived connections — a new connection per request",
+        text: "Short-lived connections: a new connection per request",
         layer: "transport",
         against: ["L2"],
       },
@@ -107,12 +107,12 @@ export const VECTORS: Vector[] = [
     observableFrom: ["L2", "L3L", "L3G"],
     countermeasures: [
       {
-        text: "Client-side: randomised request times and request scheduling — against the destination",
+        text: "Client-side: randomised request times and request scheduling, against the destination",
         layer: "hygiene",
         against: ["L2"],
       },
       {
-        text: "In transit: mixing delays, Poisson sending, cover traffic — against network observers",
+        text: "In transit: mixing delays, Poisson sending, cover traffic, against network observers",
         layer: "transport",
         against: ["L3L", "L3G"],
       },
@@ -152,7 +152,7 @@ export interface LayerInfo {
 export const LAYERS: LayerInfo[] = [
   {
     id: "transport",
-    title: "Layer 1 — Transport",
+    title: "Layer 1: Transport",
     summary:
       "What the configuration chooses. Provides V1 identity protection, and V2 in-transit timing protection against network observers.",
     provides: [
@@ -162,7 +162,7 @@ export const LAYERS: LayerInfo[] = [
   },
   {
     id: "hygiene",
-    title: "Layer 2 — Baseline hygiene",
+    title: "Layer 2: Baseline hygiene",
     summary:
       "Transport-independent client discipline (§5), owed by every application regardless of which transport it chooses.",
     provides: [

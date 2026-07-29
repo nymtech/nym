@@ -1,6 +1,6 @@
 // Centralised hrefs into the threat-model pages. The #actor-Ln anchors are the
-// stable cross-reference spine — the diagrams and assessment panels link to
-// them — so the anchor ids never change; only this base path does.
+// stable cross-reference spine: the diagrams and assessment panels link to
+// them, so the anchor ids never change; only this base path does.
 
 import type { ActorId } from "./types";
 

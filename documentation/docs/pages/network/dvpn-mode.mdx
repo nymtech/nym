@@ -9,14 +9,14 @@ lastUpdated: "2026-07-29"
 # dVPN Mode
 
 import dynamic from 'next/dynamic'
-import { getGenericScenario } from '../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from '../../lib/privacy-model/examples/generic'
 
 export const NetworkDiagram = dynamic(
   () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
   { ssr: false },
 )
 
-export const dvpnScenario = getGenericScenario('dvpn-single')
+export const dvpnScenario = requireGenericScenario('dvpn-single')
 
 dVPN mode is a [transport](/network/threat-model/two-layer-model) choice: a 2-hop decentralised VPN. Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
 

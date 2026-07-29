@@ -188,7 +188,7 @@ export function PacketAnatomy({
         )}
         <span className="badge">
           {isMix
-            ? "Every Sphinx packet is a constant 2000 B, identical on the wire (unlinkable)"
+            ? "Every Sphinx packet is a constant 2000 B (constant size removes size-based correlation; timing is handled separately by Poisson sending)"
             : "Variable packet size: WireGuard preserves size and timing (leaks)"}
         </span>
       </div>

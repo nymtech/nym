@@ -8,7 +8,7 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { getMessagingScenario } from '../../../../lib/privacy-model/examples/messaging'
+import { requireMessagingScenario } from '../../../../lib/privacy-model/examples/messaging'
 import { MetadataPanel } from '../../../../components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
@@ -16,8 +16,8 @@ export const NetworkDiagram = dynamic(
   { ssr: false },
 )
 
-export const unprotected = getMessagingScenario('unprotected')
-export const mixnet = getMessagingScenario('mixnet')
+export const unprotected = requireMessagingScenario('unprotected')
+export const mixnet = requireMessagingScenario('mixnet')
 
 # Private Messaging
 

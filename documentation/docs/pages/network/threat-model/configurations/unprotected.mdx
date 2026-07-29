@@ -6,15 +6,10 @@ section: "Network"
 lastUpdated: "2026-07-29"
 ---
 
-import dynamic from 'next/dynamic'
-import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
+import { GenericScenarioView } from '../../../../components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from '../../../../lib/privacy-model/examples/generic'
 
-export const GenericScenarioView = dynamic(
-  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
-  { ssr: false },
-)
-
-export const scenario = getGenericScenario('unprotected')
+export const scenario = requireGenericScenario('unprotected')
 
 # Unprotected on the open internet
 

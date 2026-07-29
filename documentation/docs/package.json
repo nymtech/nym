@@ -13,7 +13,9 @@
     "dev": " next dev",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
@@ -50,6 +52,7 @@
     "@types/mdx": "^2.0.13",
     "chain-registry": "^1.19.0",
     "cosmjs-types": "^0.9.0",
+    "d3-scale": "^4.0.2",
     "ethers": "^6.13.1",
     "framer-motion": "^12.34.5",
     "lucide-react": "^0.438.0",
@@ -65,6 +68,7 @@
   },
   "devDependencies": {
     "@next/swc-linux-x64-gnu": "15.5.0",
+    "@types/d3-scale": "^4.0.8",
     "@types/node": "18.11.10",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
@@ -82,7 +86,8 @@
     "eslint-config-next": "13.4.13",
     "next-sitemap": "4.2.3",
     "raw-loader": "^4.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   },
   "private": false
 }

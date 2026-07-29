@@ -20,3 +20,4 @@ allowBuilds:
   web3: false
   web3-bzz: false
   web3-shh: false
+  esbuild: true

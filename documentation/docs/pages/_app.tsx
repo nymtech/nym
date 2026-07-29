@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import type { AppProps } from 'next/app';
 import './styles.css';
+import './threat-model-viz.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {

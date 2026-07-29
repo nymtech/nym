@@ -92,18 +92,20 @@ jobs:
           # so they are intentionally left untouched.
           sed -i -E "s/(export const NYM_SDK_VERSION = )\"[^\"]*\"/\1\"${VERSION}\"/" "$DOCS/components/versions.ts"
           sed -i -E "s/(export const SMOLMIX_VERSION = )\"[^\"]*\"/\1\"${VERSION}\"/" "$DOCS/components/versions.ts"
+          sed -i -E "s/(export const SMOLDVPN_VERSION = )\"[^\"]*\"/\1\"${VERSION}\"/" "$DOCS/components/versions.ts"
 
           # Hardcoded Cargo.toml snippets. Match the crate key at the start of a
           # fenced-block line and rewrite whatever semver it carries, so a drifted
           # snippet self-heals the same way the workspace path-dep sed above does.
           # cargo-workspaces unifies every workspace crate to VERSION, so all of
           # these crates share it after the bump.
-          sed -i -E "s/^(nym-sdk|nym-bin-common|nym-network-defaults|nym-smolmix)(.*)\"[0-9][^\"]*\"/\1\2\"${VERSION}\"/" \
+          sed -i -E "s/^(nym-sdk|nym-bin-common|nym-network-defaults|nym-smolmix|nym-smoldvpn)(.*)\"[0-9][^\"]*\"/\1\2\"${VERSION}\"/" \
             "$DOCS/pages/developers/rust/importing.mdx" \
             "$DOCS/pages/developers/rust/mixnet/tutorial.mdx" \
             "$DOCS/pages/developers/rust/stream/tutorial.mdx" \
             "$DOCS/pages/developers/rust/client-pool/tutorial.mdx" \
-            "$DOCS/pages/developers/smolmix.mdx"
+            "$DOCS/pages/developers/smolmix.mdx" \
+            "$DOCS/pages/developers/smoldvpn.mdx"
 
       - name: Install build dependencies
         run: |

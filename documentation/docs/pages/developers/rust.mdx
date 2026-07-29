@@ -51,4 +51,5 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
 
 - [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
+- [**`nym-smoldvpn`**](/developers/smoldvpn): a userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients.
 - [**SOCKS5 module**](./rust/socks5): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.

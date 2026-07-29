@@ -12,6 +12,7 @@
  *   pages/developers/rust/stream/tutorial.mdx
  *   pages/developers/rust/client-pool/tutorial.mdx
  *   pages/developers/smolmix.mdx          (SMOLMIX_VERSION)
+ *   pages/developers/smoldvpn.mdx         (SMOLDVPN_VERSION)
  *
  * public/llms-full.txt is generated from these pages by generate-llms-txt.mjs
  * at build time, so it picks up the bumps automatically. (public/llms.txt is a
@@ -21,6 +22,7 @@
  * so no manual file edits are needed for MSRV bumps:
  *
  *   pages/developers/smolmix.mdx
+ *   pages/developers/smoldvpn.mdx
  *   pages/developers/rust/importing.mdx
  */
 
@@ -29,6 +31,9 @@ export const NYM_SDK_VERSION = "1.21.5-rc.3";
 
 // smolmix standalone crate
 export const SMOLMIX_VERSION = "1.21.5-rc.3";
+
+// nym-smoldvpn standalone crate
+export const SMOLDVPN_VERSION = "1.21.5-rc.3";
 
 // TypeScript SDK packages (published to npm). mix-fetch is on its own 2.x track
 // after the v1 to v2 break; the tunnel + mix-dns + mix-websocket facades share

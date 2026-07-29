@@ -406,7 +406,6 @@ pub fn find_index(spend_date: EncodedDate, expiration_date: EncodedDate) -> Resu
             Ok(index_a)
         }
     } else {
-        println!("spend: {spend_date}, start: {start_date}");
         Err(CompactEcashError::SpendDateTooEarly)
     }
 }

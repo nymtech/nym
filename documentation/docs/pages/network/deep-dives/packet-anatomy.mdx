@@ -21,7 +21,7 @@ Pick a payload to see how it fragments and what the framing costs.
 
 ## Sphinx framing (mixnet)
 
-Every Sphinx packet is a constant 2000 bytes. It holds a routing header, the IP packet router framing, a payload chunk, and padding to fill the fixed size. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
+Every [Sphinx](/network/cryptography/sphinx) packet is a constant 2000 bytes. It holds a routing header, the IP packet router framing, a payload chunk, and padding to fill the fixed size. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
 
 <PacketAnatomy mode="mixnet" />
 
@@ -37,3 +37,5 @@ dVPN mode uses two nested WireGuard headers (one per hop) plus the remaining pay
 - [dVPN cover and crowding](/network/deep-dives/dvpn-cover): how variable-size dVPN traffic still hides who is talking to whom.
 - [Mixnet mode](/network/mixnet-mode/mixing) and [dVPN mode](/network/dvpn-mode) for the mode overviews.
 - [Two-layer model](/network/threat-model/two-layer-model) for where framing sits in the wider threat model.
+- [Sphinx cryptography](/network/cryptography/sphinx): how the fixed-size packet is layered and unwrapped hop by hop.
+- [Sphinx: A Compact and Provably Secure Mix Format](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) (Danezis and Goldberg, 2009): the original packet-format paper.

@@ -7,6 +7,7 @@ lastUpdated: "2026-07-29"
 ---
 
 import dynamic from 'next/dynamic'
+import { Callout } from 'nextra/components'
 import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
 
 export const GenericScenarioView = dynamic(
@@ -17,5 +18,11 @@ export const GenericScenarioView = dynamic(
 export const scenario = getGenericScenario('mixnet-rotating')
 
 # Mixnet — rotating exits
+
+<Callout type="warning">
+Per-request exit rotation is not available in the Nym SDKs yet. This
+configuration is planned for a future release. Until then a mixnet client uses a
+fixed exit, which behaves like a single exit at the destination.
+</Callout>
 
 <GenericScenarioView scenario={scenario} />

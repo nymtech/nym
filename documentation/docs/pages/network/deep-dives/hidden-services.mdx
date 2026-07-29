@@ -21,7 +21,7 @@ A hidden service must hide its location from everyone, including the directory i
 A Tor onion service reaches clients through a small, reusable descriptor.
 
 1. The service has a long-term onion address.
-2. A client that knows the address can locate the directory entry (the HSDir) that holds the service's descriptor.
+2. A client that knows the address can locate the directory entry (the [HSDir](https://spec.torproject.org/rend-spec-v3)) that holds the service's descriptor.
 3. The descriptor lists introduction points and key material. The client uses these to open a connection to the service.
 4. The service republishes its descriptor whenever it rotates introduction points, typically every few hours.
 
@@ -95,7 +95,7 @@ Suppose no one is malicious. The stock still runs out as legitimate clients cons
 
 ## Why the obvious shortcut does not apply
 
-One might hope to sidestep SURB generation by letting a set of authorities learn which gateway serves each client. Systems like Pudding do exactly this, but for a different problem: contact discovery, not server-location privacy. Knowing the client-to-gateway mapping lets authorities generate the needed SURBs on a client's behalf.
+One might hope to sidestep SURB generation by letting a set of authorities learn which gateway serves each client. Systems like [Pudding](https://arxiv.org/abs/2311.10825) do exactly this, but for a different problem: contact discovery, not server-location privacy. Knowing the client-to-gateway mapping lets authorities generate the needed SURBs on a client's behalf.
 
 This is a non-starter for hidden services. The whole point of a hidden service is to stay hidden from everyone, including any such authorities. A design that requires some party to know the service's gateway defeats the goal before it starts.
 

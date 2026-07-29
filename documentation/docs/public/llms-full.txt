@@ -1,8 +1,8 @@
 # Nym Documentation
 
 @version: 1.20.4
-@generated: 2026-06-09
-@pages: 165
+@generated: 2026-07-29
+@pages: 189
 @source: https://github.com/nymtech/nym/tree/develop/documentation/docs
 
 ---
@@ -15,7 +15,7 @@ url: https://nym.com/docs/network
 
 The Nym Network is decentralised privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
 
-Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate Mixnet mode directly via the [Nym SDKs](/developers). See [Choosing a Mode](/network/overview/choosing-a-mode) for guidance on which fits a given threat model.
+Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate them directly: Mixnet mode via the [Nym SDKs](/developers), and dVPN mode via [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library. See [Choose a Defence](/network/threat-model/choose-config) for guidance on which fits a given threat model.
 
 ### NymVPN
 
@@ -27,7 +27,7 @@ Both modes use the same underlying infrastructure.
 
 ### Developer SDKs
 
-The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. The SDKs do **not** provide access to dVPN mode.
+The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. For dVPN mode, developers use [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library.
 
 ## Paying for privacy without losing it
 
@@ -51,7 +51,7 @@ url: https://nym.com/docs/network
 
 The Nym Network is decentralised privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
 
-Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate Mixnet mode directly via the [Nym SDKs](/developers). See [Choosing a Mode](/network/overview/choosing-a-mode) for guidance on which fits a given threat model.
+Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate them directly: Mixnet mode via the [Nym SDKs](/developers), and dVPN mode via [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library. See [Choose a Defence](/network/threat-model/choose-config) for guidance on which fits a given threat model.
 
 ### NymVPN
 
@@ -63,7 +63,7 @@ Both modes use the same underlying infrastructure.
 
 ### Developer SDKs
 
-The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. The SDKs do **not** provide access to dVPN mode.
+The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. For dVPN mode, developers use [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library.
 
 ## Paying for privacy without losing it
 
@@ -90,8 +90,8 @@ The Nym Network is a privacy infrastructure that protects metadata: not just mes
 ## In this section
 
 - [The Privacy Problem](/network/overview/privacy-problem): what metadata is, why it matters, and what adversary models Nym is designed against
-- [Choosing a Mode](/network/overview/choosing-a-mode): how dVPN and Mixnet mode differ, and guidance on which fits your use case
-- [Nym vs Other Systems](/network/overview/comparisons): how Nym compares to VPNs, Tor, I2P, and E2EE
+- [Choose a Defence](/network/threat-model/choose-config): compare configurations against each adversary, with use-case guidance
+- [Nym vs Other Systems](/network/threat-model/comparisons): how Nym compares to VPNs, Tor, I2P, and E2EE
 
 ## Network Components
 
@@ -123,101 +123,440 @@ The assumption is worst-case: the adversary monitors all entry and exit points, 
 
 **dVPN mode** does not defend against timing analysis, but it splits trust across two independent operators and removes payment linkability, which already addresses the biggest weaknesses of traditional VPNs.
 
-For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/overview/comparisons). For help picking a mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
+For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/threat-model/comparisons). For help picking a configuration, see [Choose a Defence](/network/threat-model/choose-config).
 
 ---
-title: Choosing Between dVPN and Mixnet Mode
-description: When to use NymVPN's dVPN mode for low-latency browsing versus Mixnet mode for metadata protection against traffic analysis.
-url: https://nym.com/docs/network/overview/choosing-a-mode
+title: Threat Model
+description: The Nym threat model: adversaries split by vantage point, the vectors that link requests, and the unlinkability properties we measure. A shared vocabulary the rest of the network docs are threaded through.
+url: https://nym.com/docs/network/threat-model
 ---
 
-# Choosing a Mode
+# Threat Model
 
-Both modes run on the same Nym infrastructure but defend against different threat models. dVPN mode hides your IP and splits trust across two operators, and Mixnet mode additionally protects traffic patterns against adversaries capable of observing the entire network.
+Network privacy depends on **who** the adversary is and **where** they sit. A
+tool that defeats one adversary can be useless against another. This section
+defines the Nym threat model as a shared vocabulary, so that every "does this
+protect me?" question has a precise answer: protect you from whom?
 
-**dVPN mode** routes through 2 hops (Entry Gateway + Exit Gateway) connected via [AmneziaWG](https://docs.amnezia.org/documentation/amnezia-wg/), a WireGuard fork with traffic obfuscation to evade protocol-level detection. Latency is low, but there is no protection against timing analysis.
+The model has three parts. Read them in order.
 
-**Mixnet mode** routes through 5 hops (Entry Gateway, three Mix Node layers, Exit Gateway). Each Mix Node adds a random delay and mixes packets with those of other users. Combined with continuous cover traffic, this makes timing correlation impractical even for an adversary watching the entire network.
+- **[Threat actors](/network/threat-model/actors)** — the adversaries, split by
+  vantage point (L1 to L3G). Where each one sits decides what it can see.
+- **[Linkage vectors](/network/threat-model/vectors)** — the channels through
+  which an adversary attributes or links your requests (V1 to V3), and what
+  closes each.
+- **[Unlinkability properties](/network/threat-model/properties)** — the two
+  properties we measure every configuration against (P1 and P2).
 
-## Quick comparison
+With that vocabulary in place, the **[two-layer model](/network/threat-model/two-layer-model)**
+shows how tool choice falls out of the threat model rather than a ranking, and
+**[Nym vs other systems](/network/threat-model/comparisons)** compares Nym to
+VPNs, Tor, I2P, and end-to-end encryption on the same terms.
 
-| | dVPN Mode | Mixnet Mode |
+---
+title: Threat actors
+description: The adversaries in the Nym threat model, split by vantage point: the destination (L2), local and global network observers (L3L, L3G), and the application-specific public observer (L1). What each can see, and what it costs to become.
+url: https://nym.com/docs/network/threat-model/actors
+---
+
+# Threat actors
+
+The threat model splits adversaries by **vantage point**: where an adversary
+sits decides what it can observe. Fusing them into one "observer" hides the
+differences that determine which tool helps. Each actor below has a level (L1 to
+L3G), a vantage, what it observes, and what it costs to become.
+
+## L2 is the primary adversary
+
+The destination is the one party you must talk to directly, and it is cheap to
+run or compromise. That makes it the primary adversary. No amount of in-transit
+mixing changes what the destination sees, because mixing reshapes traffic
+between hops and the destination sees only what arrives. See
+[the two-layer model](/network/threat-model/two-layer-model) for why this is the
+central point.
+
+L2 presupposes a clearnet exit. When both ends run Nym, there is no exit gateway
+and no third-party server. The endpoint is a Nym client reached end to end that
+never learns your IP. End to end, the L2 adversary does not exist. See
+[exit security](/developers/concepts/exit-security).
+
+## L1 is application-specific
+
+L1 is the public or out-of-band observer. What it sees depends on your
+application, so the worked examples define their own L1. A wallet's L1 reads the
+public chain; a messaging app's L1 might read a public directory. The universal
+spine is L2, L3L, and L3G.
+
+---
+title: Linkage vectors
+description: The three vectors that let an adversary attribute or link requests: session state (V1), timing (V2), and content (V3). What each consists of, which actors observe it, and the transport and hygiene countermeasures that close it.
+url: https://nym.com/docs/network/threat-model/vectors
+---
+
+# Linkage vectors
+
+A vector is a channel through which an adversary attributes a request to a user,
+or links two requests to each other. There are three. Each vector lists what it
+consists of, which actors can observe it, and the countermeasures that close it.
+Every countermeasure belongs to one of the two layers: transport (Layer 1) or
+baseline hygiene (Layer 2).
+
+The layer tags map each countermeasure to
+[the two-layer model](/network/threat-model/two-layer-model). Layer 1 is what
+the transport chooses; Layer 2 is client discipline you owe regardless of
+transport.
+
+---
+title: Unlinkability properties
+description: The two unlinkability properties the threat model measures: request-identity unlinkability (P1) and request-request unlinkability (P2), their asymmetry, and the fragile pseudonymous-profile state most configurations land in.
+url: https://nym.com/docs/network/threat-model/properties
+---
+
+# Unlinkability properties
+
+Every configuration is measured against two properties. P1 asks whether a single
+request can be attributed to you. P2 asks whether two requests can be tied to the
+same client. The comparison matrix and the per-actor assessments throughout the
+network docs are verdicts on these two properties.
+
+## The asymmetry matters
+
+P1 and P2 are not symmetric. A P1 failure across requests implies a P2 failure,
+because requests attributable to one identity are thereby linkable to each other.
+The converse does not hold: requests can be linkable to each other (P2 fails)
+without being attributable to a person (P1 holds). This is the pseudonymous
+profile, and it is fragile.
+
+One attributed request anywhere in a pseudonymous profile retroactively
+attributes the whole profile. This is why so many configurations carry a "given
+per-request rotation" caveat: without it, the profile builds, and a single slip
+collapses it.
+
+---
+title: The two-layer model
+description: Network privacy splits into two layers: transport hides who you talk to and from whom; hygiene disciplines what your request pattern leaks to the destination. Mixing protects transit, not the destination.
+url: https://nym.com/docs/network/threat-model/two-layer-model
+---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const mixnetIpr = getGenericScenario('mixnet')
+export const endToEnd = getGenericScenario('end-to-end')
+
+# The two-layer model
+
+Network privacy answers two separate questions. Keep them apart and the tool
+choice becomes clear. Fuse them into one "observer" and you make a category
+error that no amount of mixing can fix.
+
+| Layer | Question it answers | Tools |
 |---|---|---|
-| **Hops** | 2 (Entry + Exit Gateway) | 5 (Entry + 3 Mix Nodes + Exit) |
-| **Timing protection** | No | Yes (random delays per hop) |
-| **Cover traffic** | No | Yes (constant dummy packets) |
-| **Protects against** | ISPs, websites, advertisers, passive observers | Global passive adversaries, timing correlation, traffic analysis |
-| **Access** | [NymVPN](https://nymvpn.com) | NymVPN and [Nym SDKs](/developers) |
+| **Transport** | Who can see that I am talking, and to whom? | mixnet, dVPN |
+| **Hygiene** | What does my request pattern leak to the destination? | [traffic-shape discipline](/developers/swizzle) (`nym-swizzle`) |
 
-## Use dVPN mode when
+The transport layer chooses how your packets reach the destination. It hides
+your IP address, and against a network observer it can also hide your timing.
+The hygiene layer is client discipline that you owe regardless of transport. It
+shapes the requests themselves, so the destination learns less from the pattern
+of what you send.
 
-- Latency matters: browsing, streaming, downloads, video calls
-- Your concern is ISPs, advertisers, and websites tracking you, not nation-state surveillance
-- You want decentralised trust and payment privacy without the overhead of mixing
+## The category error
 
-## Use Mixnet mode when
+The destination is the server on the other end of your session. It is the
+primary adversary, because you must talk to it directly and it is cheap to run
+or compromise. It sees your source IP, the arrival time of every request, and
+the full content of each request.
 
-- Metadata exposure is dangerous: journalism, activism, whistleblowing, legal work
-- Your adversary might be watching traffic across multiple network points
-- Added latency is an acceptable trade for unlinkability and unobservability
+Mixing does not change this.
 
-## For developers
+Mixing delays and cover traffic change what a **network observer** can infer.
+The destination sees only what arrives, and when it arrives. No amount of
+mixing protects you against the server you are talking to.
 
-The [Nym SDKs](/developers) only expose **Mixnet mode**. dVPN mode is specific to the NymVPN application.
+What protects you against the destination is different: hide your IP (transport),
+then discipline the timing and content of your requests (hygiene).
 
-There are two integration models:
+## Watch it happen
 
-**Proxy** (traffic exits to the internet, analogous to Tor's exit relay model):
-```
-Your App --> Entry --> Mix Nodes --> Exit --> Internet
-```
+The diagram below shows the mixnet reaching a clearnet destination. Sphinx
+packets take three mix layers with per-hop delays, Poisson sending, and cover
+traffic. The exit gateway then forwards to the destination over the public
+internet, so the connection arrives from the exit gateway's IP.
 
-**End-to-end** (Sphinx-encrypted the entire way, traffic stays within the Mixnet):
-```
-Your App --> Entry --> Mix Nodes --> Exit --> Nym Client
-```
+This diagram is the **clearnet-exit** case: you reach a third-party destination.
+Client-to-client (end-to-end) mode is a different shape, with no exit gateway
+and no clearnet destination. It is shown in
+[When there is no destination](#when-there-is-no-destination) below.
 
-See the [developer overview](/developers) for guidance on choosing between them.
+The exit gateway is the last Nym hop. It runs two proxy services: a
+[Network Requester](/network/infrastructure/exit-services#network-requester)
+(SOCKS, application layer) and an
+[IP Packet Router](/network/infrastructure/exit-services#ip-packet-router)
+(raw IP). Which one carries your traffic depends on how you connect.
+
+The mixing is real, and it is strong against the network. Now look at what each
+actor actually observes.
+
+## What each actor sees
+
+Read the two verdicts together. The local network observer (L3L) gets **P1 ✅**:
+it sees only constant-size packets at a Poisson rate with cover traffic. So it
+cannot tell the destination, the volume, or the activity. The destination (L2)
+gets **P2 ❌**: the client's connection is an ordinary end-to-end connection, so
+every request and its full content arrive together. A fixed exit gateway behaves
+like a single dVPN exit at the destination.
+
+Same transport. Opposite outcomes. The mixing bought everything against the
+network and nothing, on content, against the destination. That gap is the
+category error, and it is why transport alone is never the whole answer.
+
+## When there is no destination
+
+**The whole argument above assumes you exit to a clearnet destination.** When
+both ends run Nym, that assumption drops. Traffic never leaves the mixnet, and there is no exit gateway. The endpoint is a
+Nym client reached end to end that never learns your IP. Replies return through
+the mixnet via SURBs. The L2
+adversary is the untrusted server you must exit to. **End to end, that party does
+not exist.**
+
+This is the strongest position the network offers, and it is a different shape
+from everything above. Not "hide better from the destination", but "have no
+untrusted destination at all". See
+[exit security](/developers/concepts/exit-security) for the two modes.
+
+## The two layers
+
+**Layer 1, Transport.** What the configuration chooses. It provides V1 identity
+protection against the destination (relay, short-lived connections, exit
+rotation). It also provides V2 in-transit timing protection against network
+observers (mixing, Poisson sending, cover traffic; mixnet only).
+
+**Layer 2, Baseline hygiene.** Transport-independent client discipline, owed by
+every application. It provides V2 timing protection against the destination
+(randomised request times, requests decorrelated from activity milestones). It
+also provides V3 content protection against the destination (request-shape
+discipline: padding, batching, decoy requests). The [`nym-swizzle`](/developers/swizzle)
+library provides these primitives.
+
+The vantage points named here (L2, L3L, L3G) and the vectors (V1, V2, V3) are
+defined in the [threat-model actors](/network/threat-model/actors) and
+[vectors](/network/threat-model/vectors) pages.
+
+---
+title: Choose a configuration
+description: An interactive comparison of Nym network configurations against each threat actor. Pick by adversary, not by tool popularity: which configuration you need falls out of who you are hiding from.
+url: https://nym.com/docs/network/threat-model/choose-config
+---
+
+# Choose a configuration
+
+Which configuration you need falls out of the [threat
+model](/network/threat-model), not from tool popularity. Decide **who you are
+hiding from**, then read the row. Each verdict is P1 (identity) or P2 (request
+linkability) against one [actor](/network/threat-model/actors); the detail text
+gives the condition. Click a configuration to see its path and full assessment.
+
+## Which adversary?
+
+Start from your primary concern and read across.
+
+| Your concern | The adversary | Configuration |
+|---|---|---|
+| Hide my IP from the service I connect to | [L2](/network/threat-model/actors#actor-L2) identity (P1) | Any transport: dVPN or mixnet |
+| Stop the service linking my requests to each other | [L2](/network/threat-model/actors#actor-L2) linkability (P2) | Rotate exits: dVPN multi-exit, or mixnet rotating |
+| Hide my traffic pattern from network observers | [L3L](/network/threat-model/actors#actor-L3L) / [L3G](/network/threat-model/actors#actor-L3G) | Mixnet only (mixing, Poisson, cover) |
+| I talk to another Nym client, not a clearnet server | No L2 exists | End to end |
+| Fast bulk transfer **and** timing-safe sensitive requests | All of the above | ★ Hybrid (recommended) |
+
+## By use case
+
+The same choice framed by what you are doing.
+
+- **Latency matters** (browsing, streaming, downloads, calls), and your concern
+  is ISPs, advertisers, and websites rather than a network-wide adversary. A
+  **dVPN** configuration hides your IP at line rate.
+- **Metadata exposure is dangerous** (journalism, activism, whistleblowing,
+  legal work), or your adversary can watch traffic at several network points,
+  and added latency is acceptable. Use the **mixnet**, the only option that
+  hides the traffic pattern from network observers.
+- **Both at once**: the **hybrid** runs bulk traffic over dVPN and small
+  sensitive requests over the mixnet.
+
+No transport closes the timing and content vectors (V2/V3) **at the destination**
+on its own. That is the job of [baseline
+hygiene](/developers/swizzle), owed regardless of which row you pick.
+
+## Reading the verdicts
+
+- ✅ the property holds, subject to the condition in the cell text.
+- ◐ partial: it holds against some observation, not all (see the
+  per-configuration page).
+- ❌ the property fails.
+
+The "Fast" column is throughput, not privacy. The mixnet's mixing delays make it
+slow. So bulk traffic belongs on dVPN, and only small, timing-sensitive requests
+belong on the mixnet.
+
+---
+title: Unprotected on the open internet
+description: The baseline: the client talks to the destination directly, so identity and contents arrive together.
+url: https://nym.com/docs/network/threat-model/configurations/unprotected
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('unprotected')
+
+# Unprotected on the open internet
+
+---
+title: Centralised VPN
+description: A single VPN server hides the client IP and nothing else; the operator sees both ends.
+url: https://nym.com/docs/network/threat-model/configurations/vpn
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('vpn')
+
+# Centralised VPN
+
+---
+title: dVPN — single exit
+description: A 2-hop WireGuard tunnel hides the client IP, but a single fixed exit leaves requests linkable at the destination.
+url: https://nym.com/docs/network/threat-model/configurations/dvpn-single
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('dvpn-single')
+
+# dVPN — single exit
+
+---
+title: dVPN — multiple exits
+description: Multiple dVPN exits restore request unlinkability at the destination given per-request rotation. Fast, no mixing.
+url: https://nym.com/docs/network/threat-model/configurations/dvpn-multi
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('dvpn-multi')
+
+# dVPN — multiple exits
+
+---
+title: Mixnet — single exit
+description: A 5-hop mixnet with mixing delays and cover traffic: strong against network observers; a fixed exit behaves like a single dVPN exit at the destination.
+url: https://nym.com/docs/network/threat-model/configurations/mixnet
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('mixnet')
+
+# Mixnet — single exit
+
+---
+title: Mixnet — rotating exits
+description: The mixnet with rotating exits restores request unlinkability at the destination. Strong against the network, still slow.
+url: https://nym.com/docs/network/threat-model/configurations/mixnet-rotating
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('mixnet-rotating')
+
+# Mixnet — rotating exits
+
+---
+title: Hybrid (recommended)
+description: The recommended architecture: fast dVPN for bulk, mixnet for small timing-sensitive requests, sharing no session state.
+url: https://nym.com/docs/network/threat-model/configurations/hybrid
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('hybrid')
+
+# Hybrid (recommended)
+
+---
+title: End to end
+description: Both ends run Nym: no exit gateway, no clearnet destination, and no L2 adversary.
+url: https://nym.com/docs/network/threat-model/configurations/end-to-end
+---
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('end-to-end')
+
+# End to end
 
 ---
 title: Nym vs VPNs, Tor, I2P, and E2EE
 description: How the Nym Network compares to traditional VPNs, Tor, I2P, and end-to-end encryption in terms of privacy guarantees, metadata protection, and threat models.
-url: https://nym.com/docs/network/overview/comparisons
+url: https://nym.com/docs/network/threat-model/comparisons
 ---
 
 # Nym vs Other Systems
 
-There are several existing approaches to network privacy, each with different assumptions about who the adversary is and what they can do.
+There are several existing approaches to network privacy, each with different assumptions about who the adversary is and what they can do. Those assumptions map onto the [threat actors](/network/threat-model/actors): a system's guarantees depend on which vantage points it defends against.
 
 ## Nym vs VPNs
 
-A traditional VPN creates an encrypted tunnel between your device and a VPN server, hiding your IP from destination websites and encrypting traffic from local observers like your ISP. The fundamental limitation is that the VPN provider itself sees all your traffic (every site you visit, when you visit it, how long you stay) and can log this voluntarily or be compelled to by legal process, with your payment information linking your account directly to your activity.
+A traditional VPN creates an encrypted tunnel between your device and a VPN server. It hides your IP from destination websites. It also encrypts traffic from local observers like your ISP. The fundamental limitation is that the VPN provider itself sees all your traffic (every site you visit, when you visit it, how long you stay). It can log this voluntarily, or be compelled to by legal process. Your payment information links your account directly to your activity.
 
-Nym's dVPN mode splits this trust across two independent operators so that the Entry Gateway knows your IP but not your destination, the Exit Gateway knows your destination but not your IP, and neither can build a complete picture. Payment is handled through [zk-nyms](/network/cryptography/zk-nym), making subscriptions unlinkable to activity.
+Nym's dVPN mode splits this trust across two independent operators. The Entry Gateway knows your IP but not your destination. The Exit Gateway knows your destination but not your IP. Neither can build a complete picture. Payment is handled through [zk-nyms](/network/cryptography/zk-nym), making subscriptions unlinkable to activity.
 
 Nym's mixnet mode goes further by adding timing obfuscation and cover traffic, which no traditional VPN offers; see [Mixnet Mode](/network/mixnet-mode) for details.
 
 ## Nym vs Tor
 
-[Tor](https://www.torproject.org/) is the best-known anonymous overlay network, routing traffic through three relays using Onion encryption so that no single relay sees both source and destination. It was designed in an era when global passive adversaries were considered unrealistic, and its [architecture](https://2019.www.torproject.org/about/overview.html.en) reflects that: packets flow through without delays and there is no cover traffic, which means an adversary watching both ends of a circuit can try and correlate timing to deanonymise users.
+[Tor](https://www.torproject.org/) is the best-known anonymous overlay network, routing traffic through three relays using Onion encryption so that no single relay sees both source and destination. It was designed in an era when global passive adversaries were considered unrealistic, and its [architecture](https://2019.www.torproject.org/about/overview.html.en) reflects that. Packets flow through without delays, and there is no cover traffic. So an adversary watching both ends of a circuit can try and correlate timing to deanonymise users.
 
-Nym's mixnet addresses this by adding random delays at each Mix Node to break timing correlations, cover traffic so observers can't tell when real communication is occurring, per-packet routing rather than Tor's per-session circuits (so there's no long-lived path to observe), and a blockchain-based topology instead of Tor's centralised directory authority.
+Nym's mixnet addresses this with four changes. It adds random delays at each Mix Node to break timing correlations. It adds cover traffic, so observers can't tell when real communication is occurring. It routes per packet rather than using Tor's per-session circuits, so there's no long-lived path to observe. It uses a blockchain-based topology instead of Tor's centralised directory authority.
 
-The trade-off is latency: Tor is faster because it doesn't add mixing delays, so it may be a better fit for general browsing where timing protection isn't needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
+The trade-off is latency. Tor is faster because it doesn't add mixing delays. So it may be a better fit for general browsing, where timing protection isn't needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
 
 ## Nym vs I2P
 
-[I2P](https://geti2p.net/) replaces Tor's centralised directory authority with a [distributed hash table](https://geti2p.net/en/docs/how/network-database), which improves decentralisation but introduces its own attack surface: DHT-based routing is vulnerable to eclipse attacks and Sybil attacks on the routing table. Like Tor, I2P provides no timing protection, so packets flow without delays or cover traffic.
+[I2P](https://geti2p.net/) replaces Tor's centralised directory authority with a [distributed hash table](https://geti2p.net/en/docs/how/network-database). The change improves decentralisation, but it introduces its own attack surface. DHT-based routing is vulnerable to eclipse attacks and Sybil attacks on the routing table. Like Tor, I2P provides no timing protection, so packets flow without delays or cover traffic.
 
-Nym uses a blockchain-based topology registry rather than a DHT, which avoids the known attack vectors around DHT-based routing (e.g. eclipse attacks, Sybil attacks on the routing table). The mixing and cover traffic on top of that address the timing analysis gap that I2P shares with Tor.
+Nym uses a blockchain-based topology registry rather than a DHT. This registry avoids the known attack vectors around DHT-based routing (e.g. eclipse attacks, Sybil attacks on the routing table). The mixing and cover traffic on top of that address the timing analysis gap that I2P shares with Tor.
 
 ## Nym vs end-to-end encryption
 
-End-to-end encryption systems like [Signal](https://signal.org/docs/) encrypt messages on your device so that only the recipient can decrypt them, and the server never sees the content. But E2EE does nothing for metadata: the server still sees who you communicate with, when, how often, and how much, which on its own is enough to map relationships and infer sensitive activity.
+End-to-end encryption systems like [Signal](https://signal.org/docs/) encrypt messages on your device so that only the recipient can decrypt them, and the server never sees the content. But E2EE does nothing for metadata. The server still sees who you communicate with, when, how often, and how much. That metadata alone is enough to map relationships and infer sensitive activity.
 
 Nym and E2EE are complementary: E2EE protects message content, Nym protects the metadata around it (who, when, how much). Using Signal over the Nym mixnet, for instance, would protect both message content and the communication metadata around it.
-
-For a practical breakdown of when to use dVPN vs Mixnet mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
 
 ## Further reading
 
@@ -228,6 +567,416 @@ For a practical breakdown of when to use dVPN vs Mixnet mode, see [Choosing a Mo
 - [I2P: How It Works](https://geti2p.net/en/docs/how/tech-intro)
 
 ---
+title: Wallet Sync
+description: A worked example: a light wallet syncing against lightwalletd. The server is the primary adversary, and the dominant vector is linking a client identity to a balance.
+url: https://nym.com/docs/network/threat-model/examples/wallet
+---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const unprotected = getWalletScenario('unprotected')
+export const mixnet = getWalletScenario('mixnet-ipr')
+
+# Wallet Sync
+
+A light wallet does not hold the chain. It syncs against a server, `lightwalletd`,
+which streams the compact blocks and relays the wallet's transactions. That server
+is the party the wallet must talk to directly, so it is the primary adversary.
+
+## What must not leak
+
+Migration amounts are public on the chain. The privacy the wallet owes its user is
+the link between an identity and a balance. If the server can attribute a
+transaction, or a group of them, to one user, it recovers that link.
+
+## The threat model
+
+The primary adversary is **L2, the server**. The dominant vector is **V1 identity**
+paired with **V3 content**. A broadcast from the user's home IP attributes a
+transaction directly, and grouped transactions sum to a starting balance.
+
+The wallet also faces an application-specific public observer.
+
+| L1 | Chain-only observer |
+|---|---|
+| Vantage | Knows only what is publicly visible on the chain. |
+| Sees | Public on-chain data, including public migration amounts. |
+| Cannot see | Anything off-chain. |
+
+The invariants the wallet must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. Identity to balance** | No user identifier links to a balance, even approximately. | P1 at every actor plus V2 and V3 discipline. |
+| **B. Transaction grouping** | The server must not group one wallet's transactions. | P2 plus V3 content discipline. |
+
+## Unprotected: identity and contents arrive together
+
+The wallet talks to `lightwalletd` directly. The server sees the client IP, every
+request and every broadcast. Both invariants fail with no adversarial effort.
+
+## Protected: the mixnet hides the client IP
+
+Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson
+sending and cover traffic. The exit gateway forwards to a stock `lightwalletd`.
+
+The mixnet heavily hides the client IP and its timing from the network. Against the
+server, a fixed exit still behaves like a single dVPN exit, so requests stay
+linkable. Rotate the exit per request to restore P2.
+
+The mixnet buys strong identity protection against the server and the network. It
+does not, on its own, deliver transaction unlinkability at the destination. That
+needs exit rotation plus the content discipline of the hygiene layer.
+
+## Where to go next
+
+- [Choose a Defence](/network/threat-model/choose-config) picks a configuration for your case.
+- [The two-layer model](/network/threat-model/two-layer-model) explains why transport alone is never the whole answer.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy) shows what a Sphinx packet exposes and hides.
+
+---
+title: Private Messaging
+description: A worked example: messaging through a centralised chat server. The server is the primary adversary, and the dominant vector is the social graph, who talks to whom and when.
+url: https://nym.com/docs/network/threat-model/examples/messaging
+---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const unprotected = getMessagingScenario('unprotected')
+export const mixnet = getMessagingScenario('mixnet')
+
+# Private Messaging
+
+A messaging app sends every message through a chat server. The server delivers
+each message to a named recipient, so it is the party the client must talk to
+directly. That makes it the primary adversary.
+
+## What must not leak
+
+Message content is the obvious secret, and end-to-end encryption already protects
+it. The harder secret is the social graph: who talks to whom, and when. That
+metadata survives content encryption, and it is often more revealing than the
+words.
+
+## The threat model
+
+The primary adversary is **L2, the chat server**, alongside **L3 network
+observers**. The dominant vector is **V2 timing**: request and response bursts
+pair the two conversing clients, and the server routes by account.
+
+The messaging app also faces an application-specific public observer.
+
+| L1 | Directory observer |
+|---|---|
+| Vantage | Reads a public contact directory (registered handles, public group listings). |
+| Sees | Public account handles and listed group memberships. |
+| Cannot see | Message content, who messages whom, or message timing. |
+
+The invariants the app must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. Social graph** | The adversary cannot reconstruct who communicates with whom. | P1 everywhere, but that alone is not enough: a server routing by account learns the graph regardless of transport. Only end-to-end or a metadata-private protocol removes it. |
+| **B. Conversation timing** | Arrival timing must not reveal that two accounts are in a live conversation. | V2 timing discipline at the network layer; metadata-private delivery against the server. |
+
+## Unprotected: the conversation is in the open
+
+The client talks to the chat server directly. The server sees the client IP, the
+account, every recipient and every timestamp. A global network observer pairs the
+two conversing clients by their request and response bursts.
+
+## Protected: the mixnet hides the conversation from the network
+
+Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson
+sending and cover traffic. The exit gateway forwards to the chat server. Mixing
+breaks the timing correlation a network observer relied on.
+
+Read the verdicts together. The local observer (L3L) gets **P1 yes**: cover traffic
+hides even that you are conversing. The global observer (L3G) drops to **partial**:
+mixing degrades the end-to-end timing that pairs the two clients. The server (L2)
+still gets **P2 no**: it authenticates your account and routes each message to a
+named recipient. So it reconstructs the social graph regardless of transport.
+
+Hiding your IP removes one identifier. It does not hide the account graph, because
+the server needs the recipient to deliver the message. The mixnet's real win here
+is against the network, not against the server. To remove the server-side social
+graph, run [end to end](/developers/concepts/exit-security) so that no untrusted
+server exists.
+
+## Where to go next
+
+- [Choose a Defence](/network/threat-model/choose-config) picks a configuration for your case.
+- [The two-layer model](/network/threat-model/two-layer-model) explains why transport alone is never the whole answer.
+- [Packet Mixing](/network/deep-dives/mixing) shows how per-hop delays and cover traffic break timing correlation.
+
+---
+title: Web Browsing
+description: A worked example: browsing a website or API. The site is the primary adversary, and the dominant vector is content, the URLs and queries you request.
+url: https://nym.com/docs/network/threat-model/examples/browsing
+---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const unprotected = getBrowsingScenario('unprotected')
+export const dvpnMulti = getBrowsingScenario('dvpn-multi')
+
+# Web Browsing
+
+Browsing a website means fetching pages by name. Each request carries a URL and
+often a query string. The site on the other end is the party you talk to directly,
+so it is the primary adversary.
+
+## What must not leak
+
+The secret here is not your identity alone. It is your browsing history: the set of
+pages and queries, tied to a person. That history must not be attributable, and the
+requests must not group into one profile.
+
+## The threat model
+
+The primary adversary is **L2, the website or API**. The dominant vector is **V3
+content**: the URL and the query are the request, so the site reads which pages you
+fetch. Hiding your IP does not change that.
+
+Browsing also faces an application-specific public observer.
+
+| L1 | Public-record observer |
+|---|---|
+| Vantage | Reads public DNS and Certificate Transparency logs. |
+| Sees | Which domains and subdomains exist, and the certificates issued for them. |
+| Cannot see | Which user visits a site, which pages they request, or request content. |
+
+The invariants a browser must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. History not attributable** | The set of URLs and queries must not link to a person. | P1, plus P2, plus V3 content discipline: the URLs name the content. |
+| **B. Requests not groupable** | The site must not group requests into one profile. | P2 exit rotation, plus V3 request-shape discipline. |
+
+## Unprotected: the site reads everything
+
+The browser talks to the website directly. The site sees the client IP, every URL
+and query, and the full request pattern. The history is attributed with no effort.
+
+## Protected: rotate exits, and the site still reads the URLs
+
+Distinct WireGuard peers at several exits split requests across exit IPs.
+Per-request rotation unlinks requests at the transport layer, and browsing stays
+fast.
+
+The verdicts show **P1 yes** and **P2 yes** at the site, and that is only half the
+story. IP-hiding and exit rotation do not touch the dominant vector. The site still
+reads the exact URL and query of every request, because the content is the request.
+A login cookie or a personalised query re-links the session regardless of exit.
+
+Transport hides who you are from the site. It does not hide what you fetch. Protecting
+the browsing history itself is a hygiene-layer job: discipline the request shape and
+strip the identifiers, work that no configuration does for you.
+
+## Where to go next
+
+- [Choose a Defence](/network/threat-model/choose-config) picks a configuration for your case.
+- [The two-layer model](/network/threat-model/two-layer-model) explains why transport alone is never the whole answer.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy) shows what a Sphinx packet exposes and hides.
+
+---
+title: Packet Anatomy
+description: How an application message is chunked and framed for transport: fixed-size Sphinx packets in the mixnet versus variable-size WireGuard packets in dVPN mode, and what each choice costs in goodput.
+url: https://nym.com/docs/network/deep-dives/packet-anatomy
+---
+
+export const PacketAnatomy = dynamic(
+  () => import('../../../components/threat-model/PacketAnatomy').then((m) => m.PacketAnatomy),
+  { ssr: false },
+)
+
+# Packet Anatomy
+
+Before a message reaches its destination it is chunked and wrapped in transport framing, and the two transports do this differently. The mixnet cuts every message into fixed-size 2000-byte Sphinx packets and pads the last one, so every packet looks identical on the wire. dVPN mode wraps the message in WireGuard headers up to the link MTU, so packet size tracks the payload. The trade-off shows up as goodput: constant-size packets are unlinkable but waste bytes on padding and per-packet framing. Variable-size packets are efficient but leak size and timing.
+
+Pick a payload to see how it fragments and what the framing costs.
+
+## Sphinx framing (mixnet)
+
+Every Sphinx packet is a constant 2000 bytes. It holds a routing header, the IP packet router framing, a payload chunk, and padding to fill the fixed size. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
+
+## WireGuard framing (dVPN)
+
+dVPN mode uses two nested WireGuard headers (one per hop) plus the remaining payload, up to the MTU, with no padding. Fewer, larger packets mean higher goodput, but the size and inter-packet timing pass through unchanged, which is exactly what a network observer correlates.
+
+## Related
+
+- [Packet mixing](/network/deep-dives/mixing): how those fixed-size packets are delayed and reordered across mix layers.
+- [dVPN cover and crowding](/network/deep-dives/dvpn-cover): how variable-size dVPN traffic still hides who is talking to whom.
+- [Mixnet mode](/network/mixnet-mode/mixing) and [dVPN mode](/network/dvpn-mode) for the mode overviews.
+- [Two-layer model](/network/threat-model/two-layer-model) for where framing sits in the wider threat model.
+
+---
+title: Packet Mixing
+description: How the mixnet delays and reorders fixed-size packets across three mix layers, adding a per-layer random delay and cover traffic so output order cannot be tied to input order.
+url: https://nym.com/docs/network/deep-dives/mixing
+---
+
+export const MixnetDeepDive = dynamic(
+  () => import('../../../components/threat-model/MixnetDeepDive').then((m) => m.MixnetDeepDive),
+  { ssr: false },
+)
+
+# Packet Mixing
+
+Mixing is what separates the mixnet from a fast tunnel. Each packet takes an independent random route through three layers of mix nodes. Every mix node then holds each packet for an independent random delay (the Poisson mixing of Loopix) before forwarding it. Because delays are independent, the order packets leave a layer no longer matches the order they arrived, so an observer cannot follow a packet through. Cover traffic fills the gaps so the real packets are not the only thing moving.
+
+The cost is latency. Every hop adds geographic propagation, and each of the three mix layers adds its own mixing delay on top. Use the controls to expand the mix layers, change how many nodes sit in each layer, and see the latency budget update. Switch to the dVPN contrast to see the same path with the mixing removed: straight through, order and timing preserved.
+
+## Related
+
+- [Mixnet mode: mixing](/network/mixnet-mode/mixing) for the conceptual overview.
+- [Packet anatomy](/network/deep-dives/packet-anatomy): how a message becomes the fixed-size packets that get mixed here.
+- [dVPN cover and crowding](/network/deep-dives/dvpn-cover): the contrasting mode with no mixing delay.
+- [Threat actors](/network/threat-model/actors) and the [two-layer model](/network/threat-model/two-layer-model) for what mixing does and does not defend against.
+
+---
+title: dVPN Cover and Crowding
+description: How many clients sharing a small set of entry gateways and one exit gateway blur who is talking to whom: the destination sees every request from one exit IP but cannot bind any of them to a client.
+url: https://nym.com/docs/network/deep-dives/dvpn-cover
+---
+
+export const DvpnCoverTraffic = dynamic(
+  () => import('../../../components/threat-model/DvpnCoverTraffic').then((m) => m.DvpnCoverTraffic),
+  { ssr: false },
+)
+
+# dVPN Cover and Crowding
+
+dVPN mode does not delay or reorder packets, so it cannot hide timing. What it does hide is the client IP. Many clients route through a small set of entry gateways and share a single exit gateway. So the destination sees every request arriving from one exit IP. It cannot tell which client sent which request. The more clients crowd behind that exit, the larger the anonymity set. That makes it harder to pin any request on any one of them.
+
+Move the slider to add clients and watch the anonymity set grow. The observer log shows what the destination records: a stream of requests from one IP, with the client field it can never fill in. Timing is still exposed, so this crowding is a location defence, not a full one; pair it with mixnet mode when timing matters.
+
+## Related
+
+- [dVPN mode](/network/dvpn-mode) for the mode overview.
+- [Packet mixing](/network/deep-dives/mixing): the mixnet defence that also protects timing.
+- [Packet anatomy](/network/deep-dives/packet-anatomy): the WireGuard framing this mode uses.
+- [Threat actors](/network/threat-model/actors) and the [two-layer model](/network/threat-model/two-layer-model) for what the destination can and cannot infer.
+
+---
+title: SURBs vs Tor hidden services
+description: Why Nym has no Tor-style onion services yet: single-use SURBs cannot stand in for reusable onion-service descriptors without risking the hidden service's location.
+url: https://nym.com/docs/network/deep-dives/hidden-services
+---
+
+# SURBs vs Tor hidden services
+
+Tor offers onion services: servers that accept connections without revealing their network location. Nym has no equivalent yet. This page explains why. The short answer is an asymmetry between Tor's reusable descriptors and Nym's single-use reply blocks. It is a set of open research problems, not a claim that Nym is weaker than Tor. The mixnet's stronger unlinkability model is exactly what makes the naive port hard.
+
+A hidden service must hide its location from everyone, including the directory infrastructure that helps clients reach it. In Nym, the natural way to build that directory would force the service into a traffic pattern. That pattern can leak the very location it must protect.
+
+## How Tor onion services work
+
+A Tor onion service reaches clients through a small, reusable descriptor.
+
+1. The service has a long-term onion address.
+2. A client that knows the address can locate the directory entry (the HSDir) that holds the service's descriptor.
+3. The descriptor lists introduction points and key material. The client uses these to open a connection to the service.
+4. The service republishes its descriptor whenever it rotates introduction points, typically every few hours.
+
+The key property is reusability. One descriptor serves an arbitrary number of clients, an arbitrary number of times, until the service publishes a new one. The directory holds a single small object, and every client reads the same copy.
+
+## The Nym analogy: SURBs
+
+The closest Nym primitive to a descriptor is the [SURB](/network/mixnet-mode/anonymous-replies), the single-use reply block. A SURB is a pre-computed, layered return path. It lets a sender route a payload back to a party without learning that party's route, its gateway, or its location. In that sense a SURB plays the role of Tor's "introduction points plus key material". It is the token that lets a client reach a hidden party blind.
+
+Only the hidden service can build these SURBs. Constructing a return path requires knowledge of the service's location and its gateway. So the service itself must generate every SURB and supply them to whatever directory hands them out.
+
+## Where the analogy breaks: single-use vs reusable
+
+This is the crux. Tor descriptors are reusable. SURBs are single-use, as the name says.
+
+In Tor, every client downloads the same descriptor. In Nym, every client needs its own fresh SURB, because each SURB is consumed by exactly one reply. A directory cannot serve one static object to everyone. It must dispense distinct, non-reusable tokens, one per client request.
+
+That difference drives everything below.
+
+```
+Tor: one reusable descriptor
+                                        ┌─────────┐
+   hidden service ── publishes 1x ───▶  │  HSDir  │
+                                        └────┬────┘
+                          same copy served to many clients
+                       ┌───────────┼───────────┐
+                       ▼           ▼           ▼
+                    client A    client B    client C
+
+Nym: single-use SURBs, one per client
+                                        ┌──────────┐
+   hidden service ── pushes batches ──▶ │  "HSDir" │
+     (continuous, must replenish)       └────┬─────┘
+                         distinct SURB consumed per client
+                       ┌───────────┼───────────┐
+                       ▼           ▼           ▼
+                    client A    client B    client C
+```
+
+## Why the naive port leaks location
+
+### Volume and burstiness
+
+A reusable descriptor is small and published rarely. A SURB directory must instead hold a stock of single-use SURBs, and the service must keep topping it up as clients consume them. A popular service replenishes often. This produces frequent, bursty uploads from the service to the directory.
+
+That traffic pattern is a fingerprint. Frequent batch uploads with a characteristic shape can be end-to-end correlatable, which can reveal the service's network location. The pressure is consumption-driven. It exists whenever the service is busy, independent of how long any individual SURB stays valid.
+
+For background on what an observer can and cannot correlate, see the [threat actors](/network/threat-model/actors) reference and the [two-layer model](/network/threat-model/two-layer-model).
+
+### Time-bounded validity and the refresh window
+
+SURBs are also time-bounded. They are built against the network's current key-rotation cycle and expire when that cycle turns over. So the service must refresh its provisioned SURBs periodically, regardless of consumption. See [epochs](/network/reference/epochs) for how the network schedules these cycles and how SURB validity is tied to them.
+
+Each refresh has a narrow window. The NymAPI announces the next topology before it comes into force. The service must generate and push its new SURBs inside the gap between announcement and activation. A narrow, recurring, high-volume upload is easier to spot than a steady trickle, which sharpens the fingerprinting concern above.
+
+### No directory infrastructure today
+
+Even setting the above aside, Nym has no HSDir analogue. There is no DHT or directory layer for clients to look up and fetch a hidden service's contact tokens. Building one is a prerequisite, not a detail.
+
+## Two problems specific to anonymous directories
+
+A SURB directory serving anonymous clients raises problems that Tor never has to solve, precisely because Tor's descriptors are reusable.
+
+### Rate-limiting anonymous clients
+
+A malicious client can drain a service by requesting its SURBs over and over. In Tor this cannot happen: one descriptor serves everyone, so there is nothing to exhaust. In Nym the directory dispenses a finite, single-use stock. It also must not learn who is asking, because clients are anonymous. So it cannot tell whether one client is burning through the whole stock. How to rate-limit anonymous requesters here is an open question.
+
+### SURB-depletion denial of service
+
+Suppose no one is malicious. The stock still runs out as legitimate clients consume it. When it is empty, no new client can connect. The service needs some way to learn that the directory is low and to send more. That feedback loop is itself an attack surface. An attacker can deliberately deplete the stock to force the service to push a fresh batch. It then watches for the resulting upload pattern to locate the service. The refill mechanism that keeps the service reachable is the same mechanism that can be provoked to expose it.
+
+## Why the obvious shortcut does not apply
+
+One might hope to sidestep SURB generation by letting a set of authorities learn which gateway serves each client. Systems like Pudding do exactly this, but for a different problem: contact discovery, not server-location privacy. Knowing the client-to-gateway mapping lets authorities generate the needed SURBs on a client's behalf.
+
+This is a non-starter for hidden services. The whole point of a hidden service is to stay hidden from everyone, including any such authorities. A design that requires some party to know the service's gateway defeats the goal before it starts.
+
+## Summary
+
+Adding Tor-style hidden services to Nym is not trivial. The difficulty is not a weakness in Nym. It follows from the mixnet's design.
+
+- Tor descriptors are reusable. One small object serves every client for hours.
+- Nym SURBs are single-use. Each client needs its own, and only the service can make them.
+- Serving them from a directory forces frequent, bursty uploads, which are fingerprintable and can leak the service's location.
+- Time-bounded validity adds a narrow, recurring refresh window that sharpens that risk.
+- Anonymous directories also face unsolved rate-limiting and SURB-depletion denial-of-service problems.
+- The authority-assisted shortcut used for contact discovery cannot apply, because it would hand the service's location to a third party.
+
+Solving these problems is possible in principle. It requires real R&D, not a straight port of Tor's design.
+
+---
 title: dVPN Mode
 description: How Nym's decentralised VPN mode routes traffic through two independent gateways, splitting trust so no single operator sees both your identity and destination.
 url: https://nym.com/docs/network/dvpn-mode
@@ -235,7 +984,16 @@ url: https://nym.com/docs/network/dvpn-mode
 
 # dVPN Mode
 
-dVPN mode is a 2-hop decentralised VPN available through [NymVPN](https://nymvpn.com). Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const dvpnScenario = getGenericScenario('dvpn-single')
+
+dVPN mode is a [transport](/network/threat-model/two-layer-model) choice: a 2-hop decentralised VPN. Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
+
+It hides the client IP from the destination at line rate. Unlike [mixnet mode](/network/mixnet-mode), it adds no in-transit timing protection, so it does nothing against a network observer watching the traffic pattern. dVPN is available both through the [NymVPN](https://nymvpn.com) application and to developers as a datapath through [`nym-smoldvpn`](/developers/smoldvpn), a userspace WireGuard library.
 
 ## How it works
 
@@ -245,9 +1003,13 @@ User --> Entry Gateway --> Exit Gateway --> Internet
 
 Your device wraps each packet in two layers of encryption, one per gateway. The Entry Gateway strips the outer layer and forwards a packet it cannot read; the Exit Gateway strips the inner layer and sends the plaintext request to the destination. Responses follow the reverse path. The Entry Gateway therefore knows your IP address but not the destination, while the Exit Gateway knows the destination but not the sender.
 
-## Privacy guarantees
+## What it protects, and what it does not
 
-dVPN mode hides your IP from destination servers and splits trust across two operators. It does not add timing obfuscation or cover traffic. Packets are forwarded immediately, so an adversary watching both gateways could still correlate timing to link your requests. If you need protection against traffic analysis, see [Mixnet Mode](/network/mixnet-mode).
+Against the [destination](/network/threat-model/actors#actor-L2), dVPN hides the client IP and splits trust across two operators, so the destination sees the exit gateway's IP rather than yours. A fixed exit is a linking key: within a session requests stay grouped, so rotating the exit per request is what restores request unlinkability at the destination.
+
+Against a network observer, dVPN offers nothing in transit. It adds no timing obfuscation and no cover traffic. Packets are forwarded immediately, so both the [local](/network/threat-model/actors#actor-L3L) and [global](/network/threat-model/actors#actor-L3G) observer can fingerprint activity and correlate timing across the two gateways. If you need protection against traffic analysis, that is what [mixnet mode](/network/mixnet-mode) provides.
+
+Neither transport closes the timing or content vectors the destination sees on its own. That is a separate layer: [baseline hygiene](/developers/swizzle) disciplines the requests themselves. See [the two-layer model](/network/threat-model/two-layer-model) for the split, and [choose a defence](/network/threat-model/choose-config) to pick the configuration for your threat.
 
 ## Performance
 
@@ -380,7 +1142,16 @@ url: https://nym.com/docs/network/mixnet-mode
 
 # Mixnet Mode
 
-Mixnet mode routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const mixScenario = getGenericScenario('mixnet')
+
+Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+
+Its distinctive strength is against network observers. Mixing delays, Poisson sending, and cover traffic hide the traffic pattern in transit, which a plain [dVPN](/network/dvpn-mode) cannot do. Against the destination it is equivalent to dVPN: both hide the client IP, and neither closes the timing or content vectors that the destination sees on its own.
 
 ## How it works
 
@@ -390,13 +1161,21 @@ User --> Entry --> Mix L1 --> Mix L2 --> Mix L3 --> Exit --> Internet
                   delay       delay       delay
 ```
 
-Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic) - dummy packets cryptographically indistinguishable from real ones - so an observer sees a constant stream of identical packets regardless of whether any real communication is taking place.
+Each Mix Node strips one layer of [Sphinx](/network/cryptography/sphinx) encryption to learn the next hop, holds the packet for a random delay, then forwards it. No node ever sees both the origin and the final destination. The client also continuously sends [cover traffic](/network/mixnet-mode/cover-traffic), dummy packets cryptographically indistinguishable from real ones, so an observer sees a constant stream of identical packets regardless of whether any real communication is taking place.
 
-## Privacy properties
+## What it protects against network observers
+
+Against the [local](/network/threat-model/actors#actor-L3L) and [global](/network/threat-model/actors#actor-L3G) network observer, the mixnet is what separates it from a dVPN:
 
 - **Unlinkability**: the random delays and reordering at each Mix Node destroy the timing signal an observer would need to correlate incoming and outgoing packets, or to connect successive packets from the same user. See [Packet Mixing](/network/mixnet-mode/mixing).
 - **Unobservability**: because cover traffic is constant, an observer cannot determine when a user is active or what fraction of the traffic is real. See [Cover Traffic](/network/mixnet-mode/cover-traffic).
 - **Resistance to traffic analysis**: uniform Sphinx packet sizes prevent content-type fingerprinting, and per-packet routing eliminates the long-lived circuits that make other anonymity networks susceptible to end-to-end correlation. See [Traffic Flow](/network/mixnet-mode/traffic-flow).
+
+## What it does not close at the destination
+
+Against the [destination](/network/threat-model/actors#actor-L2), mixnet mode behaves like a dVPN. It hides the client IP, so the destination sees the exit gateway's IP rather than yours. It does not, on its own, close the timing or content vectors the destination observes: the connection arriving from the exit gateway is an ordinary end-to-end connection, so every request and its full content arrive together. A fixed exit gateway also behaves like a single dVPN exit, linkable at the destination within a session.
+
+Closing those vectors is a separate layer: [baseline hygiene](/developers/swizzle) disciplines the timing and shape of the requests themselves, independent of transport. See [the two-layer model](/network/threat-model/two-layer-model) for why transport and hygiene are separate problems.
 
 ## Performance
 
@@ -1180,7 +1959,7 @@ Because it operates at the application layer, the NR:
 - Can enforce allow/deny lists on destination hosts and ports
 - Sees the destination hostname and port, but not the contents if TLS is used
 
-**Used by:** the [SDK's SOCKS client](/developers/rust/mixnet), [standalone SOCKS5 client](/developers/clients/socks5), and [mixFetch](/developers/mix-fetch) (which wraps SOCKS requests in a browser-friendly `fetch` API).
+**Used by:** the [SDK's SOCKS5 module](/developers/rust/socks5) and the [standalone SOCKS5 client](/developers/clients/socks5).
 
 ## IP Packet Router
 
@@ -1205,7 +1984,7 @@ Because it operates at the IP layer, the IPR:
 
 In both services, traffic between the Exit Gateway and the destination travels over the public internet, exactly as it would from any other server. The mixnet protects sender anonymity (the destination sees the gateway's IP, not yours), but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher to protect payload confidentiality, just as you would on a direct connection.
 
-**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), and [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK).
+**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK), and the browser `mix-*` packages built on `smolmix`: [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket).
 
 ## Comparison
 
@@ -1216,7 +1995,7 @@ In both services, traffic between the Exit Gateway and the destination travels o
 | **DNS** | Resolved by the NR | Client resolves its own |
 | **Client gets** | Proxied connections | An allocated IP address |
 | **Connection model** | Per-request | Persistent tunnel |
-| **Used by** | SDK SOCKS client, mixFetch | NymVPN (anonymous mode), smolmix |
+| **Used by** | SDK SOCKS5 module, standalone SOCKS5 client | NymVPN (anonymous mode), smolmix, mix-* packages |
 
 ## Trust model
 
@@ -1383,9 +2162,36 @@ Likewise any spamming, trolling, flaming, baiting or other attention-stealing be
 
 ---
 title: Overview
-description: Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK.
+description: Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, nym-smoldvpn, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK.
 url: https://nym.com/docs/developers
 ---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const archE2E = getGenericScenario('end-to-end')
+export const archProxy = {
+  ...getGenericScenario('mixnet'),
+  topology: {
+    nodes: [
+      { id: 'c', kind: 'client', col: 0 },
+      { id: 'e', kind: 'entry', col: 1 },
+      { id: 'm1', kind: 'mix', col: 2 },
+      { id: 'm2', kind: 'mix', col: 3 },
+      { id: 'm3', kind: 'mix', col: 4 },
+      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW', components: ['Network Requester (NR)', 'IP Packet Router (IPR)'] },
+      { id: 'd', kind: 'destination', col: 6 },
+    ],
+    routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
+  },
+}
+export const archDvpn = getGenericScenario('dvpn-single')
+export const archBrowser = {
+  ...getGenericScenario('mixnet'),
+  nodeLabels: { client: 'Browser + WASM client' },
+}
 
 # Overview
 
@@ -1396,14 +2202,18 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 
 The table below maps those two answers to a package.
 
+**Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
+
 ## Choosing a package
 
 | Runtime | End-to-end (both sides run Nym) | Proxy (exit to clearnet) |
 |---|---|---|
-| **Native Rust** (desktop / CLI / server) | [`nym-sdk`](/developers/rust): Mixnet, Stream, Client Pool | [`smolmix`](/developers/smolmix): `TcpStream` / `UdpSocket` · [`nym-sdk` SOCKS](/developers/rust) |
+| **Native Rust** (desktop / CLI / server) | [`nym-sdk`](/developers/rust): Mixnet, Stream, Client Pool | [`smolmix`](/developers/smolmix): `TcpStream` / `UdpSocket` · [`nym-sdk` SOCKS5](/developers/rust/socks5) · [`nym-smoldvpn`](/developers/smoldvpn): WireGuard dVPN for bulk data, non-mixnet |
 | **Browser / WebView** (JS + WASM) | [TypeScript SDK](/developers/typescript): `@nymproject/sdk` raw messaging | [`mix-fetch`](/developers/mix-fetch) HTTP/S · [`mix-dns`](/developers/mix-dns) DNS · [`mix-websocket`](/developers/mix-websocket) WS/WSS |
 
 **Mobile is a host, not a runtime.** The same phone can run either row. Compile the Rust SDK to a native library (`uniffi` plus [`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) for an iOS XCFramework, or [`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) for Android `jniLibs/`), or load the WASM packages inside a WebView (Capacitor, Cordova, Ionic, WKWebView, Android WebView). The SDK ships [FFI bindings](/developers/rust/ffi) for Go and C/C++ only; for Swift or Kotlin you generate your own from the [`sdk/ffi/shared`](https://github.com/nymtech/nym/tree/develop/sdk/ffi) uniffi crate. The WebView path needs no Nym-specific native code. On Android the native path has a [TLS bootstrap gotcha](/developers/rust/mixnet/troubleshooting#android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error).
+
+**Throughput over the mixnet, threat model permitting.** To move large amounts of data faster than the Sphinx mixnet, [`nym-smoldvpn`](/developers/smoldvpn) tunnels your tokio traffic over a userspace WireGuard dVPN (1-/2-hop, exit to clearnet) instead. This trades the mixnet's metadata protection for WireGuard-level throughput, so choose it only where that trade suits your threat model. A general integration guide is coming soon.
 
 ## End-to-end or proxy
 
@@ -1411,17 +2221,15 @@ The runtime axis is about where your code runs: a native process has raw sockets
 
 **End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
 
-![](/images/developers/nym-arch-client-to-client.png)
-
 **Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
 
-![](/images/developers/nym-arch-ip-routing.png)
+**dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
 
 Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
 
-![](/images/developers/nym-browser-arch.png)
+The dVPN path is native-only: [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build. Its WireGuard datapath (`boringtun`) and userspace IP stack run on the tokio runtime and compile for native targets only, so a browser or WebView cannot load it. In those runtimes, use the mixnet-based mix-* packages instead.
 
 ## Packages
 
@@ -1431,6 +2239,7 @@ In a browser or WebView, your app talks to that WASM client through JS bindings 
 |---|---|
 | [`nym-sdk`](/developers/rust) | End-to-end mixnet messaging, `AsyncRead`/`AsyncWrite` byte streams, client pooling. Start with the [Tour](/developers/rust/tour). |
 | [`smolmix`](/developers/smolmix) | `TcpStream` and `UdpSocket` over the mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem. |
+| [`nym-smoldvpn`](/developers/smoldvpn) | A userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients. |
 
 ### TypeScript
 
@@ -1454,9 +2263,36 @@ The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)
 
 ---
 title: Overview
-description: Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK.
+description: Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, nym-smoldvpn, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK.
 url: https://nym.com/docs/developers
 ---
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const archE2E = getGenericScenario('end-to-end')
+export const archProxy = {
+  ...getGenericScenario('mixnet'),
+  topology: {
+    nodes: [
+      { id: 'c', kind: 'client', col: 0 },
+      { id: 'e', kind: 'entry', col: 1 },
+      { id: 'm1', kind: 'mix', col: 2 },
+      { id: 'm2', kind: 'mix', col: 3 },
+      { id: 'm3', kind: 'mix', col: 4 },
+      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW', components: ['Network Requester (NR)', 'IP Packet Router (IPR)'] },
+      { id: 'd', kind: 'destination', col: 6 },
+    ],
+    routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
+  },
+}
+export const archDvpn = getGenericScenario('dvpn-single')
+export const archBrowser = {
+  ...getGenericScenario('mixnet'),
+  nodeLabels: { client: 'Browser + WASM client' },
+}
 
 # Overview
 
@@ -1467,14 +2303,18 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 
 The table below maps those two answers to a package.
 
+**Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
+
 ## Choosing a package
 
 | Runtime | End-to-end (both sides run Nym) | Proxy (exit to clearnet) |
 |---|---|---|
-| **Native Rust** (desktop / CLI / server) | [`nym-sdk`](/developers/rust): Mixnet, Stream, Client Pool | [`smolmix`](/developers/smolmix): `TcpStream` / `UdpSocket` · [`nym-sdk` SOCKS](/developers/rust) |
+| **Native Rust** (desktop / CLI / server) | [`nym-sdk`](/developers/rust): Mixnet, Stream, Client Pool | [`smolmix`](/developers/smolmix): `TcpStream` / `UdpSocket` · [`nym-sdk` SOCKS5](/developers/rust/socks5) · [`nym-smoldvpn`](/developers/smoldvpn): WireGuard dVPN for bulk data, non-mixnet |
 | **Browser / WebView** (JS + WASM) | [TypeScript SDK](/developers/typescript): `@nymproject/sdk` raw messaging | [`mix-fetch`](/developers/mix-fetch) HTTP/S · [`mix-dns`](/developers/mix-dns) DNS · [`mix-websocket`](/developers/mix-websocket) WS/WSS |
 
 **Mobile is a host, not a runtime.** The same phone can run either row. Compile the Rust SDK to a native library (`uniffi` plus [`cargo-swift`](https://github.com/antoniusnaumann/cargo-swift) for an iOS XCFramework, or [`cargo-ndk`](https://github.com/bbqsrc/cargo-ndk) for Android `jniLibs/`), or load the WASM packages inside a WebView (Capacitor, Cordova, Ionic, WKWebView, Android WebView). The SDK ships [FFI bindings](/developers/rust/ffi) for Go and C/C++ only; for Swift or Kotlin you generate your own from the [`sdk/ffi/shared`](https://github.com/nymtech/nym/tree/develop/sdk/ffi) uniffi crate. The WebView path needs no Nym-specific native code. On Android the native path has a [TLS bootstrap gotcha](/developers/rust/mixnet/troubleshooting#android-mixnet-bootstrap-fails-with-a-certificate-revoked--ocsp-error).
+
+**Throughput over the mixnet, threat model permitting.** To move large amounts of data faster than the Sphinx mixnet, [`nym-smoldvpn`](/developers/smoldvpn) tunnels your tokio traffic over a userspace WireGuard dVPN (1-/2-hop, exit to clearnet) instead. This trades the mixnet's metadata protection for WireGuard-level throughput, so choose it only where that trade suits your threat model. A general integration guide is coming soon.
 
 ## End-to-end or proxy
 
@@ -1482,17 +2322,15 @@ The runtime axis is about where your code runs: a native process has raw sockets
 
 **End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
 
-![](/images/developers/nym-arch-client-to-client.png)
-
 **Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
 
-![](/images/developers/nym-arch-ip-routing.png)
+**dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
 
 Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
 
-![](/images/developers/nym-browser-arch.png)
+The dVPN path is native-only: [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build. Its WireGuard datapath (`boringtun`) and userspace IP stack run on the tokio runtime and compile for native targets only, so a browser or WebView cannot load it. In those runtimes, use the mixnet-based mix-* packages instead.
 
 ## Packages
 
@@ -1502,6 +2340,7 @@ In a browser or WebView, your app talks to that WASM client through JS bindings 
 |---|---|
 | [`nym-sdk`](/developers/rust) | End-to-end mixnet messaging, `AsyncRead`/`AsyncWrite` byte streams, client pooling. Start with the [Tour](/developers/rust/tour). |
 | [`smolmix`](/developers/smolmix) | `TcpStream` and `UdpSocket` over the mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem. |
+| [`nym-smoldvpn`](/developers/smoldvpn) | A userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients. |
 
 ### TypeScript
 
@@ -1525,70 +2364,78 @@ The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)
 
 ---
 title: Exit Security: What the Mixnet Protects and What It Doesn't
-description: The canonical security model for traffic that leaves the Nym mixnet at an IPR exit gateway. Applies to smolmix, mix-tunnel, mix-fetch, mix-dns, and mix-websocket alike.
+description: The security model for traffic that exits the Nym Mixnet at an Exit Gateway, via the IP Packet Router or the SOCKS-based Network Requester, and how it changes for end-to-end traffic that never exits. Applies to smolmix, the SOCKS5 module, mix-tunnel, mix-fetch, mix-dns, and mix-websocket.
 url: https://nym.com/docs/developers/concepts/exit-security
 ---
 
 # Exit security
 
-Every tool that reaches an external service through the Nym mixnet shares the same security model, whether it's the Rust [`smolmix`](/developers/smolmix) crate or the mix-* packages built on [`mix-tunnel`](/developers/mix-tunnel) ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)). They all exit the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, so they inherit the same properties and the same single caveat. This page is the canonical statement of that model; the package pages link here rather than restating it.
+Every tool that reaches an external service through the Nym Mixnet shares the same exit security model, whether it's the Rust [`smolmix`](/developers/smolmix) crate, the [SOCKS5 module](/developers/rust/socks5), or the mix-* packages built on [`mix-tunnel`](/developers/mix-tunnel) ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)). They leave the Mixnet at an [Exit Gateway](/network/infrastructure/exit-services), either through the [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) (which forwards raw IP packets) or the SOCKS-based [Network Requester](/network/infrastructure/exit-services#network-requester) (which makes the request from a SOCKS stream), so they share the same properties and the same caveat. Tools where both ends run a Nym client ([`nym-sdk`](/developers/rust), the [TypeScript SDK](/developers/typescript)) never exit the Mixnet at all; the [end-to-end case](#proxy-mode-or-end-to-end) is covered below. This page is the canonical statement of the model; the package pages link here rather than restating it.
 
 ## The one-sentence version
 
-The mixnet hides **who** you are from the destination and **where** you're going from the network, but the exit gateway sees your **destination** and any payload you didn't encrypt yourself.
+In **proxy mode** the Mixnet hides **who** you are from the destination and **where** you're going from the network, but the Exit Gateway sees your **destination** and any payload you didn't encrypt yourself. In **end-to-end** mode there is no Exit Gateway: traffic stays Sphinx-encrypted the whole way.
 
 ## Proxy mode or end-to-end?
 
-This page is about **proxy mode**: your traffic leaves the mixnet at an IPR exit and continues to a third-party server over clearnet, where the security trade-offs apply.
+Most of this page is about **proxy mode**: your traffic leaves the Mixnet at an Exit Gateway, via either the IP Packet Router (raw IP packets) or the SOCKS-based Network Requester (which sees the destination hostname), and continues to a third-party server over clearnet, where the security trade-offs apply.
 
-If both ends run a Nym client (**end-to-end**), traffic never exits the mixnet. It stays Sphinx-encrypted from your client to the other client, there is no IPR, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
+If both ends run a Nym client (**end-to-end**), traffic never exits the Mixnet. It stays Sphinx-encrypted from your client to the other client, there is no Exit Gateway, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the Mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the Mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
 
 ## What each hop sees
 
+**Proxy mode**: only your side runs Nym, and traffic exits to a third party:
+
 ```text
- you
-  │  Sphinx
-  ▼
- entry gateway
-  │  Sphinx
-  ▼
- 3 mix layers
-  │  Sphinx
-  ▼
- IPR exit gateway
-  │  plain IP (Sphinx removed here)
-  ▼
- destination
+you → entry gateway → 3 mix layers → exit gateway → destination
+└─────────────── Sphinx-encrypted ──────────────┘└─ clearnet ─┘
+                                     exit gateway 
+				     strips Sphinx 
+				     here
 ```
+
+**End-to-end**: both sides run Nym, and traffic never leaves the Mixnet:
+
+```text
+you → entry gateway → 3 mix layers → peer's gateway → peer Nym client
+└────────────────── Sphinx-encrypted the whole way ─────────────────┘
+```
+
+The table below is the proxy-mode path. In end-to-end mode there is no exit and no clearnet hop, so only the first two rows apply and the far end is another Nym client rather than a remote host.
 
 | Segment | Mixnet encryption | What's visible |
 |---|---|---|
-| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
-| Inside the mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
-| Exit gateway (IPR) | Sphinx removed, raw IP packet exposed | IPR sees destination IP + port. Payload depends on your application layer (see below). |
-| IPR → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the IPR's IP, not yours |
+| Your machine → Mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
+| Inside the Mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
+| Exit Gateway (IPR or NR) | Sphinx removed; raw IP packet (IPR) or SOCKS request (NR) exposed | The IPR sees the destination IP and port; the NR sees the destination hostname. Either way the payload depends on your application layer (see below). |
+| Exit Gateway → remote host | None (Sphinx is Mixnet-only; your own TLS, if any, still applies) | Remote host sees the Exit Gateway's IP, not yours |
 
-The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. At the exit gateway the Sphinx layers are stripped and the original IP packet is forwarded to the destination. This is analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
+The Sphinx encryption is the **Mixnet transport layer**: it protects packets as they traverse the mix nodes. In proxy mode the Exit Gateway strips the Sphinx layers and forwards the request to the destination, analogous to how a Tor exit node or VPN endpoint unwraps its tunnel. In end-to-end mode the Sphinx layers are only removed at the receiving Nym client, so nothing is ever exposed on clearnet.
 
 ## Encrypt your own payload
 
-Because the IPR removes the Sphinx layers, whatever is inside that IP packet is visible to the exit unless you encrypted it yourself.
+Because the Exit Gateway removes the Sphinx layers, whatever is inside is visible to the exit unless you encrypted it yourself.
 
-- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It still sees the destination IP and port, but not the content. Over TLS the IPR only ever handles ciphertext bound for that destination; the bytes inside stay opaque to it.
-- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
+- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the exit. It still sees the destination, but not the content. Over TLS the exit only ever handles ciphertext bound for that destination; the bytes inside stay opaque to it.
+- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The Mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
 
 ## Trust boundaries
 
-- You trust the mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary that can observe a large fraction of the network.
-- You trust the IPR exit gateway in the same way you trust a VPN exit or Tor exit node: it can inspect your raw IP packets. The difference is that the IPR doesn't know who is sending the traffic (the mixnet hides your identity).
+- You trust the Mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary that can observe a large fraction of the network.
+- You trust the Exit Gateway in the same way you trust a VPN exit or Tor exit node: it can inspect whatever leaves the Mixnet, but it does not know who is sending the traffic (the Mixnet hides your identity). What it can inspect, and the shape of the trust, differs between the two exit types:
+  - **IP Packet Router (IPR).** A packet forwarder, like a VPN exit. It receives raw IP packets, so it sees the destination IP and port and reads any packet payload you did not encrypt. It works at the network layer and does not parse your application protocol. This is the exit used by `smolmix` and the `mix-*` packages ([`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)).
+  - **Network Requester (NR).** A SOCKS proxy that makes the request on your behalf, so your trust in it is exactly the trust you place in any SOCKS5 proxy. With the `socks5h` URL the SDK hands it the destination *hostname* (not just an IP) plus the byte stream, and the NR opens the TCP connection itself and relays bytes back. It therefore sees the destination hostname and port, and any payload you did not encrypt. This is the exit used by the [SOCKS5 module](/developers/rust/socks5) and the standalone [`nym-socks5-client`](/developers/clients/socks5).
 
-Treat the IPR exactly as you would a VPN exit or a Tor exit node: it can inspect your raw IP packets. The difference Nym adds is that the IPR doesn't know who's sending the traffic. Protect the payload with TLS or equivalent, and pin a trusted exit (`preferredIpr`) if the exit operator matters to you.
+Protect the payload with TLS or equivalent. If the exit operator matters to you, pin one; the control depends on the exit type:
 
-## What the mixnet does not protect
+- **IPR-backed clients** (`smolmix` and the `mix-*` packages): set the preferred IPR (`preferredIpr` in the TypeScript and wasm packages; see each package page for the native equivalent).
+- **SOCKS5 module** (Network Requester): pin a specific requester with `NetworkRequesterSelector::exact(...)`, or constrain the jurisdiction with `NetworkRequesterSelector::in_countries([...])`, passing either to `Socks5MixnetClient::connect_with(...)`.
 
-The mixnet operates at the **network layer**: it hides your IP and unlinks sender from receiver. It does nothing at the **application layer**, so anything you reveal in the content of your traffic is yours to manage:
+## What the Mixnet does not protect
 
-- **Application identity.** If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. The mixnet anonymises the pipe, not what you put through it.
+The Mixnet operates at the **network layer**: it hides your IP and unlinks sender from receiver. It does nothing at the **application layer**, so anything you reveal in the content of your traffic is yours to manage:
+
+- **Application identity.** If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. The Mixnet anonymises the pipe, not what you put through it.
 - **Fingerprinting.** A stable request pattern, a distinctive TLS or HTTP fingerprint, or a recognisable account correlates your traffic across sessions. `mix-fetch`'s [default headers](/developers/mix-fetch/guides#default-request-headers) reduce trivial fingerprinting but do not make you indistinguishable from a real browser.
 
 Separately, the network-layer guarantee itself is not absolute:
@@ -1599,21 +2446,22 @@ If you need anonymity at the application layer too, design for it explicitly: fr
 
 ## Comparison with other privacy tools
 
-| | Nym (mixnet) | Tor | VPN |
+| | Nym (Mixnet) | Tor | VPN |
 |---|---|---|---|
 | **Exit node sees traffic?** | Yes (encrypt it) | Yes (encrypt it) | Yes (encrypt it) |
-| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
+| **Exit node knows sender?** | No (Mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
 | **Timing analysis resistance** | Strong with defaults (mixing, cover traffic) | Weak (low-latency) | None |
 | **UDP support** | Yes | No (TCP only) | Yes |
+
+For a fuller comparison of Nym against VPNs, Tor, I2P, and end-to-end encryption on threat-model terms, see [Nym vs other systems](/network/threat-model/comparisons).
 
 The timing-analysis rating assumes the defaults. Cover traffic and Poisson timing can be turned off to trade that resistance for latency and bandwidth, moving Nym's row toward Tor's. The named switches for this (`disableCoverTraffic` / `disablePoissonTraffic`) are specific to the browser/wasm packages ([`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it); the native `smolmix` crate does not expose them by those names. The UDP row reflects a design difference, not a ranking: Tor is TCP-only by design, while the Nym IPR routes raw IP.
 
 ## Read more
 
-The package pages add the parts specific to their transport (where TLS terminates, what the resolver sees, WSS vs `ws://`):
-
-- [Exit Gateway Services](/network/infrastructure/exit-services#ip-packet-router): how the IPR allocates addresses and routes raw IP packets, and how it differs from the SOCKS-based Network Requester.
-- The per-package "Security model" section on [mix-fetch](/developers/mix-fetch/concepts#security-model), [mix-dns](/developers/mix-dns/guides#security-model), and [mix-websocket](/developers/mix-websocket/concepts#security-model) for the transport-specific exposure.
+- [The two-layer model](/network/threat-model/two-layer-model): why hiding your identity from the destination (transport) and disciplining what your requests leak (hygiene) are separate problems. This page applies that model at the exit.
+- [Exit Gateway Services](/network/infrastructure/exit-services): how the SOCKS-based Network Requester and the IP Packet Router each route traffic past the exit, and how they differ.
+- Per-transport exposure (where TLS terminates, what the resolver sees, `wss://` vs `ws://`) lives on each package's own page: [smolmix](/developers/smolmix), the [SOCKS5 module](/developers/rust/socks5), [mix-fetch](/developers/mix-fetch), [mix-dns](/developers/mix-dns), and [mix-websocket](/developers/mix-websocket).
 
 ---
 title: Nym Client Message Queue and Cover Traffic
@@ -1713,7 +2561,7 @@ The `TcpStream` type implements tokio's `AsyncRead`/`AsyncWrite` traits and `Udp
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │  Your application (TLS, HTTP, WebSocket, DNS, etc.)          │
-│       └─ smolmix::TcpStream / UdpSocket                      │
+│       └─ nym_smolmix::TcpStream / UdpSocket                      │
 │            └─ smoltcp (userspace TCP/IP)                     │
 │                 └─ Nym mixnet → IPR exit gateway → internet  │
 └──────────────────────────────────────────────────────────────┘
@@ -1738,8 +2586,8 @@ Add `smolmix` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-smolmix = "1.21.1"
-nym-bin-common = { version = "1.21.1", features = ["basic_tracing"] }
+nym-smolmix = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -1756,7 +2604,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 For unreleased changes, import directly from the repository:
 
 ```toml
-smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
+nym-smolmix = { git = "https://github.com/nymtech/nym", branch = "develop" }
 ```
 
 ## When to use smolmix
@@ -1782,7 +2630,7 @@ The full model (what each hop sees, trust boundaries, and a comparison with Tor 
 Runnable examples in [`smolmix/core/examples/`](https://github.com/nymtech/nym/tree/develop/smolmix/core/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough.
 
 ```sh
-cargo run -p smolmix --example <name>
+cargo run -p nym-smolmix --example <name>
 ```
 
 All examples accept `--ipr <ADDRESS>` to target a specific exit node (pass a `Recipient` address to `Tunnel::builder().ipr_address()`).
@@ -1800,7 +2648,195 @@ The internal stack (smoltcp reactor, device adapter, bridge task, packet flow) i
 
 ## API reference
 
-Full API documentation is available on [docs.rs/smolmix](https://docs.rs/smolmix).
+Full API documentation is available on [docs.rs/nym-smolmix](https://docs.rs/nym-smolmix).
+
+## See also
+
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message fragments into fixed-size Sphinx packets, and the goodput cost.
+- [Packet Mixing](/network/deep-dives/mixing): per-hop delays, Poisson sending, and cover traffic in the mixnet.
+
+---
+title: nym-smoldvpn: WireGuard dVPN datapath in Rust
+description: A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath. Tunnel tokio TCP, UDP, gRPC and HTTP traffic over the Nym network, with an optional QUIC bridge for DPI-blocked clients.
+url: https://nym.com/docs/developers/smoldvpn
+---
+
+# nym-smoldvpn
+
+`nym-smoldvpn` is a pure-Rust, userspace WireGuard dVPN datapath. It tunnels your application's traffic over the Nym network in 1-hop or 2-hop mode and exits to clearnet at the exit gateway. It is built on [`boringtun`](https://docs.rs/boringtun) (userspace WireGuard) and a userspace [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) IP stack, so there is no OS `tun` device and no root.
+
+The tunnel is scoped to the sockets your app opens through it, not the whole host. It hands you ordinary tokio socket surfaces: a `TcpStream` and `UdpSocket` that implement tokio's `AsyncRead`/`AsyncWrite` and `send_to`/`recv_from`, plus a `connector` you can hand to [`tonic`](https://docs.rs/tonic) or [`hyper`](https://docs.rs/hyper) to send gRPC, HTTP, or anything else through the tunnel.
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Your application (gRPC, HTTP, TLS, DNS, etc.)                   │
+│       └─ nym_smoldvpn::Tunnel (TcpStream / UdpSocket / connector)│
+│            └─ boringtun WireGuard + userspace smoltcp stack      │
+│                 └─ entry gateway → exit gateway → internet       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Traffic exits at the exit gateway. The exit IP is the gateway's, not yours. This is a per-socket datapath, not an OS-wide VPN: traffic your app sends over ordinary (non-tunnel) sockets, and the host's own DNS, still go out normally. Routing all of an app's traffic and preventing leaks around the tunnel is the integrator's responsibility.
+
+Access to the Nym network is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym), so there is no link between the payment and the network usage it unlocks. Each hop registers with its gateway separately and receives its own WireGuard identity, so there is no shared, centralised WireGuard key.
+
+## Data-plane modes
+
+Three modes, selected on the builder:
+
+| Mode | What it is |
+|---|---|
+| **one-hop** | A single WireGuard tunnel to one gateway (entry and exit are the same node). |
+| **two-hop** | Nested WireGuard tunnels: the exit tunnel's ciphertext is framed as an inner IP/UDP datagram and re-encrypted by the entry tunnel, so no single gateway sees both your identity and your destination. |
+| **QUIC-tunnelling two-hop** | The two-hop entry leg is fronted by an inline QUIC bridge, so on the wire the connection looks like ordinary QUIC rather than WireGuard over UDP. Use this for clients behind deep packet inspection that blocks plain WireGuard. QUIC only ever fronts the two-hop entry leg. |
+
+## Runtime and platform support
+
+`nym-smoldvpn` requires [`tokio`](https://docs.rs/tokio) and runs on native targets. The datapath, the `boringtun` timer pump, and the userspace IP stack all run on the tokio runtime, so the crate is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to drive it from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
+
+There is no WebAssembly build: the crate compiles the WireGuard datapath for native platforms (desktop, server, and mobile). It provides iOS/Android MTU defaults and a `SocketProtector` hook for the egress socket on Linux and Android, but ships no mobile FFI bindings of its own. For browser and WebView targets, use the mixnet-based [mix-* packages](/developers/mix-architecture) instead.
+
+## Installation
+
+Add `nym-smoldvpn` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-smoldvpn = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+`tokio` is a transitive dependency of `nym-smoldvpn`, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
+
+`nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see tunnel establishment and handshake progress. The crate logs under the `nym_smoldvpn` target, so `RUST_LOG=nym_smoldvpn=debug` gives the full datapath and handshake detail.
+
+The current published release is `{SMOLDVPN_VERSION}`.
+
+**Minimum Rust version:** {RUST_MSRV}+
+
+`nym-smoldvpn`'s API may still change between minor releases. Pin a version rather than tracking the latest, and read the changelog before bumping.
+
+### From Git
+
+For unreleased changes, import directly from the repository:
+
+```toml
+nym-smoldvpn = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
+
+## Usage
+
+The datapath is decoupled from provisioning: build a `PeerConfig` per hop (for example by mapping a [`nym-sdk-session`](https://docs.rs/nym-sdk-session) registration, the provisioning facade that issues ticketbooks, selects gateways, and registers them) and hand it to a `TunnelBuilder`:
+
+```rust
+use nym_smoldvpn::{TunnelBuilder, PeerConfig, BridgeParams};
+
+// Two-hop over direct UDP:
+let tunnel = TunnelBuilder::two_hop(entry, exit)
+    .cancellation_token(token)
+    .connect()
+    .await?;
+
+let mut tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
+// ... use `tcp` as any AsyncRead + AsyncWrite ...
+
+// gRPC through the tunnel:
+let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
+    .connect_with_connector(tunnel.connector())
+    .await?;
+
+tunnel.shutdown().await;
+
+// QUIC-bridged two-hop (front the entry leg for clients blocked from plain WireGuard/UDP):
+let tunnel = TunnelBuilder::two_hop(entry, exit)
+    .quic_bridge(BridgeParams { addresses, sni_host, id_pubkey_base64 })
+    .connect()
+    .await?;
+```
+
+Closing the tunnel cuts the traffic routed through it, so it acts as a per-socket kill-switch for the flows you opted in.
+
+## Credentials
+
+Access to the gateways is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym). Your application funds them by depositing NYM from a mnemonic, which issues the WireGuard ticketbooks it needs. Because the credentials are zero-knowledge, the payment stays unlinkable to the network usage it unlocks.
+
+Ticketbooks are issued once and cached locally, then reused on later runs, so bringing the tunnel up and down does not re-spend. New tickets are drawn only as the gateway-side bandwidth allowance is consumed.
+
+### Running it without your users holding NYM
+
+Your end-users do not have to acquire or hold NYM. Run the [`nym-credential-proxy`](https://github.com/nymtech/nym/tree/develop/nym-credential-proxy/nym-credential-proxy), an authenticated service you operate that issues zk-nyms on their behalf: your app authenticates to the proxy, the proxy issues the unlinkable credentials, and your users get Nym access without handling any tokens.
+
+## When to use nym-smoldvpn
+
+| | nym-smoldvpn | smolmix | Stream module | SOCKS client |
+|---|---|---|---|---|
+| **Substrate** | WireGuard, 1-/2-hop dVPN | 3-layer Sphinx mixnet | 3-layer Sphinx mixnet | Mixnet (via Network Requester) |
+| **Layer** | IP tunnel, tokio sockets | Transport (TCP/UDP) | Message (multiplexed streams) | TCP (SOCKS proxy) |
+| **Controls both sides?** | No (clearnet exit) | No (proxy mode) | Yes (E2E) | No (proxy mode) |
+| **API** | `TcpStream`, `UdpSocket`, `connector` | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | SOCKS4/5 protocol |
+| **Metadata protection** | Gateway-level: two-hop splits identity and destination across two operators | Mixnet-level: 3 layers plus cover traffic | Mixnet-level | Mixnet-level |
+| **Best for** | Higher-throughput, lower-latency tunnelling of tokio traffic to clearnet, with optional DPI evasion | Reaching external services from Rust with the strongest metadata protection | Peer-to-peer / E2E protocols between Nym clients | Legacy apps with SOCKS support |
+
+The honest trade-off against the mixnet options is throughput and latency versus metadata protection. WireGuard is a lighter datapath, so `nym-smoldvpn` moves bulk traffic faster than the 3-layer Sphinx mixnet, but it does not provide mixnet-grade sender anonymity. Latency scales with the number of hops: two-hop nests two WireGuard tunnels, so every packet crosses the network to the entry gateway and on to the exit, and the userspace crypto runs on each leg.
+
+## Security model
+
+WireGuard encrypts your traffic to the gateway(s). Past the **exit gateway** it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, as you would on a direct connection.
+
+In two-hop mode no single gateway links your identity to your destination: the entry gateway sees your address but only nested ciphertext, and the exit gateway sees the destination but not your address. The exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS, the exit only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
+
+## Examples
+
+Runnable end-to-end examples live in [`smoldvpn/examples/`](https://github.com/nymtech/nym/tree/develop/smoldvpn/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough. They need a funded `MNEMONIC` and a live Nym network.
+
+```sh
+MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smoldvpn --example <name>
+```
+
+Build `--release`: `boringtun`'s userspace crypto is much slower in a debug build, which dominates the through-tunnel timing. The `two-hop-ip`, `two-hop-quic`, and `zcash-sync` examples share a common option set passed after `--` (`--entry`, `--exit`, `--gateway`, `--quic`, and more) to select gateways and transport; see the example sources for the full set.
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Config export | [`smoldvpn-config.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-config.rs) | Register a single hop and export a plain WireGuard config (`Interface` + `Peer`) to stdout. Takes `--gateway <SPEC>` |
+| Bandwidth top-up | [`smoldvpn-topup.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-topup.rs) | Spend a stored ticket via the gateway `metadata` endpoint and report updated bandwidth |
+| gRPC | [`smoldvpn-grpc.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-grpc.rs) | A [`tonic`](https://docs.rs/tonic) gRPC health check through the tunnel |
+| IP relocation | [`two-hop-ip.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-ip.rs) | Query `ipinfo.io` directly, then through the tunnel, to show the public IP, org and country become the exit gateway's |
+| QUIC-bridged two-hop | [`two-hop-quic.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-quic.rs) | Like `two-hop-ip`, but the entry leg is carried over a QUIC bridge for clients blocked from plain WireGuard over UDP |
+| Zcash sync (throughput) | [`zcash-sync.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/zcash-sync.rs) | Time syncing the last N Zcash compact blocks from a public `lightwalletd` (gRPC over TLS) directly versus through the tunnel, as a throughput comparison |
+
+## Architecture
+
+The internal design (nested WireGuard datapath, the userspace IP stack, tunnel lifecycle, DNS, MTU, and the QUIC bridge transport) is documented in [`docs/design/smoldvpn/`](https://github.com/nymtech/nym/tree/develop/docs/design/smoldvpn).
+
+## API reference
+
+Full API documentation is available on [docs.rs/nym-smoldvpn](https://docs.rs/nym-smoldvpn).
+
+## See also
+
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message is framed for the mixnet (Sphinx) versus a WireGuard dVPN, and the goodput trade-off.
+- [dVPN Cover and Crowding](/network/deep-dives/dvpn-cover): how sharing exit gateways blurs who is talking to whom at the destination.
+
+---
+title: Traffic-shape hygiene (nym-swizzle)
+description: Baseline hygiene shapes the timing and content of requests so the destination learns less from the pattern of what you send. The nym-swizzle library provides the primitives. Experimental, documentation in progress.
+url: https://nym.com/docs/developers/swizzle
+---
+
+# Traffic-shape hygiene
+
+Baseline hygiene is the second layer of the
+[two-layer model](/network/threat-model/two-layer-model): transport-independent
+client discipline that shapes the **timing** and **content** of your requests,
+so the destination (L2) learns less from the pattern of what you send. It closes
+the [V2 timing and V3 content vectors](/network/threat-model/vectors) that
+transport alone cannot.
+
+**Experimental — documentation in progress.** The `nym-swizzle` library provides
+the traffic-shape primitives (request delay and range). It is unreleased, and
+this page is a stub. Full documentation and API tables will land once the crate
+is released.
 
 ---
 title: nym-sdk: Rust SDK for the Nym Mixnet
@@ -1835,6 +2871,7 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 |---|---|---|
 | [**Stream**](./rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
 | [**Mixnet**](./rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
+| [**SOCKS5**](./rust/socks5) | Local SOCKS5 proxy that routes any SOCKS-capable application through the Mixnet to a Network Requester (proxy mode, exits to clearnet). | Stable |
 | [**Client Pool**](./rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
 | [**TcpProxy**](./rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
 | [**FFI**](./rust/ffi) | Go and C/C++ bindings. | Stable |
@@ -1846,7 +2883,13 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
 
 - [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
-- [**SOCKS Client**](./rust/mixnet): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.
+- [**`nym-smoldvpn`**](/developers/smoldvpn): a userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients.
+- [**SOCKS5 module**](./rust/socks5): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.
+
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): what the mixnet does to your packets in transit (delays, Poisson sending, cover traffic).
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message is framed into fixed-size Sphinx packets.
 
 ---
 title: Tour of the Rust SDK
@@ -2022,7 +3065,7 @@ url: https://nym.com/docs/developers/rust/importing
 
 ```toml
 [dependencies]
-nym-sdk = "1.21.1"
+nym-sdk = "1.21.5-rc.3"
 ```
 
 **Minimum Rust version:** {RUST_MSRV}+
@@ -2043,7 +3086,7 @@ nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 
 ---
 title: Nym Rust SDK: Mixnet Messaging Module
-description: Use the Nym Rust SDK Mixnet module to send messages through the mixnet. Covers builder patterns, custom topologies, SOCKS proxy, and anonymous replies.
+description: Use the Nym Rust SDK Mixnet module to send messages through the mixnet. Covers builder patterns, custom topologies, and anonymous replies.
 url: https://nym.com/docs/developers/rust/mixnet
 ---
 
@@ -2119,8 +3162,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "1.21.1"
-nym-bin-common = { version = "1.21.1", features = ["basic_tracing"] }
+nym-sdk = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -2700,8 +3743,8 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "1.21.1"
-nym-bin-common = { version = "1.21.1", features = ["basic_tracing"] }
+nym-sdk = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
 ```
@@ -3136,6 +4179,130 @@ cargo run --example <name>
 | Throughput | [`stream_throughput.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_throughput.rs) | Sending 1 MB over a single stream, verifying data integrity |
 
 ---
+title: Nym Rust SDK: SOCKS5 Proxy Module
+description: Use the Nym Rust SDK SOCKS5 module to route any SOCKS4/4a/5-capable application through the Mixnet. Covers Socks5MixnetClient, the socks5h proxy URL, automatic Network Requester discovery, country-based selection, and a reqwest example.
+url: https://nym.com/docs/developers/rust/socks5
+---
+
+# SOCKS5 Module
+
+The `socks5` module provides [`Socks5MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): a local SOCKS5 proxy that routes any SOCKS4, SOCKS4a, or SOCKS5-capable application's traffic through the Mixnet. Your application connects to a standard SOCKS5 proxy on `localhost`; the client forwards that traffic over the Mixnet to a [**Network Requester**](/network/infrastructure/exit-services#network-requester) running on an Exit Gateway, which makes the real request on your behalf.
+
+This is a **proxy-mode** integration, not end-to-end. Unlike the [Mixnet](./mixnet) and [Stream](./stream) modules (where both sides run a Nym client), traffic here leaves the Mixnet at an Exit Gateway and continues to the destination over the public internet. The Mixnet anonymises the sender; protecting the payload (TLS) is your application's job. See [Exit security](/developers/concepts/exit-security) for the full model: what each hop sees, the trust boundaries, and how it compares with Tor and VPNs.
+
+## How it works
+
+```text
+Your machine
+   Application (reqwest, curl, a browser, ...)
+       │  SOCKS5  (socks5h://127.0.0.1:1080)
+       ▼
+   Socks5MixnetClient  (local listener + MixnetClient)
+       │  Sphinx packets
+       ▼
+   Entry Gateway → 3 mix layers → Exit Gateway
+                                      │  Network Requester
+                                      ▼  makes the real request
+                                  Destination (clearnet)
+```
+
+The client chops the TCP stream into Sphinx packets, sends them through the Mixnet, and the Network Requester at the exit reassembles the stream and performs the request, returning the response the same way. The application never has to know the Mixnet exists.
+
+## Quick example
+
+You need the Nym address of a **Network Requester** (a service running on an Exit Gateway), or you can let the SDK discover one ([Automatic discovery](#automatic-discovery)). Point an HTTP client at the SOCKS5 URL the client exposes, and every request travels through the Mixnet:
+
+```rust
+use nym_sdk::mixnet::Socks5MixnetClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    nym_bin_common::logging::setup_tracing_logger();
+
+    // Connect to a Network Requester service provider over the Mixnet.
+    // This opens a local SOCKS5 listener (default 127.0.0.1:1080).
+    let client = Socks5MixnetClient::connect_new("provider_nym_address...").await?;
+
+    // Point any SOCKS5-capable HTTP client at the proxy URL.
+    let proxy = reqwest::Proxy::all(client.socks5_url())?;
+    let http = reqwest::Client::builder().proxy(proxy).build()?;
+
+    // This request now travels through the Mixnet and exits at the requester.
+    let body = http.get("https://nymtech.net").send().await?.text().await?;
+    println!("{body}");
+
+    client.disconnect().await;
+    Ok(())
+}
+```
+
+`reqwest` must be built with its `socks` feature enabled, or `Proxy::all` will reject the `socks5h://` URL at runtime. The `setup_tracing_logger()` call is optional logging from the `nym-bin-common` crate; drop it if you do not want the dependency.
+
+`socks5_url()` returns a **`socks5h://`** URL, not `socks5://`. The trailing `h` tells the HTTP client to hand the hostname to the proxy and let the Network Requester resolve DNS at the exit, rather than resolving locally and leaking the destination through a local DNS query.
+
+To combine the SOCKS5 proxy with other builder options (persistent keys via `StoragePaths`, custom configuration), attach a `Socks5` config to `MixnetClientBuilder` instead of using `connect_new`:
+
+```rust
+use nym_sdk::mixnet;
+
+let socks5_config = mixnet::Socks5::new("provider_nym_address...".to_string());
+let client = mixnet::MixnetClientBuilder::new_ephemeral()
+    .socks5_config(socks5_config)
+    .build()?
+    .connect_to_mixnet_via_socks5()
+    .await?;
+```
+
+## Automatic discovery
+
+You do not have to hardcode a Network Requester address. [`connect_with`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html#method.connect_with) takes a `NetworkRequesterSelector` describing how to pick one plus an optional listener address, and connects in a single call. There are three selectors; the third, country-restricted discovery, has [its own section below](#selecting-by-country):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+// Any available requester, weighted by performance (None = default 127.0.0.1:1080):
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::any(), None).await?;
+
+// A specific requester you already know:
+let client = Socks5MixnetClient::connect_with(NetworkRequesterSelector::exact("address...")?, None).await?;
+```
+
+For `any`, discovery queries the mainnet directory for Exit Gateways that advertise a Network Requester and selects one weighted by performance. Discovery always queries mainnet, regardless of the network the client itself is configured for.
+
+### Selecting by country
+
+To constrain where your traffic leaves the Mixnet, build the requester with [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes. The chosen requester must have declared a location in one of them (see the warning below):
+
+```rust
+use nym_sdk::mixnet::{NetworkRequesterSelector, Socks5MixnetClient};
+
+let requester = NetworkRequesterSelector::in_countries(["CH", "DE"])?;   // Switzerland or Germany
+
+// Listen on 127.0.0.1:1081 instead of the default 1080:
+let client = Socks5MixnetClient::connect_with(requester, Some("127.0.0.1:1081".parse()?)).await?;
+```
+
+Codes are case-insensitive and validated up front, so a typo fails immediately rather than at connect time. Passing more than one code means "any of these".
+
+A requester's location is **self-reported by its operator and optional**. Requesters that have not declared a location are excluded once you set a country filter, so a narrow filter can return `NoGatewayInCountries` even when requesters exist there but have not advertised one. Discovery does not silently fall back to another country: an empty result is an error, since routing through an unintended jurisdiction would defeat the point of asking.
+
+## SDK module or standalone binary
+
+The same proxy logic ships two ways. They are interchangeable on the wire; choose by how you want to run it:
+
+| | Use it when |
+|---|---|
+| **`socks5` module** (this page) | You want the proxy embedded in a Rust application and managed in-process, alongside other SDK clients. |
+| [**Standalone `nym-socks5-client`**](/developers/clients/socks5) | You want a language-agnostic local proxy binary that any application (in any language) can point at, with no code changes. |
+
+## Further reading
+
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): all methods, configuration, and types
+- [Example: SOCKS5 proxy](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/socks5.rs): select a requester (auto-discover, pin by country, or a known address) and proxy a request
+- [Standalone SOCKS5 client](/developers/clients/socks5): the language-agnostic binary form
+- [Exit security](/developers/concepts/exit-security): what an Exit Gateway can observe in proxy mode
+
+---
 title: Nym TcpProxy: Route TCP via the Mixnet (Deprecated)
 description: Route TCP traffic through the Nym mixnet using the TcpProxy Rust module. Deprecated in favour of the Stream module.
 url: https://nym.com/docs/developers/rust/tcpproxy
@@ -3283,9 +4450,9 @@ Add dependencies to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-sdk = "1.21.1"
-nym-network-defaults = "1.21.1"
-nym-bin-common = { version = "1.21.1", features = ["basic_tracing"] }
+nym-sdk = "1.21.5-rc.3"
+nym-network-defaults = "1.21.5-rc.3"
+nym-bin-common = { version = "1.21.5-rc.3", features = ["basic_tracing"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -3735,7 +4902,8 @@ function buildProvider(rpcUrl: string): JsonRpcProvider {
     const res = await mixFetch(req.url, {
       method: req.method,
       headers: req.headers,
-      body: req.body ?? undefined,
+      // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+      body: (req.body ?? undefined) as BodyInit | undefined,
     });
     return {
       statusCode: res.status,
@@ -3760,10 +4928,11 @@ On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-
 The lookup itself is three steps, each an Ethereum call or HTTPS GET over the same
 tunnel:
 
-1. **Resolve address.** Two `eth_call`s: the ENS Registry's `resolver(node)`
-   returns the resolver contract for the name, then `resolver.addr(node)` returns
-   the Ethereum address. `node` is the namehash (recursive keccak256 over the
-   labels).
+1. **Resolve address.** `provider.resolveName(name)` under the hood reads the ENS
+   Registry's `resolver(node)` to find the resolver contract, then calls
+   `resolver.addr(node)` for the Ethereum address (ethers may add an EIP-165
+   `supportsInterface` probe in between). `node` is the namehash (recursive
+   keccak256 over the labels).
 2. **Get contenthash.** One more `eth_call`: `resolver.contenthash(node)`. ethers
    decodes the EIP-1577 multicodec bytes to a URI; this demo handles `ipfs://`.
 3. **Fetch from IPFS.** A plain HTTPS GET to a gateway with the CID as a subdomain
@@ -3796,7 +4965,7 @@ through Nym, then run the three steps.
 ## Glossary
 
 ---
-title: Demo: Railgun private payments over the Nym mixnet
+title: Demo: Shielding testnet ETH into Railgun over the Nym mixnet
 description: Shield testnet ETH into a Railgun private note with every Ethereum RPC call routed through the Nym mixnet. Shows the global ethers-to-mixFetch routing that covers a whole SDK.
 url: https://nym.com/docs/developers/demos/railgun
 ---
@@ -3806,13 +4975,15 @@ export const RailgunDemo = dynamic(
   { ssr: false },
 )
 
-# Railgun over the mixnet
+# Shielding testnet ETH into Railgun over the mixnet
 
-Two privacy layers stacked. **Nym** hides the network layer: every Ethereum RPC
+**Nym** hides the network layer: every Ethereum RPC
 call goes through the mixnet via [`mixFetch`](/developers/mix-fetch), so the RPC
-node and your ISP cannot link you to the query. **Railgun** hides the
-application layer: shielded notes break the on-chain link between sender,
-receiver, and amount. This demo shields testnet ETH on Sepolia.
+node and your ISP cannot link you to the query, and **Railgun** hides the
+application layer, as shielded notes break the on-chain link between sender,
+receiver, and amount. This demo covers just the **shield** step on Sepolia:
+depositing testnet ETH into a private note. It does not do private transfers or
+unshielding.
 
 ## What you can do here
 
@@ -3821,16 +4992,20 @@ and broadcast a **real shield transaction** on the Sepolia testnet, with every
 Ethereum RPC call routed through the mixnet. The shield lands on chain (you can
 open it on Etherscan), but the IP that submitted it is the Nym exit's, not yours.
 
-The entire integration is a single ethers shim (shown below). Because the
-Railgun engine talks to the chain through ethers, routing ethers through
-`mixFetch` is enough to put a whole privacy SDK behind the mixnet. The same
-pattern drops into any ethers-based app or library.
+The network-routing piece is a single ethers shim (shown below). Because the
+Railgun engine talks to the chain through the `ethers` library, routing every
+ethers call through `mixFetch` is enough to put the whole SDK's traffic behind
+the mixnet, and the same routing pattern drops into any `ethers`-based app.
+Railgun itself needs a few extra engine-config workarounds (disabling the POI
+gate and stubbing quick-sync), which live in
+[`components/demos/railgun/lib.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/railgun),
+not in the shim.
 
 ## How it works
 
-The [ENS demo](/developers/demos/ens) swapped one provider's transport. Railgun
+The [ENS demo](/developers/demos/ens) swapped one provider's transport, but Railgun
 constructs its own providers internally, so routing only our provider would leak
-the engine's RPC to clearnet. Instead this demo installs a **global** ethers
+the engine's RPC to clearnet. Instead this demo installs a **global** `ethers`
 transport: `FetchRequest.registerGetUrl` routes every ethers HTTP call in the
 page through `mixFetch`, including the ones the Railgun engine makes.
 
@@ -3841,7 +5016,8 @@ FetchRequest.registerGetUrl(async (req) => {
   const res = await mixFetch(req.url, {
     method: req.method,
     headers: req.headers,
-    body: req.body ?? undefined,
+    // ethers' FetchRequest.body is Uint8Array | null; cast for RequestInit.
+    body: (req.body ?? undefined) as BodyInit | undefined,
   });
   return {
     statusCode: res.status,
@@ -3853,10 +5029,15 @@ FetchRequest.registerGetUrl(async (req) => {
 ```
 
 `registerGetUrl` is global static state on the `FetchRequest` class, so this only
-works if ethers is a **single instance** across your bundle. If your app and
+works if `ethers` is a **single instance** across your bundle. If your app and
 Railgun resolve to different ethers copies, the handler installs on one and the
-engine uses the other. Pin the exact ethers version Railgun peer-depends on (this
-demo aliases ethers to one instance in the bundler).
+engine uses the other. Pin the exact version Railgun peer-depends on.
+
+The block above is the shape of the shim. One caveat the real version adds:
+browser `fetch` decompresses gzip transparently and `mixFetch` does not, so the
+demo runs a `DecompressionStream` over each response before handing it back to
+ethers. The full handler with decompression is in
+[`components/demos/shared/mixfetch.ts`](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/demos/shared/mixfetch.ts).
 
 On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@railgun-community/wallet`](https://www.npmjs.com/package/@railgun-community/wallet), and [`ethers`](https://www.npmjs.com/package/ethers).
 
@@ -3871,14 +5052,15 @@ Railgun address derives once the engine is up), check the balance, then shield a
 small amount. If the wallet is low, top it up at a
 [Sepolia faucet](https://sepoliafaucet.com/) using the public address shown.
 
-**Sepolia testnet only.** The wallet holds only test ETH and the mnemonic is
+**Sepolia testnet only.** The wallet holds test ETH and the mnemonic is
 stored in plain browser storage. Never paste a mainnet mnemonic.
 
 ## What to expect
 
-- **Engine init is the slow part.** `loadProvider` hits Sepolia over a cold
-  mixnet route, which can exceed Railgun's internal timeout on the first try; the
-  demo retries and the second attempt finds the connection pool warm.
+- **Engine init is the slow part.** `loadProvider`'s first RPC calls hit Sepolia
+  over a cold mixnet route, paying TCP-connect and TLS-handshake time, so the
+  ethers request can time out on the first try; the demo retries and the second
+  attempt finds the connection pool warm.
 - **Shielding makes several RPC calls** (gas estimate, fee data, broadcast,
   receipt), each a mixnet round trip. The broadcast step retries idempotently:
   the tx hash is fixed before broadcasting, so a dropped response can be re-sent
@@ -4629,6 +5811,11 @@ The tunnel is **one-shot per WASM instance**: `setupMixTunnel` can initialise it
 - The package sources, including bundler/WASM-inlining specifics and the worker plumbing: [`sdk/typescript/packages`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/packages) and the WASM crate under [`wasm/smolmix`](https://github.com/nymtech/nym/tree/develop/wasm/smolmix).
 - See it run: the [mixnet playground](/developers/playground).
 
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): per-hop delays, Poisson sending, and cover traffic in the mixnet.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message fragments into fixed-size Sphinx packets.
+
 ---
 title: TypeScript SDK: Mixnet Messaging for the Browser
 description: TypeScript SDK for end-to-end mixnet messaging from a browser app. For HTTP, DNS, and WebSocket over the mixnet, see the mix-fetch / mix-dns / mix-websocket packages.
@@ -4707,6 +5894,11 @@ See [Smart Contracts](/developers/typescript/smart-contracts) for query and exec
 | [Cosmos Kit](/developers/typescript/cosmos-kit) | Wallet connection (Keplr, Ledger, Wallet Connect) for Nyx. |
 | [Bundling](/developers/typescript/bundling/bundling) | Webpack and esbuild configurations for WASM + Web Workers. |
 | [TypeDoc Reference](/developers/typescript/api/sdk/globals) | Generated API reference for `@nymproject/sdk`. |
+
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): per-hop delays, Poisson sending, and cover traffic in the mixnet.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message fragments into fixed-size Sphinx packets.
 
 ---
 title: TypeScript SDK Quick Start
@@ -7302,9 +8494,9 @@ url: https://nym.com/docs/developers/clients/socks5
 
 # Socks5 Client (Standalone)
 
-> This client can also be utilised via the [Rust SDK](/developers/rust).
+> This proxy is also available embedded in a Rust application via the [nym-sdk SOCKS5 module](/developers/rust/socks5).
 
-Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
+Many existing applications are able to use either the SOCKS4, SOCKS4a, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
 
 ```mermaid
 flowchart TB
@@ -10048,6 +11240,264 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
+## `v2026.14-amsterdam`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.14-amsterdam)
+- [`nym-node`](nodes/nym-node.mdx) version `1.36.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-07-21T11:45:30.166650623Z
+Build Version:      1.36.0
+Commit SHA:         1bff1b388b3a2d5fb2dc299c5e9462d44893a5bd
+Commit Date:        2026-07-21T13:38:39.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.92.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed and  [`network-tunnel-manager` (NTM) is updated](https://github.com/nymtech/nym/pull/6959). Please update your exit policy following [these steps](#nip-13-update).
+
+In this release, we bring several news and updates. First of all, **we would like to express our gratitude to the Nym operators, which constantly brings feedback and ideas for improvement and consistently improves the Nym network. Thank you all!**
+
+- **Performance measurements update:** Improvement of DNS resolution of hostnames within the Network Monitor should lead to performance measurement (`routing_score`) precision
+
+- [**CMD Reward Tracker**](/operators/tools#cmd-reward-tracker): Now faster and updated ([PR \#6959](https://github.com/nymtech/nym/pull/6959))
+
+- [**Nym Node CLI**](/operators/tools#nym-node-cli): Single node auto-install tool is updated and fully functional ([PR \#6964](https://github.com/nymtech/nym/pull/6964))
+
+#### NIP-13 Update
+
+- **[NIP-13](https://governator.nym.com/proposal/prop-909ddfc2-355f-430b-a9e4-16c693cbffdb) passed & [NTM updated](https://github.com/nymtech/nym/pull/6959): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+### Features
+
+- [BandwidthController improvements](https://github.com/nymtech/nym/pull/6937): Redesigned credential acquisition and ticketbook management with proactive restocking, improved readiness handling, and more reliable recovery flows, improving gateway bandwidth availability and operational reliability.
+- [Manual BandwidthController restock command](https://github.com/nymtech/nym/pull/6952): Added a manual ticketbook restock mechanism, allowing operators and internal components to explicitly trigger restocking when needed while keeping automatic threshold-based restocking behaviour.
+- [SOCKS5 autodiscovery and country-based requester selection](https://github.com/nymtech/nym/pull/6920): Added SOCKS5 requester autodiscovery with optional country-based selection, simplifying client configuration and improving connectivity workflows.
+
+### Bugfixes
+
+- [Improved topology retrieval reliability](https://github.com/nymtech/nym/pull/6951): Added safer retry handling for topology retrieval when inconsistent data is returned across epochs, improving resilience and preventing invalid network state usage.
+- [Avoid Hickory DNS resolution for gateway hostname](https://github.com/nymtech/nym/pull/6955): Fixed gateway hostname resolution issues by changing gateway hostname resolution handling in Network Manager, improving reliability in environments with different DNS configurations.
+- [HTTP client network reconfiguration handling](https://github.com/nymtech/nym/pull/6923): Improved retry behaviour after network changes by preventing unnecessary host rotation and fronting activation when failures are caused by recent network reconfiguration.
+
+### Refactors & Maintenance
+
+- [SDK documentation version updates](https://github.com/nymtech/nym/pull/6922): Updated SDK and crate version references across documentation and CI workflows to keep developer resources aligned with current releases.
+
+## `v2026.13-ziller`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.13-ziller)
+- [`nym-node`](nodes/nym-node.mdx) version `1.35.0`
+
+```sh
+nym-node 
+Binary Name:        nym-node
+Build Timestamp:    2026-07-07T09:04:20.485248702Z
+Build Version:      1.35.0
+Commit SHA:         34f587edcba4263d40a26ad988335480639499da
+Commit Date:        2026-07-07T10:15:09.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.92.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+- [Node config score now accounts for on-chain account status (balance and feegrant)](https://github.com/nymtech/nym/pull/6877)
+  Node config scoring now includes chain interaction capabilities, taking into account on-chain balance and feegrant status.
+- [Improved handling of pruned blocks for node families](https://github.com/nymtech/nym/pull/6911)
+  Improved block timestamp estimation for pruned historical data with configurable lookback settings.
+
+### Features
+
+- [Added aggregated signature endpoints for credential proxy](https://github.com/nymtech/nym/pull/6908)
+  Added new endpoints for aggregated expiration-date and coin-index signatures, with optional `epoch_id` support.
+
+### Bugfixes
+
+- [Improved attestation verification](https://github.com/nymtech/nym/pull/6910)
+  Added stronger credential verification checks during upgrade mode processing.
+
+### Refactors & Maintenance
+
+- [BandwidthController refactored to actor-based architecture](https://github.com/nymtech/nym/pull/6898)
+  Refactored bandwidth handling into a standalone controller, improving separation between gateway clients and credential data fetching.
+
+## `v2026.12-yaroslavsky`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.12-yaroslavsky)
+- [`nym-node`](nodes/nym-node.mdx) version `1.34.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-06-23T07:29:08.069552735Z
+Build Version:      1.34.0
+Commit SHA:         821381fb1baac73fe85fecca550246db6ec30296
+Commit Date:        2026-06-23T09:10:37.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.92.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Tools
+
+- **[Node Families](/operators/nodes/nym-node/families) are live!**
+  - **New version of [Nym wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.23) with family management menu**
+  - **[SpectreDAO Explorer](https://explorer.nym.spectredao.net/families) family overview is out**
+
+- [Operators Cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) cap is raised to 10000 NYM, DP and SGP max cap is 5000 NYM.
+
+- [**NIP-12 - NTM updated: More services for NymVPN users are opened!**](https://github.com/nymtech/nym-websites/pull/344) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
+
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+### Features
+
+- [Mixnet performance & observability improvements](https://github.com/nymtech/nym/pull/6874): Expanded mixnet observability with additional runtime, queue, packet forwarding, latency, and buffer metrics, improving visibility into node performance and packet processing behaviour.
+- [Mixnet packet latency instrumentation](https://github.com/nymtech/nym/pull/6852): Added end-to-end packet latency tracing with per-stage Prometheus metrics and configurable packet sampling, allowing operators to better analyse mixnet performance.
+- [Node Families improvements](https://github.com/nymtech/nym/pull/6891) [contract configuration queries](https://github.com/nymtech/nym/pull/6870): Added automatic association of the creating wallet's node with newly created families and introduced contract configuration queries for retrieving current family settings.
+- [API v2 enhancements](https://github.com/nymtech/nym/pull/6815): Introduced API v2 auxiliary details endpoint exposing node on-chain addresses and improved Swagger/OpenAPI versioning, routing, and documentation.
+- [Wallet improvements](https://github.com/nymtech/nym/pull/6865) [delegation management improvements](https://github.com/nymtech/nym/pull/6864): Improved bonding and unbonding workflows, added clearer unbonded delegation visibility, enhanced sign-in and recovery flows, and improved wallet UX across node management and delegation features.
+
+### Bugfixes
+
+- [Restore node throughput tester](https://github.com/nymtech/nym/pull/6849): Restored and fixed node throughput testing functionality, improving reliability of performance measurements.
+- [More reliable chain data retrieval](https://github.com/nymtech/nym/pull/6847): Added automatic RPC retry handling and improved transaction data retrieval reliability.
+
+### Refactors & Maintenance
+- [Wallet update](https://github.com/nymtech/nym/pull/6867): Updated the wallet to version 1.2.21 with interface improvements, maintenance updates, and compatibility enhancements.
+
+## `v2026.11-xynomizithra`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.11-xynomizithra)
+- [`nym-node`](nodes/nym-node.mdx) version `1.33.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-06-08T15:46:08.599178376Z
+Build Version:      1.33.0
+Commit SHA:         34709e76a1c23ed9f2f01bbb4f851fc44bfd7c8d
+Commit Date:        2026-06-08T16:30:10.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.91.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operators Tools
+
+The provider [WorkTitans B.V., AS209847](https://ipinfo.io/AS209847), also known as _the.hosting, PQ-Hosting and Stark Industries_, has been [under investigation](https://securityaffairs.com/192602/intelligence/dutch-authorities-dismantle-hosting-network-allegedly-used-for-cyberattacks-and-disinformation.html) and majority of their servers were seized.
+
+**If your nodes are still hosted by this provider or its subsidiaries (i.e., *one.hosting*, *geo.hosting*, *ufo.hosting*) and still running, please move to a new provider and discontinue using these services.**
+
+- [**New menu layout**](https://github.com/nymtech/nym/commit/495f020730c7d421ba33a77ec15c2bad8f1f2603): Operators Guide has a new menu, easier to navigate through
+
+- **Ansible improvements**: [\#6848](https://github.com/nymtech/nym/pull/6848) and [\#6860](https://github.com/nymtech/nym/pull/6860):
+  - [Simpler configuration](/operators/orchestration/ansible#configuration): all operator unique values are set only in [`group_vars/all.yml`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/group_vars/all.yml) and [`inventory/all`](https://github.com/nymtech/nym/blob/develop/ansible/nym-node/playbooks/inventory/all)
+  - [Automatic bonding flow](/operators/orchestration/ansible#2-bond): Using new components:
+    - [`auto_bond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/auto_bond_all.py): a program using `nodes.csv` and [Ansible playbook](/operators/orchestration/ansible) to bond all desired nodes in an automated flow
+    - [`nodes.csv`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/nodes.csv.example): a node registry combining Ansible inventory and Nyx mnemonics to serve `auto_bond_all.py`, `unbond_all.py` and `show_balances.py`
+  - Additionally there are two more components to help automate the flow:
+    - [`unbond_all.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/unbond_all.py): a program using `nodes.csv` to unbond all desired nodes in an automated flow
+    - [`show_balances.py`](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/auto-bond/show_balances.py): a program using `nodes.csv` to show all Nyx account balances, helping operators to decide on bonding amount
+
+### Features
+
+- [Disable Nagle's algorithm for LP between nym-nodes](https://github.com/nymtech/nym/pull/6857)
+- [Node Families (full implementation) - storage, queries, transactions, API exposure](https://github.com/nymtech/nym/pull/6715)
+- [Max/smolmix wasm - Browser-friendly WASM version](https://github.com/nymtech/nym/pull/6784)
+- [New Typescript SDKs & Docs](https://github.com/nymtech/nym/pull/6840/)
+
+### Bugfix
+
+- [Fix gateways being penalised for no stress testing](https://github.com/nymtech/nym/pull/6843)
+- [Fix score inflation for throttled nodes](https://github.com/nymtech/nym/pull/6842)
+- [NYM-583: Avoid corrupted database on Windows](https://github.com/nymtech/nym/pull/6785)
+
 ## `v2026.10-waterloo`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.10-waterloo)
@@ -10074,7 +11524,7 @@ cargo Profile:      release
 
 1. [**Security steps required**](/operators/troubleshooting/vps-isp#security-patch-copyfail--dirtyfrag): Several critical [Linux kernel vulnerabilities](https://ubuntu.com/blog/copy-fail-vulnerability-fixes-available) had been disclosed. Check out your servers and if needed apply required mitigations!
 
-- [**New Nym Wallet `v1.2.20`**](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.20) 
+- [**New Nym Wallet `v1.2.20`**](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.20)
 
 - [**NIP-11 - NTM updated: Telegram voice and video call works now!**](https://github.com/nymtech/nym/pull/6807) Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers:
 
@@ -10146,14 +11596,14 @@ This situation is a reminder of why we have [Operator Terms and Conditions with 
 
 ### Features
 
-- [Re-order default API urls for network details - Waterloo release](https://github.com/nymtech/nym/pull/6799): 
+- [Re-order default API urls for network details - Waterloo release](https://github.com/nymtech/nym/pull/6799):
 
 - [Add workflows for NM3](https://github.com/nymtech/nym/pull/6729): Added automated GitHub Actions workflows to streamline deployment of network monitor components to the container registry with optional release versioning
 
 - [Credential proxy pool](https://github.com/nymtech/nym/pull/6726)
 
 - [NMv3 updated performance calculation](https://github.com/nymtech/nym/pull/6714): Wire stress-testing scores submitted by the network-monitor orchestrator into nym-api's node performance calculation, behind a config gate and an availability guard so an orchestrator outage cannot silently slash every node's score.
- 
+
 - [NMv3: submission of stress testing result into nym-api](https://github.com/nymtech/nym/pull/6709): Allow the network monitor orchestrator to submit stress-testing results to the nym-api over a signed, authenticated channel.
 
 - [NMv3: Prometheus metrics for network monitor](https://github.com/nymtech/nym/pull/6693): Wires up a `/v1/metrics/prometheus` scrape endpoint for the v3 orchestrator, along with the metric variants it exposes and the call-site instrumentation that feeds them. The handle follows the existing nym-node wrapper pattern: a singleton `PROMETHEUS_METRICS` backed by `nym_metrics`, with every variant pre-registered at startup so scrapes never see a missing series.
@@ -10358,13 +11808,13 @@ New release is here and with it a completely new theme of the docs!
 
 2. Lewes protocol ports (`41264/tcp` and `51264/udp`) as well as all the essential ports for mixnet operation (before `ufw`) are now included in NTM
 - Follow [these steps](#network-tunnel-manager-ntm-updates) to implement changes if you run any Gateway type of Nym node
-- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened   
+- For operators running mixnode mode, make sure to open all ports via `ufw` as [documented here](/operators/nodes/preliminary-steps/vps-setup#3-configure-your-firewall), do *not* use NTM as you nodes do *not* need all exress ports (exit policy) opened
 
 #### Network Tunnel Manager (NTM) Updates
 
 Nym team is testing an unreleased version of [Gateway Probe](/operators/performance-and-testing/gateway-probe). This new version checks whether the ports opened align with the governance decision about exit policy. If they don't, the nodes will be taken out of Service grant program and [Delegation program](https://nym.com/network/DP).
 
-NTM is now changed to be a standalone port manager for servers hosting Nym nodes running in a Gateway mode (with or without WireGuard). Operators of these nodes no longer need to manage mixnet fundamental ports by `ufw` separately, as the NTM will take care of it as well as adjusting the ports according to Nym exit policy. 
+NTM is now changed to be a standalone port manager for servers hosting Nym nodes running in a Gateway mode (with or without WireGuard). Operators of these nodes no longer need to manage mixnet fundamental ports by `ufw` separately, as the NTM will take care of it as well as adjusting the ports according to Nym exit policy.
 
 **Follow these steps to update the ports setting of your server using NTM.**
 
@@ -10384,12 +11834,12 @@ chmod +x network-tunnel-manager.sh
 
 ###### 3. Disable `ufw`
 
-Right now your NTM is handling the port management. You can disable `ufw`. 
+Right now your NTM is handling the port management. You can disable `ufw`.
 
 - We suggest to not uninstall it, just make it innactive for the time being:
 
 ```sh
-ufw disable 
+ufw disable
 ```
 
 ###### 4. Re-run NTM
@@ -10448,7 +11898,7 @@ cargo Profile:      release
 
 - **Follow the [steps to update your node exit policy](#update-nym-exit-policy)**, required for operators running wireguard or Exit gateway
 
-###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out 
+###### 2. [Lewes Protocol (LP)](#lewes-protocol-lp) is out
 
 - **Follow [these steps](#lewes-protocol-lp) to open your ports for the protocol to work**
 
@@ -10536,7 +11986,7 @@ cargo Profile:      release
 
 ### Tools
 
-- **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).  
+- **Diagnostic Tool** - a standalone binary for network diagnostics. It performs DNS, HTTP, and gateway connectivity tests, helping developers identify connectivity issues and monitor network performance. It can also be run via the daemon CLI. Read the full guide [here](https://nym.com/docs/developers/tools/diagnostic-tool).
 - **Socks5 Score Calculation** - performed by the Gateway probe, which tests `nym-node --mode exit-gateway` instances over Socks5. The probe assigns a latency-based rating: high, medium, low, or offline. Full guide [here](https://nym.com/docs/operators/performance-and-testing#socks5-score-calculation-process).
 
 ## `v2026.3-parmigiano`
@@ -10638,7 +12088,7 @@ journalctl -u nym-node -f --all
 
 #### Update Nym exit policy
 
-As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes. 
+As a result of [NIP-7: Nym Exit Policy Update - Opening Ports for Steam, Discord & SSH](https://governator.nym.com/proposal/prop-281e9ec1-8e10-4e97-848c-311823e83f61), we updated [`network-tunnel-manager.sh` (NTM)](https://github.com/nymtech/nym/blob/develop/scripts/nym-node-setup/network-tunnel-manager.sh). Every operator is required to download and re-run the current version of NTM on the servers hosting Nym nodes.
 
 These are the steps for the exit policy update, using NTM.
 
@@ -10664,7 +12114,7 @@ chmod +x network-tunnel-manager.sh
 
 - [Add `Copy+Clone` to `nym_api_provider::Config`](https://github.com/nymtech/nym/pull/6296): Add `Copy+Clone` to `nym_client_core::client::topology_control::nym_api_provider::Config`
 
-- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives 
+- [LP Registration + Telescoping + Gateway Probe Localnet Mode](https://github.com/nymtech/nym/pull/6286):  Combines LP registration protocol implementation, adds telescoping/nested sessions support, adds localnet mode for `gateway-probe` testing, integrates KKT & PSQ cryptographic primitives
 
 - [Minor DNS improvements](https://github.com/nymtech/nym/pull/6283): Increase timeouts back to 10 seconds for overall lookup and 5 seconds per query, ignore unreliable test, remove JIT resolution in http client as it is at best not useful, and at worst increasing timeout
 
@@ -10722,13 +12172,13 @@ cargo Profile:      release
 
 ### Operators Updates & Tools
 
-We’re excited to announce the first **nym-node release of 2026**. 
+We’re excited to announce the first **nym-node release of 2026**.
 
 **Exit Policy Ports Management**
 
 In December 2025, two NIP proposals were approved, introducing new ports to Nym network: [NIP-6](https://governator.nym.com/proposal/prop-ba886b9d-6f6e-4365-b4ed-fe7e604bc375), opening ports for WhatsApp and Session + Port `465` and [NIP-4](https://governator.nym.com/proposal/prop-ca6726ea-38b1-4568-97fe-8bdc5fdc83a0), opening port `587`.
 
-**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).** 
+**Due to the concerns raised by the operators we built a rate limiting function to Network tunnel manager (NTM) to prevent spam abuse of the network. You can see the changes [here](https://github.com/nymtech/nym/pull/6317).**
 
 To implement the changes and ensure that the nodes have expected performance, please re-run NTM following these steps:
 
@@ -10771,7 +12221,7 @@ Please, let us know how that worked for you.
 
 - [`gateway-probe` fixes for run-local](https://github.com/nymtech/nym/pull/6212)
 
-- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid) 
+- [Upgrade mode: VPN adjustments](https://github.com/nymtech/nym/pull/6189): This PR further builds up on [\#6174](https://github.com/nymtech/nym/pull/6174) to include changes required by the VPN-client to fully support the upgrade mode, what is relevant here is that this PR modifies the credential storage to allow it to storage an opaque `emergency credential` that lets it be shared between sessions (if it is still valid)
 
 - [Add weighted scoring to NS API](https://github.com/nymtech/nym/pull/6144)
 
@@ -10781,7 +12231,7 @@ Please, let us know how that worked for you.
 
 - [Do not re-derive wallet keys on every tx](https://github.com/nymtech/nym/pull/6213): The `cosmrs' trait bounds on `EcdsaSigner` got updated to include `Send` and `Sync`, meaning we no longer need to derive private keys on every transaction and instead we can just do it once, on construction
 
-- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either  
+- [Remove support for legacy mixnode within the performance contract](https://github.com/nymtech/nym/pull/6205): The network no longer supports those nodes, there's no point in having the "brand new" (kinda) contract support them either
 
 ## Last Update of 2025
 
@@ -10789,7 +12239,7 @@ We are not going to do a platform release this year anymore, but we have two imp
 
 ### Governance decisions
 
-During December operators were active in voting about new ports and changes in the quorum. 
+During December operators were active in voting about new ports and changes in the quorum.
 
 **As agreed in [NIP-4](https://forum.nym.com/t/nip-4-nym-exit-policy-update-opening-port-587/2029/2) and [NIP-6](https://forum.nym.com/t/nip-6-nym-exit-policy-update-opening-ports-for-whatsapp-and-session/2042/1), we are opening these ports on [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt):**
 ```ini
@@ -10831,7 +12281,7 @@ chmod +x network-tunnel-manager.sh && \
 - Mixnet exit policy is being pulled with `nym-node run` command from this source: [nymtech.net/.wellknown/network-requester/exit-policy.txt](https://nymtech.net/.wellknown/network-requester/exit-policy.txt)
 - All you need to do is to restart your node:
 ```sh
-service nym-node restart 
+service nym-node restart
 ```
 
 ### Orchestration with Ansible
@@ -10842,7 +12292,7 @@ Finally we release our initial version **[Ansible playbooks](/operators/orchestr
 - Upgrade
 - Bond
 
-Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you. 
+Checkout the [docs](/operators/orchestration/ansible) and the [Ansible template](https://github.com/nymtech/nym/tree/develop/ansible/nym-node) and let us know how this flag ship worked for you.
 
 ## `v2025.21-mozzarella`
 
@@ -10868,31 +12318,31 @@ cargo Profile:      release
 
 **NOTE THAT THIS IS A NEW TOOL HANDLING VARIOUS COMPLEX SERVER SETTINGS, PLEASE RUN IT ON A FEW NODES AT A TIME, DO THE TESTING, MONITOR YOUR NODES AND [REPORT ANY ISSUES](https://matrix.to/#/#operators:nymtech.chat).**
 
-We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation. 
+We will keep `nym-node v1.21.1` as the latest version on API side for another 3 days to not penalize operators taking time for a proper implementation.
 </ Callout>
 
-We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you. 
+We are proud to announce that there are several improvements on tools aiming to make node operators life easier. Please let us know how do these programs work for you.
 
 - [**New Nym Node CLI version**](/operators/tools#nym-node-cli): This version introduces arguments, allowing the operator to pass all needed variables (ie. hostname, mode etcetra) and let the program setup everything required for `nym-node` installation, server configuration, nginx, routing, tunnels and bridges, without further prompts for these values. This version also installs [QUIC bridge](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment).
 
-- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy. 
+- [**New Network Tunnel Manager**](/operators/nodes/nym-node/configuration#routing-configuration): NTM went through an big overhaul ([\#6186](https://github.com/nymtech/nym/pull/6186/)) - this new version combines old NTM with WG scripts. If run with `complete_networking_configuration` the tool does entire routing configuration, creates interfaces, and configures WireGuard exit policy.
 
-- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules. 
+- [**Updated QUIC Deployment Tool**](/operators/nodes/nym-node/configuration#quic-transport-bridge-deployment): The program is lighter, stripped of redundant functions reworking iptables rules.
 
 ### Features
 
 - [HTTP API resilience enable & domain rotation conditions](https://github.com/nymtech/nym/pull/6200): Changes to make sure fallback domains are updated / enabled only for relevant
 
-- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.  
+- [Typescript SDK 1.4.1](https://github.com/nymtech/nym/pull/6146): This PR is a new release of the Typescript SDK, `mixFetch` and `WASM` client. It also removes the Harbour Master client from `mixFetch`, replacing it with the Nym API's described endpoint for nym-nodes.
 
-- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126): 
+- [Enable URL rotation and retries for mixnet gateway init](https://github.com/nymtech/nym/pull/6126):
   - Multiple URL fallback with configurable retries (defaults to 3)
   - Infallible URL conversion per feedback (`Url::from()` instead of `parse().ok()`)
   - Non-breaking builder pattern for `BuilderConfig` per feedback
   - Reverted redundant node filtering per clarification that API already filters by `supported_roles.entry`
 
 - [Credential proxy jwt](https://github.com/nymtech/nym/pull/5957): This PR is part of the 'Upgrade Mode' that should allow usage of the network in a situation where ecash credentials are unissuable, because, for example, we have lost signing quorum (i.e. we have fewer than the required number of threshold signers responding to requests). This version is more naive. Instead requesting actual 'emergency credentials' that would have been issued by a subset of ecash signers, the credentials proxy creates a JWT, signed with its key, attesting the upgrade mode has been enabled.
- 
+
 ### Bugfix
 
 - [Tunnel not waiting on `MixnetClient` to shut down cleanly](https://github.com/nymtech/nym/pull/6225): When there is a wireguard registration error, the mixnet client is signalled to shut down, but the tunnel doesn't wait. Now on errors, the registration client doesn't return until everything is properly stopped
@@ -10949,7 +12399,7 @@ cargo Profile:      release
 
 - [Expose more explicit `new_with_fronted_urls` builder for http API client](https://github.com/nymtech/nym/pull/6136)
 
-- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126) 
+- [Domain fronting](https://github.com/nymtech/nym/pull/6134): Enable URL rotation and retries for mixnet gateway [`init`](https://github.com/nymtech/nym/pull/6126)
 
 ### Bugfix
 
@@ -11009,7 +12459,7 @@ Alongside this platform release we are happy to introduce several improvements a
 
 - [Propagate cancel token to mixnet client](https://github.com/nymtech/nym/pull/6105): Ensures cancellation token propagation to mixnet client
 
-- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository  
+- [[DOCs/operators] QUIC deployment script & docs](https://github.com/nymtech/nym/pull/6098): Script and documentation for QUIC deployment, referencing `nym-bridges` repository
 
 - [Move gateway probe to monorepo (Rust edition 2024)](https://github.com/nymtech/nym/pull/6094): Moves `nym-gateway-probe` and related packages into monorepo, updates to Rust 2024 edition
 
@@ -11017,14 +12467,14 @@ Alongside this platform release we are happy to introduce several improvements a
 
 ### Bugfix
 
-- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker  
+- [Cherry pick - request #6143 from nymtech/bugfix/mix-tx-closed-v2](https://github.com/nymtech/nym/pull/6153): Add circuit breaker
 <AccordionTemplate name={<TestingSteps/>}>
  **Summary:**
-- Network-requester started successfully  
-- SOCKS5 client started successfully  
-- Traffic was proxied through the mixnet  
-- Shutdown was clean  
-- No 'channel closed (outside of shutdown!)' errors  
+- Network-requester started successfully
+- SOCKS5 client started successfully
+- Traffic was proxied through the mixnet
+- Shutdown was clean
+- No 'channel closed (outside of shutdown!)' errors
 
 - [`nym-credential-proxy` query params parsing regression](https://github.com/nymtech/nym/pull/6121): Fix query deserialization issue with `serde_urlencoded` breaking compatibility with VPN API
 
@@ -17093,12 +18543,12 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](.
 ```sh
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2026-05-27T12:46:38.359447083Z
-Build Version:      1.32.0
-Commit SHA:         25eba09b92cff648cd37bdd7f0921e710eed25f5
-Commit Date:        2026-05-27T11:00:31.000000000+02:00
+Build Timestamp:    2026-07-21T11:45:30.166650623Z
+Build Version:      1.36.0
+Commit SHA:         1bff1b388b3a2d5fb2dc299c5e9462d44893a5bd
+Commit Date:        2026-07-21T13:38:39.000000000+02:00
 Commit Branch:      HEAD
-rustc Version:      1.91.1
+rustc Version:      1.92.0
 rustc Channel:      stable
 cargo Profile:      release
 ```
@@ -18061,6 +19511,168 @@ scp <USER>@<HOST>:.nym/nym-nodes/<ID>/data/cosmos_mnemonic <LOCAL_TARGET_PATH>
 </ Steps>
 
 Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain and redeem user tickets.
+
+---
+title: How to Create & Register a Nym Node Family
+description: Step-by-step guide to starting, configuring, and registering a nym-node family.
+url: https://nym.com/docs/operators/nodes/nym-node/families
+---
+
+# Nym Node Families
+
+**This page is a how to guide showing steps to [create a node family](#create-node-family), [invite nodes to a family](#invite-new-node-to-a-family), [accept invitation](#accept-invitation-to-a-family), [leave a family](#leave-a-family) and to [edit a family](#edit-or-dissolve-a-family), where operators can change name, description or completely dissolve a family.**
+
+NymVPN protects user privacy by routing traffic through decentralised Nym nodes. This only works securely if those nodes are genuinely independent: if the Entry and Exit gateways in one route are run by the different operator and located in different network subnets. Otherwise an adversary could observe connection metadata end-to-end, or to trace users through co-located infrastructure.
+
+To address this, Nym is adopting the concept of node families — a mechanism already used by the [Tor network](https://community.torproject.org/relay/setup/post-install/family-ids/) — whereby operators who run multiple nodes cryptographically declare them as belonging to the same family. 
+
+The routing policy then disallows connections where Entry and Exit gateways share a family, ensuring meaningful separation between them. This significantly raises the bar for a traffic correlation attack, whether from a malicious operator silently running multiple nodes or from an adversary performing infrastructure seizure within a single jurisdiction.
+
+*On May 21st 2026, we introduced the concept logic and roadmap of Nym Node Family in a [live stream](https://www.youtube.com/watch?v=j8WWBY8ewXE).*
+
+## Family Management
+
+Nym node families are based on Nyx accounts, so a family can be [created](#create-node-family) by an account without any nodes, [inviting](#invite-new-node-to-a-family) them afterwards.
+
+Therefore, the management of Nym node families is done via [Nym Wallet](/operators/nodes/preliminary-steps/wallet-preparation), alternatively [`nym-cli`](/developers/tools/nym-cli). In this how to guide we use Nym Wallet UI, in case you prefer the CLI, build it following [these steps](/developers/tools/nym-cli/usage) and then see the commands in [this section](/developers/tools/nym-cli/commands) or follow `<COMMAND> --help` convention.
+
+Node families can be well previewed on [SpectreDAO Explorer](https://explorer.nym.spectredao.net/families).
+
+For any operation regarding node family, open your wallet and navigate to the section *Family - Manage node families*
+
+![](/images/operators/wallet-screenshots/fam-tab.png)
+
+### Create Node Family
+
+To create node family, open your wallet and follow the steps below.
+
+###### 1. Ensure balance bigger than 101 NYM
+
+- Make sure you have at least 101 NYM to use 100 NYM as refundable deposit and have a bit left for the network fees
+
+- This refundable fee follows the same logic like [bonding](/operators/nodes/nym-node/bonding), using a little cost as spam prevention
+
+###### 2. Navigate to the section *Family - Manage node families*
+
+###### 3. Describe your family
+
+- In the default tab *My Family* enter your *Family Name* and *Description*
+
+![](/images/operators/wallet-screenshots/fam-create.png)
+
+Make sure to describe your in a concise but clear way, refraning from offensive or inside joke tyoe of descriptions. 
+
+###### 4. Confirm
+
+- Click on *Create family - 100 NYM* and then confirm
+
+Your family is now created, congratulation. You can preview it from your wallet or visit [SpectreDAO Explorer](https://explorer.nym.spectredao.net/families).
+
+![](/images/operators/wallet-screenshots/fam-overview.png)
+
+### Invite New Node to a Family
+
+To invite other nodes, open your wallet and follow the steps below.
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Fill *Invite a Node* field
+
+- Add a `NODE-ID` of the node you want to add to the family (the digit, not node identity key)
+
+- Make sure that you only invite nodes you control and that are already bonded and operational
+
+![](/images/operators/wallet-screenshots/fam-create-invite.png)
+
+###### 3. Send and confirm
+
+- Click on *Send invite* and confirm
+
+Your invite was sent, you can preview it in your wallet.
+
+![](/images/operators/wallet-screenshots/fam-invite-preview.png)
+
+### Accept invitation to a Family
+
+To accept an invitation, open your wallet and follow the steps below.
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+- You will see a notification, click on the button
+
+![](/images/operators/wallet-screenshots/fam-notifycation.png)
+
+###### 2. Navigate to the tab *Invites*
+
+###### 3. Review the family
+
+Remember that anyone could have invited your node to their family, review  carefully the invitation account authenticity. 
+
+###### 4. Accept & confirm
+
+- Click on *Accept* and on *Accept invite* to confirm
+
+![](/images/operators/wallet-screenshots/fam-invite-accept.png)
+
+Congratulation, your node had join a family. You can preview the node status in the wallet
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+### Leave a Family
+
+In case you want to leave a family with your node, open your wallet and follow the steps below.
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to *My Family* tab
+
+###### 3. Click on *Leave `<FAMILY_NAME>`* & confirm
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+### Edit or Dissolve a Family
+
+You can edit your family name and description as well as dissolving it entirely. Open your wallet and follow the steps below.
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to *Family Settings* in the upper right corner
+
+![](/images/operators/wallet-screenshots/fam-settings.png)
+
+###### 3. To edit family change *Family Name* and or *Description* 
+
+- Click on *Save Changes* and confirm
+
+Congratulation, you edited your family.
+
+###### 1. Navigate to the section *Family - Manage node families* 
+
+###### 2. Navigate to the tab *My family*
+
+- See the nodes in *Members* section in the bottom
+
+![](/images/operators/wallet-screenshots/fam-node-overview.png)
+
+###### 3. Remove all the nodes in your family
+
+A family must be empty before it can be dissolved
+
+- Click on *Remove*
+
+- Confirm by clicking on *Remove Member*
+
+###### 4. Navigate to *Family Settings* in the upper right corner
+
+![](/images/operators/wallet-screenshots/fam-settings.png)
+
+###### 5. Dissolve family
+
+- Click on *Dissolve family*
+
+- Confirm by clicking on *Dissolve family* as a confirmation
+
+Your family is dissolved.
 
 ---
 title: Validators
@@ -21773,14 +23385,14 @@ There are two ways how to run the program. fully interactive or with provided ar
 - An example can look like this:
 ```sh
 # substitute with your real values:
-./nym-node-cli.py install 
-  --hostname node-install.devrel.nymte.ch 
-  --moniker MainnetGW-DE 
-  --description "This node is installed with nym-node-cli v1.2.0" 
-  --wireguard-enabled true 
-  --location DE  
-  --mode exit-gateway 
-  --email kawa_hesinkar@example.ku
+./nym-node-cli.py install \
+  --hostname test-node.devrel.nymte.ch \
+  --moniker MainnetGW-KU \
+  --description "This node is installed with nym-node-cli v1.3.0" \
+  --wireguard-enabled true \
+  --location KU \
+  --mode exit-gateway \
+  --email kawa_hesinkar@ciya.ku
 ```
 
 ###### 4. Read and follow the prompts
@@ -21973,9 +23585,9 @@ On modern Debian based Linux distributions, the network is configured by either 
 
 Most contemporary Ubuntu/Debian distributions come with Netplan, however it is possible that your hosting provider is using a custom version of ISO. For example, Debian 12 (latest version as of June 2024) may come with ifup/down.
 
-Nym operator community members have tested a VPS with Netplan and where in some cases `nym-node --mode exit-gateway` was not routing IP packets properly even after running `network_tunnel_manager.sh` script. We are working on a guide to setup Netplan configuration manually for such cases.
+Nym operator community members have tested a VPS with Netplan and in some cases `nym-node --mode exit-gateway` was not routing IP packets properly even after running `network-tunnel-manager.sh` script. We are working on a guide to set up Netplan configuration manually for such cases.
 
-Configuration of ifup/ifdown is a bit simpler. If the `network_tunnel_manager.sh` script doesn't do the job, open `/etc/network/interfaces` file (research if your system uses a different naming for it) and configure it similarly to this:
+Configuration of ifup/ifdown is a bit simpler. If the `network-tunnel-manager.sh` script doesn't do the job, open `/etc/network/interfaces` file (research if your system uses a different naming for it) and configure it similarly to this:
 
 ```ini
 auto lo
@@ -22001,7 +23613,7 @@ Be extra careful editing this file since you may lock yourself out of the server
 
 Once finished, save the file and reboot the server. Now, running `ip a` command should return correct IPv4 and IPv6 addresses.
 
-Finally re-run `network_tunnel_manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/nym-node/configuration.mdx#ipv6-configuration).
+Finally re-run `network-tunnel-manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/nym-node/configuration.mdx#ipv6-configuration).
 
 ## Other VPS troubleshooting
 
@@ -22716,7 +24328,7 @@ url: https://nym.com/docs/operators/tokenomics/mixnet-rewards
 
 # Nym Operators Rewards
 
-**Nym Network Rewarded set selection had been upgraded recently. Make sure to read the chapter *[Rewarded Set Selection](#rewarded-set-selection)* below carefully to fully understand all requirements to be rewarded!**
+**[Mixnet Node performance Calculation](#mixnet-node-performance-calculation) had been updated recently. Make sure to read the chapter *[Stress Testing Score Calculation](#stress-testing-score-calculation)* below carefully to fully understand tokenomics changes for Mixnodes!**
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nym.com/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, live data and supply graphs, visit [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/token)

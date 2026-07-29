@@ -3,9 +3,7 @@
 ## Purpose
 
 Defines how a signer (a nym-api today, a nym-node later) produces the data an `AttestedTrustAnchor` needs: signed, K-of-N-quorum-verifiable directory snapshots at a contract-dictated cadence, served over HTTP, plus a generic mechanism for signing and quorum-verifying arbitrary canonical "subsets" of directory/node data. The producer logic is a signer-agnostic library (`nym-directory-attestation`) shared by producers and the verifying client, so the trust tier is purely the client's choice of which signer set it accepts, not a property of the format. This capability covers the producer side and the shared protocol; the anchor and the retrieval client are separate capabilities.
-
 ## Requirements
-
 ### Requirement: Contract-dictated snapshot cadence
 
 A producer SHALL read the snapshot interval from the directory contract and produce snapshots only at cadence heights (heights that are exact multiples of the interval), so that independent producers converge on identical snapshot heights without coordination. The producer SHALL NOT invent its own cadence. The interval SHALL be treated as configuration read from on-chain state, not as data committed into the directory digest or the signed snapshot.
@@ -41,7 +39,7 @@ A producer SHALL retain the most recent `N` cadence snapshots (a local configura
 
 ### Requirement: Produce only what was verified
 
-Before signing a snapshot for height `H`, a producer SHALL fetch and verify the whole directory at `H` through a `DirectoryTrustAnchor`-backed retrieval, and SHALL sign only the `app_hash`, digest `accumulator`, and node-identity hash that verification established. The source anchor SHALL be configurable (defaulting to a proven-RPC anchor against the producer's own chain connection, and permitting a light-client anchor), and SHALL NOT be an attested anchor (which would make the producer trust another attestation to make its own).
+Before signing a snapshot for height `H`, a producer SHALL fetch and verify the whole directory at `H` through a `DirectoryTrustAnchor`-backed retrieval, and SHALL sign only the `app_hash`, digest `accumulator`, and node-identity hash that verification established. The source anchor SHALL be configurable (defaulting to a proven-RPC anchor against the producer's own chain connection, and permitting a light-client anchor), and SHALL NOT be an attested anchor (which would make the producer trust another attestation to make its own). When the light-client source anchor is selected, the producer SHALL obtain its seed checkpoint from the checkpoint-bootstrap layer rather than from an unimplemented path, and SHALL persist the anchor's light-client-verified head so a restart within the trusting period reseeds from that head without needing a fresh checkpoint.
 
 #### Scenario: A directory that fails verification is not attested
 
@@ -52,6 +50,16 @@ Before signing a snapshot for height `H`, a producer SHALL fetch and verify the 
 
 - **WHEN** an operator configures the producer with a light-client source anchor instead of the default proven-RPC anchor
 - **THEN** the producer verifies the directory via that anchor before signing, and the published snapshot format is unchanged
+
+#### Scenario: Light-client source anchor is bootstrapped, not stubbed
+
+- **WHEN** an operator selects the light-client source anchor
+- **THEN** the producer loads and verifies a root-signed checkpoint via the checkpoint-bootstrap layer and constructs the anchor from it, instead of failing on an unimplemented checkpoint-retrieval path
+
+#### Scenario: Producer recovers across restart without a fresh checkpoint
+
+- **WHEN** a producer using a light-client source anchor restarts after being down for less than the trusting period
+- **THEN** it reseeds the anchor from its persisted verified head and resumes producing without requiring a newly minted checkpoint
 
 ### Requirement: Canonical, replay-resistant attestation payloads
 
@@ -112,3 +120,4 @@ A producer SHALL expose its produced data over HTTP: the settle-lagged latest si
 
 - **WHEN** a client requests the latest snapshot and then a snapshot at a specific retained height
 - **THEN** the producer returns the corresponding `SignedDigestSnapshot`s, verifiable against the producer's identity key
+

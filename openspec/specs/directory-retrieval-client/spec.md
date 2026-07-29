@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change directory-retrieval-client. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Verifiable whole-directory retrieval
 The client SHALL retrieve the complete set of directory entries and, before returning them, verify that the set equals the entry set committed by the on-chain LtHash digest at a single block height. On any verification failure it MUST return an error and MUST NOT return partial or unverified entries as if verified.
 
@@ -113,11 +111,15 @@ When the RPC cannot supply the block header / `app_hash`, or the retained state 
 - **THEN** the client returns a typed error and returns no unverified data
 
 ### Requirement: Light-client anchor for production use
-When compiled with the `light-client` feature, the crate SHALL provide `LightClientAnchor` as a `DirectoryTrustAnchor` implementation that verifies block headers via the Tendermint light-client protocol before returning `trusted_app_hash`. Production deployments SHOULD use `LightClientAnchor` instead of `ProvenTrustAnchor`, which remains available for local-dev and test contexts.
+When compiled with the `light-client` feature, the crate SHALL provide `LightClientAnchor` as a `DirectoryTrustAnchor` implementation that verifies block headers via the Tendermint light-client protocol before returning `trusted_app_hash`. Production deployments SHOULD use `LightClientAnchor` instead of `ProvenTrustAnchor`, which remains available for local-dev and test contexts. The checkpoint that seeds the anchor SHALL be obtained from the checkpoint-bootstrap layer (a root-signed datum from a hardcoded or well-known source, verified against the root key), rather than requiring the caller to supply a checkpoint out-of-band.
 
 #### Scenario: LightClientAnchor satisfies DirectoryTrustAnchor
 - **WHEN** `DirectoryClient` is constructed with a `LightClientAnchor`
 - **THEN** `verified_directory` and `verified_node_entry`/`verified_curated_entry` behave identically to the `ProvenTrustAnchor` path, with the sole difference that `trusted_app_hash` additionally verifies validator-set signatures before returning
+
+#### Scenario: Production anchor is bootstrapped from a root-signed checkpoint
+- **WHEN** a production client constructs a `LightClientAnchor`
+- **THEN** the seed checkpoint is loaded and verified via the checkpoint-bootstrap layer, so no manually supplied checkpoint is required
 
 #### Scenario: ProvenTrustAnchor remains available
 - **WHEN** `nym-directory-client` is compiled without the `light-client` feature
@@ -152,7 +154,6 @@ When the configured anchor's trusted snapshot carries a node-identities hash (to
 #### Scenario: Existing RPC-backed retrieval is unaffected
 - **WHEN** `DirectoryClient::verified_directory` is called as before, with any anchor
 - **THEN** it fetches entries and node identities via the client's own chain connection exactly as it did previously, with no observable behavior change
-
 
 ### Requirement: HTTP attestation source
 
@@ -195,3 +196,4 @@ The crate SHALL provide a way to fetch a whole directory (entries and the node-i
 
 - **WHEN** the directory fetched from the nym-api does not recompute to the attested `accumulator` (or the node identities do not match the attested hash)
 - **THEN** the client returns a verification error and no directory
+

@@ -85,24 +85,41 @@
 ## 7. Producer wiring (`nym-api/src/directory/cache`)
 
 - [x] 7.1 Replaced the `bail!("unimplemented external checkpoint retrieval")`: the light-client branch resolves the
-  root pubkey + compiled-in datum from env (`ROOT_ATTESTER_ED25519_PUBKEY` / `DIRECTORY_CHECKPOINT`, set by `setup_env`),
-  runs `load_checkpoint` over a stored -> hardcoded provider chain, and builds a `LightClientAnchor` seeded with the
-  result, with a `FileCheckpointStore` at `directory_checkpoint_head.json` alongside `on_disk_file`. (HTTPS provider
-  deferred within §7; loader chain is currently stored -> hardcoded.)
-- [ ] 7.2 Ensure the proven-RPC path (`trusted_rpc_node`) remains the default/rollback path
-- [ ] 7.3 Test/verify the producer constructs a light-client source anchor from a (test-key) checkpoint and persists its
-  verified head
+  root pubkey, checkpoint datum and well-known URL from env (`ROOT_ATTESTER_ED25519_PUBKEY` / `DIRECTORY_CHECKPOINT` /
+  `NYX_TRUSTED_CHECKPOINT_URL`, backfilled from the compiled-in mainnet consts by `setup_env`), runs `load_checkpoint`
+  over the full stored -> hardcoded -> HTTPS provider chain, and builds a `LightClientAnchor` seeded with the result +
+  a `FileCheckpointStore` at `directory_checkpoint_head.json` alongside the on-disk directory cache. The HTTPS provider
+  is optional and non-fatal (`build_https_provider` returns `None` for an empty/malformed URL or unbuildable fetcher, so
+  it can never short-circuit the higher-priority sources). Refactored into `AnchorWithChainId` + `build_*` helpers; the
+  proven-RPC path (7.2) is untouched.
+- [x] 7.2 Proven-RPC path (`trusted_rpc_node`) remains the default/rollback path: the `if config.debug.trusted_rpc_node`
+  branch (`build_proven_trust_anchor`) is unchanged; only the former `bail!` else-branch was implemented
+- [x] 7.3 Dropped as redundant (like 6.5). The nym-api producer uses the concrete `QueryHttpRpcNyxdClient`, so an
+  end-to-end test would need a mock tendermint JSON-RPC HTTP server + multi-height block/validator/contract fixtures,
+  yet would only re-prove behavior already covered where a `MockRpcClient` can be injected: anchor construction +
+  forward advance + head persistence (`light_client.rs`), provider ordering/staleness/bad-sig (`provider.rs`), and datum
+  sign/verify (`checkpoint/mod.rs`). The env->provider resolution glue is the only nym-api-specific logic and is not
+  worth a process-global env-var test
 
 ## 8. Verification gates
 
-- [ ] 8.1 `cargo build`/`check` across touched crates (`nym-directory-attestation`, `nym-directory-client` with and
-  without `light-client`, `nym-api`, `network-defaults`, upgrade-mode consumers)
-- [ ] 8.2 Run the new + existing directory-client tests (including the `mocks`/`light-client` feature paths)
-- [ ] 8.3 `openspec validate directory-checkpoint-bootstrap --strict`
+- [x] 8.1 `cargo build` green across every touched crate: `nym-directory-attestation`; `nym-directory-client` both
+  without features and with `light-client,https-checkpoint-fetcher`; `nym-network-defaults`; `nyx-checkpoint-updater`;
+  `nym-api`; and `nym-node` (upgrade-mode consumer)
+- [x] 8.2 `cargo test -p nym-directory-client --features light-client,https-checkpoint-fetcher` = 68 passed / 0 failed
+  (covers the mock-RPC anchor, provider-ordering, persistence and datum sign/verify paths); `nym-network-defaults` test
+  (legacy attester env promotion) green
+- [x] 8.3 `openspec validate directory-checkpoint-bootstrap --strict` = valid
 
-## 9. Deferred: real-key mainnet ceremony (gated on root-key access)
+## 9. DEFERRED FOLLOW-UP: real-key mainnet ceremony (gated on root-key access)
 
-- [ ] 9.1 Run the minting tool with the real mainnet root key to regenerate and commit the hardcoded checkpoint constant
-  file
-- [ ] 9.2 Publish the `.wellknown/directory/checkpoint.json` file
+Not a spec change and not implementable in this change - it is an operational ceremony gated on access
+to the mainnet root key, so it is intentionally left unchecked and archived alongside this change as a
+standing follow-up. The behavior it activates ("load the checkpoint from the hardcoded datum") is
+already specified and archived; §9 only populates the data.
+
+- [ ] 9.1 Run `nyx-checkpoint-updater` with the real mainnet root key against a trusted RPC to regenerate and commit the
+  populated `common/network-defaults/src/mainnet/directory_checkpoint.json` datum (currently the empty placeholder)
+- [ ] 9.2 Publish the well-known `checkpoint.json` file at the `NYX_TRUSTED_CHECKPOINT_URL` endpoint (mainnet const
+  currently the empty placeholder in `common/network-defaults/src/mainnet.rs`)
 - [ ] 9.3 Optionally mint dev-key-signed checkpoints for non-mainnet networks

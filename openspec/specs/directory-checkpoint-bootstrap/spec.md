@@ -1,5 +1,8 @@
-## ADDED Requirements
+# directory-checkpoint-bootstrap Specification
 
+## Purpose
+TBD - created by archiving change directory-checkpoint-bootstrap. Update Purpose after archive.
+## Requirements
 ### Requirement: Root-signed checkpoint datum
 
 The system SHALL define a `SignedCheckpoint` datum that wraps a full `Checkpoint` (`height`, `signed_header`, `validators`, `next_validators`), an advisory `created_at` timestamp, and a single root signature over the checkpoint's canonical signing payload. The datum SHALL be self-authenticating: its trust derives solely from the root signature, so it MAY be transported over any untrusted channel. The datum type and its verification SHALL live in `nym-directory-client` alongside `Checkpoint` and the tendermint/light-client types it embeds, reusing `nym-directory-attestation`'s domain-tag signing-payload helpers so that no tendermint dependency is forced into that crate.
@@ -85,17 +88,17 @@ Signed providers SHALL be treated as availability-only: every signed datum SHALL
 - **WHEN** the HTTPS provider returns a datum whose root signature does not verify
 - **THEN** the loader rejects it and does not construct an anchor from it
 
-### Requirement: Checkpoint loader builds the anchor
+### Requirement: Checkpoint loader selects a trusted checkpoint
 
-A loader SHALL obtain a datum from a provider, verify its root signature, apply the staleness check, and construct a `LightClientAnchor` from the embedded checkpoint. On verification or staleness failure it SHALL return a typed error and SHALL NOT construct an anchor.
+A loader SHALL try its providers in priority order and return the first candidate checkpoint that is within the trusting period, or a typed error if none qualifies. Root-signature verification SHALL be performed by each signed provider before it yields a candidate (the stored provider carries no signature and is trusted transitively); the loader itself SHALL apply only the staleness check and the ordering. Constructing a `LightClientAnchor` from the returned checkpoint SHALL be the caller's responsibility, not the loader's.
 
-#### Scenario: Valid datum produces an anchor
-- **WHEN** a provider returns a datum whose root signature verifies and whose checkpoint is within the trusting period
-- **THEN** the loader constructs a `LightClientAnchor` seeded with the embedded checkpoint
+#### Scenario: First non-stale candidate is returned
+- **WHEN** a provider yields a candidate whose root signature verifies (for a signed source) and whose block time is within the trusting period
+- **THEN** the loader returns that checkpoint to the caller and consults no lower-priority provider
 
-#### Scenario: Verification failure yields no anchor
-- **WHEN** the datum fails root-signature verification or the staleness check
-- **THEN** the loader returns a typed error and constructs no anchor
+#### Scenario: No valid source yields a typed error
+- **WHEN** no provider yields a candidate that passes both its own signature verification and the loader's staleness check
+- **THEN** the loader returns a typed error and no checkpoint
 
 ### Requirement: Offline checkpoint minting tool
 
@@ -112,3 +115,4 @@ The system SHALL provide a maintainer-only offline tool (a dedicated binary, not
 #### Scenario: Deterministic regeneration
 - **WHEN** the tool is run twice with the same RPC response, height, and pinned mint timestamp
 - **THEN** it produces the identical signed constant
+

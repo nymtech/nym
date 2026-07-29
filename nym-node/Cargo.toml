@@ -30,10 +30,12 @@ clap = { workspace = true, features = ["cargo", "env"] }
 dashmap = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
+humantime = { workspace = true }
 humantime-serde = { workspace = true }
 human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 indicatif = { workspace = true }
+prost = { workspace = true }
 rand = { workspace = true }
 rand010 = { workspace = true }
 getrandom04 = { workspace = true }
@@ -67,6 +69,8 @@ nym-client-core-config-types = { workspace = true, features = [
 nym-config = { workspace = true }
 nym-credential-verification = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
+nym-directory-contract-common = { workspace = true }
+nym-directory-types = { workspace = true }
 nym-kkt = { path = "../common/nym-kkt" }
 nym-nonexhaustive-delayqueue = { workspace = true }
 nym-mixnet-client = { workspace = true }
@@ -147,6 +151,8 @@ cargo_metadata = { workspace = true }
 nym-lp = { workspace = true, default-features = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 
 [features]
 tokio-console = ["console-subscriber", "nym-task/tokio-tracing"]

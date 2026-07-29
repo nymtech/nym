@@ -19,8 +19,8 @@ use crate::config::service_providers::{
     IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug,
 };
 use crate::config::{
-    Config, Debug, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug, LpConfig,
-    LpDebug, MetricsConfig, Mixnet, MixnetDebug, NodeModes, Nyx, ReplayProtection,
+    Config, Debug, DirectoryConfig, GatewayTasksConfig, Host, Http, KeyRotation, KeyRotationDebug,
+    LpConfig, LpDebug, MetricsConfig, Mixnet, MixnetDebug, NodeModes, Nyx, ReplayProtection,
     ReplayProtectionDebug, ServiceProvidersConfig, Verloc, VerlocDebug, Wireguard, gateway_tasks,
     metrics, service_providers,
 };
@@ -915,6 +915,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
                     .legacy_mixing_metrics_update_rate,
             },
         },
+        directory: DirectoryConfig::default(),
         logging: LoggingSettings {},
         debug: Debug {
             topology_cache_ttl: old_cfg.debug.topology_cache_ttl,

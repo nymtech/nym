@@ -6944,6 +6944,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-types"
+version = "1.21.5"
+dependencies = [
+ "prost 0.13.5",
+ "serde",
+ "thiserror 2.0.19",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-dkg"
 version = "1.21.5"
 dependencies = [
@@ -8015,6 +8025,7 @@ dependencies = [
  "hex",
  "hkdf",
  "human-repr",
+ "humantime",
  "humantime-serde",
  "indicatif",
  "ipnetwork 0.20.0",
@@ -8024,6 +8035,8 @@ dependencies = [
  "nym-config",
  "nym-credential-verification",
  "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-directory-types",
  "nym-gateway",
  "nym-gateway-stats-storage",
  "nym-geolocator-requests",
@@ -8062,11 +8075,14 @@ dependencies = [
  "nyxd-scraper-shared",
  "opentelemetry",
  "opentelemetry_sdk",
+ "prost 0.13.5",
  "rand 0.10.2",
  "rand 0.8.6",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
  "sysinfo",
  "thiserror 2.0.19",
  "time",

@@ -102,6 +102,7 @@ pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
+pub(crate) mod directory_publisher;
 pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod key_rotation;

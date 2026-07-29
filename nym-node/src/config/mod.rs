@@ -192,6 +192,8 @@ pub struct ConfigBuilder {
 
     pub lp: Option<LpConfig>,
 
+    pub directory: Option<DirectoryConfig>,
+
     pub logging: Option<LoggingSettings>,
 }
 
@@ -213,6 +215,7 @@ impl ConfigBuilder {
             service_providers: None,
             metrics: None,
             lp: None,
+            directory: None,
             logging: None,
         }
     }
@@ -292,6 +295,12 @@ impl ConfigBuilder {
         self
     }
 
+    #[must_use]
+    pub fn with_directory(mut self, section: impl Into<Option<DirectoryConfig>>) -> Self {
+        self.directory = section.into();
+        self
+    }
+
     pub fn build(self) -> Result<Config, NymNodeError> {
         let gateway_tasks = match self.gateway_tasks {
             Some(gateway_tasks) => gateway_tasks,
@@ -319,6 +328,7 @@ impl ConfigBuilder {
             service_providers: self
                 .service_providers
                 .unwrap_or_else(|| ServiceProvidersConfig::new_default(&self.data_dir)),
+            directory: self.directory.unwrap_or_default(),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
             debug: Default::default(),
@@ -369,6 +379,9 @@ pub struct Config {
 
     #[serde(default)]
     pub metrics: MetricsConfig,
+
+    #[serde(default)]
+    pub directory: DirectoryConfig,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -1141,6 +1154,65 @@ pub struct LocalWireguardOpts {
 
     #[allow(dead_code)]
     pub custom_mixnet_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct DirectoryConfig {
+    /// Specifies whether this node will attempt to submit its directory information to the contract
+    pub enabled: bool,
+
+    pub debug: DirectoryDebug,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct DirectoryDebug {
+    /// How often the publisher runs a full reconcile sweep - driving on-chain state
+    /// toward the desired snapshot, refreshing the label whitelist, and deleting
+    /// orphaned entries.
+    #[serde(with = "humantime_serde")]
+    pub reconcile_sweep_interval: Duration,
+
+    /// While dormant (a failed startup preflight, e.g. the node is not yet bonded or the
+    /// relayer account cannot fund writes), how often to re-run preflight so a later
+    /// bond/top-up recovers the publisher without a node restart.
+    #[serde(with = "humantime_serde")]
+    pub dormant_backoff_interval: Duration,
+
+    /// Debounce window for coalescing bursty sphinx-key rotation emits into a single
+    /// reconcile.
+    #[serde(with = "humantime_serde")]
+    pub sphinx_emit_debounce: Duration,
+
+    /// Maximum number of times a write is retried after a sequence-mismatch rejection
+    /// (the expected sequence is re-read from the contract before each retry).
+    pub write_retry_count: u32,
+}
+
+impl Default for DirectoryConfig {
+    fn default() -> Self {
+        DirectoryConfig {
+            enabled: false,
+            debug: Default::default(),
+        }
+    }
+}
+
+impl DirectoryDebug {
+    pub const DEFAULT_RECONCILE_SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
+    pub const DEFAULT_DORMANT_BACKOFF_INTERVAL: Duration = Duration::from_secs(10 * 60);
+    pub const DEFAULT_SPHINX_EMIT_DEBOUNCE: Duration = Duration::from_secs(5);
+    pub const DEFAULT_WRITE_RETRY_COUNT: u32 = 3;
+}
+
+impl Default for DirectoryDebug {
+    fn default() -> Self {
+        DirectoryDebug {
+            reconcile_sweep_interval: Self::DEFAULT_RECONCILE_SWEEP_INTERVAL,
+            dormant_backoff_interval: Self::DEFAULT_DORMANT_BACKOFF_INTERVAL,
+            sphinx_emit_debounce: Self::DEFAULT_SPHINX_EMIT_DEBOUNCE,
+            write_retry_count: Self::DEFAULT_WRITE_RETRY_COUNT,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]

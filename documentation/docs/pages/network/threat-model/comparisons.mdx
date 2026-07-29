@@ -3,12 +3,12 @@ title: "Nym vs VPNs, Tor, I2P, and E2EE"
 description: "How the Nym Network compares to traditional VPNs, Tor, I2P, and end-to-end encryption in terms of privacy guarantees, metadata protection, and threat models."
 schemaType: "TechArticle"
 section: "Network"
-lastUpdated: "2026-03-15"
+lastUpdated: "2026-07-29"
 ---
 
 # Nym vs Other Systems
 
-There are several existing approaches to network privacy, each with different assumptions about who the adversary is and what they can do.
+There are several existing approaches to network privacy, each with different assumptions about who the adversary is and what they can do. Those assumptions map onto the [threat actors](/network/threat-model/actors): a system's guarantees depend on which vantage points it defends against.
 
 ## Nym vs VPNs
 
@@ -37,8 +37,6 @@ Nym uses a blockchain-based topology registry rather than a DHT, which avoids th
 End-to-end encryption systems like [Signal](https://signal.org/docs/) encrypt messages on your device so that only the recipient can decrypt them, and the server never sees the content. But E2EE does nothing for metadata: the server still sees who you communicate with, when, how often, and how much, which on its own is enough to map relationships and infer sensitive activity.
 
 Nym and E2EE are complementary: E2EE protects message content, Nym protects the metadata around it (who, when, how much). Using Signal over the Nym mixnet, for instance, would protect both message content and the communication metadata around it.
-
-For a practical breakdown of when to use dVPN vs Mixnet mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
 
 ## Further reading
 

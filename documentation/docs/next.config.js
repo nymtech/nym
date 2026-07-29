@@ -211,7 +211,20 @@ const config = {
 
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/docs/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
+        permanent: true,
+        basePath: false,
+      },
+      // comparisons moved: network/overview → network/threat-model (2026-07-29)
+      {
+        source: "/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
         permanent: true,
         basePath: false,
       },
@@ -1228,7 +1241,20 @@ const config = {
       // --- Network overview: deleted pages ---
       {
         source: "/docs/network/overview/two-modes",
-        destination: "/docs/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
+        permanent: true,
+        basePath: false,
+      },
+      // choosing-a-mode superseded by the decision tool (2026-07-29)
+      {
+        source: "/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
         permanent: true,
         basePath: false,
       },

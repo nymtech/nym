@@ -2,6 +2,9 @@
 node_modules
 out
 
+# TypeScript incremental build cache (machine-specific, regenerated each build)
+*.tsbuildinfo
+
 # the lock file will break Vercel because it may get committed from a machine with a different build architecture
 package-lock.json
 

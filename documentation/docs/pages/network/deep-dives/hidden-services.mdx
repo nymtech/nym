@@ -13,7 +13,7 @@ import { Callout } from 'nextra/components'
 Tor offers onion services: servers that accept connections without revealing their network location. Nym has no equivalent yet. This page explains why. The short answer is an asymmetry between Tor's reusable descriptors and Nym's single-use reply blocks. It is a set of open research problems, not a claim that Nym is weaker than Tor. The mixnet's stronger unlinkability model is exactly what makes the naive port hard.
 
 <Callout type="warning">
-A hidden service must hide its location from everyone, including the directory infrastructure that helps clients reach it. In Nym, the natural way to build that directory would force the service into a traffic pattern that can leak the very location it must protect.
+A hidden service must hide its location from everyone, including the directory infrastructure that helps clients reach it. In Nym, the natural way to build that directory would force the service into a traffic pattern. That pattern can leak the very location it must protect.
 </Callout>
 
 ## How Tor onion services work
@@ -29,7 +29,7 @@ The key property is reusability. One descriptor serves an arbitrary number of cl
 
 ## The Nym analogy: SURBs
 
-The closest Nym primitive to a descriptor is the [SURB](/network/mixnet-mode/anonymous-replies), the single-use reply block. A SURB is a pre-computed, layered return path. It lets a sender route a payload back to a party without learning that party's route, its gateway, or its location. In that sense a SURB plays the role of Tor's "introduction points plus key material": it is the token that lets a client reach a hidden party blind.
+The closest Nym primitive to a descriptor is the [SURB](/network/mixnet-mode/anonymous-replies), the single-use reply block. A SURB is a pre-computed, layered return path. It lets a sender route a payload back to a party without learning that party's route, its gateway, or its location. In that sense a SURB plays the role of Tor's "introduction points plus key material". It is the token that lets a client reach a hidden party blind.
 
 Only the hidden service can build these SURBs. Constructing a return path requires knowledge of the service's location and its gateway. So the service itself must generate every SURB and supply them to whatever directory hands them out.
 
@@ -73,7 +73,7 @@ For background on what an observer can and cannot correlate, see the [threat act
 
 ### Time-bounded validity and the refresh window
 
-SURBs are also time-bounded. They are built against the network's current key-rotation cycle and expire when that cycle turns over, so the service must refresh its provisioned SURBs periodically regardless of consumption. See [epochs](/network/reference/epochs) for how the network schedules these cycles and how SURB validity is tied to them.
+SURBs are also time-bounded. They are built against the network's current key-rotation cycle and expire when that cycle turns over. So the service must refresh its provisioned SURBs periodically, regardless of consumption. See [epochs](/network/reference/epochs) for how the network schedules these cycles and how SURB validity is tied to them.
 
 Each refresh has a narrow window. The NymAPI announces the next topology before it comes into force. The service must generate and push its new SURBs inside the gap between announcement and activation. A narrow, recurring, high-volume upload is easier to spot than a steady trickle, which sharpens the fingerprinting concern above.
 
@@ -91,7 +91,7 @@ A malicious client can drain a service by requesting its SURBs over and over. In
 
 ### SURB-depletion denial of service
 
-Suppose no one is malicious. The stock still runs out as legitimate clients consume it. When it is empty, no new client can connect. The service needs some way to learn that the directory is low and to send more. That feedback loop is itself an attack surface. An attacker can deliberately deplete the stock to force the service to push a fresh batch, then watch for the resulting upload pattern to locate the service. The refill mechanism that keeps the service reachable is the same mechanism that can be provoked to expose it.
+Suppose no one is malicious. The stock still runs out as legitimate clients consume it. When it is empty, no new client can connect. The service needs some way to learn that the directory is low and to send more. That feedback loop is itself an attack surface. An attacker can deliberately deplete the stock to force the service to push a fresh batch. It then watches for the resulting upload pattern to locate the service. The refill mechanism that keeps the service reachable is the same mechanism that can be provoked to expose it.
 
 ## Why the obvious shortcut does not apply
 

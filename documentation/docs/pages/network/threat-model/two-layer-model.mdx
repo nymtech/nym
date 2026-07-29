@@ -84,7 +84,7 @@ actor actually observes.
 <MetadataPanel scenario={mixnetIpr} />
 
 Read the two verdicts together. The local network observer (L3L) gets **P1 ✅**:
-it sees only constant-size packets at a Poisson rate with cover traffic, so it
+it sees only constant-size packets at a Poisson rate with cover traffic. So it
 cannot tell the destination, the volume, or the activity. The destination (L2)
 gets **P2 ❌**: the client's connection is an ordinary end-to-end connection, so
 every request and its full content arrive together. A fixed exit gateway behaves
@@ -98,9 +98,9 @@ category error, and it is why transport alone is never the whole answer.
 
 <Callout type="warning">
 **The whole argument above assumes you exit to a clearnet destination.** When
-both ends run Nym, that assumption drops. Traffic never leaves the mixnet, there
-is no exit gateway, and the endpoint is a Nym client reached end to end that
-never learns your IP: replies return through the mixnet via SURBs. The L2
+both ends run Nym, that assumption drops. Traffic never leaves the mixnet, and there is no exit gateway. The endpoint is a
+Nym client reached end to end that never learns your IP. Replies return through
+the mixnet via SURBs. The L2
 adversary is the untrusted server you must exit to. **End to end, that party does
 not exist.**
 </Callout>
@@ -116,14 +116,14 @@ untrusted destination at all". See
 
 **Layer 1, Transport.** What the configuration chooses. It provides V1 identity
 protection against the destination (relay, short-lived connections, exit
-rotation), and V2 in-transit timing protection against network observers
-(mixing, Poisson sending, cover traffic; mixnet only).
+rotation). It also provides V2 in-transit timing protection against network
+observers (mixing, Poisson sending, cover traffic; mixnet only).
 
 **Layer 2, Baseline hygiene.** Transport-independent client discipline, owed by
 every application. It provides V2 timing protection against the destination
-(randomised request times, requests decorrelated from activity milestones), and
-V3 content protection against the destination (request-shape discipline:
-padding, batching, decoy requests). The [`nym-swizzle`](/developers/swizzle)
+(randomised request times, requests decorrelated from activity milestones). It
+also provides V3 content protection against the destination (request-shape
+discipline: padding, batching, decoy requests). The [`nym-swizzle`](/developers/swizzle)
 library provides these primitives.
 
 <Callout type="info">

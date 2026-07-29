@@ -15,7 +15,7 @@ export const DvpnCoverTraffic = dynamic(
 
 # dVPN Cover and Crowding
 
-dVPN mode does not delay or reorder packets, so it cannot hide timing. What it does hide is the client IP: many clients route through a small set of entry gateways and share a single exit gateway, so the destination sees every request arriving from one exit IP. It cannot tell which client sent which request. The more clients crowd behind that exit, the larger the anonymity set, and the harder it is to pin any request on any one of them.
+dVPN mode does not delay or reorder packets, so it cannot hide timing. What it does hide is the client IP. Many clients route through a small set of entry gateways and share a single exit gateway. So the destination sees every request arriving from one exit IP. It cannot tell which client sent which request. The more clients crowd behind that exit, the larger the anonymity set. That makes it harder to pin any request on any one of them.
 
 Move the slider to add clients and watch the anonymity set grow. The observer log shows what the destination records: a stream of requests from one IP, with the client field it can never fill in. Timing is still exposed, so this crowding is a location defence, not a full one; pair it with mixnet mode when timing matters.
 

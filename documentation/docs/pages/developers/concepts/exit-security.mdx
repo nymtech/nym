@@ -95,9 +95,12 @@ If you need anonymity at the application layer too, design for it explicitly: fr
 | **Timing analysis resistance** | Strong with defaults (mixing, cover traffic) | Weak (low-latency) | None |
 | **UDP support** | Yes | No (TCP only) | Yes |
 
+For a fuller comparison of Nym against VPNs, Tor, I2P, and end-to-end encryption on threat-model terms, see [Nym vs other systems](/network/threat-model/comparisons).
+
 The timing-analysis rating assumes the defaults. Cover traffic and Poisson timing can be turned off to trade that resistance for latency and bandwidth, moving Nym's row toward Tor's. The named switches for this (`disableCoverTraffic` / `disablePoissonTraffic`) are specific to the browser/wasm packages ([`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it); the native `smolmix` crate does not expose them by those names. The UDP row reflects a design difference, not a ranking: Tor is TCP-only by design, while the Nym IPR routes raw IP.
 
 ## Read more
 
+- [The two-layer model](/network/threat-model/two-layer-model): why hiding your identity from the destination (transport) and disciplining what your requests leak (hygiene) are separate problems. This page applies that model at the exit.
 - [Exit Gateway Services](/network/infrastructure/exit-services): how the SOCKS-based Network Requester and the IP Packet Router each route traffic past the exit, and how they differ.
 - Per-transport exposure (where TLS terminates, what the resolver sees, `wss://` vs `ws://`) lives on each package's own page: [smolmix](/developers/smolmix), the [SOCKS5 module](/developers/rust/socks5), [mix-fetch](/developers/mix-fetch), [mix-dns](/developers/mix-dns), and [mix-websocket](/developers/mix-websocket).

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
 // import { Footer } from "./components/footer";
 import { Matrix } from "./components/matrix-link";
@@ -6,6 +7,23 @@ import { Explorer } from "./components/explorer-link";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
+  banner: {
+    key: "threat-model-2026-07",
+    dismissible: true,
+    text: (
+      <span>
+        New: a threat-model-first guide to{" "}
+        <Link href="/network/threat-model" style={{ textDecoration: "underline" }}>
+          choosing your network defence
+        </Link>
+        , plus the{" "}
+        <Link href="/developers/smoldvpn" style={{ textDecoration: "underline" }}>
+          nym-smoldvpn
+        </Link>{" "}
+        dVPN package.
+      </span>
+    ),
+  },
   head: function useHead() {
     const config = useConfig();
     const { route } = useRouter();

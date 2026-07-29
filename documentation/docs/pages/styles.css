@@ -557,3 +557,24 @@ html:not(.dark) .nextra-sidebar-container a[href="/docs/operators/nodes"] {
   color: #111 !important;
   font-weight: 700;
 }
+
+/* Prominent site-wide revision banner (content set in theme.config.tsx). */
+:root {
+  --nextra-banner-height: 3.25rem;
+}
+.nextra-banner-container {
+  min-height: var(--nextra-banner-height);
+  font-size: 0.95rem !important;
+  font-weight: 500;
+  background: linear-gradient(90deg, #1f9d57, #1f7fd6) !important;
+  color: #ffffff !important;
+}
+html.dark .nextra-banner-container {
+  background: linear-gradient(90deg, #85e89d, #6bc3ff) !important;
+  color: #10201a !important;
+}
+.nextra-banner-container a {
+  color: inherit !important;
+  text-decoration: underline;
+  font-weight: 700;
+}

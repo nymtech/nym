@@ -1,0 +1,29 @@
+---
+title: "dVPN Cover and Crowding"
+description: "How many clients sharing a small set of entry gateways and one exit gateway blur who is talking to whom: the destination sees every request from one exit IP but cannot bind any of them to a client."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+
+export const DvpnCoverTraffic = dynamic(
+  () => import('../../../components/threat-model/DvpnCoverTraffic').then((m) => m.DvpnCoverTraffic),
+  { ssr: false },
+)
+
+# dVPN Cover and Crowding
+
+dVPN mode does not delay or reorder packets, so it cannot hide timing. What it does hide is the client IP: many clients route through a small set of entry gateways and share a single exit gateway, so the destination sees every request arriving from one exit IP. It cannot tell which client sent which request. The more clients crowd behind that exit, the larger the anonymity set, and the harder it is to pin any request on any one of them.
+
+Move the slider to add clients and watch the anonymity set grow. The observer log shows what the destination records: a stream of requests from one IP, with the client field it can never fill in. Timing is still exposed, so this crowding is a location defence, not a full one; pair it with mixnet mode when timing matters.
+
+<DvpnCoverTraffic />
+
+## Related
+
+- [dVPN mode](/network/dvpn-mode) for the mode overview.
+- [Packet mixing](/network/deep-dives/mixing): the mixnet defence that also protects timing.
+- [Packet anatomy](/network/deep-dives/packet-anatomy): the WireGuard framing this mode uses.
+- [Threat actors](/network/threat-model/actors) and the [two-layer model](/network/threat-model/two-layer-model) for what the destination can and cannot infer.

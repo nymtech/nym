@@ -84,8 +84,11 @@
 
 ## 7. Producer wiring (`nym-api/src/directory/cache`)
 
-- [ ] 7.1 Replace the `bail!("unimplemented external checkpoint retrieval")` with the checkpoint loader building a
-  `LightClientAnchor` (with a `CheckpointStore` in the node data dir, alongside the existing `on_disk_file` cache)
+- [x] 7.1 Replaced the `bail!("unimplemented external checkpoint retrieval")`: the light-client branch resolves the
+  root pubkey + compiled-in datum from env (`ROOT_ATTESTER_ED25519_PUBKEY` / `DIRECTORY_CHECKPOINT`, set by `setup_env`),
+  runs `load_checkpoint` over a stored -> hardcoded provider chain, and builds a `LightClientAnchor` seeded with the
+  result, with a `FileCheckpointStore` at `directory_checkpoint_head.json` alongside `on_disk_file`. (HTTPS provider
+  deferred within §7; loader chain is currently stored -> hardcoded.)
 - [ ] 7.2 Ensure the proven-RPC path (`trusted_rpc_node`) remains the default/rollback path
 - [ ] 7.3 Test/verify the producer constructs a light-client source anchor from a (test-key) checkpoint and persists its
   verified head

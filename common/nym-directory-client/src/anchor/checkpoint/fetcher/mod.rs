@@ -7,6 +7,9 @@ use async_trait::async_trait;
 use nym_crypto::asymmetric::ed25519;
 use tracing::warn;
 
+#[cfg(feature = "https-checkpoint-fetcher")]
+pub mod client;
+
 /// Fetches the raw checkpoint datum (JSON body) from a URL. The transport is injected so this
 /// crate stays free of a concrete HTTP dependency: the producer (nym-api) supplies a real
 /// client, tests supply a canned one. Each implementor names its own concrete transport error

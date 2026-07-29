@@ -18,6 +18,7 @@ pub trait CheckpointStore: Send + Sync {
 }
 
 /// A file-backed [`CheckpointStore`] (JSON). Any read/parse failure is treated as "no head".
+#[derive(Clone)]
 pub struct FileCheckpointStore {
     path: PathBuf,
 }

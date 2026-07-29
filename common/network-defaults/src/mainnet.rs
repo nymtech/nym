@@ -82,6 +82,13 @@ pub const UPGRADE_MODE_ATTESTATION_URL: &str =
     "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
 pub const ROOT_ATTESTER_ED25519_BS58_PUBKEY: &str = "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 
+// TODO: FILL THIS IN ONCE DEPLOYED
+// probably @ https://nymtech.net/.wellknown/directory/checkpoint.json
+// \/
+pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "";
+// /\
+// TODO: FILL THIS IN ONCE DEPLOYED
+
 #[cfg(feature = "network")]
 pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
     DirectoryAttestationSourceConst {
@@ -253,6 +260,10 @@ pub fn export_to_env() {
         &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
     );
     set_var_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
+    );
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
@@ -324,4 +335,8 @@ pub fn export_to_env_if_not_set() {
         &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
     );
     set_var_conditionally_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_conditionally_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
+    );
 }

@@ -86,7 +86,7 @@ pub async fn load_checkpoint(
         if let Some(candidate) = provider.candidate().await {
             let height = candidate.height;
             if candidate.is_stale(now) {
-                warn!("skipping a stale checkpoint candidate at height {height}",);
+                warn!("skipping a stale checkpoint candidate at height {height}");
                 continue;
             }
             return Ok(candidate);

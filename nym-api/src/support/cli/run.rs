@@ -339,11 +339,13 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     // DIRECTORY
     let directory_path = storage_cfg.cache_file("directory");
+    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
     let directory_cache = directory::cache::start_cache_refresher(
         config.directory,
         identity_keypair.clone(),
         nyxd_client.clone(),
         directory_path,
+        checkpoint_path,
         &shutdown_manager,
     )
     .await?;

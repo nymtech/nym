@@ -11,6 +11,7 @@
   },
   "smolmix": "smolmix (TCP/UDP tunnel)",
   "smoldvpn": "nym-smoldvpn (WireGuard dVPN)",
+  "swizzle": "nym-swizzle (traffic hygiene)",
   "rust": "nym-sdk",
 
   "-": {

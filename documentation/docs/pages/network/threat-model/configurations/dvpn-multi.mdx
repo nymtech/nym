@@ -1,0 +1,21 @@
+---
+title: "dVPN — multiple exits"
+description: "Multiple dVPN exits restore request unlinkability at the destination given per-request rotation. Fast, no mixing."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('dvpn-multi')
+
+# dVPN — multiple exits
+
+<GenericScenarioView scenario={scenario} />

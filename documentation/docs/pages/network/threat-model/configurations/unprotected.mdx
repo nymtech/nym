@@ -1,0 +1,21 @@
+---
+title: "Unprotected on the open internet"
+description: "The baseline: the client talks to the destination directly, so identity and contents arrive together."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+import { getGenericScenario } from '../../../../lib/privacy-model/examples/generic'
+
+export const GenericScenarioView = dynamic(
+  () => import('../../../../components/threat-model/GenericScenarioView').then((m) => m.GenericScenarioView),
+  { ssr: false },
+)
+
+export const scenario = getGenericScenario('unprotected')
+
+# Unprotected on the open internet
+
+<GenericScenarioView scenario={scenario} />

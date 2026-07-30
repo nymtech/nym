@@ -289,6 +289,7 @@ getrandom = "0.2.10"
 getrandom03 = { package = "getrandom", version = "=0.3.3" }
 getrandom04 = { package = "getrandom", version = "0.4" }
 glob = "0.3"
+h2 = "0.4.14"
 handlebars = "3.5.5"
 hex = "0.4.3"
 hickory-proto = { version = "0.26.1", default-features = false }

@@ -16,7 +16,7 @@
 - [x] 2.1 Add a `[directory]` config section to nym-node with an `enabled` flag (default false).
 - [x] 2.2 Add hidden (`clap(hide = true)`) CLI/env-overridable tuning knobs: sphinx emit debounce, write retry count,
   and dormant/whitelist-refresh back-off interval, with sensible defaults.
-- [ ] 2.3 Resolve the directory contract address from network details (`Option<String>`); implement the activation
+- [x] 2.3 Resolve the directory contract address from network details (`Option<String>`); implement the activation
   predicate `enabled && contract_address.is_some()` and its inactive-path logging.
 
 ## 3. Publisher write path (single serialized writer)

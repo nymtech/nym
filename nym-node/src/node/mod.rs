@@ -1438,7 +1438,8 @@ impl NymNode {
         }
 
         let mut directory_publisher =
-            DirectoryPublisher::new(nyx_client, self.shutdown_manager.clone_shutdown_token());
+            DirectoryPublisher::new(nyx_client, self.shutdown_manager.clone_shutdown_token())
+                .await?;
 
         // TODO: perform startup reconciliation here
 

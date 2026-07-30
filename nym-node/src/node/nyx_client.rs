@@ -5,6 +5,7 @@ use crate::config;
 use crate::error::NymNodeError;
 use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::contract_traits::TypedNymContracts;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient, nyxd};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -53,5 +54,9 @@ impl NyxClient {
 
     pub(crate) async fn address(&self) -> AccountId {
         self.inner.read().await.address()
+    }
+
+    pub(crate) async fn get_nym_contracts(&self) -> TypedNymContracts {
+        self.inner.read().await.get_nym_contracts()
     }
 }

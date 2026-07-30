@@ -10,6 +10,7 @@ use tracing::trace;
 
 pub(crate) mod payload;
 
+use crate::error::NymNodeError;
 pub(crate) use payload::DirectoryPayload;
 
 pub(crate) type DirectoryPublisherEventsSender = ();
@@ -26,11 +27,24 @@ impl DirectoryPublisher {
 }
 
 impl DirectoryPublisher {
-    pub(crate) fn new(nyx_client: NyxClient, shutdown_token: ShutdownToken) -> Self {
-        DirectoryPublisher {
+    pub(crate) async fn new(
+        nyx_client: NyxClient,
+        shutdown_token: ShutdownToken,
+    ) -> Result<Self, NymNodeError> {
+        // blow up at this point if the directory contract address is not set
+        if nyx_client
+            .get_nym_contracts()
+            .await
+            .directory_contract_address
+            .is_none()
+        {
+            return Err(NymNodeError::MissingDirectoryContractAddress);
+        }
+
+        Ok(DirectoryPublisher {
             nyx_client,
             shutdown_token,
-        }
+        })
     }
 
     pub(crate) async fn run(&mut self) {

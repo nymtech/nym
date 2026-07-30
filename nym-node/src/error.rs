@@ -256,6 +256,9 @@ pub enum NymNodeError {
     #[error("no valid network monitors contract address configured")]
     MissingNetworkMonitorsContractAddress,
 
+    #[error("no valid directory contract address configured")]
+    MissingDirectoryContractAddress,
+
     #[error(transparent)]
     ChainWatcherFailure(#[from] ScraperError),
 

@@ -12,11 +12,6 @@ use rand::thread_rng;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub struct QueryNyxClientWithAddress {
-    client: QueryHttpRpcNyxdClient,
-    address: AccountId,
-}
-
 #[derive(Clone)]
 pub struct NyxClient {
     inner: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
@@ -45,11 +40,8 @@ impl NyxClient {
         })
     }
 
-    pub(crate) async fn clone_query_client(&self) -> QueryNyxClientWithAddress {
-        let inner_guard = self.inner.read().await;
-        let client = inner_guard.clone_query_client();
-        let address = inner_guard.address();
-        QueryNyxClientWithAddress { client, address }
+    pub(crate) async fn clone_query_client(&self) -> QueryHttpRpcNyxdClient {
+        self.inner.read().await.clone_query_client()
     }
 
     pub(crate) async fn address(&self) -> AccountId {

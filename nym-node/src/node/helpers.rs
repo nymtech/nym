@@ -4,13 +4,13 @@
 use crate::config::NodeModes;
 use crate::error::{KeyIOFailure, NymNodeError};
 use crate::node::key_rotation::key::{SphinxPrivateKey, SphinxPublicKey};
+use crate::node::node_details::NodeDescription;
 use crate::node::nym_apis_client::NymApisClient;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kkt::keys::storage_wrappers::StorableKey;
 use nym_kkt::keys::{
     DHKeyPair, DHPrivateKey, MlKem768KeyPair, MlKem768PrivateKey, MlKem768PublicKey, mceliece,
 };
-use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_pemstore::KeyPairPath;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_task::ShutdownToken;
@@ -154,7 +154,6 @@ pub(crate) fn load_ed25519_identity_keypair(
     Ok(load_keypair(paths, "ed25519-identity")?)
 }
 
-#[allow(dead_code)]
 pub(crate) fn load_ed25519_identity_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<ed25519::PublicKey, NymNodeError> {
@@ -167,10 +166,22 @@ pub(crate) fn load_x25519_noise_keypair(
     Ok(load_keypair(paths, "x25519-noise")?)
 }
 
+pub(crate) fn load_x25519_noise_public_key<P: AsRef<Path>>(
+    path: P,
+) -> Result<x25519::PublicKey, NymNodeError> {
+    Ok(load_key(path, "x25519-noise-public-key")?)
+}
+
 pub(crate) fn load_x25519_wireguard_keypair(
     paths: &KeyPairPath,
 ) -> Result<x25519::KeyPair, NymNodeError> {
     Ok(load_keypair(paths, "x25519-wireguard")?)
+}
+
+pub(crate) fn load_x25519_wireguard_public_key<P: AsRef<Path>>(
+    path: P,
+) -> Result<x25519::PublicKey, NymNodeError> {
+    Ok(load_key(path, "x25519-wireguard-public-key")?)
 }
 
 fn load_lp_key<S, P>(path: P, name: &'static str) -> Result<S, NymNodeError>

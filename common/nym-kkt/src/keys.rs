@@ -43,6 +43,13 @@ impl KEMKeys {
         }
     }
 
+    pub fn encapsulation_keys(&self) -> KEMEncapsulationKeys {
+        KEMEncapsulationKeys {
+            mc_eliece_pk: self.mc_eliece_pk.clone(),
+            ml_kem768_pk: self.ml_kem768_pk.clone(),
+        }
+    }
+
     pub fn encapsulation_keys_digests(&self) -> BTreeMap<KEM, KEMKeyDigests> {
         let mut digests = BTreeMap::new();
 
@@ -85,6 +92,27 @@ impl KEMKeys {
 
     pub fn ml_kem768_decapsulation_key(&self) -> &MlKem768PrivateKey {
         &self.ml_kem768_sk
+    }
+}
+
+/// Wrapper around the public KEM keys
+#[derive(Clone)]
+pub struct KEMEncapsulationKeys {
+    pub mc_eliece_pk: Arc<mceliece::PublicKey>,
+    pub ml_kem768_pk: Arc<MlKem768PublicKey>,
+}
+
+impl KEMEncapsulationKeys {
+    pub fn digests(&self) -> BTreeMap<KEM, KEMKeyDigests> {
+        let mut digests = BTreeMap::new();
+
+        let mlkem_digests = produce_key_digests(self.ml_kem768_pk.as_slice());
+        let mceliece_digests = produce_key_digests(self.mc_eliece_pk.as_ref().as_ref());
+
+        digests.insert(KEM::MlKem768, mlkem_digests);
+        digests.insert(KEM::McEliece, mceliece_digests);
+
+        digests
     }
 }
 

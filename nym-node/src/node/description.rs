@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
-use nym_node_requests::api::v1::node::models::NodeDescription;
+use crate::node::node_details::NodeDescription;
 use std::fs;
 use std::fs::create_dir_all;
 use std::path::Path;

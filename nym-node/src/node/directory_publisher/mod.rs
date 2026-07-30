@@ -5,7 +5,9 @@
 //! contract. See the `node-directory-publishing` change for the full design.
 
 use crate::node::nyx_client::NyxClient;
+use nym_crypto::asymmetric::ed25519;
 use nym_task::ShutdownToken;
+use std::sync::Arc;
 use tracing::trace;
 
 pub(crate) mod payload;
@@ -17,6 +19,7 @@ pub(crate) type DirectoryPublisherEventsSender = ();
 
 pub(crate) struct DirectoryPublisher {
     nyx_client: NyxClient,
+    ed25519_identity_keys: Arc<ed25519::KeyPair>,
     shutdown_token: ShutdownToken,
 }
 
@@ -29,6 +32,7 @@ impl DirectoryPublisher {
 impl DirectoryPublisher {
     pub(crate) async fn new(
         nyx_client: NyxClient,
+        ed25519_identity_keys: Arc<ed25519::KeyPair>,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         // blow up at this point if the directory contract address is not set
@@ -43,6 +47,7 @@ impl DirectoryPublisher {
 
         Ok(DirectoryPublisher {
             nyx_client,
+            ed25519_identity_keys,
             shutdown_token,
         })
     }

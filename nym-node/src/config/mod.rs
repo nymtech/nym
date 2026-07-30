@@ -683,6 +683,10 @@ impl Mixnet {
 
         Ok(())
     }
+
+    pub fn external_port(&self) -> u16 {
+        self.announce_port.unwrap_or(self.bind_address.port())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -988,6 +992,12 @@ pub struct Verloc {
 
     #[serde(default)]
     pub debug: VerlocDebug,
+}
+
+impl Verloc {
+    pub fn external_port(&self) -> u16 {
+        self.announce_port.unwrap_or(self.bind_address.port())
+    }
 }
 
 impl Verloc {

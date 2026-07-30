@@ -55,7 +55,7 @@ impl ThroughputTest {
                 .bind_address
                 .set_ip(IpAddr::V4(Ipv4Addr::LOCALHOST));
 
-            let nym_node = NymNode::new(config).await?;
+            let nym_node = NymNode::new(config, false).await?;
             Ok(nym_node)
         })
     }

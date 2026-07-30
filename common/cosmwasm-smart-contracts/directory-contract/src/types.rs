@@ -6,6 +6,7 @@ use crate::helpers::read_len_prefixed;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use nym_mixnet_contract_common::NodeId;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// Key-class / trust-tier discriminant for a directory entry. Extensible: new
@@ -132,7 +133,7 @@ pub struct LabelConfig {
 /// [`KnownLabel::from_str`]) and are handled as opaque bytes.
 #[non_exhaustive]
 #[cw_serde]
-#[derive(Copy, Ord, Eq, PartialOrd)]
+#[derive(Copy, Ord, Eq, PartialOrd, Hash)]
 pub enum KnownLabel {
     /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
     /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous
@@ -141,6 +142,12 @@ pub enum KnownLabel {
     /// first publish. Consumers select by the current rotation; roles are derived,
     /// not stored, so advancement needs no extra writes. Exact payload format TBD.
     SphinxKeys,
+}
+
+impl Display for KnownLabel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
 }
 
 impl KnownLabel {

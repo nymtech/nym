@@ -1166,7 +1166,7 @@ pub struct LocalWireguardOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct DirectoryConfig {
     /// Specifies whether this node will attempt to submit its directory information to the contract
     pub enabled: bool,
@@ -1174,7 +1174,7 @@ pub struct DirectoryConfig {
     pub debug: DirectoryDebug,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct DirectoryDebug {
     /// How often the publisher runs a full reconcile sweep - driving on-chain state
     /// toward the desired snapshot, refreshing the label whitelist, and deleting

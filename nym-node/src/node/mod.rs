@@ -81,7 +81,9 @@ use tokio_util::sync::WaitForCancellationFutureOwned;
 use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
-use crate::node::directory_publisher::{DirectoryPublisher, DirectoryPublisherEventsSender};
+use crate::node::directory_publisher::{
+    DirectoryPublisher, DirectoryPublisherConfig, DirectoryPublisherEventsSender,
+};
 use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKeys};
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
@@ -1086,8 +1088,10 @@ impl NymNode {
             return Ok(None);
         }
 
+        let config = DirectoryPublisherConfig::new(self.config.directory);
         let mut directory_publisher = DirectoryPublisher::new(
             self.nyx_client.clone(),
+            config,
             self.ed25519_identity_keys.clone(),
             self.shutdown_manager.clone_shutdown_token(),
         )

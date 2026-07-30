@@ -21,16 +21,16 @@
 
 ## 3. Publisher write path (single serialized writer)
 
-- [ ] 3.1 Create the `nym-node/src/node/directory_publisher/` module and the `DirectoryPublisher` struct holding the
+- [x] 3.1 Create the `nym-node/src/node/directory_publisher/` module and the `DirectoryPublisher` struct holding the
   signing+query client, `node_id`, ed25519 identity key, sequence tracker, and reconcile cache.
-- [ ] 3.2 Implement the reconcile cache: seed `label -> on-chain bytes` from a single `get_node_entries(node_id)` per
+- [x] 3.2 Implement the reconcile cache: seed `label -> on-chain bytes` from a single `get_node_entries(node_id)` per
   sweep; update on write/delete success.
-- [ ] 3.3 Implement `reconcile_and_write(payload)`: diff canonical bytes vs cache; on absent-or-different, sign
+- [x] 3.3 Implement `reconcile_and_write(payload)`: diff canonical bytes vs cache; on absent-or-different, sign
   `node_signing_payload(node_id, label, sequence, data)` with the identity key and relay via `set_node_entry`; no-op
   when equal.
-- [ ] 3.4 Implement `delete_entry(label)`: sign `node_signing_payload(node_id, label, sequence, &[])` and relay via
+- [x] 3.4 Implement `delete_entry(label)`: sign `node_signing_payload(node_id, label, sequence, &[])` and relay via
   `delete_node_entry`; update cache on success.
-- [ ] 3.5 Implement sequence handling: read expected next sequence via `get_sequence` at startup; on a sequence-mismatch
+- [x] 3.5 Implement sequence handling: read expected next sequence via `get_sequence` at startup; on a sequence-mismatch
   rejection, re-read and retry (bounded by the configured retry count). Shared by set and delete.
 
 ## 3b. Reconcile sweep and deletion

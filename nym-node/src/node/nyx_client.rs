@@ -10,7 +10,7 @@ use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClien
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Clone)]
 pub struct NyxClient {
@@ -42,6 +42,14 @@ impl NyxClient {
 
     pub(crate) async fn clone_query_client(&self) -> QueryHttpRpcNyxdClient {
         self.inner.read().await.clone_query_client()
+    }
+
+    pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, DirectSigningHttpRpcNyxdClient> {
+        self.inner.write().await
+    }
+
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
+        self.inner.read().await
     }
 
     pub(crate) async fn address(&self) -> AccountId {

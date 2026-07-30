@@ -47,7 +47,18 @@ fn generate_exit_policy_ports() -> anyhow::Result<()> {
     for line in content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.starts_with("declare -A PORT_MAPPINGS=(") {
+        // Match the start of the PORT_MAPPINGS associative array declaration,
+        // tolerant of the declare flags used. bash accepts any order/combination
+        // such as `declare -A`, `declare -gA`, `declare -Ag`, so we normalise by
+        // checking the line begins with `declare` and contains `PORT_MAPPINGS=(`
+        // rather than matching one exact flag spelling.
+        if trimmed.starts_with("declare ")
+            && trimmed.contains("PORT_MAPPINGS=(")
+            && trimmed
+                .find("PORT_MAPPINGS=(")
+                .map(|i| trimmed[..i].ends_with(' ') || trimmed[..i].ends_with('\t'))
+                .unwrap_or(false)
+        {
             in_mappings = true;
             continue;
         }

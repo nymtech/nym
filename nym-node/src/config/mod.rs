@@ -1188,11 +1188,6 @@ pub struct DirectoryDebug {
     #[serde(with = "humantime_serde")]
     pub dormant_backoff_interval: Duration,
 
-    /// Debounce window for coalescing bursty sphinx-key rotation emits into a single
-    /// reconcile.
-    #[serde(with = "humantime_serde")]
-    pub sphinx_emit_debounce: Duration,
-
     /// Maximum number of times a write is retried after a sequence-mismatch rejection
     /// (the expected sequence is re-read from the contract before each retry).
     pub write_retry_count: u32,
@@ -1210,7 +1205,6 @@ impl Default for DirectoryConfig {
 impl DirectoryDebug {
     pub const DEFAULT_RECONCILE_SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
     pub const DEFAULT_DORMANT_BACKOFF_INTERVAL: Duration = Duration::from_secs(10 * 60);
-    pub const DEFAULT_SPHINX_EMIT_DEBOUNCE: Duration = Duration::from_secs(5);
     pub const DEFAULT_WRITE_RETRY_COUNT: u32 = 3;
 }
 
@@ -1219,7 +1213,6 @@ impl Default for DirectoryDebug {
         DirectoryDebug {
             reconcile_sweep_interval: Self::DEFAULT_RECONCILE_SWEEP_INTERVAL,
             dormant_backoff_interval: Self::DEFAULT_DORMANT_BACKOFF_INTERVAL,
-            sphinx_emit_debounce: Self::DEFAULT_SPHINX_EMIT_DEBOUNCE,
             write_retry_count: Self::DEFAULT_WRITE_RETRY_COUNT,
         }
     }

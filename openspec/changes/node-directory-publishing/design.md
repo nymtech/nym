@@ -79,7 +79,7 @@ On preflight failure the publisher enters a dormant state and re-runs preflight 
 
 ### D8: Opt-in gate + hidden tuning knobs
 
-A new `[directory]` config section gates the publisher on an `enabled` flag AND a configured contract address. Tuning knobs (sphinx cadence/debounce, retry counts, back-off interval) are CLI/env-overridable but `clap(hide = true)`.
+A new `[directory]` config section gates the publisher on an `enabled` flag AND a configured contract address. Tuning knobs (retry count, back-off intervals) are CLI/env-overridable but `clap(hide = true)`.
 
 - **Why**: The directory is mid-migration; publishing must be opt-in and inert where the contract is not deployed. Hidden knobs follow the project convention for internal tuning parameters.
 
@@ -115,5 +115,5 @@ The reconcile sweep deletes any *published* entry whose label the node recognise
 ## Open Questions
 
 - The concrete `sphinx_key` prost payload *fields* (which rotation-tagged x25519 keys, and whether a key carries a proof) and whether the contract's placeholder `max_size` (256) fits the encoded size - deferred to payload backfill. The encoding *mechanism* (prost, `BTreeMap`, in `nym-directory-attestation`) is settled (D4).
-- The exact long sweep interval, dormant back-off interval, and sphinx emit debounce - to be set as hidden tuning defaults during implementation.
+- The exact long sweep interval and dormant back-off interval - to be set as hidden tuning defaults during implementation.
 - Which additional payloads ship on this branch - to be decided before finalising the branch (the plumbing and encoding are designed to backfill them without structural change).

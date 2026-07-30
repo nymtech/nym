@@ -14,8 +14,8 @@
 ## 2. Configuration and opt-in gate
 
 - [x] 2.1 Add a `[directory]` config section to nym-node with an `enabled` flag (default false).
-- [x] 2.2 Add hidden (`clap(hide = true)`) CLI/env-overridable tuning knobs: sphinx emit debounce, write retry count,
-  and dormant/whitelist-refresh back-off interval, with sensible defaults.
+- [x] 2.2 Add hidden (`clap(hide = true)`) CLI/env-overridable tuning knobs: write retry count and
+  dormant/whitelist-refresh back-off interval, with sensible defaults.
 - [x] 2.3 Resolve the directory contract address from network details (`Option<String>`); implement the activation
   predicate `enabled && contract_address.is_some()` and its inactive-path logging.
 
@@ -65,7 +65,7 @@
 
 ## 6. Event model and producers
 
-- [ ] 6.1 Define `DirectoryUpdate` wakeups and the mpsc channel; implement the publisher's single-consumer loop that
+- [x] 6.1 Define `DirectoryUpdate` wakeups and the mpsc channel; implement the publisher's single-consumer loop that
   `select!`s over the sweep timer, the dormant re-check, and the channel, dispatching each wakeup through a targeted
   `reconcile_and_write` (gated by preflight + whitelist), so all writes/deletes are serialized.
 - [ ] 6.2 Add a `DirectoryUpdate` `Sender` to `KeyRotationController` and emit the current `SphinxKeys` payload after

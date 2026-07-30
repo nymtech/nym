@@ -682,16 +682,6 @@ pub(crate) struct DirectoryArgs {
     )]
     pub directory_submission_dormant_backoff_interval: Option<Duration>,
 
-    /// Debounce window for coalescing bursty sphinx-key rotation emits into a single
-    /// reconcile.
-    #[clap(
-        long,
-        hide = true,
-        value_parser = humantime::parse_duration,
-        env = NYMNODE_DIRECTORY_PHINX_EMIT_DEBOUNCE_ARG
-    )]
-    pub directory_submission_sphinx_emit_debounce: Option<Duration>,
-
     /// Maximum number of times a write is retried after a sequence-mismatch rejection
     /// (the expected sequence is re-read from the contract before each retry).
     #[clap(
@@ -721,10 +711,6 @@ impl DirectoryArgs {
 
         if let Some(dormant_backoff_interval) = self.directory_submission_dormant_backoff_interval {
             section.debug.dormant_backoff_interval = dormant_backoff_interval
-        }
-
-        if let Some(sphinx_emit_debounce) = self.directory_submission_sphinx_emit_debounce {
-            section.debug.sphinx_emit_debounce = sphinx_emit_debounce
         }
 
         if let Some(write_retry_count) = self.directory_submission_write_retry_count {

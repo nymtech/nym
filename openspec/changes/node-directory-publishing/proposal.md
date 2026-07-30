@@ -14,7 +14,7 @@ It is deliberately **plumbing-first**: the exact payloads a node publishes (a `N
 - **Label-whitelist reconciliation** - the node's compile-time `KnownLabel::ALL` and the contract's admin-governed whitelist can diverge across versions. The publisher reconciles against the contract's current `get_allowed_labels()`: it skips (and warns about) any payload whose label is not currently whitelisted (removed or ahead of the deployed contract) instead of issuing a doomed write, and warns when the contract advertises a label the node binary does not recognise.
 - **Startup preflight (soft-fail)** - resolve `node_id` and confirm the node is bonded (via the mixnet contract), and confirm the relayer account can pay for writes (via nym-api's per-node `ChainInteractionCapabilities::can_send_transactions()`). On any failure the publisher logs a clear, actionable error and enters a **dormant state with a long back-off re-check**, so a later bond or top-up recovers it without a node restart. The node always continues running normally.
 - **`KeyRotationController` gains a `DirectoryUpdate` sender** and emits after it mutates keys (pre-announce / swap / purge). Its behaviour is otherwise unchanged.
-- **Opt-in configuration** - a new hidden `[directory]` config section; the publisher runs only when an `enabled` flag is set and a directory contract address is configured. Tuning knobs (sphinx cadence, retry/back-off) are CLI/env-overridable but `clap(hide = true)`.
+- **Opt-in configuration** - a new hidden `[directory]` config section; the publisher runs only when an `enabled` flag is set and a directory contract address is configured. Tuning knobs (retry count, back-off intervals) are CLI/env-overridable but `clap(hide = true)`.
 
 ## Capabilities
 

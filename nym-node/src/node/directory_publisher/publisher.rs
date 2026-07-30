@@ -22,10 +22,20 @@ use std::ops::{ControlFlow, Deref};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio::time::interval;
 use tracing::{debug, info, trace, warn};
 
-pub(crate) type DirectoryPublisherEventsSender = ();
+/// Bound on the update channel. Producers emit best-effort (`try_send`), so a full channel
+/// drops the wakeup rather than blocking the producer; the periodic sweep still reconciles it.
+const DIRECTORY_UPDATE_CHANNEL_CAPACITY: usize = 16;
+
+/// The channel a producer uses to ask the publisher to reconcile a payload now, without
+/// waiting for the next sweep. The message is the whole [`DirectoryPayload`], so any current
+/// or future payload category flows through the same channel and dispatch - a new producer
+/// only introduces a new `DirectoryPayload` variant. Reconcile is the only action, so there
+/// is no wrapper type.
+pub(crate) type DirectoryPublisherEventsSender = mpsc::Sender<DirectoryPayload>;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DirectoryPublisherConfig {
@@ -39,10 +49,6 @@ pub(crate) struct DirectoryPublisherConfig {
     /// bond/top-up recovers the publisher without a node restart.
     pub dormant_backoff_interval: Duration,
 
-    /// Debounce window for coalescing bursty sphinx-key rotation emits into a single
-    /// reconcile.
-    pub sphinx_emit_debounce: Duration,
-
     /// Maximum number of times a write is retried after a sequence-mismatch rejection
     /// (the expected sequence is re-read from the contract before each retry).
     pub write_retry_count: u32,
@@ -53,7 +59,6 @@ impl DirectoryPublisherConfig {
         DirectoryPublisherConfig {
             reconcile_sweep_interval: directory_config.debug.reconcile_sweep_interval,
             dormant_backoff_interval: directory_config.debug.dormant_backoff_interval,
-            sphinx_emit_debounce: directory_config.debug.sphinx_emit_debounce,
             write_retry_count: directory_config.debug.write_retry_count,
         }
     }
@@ -64,11 +69,19 @@ pub(crate) struct DirectoryPublisher {
     config: DirectoryPublisherConfig,
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     shutdown_token: ShutdownToken,
+
+    /// Retained so [`Self::events_sender`] can hand clones to producers; also keeps the
+    /// channel open for the publisher's lifetime (so the receiver never sees it close).
+    events_tx: mpsc::Sender<DirectoryPayload>,
+
+    /// Consumed once by [`Self::run`]. `Option` so it can be moved out of `&mut self` and
+    /// borrowed independently of `self` inside the `select!` loop.
+    events_rx: Option<mpsc::Receiver<DirectoryPayload>>,
 }
 
 impl DirectoryPublisher {
     pub(crate) fn events_sender(&self) -> DirectoryPublisherEventsSender {
-        todo!()
+        self.events_tx.clone()
     }
 }
 
@@ -89,11 +102,15 @@ impl DirectoryPublisher {
             return Err(NymNodeError::MissingDirectoryContractAddress);
         }
 
+        let (events_tx, events_rx) = mpsc::channel(DIRECTORY_UPDATE_CHANNEL_CAPACITY);
+
         Ok(DirectoryPublisher {
             nyx_client,
             config,
             ed25519_identity_keys,
             shutdown_token,
+            events_tx,
+            events_rx: Some(events_rx),
         })
     }
 
@@ -143,7 +160,11 @@ impl DirectoryPublisher {
     /// Drive the ACTIVE state: seed the reconcile session, then run the sweep + event loop.
     /// Returns `Break` on shutdown, or `Continue` if writability was lost mid-run (e.g. the
     /// node was unbonded / defunded) so the caller re-enters preflight.
-    async fn run_active(&self, node_id: NodeId) -> ControlFlow<()> {
+    async fn run_active(
+        &self,
+        node_id: NodeId,
+        events_rx: &mut mpsc::Receiver<DirectoryPayload>,
+    ) -> ControlFlow<()> {
         info!("directory publisher active for node {node_id}");
 
         let mut session = match self.establish_session(node_id).await {
@@ -177,9 +198,44 @@ impl DirectoryPublisher {
                         return ControlFlow::Continue(());
                     }
                 }
-                // TODO(6.1): the DirectoryUpdate channel -> a targeted reconcile_and_write.
+                payload = events_rx.recv() => {
+                    match payload {
+                        Some(payload) => {
+                            if let Err(err) = self.handle_update(&mut session, payload).await {
+                                warn!("directory update failed: {err}; returning to preflight");
+                                return ControlFlow::Continue(());
+                            }
+                        }
+                        // the publisher holds a sender clone, so the channel never actually
+                        // closes; treat the impossible case as a clean shutdown.
+                        None => {
+                            trace!("DirectoryPublisher: update channel closed");
+                            return ControlFlow::Break(());
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /// Dispatch a single update wakeup: a targeted, whitelist-gated reconcile of one
+    /// payload - the low-latency path between sweeps. Generic over the payload, so a new
+    /// producer emitting a different `DirectoryPayload` needs no change here.
+    async fn handle_update(
+        &self,
+        session: &mut ActiveSession,
+        payload: DirectoryPayload,
+    ) -> Result<(), NymNodeError> {
+        let label = payload.label();
+        // same whitelist gate as the sweep; the sweep keeps `whitelist` current.
+        if !session.label_is_writable(label) {
+            warn!(
+                "skipping directory update for '{}' - not in the contract's label whitelist",
+                label.as_str()
+            );
+            return Ok(());
+        }
+        self.reconcile_and_write(session, payload).await
     }
 
     /// The set of payloads every producer would currently publish - the sweep's target
@@ -281,13 +337,18 @@ impl DirectoryPublisher {
         // writing; while it fails the publisher stays dormant and re-checks on a back-off,
         // logging only on transitions. Once it passes, the publisher seeds a session and
         // drives the reconcile sweep + event wakeups until shutdown or lost writability.
+        let mut events_rx = self
+            .events_rx
+            .take()
+            .expect("DirectoryPublisher::run must be called exactly once");
+
         loop {
             let node_id = match self.await_writable().await {
                 ControlFlow::Break(()) => break,
                 ControlFlow::Continue(node_id) => node_id,
             };
 
-            match self.run_active(node_id).await {
+            match self.run_active(node_id, &mut events_rx).await {
                 ControlFlow::Break(()) => break,       // shutdown
                 ControlFlow::Continue(()) => continue, // lost writability -> re-run preflight
             }

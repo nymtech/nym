@@ -75,6 +75,9 @@ pub struct NymNodePaths {
 
     /// Path to a file containing basic node description: human-readable name, website, details, etc.
     pub description: PathBuf,
+
+    /// Path to file containing cosmos account mnemonic used for nyx chain interactions
+    pub cosmos_mnemonic: PathBuf,
 }
 
 impl NymNodePaths {
@@ -84,7 +87,56 @@ impl NymNodePaths {
         NymNodePaths {
             keys: KeysPaths::new(data_dir),
             description: data_dir.join(DEFAULT_NYMNODE_DESCRIPTION_FILENAME),
+            cosmos_mnemonic: data_dir.join(DEFAULT_MNEMONIC_FILENAME),
         }
+    }
+
+    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
+        let stringified =
+            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
+                EntryGatewayError::MnemonicLoadFailure {
+                    path: self.cosmos_mnemonic.clone(),
+                    source,
+                }
+            })?);
+
+        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
+            stringified.as_ref(),
+        )?))
+    }
+
+    pub fn save_mnemonic_to_file(
+        &self,
+        mnemonic: &bip39::Mnemonic,
+    ) -> Result<(), EntryGatewayError> {
+        // wrapper for io errors
+        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
+            if let Some(parent) = path.parent() {
+                create_dir_all(parent)?;
+            }
+            info!("saving entry node mnemonic to '{}'", path.display());
+
+            let stringified = Zeroizing::new(mnemonic.to_string());
+            fs::write(path, &stringified)?;
+
+            #[cfg(target_family = "unix")]
+            {
+                use std::os::unix::fs::PermissionsExt;
+
+                let mut permissions = fs::metadata(path)?.permissions();
+                permissions.set_mode(0o600);
+                fs::set_permissions(path, permissions)?;
+            }
+
+            Ok(())
+        }
+
+        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
+            EntryGatewayError::MnemonicSaveFailure {
+                path: self.cosmos_mnemonic.clone(),
+                source,
+            }
+        })
     }
 }
 
@@ -199,9 +251,6 @@ pub struct GatewayTasksPaths {
     /// Path to sqlite database containing all persistent stats data.
     pub stats_storage: PathBuf,
 
-    /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
-    pub cosmos_mnemonic: PathBuf,
-
     /// Path to file containing bridge client params to be served in the node self-described.
     pub bridge_client_params: Option<PathBuf>,
 }
@@ -211,46 +260,8 @@ impl GatewayTasksPaths {
         GatewayTasksPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
-            cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
             bridge_client_params: None,
         }
-    }
-
-    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
-        let stringified =
-            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
-                EntryGatewayError::MnemonicLoadFailure {
-                    path: self.cosmos_mnemonic.clone(),
-                    source,
-                }
-            })?);
-
-        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
-            stringified.as_ref(),
-        )?))
-    }
-
-    pub fn save_mnemonic_to_file(
-        &self,
-        mnemonic: &bip39::Mnemonic,
-    ) -> Result<(), EntryGatewayError> {
-        // wrapper for io errors
-        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
-            if let Some(parent) = path.parent() {
-                create_dir_all(parent)?;
-            }
-            info!("saving entry gateway mnemonic to '{}'", path.display());
-
-            let stringified = Zeroizing::new(mnemonic.to_string());
-            fs::write(path, &stringified)
-        }
-
-        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
-            EntryGatewayError::MnemonicSaveFailure {
-                path: self.cosmos_mnemonic.clone(),
-                source,
-            }
-        })
     }
 }
 

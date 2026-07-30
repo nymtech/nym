@@ -11,8 +11,9 @@ use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{ClientTicket, CompactEcashError, NymPayInfo, VerificationKeyAuth};
 use nym_gateway_storage::GatewayStorage;
 use nym_gateway_storage::traits::BandwidthGatewayStorage;
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::AccountId;
 use state::SharedState;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
@@ -84,11 +85,12 @@ impl traits::EcashManager for EcashManager {
 impl EcashManager {
     pub async fn new(
         credential_handler_cfg: CredentialHandlerConfig,
-        nyxd_client: DirectSigningHttpRpcNyxdClient,
+        nyxd_client: QueryHttpRpcNyxdClient,
+        runner_address: AccountId,
         pk_bytes: [u8; 32],
         storage: GatewayStorage,
     ) -> Result<(Self, CredentialHandler), Error> {
-        let shared_state = SharedState::new(nyxd_client, Box::new(storage)).await?;
+        let shared_state = SharedState::new(nyxd_client, runner_address, Box::new(storage)).await?;
 
         let (cred_sender, cred_receiver) = mpsc::unbounded();
 
@@ -131,8 +133,8 @@ impl EcashManager {
 
         //Duplicate check
         match inner.binary_search_by(|info| info.timestamp().cmp(&pay_info.timestamp())) {
-            Result::Err(index) => Ok(index),
-            Result::Ok(index) => {
+            Err(index) => Ok(index),
+            Ok(index) => {
                 if inner[index] == pay_info {
                     return Err(EcashTicketError::DuplicatePayInfo);
                 }

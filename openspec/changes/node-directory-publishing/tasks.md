@@ -73,7 +73,7 @@
 
 ## 7. Startup wiring and isolation
 
-- [ ] 7.0 Construct the publisher's signing nyxd client (`DirectSigningHttpRpcNyxdClient`) from the node's chain
+- [x] 7.0 Construct the publisher's signing nyxd client (`DirectSigningHttpRpcNyxdClient`) from the node's chain
   mnemonic. Move ownership of the mnemonic + chain client into nym-node proper (currently derived ad-hoc from
   `entry_gateway.mnemonic`, e.g. `node_chain_address()`) so the publisher and `node_chain_address()` share one owner
   instead of re-deriving the wallet.

@@ -36,6 +36,7 @@ use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::nym_apis_client::NymApisClient;
+use crate::node::nyx_client::NyxClient;
 use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
@@ -76,10 +77,8 @@ use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
-use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use nym_validator_client::signing::signer::OfflineSigner;
-use nym_validator_client::{DirectSecp256k1HdWallet, QueryHttpRpcNyxdClient, UserAgent};
+use nym_validator_client::{QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
@@ -94,9 +93,10 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
+use crate::node::directory_publisher::{DirectoryPublisher, DirectoryPublisherEventsSender};
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
 
@@ -110,34 +110,18 @@ pub mod lp;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
 mod nym_apis_client;
+mod nyx_client;
 mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
 mod shared_network;
 
 pub struct GatewayTasksData {
-    mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
     client_storage: GatewayStorage,
     stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
 
 impl GatewayTasksData {
-    pub fn initialise(
-        config: &GatewayTasksConfig,
-        custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
-    ) -> Result<(), EntryGatewayError> {
-        // SAFETY:
-        // this unwrap is fine as 24 word count is a valid argument for generating entropy for a new bip39 mnemonic
-        #[allow(clippy::unwrap_used)]
-        let mnemonic = Arc::new(
-            custom_mnemonic
-                .unwrap_or_else(|| Zeroizing::new(bip39::Mnemonic::generate(24).unwrap())),
-        );
-        config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
-
-        Ok(())
-    }
-
     async fn new(config: &GatewayTasksConfig) -> Result<GatewayTasksData, EntryGatewayError> {
         let client_storage = GatewayStorage::init(
             &config.storage_paths.clients_storage,
@@ -152,7 +136,6 @@ impl GatewayTasksData {
                 .map_err(nym_gateway::GatewayError::from)?;
 
         Ok(GatewayTasksData {
-            mnemonic: Arc::new(config.storage_paths.load_mnemonic_from_file()?),
             client_storage,
             stats_storage,
         })
@@ -420,6 +403,8 @@ pub struct NymNode {
     #[allow(dead_code)]
     service_providers: ServiceProvidersData,
 
+    mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+
     wireguard: Option<WireguardData>,
 
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
@@ -487,9 +472,18 @@ impl NymNode {
             &config.storage_paths.description,
             &NodeDescription::default(),
         )?;
+        let mnemonic = match custom_mnemonic {
+            None => {
+                trace!("generating new mnemonic");
+                // SAFETY: 24 is a valid word count
+                #[allow(clippy::unwrap_used)]
+                Arc::new(Zeroizing::new(bip39::Mnemonic::generate(24).unwrap()))
+            }
+            Some(custom_mnemonic) => Arc::new(custom_mnemonic),
+        };
 
-        // entry gateway initialisation
-        GatewayTasksData::initialise(&config.gateway_tasks, custom_mnemonic)?;
+        trace!("attempting to store the mnemonic");
+        config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
 
         // service providers initialisation
         ServiceProvidersData::initialise(
@@ -539,6 +533,7 @@ impl NymNode {
         let mlkem = load_mlkem768_keypair(&config.storage_paths.keys.mlkem768_key_paths())?;
         let mceliece = load_mceliece_keypair(&config.storage_paths.keys.mceliece_key_paths())?;
         let psq_kem_keys = KEMKeys::new(mceliece, mlkem);
+        let mnemonic = config.storage_paths.load_mnemonic_from_file()?;
 
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(ed25519_identity_keys),
@@ -559,6 +554,7 @@ impl NymNode {
                 config.gateway_tasks.upgrade_mode.attester_public_key,
             ),
             service_providers: ServiceProvidersData::new(&config.service_providers)?,
+            mnemonic: Arc::new(mnemonic),
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
@@ -715,6 +711,7 @@ impl NymNode {
 
     async fn start_gateway_tasks(
         &mut self,
+        node_address: AccountId,
         cached_network: CachedNetwork,
         lp_nodes: LpNodes,
         metrics_sender: MetricEventsSender,
@@ -737,7 +734,7 @@ impl NymNode {
             mix_packet_sender.clone(),
             metrics_sender,
             self.metrics.clone(),
-            self.entry_gateway.mnemonic.clone(),
+            node_address,
             Self::user_agent(),
             self.upgrade_mode_state.clone(),
             self.config.lp.debug.use_mock_ecash,
@@ -898,27 +895,14 @@ impl NymNode {
             .collect()
     }
 
-    fn node_chain_address(&self) -> Result<AccountId, NymNodeError> {
-        let network_details = NymNetworkDetails::new_from_env();
-
-        // derive the address (annoyingly, this will derive our private keys that we will rederive
-        // when starting the gateway, but changing this behaviour requires too much refactoring)
-        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(
-            &network_details.chain_details.bech32_account_prefix,
-            (**self.entry_gateway.mnemonic).clone(),
-        )
-        .map_err(NyxdError::from)?;
-
-        Ok(wallet.get_accounts()[0].address.clone())
-    }
-
     pub(crate) async fn build_http_server(
         &self,
+        node_address: AccountId,
         shutdown: WaitForCancellationFutureOwned,
     ) -> Result<NymNodeHttpServer, NymNodeError> {
         let auxiliary_data = api_requests::v2::node::models::AuxiliaryDetailsV2 {
             location: self.config.host.location,
-            address: self.node_chain_address()?.to_string(),
+            address: node_address.to_string(),
             announce_ports: AnnouncePorts {
                 verloc_port: self.config.verloc.announce_port,
                 mix_port: self.config.mixnet.announce_port,
@@ -1390,6 +1374,10 @@ impl NymNode {
         Ok(())
     }
 
+    fn build_nyx_client(&self) -> Result<NyxClient, NymNodeError> {
+        NyxClient::new(&self.config.nyx, &self.network, &self.mnemonic)
+    }
+
     async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
         // 1. create a nyx rpc client
         // (TODO: we should have unified client later on for all chain interactions)
@@ -1440,6 +1428,28 @@ impl NymNode {
         Ok(())
     }
 
+    async fn setup_directory_published(
+        &self,
+        nyx_client: NyxClient,
+    ) -> Result<Option<DirectoryPublisherEventsSender>, NymNodeError> {
+        if !self.config.directory.enabled {
+            warn!("this node will not submit any directory information");
+            return Ok(None);
+        }
+
+        let mut directory_publisher =
+            DirectoryPublisher::new(nyx_client, self.shutdown_manager.clone_shutdown_token());
+
+        // TODO: perform startup reconciliation here
+
+        let events_sender = directory_publisher.events_sender();
+        self.shutdown_tracker().try_spawn_named(
+            async move { directory_publisher.run().await },
+            "DirectoryPublisher",
+        );
+        Ok(Some(events_sender))
+    }
+
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
         info!(
             "starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
@@ -1451,13 +1461,18 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
+        let nyx_client = self.build_nyx_client()?;
+        let node_address = nyx_client.address().await;
+
         // ##### START HTTP SERVER #####
         let bind_address = self.config.http.bind_address;
         let shutdown = self
             .shutdown_manager
             .clone_shutdown_token()
             .cancelled_owned();
-        let http_server = self.build_http_server(shutdown).await?;
+        let http_server = self
+            .build_http_server(node_address.clone(), shutdown)
+            .await?;
 
         self.shutdown_manager.try_spawn_named(
             async move {
@@ -1559,8 +1574,12 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
+        // TODO: pass it to the key rotation
+        let directory_publisher_events_sender = self.setup_directory_published(nyx_client).await?;
+
         // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)
         self.start_gateway_tasks(
+            node_address,
             network,
             lp_nodes,
             metrics_sender,

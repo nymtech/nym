@@ -316,7 +316,7 @@ impl Display for ReqwestErrorWrapper {
         }
 
         if let Some(source) = self.0.source() {
-            write!(f, " source: {source}")?;
+            write!(f, " source: {source:?}")?;
         } else {
             write!(f, " unknown lower-level error source")?;
         }
@@ -959,7 +959,9 @@ impl Client {
 
     #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if self.front.is_enabled() {
+        // Only compare against the front host if the current url actually has one configured -
+        // otherwise requests to it go out unfronted, so the offending host will be the real one.
+        if self.front.is_enabled() && self.current_url().has_front() {
             url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
@@ -1279,7 +1281,7 @@ pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
+const MAX_ERR_SOURCE_ITERATIONS: usize = 6;
 
 /// This functions attempts to check the error returned by reqwest to see if rotating host
 /// information (for clients with multiple hosts defined) could be helpful. This looks for
@@ -1329,6 +1331,16 @@ pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
             } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::net::NetError>() {
                 // try downcast to DNS error
                 return resolve_err.is_nx_domain();
+            } else if let Some(h2_err) = e.downcast_ref::<h2::Error>() {
+                // try downcast to a h2 (HTTP/2) error. hyper only wraps these as io::Error
+                // when they are actually backed by one (see `hyper::Error::new_h2`), so if we
+                // get here it's a protocol-level RST_STREAM or GOAWAY. TLS integrity protection
+                // means this can only have been sent by whichever party actually terminates the
+                // TLS connection - for a fronted request that's the front's CDN edge. So it
+                // indicates that host/front may have actively rejected the connection (e.g.
+                // detected fronting, rate limiting, or its own backend failing). This has enough
+                // potentially to continue breaking things that we should rotate hosts if we can.
+                return h2_err.is_remote() && (h2_err.is_reset() || h2_err.is_go_away());
             } else {
                 inner = e.source();
             }

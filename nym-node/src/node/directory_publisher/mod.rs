@@ -13,3 +13,6 @@ mod publisher;
 mod session;
 
 pub(crate) use payload::DirectoryPayload;
+pub(crate) use publisher::{
+    DirectoryPublisher, DirectoryPublisherConfig, DirectoryPublisherEventsSender,
+};

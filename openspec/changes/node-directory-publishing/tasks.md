@@ -35,12 +35,12 @@
 
 ## 3b. Reconcile sweep and deletion
 
-- [ ] 3b.1 Implement `desired_snapshot()`: gather the current payload every producer would publish (only `SphinxKeys`,
+- [x] 3b.1 Implement `desired_snapshot()`: gather the current payload every producer would publish (only `SphinxKeys`,
   derived from `ActiveSphinxKeys`, for now).
-- [ ] 3b.2 Implement the sweep: refresh the cache + whitelist, `reconcile_and_write` every desired payload, then
+- [x] 3b.2 Implement the sweep: refresh the cache + whitelist, `reconcile_and_write` every desired payload, then
   `delete_entry` every published entry whose label is a `KnownLabel` absent from the desired snapshot; never touch
   unknown-label entries.
-- [ ] 3b.3 Drive the sweep from a long-interval timer, at startup (first sweep = the startup snapshot), and on recovery
+- [x] 3b.3 Drive the sweep from a long-interval timer, at startup (first sweep = the startup snapshot), and on recovery
   from dormant.
 
 ## 4. Startup preflight and dormant back-off
@@ -50,17 +50,17 @@
 - [x] 4.2 Implement the fundability check by querying the chain directly: the relayer account's on-chain
   balance against a minimum threshold, falling back to an active feegrant allowance; treat insufficient
   balance with no feegrant as not-yet-fundable.
-- [ ] 4.3 Implement the dormant state machine: on any preflight failure log a clear actionable error (name the fix), go
+- [x] 4.3 Implement the dormant state machine: on any preflight failure log a clear actionable error (name the fix), go
   dormant, and re-run preflight on the back-off interval; on a later pass resume by triggering an immediate reconcile
   sweep (not by draining the channel); log only on state transitions (no per-recheck spam).
 
 ## 5. Label-whitelist reconciliation (version skew)
 
-- [ ] 5.1 Fetch `get_allowed_labels()` at startup into a cached whitelist set; refresh it on the back-off/reconcile
+- [x] 5.1 Fetch `get_allowed_labels()` at startup into a cached whitelist set; refresh it on the back-off/reconcile
   cadence.
-- [ ] 5.2 Guard every write: skip (with a warning naming the label) any payload whose label is not in the current
+- [x] 5.2 Guard every write: skip (with a warning naming the label) any payload whose label is not in the current
   whitelist.
-- [ ] 5.3 On whitelist refresh, warn for any contract label that does not parse to a `KnownLabel` (node binary may be
+- [x] 5.3 On whitelist refresh, warn for any contract label that does not parse to a `KnownLabel` (node binary may be
   behind); warn-once per unchanged state.
 
 ## 6. Event model and producers

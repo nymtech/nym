@@ -9,6 +9,7 @@ use crate::node::directory_publisher::{DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT, 
 use crate::node::nyx_client::NyxClient;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{KnownLabel, node_signing_payload};
+use nym_directory_types::SphinxKeys;
 use nym_task::ShutdownToken;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -16,7 +17,7 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use nym_validator_client::nyxd::module_traits::feegrant::query::FeegrantQueryClient;
 use nym_validator_client::rpc::TendermintRpcClientExt;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::{ControlFlow, Deref};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -145,8 +146,7 @@ impl DirectoryPublisher {
     async fn run_active(&self, node_id: NodeId) -> ControlFlow<()> {
         info!("directory publisher active for node {node_id}");
 
-        // held for the sweep + event loop (consumed once 3b/6 land)
-        let _session = match self.establish_session(node_id).await {
+        let mut session = match self.establish_session(node_id).await {
             Ok(session) => session,
             Err(err) => {
                 warn!(
@@ -156,6 +156,12 @@ impl DirectoryPublisher {
             }
         };
 
+        // The reconcile sweep is the correctness backbone. `interval`'s first tick fires
+        // immediately, so entering ACTIVE runs a sweep straight away (the startup snapshot),
+        // then repeats on the long cadence. Recovery from dormant re-enters here, so it too
+        // runs an immediate sweep.
+        let mut sweep_timer = interval(self.config.reconcile_sweep_interval);
+
         loop {
             tokio::select! {
                 biased;
@@ -163,11 +169,111 @@ impl DirectoryPublisher {
                     trace!("DirectoryPublisher: Received shutdown");
                     return ControlFlow::Break(());
                 }
-                // TODO(3b.3): long-interval sweep timer (`self.config.reconcile_sweep_interval`)
-                //             -> self.sweep(&mut session); the first tick is the startup snapshot.
-                // TODO(6.1):  the DirectoryUpdate channel -> a targeted reconcile_and_write.
+                _ = sweep_timer.tick() => {
+                    if let Err(err) = self.sweep(&mut session).await {
+                        // a sweep failure most likely means writability was lost (unbonded,
+                        // defunded, chain outage); drop back to preflight rather than spin.
+                        warn!("directory reconcile sweep failed: {err}; returning to preflight");
+                        return ControlFlow::Continue(());
+                    }
+                }
+                // TODO(6.1): the DirectoryUpdate channel -> a targeted reconcile_and_write.
             }
         }
+    }
+
+    /// The set of payloads every producer would currently publish - the sweep's target
+    /// state. For now only the sphinx-key entry, a placeholder payload until its fields
+    /// are backfilled (at which point it is derived from the node's `ActiveSphinxKeys`).
+    fn desired_snapshot(&self) -> Vec<DirectoryPayload> {
+        vec![DirectoryPayload::SphinxKeys(SphinxKeys::default())]
+    }
+
+    /// Reconcile sweep (task 3b.2): drive on-chain state toward the desired snapshot.
+    /// Re-seeds the cache from a single `get_node_entries`, writes every desired payload
+    /// that is missing or stale (reconcile-before-write skips the rest), then deletes any
+    /// published entry under a recognised label that is no longer desired. Entries under
+    /// labels this binary does not recognise are left untouched - a newer instance may own
+    /// them (D10).
+    async fn sweep(&self, session: &mut ActiveSession) -> Result<(), NymNodeError> {
+        // 1. re-seed the reconcile cache from chain - the eventual-consistency baseline, so
+        //    reconcile-before-write diffs against actual on-chain state, not a stale copy.
+        let on_chain = self
+            .nyx_client
+            .read()
+            .await
+            .get_node_entries(session.node_id)
+            .await?;
+
+        session.published.clear();
+        let mut published_labels = BTreeSet::new();
+        for labelled in on_chain.entries {
+            match KnownLabel::from_str(&labelled.label) {
+                Ok(label) => {
+                    session
+                        .published
+                        .insert(label, labelled.entry.data.as_slice().to_vec());
+                    published_labels.insert(label);
+                }
+                // unknown label: never delete it - a newer binary may own it
+                Err(_) => trace!(
+                    "sweep: leaving unrecognised directory label '{}' untouched",
+                    labelled.label
+                ),
+            }
+        }
+
+        // 2. refresh the contract label whitelist so the writes below are gated on it
+        self.refresh_whitelist(session).await?;
+
+        // 3. write every desired payload that is missing or stale, skipping any label the
+        //    contract does not currently whitelist.
+        let desired = self.desired_snapshot();
+        let desired_labels: BTreeSet<KnownLabel> = desired.iter().map(|p| p.label()).collect();
+        for payload in desired {
+            let label = payload.label();
+            if !session.label_is_writable(label) {
+                warn!(
+                    "skipping directory write for '{}' - not in the contract's label whitelist",
+                    label.as_str()
+                );
+                continue;
+            }
+            self.reconcile_and_write(session, payload).await?;
+        }
+
+        // 4. delete orphaned known-label entries: published + recognised but no longer desired.
+        for label in published_labels {
+            if !desired_labels.contains(&label) {
+                self.delete_entry(session, label).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Refresh the cached contract label whitelist from `get_allowed_labels` and warn (once
+    /// per unchanged state) about any advertised label this binary does not recognise. Called
+    /// at the top of each sweep so the writes below are gated on the current whitelist.
+    async fn refresh_whitelist(&self, session: &mut ActiveSession) -> Result<(), NymNodeError> {
+        let allowed_labels = self.nyx_client.read().await.get_allowed_labels().await?;
+
+        let mut whitelist = BTreeSet::new();
+        for label in allowed_labels.labels {
+            if let Ok(label) = label.label.parse() {
+                whitelist.insert(label);
+            } else {
+                let label = label.label;
+                if session.warned_unknown_labels.insert(label.clone()) {
+                    warn!(
+                        "directory publisher: the contract advertises a label '{label}' this binary does not recognise - is the binary outdated?",
+                    );
+                }
+            }
+        }
+
+        session.whitelist = whitelist;
+        Ok(())
     }
 
     pub(crate) async fn run(&mut self) {
@@ -224,6 +330,8 @@ impl DirectoryPublisher {
             node_id,
             next_sequence,
             published,
+            whitelist: BTreeSet::new(),
+            warned_unknown_labels: BTreeSet::new(),
         })
     }
 

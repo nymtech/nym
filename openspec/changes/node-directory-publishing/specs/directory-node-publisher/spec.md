@@ -30,18 +30,18 @@ The directory publisher SHALL be spawned as a fire-and-forget background task an
 
 ### Requirement: Startup preflight confirms the node can write
 
-Before attempting any write, the publisher SHALL run a preflight that (a) resolves the node's `node_id` and confirms the node is bonded (and not unbonding) via the mixnet contract, and (b) confirms the relayer account can pay for writes via the node's `ChainInteractionCapabilities::can_send_transactions()` as reported by nym-api. If either check does not pass, the publisher SHALL log a clear, operator-actionable error naming what to fix (bond the node / fund the account / set up a feegrant) and SHALL NOT attempt any write.
+Before attempting any write, the publisher SHALL run a preflight that (a) resolves the node's `node_id` and confirms the node is bonded (and not unbonding) via the mixnet contract, and (b) confirms the relayer account can pay for writes by querying the chain directly for its on-chain balance (against a minimum threshold), falling back to an active feegrant allowance. If either check does not pass, the publisher SHALL log a clear, operator-actionable error naming what to fix (bond the node / fund the account / set up a feegrant) and SHALL NOT attempt any write.
 
 #### Scenario: Node is not bonded
 - **WHEN** preflight finds no active (bonded, non-unbonding) bond for the node's identity in the mixnet contract
 - **THEN** the publisher logs an actionable error, attempts no writes, and enters the dormant back-off state
 
 #### Scenario: Relayer account cannot fund writes
-- **WHEN** the node is bonded but `can_send_transactions()` is false (insufficient tokens and no feegrant), or the annotation is unavailable
+- **WHEN** the node is bonded but its relayer account has neither a sufficient on-chain balance nor a feegrant allowance
 - **THEN** the publisher logs an actionable error, attempts no writes, and enters the dormant back-off state
 
 #### Scenario: Preflight passes
-- **WHEN** the node is bonded and `can_send_transactions()` is true
+- **WHEN** the node is bonded and its relayer account can fund writes (sufficient balance or a feegrant)
 - **THEN** the publisher proceeds to seed its cache and process update events
 
 ### Requirement: Dormant back-off with automatic recovery

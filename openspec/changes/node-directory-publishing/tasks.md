@@ -45,10 +45,11 @@
 
 ## 4. Startup preflight and dormant back-off
 
-- [ ] 4.1 Implement `node_id` resolution + bonded check via the mixnet contract (lookup this node's active,
+- [x] 4.1 Implement `node_id` resolution + bonded check via the mixnet contract (lookup this node's active,
   non-unbonding bond by identity); return the `node_id` on success.
-- [ ] 4.2 Implement the fundability check via nym-api `/v2/nym-nodes/annotation/{node_id}` reading
-  `ChainInteractionCapabilities::can_send_transactions()`; treat an absent annotation as not-yet-confirmed.
+- [x] 4.2 Implement the fundability check by querying the chain directly: the relayer account's on-chain
+  balance against a minimum threshold, falling back to an active feegrant allowance; treat insufficient
+  balance with no feegrant as not-yet-fundable.
 - [ ] 4.3 Implement the dormant state machine: on any preflight failure log a clear actionable error (name the fix), go
   dormant, and re-run preflight on the back-off interval; on a later pass resume by triggering an immediate reconcile
   sweep (not by draining the channel); log only on state transitions (no per-recheck spam).

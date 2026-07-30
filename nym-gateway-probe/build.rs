@@ -52,7 +52,13 @@ fn generate_exit_policy_ports() -> anyhow::Result<()> {
         // such as `declare -A`, `declare -gA`, `declare -Ag`, so we normalise by
         // checking the line begins with `declare` and contains `PORT_MAPPINGS=(`
         // rather than matching one exact flag spelling.
-        if trimmed.starts_with("declare ") && trimmed.contains("PORT_MAPPINGS=(") {
+        if trimmed.starts_with("declare ")
+            && trimmed.contains("PORT_MAPPINGS=(")
+            && trimmed
+                .find("PORT_MAPPINGS=(")
+                .map(|i| trimmed[..i].ends_with(' ') || trimmed[..i].ends_with('\t'))
+                .unwrap_or(false)
+        {
             in_mappings = true;
             continue;
         }

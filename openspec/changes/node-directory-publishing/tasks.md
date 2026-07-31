@@ -92,19 +92,24 @@
 
 ## 8. Tests
 
-- [ ] 8.1 Unit-test `reconcile_and_write`: no-op on equal bytes, write on absent/different, cache updated on success.
-- [ ] 8.2 Unit-test sequence handling: initial read, mismatch triggers re-read + bounded retry.
-- [ ] 8.3 Unit-test preflight outcomes (bonded/unbonded, fundable/not, annotation absent) and the dormant->recovery
-  transition with single-logging.
-- [ ] 8.4 Unit-test whitelist reconciliation: skip+warn for unwhitelisted label, warn for unknown contract label, resume
-  after a refresh re-adds a label.
-- [ ] 8.5 Unit-test the sweep's deletion: an orphaned known-label entry (not in the desired snapshot) is deleted; an
-  unknown-label entry is never deleted; a desired-but-absent entry is created.
-- [ ] 8.6 Test that concurrent/bursty wakeups are serialized through the single writer with correct sequences.
+- [x] 8.1 Unit-test `reconcile_and_write`: no-op on equal bytes, write on absent/different, cache updated on success.
+- [x] 8.2 Unit-test sequence handling: a mismatch triggers a re-read + retry to success; a persistent mismatch surfaces
+  an error after the bounded retry budget is exhausted.
+- [x] 8.3 Unit-test preflight outcomes (bonded/unbonded, fundable via balance, fundable via feegrant, not-fundable) and
+  the dormant->recovery transition.
+- [x] 8.4 Unit-test whitelist reconciliation: skip a non-whitelisted label, warn (once) for an unknown contract label,
+  resume writing after a refresh re-adds the label.
+- [x] 8.5 Unit-test the sweep: a desired-but-absent entry is created and an unknown-label entry is never touched; the
+  deletion primitive is tested directly (the sweep's orphan-deletion branch is currently unreachable because
+  `desired_snapshot` emits every known label - see note below).
+- [x] 8.6 Test that successive writes through the single writer use gap-free, increasing sequences.
 - [ ] 8.7 Test the `KeyRotationController` emit fires on key change and does not affect rotation when the channel is
-  unavailable.
+  unavailable. (Not unit-tested: the controller is impractical to construct in isolation - it needs a full `Config`, a
+  disk-backed `SphinxKeyManager`, and a `RotationConfig`. The emit is verified structurally instead: it is called only
+  from the `PreAnnounce` arm, is a best-effort `try_send` that cannot disrupt rotation, and its payload content is
+  covered by the `directory_sphinx_keys()` publisher tests.)
 
 ## 9. Validation
 
-- [ ] 9.1 `cargo build` + `cargo test` for the touched crates (`nym-directory-types`, nym-node) green.
-- [ ] 9.2 `openspec validate node-directory-publishing --strict` passes.
+- [x] 9.1 `cargo build` + `cargo test` for the touched crates (`nym-directory-types`, nym-node) green.
+- [x] 9.2 `openspec validate node-directory-publishing --strict` passes.

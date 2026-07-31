@@ -5,9 +5,7 @@ use crate::config::DirectoryConfig;
 use crate::error::NymNodeError;
 use crate::node::directory_publisher::preflight::{Preflight, log_dormant_reason};
 use crate::node::directory_publisher::session::ActiveSession;
-use crate::node::directory_publisher::{
-    DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT, DirectoryChainClient, DirectoryPayload,
-};
+use crate::node::directory_publisher::{DirectoryChainClient, DirectoryPayload};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::node_details::NodeDetails;
 use crate::node::nyx_client::NyxClient;
@@ -561,5 +559,324 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
             session.next_sequence = expected_seq;
             attempt += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::node::directory_publisher::test_utils::{MockChainClient, MockWrite};
+    use crate::node::key_rotation::key::SphinxPrivateKey;
+    use crate::node::node_details::mock_node_details;
+    use nym_directory_types::SphinxKeys;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    fn test_config() -> DirectoryPublisherConfig {
+        DirectoryPublisherConfig {
+            reconcile_sweep_interval: Duration::from_secs(3600),
+            dormant_backoff_interval: Duration::from_millis(30),
+            write_retry_count: 3,
+        }
+    }
+
+    fn test_publisher_with(
+        client: MockChainClient,
+        config: DirectoryPublisherConfig,
+    ) -> DirectoryPublisher<MockChainClient> {
+        let mut rng = deterministic_rng();
+        let (events_tx, events_rx) = mpsc::channel(DIRECTORY_UPDATE_CHANNEL_CAPACITY);
+        DirectoryPublisher {
+            client,
+            config,
+            ed25519_identity_keys: Arc::new(ed25519::KeyPair::new(&mut rng)),
+            shutdown_token: ShutdownToken::new(),
+            node_details: mock_node_details(),
+            sphinx_keys: ActiveSphinxKeys::new_fresh(SphinxPrivateKey::new(&mut rng, 5)),
+            events_tx,
+            events_rx: Some(events_rx),
+        }
+    }
+
+    fn test_publisher(client: MockChainClient) -> DirectoryPublisher<MockChainClient> {
+        test_publisher_with(client, test_config())
+    }
+
+    /// A session that has resolved a `node_id`, whitelists every known label, and has nothing
+    /// published yet - the common starting point for the write-path tests.
+    fn ready_session(node_id: NodeId, next_sequence: u64) -> ActiveSession {
+        ActiveSession {
+            node_id,
+            next_sequence,
+            published: BTreeMap::new(),
+            whitelist: KnownLabel::ALL.iter().copied().collect(),
+            warned_unknown_labels: BTreeSet::new(),
+        }
+    }
+
+    /// A distinct sphinx-key payload; `marker` makes the canonical bytes differ.
+    fn sphinx_payload(marker: u8) -> DirectoryPayload {
+        DirectoryPayload::SphinxKeys(SphinxKeys {
+            keys: BTreeMap::from([(5u32, vec![marker; 32])]),
+        })
+    }
+
+    fn sequences(writes: &[MockWrite]) -> Vec<u64> {
+        writes
+            .iter()
+            .map(|w| match w {
+                MockWrite::Set { sequence, .. } => *sequence,
+                MockWrite::Delete { sequence, .. } => *sequence,
+            })
+            .collect()
+    }
+
+    // 8.1
+    #[tokio::test]
+    async fn reconcile_writes_when_absent_or_changed_and_is_a_noop_when_unchanged() {
+        let chain = MockChainClient::new();
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+
+        let p1_bytes = sphinx_payload(1).to_canonical_bytes();
+
+        // absent -> writes, cache + sequence advance
+        publisher
+            .reconcile_and_write(&mut session, sphinx_payload(1))
+            .await
+            .unwrap();
+        assert_eq!(chain.writes().len(), 1);
+        assert_eq!(session.next_sequence, 1);
+        assert_eq!(chain.published_entries().get("sphinx_key"), Some(&p1_bytes));
+        assert_eq!(
+            session.published.get(&KnownLabel::SphinxKeys),
+            Some(&p1_bytes)
+        );
+
+        // identical bytes -> no-op (no new write, sequence unchanged)
+        publisher
+            .reconcile_and_write(&mut session, sphinx_payload(1))
+            .await
+            .unwrap();
+        assert_eq!(chain.writes().len(), 1);
+        assert_eq!(session.next_sequence, 1);
+
+        // different bytes -> writes again
+        publisher
+            .reconcile_and_write(&mut session, sphinx_payload(2))
+            .await
+            .unwrap();
+        assert_eq!(chain.writes().len(), 2);
+        assert_eq!(session.next_sequence, 2);
+    }
+
+    // 8.2
+    #[tokio::test]
+    async fn a_sequence_mismatch_is_diagnosed_and_the_write_retried() {
+        let chain = MockChainClient::new().with_rejected_writes(1);
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+
+        publisher
+            .reconcile_and_write(&mut session, sphinx_payload(1))
+            .await
+            .unwrap();
+
+        // first attempt (seq 0) is rejected and bumps the sequence out-of-band; the re-read
+        // finds seq 1 and the retry succeeds.
+        assert_eq!(sequences(&chain.writes()), vec![0, 1]);
+        assert_eq!(session.next_sequence, 2);
+        assert!(chain.published_entries().contains_key("sphinx_key"));
+    }
+
+    // 8.2
+    #[tokio::test]
+    async fn a_persistent_mismatch_surfaces_after_exhausting_the_retry_budget() {
+        let chain = MockChainClient::new().with_rejected_writes(10);
+        let config = DirectoryPublisherConfig {
+            write_retry_count: 2,
+            ..test_config()
+        };
+        let publisher = test_publisher_with(chain.clone(), config);
+        let mut session = ready_session(1, 0);
+
+        let result = publisher
+            .reconcile_and_write(&mut session, sphinx_payload(1))
+            .await;
+
+        assert!(result.is_err());
+        // the initial attempt plus `write_retry_count` retries
+        assert_eq!(chain.writes().len(), 3);
+        assert!(chain.published_entries().is_empty());
+    }
+
+    // 8.3
+    #[tokio::test]
+    async fn preflight_maps_chain_state_to_outcomes() {
+        // bonded + funded
+        let publisher = test_publisher(MockChainClient::new());
+        assert!(matches!(
+            publisher.preflight().await.unwrap(),
+            Preflight::Ready(1)
+        ));
+
+        // not bonded
+        let publisher = test_publisher(MockChainClient::new().with_node_id(None));
+        assert!(matches!(
+            publisher.preflight().await.unwrap(),
+            Preflight::NotBonded
+        ));
+
+        // bonded, but neither balance nor feegrant
+        let publisher = test_publisher(
+            MockChainClient::new()
+                .with_sufficient_balance(false)
+                .with_feegrant(false),
+        );
+        assert!(matches!(
+            publisher.preflight().await.unwrap(),
+            Preflight::NotFundable
+        ));
+
+        // bonded, no balance, but a feegrant covers writes
+        let publisher = test_publisher(
+            MockChainClient::new()
+                .with_sufficient_balance(false)
+                .with_feegrant(true),
+        );
+        assert!(matches!(
+            publisher.preflight().await.unwrap(),
+            Preflight::Ready(1)
+        ));
+    }
+
+    // 8.3
+    #[tokio::test]
+    async fn await_writable_recovers_from_dormant_once_preflight_passes() {
+        let chain = MockChainClient::new().with_node_id(None);
+        let publisher = test_publisher(chain.clone());
+
+        // while the publisher is dormant and re-checking on its back-off, make the node
+        // bondable; the next re-check must resume with the resolved node id.
+        let recover = async {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+            chain.set_node_id(Some(7));
+        };
+
+        let (outcome, ()) = tokio::join!(publisher.await_writable(), recover);
+        assert!(matches!(outcome, ControlFlow::Continue(7)));
+    }
+
+    // 8.4
+    #[tokio::test]
+    async fn refresh_whitelist_keeps_known_labels_and_warns_once_for_unknown() {
+        let chain = MockChainClient::new().with_allowed_labels([
+            "sphinx_key",
+            "node_description",
+            "future_label",
+        ]);
+        let publisher = test_publisher(chain);
+        let mut session = ready_session(1, 0);
+        session.whitelist.clear();
+
+        publisher.refresh_whitelist(&mut session).await.unwrap();
+
+        assert_eq!(
+            session.whitelist,
+            KnownLabel::ALL.iter().copied().collect::<BTreeSet<_>>()
+        );
+        assert!(session.warned_unknown_labels.contains("future_label"));
+    }
+
+    // 8.4
+    #[tokio::test]
+    async fn an_update_is_skipped_until_its_label_is_whitelisted() {
+        let chain = MockChainClient::new();
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+        session.whitelist.clear();
+
+        // not whitelisted -> skipped, no write
+        publisher
+            .handle_update(&mut session, sphinx_payload(1))
+            .await
+            .unwrap();
+        assert!(chain.writes().is_empty());
+
+        // whitelist it -> now it writes
+        session.whitelist.insert(KnownLabel::SphinxKeys);
+        publisher
+            .handle_update(&mut session, sphinx_payload(1))
+            .await
+            .unwrap();
+        assert_eq!(chain.writes().len(), 1);
+    }
+
+    // 8.5
+    #[tokio::test]
+    async fn sweep_creates_desired_entries_and_never_touches_unknown_labels() {
+        let chain = MockChainClient::new().with_entry("mystery_label", vec![9, 9, 9]);
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+
+        publisher.sweep(&mut session).await.unwrap();
+
+        let entries = chain.published_entries();
+        // every desired known label is created
+        assert!(entries.contains_key("sphinx_key"));
+        assert!(entries.contains_key("node_description"));
+        // an entry under a label this binary does not recognise is left untouched
+        assert_eq!(entries.get("mystery_label"), Some(&vec![9, 9, 9]));
+        // and nothing was deleted
+        assert!(
+            !chain
+                .writes()
+                .iter()
+                .any(|w| matches!(w, MockWrite::Delete { .. }))
+        );
+    }
+
+    // 8.5 - the sweep's orphan-deletion branch cannot be reached while `desired_snapshot`
+    // emits every known label (no known label is ever "not desired"), so the deletion
+    // primitive it calls is exercised directly.
+    #[tokio::test]
+    async fn delete_entry_removes_a_published_entry() {
+        let chain = MockChainClient::new().with_entry("sphinx_key", vec![1, 2, 3]);
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+        session
+            .published
+            .insert(KnownLabel::SphinxKeys, vec![1, 2, 3]);
+
+        publisher
+            .delete_entry(&mut session, KnownLabel::SphinxKeys)
+            .await
+            .unwrap();
+
+        assert!(!chain.published_entries().contains_key("sphinx_key"));
+        assert!(!session.published.contains_key(&KnownLabel::SphinxKeys));
+        assert!(
+            chain
+                .writes()
+                .iter()
+                .any(|w| matches!(w, MockWrite::Delete { .. }))
+        );
+    }
+
+    // 8.6
+    #[tokio::test]
+    async fn successive_writes_use_gap_free_increasing_sequences() {
+        let chain = MockChainClient::new();
+        let publisher = test_publisher(chain.clone());
+        let mut session = ready_session(1, 0);
+
+        for marker in 1..=3u8 {
+            publisher
+                .reconcile_and_write(&mut session, sphinx_payload(marker))
+                .await
+                .unwrap();
+        }
+
+        assert_eq!(sequences(&chain.writes()), vec![0, 1, 2]);
+        assert_eq!(session.next_sequence, 3);
     }
 }

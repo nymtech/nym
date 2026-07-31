@@ -607,3 +607,70 @@ impl NodeDetails {
         self.description.clone().into()
     }
 }
+
+#[cfg(test)]
+pub(crate) fn mock_node_details() -> NodeDetails {
+    let mut rng09 = nym_test_utils::helpers::deterministic_rng_09();
+    let mut rng = nym_test_utils::helpers::deterministic_rng();
+
+    let identity = ed25519::KeyPair::new(&mut rng);
+    let noise = x25519::KeyPair::new(&mut rng);
+    let cosmos_address = AccountId::new("n", &[0u8; 32]).unwrap();
+    let nr_ed25519 = ed25519::KeyPair::new(&mut rng);
+    let nr_x25519 = x25519::KeyPair::new(&mut rng);
+    let ipr_ed25519 = ed25519::KeyPair::new(&mut rng);
+    let ipr_x25519 = x25519::KeyPair::new(&mut rng);
+    let auth_ed25519 = ed25519::KeyPair::new(&mut rng);
+    let auth_x25519 = x25519::KeyPair::new(&mut rng);
+    let wireguard_key = x25519::KeyPair::new(&mut rng);
+
+    let lp_key = nym_lp::peer::DHKeyPair::new(&mut rng09);
+    let kem_keys = nym_kkt::keys::KEMKeys::new(
+        nym_kkt::key_utils::generate_keypair_mceliece(&mut rng09),
+        nym_kkt::key_utils::generate_keypair_mlkem(&mut rng09),
+    );
+
+    NodeDetails {
+        identity_key: *identity.public_key(),
+        noise_key: *noise.public_key(),
+        cosmos_address,
+        accepted_operator_terms_and_conditions: true,
+        ip_addresses: vec!["1.1.1.1".parse().unwrap()],
+        hostname: None,
+        build_information: bin_info_owned!(),
+        location: Some(celes::Country::switzerland()),
+        description: NodeDescription {
+            moniker: "mock_moniker".to_string(),
+            website: "https://nymtech.net".to_string(),
+            security_contact: "security@nymtech.net".to_string(),
+            details: "mock_details".to_string(),
+        },
+        service_providers: ServiceProvidersKeys {
+            nr_ed25519: *nr_ed25519.public_key(),
+            nr_x25519: *nr_x25519.public_key(),
+            ipr_ed25519: *ipr_ed25519.public_key(),
+            ipr_x25519: *ipr_x25519.public_key(),
+            auth_ed25519: *auth_ed25519.public_key(),
+            auth_x25519: *auth_x25519.public_key(),
+        },
+        wireguard_details: WireguardDetails {
+            tunnel_port: 10000,
+            metadata_port: 20000,
+            public_key: *wireguard_key.public_key(),
+        },
+        lewes_protocol_details: LewesProtocolDetails {
+            x25519: lp_key.pk,
+            kem_keys: kem_keys.encapsulation_keys(),
+            control_port: 30000,
+            data_port: 40000,
+        },
+        modes: Default::default(),
+        external_ports: ExternalPorts {
+            verloc_port: 1234,
+            mix_port: 2345,
+            ws_port: 5678,
+            wss_port: None,
+        },
+        system_info: Default::default(),
+    }
+}

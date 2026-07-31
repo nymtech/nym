@@ -11,6 +11,8 @@ pub(crate) mod payload;
 mod preflight;
 mod publisher;
 mod session;
+#[cfg(test)]
+pub(crate) mod test_utils;
 pub(crate) mod traits;
 
 pub(crate) use payload::DirectoryPayload;

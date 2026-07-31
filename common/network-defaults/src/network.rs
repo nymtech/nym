@@ -59,6 +59,12 @@ pub struct NymNetworkDetails {
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
     pub networking: NetworkingSpecifics,
+    /// deprecated use self.nym_api_urls() or self.networking.nym_api_urls
+    pub nym_api_urls: Option<Vec<ApiUrl>>,
+    /// deprecated use self.nym_vpn_api_urls() or self.networking.nym_vpn_api_urls
+    pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
+    /// deprecated use self.nym_vpn_api_urls() or self.networking.nym_vpn_api_urls
+    pub nym_vpn_api_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
@@ -150,7 +156,14 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            networking: Default::default(),
+            networking: NetworkingSpecifics {
+                nym_api_urls: Default::default(),
+                nym_vpn_api_urls: Default::default(),
+                dns_fallbacks: Default::default(),
+            },
+            nym_vpn_api_url: Default::default(),
+            nym_api_urls: Default::default(),
+            nym_vpn_api_urls: Default::default(),
         }
     }
 
@@ -249,6 +262,15 @@ impl NymNetworkDetails {
                 ),
             },
             networking: Self::mainnet_specifics(),
+            nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
+            nym_api_urls: Some(mainnet::NYM_APIS.iter().copied().map(Into::into).collect()),
+            nym_vpn_api_urls: Some(
+                mainnet::NYM_VPN_APIS
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+            ),
         }
     }
 

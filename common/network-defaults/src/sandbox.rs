@@ -57,10 +57,13 @@ pub const UPGRADE_MODE_ATTESTATION_URL: &str =
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
     "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 
+pub const NYM_VPN_API: &str = "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/";
+
+
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
-        url: "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/",
+        url: NYM_VPN_API,
         front_hosts: None,
     },
     ApiUrlConst {
@@ -87,9 +90,9 @@ pub const EXIT_POLICY_URL: &str =
 #[cfg(feature = "network")]
 pub fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
-        "https://rpc.sandbox.nymtech.net",
+        "https://validator-sandbox-1.nymtech.net",
         Some("https://sandbox-nym-api1.nymtech.net/api"),
-        Some("wss://rpc.sandbox.nymtech.net/websocket"),
+        Some("wss://validator-sandbox-1.nymtech.net/websocket"),
     )]
 }
 
@@ -117,6 +120,9 @@ pub fn network_details() -> NymNetworkDetails {
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
         networking: network_specifics(),
+        nym_api_urls: Some(NYM_APIS.iter().copied().map(Into::into).collect()),
+        nym_vpn_api_urls: Some(NYM_VPN_APIS.iter().copied().map(Into::into).collect()),
+        nym_vpn_api_url: parse_optional_str(NYM_VPN_API),
     }
 }
 

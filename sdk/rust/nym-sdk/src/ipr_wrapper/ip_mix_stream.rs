@@ -87,8 +87,14 @@ impl IpMixStream {
     /// Returns a ready-to-use tunnel with allocated IP addresses.
     pub async fn new() -> Result<Self, Error> {
         let network_defaults = NymNetworkDetails::new_mainnet();
+        let api_urls = network_defaults.nym_api_urls();
+        
+        if api_urls.is_empty() {
+            return Err(Error::NoNymAPIUrl)
+        }
+
         let api_client =
-            create_nym_api_client(network_defaults.nym_api_urls().ok_or(Error::NoNymAPIUrl)?)?;
+            create_nym_api_client(api_urls)?;
         let (ipr_address, node_version) = get_best_ipr(api_client).await?;
         Self::connect(ipr_address, Some(node_version)).await
     }
@@ -109,7 +115,11 @@ impl IpMixStream {
     /// deployment, brand-new node, or lookup failure) leaves connect defaulting to
     /// v9 rather than hard-failing.
     async fn lookup_ipr_version(ipr_address: &Recipient) -> Option<semver::Version> {
-        let urls = NymNetworkDetails::new_from_env().nym_api_urls?;
+        let urls = NymNetworkDetails::new_from_env().nym_api_urls();
+        if urls.is_empty() {
+            return None
+        }
+
         let api_client = create_nym_api_client(urls).ok()?;
         match lookup_node_version(&api_client, ipr_address.gateway()).await {
             Ok(version) => Some(version),

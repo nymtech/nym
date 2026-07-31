@@ -96,9 +96,12 @@ impl NetworkRequesterSelector {
 /// described-node payload carries both, so this reads `network_requester` where
 /// that reads `ip_packet_router`, and location rides along for country filtering.
 async fn discover(countries: &[Country]) -> Result<Recipient, Error> {
-    let nym_api_urls = NymNetworkDetails::new_mainnet()
-        .nym_api_urls
-        .ok_or(Error::NoNymAPIUrl)?;
+    let nym_api_urls = NymNetworkDetails::new_mainnet().nym_api_urls();
+
+    if nym_api_urls.is_empty() {
+        return Err(Error::NoNymAPIUrl);
+    }
+    
     let client = create_nym_api_client(nym_api_urls)?;
     get_best_network_requester_in(client, countries).await
 }

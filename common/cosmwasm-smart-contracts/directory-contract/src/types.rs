@@ -140,10 +140,23 @@ pub enum KnownLabel {
     /// key's overlap drains long before the next is pre-announced (overlap window <<
     /// the 24h rotation), so three are never held at once; one key at a node's very
     /// first publish. Consumers select by the current rotation; roles are derived,
-    /// not stored, so advancement needs no extra writes. Exact payload format TBD.
+    /// not stored, so advancement needs no extra writes.
     SphinxKeys,
 
+    /// The node's operator-provided description (moniker, website, contact, details).
     NodeDescription,
+
+    /// The node's mixnet service-provider addresses (network requester, IPR, authenticator).
+    MixnetServiceProviders,
+
+    /// The node's wireguard connection details.
+    Wireguard,
+
+    /// The node's general self-reported information (hostname, IPs, cosmos address, ports, modes).
+    NodeInformation,
+
+    /// The node's Lewes Protocol (LP) connection details.
+    LewesProtocolDetails,
 }
 
 impl Display for KnownLabel {
@@ -155,10 +168,21 @@ impl Display for KnownLabel {
 impl KnownLabel {
     const SPHINX_KEY_STR: &'static str = "sphinx_key";
     const NODE_DESCRIPTION_STR: &'static str = "node_description";
+    const MIXNET_SERVICE_PROVIDERS_STR: &'static str = "mixnet_service_providers";
+    const WIREGUARD_STR: &'static str = "wireguard";
+    const NODE_INFORMATION_STR: &'static str = "node_information";
+    const LEWES_PROTOCOL_DETAILS_STR: &'static str = "lewes_protocol_details";
 
     /// Every known label, in a stable order - all auto-whitelisted at contract
     /// instantiation. Keep in sync with the variants above.
-    pub const ALL: &'static [KnownLabel] = &[KnownLabel::SphinxKeys, KnownLabel::NodeDescription];
+    pub const ALL: &'static [KnownLabel] = &[
+        KnownLabel::SphinxKeys,
+        KnownLabel::NodeDescription,
+        KnownLabel::MixnetServiceProviders,
+        KnownLabel::Wireguard,
+        KnownLabel::NodeInformation,
+        KnownLabel::LewesProtocolDetails,
+    ];
 
     /// The canonical on-chain label string for this known label. Stable: once
     /// entries exist under it, the string must not change.
@@ -166,6 +190,10 @@ impl KnownLabel {
         match self {
             KnownLabel::SphinxKeys => KnownLabel::SPHINX_KEY_STR,
             KnownLabel::NodeDescription => KnownLabel::NODE_DESCRIPTION_STR,
+            KnownLabel::MixnetServiceProviders => KnownLabel::MIXNET_SERVICE_PROVIDERS_STR,
+            KnownLabel::Wireguard => KnownLabel::WIREGUARD_STR,
+            KnownLabel::NodeInformation => KnownLabel::NODE_INFORMATION_STR,
+            KnownLabel::LewesProtocolDetails => KnownLabel::LEWES_PROTOCOL_DETAILS_STR,
         }
     }
 
@@ -175,6 +203,10 @@ impl KnownLabel {
         match self {
             KnownLabel::SphinxKeys => 128,
             KnownLabel::NodeDescription => 256,
+            KnownLabel::MixnetServiceProviders => 512,
+            KnownLabel::Wireguard => 256,
+            KnownLabel::NodeInformation => 2048,
+            KnownLabel::LewesProtocolDetails => 2048,
         }
     }
 
@@ -200,6 +232,10 @@ impl FromStr for KnownLabel {
         match s {
             KnownLabel::SPHINX_KEY_STR => Ok(KnownLabel::SphinxKeys),
             KnownLabel::NODE_DESCRIPTION_STR => Ok(KnownLabel::NodeDescription),
+            KnownLabel::MIXNET_SERVICE_PROVIDERS_STR => Ok(KnownLabel::MixnetServiceProviders),
+            KnownLabel::WIREGUARD_STR => Ok(KnownLabel::Wireguard),
+            KnownLabel::NODE_INFORMATION_STR => Ok(KnownLabel::NodeInformation),
+            KnownLabel::LEWES_PROTOCOL_DETAILS_STR => Ok(KnownLabel::LewesProtocolDetails),
             other => Err(UnknownLabelError(other.to_owned())),
         }
     }

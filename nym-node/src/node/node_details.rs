@@ -127,23 +127,45 @@ impl ExternalPorts {
             mix_port: Some(self.mix_port),
         }
     }
+
+    fn to_directory_model(&self) -> nym_directory_types::NodePorts {
+        nym_directory_types::NodePorts {
+            verloc_port: self.verloc_port as u32,
+            mix_port: self.mix_port as u32,
+            ws_port: self.ws_port as u32,
+            wss_port: self.wss_port.map(|port| port as u32),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WireguardDetails {
+    enabled: bool,
     tunnel_port: u16,
     metadata_port: u16,
     public_key: x25519::PublicKey,
 }
 
 impl WireguardDetails {
-    fn to_http_api_model(&self) -> api_requests::v1::gateway::models::Wireguard {
+    fn to_http_api_model(&self) -> Option<api_requests::v1::gateway::models::Wireguard> {
+        if !self.enabled {
+            return None;
+        }
+
         #[allow(deprecated)]
-        api_requests::v1::gateway::models::Wireguard {
+        Some(api_requests::v1::gateway::models::Wireguard {
             port: self.tunnel_port,
             tunnel_port: self.tunnel_port,
             metadata_port: self.metadata_port,
             public_key: self.public_key.to_string(),
+        })
+    }
+
+    fn to_directory_model(&self) -> nym_directory_types::Wireguard {
+        nym_directory_types::Wireguard {
+            tunnel_port: self.tunnel_port as u32,
+            metadata_port: self.metadata_port as u32,
+            public_key: self.public_key.to_bytes().to_vec(),
         }
     }
 }
@@ -162,6 +184,32 @@ pub(crate) struct LewesProtocolDetails {
 }
 
 impl LewesProtocolDetails {
+    fn to_directory_model(&self) -> nym_directory_types::LewesProtocolDetails {
+        // KEM type -> (hash function -> raw digest bytes), stringifying the enum keys.
+        let kem_key_digests = self
+            .kem_keys
+            .digests()
+            .into_iter()
+            .map(|(kem, digests)| {
+                let digests = digests
+                    .into_iter()
+                    .map(|(hash_function, digest)| (hash_function.to_string(), digest))
+                    .collect();
+                (
+                    kem.to_string(),
+                    nym_directory_types::KemKeyDigests { digests },
+                )
+            })
+            .collect();
+
+        nym_directory_types::LewesProtocolDetails {
+            x25519_public_key: self.x25519.as_ref().to_vec(),
+            kem_key_digests,
+            control_port: self.control_port as u32,
+            data_port: self.data_port as u32,
+        }
+    }
+
     pub(crate) fn compute_http_api_kem_key_hashes(
         &self,
     ) -> BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>> {
@@ -415,6 +463,7 @@ impl NodeDetails {
         };
 
         let wireguard_details = WireguardDetails {
+            enabled: config.wireguard.enabled,
             tunnel_port: config.wireguard.announced_tunnel_port,
             metadata_port: config.wireguard.announced_metadata_port,
             public_key: wireguard_key,
@@ -465,16 +514,10 @@ impl NodeDetails {
         let mixnode_details = api_requests::v1::mixnode::models::Mixnode {};
 
         // entry gateway info
-        let wireguard = if node_config.wireguard.enabled {
-            Some(self.wireguard_details.to_http_api_model())
-        } else {
-            None
-        };
-
         let gateway_details = api_requests::v1::gateway::models::Gateway {
             enforces_zk_nyms: node_config.gateway_tasks.enforce_zk_nyms,
             client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
-                wireguard,
+                wireguard: self.wireguard_details.to_http_api_model(),
                 mixnet_websockets: Some(self.external_ports.to_websockets_http_api_model()),
             },
         };
@@ -592,6 +635,22 @@ impl NodeDetails {
         )
     }
 
+    pub(crate) fn directory_mixnet_service_providers(
+        &self,
+    ) -> nym_directory_types::MixnetServiceProviders {
+        nym_directory_types::MixnetServiceProviders {
+            network_requester: Some(nym_directory_types::NetworkRequester {
+                address: self.exit_network_requester_address().to_bytes().to_vec(),
+            }),
+            internet_packet_router: Some(nym_directory_types::InternetPacketRouter {
+                address: self.exit_ip_packet_router_address().to_bytes().to_vec(),
+            }),
+            authenticator: Some(nym_directory_types::Authenticator {
+                address: self.exit_authenticator_address().to_bytes().to_vec(),
+            }),
+        }
+    }
+
     pub(crate) fn description(&self) -> &NodeDescription {
         &self.description
     }
@@ -605,6 +664,39 @@ impl NodeDetails {
 impl NodeDetails {
     pub(crate) fn directory_node_description(&self) -> nym_directory_types::NodeDescription {
         self.description.clone().into()
+    }
+
+    pub(crate) fn directory_wireguard(&self) -> nym_directory_types::Wireguard {
+        self.wireguard_details.to_directory_model()
+    }
+
+    pub(crate) fn directory_lewes_protocol_details(
+        &self,
+    ) -> nym_directory_types::LewesProtocolDetails {
+        self.lewes_protocol_details.to_directory_model()
+    }
+
+    pub(crate) fn directory_node_information(&self) -> nym_directory_types::NodeInformation {
+        nym_directory_types::NodeInformation {
+            hostname: self.hostname.clone(),
+            ip_addresses: self.ip_addresses.iter().map(|ip| ip.to_string()).collect(),
+            cosmos_address: self.cosmos_address.to_string(),
+            location: self
+                .location
+                .as_ref()
+                .map(|country| country.alpha2.to_string()),
+            ports: Some(self.external_ports.to_directory_model()),
+            modes: Some(self.directory_node_modes()),
+        }
+    }
+
+    fn directory_node_modes(&self) -> nym_directory_types::NodeModes {
+        nym_directory_types::NodeModes {
+            mixnode: self.modes.mixnode,
+            entry: self.modes.entry,
+            exit: self.modes.exit,
+            wireguard_enabled: self.wireguard_details.enabled,
+        }
     }
 }
 
@@ -654,6 +746,7 @@ pub(crate) fn mock_node_details() -> NodeDetails {
             auth_x25519: *auth_x25519.public_key(),
         },
         wireguard_details: WireguardDetails {
+            enabled: true,
             tunnel_port: 10000,
             metadata_port: 20000,
             public_key: *wireguard_key.public_key(),

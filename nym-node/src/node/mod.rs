@@ -1097,8 +1097,6 @@ impl NymNode {
         )
         .await?;
 
-        // TODO: perform startup reconciliation here
-
         let events_sender = directory_publisher.events_sender();
         self.shutdown_tracker().try_spawn_named(
             async move { directory_publisher.run().await },
@@ -1226,7 +1224,6 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
-        // TODO: pass it to the key rotation
         let directory_publisher_events_sender = self.setup_directory_published().await?;
 
         let node_address = self.public_details.cosmos_address().clone();

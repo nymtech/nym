@@ -237,13 +237,22 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
         self.reconcile_and_write(session, payload).await
     }
 
-    /// The set of payloads every producer would currently publish - the sweep's target
-    /// state. For now only the sphinx-key entry, a placeholder payload until its fields
-    /// are backfilled (at which point it is derived from the node's `ActiveSphinxKeys`).
+    /// The full set of payloads this node currently wants published - the sweep's target
+    /// state, one per [`KnownLabel`], derived from the node's live keys and details. The
+    /// sweep reconciles each against on-chain state and skips any label the contract does not
+    /// currently whitelist.
     fn desired_snapshot(&self) -> Vec<DirectoryPayload> {
         vec![
             DirectoryPayload::SphinxKeys(self.sphinx_keys.directory_sphinx_keys()),
             DirectoryPayload::NodeDescription(self.node_details.directory_node_description()),
+            DirectoryPayload::MixnetServiceProviders(
+                self.node_details.directory_mixnet_service_providers(),
+            ),
+            DirectoryPayload::Wireguard(self.node_details.directory_wireguard()),
+            DirectoryPayload::NodeInformation(self.node_details.directory_node_information()),
+            DirectoryPayload::LewesProtocolDetails(
+                self.node_details.directory_lewes_protocol_details(),
+            ),
         ]
     }
 
@@ -780,9 +789,11 @@ mod tests {
 
         publisher.refresh_whitelist(&mut session).await.unwrap();
 
+        // only the two recognised labels from the allowed set end up whitelisted; the
+        // unrecognised "future_label" is skipped (and warned about below)
         assert_eq!(
             session.whitelist,
-            KnownLabel::ALL.iter().copied().collect::<BTreeSet<_>>()
+            BTreeSet::from([KnownLabel::SphinxKeys, KnownLabel::NodeDescription])
         );
         assert!(session.warned_unknown_labels.contains("future_label"));
     }

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_directory_contract_common::KnownLabel;
-use nym_directory_types::{NodeDescription, SphinxKeys};
+use nym_directory_types::{
+    LewesProtocolDetails, MixnetServiceProviders, NodeDescription, NodeInformation, SphinxKeys,
+    Wireguard,
+};
 use prost::Message;
 
 /// The closed set of payloads this node publishes to the directory contract - one
@@ -17,7 +20,20 @@ pub(crate) enum DirectoryPayload {
     /// The node's rotation-tagged sphinx keys, published under [`KnownLabel::SphinxKeys`].
     SphinxKeys(SphinxKeys),
 
+    /// The node's operator-provided description.
     NodeDescription(NodeDescription),
+
+    /// The node's mixnet service-provider addresses.
+    MixnetServiceProviders(MixnetServiceProviders),
+
+    /// The node's wireguard connection details.
+    Wireguard(Wireguard),
+
+    /// The node's general self-reported information.
+    NodeInformation(NodeInformation),
+
+    /// The node's Lewes Protocol connection details.
+    LewesProtocolDetails(LewesProtocolDetails),
 }
 
 impl DirectoryPayload {
@@ -26,6 +42,10 @@ impl DirectoryPayload {
         match self {
             DirectoryPayload::SphinxKeys(_) => KnownLabel::SphinxKeys,
             DirectoryPayload::NodeDescription(_) => KnownLabel::NodeDescription,
+            DirectoryPayload::MixnetServiceProviders(_) => KnownLabel::MixnetServiceProviders,
+            DirectoryPayload::Wireguard(_) => KnownLabel::Wireguard,
+            DirectoryPayload::NodeInformation(_) => KnownLabel::NodeInformation,
+            DirectoryPayload::LewesProtocolDetails(_) => KnownLabel::LewesProtocolDetails,
         }
     }
 
@@ -34,6 +54,10 @@ impl DirectoryPayload {
         match self {
             DirectoryPayload::SphinxKeys(payload) => payload.encode_to_vec(),
             DirectoryPayload::NodeDescription(payload) => payload.encode_to_vec(),
+            DirectoryPayload::MixnetServiceProviders(payload) => payload.encode_to_vec(),
+            DirectoryPayload::Wireguard(payload) => payload.encode_to_vec(),
+            DirectoryPayload::NodeInformation(payload) => payload.encode_to_vec(),
+            DirectoryPayload::LewesProtocolDetails(payload) => payload.encode_to_vec(),
         }
     }
 }

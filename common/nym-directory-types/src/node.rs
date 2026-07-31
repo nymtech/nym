@@ -1,9 +1,165 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::DirectoryTypesError;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
+/// General self-reported information about a node, published under the directory.
+#[derive(Clone, Serialize, Deserialize, Message)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct NodeInformation {
+    /// The node's announced hostname, if it has one.
+    #[prost(string, optional, tag = "1")]
+    pub hostname: Option<String>,
+
+    /// The node's announced public IP addresses, string-encoded.
+    #[prost(string, repeated, tag = "2")]
+    pub ip_addresses: Vec<String>,
+
+    /// The node's cosmos (nyx) account address, bech32-encoded.
+    #[prost(string, tag = "3")]
+    pub cosmos_address: String,
+
+    /// Optional ISO 3166 alpha-2 country code of the node's physical location.
+    #[prost(string, optional, tag = "4")]
+    pub location: Option<String>,
+
+    /// The node's externally-announced ports.
+    #[prost(message, optional, tag = "5")]
+    pub ports: Option<NodePorts>,
+
+    /// The roles this node operates in.
+    #[prost(message, optional, tag = "6")]
+    pub modes: Option<NodeModes>,
+}
+
+/// A node's externally-announced ports. Stored as `u32` because protobuf has no 16-bit
+/// integer type; use the accessors for the `u16` value.
+#[derive(Clone, Serialize, Deserialize, Message)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct NodePorts {
+    /// The verloc measurement port.
+    #[prost(uint32, tag = "1")]
+    pub verloc_port: u32,
+
+    /// The mixnet (Sphinx) port.
+    #[prost(uint32, tag = "2")]
+    pub mix_port: u32,
+
+    /// The unencrypted client websocket port.
+    #[prost(uint32, tag = "3")]
+    pub ws_port: u32,
+
+    /// The encrypted client websocket (wss) port, if the node announces one.
+    #[prost(uint32, optional, tag = "4")]
+    pub wss_port: Option<u32>,
+}
+
+impl NodePorts {
+    /// The verloc port as a `u16`.
+    pub fn get_verloc_port(&self) -> u16 {
+        self.verloc_port.min(u16::MAX as u32) as u16
+    }
+
+    /// The mixnet port as a `u16`.
+    pub fn get_mix_port(&self) -> u16 {
+        self.mix_port.min(u16::MAX as u32) as u16
+    }
+
+    /// The client websocket port as a `u16`.
+    pub fn get_ws_port(&self) -> u16 {
+        self.ws_port.min(u16::MAX as u32) as u16
+    }
+
+    /// The client wss port as a `u16`, if the node announces one.
+    pub fn get_wss_port(&self) -> Option<u16> {
+        self.wss_port.map(|port| port.min(u16::MAX as u32) as u16)
+    }
+}
+
+/// The set of roles a node can operate in.
+#[derive(Clone, Serialize, Deserialize, Message)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct NodeModes {
+    /// Specifies whether this node can operate in a mixnode mode.
+    #[prost(bool, tag = "1")]
+    pub mixnode: bool,
+
+    /// Specifies whether this node can operate in an entry mode.
+    #[prost(bool, tag = "2")]
+    pub entry: bool,
+
+    /// Specifies whether this node can operate in an exit mode.
+    #[prost(bool, tag = "3")]
+    pub exit: bool,
+
+    /// Specifies whether this node has enabled wireguard.
+    #[prost(bool, tag = "4")]
+    pub wireguard_enabled: bool,
+}
+
+/// The node's Lewes Protocol (LP) connection details.
+#[derive(Clone, Serialize, Deserialize, Message)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LewesProtocolDetails {
+    /// The node's LP x25519 public key, encoded (32 bytes).
+    #[prost(bytes, tag = "1")]
+    pub x25519_public_key: Vec<u8>,
+
+    /// Per-KEM key digests, keyed by KEM type name (e.g. `mlkem768`, `mceliece`); a client
+    /// verifies the node's post-quantum encapsulation keys against these.
+    #[prost(btree_map = "string, message", tag = "2")]
+    pub kem_key_digests: BTreeMap<String, KemKeyDigests>,
+
+    /// LP TCP control port (default 41264) for establishing LP sessions.
+    #[prost(uint32, tag = "3")]
+    pub control_port: u32,
+
+    /// LP UDP data port (default 51264) for Sphinx packets wrapped in LP.
+    #[prost(uint32, tag = "4")]
+    pub data_port: u32,
+}
+
+impl LewesProtocolDetails {
+    /// The LP x25519 public key as a fixed 32-byte array, or an error if the stored bytes are
+    /// not exactly 32 long (the length of an x25519 public key).
+    pub fn x25519_public_key_bytes(&self) -> Result<[u8; 32], DirectoryTypesError> {
+        if self.x25519_public_key.len() != 32 {
+            return Err(DirectoryTypesError::InvalidX25519KeyLength {
+                got: self.x25519_public_key.len(),
+            });
+        }
+
+        let mut k = [0u8; 32];
+        // SAFETY: we just checked the length is 32 bytes
+        k.copy_from_slice(&self.x25519_public_key);
+        Ok(k)
+    }
+
+    /// The LP control port as a `u16`.
+    pub fn get_control_port(&self) -> u16 {
+        self.control_port.min(u16::MAX as u32) as u16
+    }
+
+    /// The LP data port as a `u16`.
+    pub fn get_data_port(&self) -> u16 {
+        self.data_port.min(u16::MAX as u32) as u16
+    }
+}
+
+/// The key digests for a single KEM type, keyed by hash-function name. Nested inside
+/// [`LewesProtocolDetails::kem_key_digests`] because protobuf maps cannot hold a map value.
+#[derive(Clone, PartialEq, Serialize, Deserialize, Message)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct KemKeyDigests {
+    /// hash-function name -> digest bytes
+    #[prost(btree_map = "string, bytes", tag = "1")]
+    pub digests: BTreeMap<String, Vec<u8>>,
+}
+
+/// A human-readable, operator-provided description of a node.
 #[derive(Clone, Serialize, Deserialize, Message)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NodeDescription {

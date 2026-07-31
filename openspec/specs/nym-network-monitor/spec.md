@@ -36,11 +36,17 @@ On a successful startup the orchestrator SHALL rebuild its in-memory agent regis
 
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
-The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn its `mixnet_socket_address` (chosen IP plus announced mix port), its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32); a node that fails to answer leaves the corresponding fields NULL. The refresher MUST persist ALL bonded nodes, including unreachable ones (upserting on `node_id`, updating every field except `identity_key`), so that previously-learned keys are retained when a node is transiently unreachable.
+The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32); a node that fails to answer leaves the corresponding fields NULL. The refresher MUST persist ALL bonded nodes, including unreachable ones (upserting on `node_id`, updating every field except `identity_key`), so that previously-learned keys are retained when a node is transiently unreachable.
+
+The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The stored `mixnet_socket_address` MUST be derived deterministically from the first address of that sorted set plus the announced mix port, and contributes only that port to the address a given run actually targets.
 
 #### Scenario: A reachable node's keys are recorded
 - **WHEN** the refresher queries a bonded node that answers its self-description
-- **THEN** the node's socket address, noise key, sphinx key, key-rotation id, and type are stored
+- **THEN** the node's announced address set, socket address, noise key, sphinx key, key-rotation id, and type are stored
+
+#### Scenario: The announced address set is stored in a stable order
+- **WHEN** a node reports its announced addresses in a different order on a later refresh
+- **THEN** the stored set is unchanged, because it is canonicalised, deduplicated and sorted before storage, keeping the per-address test rotation stable
 
 #### Scenario: An unreachable node is retained with prior data
 - **WHEN** a bonded node does not answer within `node_info_query_timeout`
@@ -48,11 +54,23 @@ The node refresher SHALL source the node list from the MIXNET contract (all `Nym
 
 ### Requirement: Testruns are assigned lazily from a staleness-ordered node table guarded by an in-flight lock set
 
-There SHALL be no in-memory work queue. When an agent requests work, the orchestrator MUST select the next node inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row; requires non-null socket address, noise key, and sphinx key; requires `node_type IN ('mixnode', 'mixnode_and_gateway')`; treats a node as eligible only if it has never been tested or was last tested before `now - staleness_age` (where `staleness_age` is `test_interval`, default 2 hours); orders by test timestamp ascending with never-tested first; takes one node; and atomically inserts a `testrun_in_progress` row for it. The response MUST be a `TestRunAssignment { node_id, node_address, noise_key, sphinx_key, key_rotation_id }`, or an empty assignment when no eligible node exists.
+There SHALL be no in-memory work queue. When an agent requests work, the orchestrator MUST select the next node inside a `BEGIN IMMEDIATE` write transaction that: excludes any node with a `testrun_in_progress` row; requires non-null socket address, noise key, and sphinx key; requires `node_type IN ('mixnode', 'mixnode_and_gateway')`; treats a node as eligible only if it has never been tested or was last tested before `now - staleness_age` (where `staleness_age` is `test_interval`, default 2 hours); orders by test timestamp ascending with never-tested first; takes one node; rotates onto the next address in that node's announced set; records that address as the node's rotation pointer; and atomically inserts a `testrun_in_progress` row for it. The response MUST be a `TestRunAssignment { node_id, node_address, node_ips, noise_key, sphinx_key, key_rotation_id }`, where `node_address` is the rotated-onto address combined with the node's mix port and `node_ips` is every address the node announces, or an empty assignment when no eligible node exists.
+
+The rotation MUST take the address following the previously handed-out one, wrapping around at the end of the set and restarting from the first address when the pointer is unset or no longer announced. It MUST advance when the assignment is handed out rather than when a result arrives, so a run that is abandoned still moves the node onto its next address. A node stored before the announced set was tracked MUST remain testable by falling back to the single address in its `mixnet_socket_address`.
+
+The staleness gate is per NODE while the rotation is per ADDRESS, so a node announcing N addresses has each individual address tested roughly every N × `staleness_age` rather than every `staleness_age`.
 
 #### Scenario: The oldest-tested eligible node is assigned
 - **WHEN** an authorised, announced agent requests a testrun and eligible nodes exist
 - **THEN** the never-tested-or-oldest eligible mixnode is returned and a `testrun_in_progress` row is inserted for it in the same transaction
+
+#### Scenario: Consecutive runs against one node rotate through its addresses
+- **WHEN** a node announcing both an ipv4 and an ipv6 address is assigned on two successive occasions
+- **THEN** the second assignment targets the other address, so both are exercised in turn rather than whichever one a refresh happened to store
+
+#### Scenario: An abandoned run still advances the rotation
+- **WHEN** an assignment is handed out and no result is ever submitted for it
+- **THEN** the node's rotation pointer has already advanced, so its next assignment targets its next address rather than repeating the same one
 
 #### Scenario: A node already in progress is not reassigned
 - **WHEN** a node has an open `testrun_in_progress` row
@@ -62,17 +80,25 @@ There SHALL be no in-memory work queue. When an agent requests work, the orchest
 - **WHEN** every node is either in progress or was tested more recently than `staleness_age`
 - **THEN** the agent receives an empty assignment and exits without testing
 
-### Requirement: The orchestrator authorises an announcing agent on-chain
+### Requirement: The orchestrator authorises both of an announcing agent's addresses on-chain in one transaction
 
-On `POST /v1/agent/announce` the orchestrator SHALL upsert the agent into its in-memory `KnownAgents` cache (keyed by host IP) and, if the agent was not already announced, MUST submit an `AuthoriseNetworkMonitor` transaction to the network-monitors contract carrying the agent's mixnet socket address, its base58 x25519 noise key, and its noise version, then mark the agent announced. A contract transaction failure MUST surface as a 500 and leave the agent un-announced. An agent whose announced noise key changes MUST have its announced flag reset so it is re-authorised. This on-chain write is what ultimately causes network nodes to accept the agent's probe connections.
+An agent SHALL announce a PAIR of mixnet socket addresses, one ipv4 and one ipv6, because a tested node sees whichever family it was reached over as the source of the probe traffic and gates on that source ip; authorising only one family would leave probes over the other rejected.
 
-#### Scenario: A first announcement authorises the agent on-chain
+On `POST /v1/agent/announce` the orchestrator SHALL reject with a 400, before touching any state, an announcement whose addresses are not one plain ipv4 address and one ipv6 address that is not ipv4-mapped. Such a pair MUST NOT be normalised into shape, because an ipv4-mapped ipv6 address collapses onto the ipv4 one when a node canonicalises the authorised set, leaving the agent with a single authorised ingress while both the contract and the orchestrator believe it has two, and because rewriting an address would authorise something the agent never announced and will not use in its sphinx return hop.
+
+It MUST then upsert the agent into its in-memory `KnownAgents` cache, keyed by the agent's ipv4 mixnet socket address with the ipv6 address held inside the entry, and, if the agent was not already announced, MUST authorise BOTH addresses in the network-monitors contract by submitting ONE transaction carrying an `AuthoriseNetworkMonitor` message per address, each with the agent's base58 x25519 noise key and noise version, then mark the agent announced. Both authorisations MUST travel in a single transaction so that an agent is never left with only one of its addresses authorised. A contract transaction failure MUST surface as a 500 and leave the agent un-announced; re-announcing is safe because the contract's agent save is an upsert. An agent whose announced noise key OR ipv6 address differs from the cached one MUST have its announced flag reset so it is re-authorised, and that divergence SHOULD be surfaced (log plus counter) because a superseded ipv6 address stays authorised in the contract. This on-chain write is what ultimately causes network nodes to accept the agent's probe connections.
+
+#### Scenario: A first announcement authorises both addresses on-chain
 - **WHEN** a not-yet-announced agent calls `announce`
-- **THEN** the orchestrator writes an `AuthoriseNetworkMonitor` transaction for the agent's socket and noise key and marks it announced
+- **THEN** the orchestrator writes a single transaction carrying one `AuthoriseNetworkMonitor` message for each of the agent's two addresses, both with its noise key, and marks it announced
 
 #### Scenario: A contract failure is not silently swallowed
-- **WHEN** the `AuthoriseNetworkMonitor` transaction fails
-- **THEN** the announce call returns a 500 and the agent remains un-announced
+- **WHEN** the authorisation transaction fails
+- **THEN** the announce call returns a 500 and the agent remains un-announced, with neither address authorised
+
+#### Scenario: A malformed address pair is rejected outright
+- **WHEN** an agent announces two addresses of the same family, the same address twice, or an ipv4-mapped ipv6 address
+- **THEN** the call is rejected with a 400 and nothing is cached or written on-chain
 
 ### Requirement: Network nodes learn the authorised-agent set from the contract and gate connection, routing, and replay-bypass on it
 
@@ -80,7 +106,9 @@ A Nym node SHALL derive which network-monitor agents may probe it directly from 
 
 The node MUST fold the set into two shared, lock-free, canonical-IP-keyed structures - a routing set (`RoutableNetworkMonitors`) and a noise-key map (`NoiseNetworkView`, in which one IP may host several agents disambiguated by port) - and MUST key both on `IpAddr::to_canonical()` at insert AND lookup so that a v4-mapped-IPv6 form matches its canonical IPv4 form. There is no separate "extra initiator IPs" allowlist; inbound acceptance is a facet of the noise map. The authorised set MUST gate three behaviours: (1) the Noise responder handshake - an inbound connection from an IP not in the noise map falls back to raw TCP and the agent's handshake fails; (2) packet routing through `NetworkRoutingFilter`; and (3) most importantly, the sphinx REPLAY / bloomfilter BYPASS - a packet detected as replayed MUST be dropped as a replay UNLESS it originates from an authorised network-monitor agent IP, which is the mechanism that lets the agent's deliberately-replayed probe header (see the `reuse_header` requirement) be processed rather than filtered.
 
-The gate is by SOURCE IP only (not public key); the port is effectively ignored on the agent-as-initiator probe path (it is consulted only when the node dials an agent). The consequences are: an agent cannot successfully probe a node until it is authorised on-chain AND that authorisation event has been ingested by the node (propagation is bounded by block inclusion plus websocket delivery, on the order of seconds, NOT by any refresh interval); the IP the agent actually connects from MUST equal the `mixnet_address` IP recorded on-chain (NAT or a differing egress IP breaks all three gates); and because there is no periodic reconciliation against the contract, a node that misses a revoke event (for example during websocket downtime) only re-syncs on its next restart's one-time load.
+The gate is by SOURCE IP only (not public key); the port is effectively ignored on the agent-as-initiator probe path (it is consulted only when the node dials an agent). The consequences are: an agent cannot successfully probe a node until it is authorised on-chain AND that authorisation event has been ingested by the node (propagation is bounded by block inclusion plus websocket delivery, on the order of seconds, NOT by any refresh interval); the IP the agent actually connects from MUST equal one of the `mixnet_address` IPs recorded on-chain for it (an egress IP that is neither, whether through NAT or a third interface, still breaks all three gates); and because there is no periodic reconciliation against the contract, a node that misses a revoke event (for example during websocket downtime) only re-syncs on its next restart's one-time load.
+
+Because an agent authorises one ipv4 and one ipv6 address, it occupies TWO entries in each node's structures - one per address, both carrying the same noise key - so a probe arriving over either family passes all three gates. The node treats those entries independently: it neither knows nor needs to know that they belong to one agent, and revoking one leaves the other authorised.
 
 Intended follow-ups (recorded here as planned changes, NOT current behaviour): (1) add a periodic reconciliation of each node's authorised-agent set against the contract, so a missed revoke event no longer lingers until the next node restart; and (2) gate the replay and bloomfilter bypass on the agent's Noise-authenticated x25519 static key rather than its source IP. The current `Noise_XKpsk3` handshake already receives and possession-authenticates that key (the message-3 `se` step proves the agent holds the corresponding private key), so this hardening needs no packet-format change and would remove the source-IP spoofing and NAT-fragility of the present gate.
 
@@ -143,7 +171,17 @@ The stale-data eviction task SHALL clear `testrun_in_progress` rows older than `
 
 ### Requirement: Orchestrator state is a four-table SQLite database and the agent registry is in-memory only
 
-The orchestrator SHALL persist state in a SQLite database with four tables: `metadata` (the single submission watermark row), `nym_node` (the node registry with its self-described keys and type), `testrun` (completed results), and `testrun_in_progress` (the in-flight dispatch lock set). The agent registry MUST NOT be persisted; it lives only in the in-memory `KnownAgents` cache and is rebuilt from the contract on each startup, which means agents' announced flags reset across a restart and each agent re-announces (and is re-authorised on-chain) on its next run.
+The orchestrator SHALL persist state in a SQLite database with four tables: `metadata` (the single submission watermark row), `nym_node` (the node registry with its self-described keys and type, its announced address set, and its per-node address rotation pointer), `testrun` (completed results, each recording which address was tested), and `testrun_in_progress` (the in-flight dispatch lock set). The agent registry MUST NOT be persisted; it lives only in the in-memory `KnownAgents` cache and is rebuilt from the contract on each startup, which means agents' announced flags reset across a restart and each agent re-announces (and is re-authorised on-chain) on its next run.
+
+Rehydrating that cache from the contract requires recovering which pair of on-chain entries belongs to one agent. The contract stores one entry per socket address and carries no field linking an agent's two addresses, so the orchestrator MUST group the entries by their x25519 noise key, which is unique per agent (see the network-monitors-contract capability, which does NOT enforce that uniqueness). Entries that do not form exactly one ipv4/ipv6 pair MUST be dropped from the cache rather than guessed at - they are either authorisations predating the paired announcement or leftovers from an agent that has since changed an address - which is safe precisely because the cache only exists to skip redundant contract transactions, and an agent always announces before requesting work.
+
+#### Scenario: An agent's two on-chain entries are re-paired after a restart
+- **WHEN** the orchestrator restarts and reads its agents from the contract
+- **THEN** the ipv4 and ipv6 entries sharing one noise key are rehydrated as a single announced agent
+
+#### Scenario: An unpairable on-chain entry is dropped rather than guessed
+- **WHEN** an agent has an on-chain entry with no counterpart of the other family under the same noise key
+- **THEN** it is left out of the rehydrated cache and re-created by that agent's next announcement, at the cost of one redundant authorisation transaction
 
 #### Scenario: Node registry and results survive a restart
 - **WHEN** the orchestrator restarts
@@ -167,7 +205,7 @@ The `run-agent` path SHALL be a run-to-completion job, NOT a long-lived daemon: 
 
 ### Requirement: The agent authenticates to the orchestrator with a static bearer token and does not sign requests
 
-Every agent-to-orchestrator call SHALL carry the orchestrator's shared `agents_token` as a bearer token. There MUST be no ed25519 (or other) request signing at the agent-to-orchestrator layer; the agent's on-chain identity is its socket address plus x25519 noise key, written to the contract by the orchestrator at announce time, not proven per-request to the orchestrator.
+Every agent-to-orchestrator call SHALL carry the orchestrator's shared `agents_token` as a bearer token. There MUST be no ed25519 (or other) request signing at the agent-to-orchestrator layer; the agent's on-chain identity is its pair of socket addresses plus x25519 noise key, written to the contract by the orchestrator at announce time, not proven per-request to the orchestrator. A corollary is that the orchestrator cannot distinguish an agent re-provisioned with a new noise key from a different agent claiming its ipv4 socket address, so a changed announcement is accepted and surfaced rather than rejected.
 
 #### Scenario: Calls are bearer-authenticated only
 - **WHEN** the agent announces, requests work, or submits a result
@@ -175,11 +213,23 @@ Every agent-to-orchestrator call SHALL carry the orchestrator's shared `agents_t
 
 ### Requirement: A stress test is a two-hop self-loop probe with a fixed connectivity, bloomfilter, and load sequence
 
-A stress test SHALL route packets over a two-hop path `[tested_node, this_agent]`, so the tested node acts as a forward mix hop relaying each packet straight back to the agent's own listener. Packets MUST be `AckPacket`-sized sphinx packets typed as mix packets, each carrying a 16-byte payload of `{ id: u64, sending_timestamp }`, with per-hop sphinx delay `packet_delay` (default 50 milliseconds). A run MUST proceed through: establishing an outbound Noise egress connection to the node as initiator; spawning an ingress listener that completes a Noise handshake as responder and accepts a connection ONLY from the tested node's IP; a connectivity probe (one packet, whose round trip minus `packet_delay` becomes the baseline `approximate_latency`); a bloomfilter probe (only when `reuse_header` is set); the load test; result collection; and teardown. A failure at the egress, connectivity, or bloomfilter step MUST abort the run with the error recorded in the result rather than crashing the agent.
+A stress test SHALL route packets over a two-hop path `[tested_node, this_agent]`, so the tested node acts as a forward mix hop relaying each packet straight back to the agent's own listener. Packets MUST be `AckPacket`-sized sphinx packets typed as mix packets, each carrying a 16-byte payload of `{ id: u64, sending_timestamp }`, with per-hop sphinx delay `packet_delay` (default 50 milliseconds). A run MUST proceed through: establishing an outbound Noise egress connection to the node as initiator; spawning an ingress listener that accepts a connection only from an address the tested node is known by and completes a Noise handshake as responder; a connectivity probe (one packet, whose round trip minus `packet_delay` becomes the baseline `approximate_latency`); a bloomfilter probe (only when `reuse_header` is set); the load test; result collection; and teardown. A failure at the egress, connectivity, or bloomfilter step MUST abort the run with the error recorded in the result rather than crashing the agent.
+
+The agent's own hop in the sphinx route MUST carry whichever of its two announced addresses matches the family of the address being tested, so that a run exercises one family in both directions rather than measuring the node's ipv6 ingress against its ipv4 egress.
+
+Ingress acceptance MUST treat EVERY address the node is known by (all of `node_ips`, plus the assigned address) as the node itself, compared on canonical form, because a multi-homed node may return the packets from an address other than the one it was reached on, and because a dual-stack listener reports ipv4 peers in their ipv4-mapped ipv6 form. The tested node's noise key MUST likewise be registered under every one of those addresses, not only the assigned one: the Noise responder handshake looks the initiator up by source ip and silently downgrades to raw TCP on a miss, which the listener then rejects as the node not speaking the protocol. Both gates therefore have to learn the same set, or widening one only moves the failure to the other.
 
 #### Scenario: The tested node loops packets back to the agent
 - **WHEN** a stress test runs against a node
 - **THEN** each probe packet enters the node as a mix hop and is relayed back to the agent's own ingress listener
+
+#### Scenario: An ipv6 run is measured over ipv6 in both directions
+- **WHEN** the assigned address is the node's ipv6 address
+- **THEN** the sphinx return hop carries the agent's ipv6 address, so the node returns the packets over ipv6 rather than over ipv4
+
+#### Scenario: A node replying from another of its addresses is still accepted
+- **WHEN** the tested node returns the probe packets from an announced address other than the one it was reached on
+- **THEN** the agent accepts the connection and completes the Noise handshake, because that address is one it knows the node by and the node's noise key is registered under it
 
 #### Scenario: A node that never returns the connectivity packet aborts the run
 - **WHEN** the connectivity probe packet does not come back
@@ -225,9 +275,15 @@ On the successful completion of the load test the agent SHALL overwrite the repo
 
 Each test SHALL produce a result carrying: `time_taken`; ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; per-packet and per-send latency distributions (minimum, mean, median, maximum, standard deviation); a `received_duplicates` flag; and an optional `error` string. Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration) MUST be recorded inside the returned result so the orchestrator always receives partial data.
 
+The submission that carries a result to the orchestrator MUST additionally report WHICH address was tested, and that address MUST be persisted with the run and exposed on the operator read surface. A node may announce several addresses of which only some are healthy, so without it a per-address failure is indistinguishable from a dead node and gets averaged into that node's single result series.
+
 #### Scenario: A node-level failure still yields a result
 - **WHEN** a node fails to respond or is misconfigured
 - **THEN** the agent returns a result with the failure recorded in its `error` field rather than failing the job
+
+#### Scenario: A result is attributable to the address it measured
+- **WHEN** a run against one of a node's several announced addresses fails
+- **THEN** the stored run records the tested address, so the failure is attributable to that address rather than to the node as a whole
 
 ### Requirement: The subsystem tests mixnodes only; the gateway test path is an unwired extension seam
 
@@ -293,7 +349,9 @@ The stored stress-test results SHALL form the subsystem's output contract to the
 
 ### Requirement: The subsystem's behaviour is governed by orchestrator and agent configuration surfaces with defined defaults
 
-The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). The agent SHALL be configured with the following defaults: `sending_duration` 30 seconds, `waiting_duration` 5 seconds, `packet_delay` 50 milliseconds (which MUST be non-zero), `target_rate` 1000 packets/second, `reuse_header` true, `egress_connection_timeout` 5 seconds, `noise_handshake_timeout` 3 seconds, `sending_batch_size` 50, and a listener bind of `[::]:9000`; plus the required orchestrator URL, orchestrator bearer token, announced host IP and port, and noise-key path. All knobs MUST be overridable by CLI flag or environment variable.
+The orchestrator SHALL be configured with the following defaults: `test_interval` 2 hours, `test_timeout` 5 minutes, `node_refresh_rate` 2 hours, `node_info_query_timeout` 10 seconds, `testrun_eviction_age` 7 days, `result_submission_interval` 15 minutes, `result_submission_batch_size` 50, `number_of_concurrent_node_queries` 32, `chain_authorisation_check_max_attempts` 10, `chain_authorisation_check_retry_delay` 1 minute, and an HTTP bind of `0.0.0.0:8080`; plus required secrets (`agents_token`, `metrics_and_results_token`, the bip39 `mnemonic`, and the base58 ed25519 `private_key`) and required endpoints (`nym_api_endpoint`, `rpc_url`, the mixnet and network-monitors contract addresses, and `database_path`). The agent SHALL be configured with the following defaults: `sending_duration` 30 seconds, `waiting_duration` 5 seconds, `packet_delay` 50 milliseconds (which MUST be non-zero), `target_rate` 1000 packets/second, `reuse_header` true, `egress_connection_timeout` 5 seconds, `noise_handshake_timeout` 3 seconds, `sending_batch_size` 50, and a listener bind of `[::]:9000`; plus the required orchestrator URL, orchestrator bearer token, announced ipv4 host address, announced ipv6 host address, shared announced port, and noise-key path. All knobs MUST be overridable by CLI flag or environment variable.
+
+The announced pair MUST be validated at configuration time, applying the same rule the orchestrator enforces on announce, so a misconfigured deployment fails immediately rather than on its first announcement. The listener bind default MUST remain dual-stack (`[::]`), since an ipv4-only bind cannot receive the return traffic for a run whose return hop is the agent's ipv6 address.
 
 #### Scenario: Defaults match the documented values
 - **WHEN** an orchestrator or agent is configured without overriding a given knob
@@ -302,4 +360,8 @@ The orchestrator SHALL be configured with the following defaults: `test_interval
 #### Scenario: A zero packet delay is rejected
 - **WHEN** the agent is configured with a `packet_delay` of zero
 - **THEN** configuration construction fails
+
+#### Scenario: A malformed announced address pair is rejected at startup
+- **WHEN** the agent is configured with two announced addresses of the same family, or with an ipv4-mapped ipv6 address
+- **THEN** configuration construction fails before the agent announces itself
 

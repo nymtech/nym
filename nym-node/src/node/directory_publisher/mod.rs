@@ -11,8 +11,10 @@ pub(crate) mod payload;
 mod preflight;
 mod publisher;
 mod session;
+pub(crate) mod traits;
 
 pub(crate) use payload::DirectoryPayload;
 pub(crate) use publisher::{
     DirectoryPublisher, DirectoryPublisherConfig, DirectoryPublisherEventsSender,
 };
+pub(crate) use traits::DirectoryChainClient;

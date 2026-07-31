@@ -153,6 +153,9 @@ impl Display for KnownLabel {
 }
 
 impl KnownLabel {
+    const SPHINX_KEY_STR: &'static str = "sphinx_key";
+    const NODE_DESCRIPTION_STR: &'static str = "node_description";
+
     /// Every known label, in a stable order - all auto-whitelisted at contract
     /// instantiation. Keep in sync with the variants above.
     pub const ALL: &'static [KnownLabel] = &[KnownLabel::SphinxKeys, KnownLabel::NodeDescription];
@@ -161,8 +164,8 @@ impl KnownLabel {
     /// entries exist under it, the string must not change.
     pub const fn as_str(self) -> &'static str {
         match self {
-            KnownLabel::SphinxKeys => "sphinx_key",
-            KnownLabel::NodeDescription => "node_description",
+            KnownLabel::SphinxKeys => KnownLabel::SPHINX_KEY_STR,
+            KnownLabel::NodeDescription => KnownLabel::NODE_DESCRIPTION_STR,
         }
     }
 
@@ -195,7 +198,8 @@ impl FromStr for KnownLabel {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "sphinx_key" => Ok(KnownLabel::SphinxKeys),
+            KnownLabel::SPHINX_KEY_STR => Ok(KnownLabel::SphinxKeys),
+            KnownLabel::NODE_DESCRIPTION_STR => Ok(KnownLabel::NodeDescription),
             other => Err(UnknownLabelError(other.to_owned())),
         }
     }

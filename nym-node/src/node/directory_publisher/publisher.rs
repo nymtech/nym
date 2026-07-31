@@ -5,7 +5,9 @@ use crate::config::DirectoryConfig;
 use crate::error::NymNodeError;
 use crate::node::directory_publisher::preflight::{Preflight, log_dormant_reason};
 use crate::node::directory_publisher::session::ActiveSession;
-use crate::node::directory_publisher::{DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT, DirectoryPayload};
+use crate::node::directory_publisher::{
+    DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT, DirectoryChainClient, DirectoryPayload,
+};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::node_details::NodeDetails;
 use crate::node::nyx_client::NyxClient;
@@ -13,13 +15,8 @@ use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{KnownLabel, node_signing_payload};
 use nym_task::ShutdownToken;
 use nym_topology::NodeId;
-use nym_validator_client::nyxd::contract_traits::{
-    DirectoryQueryClient, DirectorySigningClient, MixnetQueryClient,
-};
-use nym_validator_client::nyxd::module_traits::feegrant::query::FeegrantQueryClient;
-use nym_validator_client::rpc::TendermintRpcClientExt;
 use std::collections::{BTreeMap, BTreeSet};
-use std::ops::{ControlFlow, Deref};
+use std::ops::ControlFlow;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -65,8 +62,8 @@ impl DirectoryPublisherConfig {
     }
 }
 
-pub(crate) struct DirectoryPublisher {
-    nyx_client: NyxClient,
+pub(crate) struct DirectoryPublisher<C = NyxClient> {
+    client: C,
     config: DirectoryPublisherConfig,
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     shutdown_token: ShutdownToken,
@@ -84,15 +81,15 @@ pub(crate) struct DirectoryPublisher {
     events_rx: Option<mpsc::Receiver<DirectoryPayload>>,
 }
 
-impl DirectoryPublisher {
+impl<C: DirectoryChainClient> DirectoryPublisher<C> {
     pub(crate) fn events_sender(&self) -> DirectoryPublisherEventsSender {
         self.events_tx.clone()
     }
 }
 
-impl DirectoryPublisher {
+impl<C: DirectoryChainClient> DirectoryPublisher<C> {
     pub(crate) async fn new(
-        nyx_client: NyxClient,
+        client: C,
         config: DirectoryPublisherConfig,
         ed25519_identity_keys: Arc<ed25519::KeyPair>,
         node_details: NodeDetails,
@@ -100,19 +97,14 @@ impl DirectoryPublisher {
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         // blow up at this point if the directory contract address is not set
-        if nyx_client
-            .get_nym_contracts()
-            .await
-            .directory_contract_address
-            .is_none()
-        {
+        if !client.directory_contract_configured().await? {
             return Err(NymNodeError::MissingDirectoryContractAddress);
         }
 
         let (events_tx, events_rx) = mpsc::channel(DIRECTORY_UPDATE_CHANNEL_CAPACITY);
 
         Ok(DirectoryPublisher {
-            nyx_client,
+            client,
             config,
             ed25519_identity_keys,
             shutdown_token,
@@ -257,7 +249,7 @@ impl DirectoryPublisher {
         ]
     }
 
-    /// Reconcile sweep (task 3b.2): drive on-chain state toward the desired snapshot.
+    /// Reconcile sweep: drive on-chain state toward the desired snapshot.
     /// Re-seeds the cache from a single `get_node_entries`, writes every desired payload
     /// that is missing or stale (reconcile-before-write skips the rest), then deletes any
     /// published entry under a recognised label that is no longer desired. Entries under
@@ -266,28 +258,20 @@ impl DirectoryPublisher {
     async fn sweep(&self, session: &mut ActiveSession) -> Result<(), NymNodeError> {
         // 1. re-seed the reconcile cache from chain - the eventual-consistency baseline, so
         //    reconcile-before-write diffs against actual on-chain state, not a stale copy.
-        let on_chain = self
-            .nyx_client
-            .read()
-            .await
-            .get_node_entries(session.node_id)
-            .await?;
+        let on_chain = self.client.node_entries(session.node_id).await?;
 
         session.published.clear();
         let mut published_labels = BTreeSet::new();
-        for labelled in on_chain.entries {
-            match KnownLabel::from_str(&labelled.label) {
+        for (label_str, data) in on_chain {
+            match KnownLabel::from_str(&label_str) {
                 Ok(label) => {
-                    session
-                        .published
-                        .insert(label, labelled.entry.data.as_slice().to_vec());
+                    session.published.insert(label, data);
                     published_labels.insert(label);
                 }
                 // unknown label: never delete it - a newer binary may own it
-                Err(_) => trace!(
-                    "sweep: leaving unrecognised directory label '{}' untouched",
-                    labelled.label
-                ),
+                Err(_) => {
+                    trace!("sweep: leaving unrecognised directory label '{label_str}' untouched")
+                }
             }
         }
 
@@ -324,19 +308,16 @@ impl DirectoryPublisher {
     /// per unchanged state) about any advertised label this binary does not recognise. Called
     /// at the top of each sweep so the writes below are gated on the current whitelist.
     async fn refresh_whitelist(&self, session: &mut ActiveSession) -> Result<(), NymNodeError> {
-        let allowed_labels = self.nyx_client.read().await.get_allowed_labels().await?;
+        let allowed_labels = self.client.allowed_labels().await?;
 
         let mut whitelist = BTreeSet::new();
-        for label in allowed_labels.labels {
-            if let Ok(label) = label.label.parse() {
-                whitelist.insert(label);
-            } else {
-                let label = label.label;
-                if session.warned_unknown_labels.insert(label.clone()) {
-                    warn!(
-                        "directory publisher: the contract advertises a label '{label}' this binary does not recognise - is the binary outdated?",
-                    );
-                }
+        for label in allowed_labels {
+            if let Ok(known) = label.parse() {
+                whitelist.insert(known);
+            } else if session.warned_unknown_labels.insert(label.clone()) {
+                warn!(
+                    "directory publisher: the contract advertises a label '{label}' this binary does not recognise - is the binary outdated?",
+                );
             }
         }
 
@@ -345,7 +326,7 @@ impl DirectoryPublisher {
     }
 
     pub(crate) async fn run(&mut self) {
-        // DORMANT <-> ACTIVE state machine (task 4.3). Preflight (bonded + fundable) gates
+        // DORMANT <-> ACTIVE state machine. Preflight (bonded + fundable) gates
         // writing; while it fails the publisher stays dormant and re-checks on a back-off,
         // logging only on transitions. Once it passes, the publisher seeds a session and
         // drives the reconcile sweep + event wakeups until shutdown or lost writability.
@@ -373,28 +354,22 @@ impl DirectoryPublisher {
     /// reconcile cache (one `get_node_entries`) and its expected next sequence
     /// (`get_sequence`).
     async fn establish_session(&self, node_id: NodeId) -> Result<ActiveSession, NymNodeError> {
-        let client = self.nyx_client.read().await;
-
         // one query for every entry this node currently has published...
-        let on_chain = client.get_node_entries(node_id).await?;
+        let on_chain = self.client.node_entries(node_id).await?;
         // ...and the next sequence the contract expects it to sign with.
-
-        let next_sequence = DirectoryQueryClient::get_sequence(client.deref(), node_id)
-            .await?
-            .next_sequence;
+        let next_sequence = self.client.next_sequence(node_id).await?;
 
         // seed the reconcile cache with the known-label entries. an entry under a label this
         // binary doesn't recognise can't be keyed here; it's left to the sweep, which warns
         // about it and never deletes it (a newer instance may have written it).
         let mut published = BTreeMap::new();
-        for labelled in on_chain.entries {
-            match KnownLabel::from_str(&labelled.label) {
+        for (label_str, data) in on_chain {
+            match KnownLabel::from_str(&label_str) {
                 Ok(label) => {
-                    published.insert(label, labelled.entry.data.as_slice().to_vec());
+                    published.insert(label, data);
                 }
                 Err(_) => trace!(
-                    "seeding reconcile cache: skipping unrecognised directory label '{}'",
-                    labelled.label
+                    "seeding reconcile cache: skipping unrecognised directory label '{label_str}'"
                 ),
             }
         }
@@ -418,61 +393,30 @@ impl DirectoryPublisher {
     /// "couldn't reach the chain, retry".
     async fn resolve_bonded_node_id(&self) -> Result<Option<NodeId>, NymNodeError> {
         let identity = self.ed25519_identity_keys.public_key().to_base58_string();
-
-        let details = self
-            .nyx_client
-            .read()
-            .await
-            .get_nymnode_details_by_identity(identity)
-            .await?
-            .details;
-
-        Ok(match details {
-            Some(node) if !node.is_unbonding() => Some(node.node_id()),
-            _ => None,
-        })
+        self.client.node_id(identity).await
     }
 
     /// Verify whether this node has a valid nyx account with sufficient tokens
     /// (or a feegrant) to interact with the chain.
     async fn resolve_chain_interaction_capabilities(&self) -> Result<bool, NymNodeError> {
-        let client = self.nyx_client.read().await;
-        let address = client.address();
-        let denom = &client.current_config().chain_details().mix_denom.base;
-
-        let balance = client.get_balance(&address, denom.to_string()).await?;
-        match balance {
-            Some(balance) => {
-                debug!("{address} has {balance} on-chain");
-
-                if balance.amount >= DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT {
-                    debug!("which is sufficient for interacting with the directory contract");
-                    return Ok(true);
-                } else {
-                    debug!(
-                        "which is insufficient for interacting with the directory contract. checking the feegrant..."
-                    );
-                }
-            }
-            None => {
-                debug!("{address} does not have any on-chain balance. checking the feegrant...");
-            }
+        if self.client.has_sufficient_on_chain_balance().await? {
+            return Ok(true);
         }
 
-        let allowances = client.allowances(address.clone(), None).await?;
         // currently this is a very coarse check. the grant might be expired, it might not allow for
         // cosmwasm executemsg, but that's a good enough first iteration
-        if allowances.allowances.is_empty() {
-            debug!("{address} does not have any feegrant allowances");
+        let has_feegrant = self.client.has_feegrant().await?;
+        if has_feegrant {
+            debug!("relayer has a feegrant allowance");
         } else {
-            debug!("{address} has feegrant allowances");
+            debug!("relayer has no feegrant allowance");
         }
-        Ok(!allowances.allowances.is_empty())
+        Ok(has_feegrant)
     }
 
     /// Reconcile-before-write: if `payload`'s canonical bytes are absent from or differ
     /// from the cache, sign and relay a `set_node_entry`; otherwise no-op. Updates the
-    /// cache + sequence on success. (task 3.3)
+    /// cache + sequence on success.
     async fn reconcile_and_write(
         &self,
         session: &mut ActiveSession,
@@ -496,7 +440,7 @@ impl DirectoryPublisher {
     }
 
     /// Delete a published entry (e.g. an orphan under a no-longer-desired label): relay a
-    /// `delete_node_entry` and drop it from the cache on success. (task 3.4)
+    /// `delete_node_entry` and drop it from the cache on success.
     async fn delete_entry(
         &self,
         session: &mut ActiveSession,
@@ -534,15 +478,14 @@ impl DirectoryPublisher {
         loop {
             let sequence = session.next_sequence;
             let sig = self.produce_payload_signature(session.node_id, sequence, label, &[]);
-            let client = self.nyx_client.write().await;
 
-            let res = client
-                .delete_node_entry(
+            let res = self
+                .client
+                .delete_entry(
                     session.node_id,
                     label.to_string(),
                     sequence,
-                    sig.to_bytes().as_slice().into(),
-                    None,
+                    sig.to_bytes().to_vec(),
                 )
                 .await;
 
@@ -557,13 +500,10 @@ impl DirectoryPublisher {
             // value and retry. If it is unchanged, the failure was something else
             // (unwhitelisted label, oversize data, unbonded node, chain issue) and a
             // retry would fail identically, so surface it.
-
-            let expected_seq = DirectoryQueryClient::get_sequence(client.deref(), session.node_id)
-                .await?
-                .next_sequence;
+            let expected_seq = self.client.next_sequence(session.node_id).await?;
 
             if expected_seq == sequence || attempt >= self.config.write_retry_count {
-                return Err(err.into());
+                return Err(err);
             }
 
             warn!(
@@ -585,16 +525,15 @@ impl DirectoryPublisher {
         loop {
             let sequence = session.next_sequence;
             let sig = self.produce_payload_signature(session.node_id, sequence, label, &data);
-            let client = self.nyx_client.write().await;
 
-            let res = client
-                .set_node_entry(
+            let res = self
+                .client
+                .set_entry(
                     session.node_id,
                     label.to_string(),
-                    data.clone().into(),
+                    data.clone(),
                     sequence,
-                    sig.to_bytes().as_slice().into(),
-                    None,
+                    sig.to_bytes().to_vec(),
                 )
                 .await;
 
@@ -609,12 +548,10 @@ impl DirectoryPublisher {
             // value and retry. If it is unchanged, the failure was something else
             // (unwhitelisted label, oversize data, unbonded node, chain issue) and a
             // retry would fail identically, so surface it.
-            let expected_seq = DirectoryQueryClient::get_sequence(client.deref(), session.node_id)
-                .await?
-                .next_sequence;
+            let expected_seq = self.client.next_sequence(session.node_id).await?;
 
             if expected_seq == sequence || attempt >= self.config.write_retry_count {
-                return Err(err.into());
+                return Err(err);
             }
 
             warn!(

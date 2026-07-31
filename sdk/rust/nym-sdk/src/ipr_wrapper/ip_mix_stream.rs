@@ -88,13 +88,12 @@ impl IpMixStream {
     pub async fn new() -> Result<Self, Error> {
         let network_defaults = NymNetworkDetails::new_mainnet();
         let api_urls = network_defaults.nym_api_urls();
-        
+
         if api_urls.is_empty() {
-            return Err(Error::NoNymAPIUrl)
+            return Err(Error::NoNymAPIUrl);
         }
 
-        let api_client =
-            create_nym_api_client(api_urls)?;
+        let api_client = create_nym_api_client(api_urls)?;
         let (ipr_address, node_version) = get_best_ipr(api_client).await?;
         Self::connect(ipr_address, Some(node_version)).await
     }
@@ -117,7 +116,7 @@ impl IpMixStream {
     async fn lookup_ipr_version(ipr_address: &Recipient) -> Option<semver::Version> {
         let urls = NymNetworkDetails::new_from_env().nym_api_urls();
         if urls.is_empty() {
-            return None
+            return None;
         }
 
         let api_client = create_nym_api_client(urls).ok()?;

@@ -101,7 +101,7 @@ async fn discover(countries: &[Country]) -> Result<Recipient, Error> {
     if nym_api_urls.is_empty() {
         return Err(Error::NoNymAPIUrl);
     }
-    
+
     let client = create_nym_api_client(nym_api_urls)?;
     get_best_network_requester_in(client, countries).await
 }

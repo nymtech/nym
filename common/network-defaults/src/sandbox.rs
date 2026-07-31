@@ -57,8 +57,8 @@ pub const UPGRADE_MODE_ATTESTATION_URL: &str =
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
     "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 
-pub const NYM_VPN_API: &str = "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/";
-
+pub const NYM_VPN_API: &str =
+    "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/";
 
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[

@@ -4,6 +4,7 @@
 use super::env::vars::*;
 use crate::agent::config::NodeTesterConfig;
 use anyhow::bail;
+use nym_network_monitor_orchestrator_requests::models::AgentMixAddresses;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -60,8 +61,22 @@ impl CommonArgs {
     /// `mixnet_address` is provided separately as it is command-specific.
     pub(crate) fn build_config(
         &self,
-        external_address: SocketAddr,
+        external_address_v4: SocketAddr,
+        external_address_v6: SocketAddr,
     ) -> anyhow::Result<NodeTesterConfig> {
+        // fail here rather than at the first announcement: the orchestrator rejects anything but a
+        // plain ipv4/ipv6 pair, since a swapped, duplicated or ipv4-mapped address would authorise
+        // an ingress the tested nodes will never actually see us coming from
+        let announced = AgentMixAddresses {
+            v4: external_address_v4,
+            v6: external_address_v6,
+        };
+        if !announced.has_distinct_families() {
+            bail!(
+                "the announced mixnet addresses must be a plain ipv4/ipv6 pair, got {external_address_v4} and {external_address_v6}"
+            )
+        }
+
         if self.sending_duration.is_zero() {
             bail!("attempted to set sending duration to 0s")
         }
@@ -82,7 +97,8 @@ impl CommonArgs {
             target_rate: self.target_rate.get(),
             reuse_header: self.reuse_header,
             mixnet_bind_address: self.bind_address,
-            external_mixnet_address: external_address,
+            external_mixnet_address_v4: external_address_v4,
+            external_mixnet_address_v6: external_address_v6,
         })
     }
 }

@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::agent::tested_node::TestedNodeDetails;
 use crate::listener::received::{MixnetPacketsSender, ReceivedPacket};
 use futures::StreamExt;
 use nym_noise::config::NoiseConfig;
@@ -23,13 +24,14 @@ pub(crate) mod received;
 /// Binds a TCP listener on `bind_address`, accepts a single connection at a time,
 /// performs a Noise handshake as the responder, then forwards every decoded
 /// [`NymPacket`] to the [`receiver`](received) via `received_packets_sender`.
-/// Connections from any address other than `tested_node_address` are rejected.
+/// Connections from any source that isn't one of the tested node's announced addresses
+/// are rejected.
 pub(crate) struct MixnetListener {
     /// Local TCP listener.
     tcp_listener: tokio::net::TcpListener,
 
-    /// Address of the node being tested; connections from any other source are rejected.
-    tested_node_address: SocketAddr,
+    /// The node being tested; connections from any source it isn't known by are rejected.
+    tested_node: TestedNodeDetails,
 
     /// Noise protocol configuration used when upgrading incoming TCP connections.
     noise_config: NoiseConfig,
@@ -48,7 +50,7 @@ impl MixnetListener {
     /// Creates a new [`MixnetListener`] ready to be started with [`run`](Self::run).
     pub(crate) async fn new(
         bind_address: SocketAddr,
-        tested_node_address: SocketAddr,
+        tested_node: TestedNodeDetails,
         noise_config: NoiseConfig,
         received_packets_sender: MixnetPacketsSender,
         shutdown: ShutdownToken,
@@ -63,7 +65,7 @@ impl MixnetListener {
 
         Ok(Self {
             tcp_listener,
-            tested_node_address,
+            tested_node,
             noise_config,
             received_packets_sender,
             last_noise_handshake_duration: None,
@@ -109,10 +111,10 @@ impl MixnetListener {
     /// Validates the source address, performs the Noise handshake, then delegates to
     /// [`handle_stream`](Self::handle_stream) for the lifetime of the connection.
     async fn handle_connection(&mut self, (socket, source): (TcpStream, SocketAddr)) {
-        if source.ip() != self.tested_node_address.ip() {
+        if !self.tested_node.is_known_source(source.ip()) {
             warn!(
-                "received a connection from a source that's not the node being tested. Ignoring it. Source: {source}, tested node: {}",
-                self.tested_node_address
+                "received a connection from a source that's not the node being tested. Ignoring it. Source: {source}, tested node: {} (known as {:?})",
+                self.tested_node.address, self.tested_node.known_ips
             );
             return;
         }

@@ -39,6 +39,20 @@ pub const YELP_FASTLY_IPS: &[IpAddr] = &[
     IpAddr::V4(Ipv4Addr::new(151, 101, 65, 194)),
 ];
 
+pub const FASTLY_SUPPORT_DOMAIN: &str = "fastly-support.global.ssl.fastly.net";
+pub const FASTLY_SUPPORT_IPS: &[IpAddr] = &[
+    IpAddr::V4(Ipv4Addr::new(151, 101, 193, 194)),
+    IpAddr::V4(Ipv4Addr::new(151, 101, 129, 194)),
+    IpAddr::V4(Ipv4Addr::new(151, 101, 1, 194)),
+    IpAddr::V4(Ipv4Addr::new(151, 101, 65, 194)),
+];
+
+pub const PYPI_FASTLY_DOMAIN: &str = "pypi.global.ssl.fastly.net";
+pub const PYPI_FASTLY_IPS: &[IpAddr] = &[
+    IpAddr::V4(Ipv4Addr::new(199, 232, 65, 194)),
+    IpAddr::V4(Ipv4Addr::new(151, 101, 65, 194)),
+];
+
 pub const VERCEL_APP_DOMAIN: &str = "vercel.app";
 pub const VERCEL_APP_IPS: &[IpAddr] = &[
     IpAddr::V4(Ipv4Addr::new(64, 29, 17, 195)),
@@ -95,6 +109,11 @@ pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
         NYMVPN_FRONTDOOR_FASTLY_IPS.to_vec(),
     );
     m.insert(YELP_FASTLY_DOMAIN.to_string(), YELP_FASTLY_IPS.to_vec());
+    m.insert(PYPI_FASTLY_DOMAIN.to_string(), PYPI_FASTLY_IPS.to_vec());
+    m.insert(
+        FASTLY_SUPPORT_DOMAIN.to_string(),
+        FASTLY_SUPPORT_IPS.to_vec(),
+    );
     m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
     m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
     m.insert(NYM_API_CDN.to_string(), NYM_API_CDN_IPS.to_vec());

@@ -453,6 +453,11 @@ impl NymNetworkDetails {
 
     pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
         self.networking.nym_api_urls = urls.into_iter().map(Into::into).collect();
+        if self.networking.nym_api_urls.is_empty() {
+            self.nym_vpn_api_urls = None;
+        } else {
+            self.nym_api_urls = Some(self.networking.nym_api_urls.clone());
+        }
     }
 
     #[must_use]
@@ -461,14 +466,28 @@ impl NymNetworkDetails {
         self
     }
 
-    #[must_use]
-    pub fn with_nym_vpn_api_urls(mut self, urls: Vec<ApiUrl>) -> Self {
-        self.networking.nym_vpn_api_urls = urls;
-        self
-    }
-
     pub fn set_nym_vpn_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
         self.networking.nym_vpn_api_urls = urls.into_iter().map(Into::into).collect();
+        if self.networking.nym_vpn_api_urls.is_empty() {
+            self.nym_vpn_api_urls = None;
+            self.nym_vpn_api_url = None
+        } else {
+            self.nym_vpn_api_urls = Some(self.networking.nym_vpn_api_urls.clone());
+            self.nym_vpn_api_url = Some(
+                self.networking
+                    .nym_vpn_api_urls
+                    .first()
+                    .expect("array cannot be empty")
+                    .url
+                    .clone(),
+            );
+        }
+    }
+
+    #[must_use]
+    pub fn with_nym_vpn_api_urls<U: Into<ApiUrl>>(mut self, urls: Vec<U>) -> Self {
+        self.set_nym_api_urls(urls);
+        self
     }
 
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {

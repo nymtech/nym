@@ -25,7 +25,7 @@ An `AuthorisedNetworkMonitorOrchestrator` MUST carry `{ address, identity_key: O
 
 `AuthoriseNetworkMonitorOrchestrator { address }` MUST be admin-only (else a cw-controllers admin error). It MUST be a no-op when `address` is already an orchestrator, preserving that entry's original `authorised_at` and `identity_key`; otherwise it MUST save a new entry with `identity_key = None` and `authorised_at = env.block.time`.
 
-`RevokeNetworkMonitorOrchestrator { address }` MUST be admin-only. It MUST remove the orchestrator entry (a no-op if absent) and MUST cascade-delete every agent whose `authorised_by` equals that orchestrator address. This cascade iterates the whole agent map in a single transaction; the in-source `TODO` noting that a very large agent set could exceed a single block's gas is recorded as a known scaling limitation, not current-behaviour risk at present cardinality.
+`RevokeNetworkMonitorOrchestrator { address }` MUST be admin-only. It MUST remove the orchestrator entry (a no-op if absent) and MUST cascade-delete every agent whose `authorised_by` equals that orchestrator address. This cascade iterates the whole agent map in a single transaction; the in-source `TODO` noting that a very large agent set could exceed a single block's gas is recorded as a known scaling limitation, not current-behaviour risk at present cardinality. Note when reasoning about that cardinality that an agent occupies one entry per announced address, so the map holds roughly two entries per agent rather than one.
 
 `UpdateAdmin { admin }` MUST transfer the admin role to the validated `admin` address via the cw-controllers `Admin`. Because the message field is a required `String`, the admin can be transferred but can never be cleared through the contract's message surface.
 
@@ -62,6 +62,14 @@ This announced identity key is the mechanism by which off-chain consumers (notab
 ### Requirement: Only an authorised orchestrator may authorise agents, keyed by socket address as an upsert
 
 `AuthoriseNetworkMonitor { mixnet_address, bs58_x25519_noise, noise_version }` MUST be orchestrator-only, failing with `NotAnOrchestrator` for any other sender. `bs58_x25519_noise` MUST be validated as base58 decoding to exactly 32 bytes (an x25519 noise key), failing with `MalformedX25519AgentNoiseKey` otherwise. On success it MUST save an `AuthorisedNetworkMonitor` keyed by `mixnet_address`, recording `authorised_by = info.sender`, `authorised_at = env.block.time`, and the supplied noise key and version. The save MUST be an upsert: re-authorising the same socket address renews the entry (including `authorised_at`), in contrast to orchestrator authorisation which is a no-op for an existing entry.
+
+The contract places NO uniqueness constraint on `bs58_x25519_noise`: the same noise key MAY appear under several socket addresses, and does so by design, because a single agent authorises one ipv4 and one ipv6 address so that nodes accept its probes over either family. The registry therefore holds roughly TWO entries per agent, and nothing on-chain records that a pair of entries belongs to one agent.
+
+An off-chain consumer that needs to recover which entries belong to one agent MUST group them by that noise key; the two entries of one agent are NOT adjacent in the pagination order, which sorts ipv4 before ipv6. The nym-network-monitor orchestrator does exactly this when it rehydrates its agent cache after a restart. That grouping is only sound as long as distinct agents never share a noise key, and the contract does not enforce it, so this is an assumption held by the consumer rather than an on-chain guarantee.
+
+#### Scenario: One agent's two addresses are two independent entries
+- **WHEN** an orchestrator authorises one ipv4 and one ipv6 address for the same agent, both with its noise key
+- **THEN** the registry holds two entries sharing that noise key, each independently revocable, with nothing on-chain marking them as one agent
 
 #### Scenario: Only orchestrators can authorise agents
 - **WHEN** an account that is not an authorised orchestrator sends `AuthoriseNetworkMonitor`

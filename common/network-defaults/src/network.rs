@@ -183,9 +183,38 @@ impl NymNetworkDetails {
             }
         }
 
-        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS);
-        let nym_api = nym_api_urls.first().expect("nym api not set");
-        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS);
+        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_APIS
+            )
+        });
+        // NYM_APIS was introduced to replace the singular NYM_API; fall back to it so
+        // setups that only ever configured NYM_API (via setup_env's legacy migration
+        // or otherwise) keep working.
+        let nym_api_urls = if nym_api_urls.is_empty() {
+            let legacy_api = get_optional_env(var_names::NYM_API).unwrap_or_else(|| {
+                panic!(
+                    "neither {} nor legacy {} is set",
+                    var_names::NYM_APIS,
+                    var_names::NYM_API
+                )
+            });
+            let url = Url::parse(&legacy_api)
+                .unwrap_or_else(|e| panic!("{} is not a valid url: {e}", var_names::NYM_API));
+            vec![url.into()]
+        } else {
+            nym_api_urls
+        };
+        let nym_api = nym_api_urls
+            .first()
+            .expect("nym_api_urls is guaranteed non-empty at this point");
+        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_VPN_APIS
+            )
+        });
 
         NymNetworkDetails::new_empty()
             .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
@@ -514,11 +543,11 @@ impl NymNetworkDetails {
 }
 
 #[cfg(feature = "env")]
-fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Vec<ApiUrl> {
-    let raw = var(k).ok().unwrap_or_default();
-    serde_json::from_str(&raw)
-        .inspect_err(|e| tracing::warn!("failed to parse api urls from env \"{raw:?}\": {e}"))
-        .unwrap_or_default()
+fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Result<Vec<ApiUrl>, serde_json::Error> {
+    match var(k) {
+        Ok(raw) if !raw.is_empty() => serde_json::from_str(&raw),
+        _ => Ok(Vec::new()),
+    }
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]

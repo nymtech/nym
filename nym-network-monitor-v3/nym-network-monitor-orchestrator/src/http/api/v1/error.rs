@@ -11,6 +11,11 @@ pub(crate) enum ApiError {
     #[error("agent information not found")]
     AgentNotFound,
 
+    #[error(
+        "the announced agent addresses are not a plain ipv4 / ipv6 pair - the ipv4 field must hold an ipv4 address and the ipv6 field an address that isn't an ipv4-mapped one"
+    )]
+    MalformedAgentAddresses,
+
     #[error("failed to announce agent to the network monitors contract")]
     ContractFailure,
 
@@ -35,7 +40,7 @@ impl ApiError {
         use ApiError::*;
 
         match self {
-            AgentNotFound | AgentNotAnnounced => StatusCode::BAD_REQUEST,
+            AgentNotFound | AgentNotAnnounced | MalformedAgentAddresses => StatusCode::BAD_REQUEST,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR

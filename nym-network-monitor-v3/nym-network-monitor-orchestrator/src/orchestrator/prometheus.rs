@@ -139,6 +139,16 @@ pub enum PrometheusMetric {
     ))]
     AgentContractAnnounceFailures,
 
+    #[strum(props(
+        help = "The number of announcements that changed the cached noise key or ipv6 address of an already known agent (its previous authorisation may be left stale in the contract)"
+    ))]
+    AgentDetailsChanged,
+
+    #[strum(props(
+        help = "The number of rejected announcements whose addresses were not a plain ipv4/ipv6 pair"
+    ))]
+    AgentMalformedAddressAnnouncements,
+
     #[strum(props(help = "The number of requests to assign a test run to an agent"))]
     AgentTestrunRequests,
 
@@ -273,6 +283,10 @@ impl PrometheusMetric {
                 Metric::new_int_counter(&name, help)
             }
             PrometheusMetric::AgentContractAnnounceFailures => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentDetailsChanged => Metric::new_int_counter(&name, help),
+            PrometheusMetric::AgentMalformedAddressAnnouncements => {
+                Metric::new_int_counter(&name, help)
+            }
             PrometheusMetric::AgentTestrunRequests => Metric::new_int_counter(&name, help),
             PrometheusMetric::AgentUnknownAgentTestrunRequests => {
                 Metric::new_int_counter(&name, help)
@@ -425,7 +439,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(29, PrometheusMetric::COUNT)
+        assert_eq!(31, PrometheusMetric::COUNT)
     }
 
     #[test]

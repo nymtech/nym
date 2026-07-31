@@ -3,7 +3,9 @@
 
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
-use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
+use crate::storage::models::{
+    AssignedTestrun, NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress,
+};
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
@@ -141,7 +143,7 @@ impl NetworkMonitorStorage {
     pub(crate) async fn assign_next_mixnode_testrun(
         &self,
         staleness_age: Duration,
-    ) -> anyhow::Result<Option<NymNode>> {
+    ) -> anyhow::Result<Option<AssignedTestrun>> {
         let now = OffsetDateTime::now_utc();
         let last_tested_before = now - staleness_age;
         let assigned = self

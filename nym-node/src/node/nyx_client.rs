@@ -40,6 +40,7 @@ impl NyxClient {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn clone_query_client(&self) -> QueryHttpRpcNyxdClient {
         self.inner.read().await.clone_query_client()
     }

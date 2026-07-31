@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_directory_contract_common::KnownLabel;
-use nym_directory_types::SphinxKeys;
+use nym_directory_types::{NodeDescription, SphinxKeys};
 use prost::Message;
 
 /// The closed set of payloads this node publishes to the directory contract - one
@@ -16,6 +16,8 @@ use prost::Message;
 pub(crate) enum DirectoryPayload {
     /// The node's rotation-tagged sphinx keys, published under [`KnownLabel::SphinxKeys`].
     SphinxKeys(SphinxKeys),
+
+    NodeDescription(NodeDescription),
 }
 
 impl DirectoryPayload {
@@ -23,6 +25,7 @@ impl DirectoryPayload {
     pub(crate) fn label(&self) -> KnownLabel {
         match self {
             DirectoryPayload::SphinxKeys(_) => KnownLabel::SphinxKeys,
+            DirectoryPayload::NodeDescription(_) => KnownLabel::NodeDescription,
         }
     }
 
@@ -30,6 +33,7 @@ impl DirectoryPayload {
     pub(crate) fn to_canonical_bytes(&self) -> Vec<u8> {
         match self {
             DirectoryPayload::SphinxKeys(payload) => payload.encode_to_vec(),
+            DirectoryPayload::NodeDescription(payload) => payload.encode_to_vec(),
         }
     }
 }

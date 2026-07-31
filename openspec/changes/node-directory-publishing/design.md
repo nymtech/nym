@@ -34,7 +34,7 @@ One background task owns all contract writes for the node. It follows the standa
 The core operation is a **sweep**: compute the node's *desired snapshot* (the current payload every producer would publish), fetch the node's on-chain entries (`get_node_entries`) and the whitelist (`get_allowed_labels`), then set/replace stale-or-missing desired payloads, delete no-longer-desired known-label entries (D10), and warn on unknown-label entries. The sweep runs at startup (the first sweep = the startup snapshot, covering **every** derivable payload **including sphinx**), on a long timer, and on recovery from dormant.
 
 On top of the sweep, producers hold `Sender` handles and emit `DirectoryUpdate` wakeups for a targeted reconcile of one payload between sweeps:
-- **`KeyRotationController`** emits the current `SphinxKeys` payload right after it mutates keys (pre-announce / swap / purge).
+- **`KeyRotationController`** emits the current `SphinxKeys` payload right after a pre-announce only. Swap does not change the published key set (only which key is primary) and a purged key belongs to a previous rotation a correct client never selects, so neither needs an emit; the periodic sweep reconciles both. The emit and the sweep's `desired_snapshot` share one `ActiveSphinxKeys` helper, so their bytes match and cannot clobber each other.
 - **Future runtime sources** add one more producer + sender - no change to the publisher core.
 
 - **Why the snapshot covers sphinx at startup**: `KeyRotationController` emits only on key *change*; a normal restart where the node already holds a valid primary key performs no mutation and would emit nothing, so relying on rotation events alone would leave the sphinx entry unpublished until the next rotation. The startup snapshot derives sphinx from the current `ActiveSphinxKeys` directly, and rotation events handle only subsequent deltas (deduped by reconcile-before-write).
@@ -79,7 +79,7 @@ On preflight failure the publisher enters a dormant state and re-runs preflight 
 
 ### D8: Opt-in gate + hidden tuning knobs
 
-A new `[directory]` config section gates the publisher on an `enabled` flag AND a configured contract address. Tuning knobs (retry count, back-off intervals) are CLI/env-overridable but `clap(hide = true)`.
+A new `[directory]` config section gates the publisher on an `enabled` flag; enabling it requires a configured contract address, and enabling without one is a hard startup error (fail fast on misconfiguration). Tuning knobs (retry count, back-off intervals) are CLI/env-overridable but `clap(hide = true)`.
 
 - **Why**: The directory is mid-migration; publishing must be opt-in and inert where the contract is not deployed. Hidden knobs follow the project convention for internal tuning parameters.
 
@@ -110,7 +110,7 @@ The reconcile sweep deletes any *published* entry whose label the node recognise
 
 - Ship disabled by default. Networks enable per-operator once the contract is deployed and a contract address is configured in network details.
 - Rollout order is unconstrained: the contract, producer, and client already tolerate partial publication (consumers compute `missing = bonded - published` and fall back to the HTTP pull), so nodes can begin publishing incrementally with no coordination.
-- Rollback: unset the `enabled` flag (or remove the contract address) - the publisher goes inert; already-published entries remain readable and are cleaned up by the existing unbond callback when a node unbonds.
+- Rollback: unset the `enabled` flag - the publisher goes inert; already-published entries remain readable and are cleaned up by the existing unbond callback when a node unbonds.
 
 ## Open Questions
 

@@ -142,6 +142,8 @@ pub enum KnownLabel {
     /// first publish. Consumers select by the current rotation; roles are derived,
     /// not stored, so advancement needs no extra writes. Exact payload format TBD.
     SphinxKeys,
+
+    NodeDescription,
 }
 
 impl Display for KnownLabel {
@@ -153,13 +155,14 @@ impl Display for KnownLabel {
 impl KnownLabel {
     /// Every known label, in a stable order - all auto-whitelisted at contract
     /// instantiation. Keep in sync with the variants above.
-    pub const ALL: &'static [KnownLabel] = &[KnownLabel::SphinxKeys];
+    pub const ALL: &'static [KnownLabel] = &[KnownLabel::SphinxKeys, KnownLabel::NodeDescription];
 
     /// The canonical on-chain label string for this known label. Stable: once
     /// entries exist under it, the string must not change.
     pub const fn as_str(self) -> &'static str {
         match self {
             KnownLabel::SphinxKeys => "sphinx_key",
+            KnownLabel::NodeDescription => "node_description",
         }
     }
 
@@ -167,7 +170,8 @@ impl KnownLabel {
     /// instantiation; never exceeds [`crate::constants::MAX_LABEL_SIZE_CEILING`].
     pub const fn default_max_size(self) -> u32 {
         match self {
-            KnownLabel::SphinxKeys => 256,
+            KnownLabel::SphinxKeys => 128,
+            KnownLabel::NodeDescription => 256,
         }
     }
 

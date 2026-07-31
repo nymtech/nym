@@ -102,6 +102,15 @@ pub struct KEMEncapsulationKeys {
     pub ml_kem768_pk: Arc<MlKem768PublicKey>,
 }
 
+impl Debug for KEMEncapsulationKeys {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KEMEncapsulationKeys")
+            .field("mc_eliece_pk", &"<redacted>")
+            .field("ml_kem768_pk", &"<redacted>")
+            .finish()
+    }
+}
+
 impl KEMEncapsulationKeys {
     pub fn digests(&self) -> BTreeMap<KEM, KEMKeyDigests> {
         let mut digests = BTreeMap::new();

@@ -64,7 +64,19 @@ impl From<NodeDescription> for api_requests::v1::node::models::NodeDescription {
     }
 }
 
+impl From<NodeDescription> for nym_directory_types::NodeDescription {
+    fn from(description: NodeDescription) -> Self {
+        nym_directory_types::NodeDescription {
+            moniker: description.moniker,
+            website: description.website,
+            security_contact: description.security_contact,
+            details: description.details,
+        }
+    }
+}
+
 // all known information about this node
+#[derive(Clone, Debug)]
 pub(crate) struct NodeDetails {
     identity_key: ed25519::PublicKey,
     noise_key: x25519::PublicKey,
@@ -91,6 +103,7 @@ pub(crate) struct NodeDetails {
     system_info: api_requests::v1::node::models::HostSystem,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct ExternalPorts {
     verloc_port: u16,
     mix_port: u16,
@@ -116,6 +129,7 @@ impl ExternalPorts {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct WireguardDetails {
     tunnel_port: u16,
     metadata_port: u16,
@@ -134,6 +148,7 @@ impl WireguardDetails {
     }
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct LewesProtocolDetails {
     x25519: DHPublicKey,
 
@@ -168,6 +183,7 @@ impl LewesProtocolDetails {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct ServiceProvidersKeys {
     // ideally we'd be storing all the keys here, but unfortunately due to how the service providers
     // are currently implemented, they will be loading the data themselves from the provided paths
@@ -582,5 +598,12 @@ impl NodeDetails {
 
     pub(crate) fn cosmos_address(&self) -> &AccountId {
         &self.cosmos_address
+    }
+}
+
+// methods for converting into the directory publications
+impl NodeDetails {
+    pub(crate) fn directory_node_description(&self) -> nym_directory_types::NodeDescription {
+        self.description.clone().into()
     }
 }

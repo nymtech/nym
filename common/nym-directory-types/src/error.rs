@@ -5,5 +5,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DirectoryTypesError {
-    //
+    #[error("the encoded sphinx public key has invalid length. got {got} bytes and expected 32")]
+    InvalidSphinxKeyLength { got: usize },
 }

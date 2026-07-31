@@ -62,10 +62,10 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_noise::config::{NetworkMonitorAgentNode, NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
+use nym_validator_client::UserAgent;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use nym_validator_client::{QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
@@ -476,7 +476,7 @@ impl NymNode {
             .unwrap_or(self.config.gateway_tasks.ws_bind_address.port());
 
         Ok(LocalGatewayNode {
-            active_sphinx_keys: self.active_sphinx_keys()?.clone(),
+            active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
@@ -692,7 +692,7 @@ impl NymNode {
                 self.ed25519_identity_keys.clone(),
                 &self.config,
             ),
-            self.active_sphinx_keys()?.clone(),
+            self.active_sphinx_keys()?,
             self.metrics.clone(),
             self.verloc_stats.clone(),
             self.config
@@ -908,6 +908,7 @@ impl NymNode {
         &mut self,
         nym_apis_client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
+        directory_publisher_events_sender: Option<DirectoryPublisherEventsSender>,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
         let rotation_state = nym_apis_client.get_key_rotation_info().await?;
@@ -918,6 +919,7 @@ impl NymNode {
             nym_apis_client,
             replay_protection_manager,
             managed_keys,
+            directory_publisher_events_sender,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -1029,17 +1031,13 @@ impl NymNode {
         Ok(())
     }
 
-    #[deprecated]
     async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
-        // 1. create a nyx rpc client
-        // (TODO: we should have unified client later on for all chain interactions)
-        let client = QueryHttpRpcNyxdClient::connect_with_network_details(
-            self.config.nyx.nyxd_urls[0].as_str(),
-            self.network.clone(),
-        )?;
-
-        // 2. run the queries to retrieve all agents
-        Ok(client.get_all_network_monitor_agents().await?)
+        Ok(self
+            .nyx_client
+            .read()
+            .await
+            .get_all_network_monitor_agents()
+            .await?)
     }
 
     async fn setup_nyx_chain_watcher(
@@ -1093,6 +1091,8 @@ impl NymNode {
             self.nyx_client.clone(),
             config,
             self.ed25519_identity_keys.clone(),
+            self.public_details.clone(),
+            self.active_sphinx_keys()?,
             self.shutdown_manager.clone_shutdown_token(),
         )
         .await?;
@@ -1242,8 +1242,12 @@ impl NymNode {
         .await?;
 
         // start watching for key rotation and update the keys accordingly
-        self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
-            .await?;
+        self.setup_key_rotation(
+            nym_apis_client,
+            bloomfilters_manager,
+            directory_publisher_events_sender,
+        )
+        .await?;
 
         self.shutdown_manager.close_tracker();
 

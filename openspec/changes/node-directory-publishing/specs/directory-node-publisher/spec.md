@@ -2,15 +2,15 @@
 
 ### Requirement: Opt-in activation gate
 
-The nym-node directory publisher SHALL run only when both an operator-set `enabled` flag is true and a directory contract address is configured for the network. When either condition is unmet the publisher SHALL NOT start and SHALL NOT emit errors, so the subsystem is inert everywhere the directory is not deployed or not opted into.
+The nym-node directory publisher SHALL run only when the operator-set `enabled` flag is true and a directory contract address is configured for the network. When `enabled` is false (the default) the publisher SHALL NOT start and SHALL NOT emit errors, so the subsystem is inert wherever the directory is not opted into. When `enabled` is true but no directory contract address is configured, the node SHALL fail startup with a clear error: an enabled publisher with no contract to write to is an operator misconfiguration, not a silent no-op.
 
 #### Scenario: Disabled by configuration
 - **WHEN** the node starts with the directory publisher `enabled` flag unset (or false)
 - **THEN** no publisher task is spawned and no directory queries or writes are attempted
 
-#### Scenario: No contract address configured
+#### Scenario: Enabled but no contract address configured
 - **WHEN** the `enabled` flag is true but the network details provide no directory contract address
-- **THEN** the publisher does not start, and the node logs that directory publishing is inactive because no contract address is configured
+- **THEN** node startup fails with a clear error naming the missing directory contract address, rather than running silently without a publisher
 
 #### Scenario: Fully configured
 - **WHEN** the `enabled` flag is true and a directory contract address is configured
@@ -18,10 +18,10 @@ The nym-node directory publisher SHALL run only when both an operator-set `enabl
 
 ### Requirement: Publisher never gates node operation
 
-The directory publisher SHALL be spawned as a fire-and-forget background task and SHALL isolate all its failures. No error, panic-free failure, contract rejection, or chain/query outage in the publisher SHALL prevent the node from starting or continuing to operate.
+Once activated, the directory publisher SHALL be spawned as a fire-and-forget background task and SHALL isolate all its operational failures. No query or write error, contract rejection, chain outage, or panic-free failure in the publisher SHALL prevent the node from starting or continuing to operate. The sole startup-blocking condition is the deliberate opt-in misconfiguration defined in "Opt-in activation gate" (`enabled` with no configured contract address), which fails fast before the publisher task is built.
 
 #### Scenario: Publisher fails at startup
-- **WHEN** the publisher cannot complete startup work (e.g. every query to the chain or nym-api fails)
+- **WHEN** the publisher cannot complete its startup work (e.g. every chain query fails)
 - **THEN** the node continues starting and running normally, and the failure is logged
 
 #### Scenario: Publisher fails at runtime
@@ -118,15 +118,15 @@ Publishable data SHALL be modelled as a closed `DirectoryPayload` enum in which 
 
 ### Requirement: Update events are emitted by independent producers
 
-The publisher's correctness backbone is a reconcile sweep (see "Periodic reconciliation and deletion"); on top of it, the publisher SHALL consume `DirectoryUpdate` wakeups from a channel written to by independent producers for low-latency updates between sweeps. The startup snapshot (the first sweep) SHALL cover every derivable payload, including the sphinx key. The sphinx key rotation producer SHALL emit the current sphinx payload whenever the node's sphinx keys change. Adding a future runtime-updatable payload SHALL require only a new producer holding a sender handle, not a change to the publisher's core loop.
+The publisher's correctness backbone is a reconcile sweep (see "Periodic reconciliation and deletion"); on top of it, the publisher SHALL consume update wakeups from a channel written to by independent producers for low-latency updates between sweeps. The startup snapshot (the first sweep) SHALL cover every derivable payload, including the sphinx key. The sphinx key rotation producer SHALL emit the current sphinx payload after each pre-announce (when a new key is generated ahead of use); it need not emit on swap or purge, because a swap does not change the published key set (only which key is primary) and a purged key belongs to a previous rotation a correct client never selects, both of which the periodic sweep reconciles. Adding a future runtime-updatable payload SHALL require only a new producer holding a sender handle, not a change to the publisher's core loop.
 
 #### Scenario: Startup snapshot covers every payload including sphinx
 - **WHEN** the publisher starts and preflight passes, and the node performs no key rotation at that moment
 - **THEN** the startup snapshot still derives and reconciles the current sphinx payload (it is not withheld until the next rotation)
 
-#### Scenario: Rotation emits on key change
-- **WHEN** the node's sphinx keys change (pre-announce, swap, or purge of a rotation key)
-- **THEN** the rotation producer emits the current sphinx payload as a `DirectoryUpdate` for a targeted reconcile
+#### Scenario: Rotation emits after pre-announce
+- **WHEN** the node pre-announces a new sphinx key for the upcoming rotation
+- **THEN** the rotation producer emits the current sphinx payload for a targeted reconcile, publishing the new key ahead of the swap
 
 #### Scenario: New runtime source needs no core change
 - **WHEN** a future runtime-updatable payload is added

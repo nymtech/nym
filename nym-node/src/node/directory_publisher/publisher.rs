@@ -6,10 +6,11 @@ use crate::error::NymNodeError;
 use crate::node::directory_publisher::preflight::{Preflight, log_dormant_reason};
 use crate::node::directory_publisher::session::ActiveSession;
 use crate::node::directory_publisher::{DEFAULT_MINIMUM_ON_CHAIN_BALANCE_AMOUNT, DirectoryPayload};
+use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
+use crate::node::node_details::NodeDetails;
 use crate::node::nyx_client::NyxClient;
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{KnownLabel, node_signing_payload};
-use nym_directory_types::SphinxKeys;
 use nym_task::ShutdownToken;
 use nym_topology::NodeId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -70,6 +71,10 @@ pub(crate) struct DirectoryPublisher {
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     shutdown_token: ShutdownToken,
 
+    // data required to recompute full publishable state:
+    node_details: NodeDetails,
+    sphinx_keys: ActiveSphinxKeys,
+
     /// Retained so [`Self::events_sender`] can hand clones to producers; also keeps the
     /// channel open for the publisher's lifetime (so the receiver never sees it close).
     events_tx: mpsc::Sender<DirectoryPayload>,
@@ -90,6 +95,8 @@ impl DirectoryPublisher {
         nyx_client: NyxClient,
         config: DirectoryPublisherConfig,
         ed25519_identity_keys: Arc<ed25519::KeyPair>,
+        node_details: NodeDetails,
+        sphinx_keys: ActiveSphinxKeys,
         shutdown_token: ShutdownToken,
     ) -> Result<Self, NymNodeError> {
         // blow up at this point if the directory contract address is not set
@@ -109,6 +116,8 @@ impl DirectoryPublisher {
             config,
             ed25519_identity_keys,
             shutdown_token,
+            node_details,
+            sphinx_keys,
             events_tx,
             events_rx: Some(events_rx),
         })
@@ -242,7 +251,10 @@ impl DirectoryPublisher {
     /// state. For now only the sphinx-key entry, a placeholder payload until its fields
     /// are backfilled (at which point it is derived from the node's `ActiveSphinxKeys`).
     fn desired_snapshot(&self) -> Vec<DirectoryPayload> {
-        vec![DirectoryPayload::SphinxKeys(SphinxKeys::default())]
+        vec![
+            DirectoryPayload::SphinxKeys(self.sphinx_keys.directory_sphinx_keys()),
+            DirectoryPayload::NodeDescription(self.node_details.directory_node_description()),
+        ]
     }
 
     /// Reconcile sweep (task 3b.2): drive on-chain state toward the desired snapshot.

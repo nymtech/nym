@@ -16,8 +16,9 @@
 - [x] 2.1 Add a `[directory]` config section to nym-node with an `enabled` flag (default false).
 - [x] 2.2 Add hidden (`clap(hide = true)`) CLI/env-overridable tuning knobs: write retry count and
   dormant/whitelist-refresh back-off interval, with sensible defaults.
-- [x] 2.3 Resolve the directory contract address from network details (`Option<String>`); implement the activation
-  predicate `enabled && contract_address.is_some()` and its inactive-path logging.
+- [x] 2.3 Resolve the directory contract address from network details (`Option<String>`); gate the publisher on the
+  `enabled` flag, and treat `enabled` with no configured contract address as a hard startup error (fail fast on
+  misconfiguration) rather than a silent no-op.
 
 ## 3. Publisher write path (single serialized writer)
 
@@ -68,9 +69,12 @@
 - [x] 6.1 Define `DirectoryUpdate` wakeups and the mpsc channel; implement the publisher's single-consumer loop that
   `select!`s over the sweep timer, the dormant re-check, and the channel, dispatching each wakeup through a targeted
   `reconcile_and_write` (gated by preflight + whitelist), so all writes/deletes are serialized.
-- [ ] 6.2 Add a `DirectoryUpdate` `Sender` to `KeyRotationController` and emit the current `SphinxKeys` payload after
-  each key mutation (pre-announce / swap / purge); make the emit best-effort so a full/absent channel never disrupts
-  rotation. (Startup publication of sphinx is covered by the first sweep, task 3b.3, not this emit.)
+- [x] 6.2 Add a directory-publisher event `Sender` to `KeyRotationController` and emit the current `SphinxKeys` payload
+  after a pre-announce only; make the emit best-effort so a full/absent channel never disrupts rotation. Swap and purge
+  need no emit: swap does not change the published key *set* (only which key is primary), and a purged key belongs to a
+  previous rotation a correct client never selects - the periodic sweep reconciles both. Both the emit and the sweep's
+  `desired_snapshot` derive the payload from one shared `ActiveSphinxKeys` helper, so they are byte-identical and cannot
+  clobber each other. (Startup publication of sphinx is covered by the first sweep, task 3b.3, not this emit.)
 
 ## 7. Startup wiring and isolation
 
@@ -78,11 +82,13 @@
   mnemonic. Move ownership of the mnemonic + chain client into nym-node proper (currently derived ad-hoc from
   `entry_gateway.mnemonic`, e.g. `node_chain_address()`) so the publisher and `node_chain_address()` share one owner
   instead of re-deriving the wallet.
-- [ ] 7.1 In `start_nym_node_tasks`, when the activation predicate holds, build the publisher (identity key, relayer
-  client, nym-api + mixnet clients, rotation sender wired to the controller) and spawn it fire-and-forget via
-  `shutdown_tracker().try_spawn_named`.
-- [ ] 7.2 Verify (by construction + test) that no publisher error path propagates to node startup or the mixnet
-  datapath.
+- [x] 7.1 In `start_nym_node_tasks`, when the activation predicate holds, build the publisher (identity key, relayer
+  client via the shared `NyxClient`, node details + shared `ActiveSphinxKeys` handle, rotation sender wired to the
+  controller) and spawn it fire-and-forget via `shutdown_tracker().try_spawn_named`.
+- [x] 7.2 Verify (by construction) that no publisher *runtime* error path propagates to node startup or the mixnet
+  datapath: `run()` returns `()`, is spawned fire-and-forget, and routes every query/write/outage failure to its own
+  dormant/back-off + return-to-preflight handling. The only startup-blocking path is the deliberate fail-fast on the
+  `enabled`-without-contract-address misconfiguration (see task 2.3).
 
 ## 8. Tests
 

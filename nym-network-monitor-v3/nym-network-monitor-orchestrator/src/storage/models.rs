@@ -11,6 +11,7 @@ use nym_network_monitor_orchestrator_requests::models::{
 use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -57,6 +58,10 @@ impl NodeType {
 pub(crate) struct NewTestRun {
     /// Contract-assigned node id of the node under test.
     pub(crate) node_id: i64,
+
+    /// The address of that node that was tested, as reported by the agent that performed the run.
+    /// `None` for runs recorded before the orchestrator started tracking it.
+    pub(crate) tested_address: Option<String>,
 
     pub(crate) test_type: TestType,
     pub(crate) test_timestamp: OffsetDateTime,
@@ -107,9 +112,15 @@ impl NewTestRun {
     /// Converts an API-level [`TestRunResult`] into a database-ready row,
     /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
     /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
-    fn from_result(test_type: TestType, node_id: NodeId, result: TestRunResult) -> Self {
+    fn from_result(
+        test_type: TestType,
+        node_id: NodeId,
+        tested_address: SocketAddr,
+        result: TestRunResult,
+    ) -> Self {
         NewTestRun {
             node_id: node_id as i64,
+            tested_address: Some(tested_address.to_string()),
             test_type,
             test_timestamp: OffsetDateTime::now_utc(),
             time_taken_us: result.time_taken.as_micros() as i64,
@@ -139,14 +150,22 @@ impl NewTestRun {
     }
 
     /// Creates a new test run row for a mixnode stress test result.
-    pub(crate) fn from_mixnode_result(node_id: NodeId, result: TestRunResult) -> Self {
-        Self::from_result(TestType::Mixnode, node_id, result)
+    pub(crate) fn from_mixnode_result(
+        node_id: NodeId,
+        tested_address: SocketAddr,
+        result: TestRunResult,
+    ) -> Self {
+        Self::from_result(TestType::Mixnode, node_id, tested_address, result)
     }
 
     /// Creates a new test run row for a gateway stress test result.
     #[allow(dead_code)]
-    pub(crate) fn from_gateway_result(node_id: NodeId, result: TestRunResult) -> Self {
-        Self::from_result(TestType::Gateway, node_id, result)
+    pub(crate) fn from_gateway_result(
+        node_id: NodeId,
+        tested_address: SocketAddr,
+        result: TestRunResult,
+    ) -> Self {
+        Self::from_result(TestType::Gateway, node_id, tested_address, result)
     }
 }
 
@@ -209,6 +228,9 @@ impl From<TestRun> for TestRunData {
         TestRunData {
             id: run.id,
             node_id: inner.node_id as u32,
+            // a malformed stored address is not worth failing the whole result over,
+            // it's informational rather than something we act on
+            tested_address: inner.tested_address.and_then(|addr| addr.parse().ok()),
             test_type: inner.test_type.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
@@ -300,6 +322,10 @@ pub(crate) struct NewNymNode {
     /// Stored as a string; parse with `str::parse::<SocketAddr>()` when needed.
     pub(crate) mixnet_socket_address: Option<String>,
 
+    /// Every ip address announced by the node, comma-separated.
+    /// `None` if retrieval from the node failed.
+    pub(crate) announced_ips: Option<String>,
+
     /// X25519 public key used for Noise handshakes, base58-encoded.
     /// `None` if retrieval from the node failed.
     pub(crate) noise_key: Option<String>,
@@ -326,6 +352,7 @@ impl NewNymNode {
             identity_key: bond.identity().to_string(),
             last_seen_bonded: OffsetDateTime::now_utc(),
             mixnet_socket_address: None,
+            announced_ips: None,
             noise_key: None,
             sphinx_key: None,
             key_rotation_id: None,
@@ -352,6 +379,88 @@ impl From<TestRunInProgress> for TestRunInProgressData {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn node(announced_ips: Option<&str>, last_tested_ip: Option<&str>) -> NymNode {
+        NymNode {
+            inner: NewNymNode {
+                node_id: 42,
+                identity_key: "identity".to_string(),
+                last_seen_bonded: OffsetDateTime::now_utc(),
+                mixnet_socket_address: Some("1.1.1.1:1789".to_string()),
+                announced_ips: announced_ips.map(Into::into),
+                noise_key: None,
+                sphinx_key: None,
+                key_rotation_id: None,
+                node_type: NodeType::Mixnode,
+            },
+            last_testrun: None,
+            last_tested_ip: last_tested_ip.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn consecutive_runs_rotate_through_every_announced_address() {
+        let announced = "1.1.1.1,2.2.2.2,aaaa::1";
+
+        let mut tested = Vec::new();
+        let mut previous = None;
+        for _ in 0..4 {
+            let next = node(Some(announced), previous.as_deref())
+                .next_ip_to_test()
+                .unwrap();
+            previous = Some(next.to_string());
+            tested.push(next);
+        }
+
+        // every announced address gets exercised before the rotation wraps around
+        assert_eq!(
+            tested,
+            vec![
+                "1.1.1.1".parse::<IpAddr>().unwrap(),
+                "2.2.2.2".parse().unwrap(),
+                "aaaa::1".parse().unwrap(),
+                "1.1.1.1".parse().unwrap(),
+            ]
+        );
+    }
+
+    #[test]
+    fn rotation_restarts_when_the_pointer_is_no_longer_announced() {
+        let node = node(Some("1.1.1.1,2.2.2.2"), Some("9.9.9.9"));
+        assert_eq!(
+            node.next_ip_to_test(),
+            Some("1.1.1.1".parse::<IpAddr>().unwrap())
+        );
+    }
+
+    // nodes that haven't been refreshed since `announced_ips` was introduced still have to be
+    // testable, using whatever single address is on the row
+    #[test]
+    fn nodes_without_announced_ips_fall_back_to_the_stored_socket_address() {
+        let node = node(None, None);
+        assert_eq!(
+            node.announced_ips(),
+            vec!["1.1.1.1".parse::<IpAddr>().unwrap()]
+        );
+        assert_eq!(
+            node.next_ip_to_test(),
+            Some("1.1.1.1".parse::<IpAddr>().unwrap())
+        );
+    }
+
+    #[test]
+    fn malformed_announced_ips_are_skipped() {
+        let node = node(Some("not-an-ip,2.2.2.2"), None);
+        assert_eq!(
+            node.announced_ips(),
+            vec!["2.2.2.2".parse::<IpAddr>().unwrap()]
+        );
+    }
+}
+
 /// A row from the `nym_node` table, as returned by a SELECT.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct NymNode {
@@ -360,6 +469,66 @@ pub(crate) struct NymNode {
 
     /// ID of the most recent test run against this node. `None` if never tested.
     pub(crate) last_testrun: Option<i64>,
+
+    /// The ip handed out for the most recent testrun assignment, used as the rotation pointer
+    /// into [`NewNymNode::announced_ips`]. `None` if the node has never been assigned one.
+    pub(crate) last_tested_ip: Option<String>,
+}
+
+impl NymNode {
+    /// Every ip address the node announced, falling back to the one in `mixnet_socket_address` for
+    /// nodes that haven't been refreshed since `announced_ips` was introduced. Unparseable entries
+    /// are skipped rather than failing the whole assignment.
+    ///
+    /// The stored set is canonicalised, deduplicated and sorted on write (see
+    /// [`NodeRefresher`](crate::orchestrator::node_refresher::NodeRefresher)), which is what makes
+    /// the [`Self::next_ip_to_test`] rotation stable across refreshes.
+    pub(crate) fn announced_ips(&self) -> Vec<IpAddr> {
+        let announced: Vec<_> = self
+            .inner
+            .announced_ips
+            .iter()
+            .flat_map(|ips| ips.split(','))
+            .filter_map(|ip| ip.trim().parse().ok())
+            .collect();
+
+        if !announced.is_empty() {
+            return announced;
+        }
+
+        self.inner
+            .mixnet_socket_address
+            .as_ref()
+            .and_then(|addr| addr.parse::<SocketAddr>().ok())
+            .map(|addr| vec![addr.ip()])
+            .unwrap_or_default()
+    }
+
+    /// The ip to test next: the one following [`Self::last_tested_ip`] in the announced set, so
+    /// consecutive runs against the same node rotate through all of its addresses. Falls back to
+    /// the first announced address when the pointer is unset or no longer announced.
+    pub(crate) fn next_ip_to_test(&self) -> Option<IpAddr> {
+        let announced = self.announced_ips();
+
+        let previous = self
+            .last_tested_ip
+            .as_ref()
+            .and_then(|ip| ip.parse::<IpAddr>().ok());
+        let previous_index = previous.and_then(|ip| announced.iter().position(|a| *a == ip));
+
+        match previous_index {
+            Some(index) => announced.get((index + 1) % announced.len()).copied(),
+            None => announced.first().copied(),
+        }
+    }
+}
+
+/// A node selected for a test run, along with the address that this particular run should target.
+pub(crate) struct AssignedTestrun {
+    pub(crate) node: NymNode,
+
+    /// The announced ip picked for this run by [`NymNode::next_ip_to_test`].
+    pub(crate) tested_ip: IpAddr,
 }
 
 /// Decodes a node's stored base58 key strings and parses the socket address

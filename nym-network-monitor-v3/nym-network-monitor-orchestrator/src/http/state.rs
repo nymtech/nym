@@ -8,91 +8,107 @@ use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::{
-    NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment, TestRunData,
-    TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
+    TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
+use std::collections::hash_map::Entry;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLock};
-use tracing::error;
+use tracing::{error, warn};
 
-/// Thread-safe cache of all agents known to this orchestrator, keyed by host IP.
-/// Used to short-circuit the contract tx for already-announced agents.
+/// Thread-safe cache of all agents known to this orchestrator, keyed by the agent's IPv4 mixnet
+/// address. Used to short-circuit the contract txs for already-announced agents.
 #[derive(Clone, Default)]
 pub(crate) struct KnownAgents {
     inner: Arc<Mutex<KnownAgentsInner>>,
 }
 
 impl KnownAgents {
-    /// Looks up an agent by its full mixnet socket address (host IP + port).
-    /// Returns `None` if no agent is registered at that address.
-    pub(crate) async fn get_agent(&self, address: SocketAddr) -> Option<KnownAgent> {
+    /// Looks up an agent by the address pair it announced. Returns `None` if nothing is registered
+    /// under its IPv4 address, or if the registered entry belongs to a different IPv6 address, i.e.
+    /// this is not the agent we authorised.
+    pub(crate) async fn get_agent(&self, addresses: AgentMixAddresses) -> Option<KnownAgent> {
         let guard = self.inner.lock().await;
-        let host_agents = guard.agents.get(&address.ip())?;
+        let agent = guard.agents.get(&addresses.v4)?;
 
-        host_agents
-            .iter()
-            .find(|a| a.mixnet_port == address.port())
-            .copied()
+        if agent.mix_v6 != addresses.v6 {
+            return None;
+        }
+
+        Some(*agent)
     }
 
-    /// Records an announcement from the agent at `mix_listener`. The cache entry
-    /// is upserted: a missing entry is inserted, and if the cached noise key differs
-    /// from the announced one it is overwritten and the agent is treated as
-    /// not-yet-announced so the caller re-runs the contract tx with the new key.
+    /// Records an announcement from the agent at `addresses`. The cache entry is upserted: a
+    /// missing entry is inserted, and if the cached noise key or IPv6 address differs from the
+    /// announced one it is overwritten and the agent is treated as not-yet-announced so the caller
+    /// re-runs the contract txs with the new details.
     ///
-    /// Returns the current `announced` flag: `true` means the agent was already
-    /// announced to the contract and the caller should skip the contract tx;
-    /// `false` means the caller should submit the tx and call [`Self::mark_announced`]
-    /// on success.
+    /// Returns the current `announced` flag: `true` means the agent was already announced to the
+    /// contract and the caller should skip the contract txs; `false` means the caller should submit
+    /// them and call [`Self::mark_announced`] on success.
     pub(crate) async fn try_announce_agent(
         &self,
-        mix_listener: SocketAddr,
+        addresses: AgentMixAddresses,
         noise_key: x25519::PublicKey,
     ) -> bool {
         let mut guard = self.inner.lock().await;
-        let host_agents = guard.agents.entry(mix_listener.ip()).or_default();
 
-        if let Some(agent) = host_agents
-            .iter_mut()
-            .find(|agent| agent.mixnet_port == mix_listener.port())
-        {
-            agent.last_active_at = OffsetDateTime::now_utc();
-            if agent.noise_key == noise_key {
-                return agent.announced;
+        match guard.agents.entry(addresses.v4) {
+            Entry::Occupied(mut entry) => {
+                let agent = entry.get_mut();
+                agent.last_active_at = OffsetDateTime::now_utc();
+
+                if agent.noise_key == noise_key && agent.mix_v6 == addresses.v6 {
+                    return agent.announced;
+                }
+
+                // the addresses and the noise key are all meant to be stable for the lifetime of
+                // an agent, so this is either a re-provisioned agent reusing its IPv4 address or a
+                // live one whose configuration changed. we can't distinguish those (announcements
+                // are bearer-token authenticated, not key authenticated), so the announcement is
+                // accepted - but a superseded IPv6 address stays authorised in the contract, which
+                // is worth knowing about.
+                warn!(
+                    "agent at {} announced details differing from the cached ones (cached: {} / {}, announced: {} / {}) - re-announcing it to the contract",
+                    addresses.v4,
+                    agent.mix_v6,
+                    agent.noise_key.to_base58_string(),
+                    addresses.v6,
+                    noise_key.to_base58_string(),
+                );
+                PROMETHEUS_METRICS.inc(PrometheusMetric::AgentDetailsChanged);
+
+                agent.mix_v6 = addresses.v6;
+                agent.noise_key = noise_key;
+                agent.announced = false;
             }
-            agent.noise_key = noise_key;
-            agent.announced = false;
-            guard.publish_gauges();
-            return false;
+            Entry::Vacant(entry) => {
+                entry.insert(KnownAgent {
+                    mix_v6: addresses.v6,
+                    last_active_at: OffsetDateTime::now_utc(),
+                    noise_key,
+                    announced: false,
+                });
+            }
         }
 
-        host_agents.push(KnownAgent {
-            mixnet_port: mix_listener.port(),
-            last_active_at: OffsetDateTime::now_utc(),
-            noise_key,
-            announced: false,
-        });
         guard.publish_gauges();
         false
     }
 
-    /// Marks the agent at `mix_listener` as announced. Should be called after a
-    /// successful contract transaction.
-    pub(crate) async fn mark_announced(&self, mix_listener: SocketAddr) {
+    /// Marks the agent at `addresses` as announced. Should be called once every contract
+    /// transaction for that agent has succeeded.
+    pub(crate) async fn mark_announced(&self, addresses: AgentMixAddresses) {
         let mut guard = self.inner.lock().await;
-        let Some(host_agents) = guard.agents.get_mut(&mix_listener.ip()) else {
-            return;
-        };
-        if let Some(agent) = host_agents
-            .iter_mut()
-            .find(|a| a.mixnet_port == mix_listener.port())
+        if let Some(agent) = guard.agents.get_mut(&addresses.v4)
+            && agent.mix_v6 == addresses.v6
         {
             agent.announced = true;
         }
@@ -102,25 +118,51 @@ impl KnownAgents {
 
 /// Rebuilds the agent cache from on-chain data. Used at orchestrator startup to
 /// restore state for agents that were authorised before a restart.
+///
+/// The contract holds one entry per socket address and nothing ties together the two entries
+/// belonging to a single agent, so the pairs are recovered by grouping on the noise key, which is
+/// unique per agent. Records that don't form exactly one IPv4/IPv6 pair are dropped: they are
+/// either authorisations predating the IPv6 announcement, or leftovers from an agent that has since
+/// changed one of its addresses. Dropping them is safe because this cache exists purely to skip
+/// redundant contract transactions - agents always announce before requesting work, which
+/// re-creates the entry at the cost of one extra transaction.
 impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
     type Error = anyhow::Error;
 
     fn try_from(agents: Vec<AuthorisedNetworkMonitor>) -> Result<Self, Self::Error> {
-        let mut agents_map = HashMap::new();
-
+        let mut by_noise_key: HashMap<String, Vec<SocketAddr>> = HashMap::new();
         for agent in agents {
-            let host_ip = agent.mixnet_address.ip();
-            let noise_key = x25519::PublicKey::from_base58_string(&agent.bs58_x25519_noise)?;
-            agents_map
-                .entry(host_ip)
-                .or_insert_with(Vec::new)
-                .push(KnownAgent {
-                    mixnet_port: agent.mixnet_address.port(),
-                    // or should we use the authorisation ts?
+            by_noise_key
+                .entry(agent.bs58_x25519_noise)
+                .or_default()
+                .push(agent.mixnet_address);
+        }
+
+        let mut agents_map = HashMap::new();
+        for (bs58_noise_key, addresses) in by_noise_key {
+            let (v4_addresses, v6_addresses): (Vec<_>, Vec<_>) =
+                addresses.iter().copied().partition(|addr| addr.is_ipv4());
+
+            let ([mix_v4], [mix_v6]) = (v4_addresses.as_slice(), v6_addresses.as_slice()) else {
+                error!(
+                    "the agent using noise key {bs58_noise_key} has {} authorised address(es) on chain ({addresses:?}) rather than a single ipv4/ipv6 pair - ignoring it until it re-announces itself",
+                    addresses.len()
+                );
+                continue;
+            };
+
+            let noise_key = x25519::PublicKey::from_base58_string(&bs58_noise_key)?;
+            agents_map.insert(
+                *mix_v4,
+                KnownAgent {
+                    mix_v6: *mix_v6,
+                    // the on-chain authorisation timestamp says nothing about liveness,
+                    // so treat a restored entry as freshly active
                     last_active_at: OffsetDateTime::now_utc(),
                     noise_key,
                     announced: true,
-                });
+                },
+            );
         }
 
         let inner = KnownAgentsInner { agents: agents_map };
@@ -134,8 +176,9 @@ impl TryFrom<Vec<AuthorisedNetworkMonitor>> for KnownAgents {
 /// Inner state behind the [`KnownAgents`] mutex.
 #[derive(Default)]
 struct KnownAgentsInner {
-    /// Map from host IP to the list of agents running on that host.
-    agents: HashMap<IpAddr, Vec<KnownAgent>>,
+    /// Map from the agent's IPv4 mixnet address to its cached state. The port is part of the key
+    /// because several agents may share a host IP.
+    agents: HashMap<SocketAddr, KnownAgent>,
 }
 
 impl KnownAgentsInner {
@@ -143,28 +186,25 @@ impl KnownAgentsInner {
     /// the inner map — we recount rather than incrementally adjust so the gauges stay correct
     /// even if a future code path mutates state without going through a dedicated helper.
     fn publish_gauges(&self) {
-        let (total, announced) =
-            self.agents
-                .values()
-                .fold((0i64, 0i64), |(total, announced), agents| {
-                    let t = total + agents.len() as i64;
-                    let a = announced + agents.iter().filter(|a| a.announced).count() as i64;
-                    (t, a)
-                });
+        let total = self.agents.len() as i64;
+        let announced = self.agents.values().filter(|a| a.announced).count() as i64;
+
         PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsTotal, total);
         PROMETHEUS_METRICS.set(PrometheusMetric::KnownAgentsAnnounced, announced);
     }
 }
 
-/// Cached state of a single known agent on a particular host.
+/// Cached state of a single known agent, i.e. of the pair of contract authorisations it holds.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct KnownAgent {
-    pub(crate) mixnet_port: u16,
+    /// The IPv6 mixnet address announced alongside the IPv4 address this entry is keyed by.
+    pub(crate) mix_v6: SocketAddr,
+
     pub(crate) last_active_at: OffsetDateTime,
     pub(crate) noise_key: x25519::PublicKey,
 
-    /// Whether this agent has been successfully registered in the smart contract.
-    /// Set to `true` when restored from the chain at startup, or after a successful
+    /// Whether this agent has been successfully registered in the smart contract, under both of
+    /// its addresses. Set to `true` when restored from the chain at startup, or after a successful
     /// `/announce` contract transaction.
     pub(crate) announced: bool,
 }
@@ -198,9 +238,12 @@ impl TestrunManager {
             }
         };
 
-        let Some(node) = node_to_test.map(|n| n.inner) else {
+        let Some(assigned) = node_to_test else {
             return Ok(None);
         };
+        let node_ips = assigned.node.announced_ips();
+        let tested_ip = assigned.tested_ip;
+        let node = assigned.node.inner;
 
         let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation)) = (
             node.mixnet_socket_address,
@@ -216,9 +259,12 @@ impl TestrunManager {
             return Err(ApiError::StorageFailure);
         };
 
-        let Ok(node_address) = address.parse() else {
+        // the stored socket address only contributes the mix port - the address to test comes from
+        // the rotation over everything the node announced
+        let Ok(node_address) = address.parse::<SocketAddr>() else {
             return Err(ApiError::MalformedStoredData);
         };
+        let node_address = SocketAddr::new(tested_ip, node_address.port());
 
         let Ok(noise_key) = noise_key.parse() else {
             return Err(ApiError::MalformedStoredData);
@@ -231,6 +277,7 @@ impl TestrunManager {
         Ok(Some(TestRunAssignment {
             node_id: node.node_id as u32,
             node_address,
+            node_ips,
             noise_key,
             sphinx_key,
             key_rotation_id: key_rotation as u32,
@@ -244,9 +291,10 @@ impl TestrunManager {
         storage: &NetworkMonitorStorage,
         result: TestRunResult,
         node_id: NodeId,
+        tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
         // currently all testruns are mixnode results
-        let testrun = NewTestRun::from_mixnode_result(node_id, result);
+        let testrun = NewTestRun::from_mixnode_result(node_id, tested_address, result);
         if let Err(err) = storage.insert_test_run(&testrun).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);
@@ -300,9 +348,10 @@ impl AppState {
         &self,
         result: TestRunResult,
         node_id: NodeId,
+        tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
         self.testrun_manager
-            .submit_testrun_result(&self.storage, result, node_id)
+            .submit_testrun_result(&self.storage, result, node_id, tested_address)
             .await
     }
 
@@ -467,5 +516,160 @@ impl AppState {
             total,
             items: testruns.into_iter().map(Into::into).collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::{Addr, Timestamp};
+    use nym_test_utils::helpers::seeded_rng;
+
+    fn noise_key(seed: u8) -> x25519::PublicKey {
+        x25519::PublicKey::from(&x25519::PrivateKey::new(&mut seeded_rng([seed; 32])))
+    }
+
+    fn addresses(port: u16) -> AgentMixAddresses {
+        AgentMixAddresses {
+            v4: format!("1.1.1.1:{port}").parse().unwrap(),
+            v6: format!("[aaaa::{port}]:{port}").parse().unwrap(),
+        }
+    }
+
+    fn authorisation(
+        address: SocketAddr,
+        noise_key: x25519::PublicKey,
+    ) -> AuthorisedNetworkMonitor {
+        AuthorisedNetworkMonitor {
+            mixnet_address: address,
+            authorised_by: Addr::unchecked("n1foomp"),
+            authorised_at: Timestamp::from_seconds(42),
+            bs58_x25519_noise: noise_key.to_base58_string(),
+            noise_version: 1,
+        }
+    }
+
+    #[tokio::test]
+    async fn agent_is_not_announced_until_marked() {
+        let agents = KnownAgents::default();
+        let addresses = addresses(1789);
+        let key = noise_key(1);
+
+        assert!(!agents.try_announce_agent(addresses, key).await);
+        assert!(!agents.get_agent(addresses).await.unwrap().announced);
+
+        agents.mark_announced(addresses).await;
+        assert!(agents.get_agent(addresses).await.unwrap().announced);
+
+        // a repeated announcement is now a no-op, so the caller skips the contract txs
+        assert!(agents.try_announce_agent(addresses, key).await);
+    }
+
+    // agents deployed on the same host share its ipv4 address and are only told apart by the port,
+    // so an announcement from one must not disturb the other
+    #[tokio::test]
+    async fn agents_sharing_a_host_ip_are_tracked_separately() {
+        let agents = KnownAgents::default();
+        let first = addresses(1789);
+        let second = addresses(1790);
+        assert_eq!(first.v4.ip(), second.v4.ip());
+
+        agents.try_announce_agent(first, noise_key(1)).await;
+        agents.mark_announced(first).await;
+        agents.try_announce_agent(second, noise_key(2)).await;
+
+        assert!(agents.get_agent(first).await.unwrap().announced);
+        assert!(!agents.get_agent(second).await.unwrap().announced);
+    }
+
+    // the entry belongs to the announced pair, not to the ipv4 address alone
+    #[tokio::test]
+    async fn lookup_with_a_different_v6_address_finds_nothing() {
+        let agents = KnownAgents::default();
+        let announced = addresses(1789);
+        let key = noise_key(1);
+
+        agents.try_announce_agent(announced, key).await;
+        agents.mark_announced(announced).await;
+
+        let other_v6 = AgentMixAddresses {
+            v6: "[bbbb::1]:1789".parse().unwrap(),
+            ..announced
+        };
+        assert!(agents.get_agent(other_v6).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn changed_details_require_a_re_announcement() {
+        for changed in [
+            AgentMixAddresses {
+                v6: "[bbbb::1]:1789".parse().unwrap(),
+                ..addresses(1789)
+            },
+            addresses(1789),
+        ] {
+            let agents = KnownAgents::default();
+            let announced = addresses(1789);
+            agents.try_announce_agent(announced, noise_key(1)).await;
+            agents.mark_announced(announced).await;
+
+            // either the v6 address or the noise key differs from what we have cached
+            let key = if changed.v6 == announced.v6 {
+                noise_key(2)
+            } else {
+                noise_key(1)
+            };
+            assert!(!agents.try_announce_agent(changed, key).await);
+
+            let agent = agents.get_agent(changed).await.unwrap();
+            assert!(!agent.announced);
+            assert_eq!(agent.mix_v6, changed.v6);
+            assert_eq!(agent.noise_key, key);
+        }
+    }
+
+    #[tokio::test]
+    async fn on_chain_pairs_are_recovered_via_the_noise_key() {
+        let first = addresses(1789);
+        let second = addresses(1790);
+        let (first_key, second_key) = (noise_key(1), noise_key(2));
+
+        let restored = KnownAgents::try_from(vec![
+            authorisation(second.v6, second_key),
+            authorisation(first.v4, first_key),
+            authorisation(second.v4, second_key),
+            authorisation(first.v6, first_key),
+        ])
+        .unwrap();
+
+        let restored_first = restored.get_agent(first).await.unwrap();
+        assert_eq!(restored_first.mix_v6, first.v6);
+        assert_eq!(restored_first.noise_key, first_key);
+        assert!(restored_first.announced);
+
+        let restored_second = restored.get_agent(second).await.unwrap();
+        assert_eq!(restored_second.mix_v6, second.v6);
+        assert_eq!(restored_second.noise_key, second_key);
+        assert!(restored_second.announced);
+    }
+
+    // on-chain records that don't form an ipv4/ipv6 pair (authorisations predating the ipv6
+    // announcement, or an address the agent no longer announces) are dropped, so the agent
+    // re-announces itself and pays for one extra contract tx
+    #[tokio::test]
+    async fn unpaired_on_chain_records_are_dropped() {
+        let agent = addresses(1789);
+        let key = noise_key(1);
+
+        let v4_only = KnownAgents::try_from(vec![authorisation(agent.v4, key)]).unwrap();
+        assert!(v4_only.get_agent(agent).await.is_none());
+
+        let stale_v6 = KnownAgents::try_from(vec![
+            authorisation(agent.v4, key),
+            authorisation(agent.v6, key),
+            authorisation("[bbbb::1]:1789".parse().unwrap(), key),
+        ])
+        .unwrap();
+        assert!(stale_v6.get_agent(agent).await.is_none());
     }
 }

@@ -18,9 +18,8 @@ use nym_validator_client::QueryHttpRpcNyxdClient;
 use nym_validator_client::models::KeyRotationId;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
-use rand::prelude::SliceRandom;
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use tokio::time::{Instant, interval};
 use tracing::{debug, error, info};
@@ -49,6 +48,11 @@ pub(crate) struct NodeRefresher {
 struct SelfDescribedData {
     /// Mixnet socket address (host:port) at which the node accepts sphinx packets.
     mixnet_socket_address: SocketAddr,
+
+    /// Every ip address announced by the node, canonicalised, deduplicated and sorted.
+    /// Test runs rotate through this set, which is why the order has to be stable across
+    /// refreshes rather than however the node happened to report it.
+    announced_ips: Vec<IpAddr>,
 
     /// X25519 public key used for Noise handshakes
     noise_key: x25519::PublicKey,
@@ -108,10 +112,19 @@ impl NodeRefresher {
         let sphinx_key = host_info.keys.primary_x25519_sphinx_key.public_key;
         let key_rotation_id = host_info.keys.primary_x25519_sphinx_key.rotation_id;
 
-        // pseudorandomly choose which ip address to use - each announced address should work!
-        let ip_address = host_info
+        // canonicalise, deduplicate and sort so that the rotation testruns perform over this set
+        // is stable across refreshes - a node is free to report its addresses in any order, and a
+        // resolved hostname may well report them in a different one every time
+        let mut announced_ips = host_info
             .ip_address
-            .choose(&mut rand::thread_rng())
+            .iter()
+            .map(|ip| ip.to_canonical())
+            .collect::<Vec<_>>();
+        announced_ips.sort_unstable();
+        announced_ips.dedup();
+
+        let ip_address = announced_ips
+            .first()
             .context("node hasn't announced any IPs")?;
         let mix_port = aux
             .announce_ports
@@ -126,7 +139,9 @@ impl NodeRefresher {
             .context("failed to retrieve node roles")?;
 
         Ok(SelfDescribedData {
+            // only contributes the mix port now that the address under test is picked per run
             mixnet_socket_address: SocketAddr::new(*ip_address, mix_port),
+            announced_ips,
             noise_key,
             sphinx_key,
             key_rotation_id,
@@ -155,6 +170,14 @@ impl NodeRefresher {
         };
 
         node_update.mixnet_socket_address = Some(self_described.mixnet_socket_address.to_string());
+        node_update.announced_ips = Some(
+            self_described
+                .announced_ips
+                .iter()
+                .map(|ip| ip.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+        );
         node_update.noise_key = Some(self_described.noise_key.to_base58_string());
         node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
         node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);

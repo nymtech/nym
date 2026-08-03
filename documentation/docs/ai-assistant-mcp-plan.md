@@ -206,8 +206,8 @@ Conclusions:
 | Phase | Deliverable | Status |
 |---|---|---|
 | 0 | Spike: chunker + real corpus stats | done |
-| 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 28 tests** |
-| 2a | MCP tool-logic layer: 7 tools (`search_docs`, `get_section`, 5 live) over retrieval + Nym APIs | **done, 24 tests + live-check** |
+| 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 22 tests** |
+| 2a | MCP tool-logic layer: 7 tools (`search_docs`, `get_section`, 5 live) + live Nym client | **done, 20 tests + live-check** |
 | 2b | MCP transport shell (`server.ts`, Streamable HTTP) | scaffold; needs SDK install + verify |
 | 1 | Chat: `/api/chat` + widget on Vercel AI SDK | not started (needs deps + keys) |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |

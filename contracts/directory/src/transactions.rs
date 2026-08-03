@@ -1008,7 +1008,7 @@ mod tests {
         fn oversized_data_is_rejected() {
             let mut tester = init_contract_tester();
             let (node_id, kp) = tester.bond_dummy_nymnode_with_keypair().unwrap();
-            let data = vec![0u8; 257]; // sphinx_key max_size is 256
+            let data = vec![0u8; 257]; // sphinx_key max_size is 128
             let sig = sign_node_payload(&kp, node_id, LABEL, 0, &data);
 
             let env = tester.env();
@@ -1027,7 +1027,7 @@ mod tests {
                 DirectoryContractError::DataTooLarge {
                     label: LABEL.to_string(),
                     len: 257,
-                    max: 256,
+                    max: 128,
                 }
             );
         }

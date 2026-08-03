@@ -87,14 +87,14 @@ struct PreparedPackets {
 
 impl SpeedtestClient {
     /// Create a new speedtest client
-    pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Self {
+    pub fn new(gateway: GatewayInfo, topology: Arc<SpeedtestTopology>) -> Result<Self> {
         let identity_keypair = Arc::new(ed25519::KeyPair::new(&mut rand::rngs::OsRng));
         let encryption_keypair = Arc::new(x25519::KeyPair::new(&mut rand::rngs::OsRng));
-        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng).unwrap();
+        let mut rng010 = StdRng::try_from_rng(&mut SysRng)?;
         let lp_keypair = DHKeyPair::new(&mut rng010);
         let rng = ChaCha8Rng::from_entropy();
 
-        Self {
+        Ok(Self {
             identity_keypair,
             encryption_keypair,
             lp_keypair: Arc::new(lp_keypair),
@@ -104,7 +104,7 @@ impl SpeedtestClient {
             kcp_driver: None,
             rng,
             lp_client: None,
-        }
+        })
     }
 
     /// Get this client's Recipient address for receiving replies

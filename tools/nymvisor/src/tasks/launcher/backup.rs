@@ -9,9 +9,9 @@ use flate2::write::GzEncoder;
 use std::fs;
 use std::fs::{DirEntry, File};
 use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
 use time::format_description::BorrowedFormatItem;
 use time::macros::format_description;
-use time::{OffsetDateTime, format_description};
 use tracing::info;
 
 const TIME_FORMAT: &[BorrowedFormatItem<'_>] =

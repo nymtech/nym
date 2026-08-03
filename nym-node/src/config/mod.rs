@@ -1193,6 +1193,8 @@ pub struct DirectoryDebug {
     pub write_retry_count: u32,
 }
 
+// explicitly derive Default as later the 'enabled' flag will be set to try by default
+#[allow(clippy::derivable_impls)]
 impl Default for DirectoryConfig {
     fn default() -> Self {
         DirectoryConfig {

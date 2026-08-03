@@ -114,21 +114,21 @@ pub(crate) struct ExternalPorts {
 }
 
 impl ExternalPorts {
-    fn to_websockets_http_api_model(&self) -> api_requests::v1::gateway::models::WebSockets {
+    fn to_websockets_http_api_model(self) -> api_requests::v1::gateway::models::WebSockets {
         api_requests::v1::gateway::models::WebSockets {
             ws_port: self.ws_port,
             wss_port: self.wss_port,
         }
     }
 
-    fn to_announced_ports_http_api_model(&self) -> api_requests::v2::node::models::AnnouncePorts {
+    fn to_announced_ports_http_api_model(self) -> api_requests::v2::node::models::AnnouncePorts {
         api_requests::v2::node::models::AnnouncePorts {
             verloc_port: Some(self.verloc_port),
             mix_port: Some(self.mix_port),
         }
     }
 
-    fn to_directory_model(&self) -> nym_directory_types::NodePorts {
+    fn to_directory_model(self) -> nym_directory_types::NodePorts {
         nym_directory_types::NodePorts {
             verloc_port: self.verloc_port as u32,
             mix_port: self.mix_port as u32,
@@ -147,7 +147,7 @@ pub(crate) struct WireguardDetails {
 }
 
 impl WireguardDetails {
-    fn to_http_api_model(&self) -> Option<api_requests::v1::gateway::models::Wireguard> {
+    fn to_http_api_model(self) -> Option<api_requests::v1::gateway::models::Wireguard> {
         if !self.enabled {
             return None;
         }
@@ -161,7 +161,7 @@ impl WireguardDetails {
         })
     }
 
-    fn to_directory_model(&self) -> nym_directory_types::Wireguard {
+    fn to_directory_model(self) -> nym_directory_types::Wireguard {
         nym_directory_types::Wireguard {
             tunnel_port: self.tunnel_port as u32,
             metadata_port: self.metadata_port as u32,
@@ -499,7 +499,7 @@ impl NodeDetails {
             service_providers,
             wireguard_details,
             lewes_protocol_details,
-            location: config.host.location.clone(),
+            location: config.host.location,
             external_ports,
         })
     }

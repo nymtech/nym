@@ -337,6 +337,7 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
         // writing; while it fails the publisher stays dormant and re-checks on a back-off,
         // logging only on transitions. Once it passes, the publisher seeds a session and
         // drives the reconcile sweep + event wakeups until shutdown or lost writability.
+        #[allow(clippy::expect_used)]
         let mut events_rx = self
             .events_rx
             .take()

@@ -636,6 +636,19 @@ mod test {
         Ok(())
     }
 
+    #[test]
+    fn edge1_streaming_gateway_com_is_pinned_to_live_ipv4() {
+        let addrs = constants::default_static_addrs();
+        let pinned = addrs
+            .get(constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM)
+            .expect("edge1.streaming-gateway.com must be statically pinned after smoke");
+        assert_eq!(
+            pinned,
+            &constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM_IPS.to_vec()
+        );
+        assert_eq!(pinned, &vec![IpAddr::V4(Ipv4Addr::new(139, 162, 57, 231))]);
+    }
+
     // Test the nameserver trial functionality with mostly nameservers guaranteed to be broken and
     // one that should work.
     #[tokio::test]

@@ -78,6 +78,10 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
+    ApiUrlConst {
+        url: "https://edge1.streaming-gateway.com/api/",
+        front_hosts: None,
+    },
 ];
 
 #[cfg(feature = "env")]

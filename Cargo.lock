@@ -8260,6 +8260,7 @@ dependencies = [
  "bs58",
  "hex",
  "serde",
+ "serde_json",
  "time",
 ]
 

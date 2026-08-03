@@ -16,7 +16,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 };
 use nym_credential_proxy_requests::routes::api::v1::ticketbook;
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_validator_client::nym_api::rfc_3339_date;
+use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
 use reqwest::StatusCode;
 use time::Date;
 
@@ -267,7 +267,7 @@ pub(crate) async fn expiration_date_signatures(
 
     let expiration_date = expiration_date
         .map(|raw| {
-            Date::parse(&raw, &rfc_3339_date())
+            Date::parse(&raw, RFC_3339_DATE_FORMAT)
                 .map_err(|err| RequestError::from_err(err, StatusCode::BAD_REQUEST))
         })
         .transpose()?;

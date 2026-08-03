@@ -14,7 +14,7 @@
 use libcrux_kem::*;
 use nym_crypto::hkdf::blake3::derive_key_blake3;
 use nym_kkt_ciphersuite::{KEM, mceliece, ml_kem768, x25519, xwing};
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use std::fmt::{Debug, Formatter};
 use zeroize::Zeroize;
 
@@ -57,7 +57,7 @@ impl RekeyInitiator {
     /// [0 ........ 32 | 32 .............. ]
     ///
     /// Inputs:
-    /// rng: something that implements CryptoRng + RngCore
+    /// rng: something that implements CryptoRng + Rng
     /// kem: a KEM algorithm (we currently support MlKem768 only)
     ///
     /// Outputs:
@@ -65,7 +65,7 @@ impl RekeyInitiator {
     /// Vec<u8>: The request message as explained above. This is to be sent to the responder as-is.
     pub fn generate_request<R>(rng: &mut R, kem: KEM) -> Result<(RekeyInitiator, Vec<u8>), KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         let (algorithm, buffer_size) = match kem {
             // KEM::XWing => (Algorithm::XWingKemDraft06, 32 + xwing::PUBLIC_KEY_LENGTH),
@@ -149,7 +149,7 @@ impl RekeyInitiator {
 /// the new shared secret.
 ///
 /// Inputs:
-/// rng: something that implements CryptoRng + RngCore
+/// rng: something that implements CryptoRng + Rng
 /// request_message: the Initiator's request message (contains the salt and encapsulation key)
 ///
 /// Outputs:
@@ -161,7 +161,7 @@ pub fn responder_process<R>(
     mut request_message: Vec<u8>,
 ) -> Result<([u8; 32], Vec<u8>), KKTError>
 where
-    R: CryptoRng + RngCore,
+    R: CryptoRng + Rng,
 {
     // Deduce the KEM algorithm from the message length
     let algorithm = match request_message.len().checked_sub(32) {
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn rekey_test() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
 
         let (rekey_state, request_message) =
             RekeyInitiator::generate_request(&mut rng, KEM::MlKem768).unwrap();

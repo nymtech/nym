@@ -90,6 +90,9 @@ pub enum RegistrationClientError {
         #[source]
         source: Box<crate::lp_client::LpClientError>,
     },
+
+    #[error("failed to generate randomness: {0}")]
+    RngFailure(#[from] getrandom04::Error),
 }
 
 impl RegistrationClientError {

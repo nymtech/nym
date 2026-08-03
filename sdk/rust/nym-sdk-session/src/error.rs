@@ -81,4 +81,7 @@ pub enum SessionError {
     /// The setup/issuance phase was cancelled via the CancellationToken.
     #[error("session setup was cancelled")]
     Cancelled,
+
+    #[error("failed to generate randomness: {0}")]
+    RngFailure(#[from] getrandom04::Error),
 }

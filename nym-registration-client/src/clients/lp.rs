@@ -14,7 +14,8 @@ use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
-use rand09::{CryptoRng, RngCore, SeedableRng};
+use rand010::rngs::SysRng;
+use rand010::{CryptoRng, Rng, SeedableRng};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
@@ -33,7 +34,7 @@ impl LpBasedRegistrationClient {
         rng: &mut R,
     ) -> Result<RegistrationResult, RegistrationClientError>
     where
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         // Extract and validate LP data
         let entry_lp_data = self.config.entry.node.lp_data.ok_or(
@@ -61,8 +62,8 @@ impl LpBasedRegistrationClient {
         tracing::debug!("Exit gateway LP address: {exit_address}");
 
         // Generate fresh x25519 keypairs for LP registration
-        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
-        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand09::rng()));
+        let entry_lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
+        let exit_lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
 
         let entry_peer = to_lp_remote_peer(entry_lp_data);
         let exit_peer = to_lp_remote_peer(exit_lp_data);
@@ -157,7 +158,7 @@ impl LpBasedRegistrationClient {
     }
 
     async fn register_wg(self) -> Result<RegistrationResult, RegistrationClientError> {
-        let mut rng = rand09::rngs::StdRng::from_os_rng();
+        let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         self.register_wg_with_rng(&mut rng).await
     }

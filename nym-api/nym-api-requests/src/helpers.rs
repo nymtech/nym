@@ -14,55 +14,20 @@ pub(crate) const fn unix_epoch() -> OffsetDateTime {
 
 pub(crate) mod overengineered_offset_date_time_serde {
     use crate::helpers::unix_epoch;
-    use nym_serde_helpers::date::DATE_FORMAT;
     use serde::de::Visitor;
     use serde::ser::Error;
     use serde::{Deserializer, Serialize, Serializer};
     use std::fmt::Formatter;
     use time::format_description::well_known::Rfc3339;
-    use time::format_description::{modifier, BorrowedFormatItem, Component};
+    use time::format_description::BorrowedFormatItem;
+    use time::macros::format_description;
     use time::OffsetDateTime;
 
     struct OffsetDateTimeVisitor;
 
-    // copied from time library because they keep it private -.-
-    const DEFAULT_OFFSET_DATE_TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Compound(DATE_FORMAT),
-        BorrowedFormatItem::Literal(b" "),
-        BorrowedFormatItem::Compound(TIME_FORMAT),
-        BorrowedFormatItem::Literal(b" "),
-        BorrowedFormatItem::Compound(UTC_OFFSET_FORMAT),
-    ];
-
-    const TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::Hour(modifier::Hour::default())),
-        BorrowedFormatItem::Literal(b":"),
-        BorrowedFormatItem::Component(Component::Minute(modifier::Minute::default())),
-        BorrowedFormatItem::Literal(b":"),
-        BorrowedFormatItem::Component(Component::Second(modifier::Second::default())),
-        BorrowedFormatItem::Literal(b"."),
-        BorrowedFormatItem::Component(Component::Subsecond(modifier::Subsecond::default())),
-    ];
-
-    const UTC_OFFSET_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::OffsetHour({
-            let mut m = modifier::OffsetHour::default();
-            m.sign_is_mandatory = true;
-            m
-        })),
-        BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
-            BorrowedFormatItem::Literal(b":"),
-            BorrowedFormatItem::Component(Component::OffsetMinute(
-                modifier::OffsetMinute::default(),
-            )),
-            BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
-                BorrowedFormatItem::Literal(b":"),
-                BorrowedFormatItem::Component(Component::OffsetSecond(
-                    modifier::OffsetSecond::default(),
-                )),
-            ])),
-        ])),
-    ];
+    const DEFAULT_OFFSET_DATE_TIME_FORMAT: &[BorrowedFormatItem<'_>] = format_description!(
+        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond] [offset_hour sign:mandatory][optional [:[offset_minute][optional [:[offset_second]]]]]"
+    );
 
     impl Visitor<'_> for OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
@@ -101,6 +66,71 @@ pub(crate) mod overengineered_offset_date_time_serde {
             .format(&DEFAULT_OFFSET_DATE_TIME_FORMAT)
             .map_err(S::Error::custom)?
             .serialize(serializer)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use serde::Deserialize;
+        use time::macros::datetime;
+
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct Wrapper(
+            #[serde(with = "crate::helpers::overengineered_offset_date_time_serde")] OffsetDateTime,
+        );
+
+        fn ser(dt: OffsetDateTime) -> String {
+            serde_json::to_string(&Wrapper(dt)).unwrap()
+        }
+
+        fn de(s: &str) -> OffsetDateTime {
+            let quoted = format!("\"{s}\"");
+            serde_json::from_str::<Wrapper>(&quoted).unwrap().0
+        }
+
+        #[test]
+        fn serializes_using_human_readable_format() {
+            let dt = datetime!(2024-03-15 13:37:42.123456 +02:00);
+            assert_eq!(ser(dt), "\"2024-03-15 13:37:42.123456 +02:00:00\"");
+        }
+
+        #[test]
+        fn serializes_utc_offset() {
+            let dt = datetime!(2024-01-01 00:00:00.0 +00:00);
+            assert_eq!(ser(dt), "\"2024-01-01 00:00:00.0 +00:00:00\"");
+        }
+
+        #[test]
+        fn deserializes_rfc3339() {
+            let dt = de("2024-03-15T13:37:42.123456Z");
+            assert_eq!(dt, datetime!(2024-03-15 13:37:42.123456 +00:00));
+        }
+
+        #[test]
+        fn deserializes_rfc3339_with_offset() {
+            let dt = de("2024-03-15T13:37:42.123456+02:00");
+            assert_eq!(dt, datetime!(2024-03-15 13:37:42.123456 +02:00));
+        }
+
+        #[test]
+        fn deserializes_default_human_readable_format() {
+            let dt = de("2024-03-15 13:37:42.123456 +02:00");
+            assert_eq!(dt, datetime!(2024-03-15 13:37:42.123456 +02:00));
+        }
+
+        #[test]
+        fn falls_back_to_unix_epoch_on_garbage_input() {
+            let dt = de("not a valid datetime");
+            assert_eq!(dt, unix_epoch());
+        }
+
+        #[test]
+        fn round_trips_through_serialize_then_deserialize() {
+            let original = datetime!(2024-03-15 13:37:42.123456 +02:00);
+            let serialized = ser(original);
+            let stripped = serialized.trim_matches('"');
+            assert_eq!(de(stripped), original);
+        }
     }
 }
 

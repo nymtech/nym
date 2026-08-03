@@ -60,6 +60,7 @@ nym-test-utils = { workspace = true, optional = true }
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
+time = { workspace = true, features = ["macros"] }
 
 [features]
 default = []

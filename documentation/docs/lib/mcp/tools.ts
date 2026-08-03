@@ -12,6 +12,7 @@ import type { DocIndex } from '../retrieval/types';
 import { search, getSection } from '../retrieval/retrieval';
 import * as nymApi from '../nym-api/client';
 import { unymToNym } from '../nym-api/client';
+import { validateSetupMixTunnelOpts } from './validate-config';
 
 export interface McpToolResult {
   content: Array<{ type: 'text'; text: string }>;
@@ -153,6 +154,25 @@ export function createTools(deps: ToolDeps): McpTool[] {
         return text(
           `Gateway ${g.gateway_identity_key}: bonded=${g.bonded}, performance=${g.performance}, routing_score=${g.routing_score}, config_score=${g.config_score}.`,
         );
+      }),
+    },
+    {
+      name: 'validate_sdk_config',
+      description:
+        "Validate a mix-tunnel / mix-fetch setup config (SetupMixTunnelOpts) before writing it into code. Flags field type mismatches (errors) and unknown or typo'd keys (warnings), and notes privacy tradeoffs. The field list is a snapshot of one SDK version, so unknown keys warn rather than fail.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          config: { type: 'object', description: 'The SetupMixTunnelOpts object to check' },
+        },
+        required: ['config'],
+      },
+      handler: safe(async ({ config }) => {
+        const r = validateSetupMixTunnelOpts(config);
+        const lines = [r.valid ? 'Config is valid.' : 'Config has errors.'];
+        if (r.errors.length) lines.push('\nErrors:\n' + r.errors.map((e) => `- ${e}`).join('\n'));
+        if (r.warnings.length) lines.push('\nWarnings:\n' + r.warnings.map((w) => `- ${w}`).join('\n'));
+        return text(lines.join('\n'));
       }),
     },
   ];

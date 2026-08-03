@@ -44,7 +44,9 @@ const runText = async (name: string, args: Record<string, any> = {}) => (await t
 describe('tool registry', () => {
   it('exposes the expected tools, each with an input schema', () => {
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(['chain_status', 'circulating_supply', 'get_gateway', 'get_section', 'list_gateways', 'network_summary', 'search_docs'].sort());
+    expect(names).toEqual(
+      ['chain_status', 'circulating_supply', 'get_gateway', 'get_section', 'list_gateways', 'network_summary', 'search_docs', 'validate_sdk_config'].sort(),
+    );
     for (const t of tools) expect(t.inputSchema).toHaveProperty('type', 'object');
   });
 

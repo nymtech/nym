@@ -152,12 +152,21 @@ Conclusions:
 
 ### 3.3 Chat backend + widget
 
+- **Use the Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`, MIT), not hand-rolled
+  SSE. `useChat` on the client handles streaming message state; `streamText` on
+  the server handles the token stream. There is no free drop-in Nextra AI-chat
+  plugin because the valuable half (retrieval + inference over your corpus and
+  key) is inherently yours to run and cost; the AI SDK gives the free half.
 - `pages/api/chat.ts` in this app. Same-origin with the widget (both under
   nym.com/docs) so **no CSP change** is needed. API key stays server-side.
-- Retrieval: embed query, cosine top-k (~6) from public index, build context.
-- Generation: Claude, streamed via SSE. Model + budget = decision D3.
+  Nextra 2 is the **pages router**, so streaming uses the AI SDK's Node-response
+  path (`pipeDataStreamToResponse`) rather than an app-router Web `Response`.
+- Retrieval: `embedQuery` -> cosine top-k (~6), `sources: ["nym-docs"]` (chat
+  sees docs only). Runs on the tested `lib/retrieval` core.
+- Generation: Claude via `streamText`. Model + budget = decision D2.
 - Widget: React component injected via `theme.config.tsx` (Nextra slot);
-  floating "Ask AI" button + panel. Cites source pages with deep links.
+  floating "Ask AI" button + panel wired to `useChat`. Cites source pages with
+  deep links from the retrieved chunks' `url` fields.
 - Guardrails from day one: per-IP rate limit, on-topic/anti-jailbreak system
   prompt, thumbs up/down feedback logged for quality measurement.
 

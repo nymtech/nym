@@ -24,9 +24,16 @@ Defines the PostgreSQL persistence layer of the node status service: pool setup 
 - **WHEN** `Storage::init` runs
 - **THEN** migrations still run, because only the literal `true` disables them
 
-### Requirement: Each table SHALL have exactly one writer and these documented type choices
+### Requirement: Each table SHALL have documented writers, column ownership, and these type choices
 
-The store MUST consist of these tables, each written by exactly one component:
+The store MUST consist of these tables with these writers. Most tables have a single writer; `gateways` has three, and their ownership MUST be understood at column level rather than table level, because they interleave without any cross-writer coordination:
+
+- the monitor owns `bonded`, `self_described`, `explorer_pretty_bond`, `performance` (whole-table refresh per cycle);
+- test-run submission owns `last_probe_result`, `last_probe_log`, `ports_check`, `last_ports_check_utc`, `last_testrun_utc`;
+- the packet-stats scraper owns `bridges`;
+- `last_updated_utc` is the one shared column, written by both the monitor refresh and test-run submission, so it means "either snapshot or probe touched this row" rather than any single event.
+
+Each writer MUST use its own transaction, so a reader can observe a row whose snapshot columns are from one cycle and whose probe columns are from a different test run. That interleaving is by design and MUST NOT be assumed atomic.
 
 | Table | Written by | Read by |
 | --- | --- | --- |

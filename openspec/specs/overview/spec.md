@@ -5,7 +5,7 @@
 
 ## Purpose
 
-This overview describes a three-part subsystem that measures and reports the health of the Nym mixnet. The **node status API** persists a snapshot of the network and serves it over HTTP, while also orchestrating gateway "test runs". External **agents** poll the API for assigned test runs, execute network diagnostics against a target gateway using the **gateway probe** library, and submit signed results back. Together they produce the connectivity/performance data that powers dVPN gateway directories and network dashboards.
+This overview describes a three-part subsystem that measures and reports the health of Nym network nodes - primarily the dVPN-facing capabilities of gateways (WireGuard, Lewes Protocol, SOCKS5, exit-policy ports, geolocation), and secondarily mixnet routing and mixing performance. The **node status API** persists a snapshot of the network and serves it over HTTP, while also orchestrating gateway "test runs". External **agents** poll the API for assigned test runs, execute network diagnostics against a target gateway using the **gateway probe** library, and submit signed results back. Together they produce the connectivity/performance data that powers dVPN gateway directories and network dashboards.
 
 ## Requirements
 

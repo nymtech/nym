@@ -37,7 +37,14 @@ A ports-check scheduler MUST run every 10 minutes and enqueue `Queued`/`PortsChe
 
 `GET /internal/testruns` and `GET /internal/testruns/ports-check` MUST: authenticate the request (agent public key registered in the configured `agent_key_list` and a valid ed25519 signature); enforce request freshness (reject requests whose timestamp is older than the freshness window, default 120s); reject when the in-progress count is at or above `agent_max_count` (503); take the assignment mutex to serialize assignment; require enough ticketbooks of all buffered types; then atomically claim the oldest queued run (by `created_utc`) of the matching kind for a bonded gateway with performance > 0 using `FOR UPDATE ... SKIP LOCKED`; attach ticket materials; and return a `TestrunAssignmentWithTickets`.
 
-The capacity check MUST differ between the two routes: the probe route counts **all** in-progress test runs regardless of kind, while the ports-check route counts only in-progress `PortsCheck` runs. Failure statuses MUST be: 401 for an unregistered key, a bad signature, or a stale/unparsable timestamp; 503 with the body `No testruns available` when at capacity or when nothing is queued; 500 with the body `Internal server error` when the ticketbook store cannot be checked, holds too few ticketbooks, or ticket materials cannot be assigned. A ticketbook shortage MUST NOT be reported as 503, so agents treat it as a hard error rather than an idle poll.
+The capacity check MUST differ between the two routes: the probe route counts **all** in-progress test runs regardless of kind, while the ports-check route counts only in-progress `PortsCheck` runs.
+
+The assignment mutex MUST be understood as **process-local**: it serializes the count check, the ticketbook-sufficiency check and the claim within one API process only. The atomic `SKIP LOCKED` claim still prevents two agents from ever receiving the same run, but with more than one API replica against the same database the `agent_max_count` ceiling and the ticketbook-sufficiency check can both be exceeded, because each replica evaluates them under its own lock. Single-instance deployment is therefore an implicit requirement of the current design; a replacement that scales the API horizontally MUST move both checks into the database (or another shared lock) rather than inheriting this mutex.
+
+#### Scenario: Two replicas exceed the capacity ceiling
+- **GIVEN** two API replicas sharing one database and `agent_max_count` in-progress runs minus one
+- **WHEN** an agent requests a run from each replica simultaneously
+- **THEN** both pass their local capacity check and two runs are assigned, taking the in-progress count above the ceiling, while neither run is assigned twice Failure statuses MUST be: 401 for an unregistered key, a bad signature, or a stale/unparsable timestamp; 503 with the body `No testruns available` when at capacity or when nothing is queued; 500 with the body `Internal server error` when the ticketbook store cannot be checked, holds too few ticketbooks, or ticket materials cannot be assigned. A ticketbook shortage MUST NOT be reported as 503, so agents treat it as a hard error rather than an idle poll.
 
 #### Scenario: Unregistered agent rejected
 - **GIVEN** a request signed by a public key not in `agent_key_list`
@@ -117,9 +124,9 @@ All ticket blobs MUST be JSON arrays of byte values, which makes these responses
 
 ### Requirement: Probe result submission SHALL validate assignment identity and timestamp before completing
 
-`POST /internal/testruns/{id}` (v1) MUST validate that the test run is in-progress and its `assigned_at_utc` matches the stored assignment timestamp, resolve the gateway, serialize the probe result, mark that run Complete, and update the gateway's last probe log/result and score, returning 201. Its rejection bodies MUST be `Testrun {id} not found in progress state (may be already completed or expired)` when no in-progress row matches, `Testrun {id} timestamp mismatch: expected {expected:?}, got {submitted}` on mismatch (with the expected value rendered as a Rust `Option` debug string, e.g. `Some(1751894748)`), and `Invalid probe_result` when the probe result cannot be re-serialized; a failure resolving the gateway MUST be 500.
+`POST /internal/testruns/{id}` (v1) MUST validate that the test run is in-progress and its `assigned_at_utc` matches the stored assignment timestamp, resolve the gateway, serialize the probe result, mark that run Complete, and update the gateway's last probe log and probe result plus its `last_testrun_utc`/`last_updated_utc` stamps, returning 201. It MUST NOT be read as writing any score: the helper still named `update_gateway_score` only stamps those two timestamps, and the score columns are dead (see [[node-status-api-persistence]]). Its rejection bodies MUST be `Testrun {id} not found in progress state (may be already completed or expired)` when no in-progress row matches, `Testrun {id} timestamp mismatch: expected {expected:?}, got {submitted}` on mismatch (with the expected value rendered as a Rust `Option` debug string, e.g. `Some(1751894748)`), and `Invalid probe_result` when the probe result cannot be re-serialized; a failure resolving the gateway MUST be 500.
 
-`POST /internal/testruns/{id}/v2` MUST look the run up by id in **any** status (it does not require in-progress), MUST reject a submission whose `gateway_identity_key` differs from the stored gateway with 400 and the body `Gateway identity mismatch`, and MUST reject a timestamp mismatch with 400 and the body `Testrun timestamp mismatch: expected {expected:?}, got {submitted}`. When the id is unknown it MUST create the gateway if needed and insert an external `InProgress`/`Probe` run (marked with ip_address `external`) before processing. On success both v2 endpoints MUST complete **every** in-progress test run for that gateway rather than only the submitted id.
+`POST /internal/testruns/{id}/v2` MUST look the run up by id in **any** status (it does not require in-progress), MUST reject a submission whose `gateway_identity_key` differs from the stored gateway with 400 and the body `Gateway identity mismatch`, and MUST reject a timestamp mismatch with 400 and the body `Testrun timestamp mismatch: expected {expected:?}, got {submitted}`. When the id is unknown it MUST create the gateway if needed and insert an external `InProgress`/`Probe` run (marked with ip_address `external`) before processing. On success probe v2 MUST complete **every** in-progress test run for that gateway rather than only the submitted id (ports-check v2 differs: it completes only the submitted run, see the ports-check requirement below).
 
 #### Scenario: Timestamp mismatch rejected
 - **GIVEN** an in-progress test run whose stored `assigned_at_utc` differs from the submitted value
@@ -140,6 +147,20 @@ All ticket blobs MUST be JSON arrays of byte values, which makes these responses
 - **GIVEN** two in-progress test runs for the same gateway
 - **WHEN** a v2 submission for one of them succeeds
 - **THEN** both rows are marked Complete
+
+### Requirement: A re-queued run SHALL invalidate the original agent's in-flight result
+
+The stale-run sweep and the timestamp check together mean a slow test run is silently discarded rather than late-recorded. When a run has been in progress longer than the stale window (default 7200s) the queuer MUST set it back to `Queued`; a second agent may then claim it, which overwrites `last_assigned_utc` with the new assignment time. If the original agent finishes afterwards and submits, its `assigned_at_utc` no longer matches the stored value, so the v1 endpoint MUST reject it with 400 and the probe result MUST be dropped - the work is lost even though the probe succeeded, and the agent surfaces it as a submission error. Any replacement that lengthens probe duration (more transports, slower networks) or shortens the stale window makes this happen more often, so the interaction MUST be considered when tuning either value.
+
+#### Scenario: Slow agent's result is rejected after re-assignment
+- **GIVEN** a run assigned to agent A that exceeds the stale window and is re-queued and re-assigned to agent B
+- **WHEN** agent A eventually submits its result for that run id
+- **THEN** the stored `last_assigned_utc` is B's assignment time, A's submission fails the timestamp check with 400, and A's probe result is discarded
+
+#### Scenario: Two agents probing the same gateway concurrently
+- **GIVEN** the same run re-assigned to a second agent while the first is still probing
+- **WHEN** both agents are running
+- **THEN** the gateway is probed twice concurrently and only the submission whose `assigned_at_utc` matches the latest assignment is recorded
 
 ### Requirement: Ports-check submission SHALL validate kind and persist only the compact result
 

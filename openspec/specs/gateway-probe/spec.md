@@ -13,7 +13,7 @@
 
 The CLI MUST provide four subcommands, each mapping to a distinct `Probe` run path:
 
-- **`RunLocal`** — probe an *unannounced* gateway addressed by IP (`--entry-gateway-ip`, optional `--exit-gateway-ip`), bypassing directory lookup via a direct HTTP query. Mixnet-dependent tests MUST NOT run in this mode because no mixnet client is connected.
+- **`RunLocal`** — probe an *unannounced* gateway addressed by IP (`--entry-gateway-ip`, optional `--exit-gateway-ip`), bypassing directory lookup via a direct HTTP query. It MUST pass no mixnet client into the test sequence, so the mixnet ping and WireGuard-via-authenticator phases are skipped; LP registration MUST still be available because it is a direct TCP session and the node details are built by the same conversion used for directory nodes (LP data included whenever the node self-reports a validly signed `lewes_protocol` block). The SOCKS5 phase requires the tested gateway to appear in the fetched network topology, so for an unannounced node it records a connection failure rather than a useful result.
 - **`Run`** — probe a *bonded* gateway resolved by identity through the `nym-api` directory.
 - **`RunPorts`** — check WireGuard exit-policy TCP ports on a bonded gateway through the WG tunnel; `--check-all-ports` MUST use the full build-time `EXIT_POLICY_PORTS` list, overriding any `--check-ports`.
 - **`RunAgent`** — the agent-driven run; it MUST force `test_mode = All`, use ephemeral storage, and import supplied ticket materials.
@@ -47,14 +47,21 @@ A `TestMode` (default `Core`) MUST gate execution: mixnet tests run in `Core`/`A
 
 `do_probe_test` MUST sequence phases as: mixnet ping → WireGuard (holding the mixnet client) → **disconnect the mixnet client** → LP registration → SOCKS5. Each phase MUST be gated by its `TestMode` predicate, and a failure in one phase MUST NOT prevent later phases (SOCKS5 errors in particular are logged and non-fatal); WG/LP results fall back to defaults on failure.
 
+Neither of the two post-disconnect phases reuses the first mixnet client: LP registration is a direct TCP session to the node's LP control port, and the SOCKS5 phase builds its **own ephemeral SOCKS5 mixnet client** (fresh topology fetch, `request_gateway` pinned to the tested entry gateway, minimum gateway performance 0 and egress epoch role ignored so the node is not filtered out). A full `all` run therefore opens two independent client sessions to the same gateway, one before the disconnect and one after.
+
 #### Scenario: SOCKS5 failure does not abort the run
 - **GIVEN** `test_mode = All` and a SOCKS5 connectivity failure
 - **WHEN** the SOCKS5 phase errors
 - **THEN** the error is logged, `socks5` records the failure, and the overall `ProbeResult` is still emitted
 
+#### Scenario: SOCKS5 connects independently of the earlier client
+- **GIVEN** `test_mode = All`
+- **WHEN** the SOCKS5 phase starts after the mixnet client has been disconnected
+- **THEN** it builds and connects a new ephemeral SOCKS5 client to the same entry gateway rather than failing for want of a client
+
 ### Requirement: The probe SHALL acquire or import ecash credentials according to credential mode
 
-Exactly one credential mode MUST be selected via the CLI arg group: `--use-mock-ecash` or `--mnemonic`. In mnemonic mode, if the credential store holds fewer than one ticketbook, the probe MUST acquire bandwidth for `V1MixnetEntry`, `V1WireguardEntry`, and `V1WireguardExit`. Mock-ecash mode MUST use a mock bandwidth controller and acquire nothing. In agent runs, credentials MUST instead be imported from supplied `AttachedTicketMaterials`. Bandwidth acquisition MUST retry (up to 50 attempts, 1s backoff) and MUST treat "account sequence mismatch" as retryable.
+For the `RunLocal`, `Run` and `RunPorts` subcommands, exactly one credential mode MUST be selected via a required, mutually-exclusive CLI arg group: `--use-mock-ecash` or `--mnemonic`. In mnemonic mode, if the credential store holds fewer than one ticketbook, the probe MUST acquire bandwidth for `V1MixnetEntry`, `V1WireguardEntry`, and `V1WireguardExit`. Mock-ecash mode MUST use a mock bandwidth controller and acquire nothing. `RunAgent` MUST NOT accept that arg group at all: it takes `--ticket-materials` (plus `--ticket-materials-revision`, default 1), decodes them into `AttachedTicketMaterials`, and imports them into an ephemeral client, so an agent run neither needs nor accepts a mnemonic or mock-ecash flag. Bandwidth acquisition MUST retry (up to 50 attempts, 1s backoff) and MUST treat "account sequence mismatch" as retryable.
 
 #### Scenario: Fresh credential store triggers acquisition
 - **GIVEN** mnemonic mode and an empty credential store

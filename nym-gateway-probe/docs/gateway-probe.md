@@ -88,10 +88,12 @@ A `TestMode` gates which phases actually run (default `Core`):
 |---|:---:|:---:|:---:|:---:|
 | `core` (alias `mixnet`) | ✅ | ✅ | — | — |
 | `all` | ✅ | ✅ | ✅ | ✅ |
-| `wg-mix` | ✅ | ✅ | — | — |
+| `wg-mix` | — | ✅ | — | — |
 | `wg-lp` | — | ✅ | ✅ | — |
 | `lp-only` | — | — | ✅ | — |
 | `socks5-only` | — | — | — | ✅ |
+
+`wg-mix` still needs a connected mixnet client (WireGuard registers through the authenticator over the mixnet), it just does not run the mixnet ping phase: `needs_mixnet()` covers `core`, `wg-mix` and `all`, while `mixnet_tests()` covers only `core` and `all`.
 
 Agent runs force `all`, so an agent-driven audit exercises every transport.
 

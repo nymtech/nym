@@ -186,7 +186,7 @@ Conclusions:
   | `network_summary` | live | `GET /v2/summary` (node-status) | client built + verified |
   | `circulating_supply` | live | `GET /v1/circulating-supply` (nym-api) | client built + verified |
   | `chain_status` | live | `GET /v1/network/chain-status` (nym-api) | client built + verified |
-  | `validate_sdk_config` (later) | live | static rules + version checks | not started |
+  | `validate_sdk_config` | static | field-type + typo + privacy-tradeoff rules | built (`validate-config.ts`) |
 
 - Live tools are what make this worth building: an agent can already read
   `llms.txt`; it cannot ask "is gateway X in the active set right now?".
@@ -207,11 +207,11 @@ Conclusions:
 |---|---|---|
 | 0 | Spike: chunker + real corpus stats | done |
 | 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 22 tests** |
-| 2a | MCP tool-logic layer: 7 tools (`search_docs`, `get_section`, 5 live) + live Nym client | **done, 20 tests + live-check** |
-| 2b | MCP transport shell (`server.ts`, Streamable HTTP) | scaffold; needs SDK install + verify |
+| 2a | MCP tool-logic layer: 8 tools (`search_docs`, `get_section`, 5 live, `validate_sdk_config`) + live Nym client | **done, 65 tests total + live-check** |
+| 2b | MCP transport (Streamable HTTP) under `lib/mcp/scaffold/` | scaffold; API verified vs SDK 1.30.0 types; needs `pnpm add @modelcontextprotocol/sdk` + runtime verify |
 | 1 | Chat: `/api/chat` + widget on Vercel AI SDK | not started (needs deps + keys) |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
-| later | `validate_sdk_config` tool; hybrid BM25 retrieval; feedback capture | backlog |
+| later | hybrid BM25 retrieval; feedback capture | backlog |
 
 ---
 
@@ -222,8 +222,14 @@ Conclusions:
   dependency and per-build/query cost. Both must match at index and query time.
 - **D2 (generation model + budget).** Haiku 4.5 (cost/latency) vs Sonnet
   (quality). Needs a per-query cost ceiling + abuse protection before public.
-- **D3 (MCP hosting).** Subdomain (`mcp.nym.com`) vs `/docs/mcp` route;
-  open + rate-limited (single public endpoint now that there's no private tier).
+- **D3 (MCP hosting).** LEANING: pages-router API route in the docs app
+  (`pages/api/mcp.ts`, public URL `https://nym.com/docs/api/mcp`) so it ships with
+  the existing Vercel deployment, one service to operate. Verified this is
+  buildable with only `@modelcontextprotocol/sdk` (low-level `Server` takes our
+  JSON Schema, so no zod; `mcp-handler` was rejected because it forces app-router +
+  `server@2` + `zod@4` onto a pages-router, zod-free app). Standalone Node server
+  kept as the alternative if a separate `mcp.nym.com` deployable is wanted later.
+  Still open: rate-limiting/abuse policy on the public endpoint.
 - **D4 (Confluence sanitisation + cadence).** What the sanitise step strips and
   who reviews it; full re-crawl vs incremental (CQL lastModified); job frequency.
 

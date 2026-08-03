@@ -19,9 +19,16 @@ it. Branch: `max/docs-ai-assistant-mcp` (off `max/docs-threat-model-overhaul`).
 3. **Live Nym API client** - `lib/nym-api/client.ts` (+ `live-check.mjs`). Supply,
    chain status, network summary, gateway list + by-id. Endpoints verified against
    production.
-4. **MCP tool layer** - `lib/mcp/tools.ts`. 7 tools (search_docs, get_section, 5
-   live) with error-wrapping. `server.ts` is the Streamable HTTP transport shell
-   (needs the SDK; unverified scaffold).
+4. **MCP tool layer** - `lib/mcp/tools.ts`. 8 tools (search_docs, get_section, 5
+   live, validate_sdk_config) with error-wrapping. `validate-config.ts` checks a
+   SetupMixTunnelOpts object: field types (errors), unknown/typo'd keys (warnings,
+   never errors, since the field list is a one-version snapshot), and privacy
+   tradeoffs. The Streamable HTTP transport is under `lib/mcp/scaffold/` (needs
+   the SDK; excluded from build + tests): `build-server.ts` (reusable core),
+   `mcp-route.ts` (pages-router API route, recommended), `standalone.ts` (separate
+   Node server, alternative). Verified against @modelcontextprotocol/sdk 1.30.0
+   types: the low-level `Server` passes our JSON-Schema `inputSchema` through
+   verbatim, so it needs only the SDK (no zod, no mcp-handler).
 5. **Chat logic** - `lib/chat/`: `context.ts` (retrieval -> context + citations,
    docs-only by default), `prompt.ts` (system prompt + guardrails). Route + widget
    are scaffold under `lib/chat/scaffold/` (need the AI SDK; unverified).
@@ -29,9 +36,12 @@ it. Branch: `max/docs-ai-assistant-mcp` (off `max/docs-threat-model-overhaul`).
    and `ns-api.mdx` (`/v1/mixnodes/active` -> `/v1/nym-nodes/rewarded-set`;
    `/api/v1/gateways` -> `/v2/gateways`).
 
-Test coverage: 42 new tests across `lib/**`, all passing. Scaffold files
-(`lib/**/scaffold`, `lib/mcp/server.ts`) are excluded from `next build` (tsconfig
-exclude) so the branch keeps building without the extra deps.
+Test coverage: 65 tests across `lib/**`, all passing (includes the privacy-model
+tests from the base branch). Every SDK-coupled file now lives under
+`lib/**/scaffold`, which tsconfig excludes from `next build`, so the branch keeps
+building without the extra deps. (Earlier `lib/mcp/server.ts` was NOT under
+scaffold/ and would have broken the build; it was split into the three scaffold
+files above.)
 
 ## How to test (when you have time)
 
@@ -41,8 +51,8 @@ All commands run from `documentation/docs/`.
 ```
 node_modules/.bin/vitest run lib/
 ```
-Expect 42+ passing. This covers the chunker, retrieval, embed cache, Nym client
-(hermetic), MCP tool logic, and chat context/prompt.
+Expect 65 passing. This covers the chunker, retrieval, embed cache, Nym client
+(hermetic), MCP tool logic (incl. validate_sdk_config), and chat context/prompt.
 
 ### 2. Live Nym APIs (network, no keys)
 ```
@@ -76,10 +86,22 @@ pnpm add ai @ai-sdk/anthropic @ai-sdk/react
 ```
 pnpm add @modelcontextprotocol/sdk
 ```
-- Set `VOYAGE_API_KEY`, run `lib/mcp/server.ts` (via tsx or after a build step).
-- VERIFY the SDK import paths + Streamable HTTP wiring against the installed
-  version (see the header in `server.ts`).
-- Point a client at `http://localhost:8787/mcp` and list tools.
+Just the SDK: the low-level `Server` takes JSON Schema, so no zod / mcp-handler.
+Verified against SDK 1.30.0 types (import paths, handleRequest(req,res,body),
+stateless transport). Two deployment options, both under `lib/mcp/scaffold/`:
+
+- RECOMMENDED - pages-router route, ships with the docs app on Vercel:
+  move `scaffold/mcp-route.ts` -> `pages/api/mcp.ts`, set `VOYAGE_API_KEY`, run
+  `pnpm run dev`, point a client at `http://localhost:3000/docs/api/mcp`.
+  Production URL: `https://nym.com/docs/api/mcp`.
+- ALTERNATIVE - standalone Node server (separate deployable / quick local test):
+  `VOYAGE_API_KEY=... tsx lib/mcp/scaffold/standalone.ts`, client -> `:8787/mcp`.
+- SHARP RISK on the pages-route option: the 1.30.0 transport bridges Node <->
+  Web Standard via `@hono/node-server`, and Next wraps the pages-router `res`.
+  If the adapter rejects the wrapped response, use `standalone.ts` (pristine
+  `res` from `createServer`) instead. That is the most likely drop-in failure.
+- Also verify: per-request Server+transport lifecycle under concurrent
+  invocations; that req.body reaches handleRequest as parsedBody.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).
@@ -91,4 +113,3 @@ pnpm add @modelcontextprotocol/sdk
 - Phase 1 chat wired live (needs deps + keys).
 - Confluence adapter.
 - Rate limiting / abuse protection / feedback capture on the chat.
-- `validate_sdk_config` MCP tool.

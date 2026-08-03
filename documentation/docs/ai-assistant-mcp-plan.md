@@ -203,14 +203,15 @@ Conclusions:
 
 ## 4. Phasing
 
-| Phase | Deliverable | Notes |
+| Phase | Deliverable | Status |
 |---|---|---|
-| 0 (done) | Spike: chunker + real corpus stats | this doc |
-| 0.1 | Harden chunker (giant-chunk fallback), add embed step, wire into build | produces `docs-index.json` with vectors |
-| 1 | Chat: `/api/chat` + widget, vector retrieval + Claude + SSE | same-origin, highest visible value |
-| 2 | MCP (Streamable HTTP): `search_docs`, `get_section` | reuses Phase 0.1 index |
-| 3 | Live Nym tools in MCP | independent surface |
-| 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | you host; no separate index |
+| 0 | Spike: chunker + real corpus stats | done |
+| 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 28 tests** |
+| 2a | MCP tool-logic layer: 7 tools (`search_docs`, `get_section`, 5 live) over retrieval + Nym APIs | **done, 24 tests + live-check** |
+| 2b | MCP transport shell (`server.ts`, Streamable HTTP) | scaffold; needs SDK install + verify |
+| 1 | Chat: `/api/chat` + widget on Vercel AI SDK | not started (needs deps + keys) |
+| 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
+| later | `validate_sdk_config` tool; hybrid BM25 retrieval; feedback capture | backlog |
 
 ---
 

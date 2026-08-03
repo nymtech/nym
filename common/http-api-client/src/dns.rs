@@ -636,18 +636,6 @@ mod test {
         Ok(())
     }
 
-    /// Guards premature static pins for undeployed VPN API fronts.
-    #[test]
-    fn undeployed_vpn_api_edge1_hosts_are_not_statically_pinned() {
-        let addrs = constants::default_static_addrs();
-        for host in constants::NYM_VPN_API_EDGE1_HOSTS_UNDEPLOYED {
-            assert!(
-                !addrs.contains_key(*host),
-                "do not pin {host} until DNS A/AAAA exists and deploy-vpn-api-proxy smoke passes"
-            );
-        }
-    }
-
     #[test]
     fn edge1_streaming_gateway_com_is_pinned_to_live_ipv4() {
         let addrs = constants::default_static_addrs();

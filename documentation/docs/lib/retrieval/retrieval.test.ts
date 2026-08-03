@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cosineSimilarity, search } from './retrieval';
+import { cosineSimilarity, search, getSection } from './retrieval';
 import type { DocIndex, EmbeddedChunk } from './types';
 
 describe('cosineSimilarity', () => {
@@ -50,5 +50,27 @@ describe('search', () => {
   it('strips the vector from returned chunks', () => {
     const [hit] = search([1, 0], idx, { topK: 1 });
     expect('vector' in hit.chunk).toBe(false);
+  });
+});
+
+describe('getSection', () => {
+  const split = index([
+    { ...chunk('page#sec~0', 'nym-docs', [1, 0]), url: 'https://x/page#sec', text: 'part one' },
+    { ...chunk('page#sec~1', 'nym-docs', [1, 0]), url: 'https://x/page#sec', text: 'part two' },
+    { ...chunk('page#other', 'nym-docs', [0, 1]), url: 'https://x/page#other', text: 'other' },
+  ]);
+
+  it('rejoins split parts of a section in order, by base id', () => {
+    const s = getSection(split, 'page#sec');
+    expect(s?.text).toBe('part one\n\npart two');
+    expect(s?.id).toBe('page#sec'); // ~part suffix stripped
+  });
+
+  it('resolves by deep-link url too', () => {
+    expect(getSection(split, 'https://x/page#other')?.text).toBe('other');
+  });
+
+  it('returns null for an unknown ref', () => {
+    expect(getSection(split, 'nope')).toBeNull();
   });
 });

@@ -53,3 +53,22 @@ export function search(queryVector: number[], index: DocIndex, opts: SearchOptio
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 }
+
+/**
+ * Fetch a whole section by chunk id or deep-link URL. Oversized sections were
+ * split into `id~0`, `id~1`, ... parts sharing one anchor; this rejoins them in
+ * order so `get_section` returns the complete section, not one fragment.
+ */
+export function getSection(index: DocIndex, idOrUrl: string): SearchHit['chunk'] | null {
+  const byId = index.chunks.filter((c) => c.id === idOrUrl || c.id.split('~')[0] === idOrUrl);
+  const matches = byId.length ? byId : index.chunks.filter((c) => c.url === idOrUrl);
+  if (!matches.length) return null;
+
+  const ordered = [...matches].sort((a, b) => {
+    const pa = Number(a.id.split('~')[1] ?? 0);
+    const pb = Number(b.id.split('~')[1] ?? 0);
+    return pa - pb;
+  });
+  const head = ordered[0];
+  return { ...withoutVector(head), id: head.id.split('~')[0], text: ordered.map((c) => c.text).join('\n\n') };
+}

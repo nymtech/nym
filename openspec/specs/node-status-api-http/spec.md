@@ -88,7 +88,7 @@ Every data endpoint (everything except `/`, `/swagger*` and the empty 201s) MUST
 
 ### Requirement: Paged endpoints SHALL return the PagedResult envelope with these exact pagination semantics
 
-`/v2/gateways`, `/v2/gateways/skinny`, `/v2/services`, `/v2/metrics/sessions` and `/explorer/v3/nym-nodes` MUST return `{ "page": usize, "size": usize, "total": usize, "items": [...] }` where `total` is the length of the full (post-filter, pre-pagination) list and `items` is the `page`-th chunk of `size` elements. Query parameters MUST be `size` and `page`; `size` defaults to 10 and is silently clamped to a maximum of 200; `page` defaults to 0 and is 0-indexed. When `page * size > total` the served page MUST be recomputed as `total / size` (integer division) and the recomputed value MUST be reported in the `page` field. Non-numeric `size`/`page` MUST be rejected by the query extractor with 400. Unknown query parameters MUST be ignored.
+`/v2/gateways`, `/v2/gateways/skinny`, `/v2/services`, `/v2/metrics/sessions` and `/explorer/v3/nym-nodes` MUST return `{ "page": usize, "size": usize, "total": usize, "items": [...] }` where `total` is the length of the full (post-filter, pre-pagination) list and `items` is the `page`-th chunk of `size` elements. Query parameters MUST be `size` and `page`; `size` defaults to 10 and is silently clamped to a maximum of 200; `page` defaults to 0 and is 0-indexed. When `page * size > total` the served page MUST be recomputed as `total / size` (integer division) and the recomputed value MUST be reported in the `page` field. Non-numeric `size`/`page` MUST be rejected by the query extractor with 400. Unknown query parameters MUST be ignored. Note the cost this imposes on whole-list consumers: a client that does not pass `size` walks the full gateway list 10 items at a time (roughly 70 requests, each with its own TLS handshake), and the 200 cap means even a deliberate caller needs several round trips. The dVPN directory routes are the exception - they are unpaginated and return the whole array in one response.
 
 #### Scenario: Defaults applied
 
@@ -129,7 +129,7 @@ All errors raised by handlers MUST be rendered as `(status, message)` - i.e. `Co
 | internal failure | 500 | `Internal server error` |
 | no test run available to assign | 503 | `No testruns available` |
 
-The 503 body MUST remain exactly `No testruns available`: the agent client matches on that substring to distinguish "nothing to do" from a real failure, and any other 5xx body makes agents treat the poll as an error. Extractor-level rejections MUST be axum's own plain-text rejections and are not remapped: 400 for undeserializable path/query parameters, 400 for malformed JSON syntax, 415 for a missing or wrong `Content-Type` on a JSON body, 422 for well-formed JSON that does not match the target type, and 413 when a body exceeds the limit.
+The 503 body MUST remain exactly `No testruns available`: the agent client matches on that substring to distinguish "nothing to do" from a real failure, and any other 5xx body makes agents treat the poll as an error. Extractor-level rejections MUST be axum's own plain-text rejections and are not remapped: 400 for undeserializable path/query parameters, 400 for malformed JSON syntax, 415 for a missing or wrong `Content-Type` on a JSON body, 422 for well-formed JSON that does not match the target type, and 413 when a body exceeds the limit. The single exception MUST be `POST /internal/testruns/{id}` (v1), which captures the JSON rejection itself and re-emits every variant as 400 with the rejection text as the body, so a wrong content type or a schema mismatch there yields 400 where the v2 endpoints yield 415 or 422 (see [[node-status-api-testruns]]).
 
 #### Scenario: Unknown gateway echoes the key
 
@@ -172,7 +172,7 @@ The 503 body MUST remain exactly `No testruns available`: the agent client match
 }
 ```
 
-`routing_score` MUST be `0.0` and `config_score` MUST be `0` for every gateway: both are hardcoded in the DTO conversion and no longer reflect any measurement (the underlying columns are dead too - nothing writes them, see [[node-status-api-persistence]]). Missing description columns MUST be served as the literal string `NA` for `moniker`, `website`, `security_contact` and `details`. `self_described`, `explorer_pretty_bond` and `last_probe_result` MUST be passed through as the raw stored JSON (unparsed, unvalidated), and MUST become `null` when the stored text is absent or the JSON literal `null`. `ports_check` MUST be normalised to `{ "all_pass": bool, "error": string|null, "port_check_target": string|null, "failed_ports": [string] }`, converting the legacy `{ can_register, port_check_target, ports, error }` shape on read. Items MUST be ordered by `gateway_identity_key` ascending (the DB read order). Gateway rows that fail DTO conversion MUST be skipped rather than failing the request.
+`routing_score` MUST be `0.0` and `config_score` MUST be `0` for every gateway: both are hardcoded in the DTO conversion and no longer reflect any measurement (the underlying columns are dead too - nothing writes them, see [[node-status-api-persistence]]). Missing description columns MUST be served as the literal string `NA` for `moniker`, `website`, `security_contact` and `details`. `self_described`, `explorer_pretty_bond` and `last_probe_result` MUST be re-emitted structurally rather than byte-for-byte: the stored text is parsed into a JSON value and re-serialized, so object keys come out **alphabetically sorted at every level** and original key order and whitespace are lost. Each MUST become `null` when the stored text is absent, is the JSON literal `null`, or fails to parse - malformed stored JSON is silently collapsed to `null` rather than surfaced as text or an error. The same applies to the `ports_check` and `bridges` values, which additionally pass through Postgres JSONB normalisation on write. `ports_check` MUST be normalised to `{ "all_pass": bool, "error": string|null, "port_check_target": string|null, "failed_ports": [string] }`, converting the legacy `{ can_register, port_check_target, ports, error }` shape on read. Items MUST be ordered by `gateway_identity_key` ascending (the DB read order). Gateway rows that fail DTO conversion MUST be skipped rather than failing the request.
 
 `GET /v2/gateways/skinny` MUST return only `bonded` gateways, and each `GatewaySkinny` item MUST contain exactly `gateway_identity_key`, `self_described`, `explorer_pretty_bond`, `last_probe_result`, `ports_check`, `last_ports_check_utc`, `last_testrun_utc`, `last_updated_utc`, `routing_score`, `config_score`, `performance` - i.e. it MUST drop `bonded`, `description`, `last_probe_log` and `bridges`.
 
@@ -194,6 +194,18 @@ The 503 body MUST remain exactly `No testruns available`: the agent client match
 
 - **WHEN** any gateway is served
 - **THEN** `routing_score` is `0.0` and `config_score` is `0` regardless of probe history
+
+#### Scenario: Malformed stored JSON collapses to null
+
+- **GIVEN** a gateway whose stored `last_probe_result` text is truncated and no longer parses
+- **WHEN** the gateway is served
+- **THEN** `last_probe_result` is `null` and the request still succeeds
+
+#### Scenario: Key order is not preserved
+
+- **GIVEN** a gateway whose stored `self_described` text lists `zebra` before `alpha`
+- **WHEN** the gateway is served
+- **THEN** the response object lists `alpha` before `zebra`, so consumers MUST NOT depend on stored key order or on hashing the raw bytes
 
 ### Requirement: `/v2/mixnodes/stats` SHALL return up to 30 ascending daily rows with an offset window
 
@@ -484,7 +496,7 @@ The minimum node version MUST default to `1.6.2` and MUST be applied at read tim
 - `socks5` MUST always be present as `{ "can_proxy_https": bool, "score": <score>, "errors": [string]|null }`. When the stored probe has no `socks5` section, `can_proxy_https` MUST be derived from the percentile score (`false` only when the score is `offline`).
 - `lp` MUST be `{ "can_connect": bool, "can_handshake": bool, "can_register": bool, "error": string|null }` or `null`.
 
-All score values MUST serialize as the lowercase strings `offline`, `low`, `medium`, `high`. Note that the raw `socks5` probe detail stored by agents (`can_connect_socks5`, `https_connectivity` with status code, latency and endpoint) is NOT exposed here; it is only visible through the raw `last_probe_result` on `/v2/gateways*`.
+All score values MUST serialize as the lowercase strings `offline`, `low`, `medium`, `high`. This outcome object MUST be treated as an externally-owned contract: the implementation carries an explicit warning that it is parsed by the VPN API, so its field names and score encodings cannot be changed or dropped without coordinating with that consumer, however arbitrary the scoring itself looks. Note that the raw `socks5` probe detail stored by agents (`can_connect_socks5`, `https_connectivity` with status code, latency and endpoint) is NOT exposed here; it is only visible through the raw `last_probe_result` on `/v2/gateways*`.
 
 #### Scenario: Untested entry serializes as null
 

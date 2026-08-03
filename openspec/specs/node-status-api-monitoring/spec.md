@@ -12,7 +12,11 @@ Defines the background data-ingestion workers of the node status service: the ne
 
 ### Requirement: The monitor SHALL execute one strictly ordered cycle per iteration and retry the whole cycle on failure
 
-The monitor loop MUST call one cycle, sleep the failure-retry delay (60s, fixed) when the cycle returns an error, and sleep `monitor_refresh_interval` (default 300s) when it succeeds. There MUST be no partial-cycle retry: any step that returns an error aborts the remaining steps, so a cycle either advances the whole snapshot or leaves the previous data in place. The cycle MUST perform these steps in this order:
+The monitor loop MUST call one cycle, sleep the failure-retry delay (60s, fixed) when the cycle returns an error, and sleep `monitor_refresh_interval` (default 300s) when it succeeds. Any step that returns an error MUST abort the remaining steps, and the next attempt MUST restart the cycle from the beginning - there is no resume point and no per-step retry.
+
+Crucially, a cycle MUST NOT be assumed atomic: each write is its own transaction and is committed as it happens, so an abort partway leaves the writes already made in place while everything later stays at its previous value. A failure between the node-families write and the gateway write, for example, leaves fresh nym-nodes and families alongside a stale gateway snapshot, stale delegations and a stale summary, and the API serves exactly that mixture until a later cycle completes. Any replacement wanting whole-snapshot atomicity MUST introduce it explicitly.
+
+The cycle MUST perform these steps in this order:
 
 1. check the ipinfo bandwidth allowance (failures are logged at debug and MUST NOT abort the cycle);
 2. build a nym-api client (see the following requirement);
@@ -30,10 +34,15 @@ The monitor loop MUST call one cycle, sleep the failure-retry delay (60s, fixed)
 14. read the historical gateway/mixnode counts;
 15. write the summary keys and the summary-history row.
 
-#### Scenario: Cycle failure retries without partial progress
+#### Scenario: Early failure writes nothing
 - **GIVEN** the described-nodes fetch fails
 - **WHEN** the cycle runs
 - **THEN** no nym-nodes, gateways, delegations or summary rows are written, the loop sleeps 60s, and the previous snapshot stays readable on the HTTP API
+
+#### Scenario: Mid-cycle failure leaves a mixed snapshot
+- **GIVEN** a cycle that has already written nym-nodes and node families
+- **WHEN** the mixing-assigned-nodes fetch then fails
+- **THEN** those two writes remain committed while the gateways table, delegations cache and summary keep their previous values, and the API serves that mixture until a later cycle succeeds
 
 #### Scenario: ipinfo quota check is advisory
 - **GIVEN** the ipinfo bandwidth endpoint is unreachable
@@ -131,7 +140,7 @@ The monitor MUST query `nyxd` for delegations once per bonded node, sequentially
 
 ### Requirement: The description scraper SHALL sanitize descriptions and write them to both description tables
 
-The description scraper MUST run every 4 hours with at most 5 concurrent in-flight tasks, over the nodes returned by the shared scraping query (described **and** bonded nym-nodes only). Per node it MUST try each candidate contact URL with `/description` appended, using a 3-second-timeout HTTP client that accepts invalid TLS certificates, and MUST take the first response that deserializes into `{ moniker, website, security_contact, details }`. It MUST then sanitize every field with `ammonia` configured to allow no tags, no attributes and no URL schemes (stripping all markup), MUST replace empty or whitespace-only fields with the literal `N/A`, and MUST replace an `N/A` moniker with a deterministic three-word name derived from the node id. The result MUST be upserted into `nym_node_descriptions`, and for entry/exit nodes additionally into `gateway_description` so the `/v2/gateways` join sees it.
+The description scraper MUST run every 4 hours with at most 5 concurrent in-flight tasks, over the nodes returned by the shared scraping query (described **and** bonded nym-nodes only). Per node it MUST try each candidate contact URL with `/description` appended, using a 3-second-timeout HTTP client that accepts invalid TLS certificates (the nodes are addressed by IP and many serve self-signed certificates, so validation is disabled deliberately - the trust boundary is that anything a node or an on-path attacker returns for `/description`, `/stats` or the bridge endpoint is persisted and then served publicly, unauthenticated), and MUST take the first response that deserializes into `{ moniker, website, security_contact, details }`. It MUST then sanitize every field with `ammonia` configured to allow no tags, no attributes and no URL schemes (stripping all markup), MUST replace empty or whitespace-only fields with the literal `N/A`, and MUST replace an `N/A` moniker with a deterministic three-word name derived from the node id. The result MUST be upserted into `nym_node_descriptions`, and for entry/exit nodes additionally into `gateway_description` so the `/v2/gateways` join sees it.
 
 The scraper MUST NOT wait for its spawned tasks: a cycle is considered finished once the queue is drained, while writes may still be in flight. Note that unscraped rows surface as the literal `NA` on `/v2/gateways` (the read-side `COALESCE` default) and as empty strings on `/explorer/v3/nym-nodes`, which are three distinct "missing" markers (`N/A`, `NA`, `""`) that a replacement must keep distinguishing.
 
@@ -154,7 +163,7 @@ The scraper MUST NOT wait for its spawned tasks: a cycle is considered finished 
 
 The packet-stats scraper MUST run every hour over the same node set, with at most `packet_stats_max_concurrent_tasks` (default 10) concurrent tasks, and MUST wait for all tasks before storing. Per node it MUST try each candidate contact URL with `/stats`, accepting either the legacy mixnode counter names (`packets_*_since_startup`) or the nym-node names (`received_since_startup`, `sent_since_startup`, `dropped_since_startup`), and MUST tolerate counters reported as floats by truncating them. When a URL yields stats it MUST additionally fetch `/api/v1/bridges/client-params` from that same URL and keep the parsed bridge information when it deserializes.
 
-A response body that is not JSON MUST abort that node's scrape entirely rather than falling through to the remaining candidate URLs, so a node answering a non-JSON error page on its first candidate URL contributes no stats that cycle. All collected records MUST be written in a single transaction: per record, bridge information onto the gateway row (entry/exit nodes only), then the raw counter row, then the daily delta. Any per-record failure MUST abort the whole batch, so one node missing from `nym_nodes` (whose stake lookup is a `fetch_one`) loses the entire cycle's stats.
+Counters MUST be taken at face value: they are self-reported by the node over its own HTTP API, and beyond the restart-detection rule there is no plausibility check, rate ceiling or outlier rejection, so a node reporting inflated counters propagates directly into `/v2/mixnodes/stats` totals. A response body that is not JSON MUST abort that node's scrape entirely rather than falling through to the remaining candidate URLs, so a node answering a non-JSON error page on its first candidate URL contributes no stats that cycle. All collected records MUST be written in a single transaction: per record, bridge information onto the gateway row (entry/exit nodes only), then the raw counter row, then the daily delta. Any per-record failure MUST abort the whole batch, so one node missing from `nym_nodes` (whose stake lookup is a `fetch_one`) loses the entire cycle's stats.
 
 #### Scenario: Both counter formats accepted
 - **GIVEN** one node reporting `packets_sent_since_startup` and another reporting `sent_since_startup`

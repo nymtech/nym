@@ -23,19 +23,35 @@ The manager MUST run on an interval (default 60s), prioritizing shutdown in a `b
 - **WHEN** the manager ticks
 - **THEN** it deposits the needed ticketbooks on chain (in bounded chunks) and persists the threshold-signed ticketbooks
 
-### Requirement: Refill SHALL respect shutdown between chunks and persist a recovery row on aggregation failure
+### Requirement: Refill SHALL respect shutdown between chunks
 
-Deposits MUST be made in chunks bounded by `max_concurrent_deposits`, checking for shutdown *between* chunks so that an in-flight chain operation is not abandoned mid-deposit. If wallet aggregation from the quorum fails, the manager MUST persist a pending/recovery row rather than losing the deposit.
+Deposits MUST be made in chunks bounded by `max_concurrent_deposits`, checking for shutdown *between* chunks so that an in-flight chain operation is not abandoned mid-deposit. Within a chunk, all deposits MUST be made first and the corresponding ticketbooks obtained afterwards, one deposit at a time.
 
 #### Scenario: Shutdown honored between chunks
 - **GIVEN** a multi-chunk refill in progress
 - **WHEN** shutdown is signalled between chunks
 - **THEN** the current in-flight chain operation completes and no new chunk is started
 
-#### Scenario: Aggregation failure persisted for recovery
+### Requirement: Aggregation failure SHALL record forensic data only, and the deposit is lost
+
+On a quorum wallet-aggregation failure the manager MUST insert a pending-ticketbook row (serialized issuance data, deposit id, expiration date, epoch, failure message) and MUST then abort the whole refill for that ticket type. This row is **write-only**: no component reads the pending-ticketbook table, nothing retries the aggregation, there is no transition to an issued state, and no idempotency key ties a later attempt back to the paid deposit. The already-paid deposit is therefore stranded and its funds are lost, and the row exists only for manual/forensic recovery. Aborting the chunk MUST also abandon the remaining deposits of that same chunk: they have been paid for on chain but no ticketbook is requested for them and no pending row is written for them at all, so they are lost without any record. The next tick MUST simply observe the buffer as still short and deposit again.
+
+A replacement MUST NOT be read as inheriting a recovery contract here: implementing one (retry from the persisted issuance data, an issued/failed state transition, and deposit-level idempotency) is outstanding work, and the code carries a matching `TODO` about persisting deposits before requesting ticketbooks.
+
+#### Scenario: Aggregation failure strands the deposit
 - **GIVEN** a completed on-chain deposit whose quorum wallet aggregation fails
 - **WHEN** the failure occurs
-- **THEN** a pending/recovery row is persisted so the ticketbook can be recovered
+- **THEN** a pending-ticketbook row is written, the refill for that ticket type aborts, and no later cycle ever retries that deposit
+
+#### Scenario: Remaining deposits of the chunk are lost silently
+- **GIVEN** a chunk of five deposits where aggregation fails on the second
+- **WHEN** the refill aborts
+- **THEN** the second deposit leaves a pending row while deposits three to five leave no record at all, despite having been paid for
+
+#### Scenario: Buffer shortfall triggers fresh deposits
+- **GIVEN** a previous cycle that lost deposits to an aggregation failure
+- **WHEN** the next tick runs with the quorum available
+- **THEN** it recomputes the shortfall from the available ticket count and makes new deposits, without reusing the stranded ones
 
 ### Requirement: The manager SHALL warm a startup cache of ecash state
 

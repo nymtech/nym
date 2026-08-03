@@ -35,7 +35,7 @@ Each background worker MUST run its own `tokio` timed loop rather than a shared 
 
 ### Requirement: The agent SHALL run as a one-shot CLI, looped externally
 
-The agent process MUST parse its arguments once, execute a single subcommand, and exit. Continuous operation MUST be achieved by an external loop (the container `entrypoint.sh` runs it in a `while true` loop with a `SLEEP_TIME` interval). The agent MUST NOT implement its own daemon loop or internal retry across invocations.
+The agent process MUST parse its arguments once, execute a single subcommand, and exit. Continuous operation is currently achieved by an external loop (the container `entrypoint.sh` runs it in a `while true` loop with a `SLEEP_TIME` interval), and the agent as built implements no daemon loop and no retry across invocations. That is a description of the current deployment shape rather than a constraint on future ones: nothing in the API contract requires one-shot execution, so a replacement MAY run as a long-lived process provided each cycle still requests, probes and submits independently.
 
 #### Scenario: Agent exits after one subcommand
 - **WHEN** the agent is invoked with `run-probe`

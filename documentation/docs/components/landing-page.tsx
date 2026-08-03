@@ -299,6 +299,12 @@ const sdks = [
     href: "/developers/smolmix",
   },
   {
+    name: "nym-smoldvpn",
+    description:
+      "Userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio TcpStream, UdpSocket and gRPC/HTTP traffic to clearnet via the exit gateway.",
+    href: "/developers/smoldvpn",
+  },
+  {
     name: "TypeScript SDK",
     description:
       "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",

@@ -52,7 +52,7 @@ jobs:
         run: ../scripts/move-to-dist.sh
 
       - name: Create Vercel project file
-        uses: mobiledevops/secret-to-file-action@v1
+        uses: mobiledevops/secret-to-file-action@v2
         with:
           base64-encoded-secret: ${{ secrets.VERCEL_PROJECT_JSON_BASE64 }}
           filename: "project.json"

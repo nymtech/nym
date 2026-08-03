@@ -10,28 +10,33 @@ use std::collections::BTreeMap;
 #[derive(Clone, Serialize, Deserialize, Message)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NodeInformation {
+    /// The current semver version of the nym-node binary.
+    /// Allows the clients to determine the compatibility.
+    #[prost(string, tag = "1")]
+    pub binary_version: String,
+
     /// The node's announced hostname, if it has one.
-    #[prost(string, optional, tag = "1")]
+    #[prost(string, optional, tag = "2")]
     pub hostname: Option<String>,
 
     /// The node's announced public IP addresses, string-encoded.
-    #[prost(string, repeated, tag = "2")]
+    #[prost(string, repeated, tag = "3")]
     pub ip_addresses: Vec<String>,
 
     /// The node's cosmos (nyx) account address, bech32-encoded.
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "4")]
     pub cosmos_address: String,
 
     /// Optional ISO 3166 alpha-2 country code of the node's physical location.
-    #[prost(string, optional, tag = "4")]
+    #[prost(string, optional, tag = "5")]
     pub location: Option<String>,
 
     /// The node's externally-announced ports.
-    #[prost(message, optional, tag = "5")]
+    #[prost(message, optional, tag = "6")]
     pub ports: Option<NodePorts>,
 
     /// The roles this node operates in.
-    #[prost(message, optional, tag = "6")]
+    #[prost(message, optional, tag = "7")]
     pub modes: Option<NodeModes>,
 }
 

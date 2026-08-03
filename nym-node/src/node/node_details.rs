@@ -678,6 +678,7 @@ impl NodeDetails {
 
     pub(crate) fn directory_node_information(&self) -> nym_directory_types::NodeInformation {
         nym_directory_types::NodeInformation {
+            binary_version: self.build_information.build_version.clone(),
             hostname: self.hostname.clone(),
             ip_addresses: self.ip_addresses.iter().map(|ip| ip.to_string()).collect(),
             cosmos_address: self.cosmos_address.to_string(),

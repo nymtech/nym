@@ -177,17 +177,27 @@ Conclusions:
   Optional stdio variant later for fully-local use.
 - Tools:
 
-  | Tool | Tier | Backed by |
-  |---|---|---|
-  | `search_docs(query)` | retrieval | index (docs + sanitised Confluence) |
-  | `get_section(id \| url)` | retrieval | exact section + deep link |
-  | `get_node_status(identity)` | live | ns-api / node-status-api |
-  | `list_gateways` / `resolve_gateway` | live | nym-api topology |
-  | `network_status` (epoch, topology) | live | nym-api |
-  | `validate_sdk_config` (later) | live | static rules + version checks |
+  | Tool | Tier | Backed by | Status |
+  |---|---|---|---|
+  | `search_docs(query)` | retrieval | index (docs + sanitised Confluence) | core built (`lib/retrieval`) |
+  | `get_section(id \| url)` | retrieval | exact section + deep link | core built |
+  | `get_gateway(identity)` | live | `GET /v2/gateways/{id}` (node-status) | client built + verified |
+  | `list_gateways(page,size)` | live | `GET /v2/gateways/skinny` (node-status) | client built + verified |
+  | `network_summary` | live | `GET /v2/summary` (node-status) | client built + verified |
+  | `circulating_supply` | live | `GET /v1/circulating-supply` (nym-api) | client built + verified |
+  | `chain_status` | live | `GET /v1/network/chain-status` (nym-api) | client built + verified |
+  | `validate_sdk_config` (later) | live | static rules + version checks | not started |
 
 - Live tools are what make this worth building: an agent can already read
   `llms.txt`; it cannot ask "is gateway X in the active set right now?".
+- Client lives in `lib/nym-api/client.ts` (hermetic tests) with a manual
+  `live-check.mjs` (verified against production). Two bases, verified from the
+  OpenAPI specs: NymAPI `https://validator.nymtech.net/api` (`/v1/...`), Node
+  Status API `https://mainnet-node-status-api.nymtech.cc` (`/v2/...`).
+- **Docs bug found:** `pages/apis/nym-api.mdx` and `ns-api.mdx` show stale
+  example paths (`/api/v1/gateways`, `/api/v1/mixnodes/active`) that now 404;
+  the live routes are `/v2/gateways` and `/v1/nym-nodes/*`. Worth fixing
+  separately, and a neat illustration of why live tools beat static docs.
 
 ---
 

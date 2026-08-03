@@ -81,14 +81,13 @@ pub mod date {
 
 #[cfg(test)]
 mod tests {
-    use time::macros::date;
 
     #[cfg(feature = "date")]
     #[cfg(test)]
     mod date_tests {
-        use super::*;
         use serde::{Deserialize, Serialize};
         use time::Date;
+        use time::macros::date;
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         struct Foo {

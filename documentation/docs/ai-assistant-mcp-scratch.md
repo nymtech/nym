@@ -326,6 +326,16 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
 5. Curl to settle A1 (which openapi.json URL 200s).
 6. `pnpm test` in documentation/docs (vitest suites).
 
+### Considered and dropped
+- Source-link existence checker: DROPPED. Link resolution is lychee's job
+  (`ci-docs-linkcheck.yml`). A custom local-tree check has branch-skew false
+  positives (checks the working tree, not the linked ref). NOTE: CI lychee is
+  `scheme = ["file"]`, so it only checks local links and SKIPS external github
+  source links, those ~46 are currently unverified. If we want them checked, it's
+  a lychee config toggle (add `https` to `scheme`), not custom code, with a real
+  speed/flakiness/rate-limit tradeoff (likely why it's off), so probably a separate
+  periodic CI job. Lesson: link RESOLUTION is lychee's; our niche is claim SEMANTICS.
+
 ### Outstanding VALIDATOR work (Phase 2; not built)
 - OpenAPI path-existence vs served spec: DEPRIORITISED. The `apis/*.mdx` pages
   already embed the live spec via `<RedocStandalone>`, so endpoints are already a

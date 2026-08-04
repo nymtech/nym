@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { buildMcpServer } from './build-server';
+import { buildMcpServer } from '../build-server';
 import { createTools, type McpTool } from '../tools';
 import type { DocIndex } from '../../retrieval/types';
 // @ts-expect-error - plain ESM JS module, no type declarations

@@ -17,6 +17,10 @@ import { validateSetupMixTunnelOpts } from './validate-config';
 export interface McpToolResult {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
+  // MCP tool results may carry additional protocol fields (_meta,
+  // structuredContent). The index signature both reflects that and lets this
+  // assign to the SDK's CallToolResult, which declares one.
+  [key: string]: unknown;
 }
 
 export interface McpTool {

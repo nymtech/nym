@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Retrieve over docs only (buildContext defaults sources to ["nym-docs"]).
   const vec = await embedQuery(query, embedder);
-  const { context } = buildContext(vec, index, { topK: 6 });
+  const { context } = buildContext(vec, index, { topK: 10 });
 
   const result = streamText({
     model: anthropic(CHAT_MODEL),

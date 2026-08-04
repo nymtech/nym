@@ -18,13 +18,18 @@ export function contentHash(text) {
 }
 
 /**
- * Voyage provider (default). voyage-3 returns unit-normalised 1024-dim vectors.
- * Uses input_type to distinguish document (indexing) from query embeddings,
- * which improves retrieval quality on asymmetric search.
+ * Voyage provider (default). voyage-3-large returns unit-normalised 1024-dim
+ * vectors and retrieves noticeably better than the older voyage-3. Uses
+ * input_type to distinguish document (indexing) from query embeddings, which
+ * improves retrieval quality on asymmetric search.
+ *
+ * NB: index and query MUST use the same model. Changing this default requires a
+ * re-index (`generate-index.mjs`); querying a voyage-3 index with voyage-3-large
+ * vectors returns garbage.
  *
  * @param {{ apiKey: string, model?: string, dim?: number }} cfg
  */
-export function voyageProvider({ apiKey, model = 'voyage-3', dim = 1024 }) {
+export function voyageProvider({ apiKey, model = 'voyage-3-large', dim = 1024 }) {
   return {
     name: 'voyage',
     model,

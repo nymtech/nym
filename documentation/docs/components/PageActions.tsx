@@ -50,19 +50,22 @@ export default function PageActions() {
   );
 }
 
-// Placeholder styling; align with the docs design system when productionising.
+// Fixed top-right so there's no DOM surgery into Nextra's content (which risked
+// hydration). Colours use the shared --chat-* vars, so it follows the theme.
 const rowStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 70,
+  right: 24,
+  zIndex: 30,
   display: 'flex',
   gap: 8,
-  justifyContent: 'flex-end',
-  margin: '0 0 0.5rem',
 };
 const btnStyle: React.CSSProperties = {
   fontSize: '0.8rem',
-  padding: '3px 10px',
-  border: '1px solid var(--nym-border, #3c4548)',
+  padding: '4px 12px',
+  border: '1px solid var(--chat-border)',
   borderRadius: 6,
-  background: 'transparent',
-  color: 'inherit',
+  background: 'var(--chat-bg)',
+  color: 'var(--chat-text)',
   cursor: 'pointer',
 };

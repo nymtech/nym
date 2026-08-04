@@ -28,18 +28,37 @@ const SITE_URL = 'https://nym.com/docs';
 // Auto-generated / non-content trees, kept out of the markdown export.
 const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
 
-// TODO: stripMdx / extractTitle / extractDescription are duplicated across the
-// three next-scripts generators. Converge them onto this fence-aware copy when
-// fixing the llms-full.txt code-fence bug (generate-llms-txt.mjs strips `import`
-// lines inside code fences); dedup rides that fix, verified against llms output.
+// TODO: the MDX-stripping helpers are duplicated across the three next-scripts
+// generators, and the other two still carry two bugs this file fixed:
+//   - frontmatter matched with /m (not anchored to head), so a body `---` (e.g. a
+//     mermaid `config` header) gets eaten;
+//   - `import` lines stripped inside code fences (corrupts llms-full.txt examples).
+// Converge generate-index.mjs and generate-llms-txt.mjs onto this file's
+// splitFrontmatter + stripJsx, verified against their outputs.
 
-/** Strip frontmatter, imports and JSX, but never touch fenced code blocks. */
-function stripMdx(content) {
-  const s = content.replace(/^---[\s\S]*?---\n*/m, ''); // frontmatter
+/**
+ * Split leading YAML frontmatter from the body. Frontmatter is only valid at the
+ * very head of the file, so the pattern is anchored to offset 0 (no /m flag). A
+ * page with no frontmatter but a `---` elsewhere (e.g. a mermaid `config` header
+ * inside a code fence) is correctly treated as having no frontmatter.
+ */
+function splitFrontmatter(content) {
+  const m = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  return m ? { frontmatter: m[1], body: content.slice(m[0].length) } : { frontmatter: '', body: content };
+}
+
+/** Read a scalar field from an already-isolated frontmatter block. */
+function fmField(frontmatter, field) {
+  const m = frontmatter.match(new RegExp(`^${field}:\\s*["']?(.+?)["']?\\s*$`, 'm'));
+  return m ? m[1] : '';
+}
+
+/** Strip imports and JSX from an MDX body, but never touch fenced code blocks. */
+function stripJsx(body) {
   const out = [];
   let fence = null;
 
-  for (const line of s.split('\n')) {
+  for (const line of body.split('\n')) {
     const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
     if (fenceMatch) {
       const marker = fenceMatch[2][0];
@@ -56,12 +75,6 @@ function stripMdx(content) {
     out.push(line);
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-function extractFrontmatterField(content, field) {
-  const re = new RegExp(`^---[\\s\\S]*?${field}:\\s*["']?(.+?)["']?\\s*$`, 'm');
-  const m = content.match(re);
-  return m ? m[1] : '';
 }
 
 /** pages-relative slug: strip extension and a trailing /index; root -> "index". */
@@ -90,20 +103,29 @@ console.log(`Scanning ${PAGES_DIR} ...`);
 const files = collectFiles(PAGES_DIR);
 
 let written = 0;
+const seen = new Map(); // outPath -> source file, to catch silent overwrites
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf-8');
-  const body = stripMdx(raw);
+  const { frontmatter, body: rawBody } = splitFrontmatter(raw);
+  const body = stripJsx(rawBody);
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 
   const slug = pageSlug(file);
-  const title = extractFrontmatterField(raw, 'title') || slug.split('/').pop().replace(/[-_]/g, ' ');
-  const description = extractFrontmatterField(raw, 'description');
+  const title = fmField(frontmatter, 'title') || slug.split('/').pop().replace(/[-_]/g, ' ');
+  const description = fmField(frontmatter, 'description');
 
   const header = ['---', `title: ${title}`];
   if (description) header.push(`description: ${description}`);
   header.push(`url: ${SITE_URL}/${slug === 'index' ? '' : slug}`, '---', '');
 
   const outPath = path.join(PUBLIC_DIR, `${slug}.md`);
+  // `foo.mdx` and `foo/index.mdx` both slug to `foo`; warn rather than silently
+  // clobber (the source duplicate is what needs fixing, e.g. the chain.md/.mdx pair).
+  if (seen.has(outPath)) {
+    console.warn(`Slug collision: ${file} and ${seen.get(outPath)} both map to ${path.relative(PUBLIC_DIR, outPath)}; keeping the latter.`);
+  }
+  seen.set(outPath, file);
+
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${header.join('\n')}\n${body}\n`);
   written++;

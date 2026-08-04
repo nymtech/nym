@@ -87,7 +87,7 @@ export function mockProvider({ dim = 8 } = {}) {
  * @param {{ batchSize?: number }} [opts]
  * @returns {Promise<{ embedded: EmbeddedChunk[], cache: Map<string, number[]>, stats: { total: number, embedded: number, cached: number } }>}
  */
-export async function embedChunks(chunks, provider, cache = new Map(), { batchSize = 128 } = {}) {
+export async function embedChunks(chunks, provider, cache = new Map(), { batchSize = 128, onProgress } = {}) {
   // Key on model + dim as well as content: vectors from different models live in
   // different spaces, so a model change must invalidate the cache rather than
   // silently reuse the old model's vectors for unchanged chunks.
@@ -137,6 +137,7 @@ export async function embedChunks(chunks, provider, cache = new Map(), { batchSi
     }
     const vectors = await embedBatch(batch.map((i) => chunks[i].text));
     batch.forEach((i, j) => cache.set(hashes[i], vectors[j]));
+    if (onProgress) onProgress({ done: b, total: missIdx.length, cache });
   }
 
   const embedded = chunks.map((c, i) => ({ ...c, vector: cache.get(hashes[i]) }));

@@ -80,9 +80,22 @@ if (apiKey) {
   const cache = fs.existsSync(CACHE_FILE)
     ? new Map(Object.entries(JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'))))
     : new Map();
-  const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache);
-  fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
-  fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(updated)));
+  const saveCache = (c) => {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(c)));
+  };
+  // Log progress and persist the cache as we go, so a kill/re-run resumes.
+  let logged = 0;
+  const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache, {
+    onProgress: ({ done, total, cache: c }) => {
+      if (done - logged >= 200 || done === total) {
+        console.log(`  embedded ${done}/${total} chunks ...`);
+        logged = done;
+        saveCache(c);
+      }
+    },
+  });
+  saveCache(updated);
   index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
   index.chunks = embedded;
   console.log(`Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`);

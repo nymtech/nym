@@ -80,8 +80,15 @@ retrieval backend.
 9. **Per-page markdown export** - `scripts/next-scripts/generate-page-markdown.mjs`
    emits `public/<path>.md` per page (fence-aware strip). Verified: 190 files, 0
    stray top-level imports, code fences preserved. Output gitignored.
+10. **Code retrieval index** - `lib/retrieval/code-chunker.mjs` (boundary-aware,
+    tested) + `scripts/next-scripts/generate-code-index.mjs`. Separate index over
+    curated source (sdk/, wasm/, examples, `common/nymsphinx`, `common/smol-core`)
+    built with `voyage-code-3`; exposed as the `search_code` MCP tool with GitHub
+    deep links. 348 files -> 6023 chunks (~12 MB vectorless; ~80 MB vectored, so
+    int8 quantization is a future lever). Route loads it optionally + a code
+    embedder. Fixed a hard-split infinite loop on single lines over the char cap.
 
-Test coverage: 65 tests across `lib/**`, all passing (includes the privacy-model
+Test coverage: 71 tests across `lib/**`, all passing (includes the privacy-model
 tests from the base branch). Every SDK-coupled file now lives under
 `lib/**/scaffold`, which tsconfig excludes from `next build`, so the branch keeps
 building without the extra deps. (Earlier `lib/mcp/server.ts` was NOT under
@@ -96,7 +103,7 @@ All commands run from `documentation/docs/`.
 ```
 node_modules/.bin/vitest run lib/
 ```
-Expect 65 passing. This covers the chunker, retrieval, embed cache, Nym client
+Expect 71 passing. This covers the chunker, code chunker, retrieval, embed cache, Nym client
 (hermetic), MCP tool logic (incl. validate_sdk_config), and chat context/prompt.
 
 ### 2. Live Nym APIs (network, no keys)
@@ -206,14 +213,13 @@ Get it working, then make it nice, then widen the corpus. In order:
      needs `theme.config.tsx` navbar customisation; verify what the installed
      `nextra-theme-docs` actually supports for injecting left of search before
      wiring (may need a search-component override or CSS ordering).
-3. **Index the codebase (after 1, larger question).** Add source code as a second
-   retrieval corpus so agents can search the SDK source, not just the prose docs.
-   Leaning: a **separate index** built with `voyage-code-3` (code-tuned; can't mix
-   embedding models in one cosine index), exposed as a distinct `search_code` MCP
-   tool, chat stays docs-only. Needs a code adapter (walk curated paths, chunk by
-   code boundaries, tag `source: nym-code`) + a second build step. **Open: scope**
-   (leaning TS + Rust SDK public surfaces and their `examples/`, not the whole
-   monorepo).
+3. **Index the codebase - DONE (machinery; needs a keyed build to go live).** A
+   separate `voyage-code-3` code index, exposed as the `search_code` MCP tool, chat
+   stays docs-only. Scope (the `ROOTS` list in `generate-code-index.mjs`): sdk/,
+   wasm/, examples, `common/nymsphinx`, `common/smol-core`. Chunker + generator +
+   tool + route wiring built and tested; run `generate-code-index.mjs` with a key
+   to build the vectors. Follow-ups: int8 quantization for the ~80 MB vectored size;
+   widen/trim scope; a `search_code` handler test.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

@@ -14,7 +14,8 @@ The MCP server is built and validated end-to-end; the chat is still scaffold.
 | MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP) | built, validated live (`tools/list` + `tools/call` over curl) |
 | Index build wired into deploy | build-wired + lambda-traced; **needs one Vercel deploy + `VOYAGE_API_KEY` to close (see 3.1)** |
 | Per-page markdown export (AI-ready keystone) | built + verified (fence-aware; see 3.5) |
-| Chat backend + widget | scaffold only (needs deps + keys) |
+| Chat backend + widget | **built + validated locally** (AI SDK v7, right-sidebar drawer, real streamed answers with citations) |
+| Code retrieval index + `search_code` | machinery built + tested (voyage-code-3; see 3.6); needs a keyed build |
 | Confluence adapter | not started |
 
 65 tests passing. The MCP server compiles into `next build` and serves 8 tools
@@ -281,6 +282,24 @@ examples in `llms-full.txt` and the index. Converge both onto this file's
 `splitFrontmatter` + `stripJsx`, verified against their outputs. (Surfaced by the
 fresh review; the per-page exporter's copies are already fixed.)
 
+### 3.6 Code retrieval index (search_code)
+
+A second retrieval index over selected source code, so agents can search what the
+code actually does (the antidote to prose rot). Kept separate from the docs index
+because vectors from different embedding models are not comparable.
+
+- **Model:** `voyage-code-3` (code-tuned), its own `public/code-index.json` and
+  query embedder; the docs index stays on `voyage-3-large`.
+- **Chunker:** `lib/retrieval/code-chunker.mjs` splits source at top-level item
+  boundaries (fn / struct / impl / class / export) with a hard char-cap fallback,
+  tags `source: nym-code`, and builds GitHub deep links with line numbers.
+- **Scope:** the `ROOTS` list in `generate-code-index.mjs` (sdk/, wasm/, examples,
+  `common/nymsphinx`, `common/smol-core`); 348 files -> 6023 chunks.
+- **Tool:** `search_code` (MCP), exposed only when the code index + a matching
+  embedder are wired. Chat stays docs-only.
+- **Size:** ~80 MB vectored (JSON floats); int8 quantization (~4x) is the lever if
+  the lambda bundle or cold-start parse becomes a concern.
+
 ---
 
 ## 4. Phasing
@@ -289,11 +308,12 @@ fresh review; the per-page exporter's copies are already fixed.)
 |---|---|---|
 | 0 | Spike: chunker + real corpus stats | done |
 | 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 22 tests** |
-| 2a | MCP tool-logic layer: 8 tools (`search_docs`, `get_section`, 5 live, `validate_sdk_config`) + live Nym client | **done, 65 tests total + live-check** |
+| 2a | MCP tool-logic layer: 9 tools (`search_docs`, `get_section`, `search_code`, 5 live, `validate_sdk_config`) + live Nym client | **done, 71 tests total + live-check** |
 | 2b | MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP); core in `lib/mcp/build-server.ts` | **done + validated live** (`tools/list` + `tools/call` over curl; `next build` green) |
 | 2c | Index built at deploy + traced into the lambda | build wiring + trace **done**; needs `VOYAGE_API_KEY` in Vercel + one deploy to close (see 3.1) |
-| 1 | Chat: `/api/chat` + widget on Vercel AI SDK | scaffold only (needs deps + keys) |
+| 1 | Chat: `/api/chat` + widget on AI SDK v7 (right-sidebar drawer, model display, MCP reminder) | **done + validated locally** (real streamed answers with citations); staging pending |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
+| 6 | Code retrieval index (`voyage-code-3`) + `search_code` tool (see 3.6) | machinery **done, 71 tests**; needs a keyed build + deploy to go live |
 | 5 | AI-ready docs surface: per-page `.md` export (**done**), then copy/open-in-assistant buttons + `llms.txt` discovery callout | keystone `.md` export done (3.5); buttons + callout remain |
 | later | hybrid BM25 retrieval; feedback capture; rate-limiting on `/api/mcp` | backlog |
 

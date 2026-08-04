@@ -89,12 +89,34 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 | HowTo | Step-by-step install/setup guides |
 | FAQPage | Question-answer pages |
 
-## LLM-readability
-Two files are generated in the deployment workflow: `llms.txt` and `llms-full.txt`. These files follow [Cloudflare's approach](https://developers.cloudflare.com/style-guide/how-we-docs/ai-consumability/) to generation and use.
+## AI assistant, MCP server & machine-readability
+The docs are built to be consumed by AI agents and LLMs, not just read. Design
+detail lives in `docs/ai-assistant-mcp-plan.md`; the build/test worklog in
+`docs/ai-assistant-mcp-scratch.md`. The consumer-facing guide is `/docs/use-with-ai`.
 
-When running locally can you find these at `http://localhost:3000/docs/llms.txt` and `http://localhost:3000/docs/llms-full.txt`.
+- **Ask AI**: an in-docs chat (right-hand sidebar) that answers from the
+  documentation with citations, powered by retrieval plus Claude.
+- **MCP server** at `/docs/api/mcp` (Streamable HTTP). Point a coding agent at it
+  for docs search (`search_docs`, `get_section`), source-code search (`search_code`,
+  over selected SDK / wasm / Sphinx / smolmix crates), live network tools
+  (`network_summary`, `list_gateways`, `circulating_supply`, `chain_status`,
+  `get_gateway`), and `validate_sdk_config`. Reference: `/docs/developers/mcp`.
+- **Per-page Markdown**: append `.md` to any docs URL, or use the page's Copy
+  button, to fetch it as clean Markdown.
 
-When deployed to production, these can be found at [https://nym.com/docs/llms.txt](https://nym.com/docs/llms.txt) and [https://nym.com/docs/llms-full.txt](https://nym.com/docs/llms-full.txt).
+### llms.txt
+`llms.txt` and `llms-full.txt` are generated in the build, following
+[Cloudflare's approach](https://developers.cloudflare.com/style-guide/how-we-docs/ai-consumability/).
+Local: `http://localhost:3000/docs/llms.txt` and `.../llms-full.txt`. Production:
+[https://nym.com/docs/llms.txt](https://nym.com/docs/llms.txt) and
+[https://nym.com/docs/llms-full.txt](https://nym.com/docs/llms-full.txt).
+
+### Retrieval & keys
+Two build-time indexes, no vector database: a docs index (`voyage-3-large`) and a
+code index (`voyage-code-3`), built during `pnpm run build` and gitignored.
+Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
+at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
+Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

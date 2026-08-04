@@ -34,7 +34,7 @@
   --mode-dvpn: #1f7fd6;
   --mode-mixnet: #8a3bd6;
 
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code", menlo, consolas, monospace;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", "Consolas", monospace;
 }
 
 html.dark .nym-threat-viz {

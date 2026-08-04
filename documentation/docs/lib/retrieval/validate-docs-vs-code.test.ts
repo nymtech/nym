@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { analyseText, SIZE_FACTS } from '../../../scripts/next-scripts/validate-docs-vs-code.mjs';
+import { analyseText, SIZE_FACTS, deriveConstants, deriveSizeFacts } from '../../../scripts/next-scripts/validate-docs-vs-code.mjs';
 
 type Claim = { factId: string; claimedBytes: number; expectedBytes: number; status: 'ok' | 'drift' };
 
@@ -71,5 +71,30 @@ describe('docs-vs-code size validation', () => {
       expect(f.source.length).toBeGreaterThan(0);
       expect(Number.isInteger(f.bytes)).toBe(true);
     }
+  });
+});
+
+describe('oracle derivation from source', () => {
+  it('composes the packet size from the in-repo constant expression', () => {
+    // REGULAR_PACKET_SIZE = 2*1024 + (HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE)
+    const c = deriveConstants() as Record<string, number>;
+    expect(c.HEADER_SIZE).toBe(348);
+    expect(c.PAYLOAD_OVERHEAD_SIZE).toBe(17);
+    expect(c.SPHINX_PACKET_OVERHEAD).toBe(365);
+    expect(c.REGULAR_PACKET_SIZE).toBe(2413);
+  });
+
+  it('derives the oracle facts (2413 / 2048 / 348 / 17) from source, not hand-typed', () => {
+    const byId = Object.fromEntries(
+      (deriveSizeFacts() as Array<{ id: string; bytes: number }>).map((f) => [f.id, f.bytes]),
+    );
+    expect(byId['sphinx-packet-size']).toBe(2413);
+    expect(byId['sphinx-payload-size']).toBe(2048);
+    expect(byId['sphinx-header-size']).toBe(348);
+    expect(byId['sphinx-payload-overhead']).toBe(17);
+  });
+
+  it('fails loud when the source is missing (never validates against a stale value)', () => {
+    expect(() => deriveConstants('/nonexistent-repo-root')).toThrow();
   });
 });

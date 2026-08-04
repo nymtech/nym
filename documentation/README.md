@@ -148,10 +148,15 @@ node ../scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures onl
 
 - `validate-docs-vs-code.mjs` walks `pages/**` and `lib/privacy-model`, extracts
   byte/KB size claims, binds each number to the noun it modifies ("2 KB payload",
-  not nearest-keyword), and diffs against a small oracle of source-anchored constants
-  (`SIZE_FACTS`, each with a file/symbol reference).
-- `--selftest` runs the built-in fixtures instead of scanning, including the exact
-  bug this was built to catch.
+  not nearest-keyword), and diffs against the oracle.
+- The oracle is **derived from source**, not hand-typed: in-repo constants are read
+  and evaluated (`REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE`),
+  and the two leaves that live in the external `sphinx-packet` crate are pinned with
+  a version check that throws if the crate is bumped in `Cargo.toml`. So the oracle
+  cannot silently rot: change the in-repo maths and the derivation follows; bump the
+  dependency and it fails loud asking you to re-verify.
+- `--show-oracle` prints the derived constants and facts; `--selftest` runs the
+  built-in fixtures (including the exact bug this was built to catch).
 - Exit code is non-zero when a drift candidate is found, so it can gate CI later.
 
 It already caught a real bug: the packet anatomy page said Sphinx packets are "2000
@@ -159,13 +164,12 @@ bytes" when `common/nymsphinx` defines `2*1024 + 348 + 17 = 2413` (a 2 KB payloa
 A cross-check confirmed the mechanism: `network/cryptography/sphinx.md` independently
 said "2048 bytes" and was right, so two pages disagreed and the code settled it.
 
-Scope and next steps: today the oracle is hand-curated (values pinned from source,
-with a reference per fact) and covers only Sphinx sizes; it does not scan `.tsx`, so
-component-level strings are unguarded. Deriving oracle values from the Rust source
-automatically, widening beyond sizes (signatures, config fields, endpoints), and an
-LLM-judged pass for claims a regex cannot express are the next steps. Wire it into CI
-as a drift warning once coverage is broad enough. Covered by
-`docs/lib/retrieval/validate-docs-vs-code.test.ts`.
+Scope and next steps: the oracle is derived from source but still covers only Sphinx
+sizes, and the scan does not read `.tsx`, so component-level strings are unguarded.
+Widening beyond sizes (API signatures, config fields, endpoint paths, CLI flags,
+version strings), and an LLM-judged pass for claims a regex cannot express, are the
+next steps. Wire it into CI as a drift warning once coverage is broad enough. Covered
+by `docs/lib/retrieval/validate-docs-vs-code.test.ts`.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

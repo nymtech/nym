@@ -256,11 +256,17 @@ Get it working, then make it nice, then widen the corpus. In order:
    (`SIZE_FACTS`), gates on a same-sentence "sphinx" context to avoid false
    positives on common nouns (LP-frame fields, WireGuard MTU). Scans
    `pages/**` + `lib/privacy-model` only (not `.tsx`, so `PacketAnatomy.tsx`'s
-   hardcoded legend/summary strings stay unguarded); currently 11 claims agree, 0
-   drift. Next:
-   derive oracle values from Rust automatically (today they are hand-curated with a
-   source ref per fact); widen beyond sizes (signatures, config fields, endpoints);
-   an LLM-judged pass for claims a regex cannot express; wire into CI as a warning.
+   hardcoded legend/summary strings stay unguarded); 12 claims agree, 0 drift.
+
+   Oracle now DERIVED from source (closed the hand-typed gap): `deriveConstants`
+   reads the in-repo Rust consts (`packet_sizes.rs` REGULAR_PACKET_SIZE = 2*1024 +
+   ...) with a tiny +/*/parens evaluator, and the two external sphinx-packet leaves
+   (HEADER_SIZE 348, PAYLOAD_OVERHEAD_SIZE 17) are pinned with a version check that
+   throws if `Cargo.toml`'s `sphinx-packet =0.6.0` moves. Fails loud on missing/
+   renamed source, never validates against a stale value. `--show-oracle` prints
+   the derivation. Next: widen beyond sizes (API signatures, config fields, endpoint
+   paths, CLI flags, version strings); scan `.tsx`; an LLM-judged pass for claims a
+   regex cannot express; wire into CI as a warning.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

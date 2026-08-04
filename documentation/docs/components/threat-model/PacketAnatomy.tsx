@@ -53,7 +53,7 @@ interface PacketTiming {
 
 const SEG_COLOR: Record<SegmentKind, string> = {
   "sphinx-header": "var(--mode-mixnet)",
-  ipr: "var(--node-ipr)",
+  frag: "var(--node-ipr)",
   payload: "var(--nym-accent)",
   pad: "var(--nym-text-faint)",
   ws: "var(--nym-warn)",
@@ -188,7 +188,7 @@ export function PacketAnatomy({
         )}
         <span className="badge">
           {isMix
-            ? "Every Sphinx packet is a constant 2000 B (constant size removes size-based correlation; timing is handled separately by Poisson sending)"
+            ? "Every Sphinx packet is a constant 2413 B (constant size removes size-based correlation; timing is handled separately by Poisson sending)"
             : "Variable packet size: WireGuard preserves size and timing (leaks)"}
         </span>
       </div>
@@ -197,10 +197,10 @@ export function PacketAnatomy({
       <div className="legend" style={{ fontSize: "0.74rem" }}>
         {isMix ? (
           <>
-            <Swatch kind="sphinx-header" label="Sphinx header ~400 B" />
-            <Swatch kind="ipr" label="IPR framing ~30 B" />
-            <Swatch kind="payload" label="payload chunk (≤1570 B)" />
-            <Swatch kind="pad" label="padding → 2000 B Sphinx" />
+            <Swatch kind="sphinx-header" label="Sphinx header 348 B + 17 B overhead" />
+            <Swatch kind="frag" label="fragmentation header 7 B" />
+            <Swatch kind="payload" label="payload chunk (≤2041 B)" />
+            <Swatch kind="pad" label="padding → 2413 B Sphinx" />
             <Swatch kind="ws" label="WebSocket header ~8 B" />
           </>
         ) : (

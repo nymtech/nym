@@ -1,10 +1,12 @@
 // Packet-framing model (pure, testable). Shows how an application message stream
 // is chunked and framed for each transport:
-//   - Mixnet: fixed-size 2000-byte Sphinx packets (~400 B header + 1600 B
-//     payload = IPR framing + chunked payload + padding). Each Sphinx packet is
-//     wrapped in a WebSocket binary frame and the WebSocket stream is sent over
-//     TCP/IP. The reliable-channel return route carries 56-byte mixACKs (NOT
-//     Sphinx packets) over TCP/IP in the same WebSocket channel.
+//   - Mixnet: fixed-size 2413-byte Sphinx packets (348 B routing header + 17 B
+//     per-hop payload overhead + 2048 B plaintext payload). The plaintext holds
+//     a 7 B fragmentation header, a chunk of the message, and padding. Each
+//     Sphinx packet is wrapped in a WebSocket binary frame and the WebSocket
+//     stream is sent over TCP/IP. The reliable-channel return route carries
+//     56-byte mixACKs (NOT Sphinx packets) over TCP/IP in the same WebSocket
+//     channel. Sizes trace to common/nymsphinx (sphinx-packet 0.6.0).
 //   - dVPN: WireGuard encapsulation, two WireGuard headers (2-hop nested
 //     tunnel) plus the remaining payload, up to a 1500-byte MTU (UDP). NOT
 //     padded, so packet size varies.
@@ -18,13 +20,18 @@ export const MTU = 1500;
 export const TCPIP_HEADER = 40; // IPv4 (20) + TCP (20)
 export const MSS = MTU - TCPIP_HEADER; // 1460 bytes of payload per TCP segment
 
-// Mixnet / Sphinx
-export const SPHINX_SIZE = 2000; // a Sphinx packet is a constant 2000 bytes
-export const SPHINX_HEADER = 400; // routing header (per-hop onion layers)
-export const SPHINX_PAYLOAD = SPHINX_SIZE - SPHINX_HEADER; // 1600
-export const IPR_FRAMING = 30; // IPR framing inside the Sphinx payload
-export const SPHINX_CHUNK = SPHINX_PAYLOAD - IPR_FRAMING; // usable app bytes = 1570
-// WebSocket binary frame header carrying a 2000 B Sphinx packet, masked
+// Mixnet / Sphinx. Constants trace to common/nymsphinx (sphinx-packet =0.6.0):
+// REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE(348) + PAYLOAD_OVERHEAD_SIZE(17).
+export const SPHINX_HEADER = 348; // sphinx-packet header::HEADER_SIZE
+export const SPHINX_PAYLOAD_OVERHEAD = 17; // sphinx-packet PAYLOAD_OVERHEAD_SIZE
+export const SPHINX_PLAINTEXT = 2 * 1024; // plaintext payload capacity = 2048
+export const SPHINX_SIZE = SPHINX_HEADER + SPHINX_PAYLOAD_OVERHEAD + SPHINX_PLAINTEXT; // 2413
+// Fragmentation header inside the plaintext (nymsphinx chunking,
+// UNLINKED_FRAGMENTED_HEADER_LEN). Linked fragments use 10 B; we model the
+// single/first-fragment case.
+export const FRAG_HEADER = 7;
+export const SPHINX_CHUNK = SPHINX_PLAINTEXT - FRAG_HEADER; // usable app bytes = 2041
+// WebSocket binary frame header carrying a 2413 B Sphinx packet, masked
 // (client to server): 2 base + 2 (16-bit ext length, 126<len<=65535) + 4 mask = 8.
 export const WS_HEADER = 8;
 // Small unmasked return frame (server to client) for a 56 B mixACK: 2 base bytes.
@@ -46,7 +53,7 @@ export interface Payload {
 }
 
 // Representative application messages (illustrative sizes). A Sphinx packet
-// carries ~1570 usable bytes, so the small payloads fit in a single packet
+// carries ~2041 usable bytes, so the small payloads fit in a single packet
 // while the larger ones fragment into many, which is where the metering and
 // goodput cost shows up.
 export const PAYLOADS: Payload[] = [
@@ -60,7 +67,7 @@ export const PAYLOADS: Payload[] = [
     id: "dns",
     label: "DNS query",
     bytes: 60,
-    note: "A name lookup: tiny, still one full 2000 B Sphinx packet on the wire.",
+    note: "A name lookup: tiny, still one full 2413 B Sphinx packet on the wire.",
   },
   {
     id: "api",
@@ -78,7 +85,7 @@ export const PAYLOADS: Payload[] = [
 
 export type SegmentKind =
   | "sphinx-header"
-  | "ipr"
+  | "frag"
   | "payload"
   | "pad"
   | "ws"
@@ -105,7 +112,7 @@ function total(segments: PacketSegment[]): number {
 }
 
 /**
- * Chunk a byte stream into fixed-size 2000-byte Sphinx packets, each wrapped in
+ * Chunk a byte stream into fixed-size 2413-byte Sphinx packets, each wrapped in
  * a WebSocket binary frame. (TCP/IP segmentation is accounted for at the stream
  * level in `mixnetWire`, not per packet.)
  */
@@ -118,8 +125,14 @@ export function chunkMixnet(totalBytes: number): Packet[] {
     remaining -= chunk;
     const pad = SPHINX_CHUNK - chunk;
     const segments: PacketSegment[] = [
-      { label: "Sphinx header", bytes: SPHINX_HEADER, kind: "sphinx-header" },
-      { label: "IPR framing", bytes: IPR_FRAMING, kind: "ipr" },
+      // Header segment also carries the 17 B per-hop payload overhead, so the
+      // packet sums to the real 2413 B on the wire.
+      {
+        label: "Sphinx header",
+        bytes: SPHINX_HEADER + SPHINX_PAYLOAD_OVERHEAD,
+        kind: "sphinx-header",
+      },
+      { label: "fragmentation header", bytes: FRAG_HEADER, kind: "frag" },
       { label: "payload chunk", bytes: chunk, kind: "payload" },
     ];
     if (pad > 0)

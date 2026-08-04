@@ -220,6 +220,19 @@ Get it working, then make it nice, then widen the corpus. In order:
    tool + route wiring built and tested; run `generate-code-index.mjs` with a key
    to build the vectors. Follow-ups: int8 quantization for the ~80 MB vectored size;
    widen/trim scope; a `search_code` handler test.
+4. **Validate docs against the indexed code (idea, high value).** Because we index
+   the source alongside the prose, we can turn retrieval around and use the code as
+   an oracle to catch docs that have drifted from it. Cross-check factual claims
+   (constant values, packet/buffer sizes, API signatures, config fields, endpoint
+   paths, CLI flags) against the actual source and flag contradictions. Motivating
+   case: `network/deep-dives/packet-anatomy.mdx` said Sphinx packets are "2000
+   bytes" while `common/nymsphinx/params/src/packet_sizes.rs` defines
+   `REGULAR_PACKET_SIZE = 2 * 1024 + SPHINX_PACKET_OVERHEAD` (2048 payload + header).
+   Shape: for each page, retrieve the relevant code chunks and LLM-judge "does this
+   prose contradict the source?"; or extract numeric/identifier claims and diff
+   against code. Run as a CI warning or a periodic drift report. This is the
+   strongest argument for the code index beyond agent search: the docs stay honest
+   because the code is ground truth.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

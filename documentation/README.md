@@ -118,6 +118,17 @@ Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
 at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
 Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
 
+### Validating docs against the code (planned)
+Because the source is indexed alongside the prose, we can turn retrieval around and
+use the code as an oracle to catch docs that have drifted from it: cross-check
+factual claims (constant values, sizes, API signatures, config fields, endpoint
+paths, CLI flags) against the actual source and flag contradictions. For example, a
+page stating Sphinx packets are "2000 bytes" when the source defines a
+`2 * 1024 + overhead` packet. A future validation pass (LLM-judged, or targeted
+claim extraction and diff) could run in CI as a drift warning. This is the strongest
+argument for indexing the code beyond agent search: the docs stay honest because the
+code is ground truth.
+
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 

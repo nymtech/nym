@@ -290,12 +290,19 @@ Get it working, then make it nice, then widen the corpus. In order:
 Single place to see what is done and what is outstanding for the docs-vs-code /
 docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
 
-### Validators built (committed; node-verified, vitest run by user)
-- `scripts/next-scripts/validate-docs-vs-code.mjs`: size+time oracle DERIVED from
-  source (self-invalidating sphinx-packet version pin), 6 facts, scan 14 agree /
-  0 drift. Tests `lib/retrieval/validate-docs-vs-code.test.ts`.
-- `scripts/next-scripts/validate-enum-parity.mjs`: wasm serde vs TS union names,
-  now reports PARITY (D1 fixed). Tests `lib/retrieval/validate-enum-parity.test.ts`.
+### DECISION: custom checkers PROTOTYPED then REMOVED (prefer tools)
+The custom drift-checkers were the Phase-1 AUDIT (find existing rot), not a permanent
+guard. They did their job (found the "2000 bytes" size drift + the TunnelState name
+mismatch) and were then removed in favour of generation/existing tools. Removed:
+`validate-docs-vs-code.mjs`, `validate-enum-parity.mjs`, their two `.test.ts`, and
+`.github/workflows/ci-docs-validation.yml`. The thinking is preserved in the wiki
+(`docs-for-ai/checking-vs-projecting`). Prevention is now tools-only:
+- wasm-boundary types -> tsify (done for TunnelState).
+- plain shared Rust types -> ts-rs (common/types).
+- SDK API reference -> TypeDoc regen (+ a regen-diff CI gate, still to add).
+- links -> lychee (existing `ci-docs-linkcheck.yml`).
+- hand-written prose facts -> no tool; rely on careful authoring (survey showed it
+  holds; drift was in hand-typed constants + stale generated docs, not prose).
 
 ### Drifts found (3-agent survey) + status
 - D1 TunnelState names (HIGH): FIXED at source (types.ts -> shutting_down/shutdown
@@ -324,7 +331,11 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
   the internally-tagged enum fine (the risk is cleared).
 - `sdk/typescript/packages/mix-tunnel/src/types.ts`: TunnelState -> discriminated
   union (D1/D3). NEEDS tsc/build.
-- `documentation/docs/components/playground/MixPlayground.tsx`: narrow `reason.kind`.
+- `documentation/docs/components/playground/MixPlayground.tsx`: REVERTED to the
+  published mix-tunnel type (`reason` as string). The docs build type-checks against
+  published `@nymproject/mix-tunnel@^0.1.0` (npm), not source, so it cannot use the
+  new `reason.kind` shape until mix-tunnel is republished and the docs dep bumped.
+  This is the publish boundary: SDK source fixes only reach the docs via a republish.
 
 ### Outstanding USER actions (I cannot run these here)
 1. Build smolmix wasm (`cd wasm/smolmix && make build-debug`), verify tsify emits
@@ -351,15 +362,16 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
   projection; only a few hand-written curl paths aren't, and they check out. Low
   marginal value. (If built: fetch spec, strip the `/api` deployment prefix, diff
   doc-quoted paths against `.paths` keys.)
-- TypeDoc regen-and-diff CI gate (retires the stale-generated-docs class, D2).
-- Wire the two working checks into CI: DONE, BLOCKING. `.github/workflows/
-  ci-docs-validation.yml` runs both checkers (selftest + live scan) on PRs touching
-  docs or the source the oracles read. Dependency-free node (no install). Green on
-  the current tree (0 drift). Needs a branch-protection required-check to block merges.
-- TypeDoc regen-and-diff gate: NEXT tool (post user regen). Blocking gate that
-  runs `generate-typedoc.sh` and fails on a non-empty `git diff` of the `api/`
-  tree; retires the stale-generated-docs class (D2/D3). Must wait until the user's
-  regen clears the current drift, else it fails immediately.
+- Custom-checker CI gate: REMOVED (see the DECISION section above). Prevention is
+  tools, not bespoke checkers.
+- TypeDoc regen-and-diff gate (NEXT tool, post republish): blocking gate that runs
+  the ordered `build SDKs -> generate-typedoc.sh` then fails on a non-empty `git diff`
+  of the `api/` tree; retires the stale-generated-docs class (D2/D3). MUST build the
+  SDKs before typedoc (cross-package re-exports resolve from built `dist`, not source),
+  else it reproduces the cross-package-stale state and passes while docs are wrong.
+- Build-ordering fix (encode in a command, not memory): a root script
+  `docs:typedoc = run-s build:ci:sdk docs:typedoc:gen`, and restructure `ci-docs.yml`
+  so the order is `pnpm i -> build:ci:sdk -> typedoc` (currently typedoc runs first).
 - version/dist-tag check; scan `.tsx`; more in-repo constants.
 
 ### Docs / wiki

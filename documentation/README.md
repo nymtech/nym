@@ -118,82 +118,29 @@ Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
 at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
 Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
 
-### Validating docs against the code
-We index the monorepo source alongside the prose (the `voyage-code-3` code index
-above). That index exists for agent and chat search, but it also lets us turn
-retrieval around: use the code as an oracle to catch prose that has drifted from it.
-This is the strongest argument for indexing the code at all. The docs stay honest
-because the code is ground truth; prose rots, constants do not.
+### Keeping docs honest against the code
+The docs assert facts the source can settle: constant values, sizes, types, API
+signatures, endpoint paths. The goal is that those never drift from the code. The
+principle we settled on: **generate or project the fact from its single source, and
+lean on existing tools, rather than shipping bespoke drift-checkers.** A checker keeps
+two copies and diffs them; generation keeps one copy and makes drift impossible.
 
-The cycle:
+Where each fact class gets its guard:
 
-```
-  monorepo source ──index──▶ code index ──oracle──▶ docs claims ──diff──▶ drift report
-        ▲                    (search_code,                                     │
-        │                     the chat)                                        │
-        └──────────────── fix the drifted page ◀───────────── review ◀─────────┘
-```
+| Fact class | Guard (existing tool) |
+|------------|-----------------------|
+| Wasm-boundary types (e.g. `TunnelState`) | **tsify** generates the TS type from the Rust serde in the wasm build |
+| Plain shared Rust types | **ts-rs**, as `common/types` does (host `cargo test` export) |
+| SDK API reference | **TypeDoc**, regenerated from the SDK source (a regen-and-diff CI gate keeps it fresh) |
+| REST endpoints | the `apis/*.mdx` pages embed the **live OpenAPI spec** via Redoc |
+| Links (incl. source links) | **lychee** (`ci-docs-linkcheck.yml`) |
 
-A claim is any falsifiable statement the source can settle: a constant value, a size,
-an API signature, a config field, an endpoint path, a CLI flag. When a page and the
-source disagree, the source wins and the page is the bug.
-
-**Run the size-drift check** (the first, deterministic slice of the cycle):
-
-```sh
-# from documentation/docs (the script lives in the sibling documentation/scripts)
-node ../scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
-node ../scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
-```
-
-- `validate-docs-vs-code.mjs` walks `pages/**` and `lib/privacy-model`, extracts
-  dimensioned numeric claims (bytes/KB and time: "2 KB payload", "24 hours"), binds
-  each number to the noun it modifies ("2 KB payload", not nearest-keyword), and diffs
-  against the oracle. Dimensions never cross-match, so a time claim cannot satisfy a
-  byte fact.
-- The oracle is **derived from source**, not hand-typed: in-repo constants are read
-  and evaluated (`REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE`),
-  and the two leaves that live in the external `sphinx-packet` crate are pinned with
-  a version check that throws if the crate is bumped in `Cargo.toml`. So the oracle
-  cannot silently rot: change the in-repo maths and the derivation follows; bump the
-  dependency and it fails loud asking you to re-verify.
-- `--show-oracle` prints the derived constants and facts; `--selftest` runs the
-  built-in fixtures (including the exact bug this was built to catch).
-- Exit code is non-zero when a drift candidate is found, so it can gate CI later.
-
-It already caught a real bug: the packet anatomy page said Sphinx packets are "2000
-bytes" when `common/nymsphinx` defines `2*1024 + 348 + 17 = 2413` (a 2 KB payload).
-A cross-check confirmed the mechanism: `network/cryptography/sphinx.md` independently
-said "2048 bytes" and was right, so two pages disagreed and the code settled it.
-
-A second check, `validate-enum-parity.mjs`, keeps docs-facing TypeScript string
-unions in step with the Rust enums they mirror over the wasm boundary. It reads a
-Rust enum and its serde `rename_all` rule, derives the wire strings, and diffs them
-against the TS union (the upstream of the generated docs):
-
-```sh
-node ../scripts/next-scripts/validate-enum-parity.mjs            # check the pairs
-node ../scripts/next-scripts/validate-enum-parity.mjs --selftest # fixtures only
-```
-
-It flagged a real drift: `TunnelState` in `wasm/smolmix/src/state.rs` serialises
-`shutting_down`/`shutdown`, but `TunnelStateName` in the mix-tunnel SDK declared
-`disconnecting`/`disconnected`, so `state === 'disconnected'` never matched at
-runtime. That has since been corrected at source (the SDK type now matches the Rust
-serde, and the check reports parity); the fix ships once the TS SDKs are rebuilt and
-republished.
-
-#### Preferring generation over checking
-A drift check is a stopgap: it tells you two copies disagree, but two copies still
-exist. Where a value has a single source, the stronger fix is to generate the second
-copy so it cannot drift, and retire the check.
-
-`TunnelState` is the worked example. Because it crosses the wasm boundary, its TS
-type is generated by [tsify](https://github.com/madonoharu/tsify) (the same generator
-the crate already uses for `SetupOpts`): `state.rs` derives `Tsify` under
-`#[cfg_attr(target_arch = "wasm32", ...)]` (so tsify stays out of any host build) and
-`getTunnelState` returns the typed `TunnelState`, so the wasm build emits the correct
-`.d.ts`:
+`TunnelState` is the worked example of generation. Because it crosses the wasm
+boundary, its TS type is generated by [tsify](https://github.com/madonoharu/tsify)
+(the generator the crate already uses for `SetupOpts`): `state.rs` derives `Tsify`
+under `#[cfg_attr(target_arch = "wasm32", ...)]` (so tsify stays out of any host
+build) and `getTunnelState` returns the typed `TunnelState`, so the wasm build emits
+the correct `.d.ts`:
 
 ```ts
 type TunnelState =
@@ -202,30 +149,22 @@ type TunnelState =
   | { state: "failed"; reason: FailureReason };
 ```
 
-That kills the drift at the source (it also corrects `reason`, which the hand-written
-SDK type had as `string` where the runtime emits a `FailureReason` object). The
-generator choice is deliberate: **tsify for wasm-boundary types** (it runs in the
-wasm build), **ts-rs for plain shared types** (as `common/types` does, via a host
-`cargo test` export). The SDK still keeps its copy of the type inline (to avoid a
-dependency on the unpublished `smolmix-wasm`), so for now that copy is hand-aligned to
-the Rust serde and the enum-parity check guards it; a later step could bridge the
-generated `.d.ts` to the SDK directly (a type-only import, or a vendored-and-diff-
-checked copy) so even the copy is a projection.
+That removes the drift at the source (it also corrected `reason`, which the SDK type
+had as `string` where the runtime emits a `FailureReason` object). The SDK keeps its
+copy of the type inline for now (to avoid a dependency on the unpublished
+`smolmix-wasm`); a later step can bridge the generated `.d.ts` to the SDK directly so
+even that copy is a projection.
 
-The size oracle currently derives six facts: the Sphinx packet geometry (packet,
-payload, header, payload-overhead), the IP-packet-router bundle cap
-(`DEFAULT_IPR_TUN_MTU`), and the reply-key max age (`DEFAULT_MAXIMUM_REPLY_KEY_AGE`,
-a `Duration::from_secs` value).
-Constants that are struct fields rather than named consts (e.g. `validity_epochs`,
-which differs per network config) are deliberately not derived, since there is no
-single canonical value to read.
+For hand-written prose that states a fact (e.g. "a Sphinx packet is 2413 bytes"),
+there is no generator, prose cannot be projected. We rely on careful authoring, which
+a survey of the docs found holds up well: the drift concentrated in hand-typed
+constants and stale generated docs, not in careful prose.
 
-Scope and next steps: the scan does not read `.tsx`, so component-level strings are
-unguarded. Widening beyond constants (API signatures, config fields, endpoint paths via
-the served OpenAPI spec, CLI flags, version strings), a wasm-serde-to-TS-union enum
-parity check, and an LLM-judged pass for claims a regex cannot express, are the next
-steps. Wire it into CI as a drift warning once coverage is broad enough. Covered by
-`docs/lib/retrieval/validate-docs-vs-code.test.ts`.
+During the audit we prototyped deterministic drift-checkers (a source-derived numeric
+oracle, a Rust/TS enum-parity check). They did their job, they found the "2000 bytes"
+packet-size drift and the `TunnelState` name mismatch, then were removed in favour of
+the generation-based guards above. The reasoning, and the general "checking vs
+projecting" framing, is written up in the wiki (`docs-for-ai/checking-vs-projecting`).
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

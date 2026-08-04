@@ -32,9 +32,9 @@ export type TaskName = 'bridge' | 'reactor';
 export type FailureReason = { kind: 'task_exited'; task: TaskName } | { kind: 'task_panicked' };
 
 // The names and shape below are the serde output of `TunnelState` in
-// wasm/smolmix/src/state.rs (generated there by tsify). Kept inline to avoid a
-// dependency on the unpublished @nymproject/smolmix-wasm; validate-enum-parity.mjs
-// guards that these names stay in step with the Rust enum.
+// wasm/smolmix/src/state.rs, where tsify generates the authoritative type into the
+// wasm `.d.ts`. Kept inline here to avoid a dependency on the unpublished
+// @nymproject/smolmix-wasm; keep it in step with that generated type.
 export type TunnelStateName = 'connecting' | 'ready' | 'shutting_down' | 'shutdown' | 'failed';
 
 export type TunnelState =

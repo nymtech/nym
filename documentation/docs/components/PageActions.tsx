@@ -1,0 +1,61 @@
+// Per-page action row: "Copy page" (grabs the generated Markdown for this page)
+// and "Ask AI" (opens the docs chat widget). Rendered at the top of every page
+// via theme.config.tsx `main`. See the AI-ready docs surface in the plan (3.5).
+//
+// "Copy page" fetches <path>.md, which generate-page-markdown.mjs emits at build.
+// Pages without prose (e.g. the component landing) have no .md; the copy just
+// no-ops there. "Ask AI" dispatches a window event ChatWidget listens for.
+
+import { useRouter } from 'next/router';
+import { useState } from 'react';
+
+export default function PageActions() {
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
+
+  const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
+  const slug = path === '' ? '/index' : path;
+  const mdUrl = `${router.basePath}${slug}.md`;
+
+  const copyPage = async () => {
+    try {
+      const res = await fetch(mdUrl);
+      if (!res.ok) return; // no .md for this page
+      await navigator.clipboard.writeText(await res.text());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* offline, or clipboard denied */
+    }
+  };
+
+  const askAI = () => window.dispatchEvent(new CustomEvent('nym:ask-ai'));
+
+  return (
+    <div style={rowStyle}>
+      <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
+        {copied ? 'Copied' : 'Copy page'}
+      </button>
+      <button type="button" onClick={askAI} style={btnStyle} title="Ask the docs assistant about this page">
+        Ask AI
+      </button>
+    </div>
+  );
+}
+
+// Placeholder styling; align with the docs design system when productionising.
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  justifyContent: 'flex-end',
+  margin: '0 0 0.5rem',
+};
+const btnStyle: React.CSSProperties = {
+  fontSize: '0.8rem',
+  padding: '3px 10px',
+  border: '1px solid var(--nym-border, #3c4548)',
+  borderRadius: 6,
+  background: 'transparent',
+  color: 'inherit',
+  cursor: 'pointer',
+};

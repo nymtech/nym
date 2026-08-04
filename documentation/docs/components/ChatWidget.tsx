@@ -14,7 +14,7 @@
 // a right-hand sidebar drawer + add an "Ask AI" trigger in the navbar (see the
 // scratchpad sequenced backlog).
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 
@@ -24,6 +24,13 @@ export default function ChatWidget() {
   const { messages, status, sendMessage } = useChat({
     transport: new DefaultChatTransport({ api: '/docs/api/chat' }), // basePath is /docs
   });
+
+  // The per-page "Ask AI" button opens the widget via this event.
+  useEffect(() => {
+    const openWidget = () => setOpen(true);
+    window.addEventListener('nym:ask-ai', openWidget);
+    return () => window.removeEventListener('nym:ask-ai', openWidget);
+  }, []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

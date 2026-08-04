@@ -4,9 +4,17 @@ import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
 // import { Footer } from "./components/footer";
 import { Matrix } from "./components/matrix-link";
 import { Explorer } from "./components/explorer-link";
+import PageActions from "./components/PageActions";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
+  // Per-page "Copy page" / "Ask AI" actions at the top of the content.
+  main: ({ children }) => (
+    <>
+      <PageActions />
+      {children}
+    </>
+  ),
   banner: {
     key: "threat-model-2026-07",
     dismissible: true,

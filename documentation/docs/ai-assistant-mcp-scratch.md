@@ -82,26 +82,36 @@ pnpm add ai @ai-sdk/anthropic @ai-sdk/react
 - VERIFY: the pages-router streaming call (`pipeDataStreamToResponse`) matches the
   AI SDK version you installed; v5 renamed helpers.
 
-### 5. MCP server (needs SDK + built index)
+### 5. MCP server - VALIDATED WORKING (2026-08-04)
+
+Just the SDK: the low-level `Server` takes JSON Schema, so no zod / mcp-handler.
+`build-server.ts` is the reusable core (now in `lib/mcp/`); `pages/api/mcp.ts` is
+the live route; `scaffold/standalone.ts` is the separate-deploy alternative.
+
+Setup that was run (dev server, one dep):
 ```
 pnpm add @modelcontextprotocol/sdk
+mkdir -p pages/api               # mv will NOT create the parent dir
+# route imports reach into lib/ from pages/api/ (../../lib/mcp/...); fixed on move
+pnpm run dev
 ```
-Just the SDK: the low-level `Server` takes JSON Schema, so no zod / mcp-handler.
-Verified against SDK 1.30.0 types (import paths, handleRequest(req,res,body),
-stateless transport). Two deployment options, both under `lib/mcp/scaffold/`:
-
-- RECOMMENDED - pages-router route, ships with the docs app on Vercel:
-  move `scaffold/mcp-route.ts` -> `pages/api/mcp.ts`, set `VOYAGE_API_KEY`, run
-  `pnpm run dev`, point a client at `http://localhost:3000/docs/api/mcp`.
-  Production URL: `https://nym.com/docs/api/mcp`.
-- ALTERNATIVE - standalone Node server (separate deployable / quick local test):
-  `VOYAGE_API_KEY=... tsx lib/mcp/scaffold/standalone.ts`, client -> `:8787/mcp`.
-- SHARP RISK on the pages-route option: the 1.30.0 transport bridges Node <->
-  Web Standard via `@hono/node-server`, and Next wraps the pages-router `res`.
-  If the adapter rejects the wrapped response, use `standalone.ts` (pristine
-  `res` from `createServer`) instead. That is the most likely drop-in failure.
-- Also verify: per-request Server+transport lifecycle under concurrent
-  invocations; that req.body reaches handleRequest as parsedBody.
+Smoke tests (note the dual Accept header, else 406):
+```
+curl -sS -X POST http://localhost:3000/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+Results:
+- `tools/list` -> all 8 tools with correct JSON Schema. The `@hono/node-server`
+  wrapped-`res` risk did NOT materialise; the transport works as a pages route.
+- `tools/call validate_sdk_config` -> error + typo-warning + privacy note.
+- `tools/call network_summary` -> live counts from production.
+- Reply arrives as SSE framing (`event: message` / `data:`), the Streamable HTTP
+  streaming path.
+- Not yet tested: `search_docs` / `get_section` (need `VOYAGE_API_KEY` + a
+  vectored index). Standalone alt (separate deploy): `tsx lib/mcp/scaffold/standalone.ts`.
+- Still open: rate-limiting/abuse policy on the public endpoint (plan D3).
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

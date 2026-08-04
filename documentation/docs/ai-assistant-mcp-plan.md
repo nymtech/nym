@@ -12,14 +12,17 @@ The MCP server is built and validated end-to-end; the chat is still scaffold.
 | Live Nym API client (5 tools) | built, tested + verified against production |
 | MCP tool layer (8 tools, incl. `validate_sdk_config`) | built, tested |
 | MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP) | built, validated live (`tools/list` + `tools/call` over curl) |
-| Index build wired into deploy | **OUTSTANDING - deploy blocker (see 3.1)** |
+| Index build wired into deploy | build-wired + lambda-traced; **needs one Vercel deploy + `VOYAGE_API_KEY` to close (see 3.1)** |
+| Per-page markdown export (AI-ready keystone) | built + verified (fence-aware; see 3.5) |
 | Chat backend + widget | scaffold only (needs deps + keys) |
 | Confluence adapter | not started |
 
 65 tests passing. The MCP server compiles into `next build` and serves 8 tools
-over Streamable HTTP. The one gap before it works in production is wiring the
-index generator into the build (3.1) so `docs-index.json` exists in the deployed
-bundle; without it the route's index load throws on first request.
+over Streamable HTTP. The build now generates `docs-index.json` and traces it into
+the `/api/mcp` lambda (3.1); the remaining unknown is Vercel-runtime-only (does the
+traced lambda read the file, and is `VOYAGE_API_KEY` set), which a single deploy
+resolves. The one thing that cannot be closed from the sandbox is the endpoint
+serving in production.
 
 ---
 
@@ -149,15 +152,19 @@ are all resolved in `lib/retrieval/chunker.mjs`:
 - Add the embed step: batch chunks to the embedding API, attach `vector`, write
   `{ schema, generated, embedding:{provider,model,dim}, chunks }` to a single
   `docs-index.json`.
-- **OUTSTANDING (deploy blocker):** the generator is not yet wired into the
-  `build` script (`generate-llms-txt.mjs && next build && next-sitemap`), and
-  `docs-index.json` is gitignored (too large, and rebuilt per deploy). So the
-  deployed bundle has no index and the MCP route throws on first request. Fix:
-  add `generate-index.mjs` to `build` (after `generate-llms-txt`), gated so a
-  missing `VOYAGE_API_KEY` degrades to a vectorless index rather than failing the
-  build, and set `VOYAGE_API_KEY` in Vercel. Confluence is merged in by its own
-  adapter (see 3.2), which may run on a separate cadence since Confluence changes
-  independently of docs deploys.
+- **Build wiring: DONE.** `generate-index.mjs` now runs in the `build` script
+  (before `next build`); a missing `VOYAGE_API_KEY` degrades to a vectorless index
+  rather than failing the build. `docs-index.json` stays gitignored (rebuilt per
+  deploy). Because the route reads it at runtime and Vercel does not put `public/`
+  in the serverless filesystem by default, `next.config.js` traces it into the
+  lambda via `outputFileTracingIncludes: { "/api/mcp": ["./public/docs-index.json"] }`.
+- **Still to close (Vercel-only, cannot verify from the sandbox):** set
+  `VOYAGE_API_KEY` in Vercel (else the deployed index is vectorless and
+  `search_docs` returns nothing), and confirm on one deploy that the traced lambda
+  actually reads the file. `next dev`/`next start` cannot derisk this: both have
+  `public/` on local disk regardless of tracing.
+- Confluence is merged in by its own adapter (see 3.2), which may run on a
+  separate cadence since Confluence changes independently of docs deploys.
 - **Cache vectors by chunk content-hash; only changed chunks re-embed.** This
   drops re-embed latency to near-zero on typical deploys, and, critically,
   decouples the docs build from the embedding API's uptime: a provider outage
@@ -238,8 +245,8 @@ MCP server with live tools) and are missing the cheap parts. The layers compound
 | Layer | What it is | Status |
 |---|---|---|
 | `llms.txt` + `llms-full.txt` | Index + full-text dump for agents to discover / ingest | Both generated (`public/llms.txt`, `public/llms-full.txt`); not advertised |
-| Per-page raw markdown (`<path>.md`) | Every page fetchable as clean markdown | **Not built - the keystone** |
-| "Copy as Markdown" / "Open in Claude / ChatGPT" | Per-page buttons that deep-link to the `.md` | Not built |
+| Per-page raw markdown (`<path>.md`) | Every page fetchable as clean markdown | **built + verified** (`generate-page-markdown.mjs`, fence-aware, in `build`) |
+| "Copy as Markdown" / "Open in Claude / ChatGPT" | Per-page buttons that deep-link to the `.md` | Not built (skipped for now; needs a browser to verify) |
 | MCP server | Docs search + live network tools | Built (3.4) |
 | Ask AI | In-page assistant | Planned (3.3) |
 
@@ -252,19 +259,24 @@ markdown first; then "copy as markdown" and "open in Claude" are just links to
 
 Build:
 
-- **Per-page `.md` export (build step).** Reuse the `generate-llms-txt.mjs`
-  page-walker to emit `public/<path>.md` per page (frontmatter-stripped markdown).
-  Static, cache-friendly, no keys. `nym.com/docs/developers/mcp.md` then serves
-  raw markdown.
-- **Theme buttons.** A small component wired via `theme.config.tsx` adding "Copy
-  as Markdown" and "Open in Claude / ChatGPT" to each page, pointing at the
-  emitted `.md`.
-- **Discovery callout.** Advertise `llms.txt` + the MCP server where agents and
-  devs look (the developers front door, and/or a short "AI & agents" note). The
-  new `developers/mcp` reference page is the seed of this.
+- **Per-page `.md` export (build step): DONE.** `generate-page-markdown.mjs` walks
+  `pages/`, strips MDX/JSX fence-aware, and emits `public/<path>.md` per page
+  (`developers/index.mdx` -> `developers.md`; pure-component landing pages with no
+  prose are skipped). Wired into `build`; output gitignored. `nym.com/docs/developers/mcp.md`
+  then serves raw markdown. Verified: 190 files, 0 stray top-level imports, code
+  fences preserved.
+- **Theme buttons (not built).** A small component wired via `theme.config.tsx`
+  adding "Copy as Markdown" and "Open in Claude / ChatGPT" to each page, pointing
+  at the emitted `.md`. Skipped for now: needs a browser to verify.
+- **Discovery callout (not built).** Advertise `llms.txt` + the MCP server where
+  agents and devs look (the developers front door, and/or a short "AI & agents"
+  note). The new `developers/mcp` reference page is the seed of this.
 
-Priority: after the MCP deploy blocker (3.1 / phase 2c). No value in advertising
-a programmatic surface whose flagship endpoint 500s.
+Follow-up (own change, not bundled here): `generate-llms-txt.mjs`'s `stripMdx`
+deletes every `^import` line **including inside code fences**, so the shipped
+`llms-full.txt` has imports stripped out of code examples. Fix that with the
+fence-aware `stripMdx` and converge the three duplicated copies (llms-txt, index,
+page-markdown) onto one, verified against `llms-full.txt` output.
 
 ---
 
@@ -276,10 +288,10 @@ a programmatic surface whose flagship endpoint 500s.
 | 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 22 tests** |
 | 2a | MCP tool-logic layer: 8 tools (`search_docs`, `get_section`, 5 live, `validate_sdk_config`) + live Nym client | **done, 65 tests total + live-check** |
 | 2b | MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP); core in `lib/mcp/build-server.ts` | **done + validated live** (`tools/list` + `tools/call` over curl; `next build` green) |
-| 2c | Wire `generate-index.mjs` into `build` + set `VOYAGE_API_KEY` in Vercel | **outstanding - deploy blocker** (see 3.1) |
+| 2c | Index built at deploy + traced into the lambda | build wiring + trace **done**; needs `VOYAGE_API_KEY` in Vercel + one deploy to close (see 3.1) |
 | 1 | Chat: `/api/chat` + widget on Vercel AI SDK | scaffold only (needs deps + keys) |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
-| 5 | AI-ready docs surface: per-page `.md` export, then copy/open-in-assistant buttons + `llms.txt` discovery callout | not started; keystone is per-page `.md` (see 3.5); after 2c |
+| 5 | AI-ready docs surface: per-page `.md` export (**done**), then copy/open-in-assistant buttons + `llms.txt` discovery callout | keystone `.md` export done (3.5); buttons + callout remain |
 | later | hybrid BM25 retrieval; feedback capture; rate-limiting on `/api/mcp` | backlog |
 
 ---

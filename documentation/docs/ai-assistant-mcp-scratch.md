@@ -35,6 +35,17 @@ it. Branch: `max/docs-ai-assistant-mcp` (off `max/docs-threat-model-overhaul`).
 6. **Docs bug fix** - corrected stale API example paths in `pages/apis/nym-api.mdx`
    and `ns-api.mdx` (`/v1/mixnodes/active` -> `/v1/nym-nodes/rewarded-set`;
    `/api/v1/gateways` -> `/v2/gateways`).
+7. **MCP live route** - `pages/api/mcp.ts` (Streamable HTTP) + core in
+   `lib/mcp/build-server.ts`. Validated live: `tools/list` returns 8 tools,
+   `tools/call` round-trips (validate + live network tools). Only `@modelcontextprotocol/sdk`
+   (no zod). `validate_sdk_config` tool added (`validate-config.ts`).
+8. **Deploy wiring (2c)** - `build` now runs `generate-index.mjs` +
+   `generate-page-markdown.mjs` before `next build`; `next.config.js` traces
+   `docs-index.json` into the `/api/mcp` lambda. Needs `VOYAGE_API_KEY` in Vercel
+   + one deploy to confirm the traced read (not verifiable from the sandbox).
+9. **Per-page markdown export** - `scripts/next-scripts/generate-page-markdown.mjs`
+   emits `public/<path>.md` per page (fence-aware strip). Verified: 190 files, 0
+   stray top-level imports, code fences preserved. Output gitignored.
 
 Test coverage: 65 tests across `lib/**`, all passing (includes the privacy-model
 tests from the base branch). Every SDK-coupled file now lives under

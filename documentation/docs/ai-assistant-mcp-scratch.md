@@ -300,8 +300,15 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
 ### Drifts found (3-agent survey) + status
 - D1 TunnelState names (HIGH): FIXED at source (types.ts -> shutting_down/shutdown
   + tsify generation). Ships on SDK republish.
-- D2 SetupMixTunnelOpts missing preferredGateway: source already has it; STALE
-  TypeDoc. Fix = regen TypeDoc (user).
+- D2 SetupMixTunnelOpts missing preferredGateway: source already has it. TypeDoc
+  regen done for mix-tunnel's OWN api (preferredGateway now present). BUT the 3
+  downstream copies (mix-fetch/mix-dns/mix-websocket) re-export the type via
+  `workspace:*` and resolve it from mix-tunnel's BUILT `dist/esm/*.d.ts`, which is
+  STALE (still has disconnecting/reason:string). Fix: build mix-tunnel
+  (`scripts/build.sh`) BEFORE regenerating TypeDoc, then re-run the regen so the
+  downstream copies pick up the fresh type. Gate implication: the TypeDoc
+  regen-diff gate must build the SDKs before running typedoc, else it reproduces
+  the stale-downstream state consistently (passes but docs cross-package-stale).
 - D3 TunnelState.reason string -> FailureReason object: FIXED at source (types.ts
   discriminated union). Ships on republish.
 - A1 nym-api openapi.json URL missing `/api` prefix: RESOLVED, not a drift. Curl

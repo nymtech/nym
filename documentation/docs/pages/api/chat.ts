@@ -35,6 +35,16 @@ const embedder = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
 const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-haiku-4-5';
 
+/** Human-friendly name for the model id, for display in the widget. */
+function modelName(id: string): string {
+  const map: Record<string, string> = {
+    'claude-haiku-4-5': 'Claude Haiku 4.5',
+    'claude-sonnet-5': 'Claude Sonnet 5',
+    'claude-opus-4-8': 'Claude Opus 4.8',
+  };
+  return map[id] ?? id;
+}
+
 /** Pull the plain-text query out of a UIMessage's parts (v7 has no .content). */
 function textOf(message: UIMessage | undefined): string {
   return (message?.parts ?? [])
@@ -45,6 +55,11 @@ function textOf(message: UIMessage | undefined): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'GET') {
+    // The widget reads this to show which model is answering.
+    res.status(200).json({ model: CHAT_MODEL, name: modelName(CHAT_MODEL) });
+    return;
+  }
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;

@@ -21,6 +21,7 @@ import { DefaultChatTransport } from 'ai';
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [model, setModel] = useState('');
   const { messages, status, sendMessage } = useChat({
     transport: new DefaultChatTransport({ api: '/docs/api/chat' }), // basePath is /docs
   });
@@ -30,6 +31,14 @@ export default function ChatWidget() {
     const openWidget = () => setOpen(true);
     window.addEventListener('nym:ask-ai', openWidget);
     return () => window.removeEventListener('nym:ask-ai', openWidget);
+  }, []);
+
+  // Which model is answering; the server (GET /api/chat) is the source of truth.
+  useEffect(() => {
+    fetch('/docs/api/chat')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.name && setModel(d.name))
+      .catch(() => {});
   }, []);
 
   const submit = (e: React.FormEvent) => {
@@ -51,7 +60,10 @@ export default function ChatWidget() {
   return (
     <div role="dialog" aria-label="Nym documentation assistant" style={panelStyle}>
       <header style={headerStyle}>
-        <span>Ask the docs</span>
+        <span>
+          Ask the docs
+          {model && <span style={modelStyle}> · {model}</span>}
+        </span>
         <button aria-label="Close" onClick={() => setOpen(false)}>
           ×
         </button>
@@ -79,6 +91,12 @@ export default function ChatWidget() {
           Send
         </button>
       </form>
+
+      <div style={footerStyle}>
+        <a href="/docs/use-with-ai" style={footerLinkStyle}>
+          How to use these docs with AI &rarr;
+        </a>
+      </div>
     </div>
   );
 }
@@ -99,5 +117,8 @@ const panelStyle: React.CSSProperties = {
   background: '#242B2D',
 };
 const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem' };
+const modelStyle: React.CSSProperties = { fontSize: '0.72rem', color: '#9fb0af', fontWeight: 400 };
 const logStyle: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: '0.75rem' };
 const formStyle: React.CSSProperties = { display: 'flex', gap: 8, padding: '0.5rem 0.75rem' };
+const footerStyle: React.CSSProperties = { padding: '0.4rem 0.75rem', borderTop: '1px solid #2A3235' };
+const footerLinkStyle: React.CSSProperties = { fontSize: '0.75rem', color: '#85E89D', textDecoration: 'none' };

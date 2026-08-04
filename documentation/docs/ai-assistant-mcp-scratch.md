@@ -343,7 +343,14 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
   marginal value. (If built: fetch spec, strip the `/api` deployment prefix, diff
   doc-quoted paths against `.paths` keys.)
 - TypeDoc regen-and-diff CI gate (retires the stale-generated-docs class, D2).
-- Wire the two working checks into CI (advisory first, then gate: see Cloudflare below).
+- Wire the two working checks into CI: DONE, BLOCKING. `.github/workflows/
+  ci-docs-validation.yml` runs both checkers (selftest + live scan) on PRs touching
+  docs or the source the oracles read. Dependency-free node (no install). Green on
+  the current tree (0 drift). Needs a branch-protection required-check to block merges.
+- TypeDoc regen-and-diff gate: NEXT tool (post user regen). Blocking gate that
+  runs `generate-typedoc.sh` and fails on a non-empty `git diff` of the `api/`
+  tree; retires the stale-generated-docs class (D2/D3). Must wait until the user's
+  regen clears the current drift, else it fails immediately.
 - version/dist-tag check; scan `.tsx`; more in-repo constants.
 
 ### Docs / wiki

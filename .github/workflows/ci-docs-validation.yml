@@ -9,7 +9,8 @@ name: ci-docs-validation
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
+    branches-ignore: [master]
     paths:
       - "documentation/**"
       - "Cargo.toml"

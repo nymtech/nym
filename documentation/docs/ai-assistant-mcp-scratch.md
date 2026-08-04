@@ -311,8 +311,10 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
 
 ### Code changes made (UNVERIFIED here; need user build/publish)
 - `wasm/smolmix/src/state.rs` + `lib.rs`: tsify on TunnelState/FailureReason/
-  TaskName; getTunnelState returns typed. Commit b79bda154f. NEEDS wasm build
-  (main unknown: tsify support for the internally-tagged enum).
+  TaskName; getTunnelState returns typed. Commit b79bda154f. VERIFIED: wasm build
+  succeeded, `pkg/smolmix_wasm.d.ts` emits the correct discriminated union
+  (`getTunnelState(): TunnelState`), matching the SDK's inline type. tsify handles
+  the internally-tagged enum fine (the risk is cleared).
 - `sdk/typescript/packages/mix-tunnel/src/types.ts`: TunnelState -> discriminated
   union (D1/D3). NEEDS tsc/build.
 - `documentation/docs/components/playground/MixPlayground.tsx`: narrow `reason.kind`.

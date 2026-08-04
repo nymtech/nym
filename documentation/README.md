@@ -118,16 +118,32 @@ Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
 at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
 Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
 
-### Validating docs against the code (planned)
+### Validating docs against the code
 Because the source is indexed alongside the prose, we can turn retrieval around and
 use the code as an oracle to catch docs that have drifted from it: cross-check
 factual claims (constant values, sizes, API signatures, config fields, endpoint
-paths, CLI flags) against the actual source and flag contradictions. For example, a
-page stating Sphinx packets are "2000 bytes" when the source defines a
-`2 * 1024 + overhead` packet. A future validation pass (LLM-judged, or targeted
-claim extraction and diff) could run in CI as a drift warning. This is the strongest
-argument for indexing the code beyond agent search: the docs stay honest because the
-code is ground truth.
+paths, CLI flags) against the actual source and flag contradictions. This is the
+strongest argument for indexing the code beyond agent search: the docs stay honest
+because the code is ground truth.
+
+A first, deterministic prototype covers numeric size claims about the Sphinx packet
+format:
+
+```sh
+node scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
+node scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
+```
+
+It extracts byte/KB size claims from the prose (binding each number to the noun it
+modifies, e.g. "2 KB payload"), compares them to a small oracle of source-anchored
+constants, and reports drift candidates for review. It caught a real bug: the packet
+anatomy page said Sphinx packets are "2000 bytes" when the source defines a
+`2 * 1024 + 348 + 17 = 2413`-byte packet with a 2 KB payload. The oracle is
+hand-curated with a source reference per fact; deriving values from the Rust source
+automatically, widening beyond sizes (signatures, config fields, endpoints), and an
+LLM-judged pass for claims a regex cannot express are the next steps. Wire it into CI
+as a drift warning once coverage is broad enough. Covered by
+`docs/lib/retrieval/validate-docs-vs-code.test.ts`.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

@@ -220,19 +220,35 @@ Get it working, then make it nice, then widen the corpus. In order:
    tool + route wiring built and tested; run `generate-code-index.mjs` with a key
    to build the vectors. Follow-ups: int8 quantization for the ~80 MB vectored size;
    widen/trim scope; a `search_code` handler test.
-4. **Validate docs against the indexed code (idea, high value).** Because we index
-   the source alongside the prose, we can turn retrieval around and use the code as
-   an oracle to catch docs that have drifted from it. Cross-check factual claims
-   (constant values, packet/buffer sizes, API signatures, config fields, endpoint
-   paths, CLI flags) against the actual source and flag contradictions. Motivating
-   case: `network/deep-dives/packet-anatomy.mdx` said Sphinx packets are "2000
-   bytes" while `common/nymsphinx/params/src/packet_sizes.rs` defines
-   `REGULAR_PACKET_SIZE = 2 * 1024 + SPHINX_PACKET_OVERHEAD` (2048 payload + header).
-   Shape: for each page, retrieve the relevant code chunks and LLM-judge "does this
-   prose contradict the source?"; or extract numeric/identifier claims and diff
-   against code. Run as a CI warning or a periodic drift report. This is the
-   strongest argument for the code index beyond agent search: the docs stay honest
-   because the code is ground truth.
+4. **Validate docs against the indexed code - PROTOTYPE BUILT (sizes only).**
+   Because we index the source alongside the prose, we can turn retrieval around and
+   use the code as an oracle to catch docs that have drifted from it. Cross-check
+   factual claims (constant values, packet/buffer sizes, API signatures, config
+   fields, endpoint paths, CLI flags) against the actual source and flag
+   contradictions.
+
+   Motivating case, now confirmed against source: `packet-anatomy.mdx` said Sphinx
+   packets are "2000 bytes". Verified via `common/nymsphinx` +
+   `sphinx-packet =0.6.0` (re-exported by `nym_sphinx_types`):
+   `REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE(348) + PAYLOAD_OVERHEAD_SIZE(17)` =
+   **2413 bytes**, of which the plaintext payload is **2048** (2 KB) and usable app
+   bytes are `2048 - 7` (fragmentation header) = **2041**. The old "~1570 usable"
+   figure in the diagram model was fiction. Fixed: prose (two sites), the
+   `PacketAnatomy` diagram model (`lib/privacy-model/packets.ts`, every size
+   constant now traces to source), and the component's legend/summary strings.
+   Cross-check bonus: `network/cryptography/sphinx.md` already said "2048 bytes" and
+   was correct all along - two pages, one right, one drifted, code settles it.
+
+   Prototype: `scripts/next-scripts/validate-docs-vs-code.mjs` (+ `--selftest`,
+   tested in `lib/retrieval/validate-docs-vs-code.test.ts`). Deterministic: extracts
+   byte/KB size claims (binding each number to the noun it modifies, e.g. "2 KB
+   payload", not nearest-keyword), diffs against a small source-anchored oracle
+   (`SIZE_FACTS`), gates on a same-sentence "sphinx" context to avoid false
+   positives on common nouns (LP-frame fields, WireGuard MTU). Scans
+   `pages/**` + `lib/privacy-model`; currently 11 claims agree, 0 drift. Next:
+   derive oracle values from Rust automatically (today they are hand-curated with a
+   source ref per fact); widen beyond sizes (signatures, config fields, endpoints);
+   an LLM-judged pass for claims a regex cannot express; wire into CI as a warning.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

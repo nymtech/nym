@@ -4,6 +4,40 @@ Working scratchpad for the docs AI chat + developer MCP server. Design lives in
 `ai-assistant-mcp-plan.md`; this file tracks what's been built and how you test
 it. Branch: `max/docs-ai-assistant-mcp` (off `max/docs-threat-model-overhaul`).
 
+## Features (draft for the docs README)
+
+User-facing summary of what this branch adds. Four features over one shared
+retrieval backend.
+
+- **Ask AI (in-docs chat).** A floating assistant on every docs page. It answers
+  from the documentation using retrieval-augmented generation: your question is
+  embedded, the most relevant doc sections are retrieved, and Claude answers from
+  those with inline `[n]` citations, streamed token by token. It only answers from
+  the docs corpus, and says so when it cannot find something rather than guessing.
+
+- **MCP server for AI agents.** A single endpoint, `https://nym.com/docs/api/mcp`,
+  that developers point their coding agent at (Claude Code, Cursor, and others).
+  It exposes the docs and live network state as structured tools, so an agent can
+  search the docs and read current network data without leaving its editor.
+  Eight tools:
+  - `search_docs`, `get_section`: semantic search over the docs with deep-link
+    citations, and full-section fetch.
+  - `network_summary`, `circulating_supply`, `chain_status`, `list_gateways`,
+    `get_gateway`: live data from the Nym APIs at call time (the thing a static
+    `llms.txt` cannot give you).
+  - `validate_sdk_config`: checks a mix-tunnel / mix-fetch config for typos,
+    type errors, and privacy tradeoffs before you write it into code.
+
+- **Per-page Markdown.** Every docs page is fetchable as clean Markdown by
+  appending `.md` to its URL (e.g. `nym.com/docs/developers/mcp.md`), so any agent
+  or script can ingest a page without scraping HTML. Together with the existing
+  `llms.txt` / `llms-full.txt`, this makes the docs machine-readable end to end.
+
+- **Retrieval backend (shared).** A build-time semantic index over the docs
+  (Voyage embeddings, cosine search, no vector database). Built during the docs
+  deploy and served from the app; both the chat and the MCP server read it. A
+  content-hash cache means only changed sections re-embed on each build.
+
 ## What's built (chronological)
 
 1. **Phase 0 spike** - `scripts/next-scripts/generate-index.mjs`. Chunks the docs
@@ -154,6 +188,32 @@ filesystem access. For local testing prefer exporting in your shell for the
 session (`VOYAGE_API_KEY=... pnpm run dev`) or keep the env file outside the repo
 (e.g. `~/.config/nym-docs.env`) and source it. Better: exercise keys only through
 the staging preview, where they stay in GitHub/Vercel.
+
+## Sequenced backlog (agreed 2026-08-04)
+
+Get it working, then make it nice, then widen the corpus. In order:
+
+1. **Functional validation (in progress).** Chat streaming end to end locally.
+   MCP already validated (tools/list, tools/call, live tools, search once vectors
+   exist). Gotcha found: `next dev` snapshots env at start, so `VOYAGE_API_KEY` /
+   `ANTHROPIC_API_KEY` must be in the shell that launches dev (or inline:
+   `VOYAGE_API_KEY=... ANTHROPIC_API_KEY=... pnpm run dev`); exporting after the
+   server is up does nothing.
+2. **UI polish (after 1).** Productionise `ChatWidget` (currently a placeholder):
+   - Open as a right-hand **sidebar drawer** (reference: LangChain docs
+     `use-these-docs`), full height, slide-in, rather than the bottom-right box.
+   - Add an **"Ask AI" trigger in the top navbar**, left of the search bar. This
+     needs `theme.config.tsx` navbar customisation; verify what the installed
+     `nextra-theme-docs` actually supports for injecting left of search before
+     wiring (may need a search-component override or CSS ordering).
+3. **Index the codebase (after 1, larger question).** Add source code as a second
+   retrieval corpus so agents can search the SDK source, not just the prose docs.
+   Leaning: a **separate index** built with `voyage-code-3` (code-tuned; can't mix
+   embedding models in one cosine index), exposed as a distinct `search_code` MCP
+   tool, chat stays docs-only. Needs a code adapter (walk curated paths, chunk by
+   code boundaries, tag `source: nym-code`) + a second build step. **Open: scope**
+   (leaning TS + Rust SDK public surfaces and their `examples/`, not the whole
+   monorepo).
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

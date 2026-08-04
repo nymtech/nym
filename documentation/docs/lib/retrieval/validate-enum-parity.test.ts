@@ -45,13 +45,13 @@ describe('enum-parity checker', () => {
     expect(d.extraInTs).toEqual(['disconnecting', 'disconnected']);
   });
 
-  it('parses the live TunnelState enum from source (both sides read cleanly)', () => {
-    // Reads wasm/smolmix/src/state.rs + the TS union; asserts the stable Rust side.
-    // The TS side currently drifts (D1); this exercises the real parse without
-    // pinning the transient mismatch.
-    const r = runCheck(CHECK) as { expected: string[]; actual: string[] };
+  it('the live TunnelState enum and the SDK union are in parity', () => {
+    // Reads wasm/smolmix/src/state.rs + the SDK union. Regression guard: the
+    // names were aligned (D1 fix), so the check must now report no drift.
+    const r = runCheck(CHECK) as { expected: string[]; missingInTs: string[]; extraInTs: string[] };
     expect(r.expected).toEqual(['connecting', 'ready', 'shutting_down', 'shutdown', 'failed']);
-    expect(Array.isArray(r.actual)).toBe(true);
+    expect(r.missingInTs).toEqual([]);
+    expect(r.extraInTs).toEqual([]);
   });
 });
 

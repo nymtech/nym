@@ -179,7 +179,9 @@ node ../scripts/next-scripts/validate-enum-parity.mjs --selftest # fixtures only
 It flagged a real drift: `TunnelState` in `wasm/smolmix/src/state.rs` serialises
 `shutting_down`/`shutdown`, but `TunnelStateName` in the mix-tunnel SDK declared
 `disconnecting`/`disconnected`, so `state === 'disconnected'` never matched at
-runtime.
+runtime. That has since been corrected at source (the SDK type now matches the Rust
+serde, and the check reports parity); the fix ships once the TS SDKs are rebuilt and
+republished.
 
 #### Preferring generation over checking
 A drift check is a stopgap: it tells you two copies disagree, but two copies still
@@ -204,11 +206,11 @@ That kills the drift at the source (it also corrects `reason`, which the hand-wr
 SDK type had as `string` where the runtime emits a `FailureReason` object). The
 generator choice is deliberate: **tsify for wasm-boundary types** (it runs in the
 wasm build), **ts-rs for plain shared types** (as `common/types` does, via a host
-`cargo test` export). The one gap generation does not close by itself is the SDK's
-inline copy of the type (kept inline to avoid a dependency on the unpublished
-`smolmix-wasm`); bridging the generated `.d.ts` to the SDK (a type-only import, or a
-vendored-and-diff-checked copy) is the remaining step, and the enum-parity check
-guards it until then.
+`cargo test` export). The SDK still keeps its copy of the type inline (to avoid a
+dependency on the unpublished `smolmix-wasm`), so for now that copy is hand-aligned to
+the Rust serde and the enum-parity check guards it; a later step could bridge the
+generated `.d.ts` to the SDK directly (a type-only import, or a vendored-and-diff-
+checked copy) so even the copy is a projection.
 
 The size oracle currently derives six facts: the Sphinx packet geometry (packet,
 payload, header, payload-overhead), the IP-packet-router bundle cap

@@ -190,7 +190,7 @@ export function MixPlayground() {
         log('master', `setupMixTunnel OK: tunnel ready in ${((performance.now() - t0) / 1000).toFixed(1)}s`, 'green');
       }
       const final = await m.getTunnelState();
-      log('master', `tunnel state: ${final.state}${final.reason ? ` (${final.reason})` : ''}`);
+      log('master', `tunnel state: ${final.state}${final.state === 'failed' ? ` (${final.reason.kind})` : ''}`);
       setConnected(true);
       setTunnelStatus({ text: 'Connected', colour: 'green' });
     } catch (e) {

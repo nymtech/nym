@@ -12,9 +12,9 @@
 // "Validating docs against the code"). It reports drift candidates for review,
 // it does not gate the build.
 //
-// Run:
-//   node scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
-//   node scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
+// Run (from documentation/docs; the script lives in the sibling documentation/scripts):
+//   node ../scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
+//   node ../scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';

@@ -141,9 +141,9 @@ source disagree, the source wins and the page is the bug.
 **Run the size-drift check** (the first, deterministic slice of the cycle):
 
 ```sh
-# from documentation/docs
-node scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
-node scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
+# from documentation/docs (the script lives in the sibling documentation/scripts)
+node ../scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
+node ../scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
 ```
 
 - `validate-docs-vs-code.mjs` walks `pages/**` and `lib/privacy-model`, extracts

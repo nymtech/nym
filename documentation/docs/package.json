@@ -9,7 +9,7 @@
     "generate:tables": "../scripts/next-scripts/python-prebuild.sh",
     "predev": "../scripts/next-scripts/python-prebuild.sh",
     "generate:llms": "node ../scripts/next-scripts/generate-llms-txt.mjs",
-    "build": "node ../scripts/next-scripts/generate-llms-txt.mjs && node ../scripts/next-scripts/generate-index.mjs && node ../scripts/next-scripts/generate-page-markdown.mjs && next build && next-sitemap",
+    "build": "node ../scripts/next-scripts/generate-llms-txt.mjs && node ../scripts/next-scripts/generate-index.mjs && node ../scripts/next-scripts/generate-code-index.mjs && node ../scripts/next-scripts/generate-page-markdown.mjs && next build && next-sitemap",
     "dev": " next dev",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

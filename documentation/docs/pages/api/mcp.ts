@@ -40,7 +40,24 @@ try {
   throw new Error(`MCP route: cannot load ${INDEX_PATH}: ${(e as Error).message}. Build the docs so generate-index.mjs writes it, and ensure it is traced into this function.`);
 }
 const provider = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
-const tools: McpTool[] = createTools({ index, embedQuery: (q: string) => embedQuery(q, provider) });
+
+// Optional code index (built with voyage-code-3). If present, wire up search_code
+// with a matching code embedder. Absence is fine; the tool just is not exposed.
+const CODE_INDEX_PATH = path.join(process.cwd(), 'public/code-index.json');
+let codeIndex: DocIndex | undefined;
+try {
+  codeIndex = JSON.parse(readFileSync(CODE_INDEX_PATH, 'utf-8'));
+} catch {
+  codeIndex = undefined;
+}
+const codeProvider = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY, model: 'voyage-code-3' });
+
+const tools: McpTool[] = createTools({
+  index,
+  embedQuery: (q: string) => embedQuery(q, provider),
+  codeIndex,
+  embedCode: codeIndex ? (q: string) => embedQuery(q, codeProvider) : undefined,
+});
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

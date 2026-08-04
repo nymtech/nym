@@ -40,6 +40,10 @@ export interface ToolDeps {
   index: DocIndex;
   embedQuery: (query: string) => Promise<number[]>;
   nym?: NymClient;
+  // Optional code index (separate model). When both are present, search_code is
+  // exposed. embedCode must use the same model the code index was built with.
+  codeIndex?: DocIndex;
+  embedCode?: (query: string) => Promise<number[]>;
 }
 
 const text = (s: string): McpToolResult => ({ content: [{ type: 'text', text: s }] });
@@ -179,5 +183,34 @@ export function createTools(deps: ToolDeps): McpTool[] {
         return text(lines.join('\n'));
       }),
     },
+    // Code search is only available when a code index + matching embedder were
+    // injected (they use a different, code-tuned model than the docs index).
+    ...(deps.codeIndex && deps.embedCode
+      ? [
+          {
+            name: 'search_code',
+            description:
+              'Search the Nym source code (SDK crates/packages, wasm, and the Sphinx/smolmix internals) for relevant functions, types and examples. Returns ranked snippets with GitHub deep-links. Use for "how is X implemented / show me the code" questions the prose docs do not answer.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'Natural-language or code-shaped query' },
+                topK: { type: 'number', description: 'Max results (default 6)' },
+              },
+              required: ['query'],
+            },
+            handler: safe(async ({ query, topK = 6 }) => {
+              const vec = await deps.embedCode!(query);
+              const hits = search(vec, deps.codeIndex!, { topK });
+              if (!hits.length) return text(`No source code matched "${query}".`);
+              return text(
+                hits
+                  .map((h) => `## ${h.chunk.title}${h.chunk.heading ? ` — ${h.chunk.heading}` : ''}\n${h.chunk.url}\n\n\`\`\`\n${h.chunk.text}\n\`\`\``)
+                  .join('\n\n---\n\n'),
+              );
+            }),
+          } as McpTool,
+        ]
+      : []),
   ];
 }

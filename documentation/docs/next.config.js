@@ -89,7 +89,7 @@ const config = {
   // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
   // not in the serverless function's filesystem unless traced in explicitly.
   outputFileTracingIncludes: {
-    "/api/mcp": ["./public/docs-index.json"],
+    "/api/mcp": ["./public/docs-index.json", "./public/code-index.json"],
     "/api/chat": ["./public/docs-index.json"],
   },
   async redirects() {

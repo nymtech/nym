@@ -1,16 +1,15 @@
-// SCAFFOLD - pages-router chat API route. Move to `pages/api/chat.ts` after
-// installing deps. Lives under lib/chat/scaffold/ (tsconfig-excluded) so its
-// AI-SDK imports don't break `next build` until it is wired up.
+// Pages-router chat API route (AI SDK v7). Retrieval-augmented: embed the query,
+// pull the top doc sections, and stream a Claude answer grounded in them.
 //
-// Needs:  pnpm add ai @ai-sdk/anthropic
-// Env:    ANTHROPIC_API_KEY (generation), VOYAGE_API_KEY (query embedding),
-//         optional CHAT_MODEL.
+// Deps:  ai, @ai-sdk/anthropic
+// Env:   ANTHROPIC_API_KEY (generation), VOYAGE_API_KEY (query embedding),
+//        optional CHAT_MODEL.
 //
-// VERIFIED against ai@7.0.51 + @ai-sdk/anthropic@4 type definitions:
+// v7 notes (validated live against ai@7.0.51 + @ai-sdk/anthropic@4):
 //   - pages-router streaming is `result.pipeUIMessageStreamToResponse(res)`
 //     (v4's pipeDataStreamToResponse is gone).
 //   - useChat sends UIMessage[] (parts-based); the server converts them with
-//     convertToModelMessages() before passing to streamText.
+//     `await convertToModelMessages()` (async) before passing to streamText.
 //
 // NOTE (follow-up): the v4 scaffold rode citations in an `x-nym-citations`
 // response header the widget read. v7's transport model does not surface response
@@ -24,11 +23,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, convertToModelMessages, type UIMessage } from 'ai';
-import { buildContext } from '../context';
-import { systemPrompt } from '../prompt';
-import type { DocIndex } from '../../retrieval/types';
+import { buildContext } from '../../lib/chat/context';
+import { systemPrompt } from '../../lib/chat/prompt';
+import type { DocIndex } from '../../lib/retrieval/types';
 // allowJs resolves the plain-ESM embed module; types are inferred from the .mjs.
-import { voyageProvider, embedQuery } from '../../retrieval/embed.mjs';
+import { voyageProvider, embedQuery } from '../../lib/retrieval/embed.mjs';
 
 // Loaded once per serverless instance (cold start), then reused.
 const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public/docs-index.json'), 'utf-8'));
@@ -62,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const result = streamText({
     model: anthropic(CHAT_MODEL),
     system: systemPrompt(context),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
 
   result.pipeUIMessageStreamToResponse(res);

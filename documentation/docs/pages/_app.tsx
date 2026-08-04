@@ -1,8 +1,12 @@
 import React, { useMemo, useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import dynamic from 'next/dynamic';
 import './styles.css';
 import './threat-model-viz.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+// Client-only: the widget uses useChat and streams from /docs/api/chat.
+const ChatWidget = dynamic(() => import('components/ChatWidget'), { ssr: false });
 
 const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   const muiTheme = useMemo(
@@ -36,6 +40,7 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={muiTheme}>
       <AnyComponent {...pageProps} />
+      <ChatWidget />
     </ThemeProvider>
   );
 };

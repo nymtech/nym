@@ -1,20 +1,18 @@
-// SCAFFOLD - chat widget. Move to `components/ChatWidget.tsx` and mount it once,
-// globally, from `pages/_app.tsx` (inside the ThemeProvider). Lives under
-// lib/chat/scaffold/ (tsconfig-excluded) so its AI-SDK import doesn't break
-// `next build` until wired up.
+// In-docs chat widget (AI SDK v7). Mounted once globally from pages/_app.tsx via
+// next/dynamic (ssr: false).
 //
-// Needs:  pnpm add ai @ai-sdk/react
+// Deps:  ai, @ai-sdk/react
 //
-// VERIFIED against @ai-sdk/react@4 + ai@7 type definitions:
+// v7 notes:
 //   - useChat returns { messages, status, sendMessage }; there is no `input` /
-//     `handleInputChange` / `handleSubmit` any more, so the widget owns its input
-//     state and calls sendMessage({ text }).
+//     `handleInputChange` / `handleSubmit`, so the widget owns its input state and
+//     calls sendMessage({ text }).
 //   - the endpoint is passed via a transport: new DefaultChatTransport({ api }).
-//   - messages are UIMessage[]; text lives in `message.parts` (type 'text'), not
-//     a `.content` string.
+//   - messages are UIMessage[]; text lives in `message.parts` (type 'text').
 //
-// Deliberately minimal: floating button + panel. Styling is a placeholder; match
-// it to the Nextra theme when you productionise.
+// Styling is a deliberate placeholder (floating button + panel). Backlog: open as
+// a right-hand sidebar drawer + add an "Ask AI" trigger in the navbar (see the
+// scratchpad sequenced backlog).
 
 import { useState } from 'react';
 import { useChat } from '@ai-sdk/react';

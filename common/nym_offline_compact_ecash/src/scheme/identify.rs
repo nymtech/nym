@@ -42,6 +42,8 @@ pub fn identify(
             let rr_j_payment2 = compute_pay_info_hash(&pay_info2, j as u64);
             let rr_diff = rr_k_payment1 - rr_j_payment2;
             //SAFETY: `pay_info1` and `pay_info2` are different here, so rr_diff will not be zero, invert is then fine
+            // SAFETY (indexing): we have have matching payments at these particular indexes
+            #[allow(clippy::indexing_slicing)]
             let pk = (payment2.tt[j] * rr_k_payment1 - payment1.tt[k] * rr_j_payment2)
                 * rr_diff.invert().unwrap();
             let pk_user = PublicKeyUser { pk };

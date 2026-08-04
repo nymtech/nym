@@ -130,6 +130,8 @@ impl KeyPair {
 /// If the input slice contains fewer than 4 bytes, the remaining positions in the accumulator remain zero.
 /// Finally, the accumulator is interpreted in big-endian order to produce the resulting u32.
 /// Index is used to verify deterministic identity key, master key and salt are also requried for verification.
+// SAFETY: array has 4 elements and we're always accessing indexes modulo 4.
+#[allow(clippy::indexing_slicing)]
 fn fake_index(input: &[u8]) -> u32 {
     let mut accumulator = [0u8; 4];
     for (i, &byte) in input.iter().enumerate() {
@@ -417,6 +419,9 @@ impl PrivateKey {
 
         // Take first 32 bytes (clamping is done automatically by x25519_dalek::StaticSecret)
         let mut x25519_bytes = zeroize::Zeroizing::new([0u8; 32]);
+
+        // SAFETY: output of sha512 is 64 bytes, so we can safely copy the first 32 bytes
+        #[allow(clippy::indexing_slicing)]
         x25519_bytes.copy_from_slice(&hash[..32]);
 
         #[allow(clippy::expect_used)]
@@ -538,10 +543,13 @@ impl From<PublicKey> for jwt_simple::algorithms::Ed25519PublicKey {
 impl PrivateKey {
     pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
         let pub_key = self.public_key();
-        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
+        let mut bytes = zeroize::Zeroizing::new([0u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH]);
 
+        // SAFETY: we have at least SECRET_KEY_LENGTH bytes
+        #[allow(clippy::indexing_slicing)]
         bytes[..SECRET_KEY_LENGTH]
             .copy_from_slice(zeroize::Zeroizing::new(self.to_bytes()).as_ref());
+        #[allow(clippy::indexing_slicing)]
         bytes[SECRET_KEY_LENGTH..].copy_from_slice(&pub_key.to_bytes());
 
         // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper
@@ -553,10 +561,14 @@ impl PrivateKey {
 #[cfg(feature = "naive_jwt")]
 impl KeyPair {
     pub fn to_jwt_compatible_keys(&self) -> jwt_simple::algorithms::Ed25519KeyPair {
-        let mut bytes = zeroize::Zeroizing::new([0u8; 64]);
+        let mut bytes = zeroize::Zeroizing::new([0u8; SECRET_KEY_LENGTH + PUBLIC_KEY_LENGTH]);
 
+        // SAFETY: we have at least SECRET_KEY_LENGTH bytes
+        #[allow(clippy::indexing_slicing)]
         bytes[..SECRET_KEY_LENGTH]
             .copy_from_slice(zeroize::Zeroizing::new(self.private_key.to_bytes()).as_ref());
+
+        #[allow(clippy::indexing_slicing)]
         bytes[SECRET_KEY_LENGTH..].copy_from_slice(&self.public_key.to_bytes());
 
         // SAFETY: we have a valid ed25519 keys, we're just changing to a different library wrapper

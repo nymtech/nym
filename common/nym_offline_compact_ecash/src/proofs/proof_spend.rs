@@ -1,10 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash_group_parameters;
+use crate::error::Result;
 use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::VerificationKeyAuth;
 use crate::scheme::PayInfo;
+use crate::{ecash_group_parameters, CompactEcashError};
 use group::GroupEncoding;
 use nym_bls12_381_fork::{G1Projective, G2Projective, Scalar};
 use serde::{Deserialize, Serialize};
@@ -49,6 +50,14 @@ pub struct WitnessReplacement {
     pub r_o_a: Vec<Scalar>,
     pub r_mu: Vec<Scalar>,
     pub r_o_mu: Vec<Scalar>,
+}
+
+impl WitnessReplacement {
+    pub(crate) fn must_get_attribute(&self, idx: usize) -> Result<&Scalar> {
+        self.r_attributes
+            .get(idx)
+            .ok_or(CompactEcashError::IncompatibleConstruction)
+    }
 }
 
 pub struct InstanceCommitments {
@@ -106,12 +115,17 @@ pub fn compute_instance_commitments(
     instance: &SpendInstance,
     verification_key: &VerificationKeyAuth,
     rr: &[Scalar],
-) -> InstanceCommitments {
+) -> Result<InstanceCommitments> {
     let grp_params = ecash_group_parameters();
     let g1 = *grp_params.gen1();
     //SAFETY: grp_params is static with length 3
     #[allow(clippy::unwrap_used)]
     let gamma1 = grp_params.gamma_idx(1).unwrap();
+
+    // pathological cases
+    if verification_key.beta_g1.is_empty() || verification_key.beta_g2.is_empty() {
+        return Err(CompactEcashError::VerificationKeyTooShort);
+    }
 
     let tt_kappa = grp_params.gen2() * witness_replacement.r_r
         + verification_key.alpha
@@ -122,11 +136,14 @@ pub fn compute_instance_commitments(
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-    let tt_cc = g1 * witness_replacement.r_o_c + gamma1 * witness_replacement.r_attributes[1];
+    let tt_cc =
+        g1 * witness_replacement.r_o_c + gamma1 * witness_replacement.must_get_attribute(1)?;
 
+    // SAFETY: we asserted we have a non-empty beta_g2 slice
+    #[allow(clippy::indexing_slicing)]
     let tt_kappa_e = grp_params.gen2() * witness_replacement.r_r_e
         + verification_key.alpha
-        + verification_key.beta_g2[0] * witness_replacement.r_attributes[2];
+        + verification_key.beta_g2[0] * witness_replacement.must_get_attribute(2)?;
 
     let tt_aa: Vec<G1Projective> = witness_replacement
         .r_o_a
@@ -135,6 +152,8 @@ pub fn compute_instance_commitments(
         .map(|(r_o_a_k, r_l_k)| g1 * r_o_a_k + gamma1 * r_l_k)
         .collect::<Vec<_>>();
 
+    // SAFETY: we asserted we have a non-empty beta_g2 slice
+    #[allow(clippy::indexing_slicing)]
     let tt_kappa_k = witness_replacement
         .r_lk
         .iter()
@@ -150,10 +169,12 @@ pub fn compute_instance_commitments(
         .map(|r_mu_k| grp_params.delta() * r_mu_k)
         .collect::<Vec<_>>();
 
+    let wr = witness_replacement.must_get_attribute(0)?;
+
     let tt_tt = rr
         .iter()
         .zip(witness_replacement.r_mu.iter())
-        .map(|(rr_k, r_mu_k)| g1 * witness_replacement.r_attributes[0] + (g1 * rr_k) * r_mu_k)
+        .map(|(rr_k, r_mu_k)| g1 * wr + (g1 * rr_k) * r_mu_k)
         .collect::<Vec<_>>();
 
     let tt_gamma1 = instance
@@ -164,7 +185,7 @@ pub fn compute_instance_commitments(
         .map(|((aa_k, r_mu_k), r_o_mu_k)| (aa_k + instance.cc + gamma1) * r_mu_k + g1 * r_o_mu_k)
         .collect::<Vec<_>>();
 
-    InstanceCommitments {
+    Ok(InstanceCommitments {
         tt_kappa,
         tt_kappa_e,
         tt_cc,
@@ -173,7 +194,7 @@ pub fn compute_instance_commitments(
         tt_tt,
         tt_gamma1,
         tt_kappa_k,
-    }
+    })
 }
 
 impl SpendProof {
@@ -184,14 +205,14 @@ impl SpendProof {
         rr: &[Scalar],
         pay_info: &PayInfo,
         spend_value: u64,
-    ) -> Self {
+    ) -> Result<Self> {
         let grp_params = ecash_group_parameters();
         // generate random values to replace each witness
         let witness_replacement = generate_witness_replacement(witness);
 
         // compute zkp commitment for each instance
         let instance_commitments =
-            compute_instance_commitments(&witness_replacement, instance, verification_key, rr);
+            compute_instance_commitments(&witness_replacement, instance, verification_key, rr)?;
 
         let tt_aa_bytes = instance_commitments
             .tt_aa
@@ -261,7 +282,7 @@ impl SpendProof {
         let responses_o_mu =
             produce_responses(&witness_replacement.r_o_mu, &challenge, &witness.o_mu);
 
-        SpendProof {
+        Ok(SpendProof {
             challenge,
             response_r,
             response_r_e,
@@ -272,7 +293,7 @@ impl SpendProof {
             responses_mu,
             responses_o_mu,
             responses_attributes,
-        }
+        })
     }
 
     pub fn verify(
@@ -289,6 +310,30 @@ impl SpendProof {
         #[allow(clippy::unwrap_used)]
         let gamma1 = grp_params.gamma_idx(1).unwrap();
 
+        if self.responses_attributes.len() + 1 > verification_key.beta_g2.len() {
+            return false;
+        }
+
+        if verification_key.beta_g1.len() > grp_params.gammas().len() + 1 {
+            return false;
+        }
+
+        // pathological cases
+        if verification_key.beta_g1.is_empty() || verification_key.beta_g2.is_empty() {
+            return false;
+        }
+
+        #[allow(clippy::get_first)]
+        let Some(ra_0) = self.responses_attributes.get(0) else {
+            return false;
+        };
+        let Some(ra_1) = self.responses_attributes.get(1) else {
+            return false;
+        };
+        let Some(ra_2) = self.responses_attributes.get(2) else {
+            return false;
+        };
+
         // re-compute each zkp commitment
         let tt_kappa = instance.kappa * self.challenge
             + verification_key.alpha * (self.challenge.neg())
@@ -301,14 +346,14 @@ impl SpendProof {
                 .map(|(attr, beta_i)| beta_i * attr)
                 .sum::<G2Projective>();
 
-        let tt_cc = g1 * self.response_o_c
-            + gamma1 * self.responses_attributes[1]
-            + instance.cc * self.challenge;
+        let tt_cc = g1 * self.response_o_c + gamma1 * ra_1 + instance.cc * self.challenge;
 
+        // SAFETY: we asserted we have a non-empty beta_g2 slice
+        #[allow(clippy::indexing_slicing)]
         let tt_kappa_e = instance.kappa_e * self.challenge
             + verification_key.alpha * (self.challenge.neg())
             + verification_key.alpha
-            + verification_key.beta_g2[0] * self.responses_attributes[2]
+            + verification_key.beta_g2[0] * ra_2
             + grp_params.gen2() * self.response_r_e;
 
         let tt_aa = self
@@ -338,7 +383,7 @@ impl SpendProof {
             .zip(rr.iter())
             .zip(instance.tt.iter())
             .map(|((resp_mu_k, rr_k), tt_k)| {
-                g1 * self.responses_attributes[0] + (g1 * rr_k) * resp_mu_k + tt_k * self.challenge
+                g1 * ra_0 + (g1 * rr_k) * resp_mu_k + tt_k * self.challenge
             })
             .collect::<Vec<_>>();
 
@@ -358,6 +403,8 @@ impl SpendProof {
 
         let tt_gamma1_bytes = tt_gamma1.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
+        // SAFETY: we asserted we have a non-empty beta_g2 slice
+        #[allow(clippy::indexing_slicing)]
         let tt_kappa_k = instance
             .kappa_k
             .iter()

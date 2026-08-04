@@ -215,13 +215,17 @@ impl LpPeerConfig {
                 LP_PEER_CONFIG_SIZE
             )));
         }
+
+        #[allow(clippy::indexing_slicing)]
         let (hop_id, is_exit, node_initiator, censorship_resistance) =
             Self::unpack_first_byte(bytes[0]);
 
         let mut filler = [0u8; FILLER_LEN];
+        #[allow(clippy::indexing_slicing)]
         filler.copy_from_slice(&bytes[CONFIG_LEN..CONFIG_LEN + FILLER_LEN]);
 
         let mut seed = [0u8; SEED_LEN];
+        #[allow(clippy::indexing_slicing)]
         seed.copy_from_slice(&bytes[CONFIG_LEN + FILLER_LEN..LP_PEER_CONFIG_SIZE]);
 
         Self::build_checked(

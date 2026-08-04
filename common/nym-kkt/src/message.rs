@@ -43,9 +43,11 @@ impl KKTRequest {
                 info: "the KKTRequest frame has invalid length".to_string(),
             });
         }
+        #[allow(clippy::indexing_slicing)]
         let plaintext =
             KKTRequestPlaintext::try_from_bytes(&b[..x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN])?;
 
+        #[allow(clippy::indexing_slicing)]
         Ok(KKTRequest {
             plaintext,
             encrypted_frame: b[x25519::PUBLIC_KEY_LENGTH + MASKED_BYTE_LEN..].to_vec(),
@@ -128,8 +130,10 @@ impl KKTRequestPlaintext {
         }
         // SAFETY: we're using exactly 32 byte
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let dh_pubkey =
             DHPublicKey::from_bytes(&b[..x25519::PUBLIC_KEY_LENGTH].try_into().unwrap());
+        #[allow(clippy::indexing_slicing)]
         let masked_version_bytes = MaskedByte::try_from(&b[x25519::PUBLIC_KEY_LENGTH..])?;
 
         Ok(KKTRequestPlaintext {

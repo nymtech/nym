@@ -1,0 +1,58 @@
+---
+title: "Use these docs with AI"
+description: "The Nym documentation is built to be read by AI agents and LLMs, not just people: an in-docs assistant, per-page Markdown, llms.txt, and an MCP server with live network tools."
+schemaType: "TechArticle"
+section: "Docs"
+lastUpdated: "2026-08-04"
+---
+
+# Use these docs with AI
+
+These docs are machine-readable end to end. There are four ways to work with them
+from an AI tool, from lightest to most capable.
+
+## Ask AI (in-docs assistant)
+
+Every page has an **Ask AI** button (top-right, and bottom-right of the screen). It
+answers from the documentation using retrieval, cites the sections it used, and
+streams the reply. It only answers from the docs, so it will tell you when
+something is not covered rather than guessing.
+
+## Copy any page as Markdown
+
+Use the **Copy page** button at the top of a page, or append `.md` to any docs URL
+to fetch it as clean Markdown:
+
+```text
+https://nym.com/docs/developers/mcp        (the page)
+https://nym.com/docs/developers/mcp.md     (the same page as Markdown)
+```
+
+Paste it into any chat, or fetch it from a script, to give an assistant the exact
+page without scraping HTML.
+
+## Bulk ingest: llms.txt
+
+For an index of every page, or the full corpus in one file:
+
+```text
+https://nym.com/docs/llms.txt        (index of pages, for discovery)
+https://nym.com/docs/llms-full.txt   (every page's content in one file)
+```
+
+Point an agent at `llms.txt` to discover pages, then dereference each entry to its
+`.md`.
+
+## MCP server (for coding agents)
+
+Point your agent (Claude Code, Cursor, and others) at a single endpoint to search
+the docs and read **live Nym network state** as structured tools:
+
+```text
+https://nym.com/docs/api/mcp
+```
+
+See the [MCP server reference](/developers/mcp) for the tool catalogue, client
+configuration, and examples. The live tools (node counts, gateway health, token
+supply, chain status) are the reason to use this over a static file: an agent can
+ask "is gateway X in the active set right now?" and get a current answer.

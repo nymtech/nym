@@ -231,13 +231,23 @@ Get it working, then make it nice, then widen the corpus. In order:
    packets are "2000 bytes". Verified via `common/nymsphinx` +
    `sphinx-packet =0.6.0` (re-exported by `nym_sphinx_types`):
    `REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE(348) + PAYLOAD_OVERHEAD_SIZE(17)` =
-   **2413 bytes**, of which the plaintext payload is **2048** (2 KB) and usable app
-   bytes are `2048 - 7` (fragmentation header) = **2041**. The old "~1570 usable"
-   figure in the diagram model was fiction. Fixed: prose (two sites), the
-   `PacketAnatomy` diagram model (`lib/privacy-model/packets.ts`, every size
-   constant now traces to source), and the component's legend/summary strings.
-   Cross-check bonus: `network/cryptography/sphinx.md` already said "2048 bytes" and
-   was correct all along - two pages, one right, one drifted, code settles it.
+   **2413 bytes**, of which the plaintext payload is **2048** (2 KB).
+
+   IPR layering (Max caught a first-pass mistake here). Mixnet mode tunnels IP, so
+   the 2048 plaintext holds: fragmentation header (7 B) + IP-packet-router framing
+   (2 B length prefix per packet + ~5 B bincode-varint `IpPacketRequest` wrapper,
+   `common/ip-packet-requests`) + the IP packet + padding. The IPR caps its bundle
+   at `MAX_PACKET_SIZE = 1500` (codec.rs), NOT 2048, because the Sphinx packet also
+   carries the SURB/MixAck ("can't just use 2kb"). So usable IP bytes/packet is
+   **~1498**, and ~548 B of every plaintext is reserved-plus-padding. First pass
+   wrongly deleted the IPR framing segment and bumped usable to 2041; the old
+   "~1570 usable" was actually roughly right. Corrected model keeps both the
+   fragmentation header AND the IPR framing, caps the chunk at 1498, on-wire stays a
+   constant 2413 (+8 WS). Fixed: prose (two sites), `packets.ts` model (every size
+   now traces to `common/nymsphinx` or `common/ip-packet-requests`), component
+   legend/summary. Cross-check bonus: `network/cryptography/sphinx.md` already said
+   "2048 bytes" and was correct all along - two pages, one right, one drifted, code
+   settles it.
 
    Prototype: `scripts/next-scripts/validate-docs-vs-code.mjs` (+ `--selftest`,
    tested in `lib/retrieval/validate-docs-vs-code.test.ts`). Deterministic: extracts

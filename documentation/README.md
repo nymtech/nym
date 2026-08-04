@@ -119,27 +119,49 @@ at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHu
 Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
 
 ### Validating docs against the code
-Because the source is indexed alongside the prose, we can turn retrieval around and
-use the code as an oracle to catch docs that have drifted from it: cross-check
-factual claims (constant values, sizes, API signatures, config fields, endpoint
-paths, CLI flags) against the actual source and flag contradictions. This is the
-strongest argument for indexing the code beyond agent search: the docs stay honest
-because the code is ground truth.
+We index the monorepo source alongside the prose (the `voyage-code-3` code index
+above). That index exists for agent and chat search, but it also lets us turn
+retrieval around: use the code as an oracle to catch prose that has drifted from it.
+This is the strongest argument for indexing the code at all. The docs stay honest
+because the code is ground truth; prose rots, constants do not.
 
-A first, deterministic prototype covers numeric size claims about the Sphinx packet
-format:
+The cycle:
+
+```
+  monorepo source ──index──▶ code index ──oracle──▶ docs claims ──diff──▶ drift report
+        ▲                    (search_code,                                     │
+        │                     the chat)                                        │
+        └──────────────── fix the drifted page ◀───────────── review ◀─────────┘
+```
+
+A claim is any falsifiable statement the source can settle: a constant value, a size,
+an API signature, a config field, an endpoint path, a CLI flag. When a page and the
+source disagree, the source wins and the page is the bug.
+
+**Run the size-drift check** (the first, deterministic slice of the cycle):
 
 ```sh
+# from documentation/docs
 node scripts/next-scripts/validate-docs-vs-code.mjs            # scan the docs
 node scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures only
 ```
 
-It extracts byte/KB size claims from the prose (binding each number to the noun it
-modifies, e.g. "2 KB payload"), compares them to a small oracle of source-anchored
-constants, and reports drift candidates for review. It caught a real bug: the packet
-anatomy page said Sphinx packets are "2000 bytes" when the source defines a
-`2 * 1024 + 348 + 17 = 2413`-byte packet with a 2 KB payload. The oracle is
-hand-curated with a source reference per fact; deriving values from the Rust source
+- `validate-docs-vs-code.mjs` walks `pages/**` and `lib/privacy-model`, extracts
+  byte/KB size claims, binds each number to the noun it modifies ("2 KB payload",
+  not nearest-keyword), and diffs against a small oracle of source-anchored constants
+  (`SIZE_FACTS`, each with a file/symbol reference).
+- `--selftest` runs the built-in fixtures instead of scanning, including the exact
+  bug this was built to catch.
+- Exit code is non-zero when a drift candidate is found, so it can gate CI later.
+
+It already caught a real bug: the packet anatomy page said Sphinx packets are "2000
+bytes" when `common/nymsphinx` defines `2*1024 + 348 + 17 = 2413` (a 2 KB payload).
+A cross-check confirmed the mechanism: `network/cryptography/sphinx.md` independently
+said "2048 bytes" and was right, so two pages disagreed and the code settled it.
+
+Scope and next steps: today the oracle is hand-curated (values pinned from source,
+with a reference per fact) and covers only Sphinx sizes; it does not scan `.tsx`, so
+component-level strings are unguarded. Deriving oracle values from the Rust source
 automatically, widening beyond sizes (signatures, config fields, endpoints), and an
 LLM-judged pass for claims a regex cannot express are the next steps. Wire it into CI
 as a drift warning once coverage is broad enough. Covered by

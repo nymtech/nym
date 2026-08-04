@@ -53,7 +53,8 @@ interface PacketTiming {
 
 const SEG_COLOR: Record<SegmentKind, string> = {
   "sphinx-header": "var(--mode-mixnet)",
-  frag: "var(--node-ipr)",
+  frag: "var(--node-mix)",
+  ipr: "var(--node-ipr)",
   payload: "var(--nym-accent)",
   pad: "var(--nym-text-faint)",
   ws: "var(--nym-warn)",
@@ -199,8 +200,9 @@ export function PacketAnatomy({
           <>
             <Swatch kind="sphinx-header" label="Sphinx header 348 B + 17 B overhead" />
             <Swatch kind="frag" label="fragmentation header 7 B" />
-            <Swatch kind="payload" label="payload chunk (≤2041 B)" />
-            <Swatch kind="pad" label="padding → 2413 B Sphinx" />
+            <Swatch kind="ipr" label="IPR framing ~7 B" />
+            <Swatch kind="payload" label="IP packet (≤1498 B)" />
+            <Swatch kind="pad" label="SURB/MixAck reserved + padding → 2413 B Sphinx" />
             <Swatch kind="ws" label="WebSocket header ~8 B" />
           </>
         ) : (

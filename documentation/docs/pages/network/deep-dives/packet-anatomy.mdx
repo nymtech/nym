@@ -21,7 +21,7 @@ Pick a payload to see how it fragments and what the framing costs.
 
 ## Sphinx framing (mixnet)
 
-Every [Sphinx](/network/cryptography/sphinx) packet is a constant 2413 bytes: a 2 KB (2048-byte) payload behind a 348-byte per-hop routing header and 17 bytes of payload overhead. Inside that payload sit framing headers, a chunk of your data, and padding to fill the fixed size. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
+Every [Sphinx](/network/cryptography/sphinx) packet is a constant 2413 bytes: a 2 KB (2048-byte) payload behind a 348-byte per-hop routing header and 17 bytes of payload overhead. Inside that payload, mixnet mode tunnels IP: a fragmentation header, the IP packet router framing, an IP packet, and padding. The router caps its IP payload at 1500 bytes, leaving room for the reply SURB the packet also carries, so even a full packet is padded. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
 
 <PacketAnatomy mode="mixnet" />
 

@@ -166,9 +166,26 @@ bytes" when `common/nymsphinx` defines `2*1024 + 348 + 17 = 2413` (a 2 KB payloa
 A cross-check confirmed the mechanism: `network/cryptography/sphinx.md` independently
 said "2048 bytes" and was right, so two pages disagreed and the code settled it.
 
-The oracle currently derives six facts: the Sphinx packet geometry (packet, payload,
-header, payload-overhead), the IP-packet-router bundle cap (`DEFAULT_IPR_TUN_MTU`), and
-the reply-key max age (`DEFAULT_MAXIMUM_REPLY_KEY_AGE`, a `Duration::from_secs` value).
+A second check, `validate-enum-parity.mjs`, keeps docs-facing TypeScript string
+unions in step with the Rust enums they mirror over the wasm boundary. It reads a
+Rust enum and its serde `rename_all` rule, derives the wire strings, and diffs them
+against the TS union (the upstream of the generated docs):
+
+```sh
+node ../scripts/next-scripts/validate-enum-parity.mjs            # check the pairs
+node ../scripts/next-scripts/validate-enum-parity.mjs --selftest # fixtures only
+```
+
+It currently flags a real drift: `TunnelState` in `wasm/smolmix/src/state.rs`
+serialises `shutting_down`/`shutdown`, but `TunnelStateName` in the mix-tunnel SDK
+still declares `disconnecting`/`disconnected`, so `state === 'disconnected'` never
+matches at runtime. Fixing it is an SDK-type change (and a republish), not a docs
+edit, since the docs are generated from the TS type.
+
+The size oracle currently derives six facts: the Sphinx packet geometry (packet,
+payload, header, payload-overhead), the IP-packet-router bundle cap
+(`DEFAULT_IPR_TUN_MTU`), and the reply-key max age (`DEFAULT_MAXIMUM_REPLY_KEY_AGE`,
+a `Duration::from_secs` value).
 Constants that are struct fields rather than named consts (e.g. `validity_epochs`,
 which differs per network config) are deliberately not derived, since there is no
 single canonical value to read.

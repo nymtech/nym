@@ -38,8 +38,9 @@ const EXTERNAL_PINS = {
   PAYLOAD_OVERHEAD_SIZE: 17, // sphinx-packet PAYLOAD_OVERHEAD_SIZE
 };
 
-// In-repo Rust constants to read and compose. Each is `const NAME: usize = <expr>`
-// where <expr> is arithmetic over numbers and other (in-repo or pinned) constants.
+// In-repo Rust constants to read and compose for the Sphinx packet geometry. Each
+// is `const NAME: usize = <expr>` where <expr> is arithmetic over numbers and other
+// (in-repo or pinned) constants.
 const IN_REPO_CONSTS = [
   {
     file: 'common/nymsphinx/params/src/packet_sizes.rs',
@@ -47,11 +48,25 @@ const IN_REPO_CONSTS = [
   },
 ];
 
+// Read a `const NAME: TYPE = <expr>;` and return the raw <expr> string. Type is not
+// constrained (usize, u16, Duration, ...); the caller decides how to evaluate it.
 function readConst(text, name) {
-  const m = text.match(new RegExp(`\\bconst\\s+${name}\\s*:\\s*usize\\s*=\\s*([^;]+);`));
+  const m = text.match(new RegExp(`\\bconst\\s+${name}\\s*:\\s*[\\w:]+\\s*=\\s*([^;]+);`));
   if (!m) throw new Error(`constant ${name} not found (source moved or renamed?)`);
   return m[1].trim();
 }
+
+// Pull the argument out of a `Duration::from_secs(<expr>)` so it can be evaluated.
+function durationSecsExpr(expr) {
+  const m = expr.match(/from_secs\s*\(\s*([^)]+?)\s*\)/);
+  if (!m) throw new Error(`expected Duration::from_secs(...) in "${expr}"`);
+  return m[1].trim();
+}
+
+// Evaluate a pure-numeric expression (no identifiers), e.g. "24 * 60 * 60".
+const noIdents = (name) => {
+  throw new Error(`unexpected identifier ${name} in a numeric constant`);
+};
 
 // Evaluate a Rust integer const expression over +, *, parens, numbers and known
 // identifiers. Recursive-descent; a `resolve` callback supplies identifier values.
@@ -112,84 +127,138 @@ export function deriveConstants(repoRoot = REPO_ROOT) {
     return v;
   };
 
+  // Standalone in-repo constants for the non-Sphinx facts (no external leaves).
+  const netDefaults = readFileSync(join(repoRoot, 'common/network-defaults/src/constants.rs'), 'utf8');
+  const iprTunMtu = evalExpr(readConst(netDefaults, 'DEFAULT_IPR_TUN_MTU'), noIdents);
+
+  const configTypes = readFileSync(join(repoRoot, 'common/client-core/config-types/src/lib.rs'), 'utf8');
+  const replyKeyAgeSecs = evalExpr(
+    durationSecsExpr(readConst(configTypes, 'DEFAULT_MAXIMUM_REPLY_KEY_AGE')),
+    noIdents,
+  );
+
   return {
     HEADER_SIZE: resolve('HEADER_SIZE'),
     PAYLOAD_OVERHEAD_SIZE: resolve('PAYLOAD_OVERHEAD_SIZE'),
     SPHINX_PACKET_OVERHEAD: resolve('SPHINX_PACKET_OVERHEAD'),
     REGULAR_PACKET_SIZE: resolve('REGULAR_PACKET_SIZE'),
+    DEFAULT_IPR_TUN_MTU: iprTunMtu,
+    DEFAULT_MAXIMUM_REPLY_KEY_AGE_SECS: replyKeyAgeSecs,
   };
 }
 
-// Fact shape is static (id, the noun phrases to match, the required context); the
-// byte value is derived from the resolved constants. `context` must appear in the
-// same sentence as a bound number for the claim to count: nouns like "payload"
-// and "byte" are common, so gating on "sphinx" keeps the check to the packet
-// format and avoids firing on unrelated framing (LP frames, WireGuard MTU).
+// Each fact is static (id, dimension, the noun phrases to match, the required
+// context) with its value derived from the resolved constants. `dim` keeps size
+// and time claims from cross-matching. `context` must appear in the same sentence
+// as a bound number: nouns like "payload" and "byte" are common, so a context gate
+// keeps each fact to its subject and avoids firing on unrelated framing.
 const FACT_SPECS = [
   {
     id: 'sphinx-packet-size',
+    dim: 'bytes',
     nouns: ['sphinx packet', 'sphinx packets'],
     context: /sphinx/i,
-    bytes: (c) => c.REGULAR_PACKET_SIZE,
+    value: (c) => c.REGULAR_PACKET_SIZE,
     source: 'common/nymsphinx/params/src/packet_sizes.rs REGULAR_PACKET_SIZE',
   },
   {
     // Longer noun than the bare "payload" below; findNouns matches longest-first,
     // so "payload overhead" claims its span before "payload" can.
     id: 'sphinx-payload-overhead',
+    dim: 'bytes',
     nouns: ['payload overhead'],
     context: /sphinx/i,
-    bytes: (c) => c.PAYLOAD_OVERHEAD_SIZE,
+    value: (c) => c.PAYLOAD_OVERHEAD_SIZE,
     source: `sphinx-packet ${SPHINX_PACKET_VERSION} PAYLOAD_OVERHEAD_SIZE`,
   },
   {
     id: 'sphinx-payload-size',
+    dim: 'bytes',
     nouns: ['payload'],
     context: /sphinx/i,
     // plaintext_size() = size - header - payload_overhead
-    bytes: (c) => c.REGULAR_PACKET_SIZE - c.HEADER_SIZE - c.PAYLOAD_OVERHEAD_SIZE,
+    value: (c) => c.REGULAR_PACKET_SIZE - c.HEADER_SIZE - c.PAYLOAD_OVERHEAD_SIZE,
     source: 'common/nymsphinx PacketSize::plaintext_size() = size - header - payload_overhead',
   },
   {
     id: 'sphinx-header-size',
+    dim: 'bytes',
     nouns: ['routing header', 'sphinx header'],
     context: /sphinx/i,
-    bytes: (c) => c.HEADER_SIZE,
+    value: (c) => c.HEADER_SIZE,
     source: `sphinx-packet ${SPHINX_PACKET_VERSION} header::HEADER_SIZE`,
+  },
+  {
+    // IP-packet-router bundle cap. "IP payload" is longer than "payload", so it
+    // claims its span first; the /router|ipr/ context keeps it off Sphinx sentences.
+    id: 'ipr-max-ip-payload',
+    dim: 'bytes',
+    nouns: ['ip payload'],
+    context: /router|ipr|ip packet/i,
+    value: (c) => c.DEFAULT_IPR_TUN_MTU,
+    source: 'common/network-defaults/src/constants.rs DEFAULT_IPR_TUN_MTU',
+  },
+  {
+    // Time dimension: the doc says "24 hours", the const is 24*60*60 seconds.
+    id: 'reply-key-max-age',
+    dim: 'time',
+    nouns: ['reply key', 'reply keys'],
+    context: /reply/i,
+    value: (c) => c.DEFAULT_MAXIMUM_REPLY_KEY_AGE_SECS,
+    source: 'common/client-core/config-types/src/lib.rs DEFAULT_MAXIMUM_REPLY_KEY_AGE',
   },
 ];
 
-// Build the oracle by resolving each fact's byte value from source.
+// Build the oracle by resolving each fact's value from source.
 export function deriveSizeFacts(repoRoot = REPO_ROOT) {
   const c = deriveConstants(repoRoot);
   return FACT_SPECS.map((s) => ({
     id: s.id,
+    dim: s.dim,
     nouns: s.nouns,
     context: s.context,
-    bytes: s.bytes(c),
-    source: `${s.source} = ${s.bytes(c)} (derived)`,
+    value: s.value(c),
+    source: `${s.source} = ${s.value(c)} (derived)`,
   }));
 }
 
 export const SIZE_FACTS = deriveSizeFacts();
 
-const UNIT_BYTES = { b: 1, byte: 1, bytes: 1, kb: 1024, kib: 1024 };
+// Unit -> {dim, mul-to-canonical}. Canonical is bytes for size, seconds for time.
+// Ordered longest-first in the regex alternation so "bytes" wins over "b".
+const UNITS = {
+  b: { dim: 'bytes', mul: 1 },
+  byte: { dim: 'bytes', mul: 1 },
+  bytes: { dim: 'bytes', mul: 1 },
+  kb: { dim: 'bytes', mul: 1024 },
+  kib: { dim: 'bytes', mul: 1024 },
+  second: { dim: 'time', mul: 1 },
+  seconds: { dim: 'time', mul: 1 },
+  minute: { dim: 'time', mul: 60 },
+  minutes: { dim: 'time', mul: 60 },
+  hour: { dim: 'time', mul: 3600 },
+  hours: { dim: 'time', mul: 3600 },
+};
+const UNIT_ALT = Object.keys(UNITS)
+  .sort((a, b) => b.length - a.length)
+  .join('|');
 
 // A number bound to a unit. The unit may follow a hyphen ("348-byte") or a
-// space ("2 KB"), so both are allowed.
-const NUM_RE = /(\d[\d,.]*)[\s-]?(bytes?|kib|kb|b)\b/gi;
+// space ("2 KB" / "24 hours"), so both are allowed.
+const NUM_RE = new RegExp(`(\\d[\\d,.]*)[\\s-]?(${UNIT_ALT})\\b`, 'gi');
 
-function toBytes(numText, unit) {
+function toValue(numText, unit) {
   const n = parseFloat(numText.replace(/,/g, ''));
-  const mult = UNIT_BYTES[unit.toLowerCase()];
-  return Number.isFinite(n) && mult ? Math.round(n * mult) : null;
+  const u = UNITS[unit.toLowerCase()];
+  if (!Number.isFinite(n) || !u) return null;
+  return { dim: u.dim, value: Math.round(n * u.mul) };
 }
 
 function findNumbers(text) {
   const out = [];
   for (const m of text.matchAll(NUM_RE)) {
-    const bytes = toBytes(m[1], m[2]);
-    if (bytes !== null) out.push({ start: m.index, end: m.index + m[0].length, bytes });
+    const v = toValue(m[1], m[2]);
+    if (v) out.push({ start: m.index, end: m.index + m[0].length, dim: v.dim, value: v.value });
   }
   return out;
 }
@@ -247,15 +316,22 @@ export function analyseText(text, facts = SIZE_FACTS) {
   const used = new Set();
   const results = [];
 
+  // A noun can carry a number only if it is unused, of the same dimension (a "24
+  // hours" never binds to a byte fact), and its context appears in the sentence.
+  const eligible = (num, n) =>
+    !used.has(n) &&
+    n.fact.dim === num.dim &&
+    (!n.fact.context || n.fact.context.test(sentenceAround(text, num.start)));
+
   const bind = (num, noun) => {
-    if (noun.fact.context && !noun.fact.context.test(sentenceAround(text, num.start))) return;
     used.add(noun);
     results.push({
       factId: noun.fact.id,
-      expectedBytes: noun.fact.bytes,
-      claimedBytes: num.bytes,
+      dim: noun.fact.dim,
+      expected: noun.fact.value,
+      claimed: num.value,
       claimedText: text.slice(num.start, noun.end > num.end ? noun.end : num.end).trim(),
-      status: num.bytes === noun.fact.bytes ? 'ok' : 'drift',
+      status: num.value === noun.fact.value ? 'ok' : 'drift',
       source: noun.fact.source,
     });
   };
@@ -263,7 +339,7 @@ export function analyseText(text, facts = SIZE_FACTS) {
   const pending = [];
   for (const num of numbers) {
     const fwd = nouns.find((n) => {
-      if (used.has(n) || n.start < num.end) return false;
+      if (!eligible(num, n) || n.start < num.end) return false;
       const gap = text.slice(num.end, n.start);
       return gap.length <= FORWARD_WORD_GAP && /^[A-Za-z\s-]*$/.test(gap);
     });
@@ -272,7 +348,7 @@ export function analyseText(text, facts = SIZE_FACTS) {
   }
   for (const num of pending) {
     const candidates = nouns
-      .filter((n) => !used.has(n) && n.end <= num.start && num.start - n.end <= BACKWARD_WINDOW)
+      .filter((n) => eligible(num, n) && n.end <= num.start && num.start - n.end <= BACKWARD_WINDOW)
       .sort((a, b) => b.end - a.end);
     if (candidates.length) bind(num, candidates[0]);
   }
@@ -304,6 +380,21 @@ const SELFTEST_FIXTURES = [
   {
     name: 'agreeing payload claim on another page passes',
     text: 'All Sphinx packets have a fixed payload size of 2048 bytes.',
+    expect: { drift: 0, ok: 1 },
+  },
+  {
+    name: 'IPR MTU (bytes, non-sphinx context) agrees',
+    text: 'The IP packet router caps its IP payload at 1500 bytes.',
+    expect: { drift: 0, ok: 1 },
+  },
+  {
+    name: 'IPR MTU drift is flagged',
+    text: 'The IP packet router caps its IP payload at 1400 bytes.',
+    expect: { drift: 1 },
+  },
+  {
+    name: 'reply-key age (time dimension) agrees',
+    text: 'Reply keys expire after 24 hours.',
     expect: { drift: 0, ok: 1 },
   },
 ];
@@ -348,9 +439,10 @@ function runScan() {
         continue;
       }
       drift++;
+      const unit = c.dim === 'time' ? 's' : 'B';
       console.log(`DRIFT  ${relative(docsRoot, file)}`);
-      console.log(`       claim:    "${c.claimedText}" = ${c.claimedBytes} B`);
-      console.log(`       expected: ${c.expectedBytes} B  (${c.factId})`);
+      console.log(`       claim:    "${c.claimedText}" = ${c.claimed} ${unit}`);
+      console.log(`       expected: ${c.expected} ${unit}  (${c.factId})`);
       console.log(`       source:   ${c.source}`);
     }
   }
@@ -363,7 +455,10 @@ function runShowOracle() {
   console.log('Constants derived from source:');
   for (const [k, v] of Object.entries(c)) console.log(`  ${k} = ${v}`);
   console.log('\nOracle facts:');
-  for (const f of SIZE_FACTS) console.log(`  ${f.id} = ${f.bytes} B  (${f.source})`);
+  for (const f of SIZE_FACTS) {
+    const unit = f.dim === 'time' ? 's' : 'B';
+    console.log(`  ${f.id} = ${f.value} ${unit}  (${f.source})`);
+  }
   return 0;
 }
 

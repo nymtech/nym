@@ -147,8 +147,10 @@ node ../scripts/next-scripts/validate-docs-vs-code.mjs --selftest # fixtures onl
 ```
 
 - `validate-docs-vs-code.mjs` walks `pages/**` and `lib/privacy-model`, extracts
-  byte/KB size claims, binds each number to the noun it modifies ("2 KB payload",
-  not nearest-keyword), and diffs against the oracle.
+  dimensioned numeric claims (bytes/KB and time: "2 KB payload", "24 hours"), binds
+  each number to the noun it modifies ("2 KB payload", not nearest-keyword), and diffs
+  against the oracle. Dimensions never cross-match, so a time claim cannot satisfy a
+  byte fact.
 - The oracle is **derived from source**, not hand-typed: in-repo constants are read
   and evaluated (`REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE`),
   and the two leaves that live in the external `sphinx-packet` crate are pinned with
@@ -164,12 +166,19 @@ bytes" when `common/nymsphinx` defines `2*1024 + 348 + 17 = 2413` (a 2 KB payloa
 A cross-check confirmed the mechanism: `network/cryptography/sphinx.md` independently
 said "2048 bytes" and was right, so two pages disagreed and the code settled it.
 
-Scope and next steps: the oracle is derived from source but still covers only Sphinx
-sizes, and the scan does not read `.tsx`, so component-level strings are unguarded.
-Widening beyond sizes (API signatures, config fields, endpoint paths, CLI flags,
-version strings), and an LLM-judged pass for claims a regex cannot express, are the
-next steps. Wire it into CI as a drift warning once coverage is broad enough. Covered
-by `docs/lib/retrieval/validate-docs-vs-code.test.ts`.
+The oracle currently derives six facts: the Sphinx packet geometry (packet, payload,
+header, payload-overhead), the IP-packet-router bundle cap (`DEFAULT_IPR_TUN_MTU`), and
+the reply-key max age (`DEFAULT_MAXIMUM_REPLY_KEY_AGE`, a `Duration::from_secs` value).
+Constants that are struct fields rather than named consts (e.g. `validity_epochs`,
+which differs per network config) are deliberately not derived, since there is no
+single canonical value to read.
+
+Scope and next steps: the scan does not read `.tsx`, so component-level strings are
+unguarded. Widening beyond constants (API signatures, config fields, endpoint paths via
+the served OpenAPI spec, CLI flags, version strings), a wasm-serde-to-TS-union enum
+parity check, and an LLM-judged pass for claims a regex cannot express, are the next
+steps. Wire it into CI as a drift warning once coverage is broad enough. Covered by
+`docs/lib/retrieval/validate-docs-vs-code.test.ts`.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

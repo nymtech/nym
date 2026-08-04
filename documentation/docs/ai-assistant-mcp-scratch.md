@@ -264,9 +264,27 @@ Get it working, then make it nice, then widen the corpus. In order:
    (HEADER_SIZE 348, PAYLOAD_OVERHEAD_SIZE 17) are pinned with a version check that
    throws if `Cargo.toml`'s `sphinx-packet =0.6.0` moves. Fails loud on missing/
    renamed source, never validates against a stale value. `--show-oracle` prints
-   the derivation. Next: widen beyond sizes (API signatures, config fields, endpoint
-   paths, CLI flags, version strings); scan `.tsx`; an LLM-judged pass for claims a
-   regex cannot express; wire into CI as a warning.
+   the derivation.
+
+   Oracle now DIMENSIONED (bytes + time), 6 facts, all source-derived: Sphinx
+   geometry (2413/2048/348/17), IPR bundle cap `DEFAULT_IPR_TUN_MTU`=1500
+   (network-defaults), reply-key age `DEFAULT_MAXIMUM_REPLY_KEY_AGE`=86400 s
+   (config-types, read out of `Duration::from_secs(24*60*60)`). Dimensions never
+   cross-match (a "512 bytes" cannot satisfy a time fact). Skipped `validity_epochs`
+   (a struct field, 24/12/24 across configs, no single canonical const). Scan: 14
+   claims agree, 0 drift.
+
+   Survey (3 Opus agents over network/developer/API docs) found real drift to fix
+   independent of tooling: D1 tunnel state names (docs+types.ts say disconnecting/
+   disconnected, wasm `state.rs` serde emits shutting_down/shutdown - HIGH, breaks
+   `state==='disconnected'`); D2 `SetupMixTunnelOpts` missing `preferredGateway`
+   (stale TypeDoc @ commit 8ea9a230, off-by-one anchors, 4 copies); D3 `TunnelState.
+   reason` typed string but runtime serialises an object; A1 nym-api openapi.json URL
+   drops the `/api` prefix its sibling swagger link uses. Root cause of D1-D3: the
+   committed TypeDoc `api/` pages are stale. Next validators (ranked): more in-repo
+   constants (started); TypeDoc regen-and-diff CI check (retires D2/D3 class);
+   OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1);
+   wasm-serde-to-TS-union enum parity (catches D1); version/dist-tag; scan `.tsx`.
 
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).

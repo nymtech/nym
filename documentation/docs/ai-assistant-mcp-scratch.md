@@ -401,7 +401,11 @@ Ranked:
    generate-index / generate-llms-txt) and `import` lines stripped INSIDE code fences
    in generate-llms-txt (corrupts `llms-full.txt`). S / Low, but touches three
    build-critical generators and needs the dep add. Re-verify `llms-full.txt` + a few
-   extracted titles.
+   extracted titles. Turnkey detail: `generate-llms-txt.mjs:60` `stripMdx` is the
+   NON-fence-aware copy; `generate-index.mjs:75` and `generate-page-markdown.mjs:57`
+   are the good fence-aware ones. Minimal bug-only fix = make :60 match :75; full win
+   = one shared `strip.mjs`. generate-llms-txt + generate-page-markdown run under node
+   with no network, so the fix is verifiable by running them and diffing output.
 2. `github-slugger` for `chunker.mjs` slugify + dedup counter. REPLACE. Makes
    retrieval deep-link anchors exactly match Nextra's rendered anchors (they can drift
    today). S / Low, needs the dep add. Changes `docs-index.json` anchors: regen +

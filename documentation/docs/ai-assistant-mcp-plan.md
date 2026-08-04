@@ -229,6 +229,43 @@ tested. Wiring live needs `pnpm add ai @ai-sdk/anthropic @ai-sdk/react` + keys.
   the live routes are `/v2/gateways` and `/v1/nym-nodes/*`. Worth fixing
   separately, and a neat illustration of why live tools beat static docs.
 
+### 3.5 AI-ready docs surface (programmatic access)
+
+Make the docs consumable by agents and LLMs, not just humans. This is the suite
+Mintlify-based sites (e.g. LangChain) expose; we already have the hard part (the
+MCP server with live tools) and are missing the cheap parts. The layers compound:
+
+| Layer | What it is | Status |
+|---|---|---|
+| `llms.txt` + `llms-full.txt` | Index + full-text dump for agents to discover / ingest | Both generated (`public/llms.txt`, `public/llms-full.txt`); not advertised |
+| Per-page raw markdown (`<path>.md`) | Every page fetchable as clean markdown | **Not built - the keystone** |
+| "Copy as Markdown" / "Open in Claude / ChatGPT" | Per-page buttons that deep-link to the `.md` | Not built |
+| MCP server | Docs search + live network tools | Built (3.4) |
+| Ask AI | In-page assistant | Planned (3.3) |
+
+**Keystone: per-page `.md` is the primitive the rest lean on.** `llms.txt` is
+only an index; it is useful because each entry dereferences to a clean per-page
+markdown file (LangChain's `llms.txt` entries are `.md` URLs). We emit the index,
+but our pages are HTML/MDX, so there is nothing to dereference to. Build per-page
+markdown first; then "copy as markdown" and "open in Claude" are just links to
+`<path>.md`, and `llms.txt` becomes followable.
+
+Build:
+
+- **Per-page `.md` export (build step).** Reuse the `generate-llms-txt.mjs`
+  page-walker to emit `public/<path>.md` per page (frontmatter-stripped markdown).
+  Static, cache-friendly, no keys. `nym.com/docs/developers/mcp.md` then serves
+  raw markdown.
+- **Theme buttons.** A small component wired via `theme.config.tsx` adding "Copy
+  as Markdown" and "Open in Claude / ChatGPT" to each page, pointing at the
+  emitted `.md`.
+- **Discovery callout.** Advertise `llms.txt` + the MCP server where agents and
+  devs look (the developers front door, and/or a short "AI & agents" note). The
+  new `developers/mcp` reference page is the seed of this.
+
+Priority: after the MCP deploy blocker (3.1 / phase 2c). No value in advertising
+a programmatic surface whose flagship endpoint 500s.
+
 ---
 
 ## 4. Phasing
@@ -242,6 +279,7 @@ tested. Wiring live needs `pnpm add ai @ai-sdk/anthropic @ai-sdk/react` + keys.
 | 2c | Wire `generate-index.mjs` into `build` + set `VOYAGE_API_KEY` in Vercel | **outstanding - deploy blocker** (see 3.1) |
 | 1 | Chat: `/api/chat` + widget on Vercel AI SDK | scaffold only (needs deps + keys) |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
+| 5 | AI-ready docs surface: per-page `.md` export, then copy/open-in-assistant buttons + `llms.txt` discovery callout | not started; keystone is per-page `.md` (see 3.5); after 2c |
 | later | hybrid BM25 retrieval; feedback capture; rate-limiting on `/api/mcp` | backlog |
 
 ---

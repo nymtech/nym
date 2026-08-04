@@ -18,6 +18,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.27",
+    "@ai-sdk/react": "^4.0.51",
     "@apidevtools/swagger-parser": "^10.1.0",
     "@coreui/coreui": "^5.1.2",
     "@coreui/react": "^5.4.0",
@@ -51,6 +53,7 @@
     "@railgun-community/wallet": "10.4.0",
     "@redocly/cli": "^1.25.15",
     "@types/mdx": "^2.0.13",
+    "ai": "^7.0.48",
     "chain-registry": "^1.19.0",
     "cosmjs-types": "^0.9.0",
     "d3-scale": "^4.0.2",

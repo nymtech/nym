@@ -1,7 +1,7 @@
 // Packet-framing model (pure, testable). Shows how an application message stream
 // is chunked and framed for each transport:
-//   - Mixnet: fixed-size 2413-byte Sphinx packets (348 B routing header + 17 B
-//     per-hop payload overhead + 2048 B plaintext payload). The plaintext holds
+//   - Mixnet: fixed-size 2413-byte Sphinx packets (348 B per-hop routing header
+//     + 17 B payload overhead + 2048 B plaintext payload). The plaintext holds
 //     a 7 B fragmentation header, a chunk of the message, and padding. Each
 //     Sphinx packet is wrapped in a WebSocket binary frame and the WebSocket
 //     stream is sent over TCP/IP. The reliable-channel return route carries

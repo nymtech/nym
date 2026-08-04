@@ -245,7 +245,9 @@ Get it working, then make it nice, then widen the corpus. In order:
    payload", not nearest-keyword), diffs against a small source-anchored oracle
    (`SIZE_FACTS`), gates on a same-sentence "sphinx" context to avoid false
    positives on common nouns (LP-frame fields, WireGuard MTU). Scans
-   `pages/**` + `lib/privacy-model`; currently 11 claims agree, 0 drift. Next:
+   `pages/**` + `lib/privacy-model` only (not `.tsx`, so `PacketAnatomy.tsx`'s
+   hardcoded legend/summary strings stay unguarded); currently 11 claims agree, 0
+   drift. Next:
    derive oracle values from Rust automatically (today they are hand-curated with a
    source ref per fact); widen beyond sizes (signatures, config fields, endpoints);
    an LLM-judged pass for claims a regex cannot express; wire into CI as a warning.

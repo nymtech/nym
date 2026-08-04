@@ -40,6 +40,24 @@ describe('docs-vs-code size validation', () => {
     expect(payload?.claimedBytes).toBe(2048);
   });
 
+  it('keeps "payload overhead" (17) distinct from the "payload" size (2048)', () => {
+    // Both phrases contain "payload"; longest-noun-first matching must not bind
+    // the 17-byte overhead to the 2048-byte payload fact.
+    const cs = analyseText('A Sphinx packet has a 2 KB payload and 17 bytes of payload overhead.') as Claim[];
+    expect(drift(cs)).toHaveLength(0);
+    expect(cs.some((c) => c.factId === 'sphinx-payload-size' && c.claimedBytes === 2048)).toBe(true);
+    expect(cs.some((c) => c.factId === 'sphinx-payload-overhead' && c.claimedBytes === 17)).toBe(true);
+  });
+
+  it('tolerates adjectives between a number and its noun', () => {
+    // "348-byte per-hop routing header": the intervening "per-hop" must not
+    // break the bond or shove 348 onto the preceding "payload".
+    const cs = analyseText('A Sphinx packet: a 2 KB payload behind a 348-byte per-hop routing header.') as Claim[];
+    const header = cs.find((c) => c.factId === 'sphinx-header-size');
+    expect(header?.claimedBytes).toBe(348);
+    expect(drift(cs)).toHaveLength(0);
+  });
+
   it('ignores common nouns outside a Sphinx sentence (no false positives)', () => {
     // An LP-frame field and a WireGuard MTU both mention "payload"/"byte" but
     // are not the Sphinx payload; the sentence-level context gate drops them.

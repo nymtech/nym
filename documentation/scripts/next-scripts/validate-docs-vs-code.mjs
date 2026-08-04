@@ -39,6 +39,16 @@ export const SIZE_FACTS = [
       'common/nymsphinx/params/src/packet_sizes.rs: REGULAR_PACKET_SIZE = 2*1024 + HEADER_SIZE(348) + PAYLOAD_OVERHEAD_SIZE(17)',
   },
   {
+    // Longer noun than the bare "payload" fact below; findNouns matches
+    // longest-first, so "payload overhead" claims its span before "payload"
+    // can, keeping the two constants apart.
+    id: 'sphinx-payload-overhead',
+    bytes: 17,
+    nouns: ['payload overhead'],
+    context: /sphinx/i,
+    source: 'sphinx-packet 0.6.0 PAYLOAD_OVERHEAD_SIZE = 17',
+  },
+  {
     id: 'sphinx-payload-size',
     bytes: 2048,
     nouns: ['payload'],
@@ -101,13 +111,15 @@ function findNouns(lower, facts) {
 }
 
 // Bind each number to the noun it actually modifies, then compare to the oracle.
-//   1. tight-forward: a number immediately followed by a noun ("2 KB payload",
-//      "348-byte routing header") binds to it and consumes that noun.
+//   1. tight-forward: a number followed by a noun with only adjective-like words
+//      between them ("2 KB payload", "348-byte per-hop routing header") binds to
+//      it and consumes that noun. The gap must be letters/spaces/hyphens only,
+//      so an intervening number (a different clause) breaks the bond.
 //   2. nearest-preceding: a leftover number binds to the closest earlier unused
 //      noun within a short window ("packet is a constant 2000 bytes").
 // A number with no noun in reach is left unclassified (not reported), so stray
 // numbers elsewhere on the page do not produce false positives.
-const FORWARD_GAP = 2;
+const FORWARD_WORD_GAP = 24;
 const BACKWARD_WINDOW = 30;
 
 // The sentence (bounded by `.`, newline, or block edge) surrounding an index,
@@ -142,7 +154,11 @@ export function analyseText(text, facts = SIZE_FACTS) {
 
   const pending = [];
   for (const num of numbers) {
-    const fwd = nouns.find((n) => !used.has(n) && n.start >= num.end && n.start - num.end <= FORWARD_GAP);
+    const fwd = nouns.find((n) => {
+      if (used.has(n) || n.start < num.end) return false;
+      const gap = text.slice(num.end, n.start);
+      return gap.length <= FORWARD_WORD_GAP && /^[A-Za-z\s-]*$/.test(gap);
+    });
     if (fwd) bind(num, fwd);
     else pending.push(num);
   }

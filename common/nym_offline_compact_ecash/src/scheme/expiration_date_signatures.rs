@@ -149,6 +149,11 @@ where
         return Err(CompactEcashError::VerificationKeyTooShort);
     }
 
+    // otherwise the `CRED_VALIDITY_PERIOD_DAYS - l - 1` below would underflow
+    if signatures.len() > constants::CRED_VALIDITY_PERIOD_DAYS as usize {
+        return Err(CompactEcashError::ExpirationDateSignatureVerification);
+    }
+
     let m0: Scalar = date_scalar(expiration_date);
     let m2: Scalar = constants::TYPE_EXP;
 

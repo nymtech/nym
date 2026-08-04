@@ -272,11 +272,14 @@ Build:
   agents and devs look (the developers front door, and/or a short "AI & agents"
   note). The new `developers/mcp` reference page is the seed of this.
 
-Follow-up (own change, not bundled here): `generate-llms-txt.mjs`'s `stripMdx`
-deletes every `^import` line **including inside code fences**, so the shipped
-`llms-full.txt` has imports stripped out of code examples. Fix that with the
-fence-aware `stripMdx` and converge the three duplicated copies (llms-txt, index,
-page-markdown) onto one, verified against `llms-full.txt` output.
+Follow-up (own change, not bundled here): `generate-index.mjs` and
+`generate-llms-txt.mjs` still carry two MDX-stripping bugs that `generate-page-markdown.mjs`
+now fixes: (1) frontmatter matched with `/m` rather than anchored to the file
+head, so a body `---` (e.g. a mermaid `config` header) is eaten on pages without
+real frontmatter; (2) `import` lines stripped inside code fences, corrupting code
+examples in `llms-full.txt` and the index. Converge both onto this file's
+`splitFrontmatter` + `stripJsx`, verified against their outputs. (Surfaced by the
+fresh review; the per-page exporter's copies are already fixed.)
 
 ---
 
@@ -311,7 +314,9 @@ page-markdown) onto one, verified against `llms-full.txt` output.
   `zod@4` onto a pages-router, zod-free app. The `@hono/node-server` transport
   accepts Next's wrapped `res` (the main risk, confirmed working). Standalone Node
   server kept as the alternative for a separate `mcp.nym.com` deployable. Still
-  open under D3: rate-limiting / abuse policy before the endpoint is public.
+  open under D3: rate-limiting / abuse policy before the endpoint is public. The
+  fresh review confirmed the amplification vector: unauthenticated POSTs can drive
+  paid Voyage spend (via `search_docs`) and Nym-API load (via the live tools).
 - **D4 (Confluence sanitisation + cadence).** What the sanitise step strips and
   who reviews it; full re-crawl vs incremental (CQL lastModified); job frequency.
 

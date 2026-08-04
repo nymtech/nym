@@ -37,6 +37,10 @@
   "nymvpncli": "Nym VPN CLI",
   "chain": "Interacting with Nyx Blockchain",
   "tools": "Tools",
+  "mcp": {
+    "title": "MCP Server (AI agents)",
+    "display": "hidden"
+  },
   "clients": "Standalone Clients",
   "----": {
     "type": "separator"

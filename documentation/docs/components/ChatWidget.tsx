@@ -126,7 +126,9 @@ export default function ChatWidget() {
   );
 }
 
-// Placeholder inline styles; replace with the docs design system.
+// Colours reference CSS variables (defined in pages/styles.css) that flip under
+// html.dark, so the widget follows the docs light/dark theme. Layout is still
+// placeholder-grade; refine to the design system later.
 const launcherStyle: React.CSSProperties = {
   position: 'fixed',
   bottom: 20,
@@ -134,9 +136,9 @@ const launcherStyle: React.CSSProperties = {
   zIndex: 50,
   padding: '8px 14px',
   borderRadius: 8,
-  border: '1px solid #2A3235',
-  background: '#242B2D',
-  color: '#e6ecec',
+  border: '1px solid var(--chat-border)',
+  background: 'var(--chat-bg)',
+  color: 'var(--chat-text)',
   cursor: 'pointer',
 };
 const drawerStyle: React.CSSProperties = {
@@ -148,9 +150,10 @@ const drawerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   zIndex: 60,
-  background: '#242B2D',
-  borderLeft: '1px solid #2A3235',
-  boxShadow: '-8px 0 24px rgba(0,0,0,0.25)',
+  background: 'var(--chat-bg)',
+  color: 'var(--chat-text)',
+  borderLeft: '1px solid var(--chat-border)',
+  boxShadow: '-8px 0 24px var(--chat-shadow)',
   transition: 'transform 0.25s ease',
 };
 const headerStyle: React.CSSProperties = {
@@ -158,14 +161,14 @@ const headerStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   padding: '0.75rem 1rem',
-  borderBottom: '1px solid #2A3235',
+  borderBottom: '1px solid var(--chat-border)',
 };
-const modelStyle: React.CSSProperties = { fontSize: '0.72rem', color: '#9fb0af', fontWeight: 400 };
-const closeStyle: React.CSSProperties = { background: 'none', border: 'none', color: '#9fb0af', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 };
+const modelStyle: React.CSSProperties = { fontSize: '0.72rem', color: 'var(--chat-text-dim)', fontWeight: 400 };
+const closeStyle: React.CSSProperties = { background: 'none', border: 'none', color: 'var(--chat-text-dim)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 };
 const logStyle: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: '1rem', fontSize: '0.9rem', lineHeight: 1.5 };
-const emptyStyle: React.CSSProperties = { color: '#9fb0af', fontSize: '0.85rem' };
-const formStyle: React.CSSProperties = { display: 'flex', gap: 8, padding: '0.75rem 1rem', borderTop: '1px solid #2A3235' };
-const inputStyle: React.CSSProperties = { flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #3c4548', background: '#1c2224', color: '#e6ecec' };
-const sendStyle: React.CSSProperties = { padding: '6px 12px', borderRadius: 6, border: 'none', background: '#85E89D', color: '#10201a', fontWeight: 700, cursor: 'pointer' };
-const footerStyle: React.CSSProperties = { padding: '0.5rem 1rem', borderTop: '1px solid #2A3235' };
-const linkStyle: React.CSSProperties = { fontSize: '0.8rem', color: '#85E89D', textDecoration: 'none' };
+const emptyStyle: React.CSSProperties = { color: 'var(--chat-text-dim)', fontSize: '0.85rem' };
+const formStyle: React.CSSProperties = { display: 'flex', gap: 8, padding: '0.75rem 1rem', borderTop: '1px solid var(--chat-border)' };
+const inputStyle: React.CSSProperties = { flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--chat-border)', background: 'var(--chat-input-bg)', color: 'var(--chat-text)' };
+const sendStyle: React.CSSProperties = { padding: '6px 12px', borderRadius: 6, border: 'none', background: 'var(--chat-accent)', color: 'var(--chat-accent-text)', fontWeight: 700, cursor: 'pointer' };
+const footerStyle: React.CSSProperties = { padding: '0.5rem 1rem', borderTop: '1px solid var(--chat-border)' };
+const linkStyle: React.CSSProperties = { fontSize: '0.8rem', color: 'var(--chat-accent)', textDecoration: 'none' };

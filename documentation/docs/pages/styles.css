@@ -578,3 +578,28 @@ html.dark .nextra-banner-container {
   text-decoration: underline;
   font-weight: 700;
 }
+
+/* Ask AI chat widget palette. Light is the base; dark overrides under html.dark
+   (the docs' next-themes class), so the widget follows the docs theme. */
+:root {
+  --chat-bg: #ffffff;
+  --chat-surface: #f6f8f7;
+  --chat-border: #d6ded9;
+  --chat-text: #1a2321;
+  --chat-text-dim: #5a6b67;
+  --chat-input-bg: #ffffff;
+  --chat-accent: #1a7a32;
+  --chat-accent-text: #ffffff;
+  --chat-shadow: rgba(0, 0, 0, 0.12);
+}
+html.dark {
+  --chat-bg: #242b2d;
+  --chat-surface: #2a3235;
+  --chat-border: #3c4548;
+  --chat-text: #e6ecec;
+  --chat-text-dim: #9fb0af;
+  --chat-input-bg: #1c2224;
+  --chat-accent: #85e89d;
+  --chat-accent-text: #10201a;
+  --chat-shadow: rgba(0, 0, 0, 0.25);
+}

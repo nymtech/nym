@@ -39,23 +39,49 @@ function isBoundary(line, lang) {
   return lang === 'rust' ? RUST_ITEM.test(line) : TS_ITEM.test(line);
 }
 
+// Lines that document or annotate the item directly below them: Rust `///`/`//!`
+// doc comments and `#[...]`/`#![...]` attributes; TS `//`, `/*`, `/**` and their
+// ` *` continuation lines.
+const DOC_ATTR = {
+  rust: /^\s*(\/\/\/|\/\/!|#!?\[)/,
+  typescript: /^\s*(\/\/|\/\*|\*)/,
+};
+
+// Walk backward from an item over its contiguous doc-comment / attribute lines
+// (stopping at the previous item, and at the first non-doc line) so they group
+// with the item they describe instead of falling into the previous chunk.
+function precedingDocStart(lines, itemLine, lang, floor) {
+  const re = DOC_ATTR[lang];
+  if (!re) return itemLine;
+  let s = itemLine;
+  while (s - 1 > floor && re.test(lines[s - 1] ?? '')) s--;
+  return s;
+}
+
 /**
  * Split source into { text, symbol, startLine } blocks at top-level items,
  * capping block size. Preamble before the first item becomes its own block.
  */
 export function chunkCode(content, lang) {
   const lines = content.split('\n');
-  const bounds = [];
+  const items = [];
   lines.forEach((l, i) => {
-    if (isBoundary(l, lang)) bounds.push(i);
+    if (isBoundary(l, lang)) items.push(i);
   });
-  if (bounds.length === 0 || bounds[0] !== 0) bounds.unshift(0);
+  if (items.length === 0 || items[0] !== 0) items.unshift(0);
+
+  // Each block starts at the item's preceding doc-comment/attribute lines, so
+  // those embed with the item they describe rather than the previous one. The
+  // symbol name still comes from the item line itself.
+  const starts = items.map((item, b) =>
+    b === 0 ? item : precedingDocStart(lines, item, lang, items[b - 1]),
+  );
 
   const out = [];
-  for (let b = 0; b < bounds.length; b++) {
-    const start = bounds[b];
-    const end = b + 1 < bounds.length ? bounds[b + 1] : lines.length;
-    const symbol = symbolOf(lines[start] ?? '', lang);
+  for (let b = 0; b < items.length; b++) {
+    const start = starts[b];
+    const end = b + 1 < items.length ? starts[b + 1] : lines.length;
+    const symbol = symbolOf(lines[items[b]] ?? '', lang);
     let block = lines.slice(start, end).join('\n');
     let lineOffset = 0;
     // Hard-split oversized blocks so no chunk blows the embedder's budget. Cut at

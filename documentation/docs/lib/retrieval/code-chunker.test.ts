@@ -42,6 +42,28 @@ describe('chunkCode (rust)', () => {
     const alpha = chunks.find((c) => c.symbol === 'alpha');
     expect(alpha?.startLine).toBe(3); // `pub fn alpha` is line 3
   });
+
+  it('groups preceding doc comments and attributes with the item they describe', () => {
+    const withDocs = [
+      'pub fn alpha() {',
+      '  do_thing();',
+      '}',
+      '',
+      '/// Beta does things.',
+      '#[derive(Debug)]',
+      'pub struct Beta {',
+      '  x: u32,',
+      '}',
+    ].join('\n');
+    const chunks = chunkCode(withDocs, 'rust') as Array<{ symbol: string; text: string }>;
+    const alpha = chunks.find((c) => c.symbol === 'alpha');
+    const beta = chunks.find((c) => c.symbol === 'Beta');
+    // the doc comment + attribute belong to Beta, not to alpha's chunk
+    expect(beta?.text).toContain('/// Beta does things.');
+    expect(beta?.text).toContain('#[derive(Debug)]');
+    expect(alpha?.text).not.toContain('Beta does things.');
+    expect(alpha?.text).not.toContain('#[derive(Debug)]');
+  });
 });
 
 describe('chunkCode (typescript)', () => {

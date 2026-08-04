@@ -388,6 +388,38 @@ mismatch) and were then removed in favour of generation/existing tools. Removed:
   (b) stable-ID-per-claim = the contracts idea.
   https://blog.cloudflare.com/engineering-standards-enforcement/
 
+## De-handrolling backlog (audit: replace hand-rolling with existing tools)
+Opus audit of the retrieval/generator tooling. IMPORTANT correction to the audit:
+`gray-matter` and `github-slugger` are transitive deps of nextra but NOT hoisted or
+resolvable (`require.resolve` throws from documentation/docs), so adopting them needs
+a direct `package.json` dep + `pnpm install` (fragile on this repo), not free.
+
+Ranked:
+1. `gray-matter` (frontmatter) + ONE shared `stripJsx` helper across the three
+   generators. REPLACE + CONSOLIDATE. Fixes two live bugs: non-head-anchored
+   frontmatter (a body `---`, e.g. a mermaid config header, currently eats content in
+   generate-index / generate-llms-txt) and `import` lines stripped INSIDE code fences
+   in generate-llms-txt (corrupts `llms-full.txt`). S / Low, but touches three
+   build-critical generators and needs the dep add. Re-verify `llms-full.txt` + a few
+   extracted titles.
+2. `github-slugger` for `chunker.mjs` slugify + dedup counter. REPLACE. Makes
+   retrieval deep-link anchors exactly match Nextra's rendered anchors (they can drift
+   today). S / Low, needs the dep add. Changes `docs-index.json` anchors: regen +
+   spot-check deep links.
+3. code-chunker doc-comment/attribute grouping. DONE (no dependency). Rust `///` docs
+   and `#[...]` attributes now group with the item they describe instead of the
+   previous chunk; node-verified + test added. Changes `code-index.json` boundaries
+   (regenerated on the next build).
+4. `remark`/`unified` MDX->markdown (library-grade JSX strip). CONSIDER / DEFER. M /
+   Med, changes output broadly, leans on non-guaranteed transitive remark versions.
+   Only if the line-based stripper proves too lossy after #1.
+
+KEEP (justified hand-rolling, audit-confirmed): token estimate (`chars/4`; Voyage has
+no JS tokeniser), content-hash cache (stdlib), Voyage batching/halving (bespoke to the
+120k-token cap), cosine + linear scan (deliberately simple, zero infra), the markdown
+chunker (carries anchor/heading metadata a generic splitter discards), the Nextra
+`pages/` + `_meta.json` walk.
+
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).
 - D2 generation model + budget (defaulted to Haiku 4.5; abuse protection TODO).

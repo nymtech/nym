@@ -603,3 +603,15 @@ html.dark {
   --chat-accent-text: #10201a;
   --chat-shadow: rgba(0, 0, 0, 0.25);
 }
+
+/* Push the page content aside while the chat drawer is open, matching the drawer
+   width and transition. Wide screens only; on narrow screens the drawer overlays
+   full-width instead of shoving content off-screen. */
+body {
+  transition: padding-right 0.25s ease;
+}
+@media (min-width: 768px) {
+  body.nym-chat-open {
+    padding-right: min(420px, 100vw);
+  }
+}

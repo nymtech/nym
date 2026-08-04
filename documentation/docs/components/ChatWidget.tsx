@@ -41,6 +41,12 @@ export default function ChatWidget() {
       .catch(() => {});
   }, []);
 
+  // Push the page content aside while the drawer is open (CSS in pages/styles.css).
+  useEffect(() => {
+    document.body.classList.toggle('nym-chat-open', open);
+    return () => document.body.classList.remove('nym-chat-open');
+  }, [open]);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();

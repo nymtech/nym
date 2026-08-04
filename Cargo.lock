@@ -7476,6 +7476,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-lthash"
+version = "1.21.5-rc.3"
+dependencies = [
+ "bincode",
+ "blake3",
+ "digest 0.10.7",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sha3 0.10.9",
+]
+
+[[package]]
 name = "nym-metrics"
 version = "1.21.5-rc.3"
 dependencies = [

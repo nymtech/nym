@@ -1,0 +1,33 @@
+---
+title: Threat actors
+description: The adversaries in the Nym threat model, split by vantage point: the destination (L2), local and global network observers (L3L, L3G), and the application-specific public observer (L1). What each can see, and what it costs to become.
+url: https://nym.com/docs/network/threat-model/actors
+---
+
+# Threat actors
+
+The threat model splits adversaries by **vantage point**: where an adversary
+sits decides what it can observe. Fusing them into one "observer" hides the
+differences that determine which tool helps. Each actor below has a level (L1 to
+L3G), a vantage, what it observes, and what it costs to become.
+
+## L2 is the primary adversary
+
+The destination is the one party you must talk to directly, and it is cheap to
+run or compromise. That makes it the primary adversary. No amount of in-transit
+mixing changes what the destination sees, because mixing reshapes traffic
+between hops and the destination sees only what arrives. See
+[the two-layer model](/network/threat-model/two-layer-model) for why this is the
+central point.
+
+L2 presupposes a clearnet exit. When both ends run Nym, there is no exit gateway
+and no third-party server. The endpoint is a Nym client reached end to end that
+never learns your IP. End to end, the L2 adversary does not exist. See
+[exit security](/developers/concepts/exit-security).
+
+## L1 is application-specific
+
+L1 is the public or out-of-band observer. What it sees depends on your
+application, so the worked examples define their own L1. A wallet's L1 reads the
+public chain; a messaging app's L1 might read a public directory. The universal
+spine is L2, L3L, and L3G.

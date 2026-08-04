@@ -1,0 +1,484 @@
+---
+title: maintenance
+url: https://nym.com/docs/operators/nodes/maintenance
+---
+
+# Maintenance
+
+## Useful commands
+
+* **`--no-banner`**: Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+* **`build-info`**: A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.
+
+For example `./target/debug/nym-network-requester --no-banner build-info --output json` will return:
+```json
+{"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
+```
+
+## Configure your firewall
+
+Although your `nym-node` or `validator` (denoted as `<NODE>`) is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
+
+SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
+
+###### 1. Start with setting up the essential tools on your server.
+
+- Get your system up to date
+```sh
+apt update -y && apt --fix-broken install
+```
+
+- Install dependencies
+```sh
+apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git
+```
+
+- Double check ufw is installed correctly
+```sh
+apt install ufw --fix-missing
+```
+
+###### 2. Configure your firewall using Uncomplicated Firewall (UFW)
+
+For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
+
+- Check if you have `ufw` installed:
+```sh
+ufw version
+```
+
+- If it's not installed, install with:
+```sh
+apt install ufw -y
+```
+
+- Enable ufw
+```sh
+ufw enable
+```
+
+- Check the status of the firewall
+```sh
+ufw status
+```
+
+###### 3. Open all needed ports to have your firewall for `nym-node` working correctly
+
+  <Tabs items={[
+    <code>nym-node</code>,
+    <code>validator</code>,
+    ]} defaultIndex="0">
+    <MyTab><PortsNymNode /></MyTab>
+    <MyTab><PortsValidator /></MyTab>
+
+- In case of reverse proxy setup add:
+```sh
+ufw allow 443/tcp
+```
+
+- Re-check the status of the firewall:
+```sh
+ufw status
+```
+
+For more information about your node's port configuration, check the [port reference table](#ports) below.
+
+## Backup a node
+
+Anything can happen to the server on which your node is running. To back up your `nym-node` keys and configuration protects the operators against the negative impact of unexpected events. To restart your node on another server, two essential pieces are needed:
+
+1. **Node keys to initialise the same node on a new VPS**
+2. **Access to the bonding Nyx account (wallet seeds) to update host on the Mixnet smart contract**
+
+Optionally, it can be useful to have a backup your configuration directories to setup [reverse proxy and WSS](nym-node/configuration/proxy-configuration.mdx) quickly as well.
+
+Assuming that everyone access their wallets from local machine and does *not* store their seeds on VPS, point \#2 should be a given.
+
+Never store your mnemonic seed anywhere online nor do *not* share it with anyone!
+
+To backup your `nym-node` keys and configuration in the easiest way possible, copy the entire config directory `.nym` from your VPS to your local machine, using a special copy command `scp`:
+
+###### 1. Create a local directory where you want to store your backup
+```sh
+mkdir -pv <PATH_TO_TARGET_DIRECTORY>
+```
+
+```sh
+# for example
+# mkdir -pv $HOME/backup/my_nym_node/.nym
+```
+
+###### 2. Backup `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- **Stop your node**
+```sh
+service nym-node stop
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Create backup called `clients_backup.sqlite`
+```sh
+.backup .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+
+###### 3. Copy configuration folder `.nym` from your VPS to your newly created backup directory
+
+```sh
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes/<ID> <PATH_TO_TARGET_DIRECTORY>
+```
+
+###### 4. Verify the success of the backup & start your node
+
+The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup target directory.
+
+- Start your node
+```sh
+service nym-node start && journalctl -u nym-node -f
+```
+
+Now you have everything needed to restore your `nym-node` on another server. If you are in a need of doing so, follow the steps in [*Restoring a node*](#restoring-a-node) chapter below.
+
+### Backup proxy configuration
+
+If you run your node behind a [reverse proxy and WSS](nym-node/configuration/proxy-configuration.mdx) (suggested for all Exit Gateways), you may find it useful to backup configuration directories for that as well. It's done by following the same logic, using `scp` command for remote copy:
+
+Given that servers hosting a `nym-node` are expected to be a single purpose machines, we assume in this guide, that there are no other `<HOSTNAME>` sub-directories in `/var/www` and `/etc/nginx/sites-available` then the ones relevant to `nym-node`. In case you prefer to only backup configuration for a particular hostname, just append your `<HOSTNAME>` to the path in the commands below.
+</ Callout>
+
+###### 1. Create local sub-directories where you want to store your backup
+
+```sh
+mkdir -pv <PATH_TO_TARGET_DIRECTORY>
+mkdir -pv <PATH_TO_TARGET_DIRECTORY>
+```
+
+```sh
+# for example
+# mkdir -pv $HOME/backup/my_nym_node/var/www
+# mkdir -pv $HOME/backup/my_nym_node/etc/nginx/sites-available
+```
+
+###### 1. Backup `/var/www` directory
+
+```sh
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/var/www <PATH_TO_TARGET_DIRECTORY>
+```
+
+###### 2. Backup `/etc/nginx/sites-available` directory
+
+```sh
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/nginx/sites-available <PATH_TO_TARGET_DIRECTORY>
+```
+
+###### 3. Verify the success of the backup
+
+The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup target directory.
+
+To copy files from the root directory (paths starting with `/`), you need root permissions on the remote machine. If your server is not running as the root user, the `scp` command won't work directly, as using the `sudo` prefix would apply to your local machine instead of the remote server.
+
+To resolve this, you need to SSH into the remote server first, and there use the `sudo cp -r <SOURCE_PATH> <TARGET_PATH>` command to copy the necessary directories to a location outside the root directory. After that, you can run `scp` with the correct source path to transfer the files.
+
+## Restoring a node
+
+In case your VPS was terminated and you have a [backup](#backup-a-node) of your node keys and access to your [bonding](nym-node/bonding) wallet, you can easily restore your node on another server without losing your delegation.
+
+###### 1. Prepare new VPS
+
+SSH into your new VPS and start with:
+
+- Do all [preliminary steps](preliminary-steps.mdx) needed to run a `nym-node`.
+
+- Create a `.nym/nym-nodes` configuration folder:
+```sh
+mkdir -pv ~/.nym/nym-nodes
+```
+
+###### 2. Restore your node configuration
+
+Copy the folder with your node configuration and keys from your local machine to the newly created folder on your VPS using `scp` command. Make sure to grab the entire `nym-node` configuration folder, which is called after your local `nym-node` identifier (`<ID>`), the `-r` (recursive) flag will take care of all sub-directories and their content:
+
+```sh
+scp -r <PATH_TO_LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.nym/nym-nodes/
+```
+```sh
+# for example:
+scp -r $HOME/backup/my_nym_node/.nym/nym-nodes/default-nym-node root@my-nym-node:~/.nym/nym-nodes/
+```
+
+###### 3. Verify the success of the backup
+
+The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the target directory `.nym/nym-nodes` on your VPS.
+
+###### 4. Configure your node on the new VPS
+
+* SSH to your VPS
+* Run a command `echo "$(curl -4 https://ifconfig.me)"` to see your public IPv4
+* Edit config file located at `~/.nym/nym-nodes/<ID>/config/config.toml` correct IP - it's the field under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]`
+* Add your new location field `location = <LOCATION>`, (formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided).
+
+###### 5. Restore `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Restore your backup called `clients_backup.sqlite`
+```sh
+.restore .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+- Check integrity
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite "PRAGMA integrity_check;"
+```
+The result should return `ok` if the database is intact.
+
+###### 6. Test & validate your setup
+* Dry run the node and see if everything works.
+* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+
+###### 4. Change the node smart contract info via the wallet interface
+
+Open Nym Wallet, go to *Bonding*, open *Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
+
+Everything should work now. If not, have a look through the `config.toml` file and ensure that there are no details from the past VPS, things like WSS port, landing page asset etc. If you had a configuration with reverse proxy and WSS, continue to set that up as well. If you had it backed up, you can follow the steps to [restore proxy configuration](#restore-proxy-configuration) below, or you can start to [configure proxy from scratch](nym-node/configuration/proxy-configuration.mdx).
+
+### Restoring proxy configuration
+
+If operators moving to a new server had their [proxy configuration backed up](#backup-proxy-configuration), it's possible to simply restore it, following these steps:
+
+###### 1. Copy your backed up directory `/var/www` for landing page to the server
+- Start setting up reverse proxy and WSS following [this guide](nym-node/configuration/proxy-configuration.mdx) but instead of creating a new `/var/www/<HOSTNAME>` directory, simply copy there the one from the old server, using `scp` command
+
+```sh
+scp -r <PATH_TO_LOCAL_WWW_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/var/www/
+```
+```sh
+# for example:
+scp -r $HOME/backup/my_nym_node/var/www root@my-nym-node:/var/www
+```
+###### 2. Make sure that domain is correctly setup
+As you see in the guide you use a domain (same like your `<HOSTNAME>`), make sure you have it registered as and redirected to the new IP by logging into your DNS provider and editing the dashboard of the domain.
+
+###### 3. Proceed with all needed `node` configuration
+- In the guide follow the steps to [configure your node reverse proxy](nym-node/configuration/proxy-configuration#reverse-proxy-configuration), like installing Nginx, opening the needed ports etc
+
+###### 4. Restore Nginx config
+- When you arrive to the point to configure your [`/etc/nginx/sites-available/<HOSTNAME>`](nym-node/configuration/proxy-configuration#2-add-your-endpoint-configuration-to-nginx-by-creating-a-config-file), use again `scp` instead of creating a new one
+
+```sh
+scp -r <PATH_TO_LOCAL_NGINX_CONFIGURATION_BACKUP> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:/etc/nginx/sites-available
+```
+```sh
+# for example:
+scp -r $HOME/backup/my_nym_node/etc/nginx/sites-available root@my-nym-node:/etc/nginx/sites-available
+```
+###### 5. Edit Nginx configuration file with correct hostname
+- Open the Nginx config file on your server and see if a domain name needs to be changed to new one. To open the file, use for example nano text editor:
+```sh
+nano /etc/nginx/sites-available/<HOSTNAME>
+```
+###### 6. Continue with the Nginx setup
+- Go back to the [proxy setup guide](nym-node/configuration/proxy-configuration#3-activate-and-test-nginx-configuration) and continue from the point [\#3](nym-node/configuration/proxy-configuration#3-activate-and-test-nginx-configuration)
+
+###### 7. Edit WSS configuration with the correct hostname
+- Open the WSS config file on your server and see if a domain name needs to be changed to new one. To open the file, use for example nano text editor:
+```sh
+nano /etc/nginx/sites-available/wss-config-nym
+```
+###### 8. Finish and test the setup
+
+Continue with the [activating and testing](nym-node/configuration/proxy-configuration#2-activate-and-test-nginx-wss-configuration) your reverse proxy and WSS until the end of the guide.
+</ Steps>
+
+To copy files to the root directory (paths starting with `/`), you need root permissions on the remote machine. If your server is not running as the root user, the `scp` command won't work directly, as using the `sudo` prefix would apply to your local machine instead of the remote server.
+
+To resolve this, you can SSH into the remote server and create the configuration files manually using the prefix `sudo` and then copy their content from your local backup.
+
+## Moving a node
+
+In case of a need to move a Nym Node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
+
+##### 1. Prepare both servers
+
+Assuming both machines are remote VPS.
+
+* Make sure your `~/.ssh/<SSH_KEY>.pub` is in both of the servers `~/.ssh/authorized_keys` file
+* Create a `nym-node` folder in the target VPS. SSH in from your terminal and run:
+
+```sh
+# in case none of the nym configs was created previously
+mkdir ~/.nym
+
+#in case no `nym-node` was initialized previously
+mkdir ~/.nym/nym-nodes
+```
+###### 2. Backup `clients.sqlite` database
+
+- **Stop your node**
+```sh
+service nym-node stop
+```
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Create backup called `clients_backup.sqlite`
+```sh
+.backup .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+
+###### 3. Move the node data and keys to the new machine
+
+* Open your **local terminal** (as that one's ssh key is authorized in both of the VPS) and run:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/nym-nodes/
+```
+
+###### 4. Open new/target VPS terminal and configure the node
+
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+
+###### 5. Restore `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Restore your backup called `clients_backup.sqlite`
+```sh
+.restore .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+- Check integrity
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite "PRAGMA integrity_check;"
+```
+The result should return `ok` if the database is intact.
+
+###### 6. Test & validate your setup
+* Dry run the node and see if everything works.
+* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+
+* If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
+```
+
+###### 4. Change the node smart contract info via the wallet interface
+
+* Open Nym Wallet, go to *Bonding*, open *Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
+
+* Make sure to stop the old node.
+
+## Rename Node Local Identifier
+
+Local node identifier, denoted as `<ID>` accross the documentation (not the identity key) is a name chosen by operators which defines where the nodes configuration data will be stored, where the ID determines the path to `~/.nym/nym-nodes/<ID>/`. This ID is never shared on the network.
+
+When running a [`nym-node`](nym-node), a local identifier specified with a flag `--ID <ID>` is no longer necessary. Nodes without a specified ID will be assigned a default ID `default-nym-node`. This streamlines node management, particularly for operators handling multiple nodes via ansible and other automation scripts, as all data is stored at `~/.nym/nym-nodes/default-nym-node`.
+
+If you already operate a `nym-node` and wish to change the local ID to `default-nym-node` or anything else, follow the steps below to do so.
+
+In the example we use `default-nym-node` as a target `<ID>`, if you prefer to use another name, edit the syntax in the commands accordingly.
+
+###### 1. Copy the configuration directory to the new one
+
+```sh
+cp -r  ~/.nym/nym-nodes/<ID> ~/.nym/nym-nodes/default-nym-node/
+```
+
+###### 2. Rename all original `<ID>` occurrences in `config.toml` to `default-nym-node`
+
+```sh
+# check occurences of the <SOURCE_ID>
+grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
+```
+If your node `<ID>` was too generic (like 'gateway' etc) and it occurs elsewhere than just a custom value, **do not use `sed` command but rewrite the values manually using a text editor!**
+
+- If you are clear with occurrence found above, move on using `sed` command:
+
+```sh
+sed -i -e "s/<ID>/default-nym-node/g" ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+
+- If you are not sure and want to play it safe, do it manually by opening `config.toml` and rewriting each occurence of `<ID>`:
+```sh
+nano ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+
+###### 3. Validate by rechecking the config file content
+```sh
+# either re-run
+grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
+
+# or by reading the config file
+less ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+- Pay extra attention to the `hostname` line. In case its value was somehow correlated with the source `<ID>` string you may need to correct it back
+
+###### 4. Reload your [systemd service daemon](nym-node/configuration.mdx#systemd) and restart the service
+
+- If you chosen `default-nym-node` as an ID, you can drop `--id` flag from node running commands, otherwise specify with the new `<ID>`.
+- If automation isn't your thing, simply reboot the node. To automate with `systemd` is highly recommended.
+
+###### 5. Be careful before removing old config
+
+- If you double-checked that everything works fine, you can consider removing your old config directory
+
+## Ports
+
+All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
+
+### Nym Node Port Reference
+| Default port | Use                       |
+| ------------ | ------------------------- |
+| `1789`       | Listen for Mixnet traffic |
+| `1790`       | Listen for VerLoc traffic |
+| `8080`       | Metrics http API endpoint |
+| `1789`       | Listen for Mixnet traffic |
+| `9000`       | Listen for Client traffic |
+| `9001`       | WSS                       |
+| `51822/udp`  | WireGuard                 |
+
+### Validator Port Reference
+
+All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
+
+| Default port | Use                                  |
+|--------------|--------------------------------------|
+| 1317         | REST API server endpoint             |
+| 26656        | Listen for incoming peer connections |
+| 26660        | Listen for Prometheus connections    |

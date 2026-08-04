@@ -1,0 +1,38 @@
+---
+title: Mixnet Playground
+description: Interactive browser playground for Nym's TypeScript packages: drive fetch, DNS, WebSocket and download traffic through a mixnet tunnel, and send end-to-end messages with the raw messaging SDK.
+url: https://nym.com/docs/developers/playground
+---
+
+# Mixnet playground
+
+This playground runs Nym's browser TypeScript packages against the live mixnet. It covers both integration models:
+
+- **Proxy**, via the [mix-* family](/developers/mix-tunnel): bring the shared tunnel up once, then drive `fetch`, DNS, WebSocket, stress and file-download traffic through it to clearnet destinations.
+- **End-to-end**, via the [raw messaging SDK](/developers/typescript): Sphinx-encrypted messages between two Nym clients, with nothing exiting to the clearnet.
+
+Some sections send the same request over the tunnel and over the clearnet, so you can compare the two.
+
+On npm: [`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch), [`@nymproject/mix-dns`](https://www.npmjs.com/package/@nymproject/mix-dns), [`@nymproject/mix-tunnel`](https://www.npmjs.com/package/@nymproject/mix-tunnel), [`@nymproject/mix-websocket`](https://www.npmjs.com/package/@nymproject/mix-websocket), and [`@nymproject/sdk`](https://www.npmjs.com/package/@nymproject/sdk).
+
+## HTTPS / DNS / WebSockets
+
+Everything here runs client-side over the live Nym mixnet. The first
+`setupMixTunnel` is slow (a few seconds): it loads the WebAssembly client,
+registers a fresh client identity with a gateway, and discovers an IPR exit.
+Later calls reuse the tunnel.
+
+## Raw mixnet messaging
+
+The sections above share one smolmix tunnel and exit to the clearnet through an IPR. The [Messaging SDK](/developers/typescript) (`@nymproject/sdk`) is the other model: end-to-end mixnet messages between two Nym clients, where you control both ends and nothing exits to the clearnet. It runs a separate wasm client, so it loads on demand:
+
+## Source and examples
+
+- [Playground source](https://github.com/nymtech/nym/tree/develop/documentation/docs/components/playground): the React component behind this page (`MixPlayground.tsx` and `lib.ts`).
+- [SDK examples](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples): standalone runnable apps, including a browser example per package ([mix-fetch](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-fetch/browser), [mix-dns](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-dns/browser), [mix-websocket](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-websocket/browser)).
+
+## Per-package docs
+
+For the API of each package, see
+[mix-tunnel](/developers/mix-tunnel), [mix-fetch](/developers/mix-fetch),
+[mix-dns](/developers/mix-dns), and [mix-websocket](/developers/mix-websocket).

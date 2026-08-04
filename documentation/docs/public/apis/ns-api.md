@@ -1,0 +1,48 @@
+---
+title: Node Status API - Nym Node Performance and Mixnet Stats
+description: Reference for the Node Status API, which provides nym-node identity, performance scores, role assignments, and mixnet health summaries.
+url: https://nym.com/docs/apis/ns-api
+---
+
+# Node Status API
+
+The Node Status API serves information about individual `nym-node` instances in the Nym network: which role they are operating in, performance statistics, Network Requester services, and summaries of the overall mixnet state. It is the primary API for anyone building explorers, analytics dashboards, or monitoring tools.
+
+**Key endpoint categories:**
+- **Node information**: identity, bonding status, declared roles, build version, host details
+- **Performance scores**: routing reliability, configuration scores, probe results
+- **Mixnet summaries**: active set composition, role distribution, network health
+
+If you're building a service that makes heavy use of this API, consider [running your own instance](/operators/performance-and-testing/ns-api-deployment) to distribute load across the network.
+
+## Quick examples
+
+**Get a summary of all gateways:**
+```bash
+curl https://mainnet-node-status-api.nymtech.cc/v2/gateways
+```
+
+**Get details for a specific node by identity key:**
+```bash
+curl https://mainnet-node-status-api.nymtech.cc/v2/gateways/23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb
+```
+
+## Mainnet endpoints
+
+- **OpenAPI spec:** [mainnet-node-status-api.nymtech.cc/api-docs/openapi.json](https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json)
+- **Swagger UI:** [mainnet-node-status-api.nymtech.cc/swagger/](https://mainnet-node-status-api.nymtech.cc/swagger/)
+
+## Full API reference
+
+<RedocStandalone
+  specUrl="https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json"
+  options={{
+    nativeScrollbars: true,
+    theme: {
+      sidebar: {
+        backgroundColor: '#273239',
+        textColor: '#FCFDFE'
+      }
+    }
+  }}
+/>

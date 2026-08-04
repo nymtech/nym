@@ -1,0 +1,50 @@
+---
+title: dVPN Mode
+description: How Nym's decentralised VPN mode routes traffic through two independent gateways, splitting trust so no single operator sees both your identity and destination.
+url: https://nym.com/docs/network/dvpn-mode
+---
+
+# dVPN Mode
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const dvpnScenario = requireGenericScenario('dvpn-single')
+
+dVPN mode is a [transport](/network/threat-model/two-layer-model) choice: a 2-hop decentralised VPN. Traffic is routed through two independent gateways rather than a single VPN provider's server, so no single operator ever sees both who you are and what you're doing.
+
+It hides the client IP from the destination at line rate. Unlike [mixnet mode](/network/mixnet-mode), it adds no in-transit timing protection, so it does nothing against a network observer watching the traffic pattern. dVPN is available both through the [NymVPN](https://nymvpn.com) application and to developers as a datapath through [`nym-smoldvpn`](/developers/smoldvpn), a userspace WireGuard library.
+
+## How it works
+
+```
+User --> Entry Gateway --> Exit Gateway --> Internet
+```
+
+Your device wraps each packet in two layers of encryption, one per gateway. The Entry Gateway strips the outer layer and forwards a packet it cannot read; the Exit Gateway strips the inner layer and sends the plaintext request to the destination. Responses follow the reverse path. The Entry Gateway therefore knows your IP address but not the destination, while the Exit Gateway knows the destination but not the sender.
+
+## What it protects, and what it does not
+
+Against the [destination](/network/threat-model/actors#actor-L2), dVPN hides the client IP and splits trust across two operators, so the destination sees the exit gateway's IP rather than yours. A fixed exit is a linking key: within a session requests stay grouped, so rotating the exit per request is what restores request unlinkability at the destination.
+
+Against a network observer, dVPN offers nothing in transit. It adds no timing obfuscation and no cover traffic. Packets are forwarded immediately, so both the [local](/network/threat-model/actors#actor-L3L) and [global](/network/threat-model/actors#actor-L3G) observer can fingerprint activity and correlate timing across the two gateways. If you need protection against traffic analysis, that is what [mixnet mode](/network/mixnet-mode) provides.
+
+Neither transport closes the timing or content vectors the destination sees on its own. That is a separate layer: [baseline hygiene](/developers/swizzle) disciplines the requests themselves. See [the two-layer model](/network/threat-model/two-layer-model) for the split, and [choose a defence](/network/threat-model/choose-config) to pick the configuration for your threat.
+
+## Performance
+
+Added latency is comparable to traditional VPNs, and WireGuard keeps cryptographic overhead low, so browsing, streaming, and downloads are not noticeably affected.
+
+## Technical details
+
+- [dVPN Protocol](/network/dvpn-mode/protocol): protocol stack and encryption details
+- [Censorship Resistance](/network/dvpn-mode/censorship-resistance): AmneziaWG and DPI evasion
+
+## Further reading
+
+- [Introducing AmneziaWG for NymVPN](https://nym.com/blog/introducing-amneziawg-for-nymvpn): censorship resistance
+- [What Is a Double VPN?](https://nym.com/blog/double-vpn): multi-hop privacy explained
+- [Building a Decentralized WireGuard VPN](https://nym.com/blog/building-decentralized-wireguard-vpn): architecture decisions
+- [What is NymVPN?](https://nym.com/blog/what-is-nymvpn): general overview

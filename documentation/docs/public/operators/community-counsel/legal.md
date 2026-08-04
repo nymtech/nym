@@ -1,0 +1,66 @@
+---
+title: Legal Guide for Nym Exit Gateway Operators
+description: Legal considerations for running a Nym exit gateway. Covers ISP communication templates, jurisdiction guidance, and abuse report response strategies.
+url: https://nym.com/docs/operators/community-counsel/legal
+---
+
+# Community Counsel: General Legal Considerations
+
+**This page contains some tips & tricks to support operators running Exit Gateway (`nym-node` in mode `exit-gateway`) gathered by the operators community. Have a look on the points below to strengthen your legal protection.**
+
+## Useful Suggestions
+
+#### Introduce Nym Node to your provider
+Write a message to your provider telling them about your intention to run a `nym-node` on their infrastructure. You can use this template for it.
+
+#### Join Operators Legal Forum
+This [Matrix channel](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org&via=matrix.su4ka.icu) is the best place to ask questions and share your experience with others. You can share screen prints of abuse reports and ask for support.
+
+#### Join Operators Legal Clinic
+Do you have any questions directed for lawyers? Come and chat with Nym COO Alexis Roussel, every Wednesday 14:30 UTC for 60min in our [Operator Legal Forum channel on Matrix](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org&via=matrix.su4ka.icu).
+
+#### Use a friendly provider
+Nym operators community shares their experience with different ISPs on [this page](isp-list). At the same time, consider to move away from these provides:
+
+- Servinga / VPS2day (AS39378)
+- Frantech / Ponynet / BuyVM (AS53667)
+- Online S.A.S. / Scaleway (AS12876)
+- Hetzner Online GmbH (AS24940)
+- 1337 Services GmbH / RDP.sh (AS210558)
+- Stark Industries Solutions Ltd. / PQ.Hosting / The.Hosting / UFO-AS (AS44477 / ASN 33993)
+
+#### Backup your nodes
+Your only way to restore your node is when you have an access to `.nym` directory locally. Follow [node](../nodes/maintenance#backup-a-node) and [proxy configuration](../nodes/maintenance#backup-proxy-configuration) backup guides to be able to [restore your node](../nodes/maintenance#restoring-a-node) on another machine later on, without losing your delegation.
+
+#### Use `nym-exit` prefix on your landing page URL
+We would like to ask operators to use [reverse proxy](../nodes/nym-node/configuration/proxy-configuration) with a [landing page](landing-pages). When assigning a domain please use a common convention with `nym-exit` in the beginning of the the page URL as this will create a reputation and reference. The entire address should have this new format:
+```
+nym-exit.<CUSTOM>.<DOMAIN>.<TLD>
+```
+
+For example:
+
+```
+# for squads running multiple nodes a format can look like this:
+nym-exit.ch-node1.mysquad.org
+
+# or like this
+nym-exit.3-jamaica.mysquad.org
+
+# for operators having one node per location, the format can look like this:
+nym-exit.brazil.mysquad.org
+
+# or if operators decide to not have any custom, they can simply have this format:
+nym-exit.mysquad.org
+```
+
+**The `NYM-EXIT` part in the beginning is what's important.**
+
+#### Chose the right TLD
+When registering a domain, check [Top Level Domain (TLD)](https://www.techopedia.com/definition/1348/top-level-domain-tld) terms and conditions. For example `.icu` is a no go. Having a wrong TLD may lead to your domain being taken away from you when facing a DMCA report.
+
+#### Respond to abuse reports
+Make sure to read notifications from your account provider and if you receive an abuse report, respond to it in time. Here is a template explaining the essential legal background of Nym Node Exit Gateway. Don't forget to adjust the variables.
+
+#### Help us to improve these pages
+Add your findings by opening a [Pull Request](add-content).

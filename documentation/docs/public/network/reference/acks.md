@@ -1,0 +1,27 @@
+---
+title: Packet Acknowledgements
+description: How the Nym Network uses hop-by-hop acknowledgements and retransmission to ensure reliable packet delivery despite network congestion or node failures.
+url: https://nym.com/docs/network/reference/acks
+---
+
+# Acknowledgements
+
+The Nym Network uses acknowledgements to ensure reliable packet delivery. When a node receives a packet, it sends an ack back to the sender. If no ack arrives within a timeout, the packet is retransmitted.
+
+## How it works
+
+The sender transmits a packet and waits for acknowledgement. The receiver processes the packet and sends an ack. If the sender receives the ack, the packet is marked as delivered. If not, the sender retransmits.
+
+This happens automatically at each hop. If a client sends 100 packets to a Gateway and only receives 95 acks, it retransmits the 5 missing packets. The same mechanism operates between all nodes in the route.
+
+## Why it matters
+
+Network conditions can cause packet loss: congestion, temporary failures, connectivity issues. Without acks and retransmission, lost packets would mean lost messages. The acknowledgement system ensures reliable delivery despite imperfect network conditions.
+
+## Scope
+
+Acknowledgements operate hop-by-hop between adjacent nodes. They confirm that packets reached the next hop, not that they reached the final destination. End-to-end delivery confirmation for anonymous communication is handled separately through [SURBs](/network/mixnet-mode/anonymous-replies).
+
+## Implementation
+
+This is handled entirely by the Nym binaries. Developers and operators don't need to implement or configure acknowledgements; the system handles packet loss without any application involvement.

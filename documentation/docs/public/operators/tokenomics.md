@@ -1,0 +1,139 @@
+---
+title: tokenomics
+url: https://nym.com/docs/operators/tokenomics
+---
+
+# Nym Tokenomics
+
+Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](nodes/nym-node) routing and mixing the data packets, and Nyx blockchain distributted accros [validator set](tokenomics/validator-rewards.mdx), using smart contracts (based on [cosmwasm](https://cosmwasm.com/)) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators according to work done by their nodes. All Nym nodes and validators are run by decentralised community of operators.
+
+* Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nym.com/nym-cryptoecon-paper.pdf)
+* For a more comprehensive overview, token live data and graphs, visit a community managed dashboard [*explorer.nym.spectredao.net/token*](https://explorer.nym.spectredao.net/dashboard)
+* To read about rewards calculation, visit [Nym Node rewards page](tokenomics/mixnet-rewards.mdx)
+* To understand the implementation and release plan, see [Nym operators roadmap](tokenomics/mixnet-rewards.mdx#roadmap)
+
+{/*
+**Formulas and Examples Annotation**
+
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
+
+> **Turquoise with red pin for formulas.**
+
+> Purple collapsible for examples.
+*/}
+
+## NYM Token: Incentivise Stability & Secure Reputation
+
+Besides the Mixnet itself, Nym Network is secured by its own blockchain Nyx (IBC on Cosmos) with a native token NYM.
+
+**NYM token key features**
+
+* **Incentives:** Distribute rewards to decentralised nodes based on mixing and routing (work). This dynamic ensures that the network is as robust as possible - the nodes are chosen every hour according to their performance.
+
+* **Network take over defense:** Another decisive factor for a node to be chosen to the network active set is reputation. Reputation is a size of stake (self bond + delegation stake) where delegators earn proportional percentage of nodes rewards. Nodes without reputation are not chosen to take part in the network active set.
+
+* **Centralisation defense:** Any node can only have a certain stake called [stake saturation](#stake-saturation) (self bond + delegation stake) to earn maximum rewards, increasing node stake level beyond this point leads to decreasing rewards for the operator and all delegators. This feature makes it more difficult for whales to over-stake their nodes or to attract more delegators (stakers) as they would become dis-advantaged.
+
+To learn more about rewards calculation and distribution, read the next page [*Nym Mixnet Rewards*](tokenomics/mixnet-rewards.mdx).
+
+### Utility
+
+*NYM token is a first and foremost a utility to secure Nym Network.*
+
+![](/images/operators/tokenomics/nym_token_flow.png)
+
+Nyx blockchain's validators run API to monitor the network and node performance. Based on the live input the operators and stakers of the working nodes get rewarded. The network is adjusted and re-randomized in the beginning of each epoch (60 min) composing the best performing nodes with the highest reputation.
+
+This creates an incentive for people to operate Nym nodes as quality and reliable service. The reputation system also works as a network defense against a large adversary take over or sybil attacks.
+
+Node reputation is calculated by delegation. Delegation is a stake done by NYM token holders on top of nodes they want to support to join the network as it compensate the stakers with APR. Therefore there is an incentive for NYM holders to stake their token on top of nodes which they believe will perform well.
+
+To prevent a whale takeover and centralisation, the revenue grows alongside nodes stake size only until a certain point, after which the rewards per staker start to decrease. We call this mark *node stake saturation*.
+
+Thanks to Nyx blockchain API monitoring, the flow is dynamic and constantly optimized based on live metrics. Below is a detailed explanation and reckoning of Nym tokenomics logic.
+
+## Tokenomics
+
+### Summary in Numbers
+
+Below is a table with token supply distribution.
+
+To get live data, visit [SpectreDAO token dashboard](https://explorer.nym.spectredao.net/token) or see how to [query API endpoints](#query-tokenomics-api).
+
+### Calculation & Explanation
+
+To get a full comprehension of [node operators rewards](tokenomics/mixnet-rewards.mdx) calculation and delegators APR height, we need to understand some basic logic behind the numbers presented. This chapter covers some of the most essential variables in Nym tokenomics flow.
+
+```ascii
+
+ ┌───────────┐   staking   ┌───────────┐   sum of      ┌───────────┐
+ │           │   supply    │           │   nym nodes   │           │
+ │circulating│   scale     │  staking  │   in rewarded │   stake   │
+ │  supply   │   factor    │  target   │   set         │saturation │
+ │           ├────────────►│           ├──────────────►│   level   │
+ └───────────┘             └───────────┘               └───────────┘
+
+```
+
+#### Supply
+
+<b>Circulating supply is <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM.</b>
+
+NYM token is capped at 1b. Visit [SpectreDAO token dashboard](https://explorer.nym.spectredao.net/token) to see live data, graphs and historical data.
+
+#### Staking target
+
+A number of aimed NYM tokens to be staked in the network. The staking target a is multiplier of staking supply scale factor and circulating supply.
+
+> **staking_target = staking_supply_scale_factor \* circulating_supply**
+
+Staking supply scale factor is currently at <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>.
+
+The value of this variable can is changed from time to time to optimize the metrics of the network. With a current circulating supply of <span style={{display: 'inline-block'}}><CirculatingSupply /></span> NYM and staking supply scale factor <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>, <b>the staking target is <span style={{display: 'inline-block'}}><StakingTarget /></span> NYM.</b>
+
+#### Stake saturation
+
+#### Rewarded Set
+
+> To read more about rewards calculation, please see next page [*Nym Operators Rewards*](tokenomics/mixnet-rewards.mdx) or you can go directly into details about [Rewarded set selection logic](tokenomics/mixnet-rewards#rewarded-set-selection).
+
+Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other.
+
+The way how we approach this challenge is different for Mixnet (5-hop) and dVPN (2-hop) mode.
+
+  <Tabs items={[
+    <strong>Mixnet mode</strong>,
+    <strong>dVPN mode</strong>,
+    ]} defaultIndex="0">
+Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min).
+
+The alorithm for selecting the nodes into the Rewarded set is in detail explained in the [Rewarded set selection logic part](tokenomics/mixnet-rewards#rewarded-set-selection).
+In dVPN (2-hop) mode every node which meets the [performance criteria](tokenomics/mixnet-rewards#mixnet-node-performance-calculation), including wireguard and IPv6 routing tests, becomes eligible to take part in the network. Whether the node is working or not then depends on the NymVPN end users choise of the location or exact nodes selection.
+
+In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the [rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).
+
+## Query Validator API
+
+We have available API endpoints which can be accessed via [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html). Or by querying the endpoints directly:
+
+```sh
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply' \
+  -H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply/total-supply-value' \
+-H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply-value' \
+-H 'accept: application/json'
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/epoch/reward_params' \
+-H 'accept: application/json'
+```
+
+> The unit of value is measured in `uNYM`.
+
+> **1 NYM = 1_000_000 uNYM**

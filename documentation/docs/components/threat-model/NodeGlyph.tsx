@@ -1,7 +1,7 @@
 "use client";
 
-import type { NodeKind } from "../../lib/privacy-model/types";
-import { NODE_META } from "../../lib/privacy-model/nodes";
+import type { NodeKind } from "lib/privacy-model/types";
+import { NODE_META } from "lib/privacy-model/nodes";
 
 export function NodeGlyph({
   kind,

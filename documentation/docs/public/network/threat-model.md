@@ -1,0 +1,27 @@
+---
+title: Threat Model
+description: The Nym threat model: adversaries split by vantage point, the vectors that link requests, and the unlinkability properties we measure. A shared vocabulary the rest of the network docs are threaded through.
+url: https://nym.com/docs/network/threat-model
+---
+
+# Threat Model
+
+Network privacy depends on **who** the adversary is and **where** they sit. A
+tool that defeats one adversary can be useless against another. This section
+defines the Nym threat model as a shared vocabulary, so that every "does this
+protect me?" question has a precise answer: protect you from whom?
+
+The model has three parts. Read them in order.
+
+- **[Threat actors](/network/threat-model/actors)** — the adversaries, split by
+  vantage point (L1 to L3G). Where each one sits decides what it can see.
+- **[Linkage vectors](/network/threat-model/vectors)** — the channels through
+  which an adversary attributes or links your requests (V1 to V3), and what
+  closes each.
+- **[Unlinkability properties](/network/threat-model/properties)** — the two
+  properties we measure every configuration against (P1 and P2).
+
+With that vocabulary in place, the **[two-layer model](/network/threat-model/two-layer-model)**
+shows how tool choice falls out of the threat model rather than a ranking, and
+**[Nym vs other systems](/network/threat-model/comparisons)** compares Nym to
+VPNs, Tor, I2P, and end-to-end encryption on the same terms.

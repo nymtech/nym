@@ -1,9 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-// import { Footer } from "./components/footer";
-import { Matrix } from "./components/matrix-link";
-import { Explorer } from "./components/explorer-link";
+// import { Footer } from "components/footer";
+import { Matrix } from "components/matrix-link";
+import { Explorer } from "components/explorer-link";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {

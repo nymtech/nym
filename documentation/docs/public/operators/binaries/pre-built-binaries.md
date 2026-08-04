@@ -1,0 +1,79 @@
+---
+title: pre built binaries
+url: https://nym.com/docs/operators/binaries/pre-built-binaries
+---
+
+# Pre-built Binaries
+
+This page is for operators who prefer to download ready made binaries. The [Github releases page](https://github.com/nymtech/nym/releases) has pre-built binaries which should work on Ubuntu 22.04 and other Debian-based systems, but at this stage cannot be guaranteed to work everywhere.
+
+If the pre-built binaries don't work or are unavailable for your system, you will need to build the platform yourself.
+
+**[Nym release binaries](https://github.com/nymtech/nym/releases) no longer work on distributions based on Debian bullseye/sid (11) like Ubuntu 20.04 LTS and older! Please upgrade your sever to Debian bookworm (Debian 12) or Ubuntu 22.04 (and newer)!** Alternatively [compile the binaries from source](building-nym.mdx).
+
+## Setup Binaries
+
+1. ###### Download binary
+- Go to [Nym release page](https://github.com/nymtech/nym/releases/), choose binary to download, click with a right button and `Copy Link...`
+- Download from your terminal using `curl` or `wget` tool:
+```sh
+# using curl
+curl -L <LINK> -o <PATH>
+
+# using wget
+wget <LINK>
+```
+In case you want to download binary to your current working directory, drop `<PATH>` from the command
+
+###### 2. Verify the binary `sha256sum` hash
+
+  <Tabs items={[
+    <strong>Manual check</strong>,
+    <strong>One-liner</strong>,
+    ]} defaultIndex="0">
+To see your binary `sha256sum` hash, run:
+```sh
+sha256sum <BINARY>
+```
+```sh
+# for example
+# sha256sum ./nym-wallet_1.2.15_amd64.AppImage
+# or
+# sha256sum ./nym-node
+```
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Open it with your text editor or print its content with `cat hashes.json`
+- Check it if your binary `sha256sum` output is in `hashes.json` by using the `sha256sum` and searching for it or using `grep` command:
+```
+grep -i <SHA_HASH>
+```
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Run this command, substituting `<BINARY>` with your the one you want to check:
+```sh
+sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+```sh
+# for example
+# sha256sum ./nym-node | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+
+- If your have to extract the binary (it would look like like `<BINARY>.tar.gz`) do it:
+```sh
+tar -xvzf <BINARY>.tar.gz
+```
+
+###### 3. Make the binary executable
+- Open terminal in the same directory and run:
+```sh
+chmod u+x <BINARY>
+# for example: chmod u+x nym-node
+```
+
+Now you can use your binary. Follow the guide according to the type of your binary.
+
+* [Nym Nodes](../nodes/nym-node.mdx)
+* [Validators](../nodes/validator-setup.mdx)
+
+You can reconfigure your binaries at any time by editing the config file located at `~/.nym/<BINARY_TYPE>/<ID>/config/config.toml` and restarting the binary process.
+
+`<ID>` represents a local moniker that is **never** transmitted over the network. It's used to select which local config and key files (stored in `./nym`) to use for startup.

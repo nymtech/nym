@@ -1,0 +1,161 @@
+---
+title: gateway probe
+url: https://nym.com/docs/operators/performance-and-testing/gateway-probe
+---
+
+# Nym Gateway Probe
+
+Nym Node operators running Gateway functionality are already familiar with the monitoring tool [Harbourmaster.nymtech.net](https://harbourmaster.nymtech.net). Under the hood of Nym Harbourmaster runs iterations of `nym-gateway-probe` doing various checks and displaying the results on the interface. Operators don't have to rely on the probe ran by Nym and wait for the data to refresh. With `nym-gateway-probe` everyone can check any Gateway's networking status from their own computer at any time. In one command the client queries data from:
+
+- [`nym-api`](https://validator.nymtech.net/api/v1/nym-nodes/described)
+- [`explorer-api`](https://mainnet-node-status-api.nymtech.cc/swagger/#/Gateways)
+- [`harbour-master`](https://harbourmaster.nymtech.net/)
+
+## Preparation
+
+We recommend to have installed all [the prerequisites](../binaries/building-nym.md#prerequisites) needed to build `nym-node` from source including latest [Rust Toolchain](https://www.rust-lang.org/tools/install), **and** make sure to have [Go](https://go.dev/doc/install) installed. Go is necessary as the probe uses the `rust2go` FFI library to use `netstack` when making requests.
+
+## Installation
+
+`nym-gateway-probe` source code is in [`nym` monorepo](https://github.com/nymtech/nym). The probe needs to be built from source.
+
+1. Clone the repository:
+
+```sh
+git clone https://github.com/nymtech/nym.git
+```
+
+2. Build `nym-gateway-probe`:
+
+```sh
+cargo build --release -p nym-gateway-probe
+```
+
+## Running the Client
+
+To list all commands and options run the binary with `--help` command:
+
+```sh
+./target/release/nym-gateway-probe --help
+```
+
+```sh
+Usage: nym-gateway-probe [OPTIONS] <COMMAND>
+
+Commands:
+  run-local  Run the probe on an unannounced gateway. IP must be provided. Bypasses directory lookup
+  run        Run the probe on a bonded gateway. Uses directory lookup
+  run-ports  Check WG exit policy ports on a bonded gateway. Tests TCP connectivity through the WG tunnel for each port. Use --check-ports to pick specific ports, or --check-all-ports for the full exit policy list
+  run-agent  Run the probe by NS agents
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file <CONFIG_ENV_FILE>  Path pointing to an env file describing the network
+      --no-log                             Disable logging during probe
+  -h, --help                               Print help
+  -V, --version                            Print version
+```
+</ AccordionTemplate>
+
+Use `--help` with any sub-command, for example with `run --help`:
+
+```sh
+./target/release/nym-gateway-probe run --help
+```
+```sh
+Run the probe on a bonded gateway. Uses directory lookup
+
+Usage: nym-gateway-probe run [OPTIONS] --entry-gateway <ENTRY_GATEWAY> <--use-mock-ecash|--mnemonic <MNEMONIC>>
+
+Options:
+      --config-dir <CONFIG_DIR>
+          Directory for credential and mixnet storage
+
+  -g, --entry-gateway <ENTRY_GATEWAY>
+          The specific gateway specified by ID
+
+      --exit-gateway <EXIT_GATEWAY>
+          Optional identity of the exit node to test, if not provided, entry_gateway is used
+
+      --use-mock-ecash
+          Use mock ecash credentials for testing (requires gateway with --lp-use-mock-ecash)
+
+      --mnemonic <MNEMONIC>
+          Mnemonic to get credentials from the blockchain. It needs NYMs
+
+      --min-gateway-mixnet-performance <MIN_GATEWAY_MIXNET_PERFORMANCE>
+          Only choose gateway with that minimum performance
+
+      --no-log
+          Disable logging during probe
+
+      --test-mode <TEST_MODE>
+          Test mode - explicitly specify which tests to run
+
+          Modes:
+            core        - Traditional mixnet testing (entry/exit pings + WireGuard via authenticator)
+            wg-mix      - Wireguard via authenticator
+            wg-lp       - Entry LP + Exit LP (nested forwarding) + WireGuard
+            lp-only     - LP registration only (no WireGuard)
+            socks5-only - Socks5 network requester test
+            all         - Mixnet, wireguard over authenticator and LP registration
+
+          [default: core]
+
+      --ignore-egress-epoch-role
+
+      --amnezia-args <AMNEZIA_ARGS>
+          Arguments to be appended to the wireguard config enabling amnezia-wg configuration
+
+      --use-target <PORT_CHECK_TARGET>
+          Target host for exit policy port checks (must listen on all tested ports)
+
+          [default: portquiz.net]
+
+      --check-ports <PORT_CHECK_PORTS>
+          TCP ports to check through the WireGuard tunnel for exit policy verification. Only used with the `run-ports` subcommand. For all exit policy ports, use --check-all-ports instead
+
+      --port-check-timeout-sec <PORT_CHECK_TIMEOUT_SEC>
+          Timeout in seconds for each individual TCP port check
+
+          [default: 5]
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+</ AccordionTemplate>
+
+To run you must run it with a mnemonic of a funded Nyx account; this is required to test the ticketbook generation. **Note that this accout needs to have NYM tokens; you cannot use an account with a NymVPN subscription**. Make sure to have at least a few NYM tokens in there.
+
+- Always add this:
+```sh
+--mnemonic <MNEMONIC>
+```
+
+For any `nym-node --mode exit-gateway` the aim is to have this outcome:
+
+```json
+{
+  "gateway": "<GATEWAY_IDENTITY_KEY>",
+  "outcome": {
+    "as_entry": {
+      "can_connect": true,
+      "can_route": true
+    },
+    "as_exit": {
+      "can_connect": true,
+      "can_route_ip_v4": true,
+      "can_route_ip_external_v4": true,
+      "can_route_ip_v6": true,
+      "can_route_ip_external_v6": true
+    },
+    "wg": {
+      "can_register": true,
+      "can_handshake": true,
+      "can_resolve_dns": true,
+      "ping_hosts_performance": 1.0,
+      "ping_ips_performance": 1.0
+    }
+  }
+}
+```

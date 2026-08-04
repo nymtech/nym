@@ -1,0 +1,67 @@
+---
+title: Nym Node Operator Guide & Prerequisites
+description: Introduction to running Nym nodes. Learn requirements, skill expectations, time commitment, and how to get started operating a node on the Nym mixnet.
+url: https://nym.com/docs/operators/introduction
+---
+
+# Introduction
+
+This is **Nym's Operators guide**, containing information and setup guides for the various components of Nym network and Nyx blockchain validators.
+
+Nym network (also known as Nym mixnet) routes and mixes packets through Gateways and Mixnodes, all run from the same binary called `nym-node`.
+
+```ascii
+                      ┌─►mix──┐  mix     mix
+                      │       │
+            Entry     │       │                   Exit
+client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► Gateway ───► internet
+                              │       │
+                              │       │
+                         mix  └─►mix──┘  mix
+```
+
+If you want to dive deeper into Nym Network architecture, clients and nodes visit the [Network docs](../network).
+
+If you want to explore kickstart options and examples, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](../developers).
+
+## Minimum Requirements
+
+**If you are an operator and want to join the journey of starting and mantaining a Nym Node, begin with visiting [Minimum requirements page](nodes.mdx).**
+
+## Popular pages
+
+**Binary Information**
+
+* [Building Nym](binaries/building-nym.mdx)
+* [Pre-built Binaries](binaries/pre-built-binaries.mdx)
+
+**Node setup and usage guides:**
+
+* [Nym Node](nodes/nym-node)
+* [Nymvisor](nodes/maintenance/nymvisor-upgrade.mdx)
+* [Validators](nodes/validator-setup.mdx)
+* [Nym API Setup](nodes/validator-setup/nym-api.mdx)
+
+**Performance Monitoring**
+* [Performance, probe and measurements](performance-and-testing)
+
+**Tokenomics, rewards and roadmap**
+* [General tokenomics page](tokenomics.mdx)
+* [Nym Node rewards page](tokenomics/mixnet-rewards.mdx)
+* [Nym operators roadmap](tokenomics/mixnet-rewards.mdx#roadmap)
+
+**Maintenance, troubleshooting and FAQ**
+
+* [FAQ](faq/nym-nodes-faq.mdx)
+* [Maintenance](nodes/maintenance.mdx)
+* [Troubleshooting](troubleshooting/nodes.mdx)
+
+**Community Counsel**
+
+* [Exit Gateway](community-counsel/exit-gateway.mdx)
+* [Community Counsel](community-counsel.mdx)
+* [How to Add Info](community-counsel/add-content.mdx)
+
+**Archive**
+
+* [FAQ: Project Smoosh](archive/faq/smoosh-faq.mdx)

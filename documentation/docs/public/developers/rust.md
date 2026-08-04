@@ -1,0 +1,52 @@
+---
+title: nym-sdk: Rust SDK for the Nym Mixnet
+description: Rust SDK reference for building privacy applications on the Nym mixnet. Covers the Mixnet client, Stream multiplexing, Client Pool, FFI bindings, and code examples.
+url: https://nym.com/docs/developers/rust
+---
+
+# nym-sdk
+
+`nym-sdk` is the Rust SDK for the Nym mixnet. All modules share a common `MixnetClient` that manages gateway connections, Sphinx encryption, and cover traffic.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Your Rust app (alice)                                       │
+│       └─ MixnetClient (Sphinx layering, cover traffic)       │
+│            └─ WebSocket to entry gateway                     │
+│                 └─ Nym mixnet (entry → 3 mix layers → exit)  │
+│                      └─ MixnetClient (bob)                   │
+│                           └─ Your Rust app (bob)             │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Both sides run a `MixnetClient`. Sphinx encryption protects every hop end-to-end; neither gateway nor any mix node can link sender to receiver.
+
+Full API reference: [**docs.rs/nym-sdk**](https://docs.rs/nym-sdk/latest/nym_sdk/)
+
+For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For setup instructions, see [Installation](./rust/importing).
+
+## Modules
+
+| Module | What it does | Status |
+|---|---|---|
+| [**Stream**](./rust/stream) | Multiplexed `AsyncRead + AsyncWrite` byte streams over the Mixnet, the closest analogue to TCP sockets. | Recommended |
+| [**Mixnet**](./rust/mixnet) | Raw message payloads, independently routed, no connections or ordering. Full control over the communication model. | Stable |
+| [**SOCKS5**](./rust/socks5) | Local SOCKS5 proxy that routes any SOCKS-capable application through the Mixnet to a Network Requester (proxy mode, exits to clearnet). | Stable |
+| [**Client Pool**](./rust/client-pool) | Keeps ready-to-use `MixnetClient` instances warm for bursty workloads. | Stable |
+| [**TcpProxy**](./rust/tcpproxy) | TCP socket proxying with session management and message ordering. | Deprecated |
+| [**FFI**](./rust/ffi) | Go and C/C++ bindings. | Stable |
+
+**TcpProxy is deprecated.** Use the [Stream module](./rust/stream) for new projects.
+
+## Proxy-mode crates
+
+For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
+
+- [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
+- [**`nym-smoldvpn`**](/developers/smoldvpn): a userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients.
+- [**SOCKS5 module**](./rust/socks5): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.
+
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): what the mixnet does to your packets in transit (delays, Poisson sending, cover traffic).
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message is framed into fixed-size Sphinx packets.

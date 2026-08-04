@@ -1,0 +1,32 @@
+---
+title: mix-fetch: fetch() Over the Nym Mixnet
+description: Drop-in fetch() replacement that routes HTTP and HTTPS requests through the Nym mixnet via an IPR exit gateway.
+url: https://nym.com/docs/developers/mix-fetch
+---
+
+# mix-fetch
+
+[`@nymproject/mix-fetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) routes HTTP and HTTPS through the Nym mixnet behind the browser [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) signature: `mixFetch(url, init)` returns the same `Response` you would get from `fetch(url, init)`. The request travels mixnet hops first, exits at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, and reaches the destination with the IPR's IP, not yours. It is not a perfect substitute for `fetch`: no cookies or credentials, no HTTP cache, no `AbortController`, and HTTPS-only in practice (plain HTTP is fully visible at the exit; see [drop-in caveats](/developers/mix-fetch/guides#drop-in-caveats)).
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│  Your browser app                                                  │
+│    └─ mixFetch('https://...')                                      │
+│         └─ mix-tunnel (shared singleton, Web Worker, smolmix-wasm) │
+│              └─ smoltcp userspace TCP/IP + rustls TLS              │
+│                   └─ WebSocket to entry gateway                    │
+│                        └─ Nym mixnet (3 mix layers)                │
+│                             └─ IPR exit gateway → destination      │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+TLS terminates end-to-end between the WASM bundle and the destination server. The IPR sees destination IP and port; for HTTPS targets, payload is TLS ciphertext.
+
+## In this section
+
+- [Get started](/developers/mix-fetch/get-started): install and make your first mixnet request.
+- [Reference](/developers/mix-fetch/guides): request shape, default headers, drop-in caveats, configuration.
+- [Concepts & security](/developers/mix-fetch/concepts): what the IPR exit sees.
+- [Migrating from v1.x](/developers/mix-fetch/migration): the v1 to v2 clean break.
+- [TypeDoc reference](/developers/mix-fetch/api/globals): generated from the source.
+- [Browser example](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/mix-fetch/browser): a runnable example app.

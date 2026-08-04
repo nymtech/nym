@@ -1,0 +1,132 @@
+---
+title: diagnostic tool
+url: https://nym.com/docs/developers/tools/diagnostic-tool
+---
+
+# Diagnostic Tool
+
+The Diagnostic Tool is a standalone binary that runs network tests (DNS, HTTP, gateway connectivity) to diagnose connectivity issues and report on network performance.
+
+It can also be run from within the daemon with the same CLI interface.
+
+## Download Binary
+
+To get `nym-diagnostic` follow these steps:  
+###### 1. Download `nym-vpn-core`
+- Navigate to [github.com/nymtech/nym-vpn-client/releases](https://github.com/nymtech/nym-vpn-client/releases)
+- Find latest `nym-vpn-core-<VERSION>`
+- Download version for your system
+
+###### 2. Install or extract and make executable
+
+- If you downloaded `.deb` installer, install it with this command:
+```sh
+sudo dpkg -i <FILE_NAME>
+```
+
+- If you downloaded `.tar.gz`, in terminal you can extract the file with 
+```sh
+tar -xvf <FILE_NAME>
+```
+
+- Navigate inside the directory and make executable:
+```sh
+cd nym-vpn-core-<VERSION>
+chmod +x ./*
+```
+</ Steps>
+
+## CLI Usage
+
+The Diagnostic Tool runs from the command line. The usage instructions and options follow. See [Tests Performed](#tests-performed) for the purpose and outcome of each command.
+
+### Command Syntax
+
+```sh
+./nym-diagnostic [command] [options]
+./nym-vpnc diagnostic [command] [options]
+```
+
+#### `run` command arguments
+
+The most useful command is `run`, here are the options for that command:
+
+```sh
+-h, --help      Display help information and exit.
+--skip-dns      Skip the DNS tests
+--skip-http     Skip the HTTP tests
+--gateway <ID_KEY>  Run the gateway connectivity test on the given gateway. Skip those tests if not provided
+-v, --verbose   Enable verbose output for detailed logging.
+```
+
+#### `register` command arguments
+
+Command `register` requires valid credential. Here are the options for that command:
+
+```sh
+--gateway <ID_KEY>    Register to the given gateway
+--storage-path    Path to the directory containing the credentials database. If it is not valid registration will be skipped.
+--skip-wireguard  Skip Wireguard tests
+```
+
+### Command Examples
+
+- Run all tests on a gateway:
+```sh
+./nym-diagnostic run --gateway <ID_KEY>
+```
+
+- Run the DNS tests only:
+```sh
+./nym-diagnostic run --skip-http
+```
+
+- Register to a gateway:
+```sh
+sudo ./nym-diagnostic register --gateway <ID_KEY> --storage-path /var/lib/nym-vpnd/mainnet 
+# sudo is required to read the database
+```
+
+- You can also run DNS and HTTP tests from `nym-vpnc` (installation [here](/developers/nymvpncli)):
+```sh
+./nym-vpnc diagnostic run​
+```
+
+## Tests Performed
+
+The Diagnostic Tool runs the following tests:
+
+### 1. DNS Test
+
+- **Purpose**: Check DNS resolution availability.
+- **Process**: Resolve all domain names present in the given Nym network environment with different DNS configurations.
+- **Output**: Resolved IP address and time taken for resolution.
+
+### 2. HTTP Test
+
+- **Purpose**: Verify accessibility of the NymVPN API.
+- **Process**: Query the `health` and `nodes/described` endpoints.
+- **Output**: Response from the `health` endpoint, time skew, and number of nodes in the network (sanity check).
+
+### 3. Gateway Test
+
+- **Purpose**: Check connectivity to a given gateway.
+- **Process**: Fetch information about the gateway, establish a TCP connection, upgrade it to WS, and send a request.
+- **Output**: Gateway-reported information, connection status, and WS response.
+
+### 4. Registration Test
+
+- **Purpose:** Check the registration process.
+- **Process:** Build a mixnet client to the provided gateway and register with the entry authenticator.
+- **Output:** Status of each step.
+- **Caveat:** This test spends a credential, which is why it lives in a separate command.
+
+### 5. Wireguard Test
+
+- **Purpose:** Check the soundness of a wireguard connection.
+- **Process:** Use the registration data from the previous step to establish a wireguard connection and ping an IP.
+- **Output:** Ping RTTs and any errors.
+
+## Reports
+
+Reports are logged in JSON format and also returned by the commands for later use.

@@ -8,15 +8,15 @@ import type {
   DiagramRoute,
   Mode,
   Scenario,
-} from "../../lib/privacy-model/types";
-import { MODE_META } from "../../lib/privacy-model/nodes";
-import { buildTopology } from "../../lib/privacy-model/topology";
+} from "lib/privacy-model/types";
+import { MODE_META } from "lib/privacy-model/nodes";
+import { buildTopology } from "lib/privacy-model/topology";
 import {
   DEFAULT_LATENCY_PARAMS,
   type LatencyParams,
-} from "../../lib/privacy-model/latency";
-import { useReducedMotion } from "../../lib/privacy-model/useReducedMotion";
-import { NodeGlyph } from "./NodeGlyph";
+} from "lib/privacy-model/latency";
+import { useReducedMotion } from "lib/privacy-model/useReducedMotion";
+import { NodeGlyph } from "components/threat-model/NodeGlyph";
 
 const WIDTH = 940;
 const PAD_X = 95;

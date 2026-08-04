@@ -1,0 +1,71 @@
+---
+title: manual upgrade
+url: https://nym.com/docs/operators/nodes/maintenance/manual-upgrade
+---
+
+# Manual Node Upgrade
+
+This page explains how to upgrade [`nym-node`](#nym-node-upgrade) or [`validator`](#validator-upgrade) to the latest version in a few steps. If you prefer to automate the process, try to setup your flow with [Nymvisor](nymvisor-upgrade).
+
+## Nym node Upgrade
+
+Since `v2024.13-magura` (`nym-node v1.1.10`), **operators NO longer update node information in the Mixnet smart contract** (wallet version information), **only upgrade node binary** (on VPS), resulting in `~/.nym/nym-nodes/<ID>/config/config.toml` update.
+
+Below are detailed steps how to do it:
+
+###### 1. Upgrade `nym-node` binary
+
+- Pause your node process.
+    - If you run your node as `systemd` service (recommended), run: `service nym-node stop`
+    - Otherwise open the terminal window with your node logs and press once `ctrl + c` and wait for the node to terminate gracefully
+
+- Replace the existing `nym-node` binary with the newest binary (which you can either [compile yourself](../../binaries/building-nym.mdx) or [download](../../binaries/pre-built-binaries.mdx).
+
+- To verify node version, run `./nym-node --version`
+
+###### 2. Restart the node
+
+- [Re-run with the same values](../nym-node/setup.mdx#initialise--run) as you use to run your `nym-node`. If you want keep changes in your config file, use flag `-w` (`--write-changes`), **This will just update the config file, it will not overwrite existing keys**.
+
+- If you automated your node with `systemd` (recommended), make sure you have all needed flags in `ExecStart` line of the service config file, and run:
+```sh
+systemctl daemon-reload
+service nym-node start
+```
+
+- If you want to monitor the logs of your `nym-node.service`, run:
+```sh
+journalctl -f -u nym-node.service
+```
+
+###### 3. Check if your node is reporting the version correctly
+
+- Open [Nym Harbourbourmaster](https://harbourmaster.nymtech.net), search your node and verify that everything is working as expected and your node shows expected version.
+
+After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Explorer is no longer picking all values correctly. Instead of fixing this outdated explorer, we are working on a new one, coming out soon.
+
+[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](/operators/performance-and-testing/gateway-probe).
+
+## Validator Upgrade
+
+Upgrading from `v0.31.1` -> `v0.32.0` process is fairly simple. Grab the `v0.32.0` release tarball from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases), and untar it. Inside are two files:
+
+- The new validator (`nyxd`) v0.32.0
+- The new `wasmvm` (it depends on your platform, but most common filename is `libwasmvm.x86_64.so`)
+
+Wait for the upgrade height to be reached and the chain to halt awaiting upgrade, then:
+
+- Coopy `libwasmvm.x86_64.so` to the default LD_LIBRARY_PATH on your system (on Ubuntu 20.04 this is `/lib/x86_64-linux-gnu/`) replacing your existing file with the same name.
+- Swap in your new `nyxd` binary and restart.
+
+You can also use something like [Cosmovisor](https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor) - grab the relevant information from the current upgrade proposal [here](https://nym.explorers.guru/proposal/9).
+
+Cosmovisor will swap the `nyxd` binary, but you'll need to already have the `libwasmvm.x86_64.so` in place.
+
+### Common Reasons Validator Being Jailed
+
+The most common reason for your validator being jailed is that it runs out of memory because of bloated syslogs.
+
+Running the command `df -H` will return the size of the various partitions of your VPS.
+
+If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.

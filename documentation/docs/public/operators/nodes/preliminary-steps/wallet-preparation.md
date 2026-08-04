@@ -1,0 +1,31 @@
+---
+title: wallet preparation
+url: https://nym.com/docs/operators/nodes/preliminary-steps/wallet-preparation
+---
+
+# Nym Wallet Preparation
+
+## Mainnet
+
+Head to our [website](https://nym.com/wallet) and download Nym wallet for your operating system.
+
+{/*
+
+If pre-compiled binaries for your operating system aren't available, you can build the wallet yourself with instructions [here](https://nym.com/docs/wallet/desktop-wallet.html).
+*/}
+
+If you don't already have one, please create a Nym address using the wallet, and fund it with NYM tokens. The minimum amount required to bond a node is 100 `NYM`, but make sure you have a bit more to account for gas costs.
+
+`NYM` can be swapped in these places:
+
+- [SpectreDAO Swap](https://explorer.nym.spectredao.net/swap) (1000+ tokens supported) 
+- [Binance bridge](https://bridge.nym.com/)
+- [ERC20 bridge](https://swapper.nym.com/swap) - follow [this guide](https://nym.com/blog/nym-for-nym-swapper-app-bridges-native-and-erc20-token)
+
+`NYM` can be also bought on several [exchanges](https://www.coingecko.com/en/coins/nym#markets).
+
+> Remember that you can **only** use Cosmos `NYM` tokens to bond your node. You **cannot** use ERC20 representations of `NYM` to run a node.
+
+## Sandbox testnet
+
+Make sure to download a wallet and create an account as outlined above. Then head to our [Sandbox Testnet page](../../sandbox.mdx#sandbox-token-faucet) and request testnet NYM tokens.

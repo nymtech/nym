@@ -8,8 +8,8 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { requireBrowsingScenario } from '../../../../lib/privacy-model/examples/browsing'
-import { MetadataPanel } from '../../../../components/threat-model/MetadataPanel'
+import { requireBrowsingScenario } from 'lib/privacy-model/examples/browsing'
+import { MetadataPanel } from 'components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
   () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),

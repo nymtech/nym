@@ -1,0 +1,54 @@
+---
+title: Nym Rust SDK: Mixnet Messaging Module
+description: Use the Nym Rust SDK Mixnet module to send messages through the mixnet. Covers builder patterns, custom topologies, and anonymous replies.
+url: https://nym.com/docs/developers/rust/mixnet
+---
+
+# Mixnet Module
+
+The `mixnet` module provides [`MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.MixnetClient.html) for connecting to the Nym Mixnet, sending messages through Sphinx packet encryption and 5-hop routing, and receiving reconstructed messages on the other side.
+
+Messages are individually routed through the Mixnet with no guaranteed ordering or persistent connections. If you want familiar socket-like I/O (`read`/`write`), use the [Stream module](./stream) instead. See the [Tour](./tour) for how the two approaches compare.
+
+## Two operating modes
+
+The client operates in one of two mutually exclusive modes:
+
+**Message mode** (default): send and receive raw message payloads:
+```rust
+use nym_sdk::mixnet::{self, MixnetMessageSender};
+
+let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+
+// Send a message
+client.send_plain_message(*client.nym_address(), "hello").await.unwrap();
+
+// Receive messages
+if let Some(msgs) = client.wait_for_messages().await {
+    for msg in msgs {
+        println!("Got: {}", String::from_utf8_lossy(&msg.message));
+    }
+}
+
+client.disconnect().await;
+```
+
+**Stream mode:** persistent `AsyncRead + AsyncWrite` channels. See the [Stream module](./stream) for details.
+
+Stream mode is activated by calling `open_stream()` or `listener()`. Once active, message-mode methods return `Error::StreamModeActive`. This is a one-way transition.
+
+## API reference
+
+- [API reference on docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/): full architecture documentation, all types, builder methods, traits, and configuration options
+- [Examples on GitHub](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples): runnable examples covering simple send/receive, builder patterns, custom topologies, SOCKS proxy, anonymous replies, and more
+
+Run any example with:
+```sh
+cargo run --example <example_name>
+```
+
+## Next steps
+
+- [Tutorial: Send your first private message](./mixnet/tutorial): step-by-step guide covering sending, receiving, SURBs, and persistent identity
+- [Troubleshooting](./mixnet/troubleshooting): common issues with logging, empty messages, and client lifecycle
+- [Stream module](./stream): if you need persistent bidirectional byte channels

@@ -1,0 +1,120 @@
+---
+title: Nym Node Performance Monitoring & Testing Guide
+description: Monitor your Nym node performance with Prometheus, Grafana, and community tools. Covers key metrics, routing score analysis, and testing best practices.
+url: https://nym.com/docs/operators/performance-and-testing
+---
+
+# Performance Monitoring & Testing
+
+As Nym developers constantly improve the software, the role of Node Operators is to keep their nodes up to date, monitor their performance and share feedback with the rest of the community and Nym team. Node performance measurements and [server monitoring](#monitoring) are an essential pillar of our common work.
+
+Nym Network is routed either through the Mixnet (5-hop) or through Wireguard (2-hop). In all cases Nym node operators always employ only one binary called [`nym-node`](/operators/nodes/nym-node). Through provided arguments (or changes in the config file), `nym-node` can be utilised for different [functionalities](/operators/nodes/nym-node/setup#functionality-mode). However, once it's [registered to Nym Network](/operators/nodes/nym-node/bonding) it's by default available for Nym Mixnet not for Wireguard routing. Only nodes with Wireguard enabled, are also available for Wireguard routing. This creates a situation where every Wireguard enabled `nym-node` is required to have a solid performance score in Mixnet to begin with, but not every Mixnet routing `nym-node` must have Wireguard enabled.
+
+Given this complexity, we divided the part below about performance calculation logic and node selection into two parallel tabs: Mixnet and Wireguard.
+
+  <Tabs items={[
+    <strong>Mixnet: Nodes Performance Calculation</strong>,
+    <strong>WireGuard: Gateways Performance Calculation</strong>,
+    ]} defaultIndex="0">
+    <MyTab><NodePerfMixnet /></MyTab>
+    <MyTab><NodePerfWG /></MyTab>
+
+## Functionality & Performance Check
+
+If you want to check your nodes performance, connectivity and much more, see some of the dashobards:
+
+- [Node Status dashboard](https://node-status.nym.com/dvpn): Shows latest probe results on one board
+- [Nym Node Status Observatory](https://harbourmaster.nymtech.net): New version of a good old Nym Harbourmaster, allowing operators preview stats of each node
+
+For more information about available endpoints and their status, you can refer to [`nymvpn.com/api/public/v1/directory/gateways`](https://nymvpn.com/api/public/v1/directory/gateways) or see directly self described endpoints of your node:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<IPv4_ADDRESS>/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/swagger/#/
+```
+For example to determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/roles
+# or
+http://<IPv4_ADDRESS>/api/v1/roles
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/roles
+```
+
+## Socks5 Score Calculation
+
+Gateway probe also runs tests through a Network requester - a module build as a part of `nym-node`, active only in mode Exit Gateway, used for [Socks5](/developers/clients/socks5) proxy TCP connection.
+
+Socks5 score is displayed in [Nym Node Status Observatory](https://harbourmaster.nymtech.net) (if you open a page with a particular gateway) and in detail it can be previewed at [mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways](https://mainnet-node-status-api.nymtech.cc/dvpn/v1/directory/gateways) or when running own instance of [Gateway probe](/operators/performance-and-testing/gateway-probe).
+
+### Socks5 Score Calculation Process
+
+Socks5 score is defined in the json output of Gateway probe as `"socks5"` key. Here is an example of the dictionary:
+
+```json
+        "socks5": {
+          "can_proxy_https": true,
+          "score": "medium",
+          "errors": null
+        }
+```
+
+> Note: When we write *gateway* we refer to a `nym-node --mode exit-gateway` in this sub-chapter.
+
+1. Gateway gets probed as part of a Gateway probe test where other components get tested as well
+
+2. Probe tries to connect to the Gateway through Socks5 10 times per testing instance
+
+3. Latency is calculated as an average of the successful attempts
+
+4. Gateway is scored as `"low"`, `"medium"`, `"high"` or `"offline"`, in numbers it means:
+    - `"offline"`: Gateway failed the test 3 or more times (out of 10 attempts)
+    - `"high"`: Top 50% of nodes with lowest average latency
+    - `"medium"`: Following 25% of nodes with lowest average latency below top 50% nodes
+    - `"low"`: Remaining 25% of nodes with the highest average latency time
+
+## Monitoring
+
+There are multiple ways to monitor performance of nodes and the machines on which they run. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
+
+### Guides to Setup Own Metrics
+
+A list of different tools, templates and guides for easier navigation:
+
+* [`nym-gateway-probe`](performance-and-testing/gateway-probe.mdx): a useful tool used under the hood of [Node Status Observatory](https://harbourmaster.nymtech.net)
+
+* [Diagnostic Tool](/developers/tools/diagnostic-tool): diagnose connectivity issues and provides insights into network performance
+
+* [Prometheus and Grafana](performance-and-testing/prometheus-grafana.mdx) self-hosted setup
+
+### Collecting Testing Metrics
+
+For the purpose of the performance testing Nym core developers plan to run instances of Prometheus and Grafana connected to Node explorer in the house. The network overall key insights we seek from these tests are primarily internal. We're focused on pinpointing bottlenecks, capacity loads, and monitoring cpu usage on the nodes' machines.
+
+{/* LEAVING THIS BIT FOR FUTURE F&F CASES:
+## Testing
+
+For the moment we paused Fast and Furious `perf` environment. All load and speed testing is carried on directly Nym Mainnet as this is the only way to collect real performance data.
+
+We do testing in order to **understand and increase the overall quality of the Nym Network**. The main takeaways of such event are:
+
+1. Understanding of the network behavior under full load
+    - How many mixnet client users can all active set entry gateways handle simultaneously?
+    - How much sustained IP traffic can a subset of mainnet nodes sustain?
+2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
+3. Measurement of required machine specs
+4. Raw data record
+5. Increase quality of Nym Nodes
+6. Show each operator a way to monitor their nodes in a distributed fashion
+7. Adjust rewarding based on the machine specs and server pricing
+
+Visit [Nym Harbour Master](https://harbourmaster.nymtech.net/) monitoring page to monitor network components (nodes) performance.
+*/}

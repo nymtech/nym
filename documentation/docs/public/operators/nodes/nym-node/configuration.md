@@ -1,0 +1,312 @@
+---
+title: Nym Node Configuration & Systemd Setup
+description: Configure your nym-node with systemd automation, reverse proxy, IPv6, and custom settings. Includes service file templates and maintenance tips.
+url: https://nym.com/docs/operators/nodes/nym-node/configuration
+---
+
+# Nym Node Configuration
+
+## Basic Changes
+
+Nym Node can be configured directly by editing the config file (`config.toml`) located at `~/.nym/nym-nodes/<ID>/config/config.toml` (by default `~/.nym/nym-nodes/default-nym-node/config/config.toml`) or through commands on the binary.
+
+### Node Description
+
+Operators can add a description themselves to share more information about their `nym-node` publicly.
+
+To add or change `nym-node` description is done by editing `description.toml` file located in `~/.nym/nym-nodes/<ID>/data/description.toml`. After saving, don't forget to reload and restart your node [service](#systemd) or simply restart your `nym-node` if you run it without a service (not recommended).
+
+**Query description**
+
+Nodes description can be queried from API endpoint `/api/v1/description` or via Swagger API UI page `/api/v1/swagger/#/Node/description`.
+
+```bash
+curl -X 'GET' \
+  'http://<PUBLIC_IP>:8080/api/v1/description' \
+  -H 'accept: application/json'
+
+# or for https reversed proxy or WSS setup
+curl -X 'GET' \
+  'https://<HOSTNAME>/api/v1/description' \
+  -H 'accept: application/json'
+```
+
+## Commands & Examples
+
+Disable sharing of system hardware info with the network:
+
+```sh
+./nym-node run --id <ID> --deny-init --mode entry-gateway -w --expose-system-hardware false --expose-system-info false
+```
+
+Alternatively these values can be changed in `config.toml` of your node. After saving, don't forget to reload and restart your node [service](#systemd) or simply restart your `nym-node` if you run it without a service (not recommended).
+
+> Note: `--expose-system-info false` supersedes `--expose-system-hardware false`. If both are present with conflicting values, the system hardware will not be shown.
+
+## VPS Setup and Automation
+
+> Replace `<NODE>` variable with type of node you run, in majority of cases this will be `nym-node` (depreciated `nym-mixnode`, `nym-gateway` or `nym-network-requester` are no longer supported).
+
+Although it’s not totally necessary, it's useful to have `nym-node` automatically start at system boot time. We recommend to run your remote operation via [`tmux`](#tmux) for easier management and a handy return to your previous session. For full automation, including a failed node auto-restart and `ulimit` setup, [`systemd`](#systemd) is a recommended choice for all operators, as it allows much more automation leading to better uptime and performance.
+
+> Do any of these steps and run your automated node before you start bonding process!
+
+### nohup
+
+`nohup` is a command with which your terminal is told to ignore the `HUP` or 'hangup' signal. This will stop the node process ending if you kill your session.
+
+```sh
+nohup ./<NODE> run <ARGUMENTS> # use all the flags you use to run your node
+```
+
+### tmux
+
+One way is to use `tmux` shell on top of your current VPS terminal. Tmux is a terminal multiplexer, it allows you to create several terminal windows and panes from a single terminal. Processes started in `tmux` keep running after closing the terminal as long as the given `tmux` window was not terminated.
+
+Use the following command to get `tmux`.
+
+| Platform | Install Command |
+| :---      | :---             |
+| Arch Linux|`pacman -S tmux`             |
+| Debian or Ubuntu|`apt install tmux`      |
+| Fedora|`dnf install tmux`                 |
+| RHEL or CentOS|`yum install tmux`          |
+|  macOS (using Homebrew | `brew install tmux`    |
+| macOS (using MacPorts) | `port install tmux`    |
+|               openSUSE | `zypper install tmux`  |
+
+In case it didn't work for your distribution, see how to build `tmux` from [version control](https://github.com/tmux/tmux#from-version-control).
+
+**Running tmux**
+
+Now you have installed tmux on your VPS, let's run a Mix Node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
+
+* Pause your `<NODE>`
+* Start tmux with the command
+```sh
+tmux
+```
+* tmux terminal should open in the same working directory, just the layout changed into tmux default layout.
+* Start the `<NODE>` again with a command:
+```sh
+./<NODE> run <ARGUMENTS> # use all the flags you use to run your node
+```
+* Now, without closing the tmux window, you can close the whole terminal and the `<NODE>` (and any other process running in tmux) will stay active.
+* Next time just start your teminal, ssh into the VPS and run the following command to attach back to your previous session:
+```sh
+tmux attach-session
+```
+* To see keybinding options of tmux press `ctrl`+`b` and after 1 second `?`
+
+### systemd
+
+###### 1. Create a service file
+
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nym-node.service` and follow the [next steps](#2-following-steps-for-nym-node-running-as-systemd-service).
+
+- Open service file in a text editor
+```sh
+nano /etc/systemd/system/nym-node.service
+```
+
+- Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nym-node` to `ExecStart` line instead of `<ARGUMENTS>`:
+```ini
+[Unit]
+Description=Nym Node
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER>
+LimitNOFILE=65536
+ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+[Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use systemd automation, add the flag to your service file's `ExecStart` line.
+
+- Save config and exit
+
+Make sure your `ExecStart <PATH>` and `run` command `<ARGUMENTS>` are correct!
+
+Example: If you have built nym in the `$HOME` directory on your server, your username is `jetpanther`, and node `<ID>` is `puma`, then the `ExecStart` line (command) in the script located in `/etc/systemd/system/nym-node.service` for might look like this:
+`ExecStart=/home/jetpanther/nym/target/release/nym-node run --id puma`.
+
+Basically, you want the full path to `nym-node`. If you are unsure about your `<PATH>`, then `cd` to your directory where you run your `<NODE>` from and run `pwd` command which returns the full path for you.
+
+###### 2. Following steps for `nym-node` running as `systemd` service
+
+Once your service file is saved follow these steps.
+
+- Reload systemctl to pickup the new unit file:
+```sh
+systemctl daemon-reload
+```
+
+- Enable the newly created service:
+```sh
+systemctl enable nym-node.service
+```
+
+- Start your `<NODE>` as a `systemd` service:
+```sh
+service nym-node start
+```
+
+This will cause your `<NODE>` to start at system boot time. If you restart your machine, your `<NODE>` will come back up automatically.
+
+###### 3. Useful `systemd` commands for easier management
+
+- You can monitor system logs of your node by running:
+```sh
+journalctl -u nym-node -f
+```
+
+- Or check service status by running:
+```sh
+systemctl status nym-node.service
+# for example systemctl status nym-node.service
+```
+
+- You can also do `service <NODE> stop` or `service <NODE> restart`.
+
+Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+```sh
+systemctl daemon-reload
+service nym-node restart
+```
+
+This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.
+
+## Routing Configuration
+
+### Quick IPv6 Check
+
+IPv6 routing is not only a case for gateways. Imagine a rare occasion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:
+```ascii
+[client] -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
+```
+In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's beneficial to have IPv6 enabled when running a `mixnode` functionality.
+
+You can always check IPv6 address and connectivity by using some of these methods:
+```sh
+# locally listed IPv6 addresses
+ip -6 addr
+
+# globally reachable IPv6 addresses
+ip -6 addr show scope global
+
+# with DNS
+dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com
+dig -t aaaa +short myip.opendns.com @resolver1.opendns.com
+
+# https check
+curl -6 https://ifconfig.co
+curl -6 https://ipv6.icanhazip.com
+
+# using telnet
+telnet -6 ipv6.telnetmyip.com
+```
+
+Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
+
+## Wireguard Exit Policy Configuration
+
+### Testing Wireguard Exit Policy
+
+## QUIC Transport Bridge Deployment
+
+## Running `nym-node` as a non-root
+
+Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. Below is a guide how to go about such setup:
+
+Copying nodes database and the `.nym/` directories from `/root/.nym` to `/home/<USER>/.nym/` should be treated as experimental, therefore we would advise this section for operators starting new nodes, rather than tweaking an existing one. We will publish a detailed guide for changing permissions of an existing node soon.
+
+###### 1. Setup a new user
+
+- Define a variable `user_name` using your desired user name:
+```sh
+user_name="<USER>"
+```
+
+- Run:
+```sh
+user_home="/home/$user_name"
+
+if ! id "$user_name" &>/dev/null; then
+    sudo adduser --home "$user_home" --disabled-login --gecos "" "$user_name"
+else
+    echo "user $user_name already exists"
+fi
+```
+
+- And follow by:
+
+```sh
+sudo usermod -aG sudo "$user_name"
+```
+
+- Optional: Add to sudoers group:
+```sh
+echo "$user_name ALL=(ALL) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/$user_name
+```
+
+###### 2. Grant needed permissions for network-level operations
+
+While `nym-node` will be set as a user process, it requires higher privileges for network-level operations, set them up with this command:
+
+```sh
+sudo setcap 'cap_net_bind_service=+ep cap_net_admin=+ep' nym-node
+```
+
+**After replacing or upgrading the binary, you must reapply these permissions each time!**
+
+###### 3. Edit service config file
+
+- Add these new lines to your `/etc/systemd/system/nym-node.service` [service config file](#systemd)
+    - `After=network.target`
+    - `Group=<USER>`
+    - `Type=simple`
+
+- Your service file will then look like this:
+
+```ini
+[Unit]
+Description=Nym Node
+After=network.target
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER>
+Group=<USER>
+Type=simple
+LimitNOFILE=65536
+ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+###### 4. Reload and restart the service
+
+```sh
+systemctl daemon-reload && service nym-node restart
+```
+
+- If you want to follow the logs, run:
+```sh
+journalctl -u nym-node -f
+```
+
+## Next Steps
+
+There are a few more good suggestions for `nym-node` configuration, like Web Secure Socket or Reversed Proxy setup. These are optional and you can skip them if you want. Visit [Proxy configuration](configuration/proxy-configuration.mdx) page to see the guides.

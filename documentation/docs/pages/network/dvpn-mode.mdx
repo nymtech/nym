@@ -9,7 +9,7 @@ lastUpdated: "2026-07-29"
 # dVPN Mode
 
 import dynamic from 'next/dynamic'
-import { requireGenericScenario } from '../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
 
 export const NetworkDiagram = dynamic(
   () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),

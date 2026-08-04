@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { GENERIC_SCENARIOS } from "../../lib/privacy-model/examples/generic";
-import { triClass, triGlyph } from "../../lib/privacy-model/tri";
-import { actorHref } from "../../lib/privacy-model/links";
-import type { MatrixCell } from "../../lib/privacy-model/types";
+import { GENERIC_SCENARIOS } from "lib/privacy-model/examples/generic";
+import { triClass, triGlyph } from "lib/privacy-model/tri";
+import { actorHref } from "lib/privacy-model/links";
+import type { MatrixCell } from "lib/privacy-model/types";
 
 // The cross-configuration comparison matrix: one row per generic configuration,
 // projecting each scenario's `matrix` verdicts into a single grid. Rows link to

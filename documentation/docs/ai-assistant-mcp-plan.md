@@ -1,6 +1,27 @@
 # Docs AI assistant + developer MCP server: plan
 
-Status: draft / planning. Owner: max. Last updated by spike run.
+Owner: max. Last updated 2026-08-04.
+
+## Current status (2026-08-04)
+
+The MCP server is built and validated end-to-end; the chat is still scaffold.
+
+| Piece | State |
+|---|---|
+| Retrieval core (chunker, embed cache, cosine search) | built, tested |
+| Live Nym API client (5 tools) | built, tested + verified against production |
+| MCP tool layer (8 tools, incl. `validate_sdk_config`) | built, tested |
+| MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP) | built, validated live (`tools/list` + `tools/call` over curl) |
+| Index build wired into deploy | **OUTSTANDING - deploy blocker (see 3.1)** |
+| Chat backend + widget | scaffold only (needs deps + keys) |
+| Confluence adapter | not started |
+
+65 tests passing. The MCP server compiles into `next build` and serves 8 tools
+over Streamable HTTP. The one gap before it works in production is wiring the
+index generator into the build (3.1) so `docs-index.json` exists in the deployed
+bundle; without it the route's index load throws on first request.
+
+---
 
 Two features, one shared backend:
 
@@ -64,7 +85,8 @@ build) is the way to add it, but we do not build for that now.
 Script: `documentation/scripts/next-scripts/generate-index.mjs`
 Run: `node documentation/scripts/next-scripts/generate-index.mjs [--stats]`
 
-Measured on the current `pages/` corpus (public docs only):
+Initial spike run on the `pages/` corpus (public docs only); post-hardening
+numbers are noted under the findings below:
 
 | Metric | Value |
 |---|---|
@@ -88,26 +110,24 @@ Conclusions:
 - Pure-vector top-k retrieval is enough to start; add BM25 hybrid later if
   recall on exact terms (crate names, CLI flags) proves weak.
 
-### Findings the production version must handle
+The spike table above is the *initial* Phase 0 run. After the chunker hardening
+below, the current index is **1392 chunks, p50 160 / max 600 tokens/chunk, 0
+chunks over budget** (from the 2026-08-04 build). The findings the spike surfaced
+are all resolved in `lib/retrieval/chunker.mjs`:
 
-1. **Unsplit giant chunks.** The two largest chunks (6553, 6125 tokens) are the
+1. **Unsplit giant chunks** (RESOLVED). The two 6k-token chunks were the
    auto-generated Fig completion specs under `developers/clients/*/commands`.
-   They are single unbroken code blocks, so the paragraph splitter cannot break
-   them. Fix: a hard char-cap fallback that splits mid-block, or skip/truncate
-   generated CLI completion output (low retrieval value). Currently just 2
-   chunks, but they blow the per-chunk token budget.
-2. **Duplicate-heading anchor collisions.** `slugify("Options")` -> `options`
-   every time, and CLI command pages repeat "Options" / "Usage" / "Example
-   output" per subcommand. So `id`/anchor collides across chunks and the deep
-   link points to the *first* match while the chunk text may be the third. This
-   breaks the deep-link value prop (`get_section(url)` and chat citations depend
-   on unique anchors). Fix: disambiguate repeats the way Nextra does (`-1`, `-2`
-   suffixes).
-3. **`##` inside fenced code blocks is mis-parsed as a heading.** `stripMdx`
-   doesn't strip fenced code and `splitByHeadings` matches `^#{2,4}` on any
-   line, so a `## section` comment in a bash example creates a false chunk
-   boundary. Fix: track fenced-code state, never split inside a fence. (Does not
-   affect the sizing verdict; total tokens/size hold regardless of boundaries.)
+   Fixed two ways: a hard char-cap fallback (`hardSplit`) that breaks mid-block,
+   and a skip list for the generated fig-spec pages (low retrieval value). Max
+   chunk is now 600 tokens; 0 oversized.
+2. **Duplicate-heading anchor collisions** (RESOLVED). CLI pages repeat
+   "Options" / "Usage" per subcommand, so `slugify` collided and deep links
+   pointed at the first match. Fixed with per-page slug dedup (`-1`, `-2`
+   suffixes), matching Nextra, so `get_section(url)` and chat citations resolve
+   to the right chunk.
+3. **`##` inside fenced code mis-parsed as a heading** (RESOLVED). Both
+   `stripMdx` and `splitByHeadings` are now fence-aware and never split inside a
+   fence, so a `## comment` in a bash example no longer creates a false boundary.
 4. **Short/marginal chunks.** 7% of chunks are <120 chars (heading with little
    body). Harmless but noisy; consider folding into the following section.
 5. **Token estimate is chars/4.** Fine for sizing; the real embed step should
@@ -129,7 +149,13 @@ Conclusions:
 - Add the embed step: batch chunks to the embedding API, attach `vector`, write
   `{ schema, generated, embedding:{provider,model,dim}, chunks }` to a single
   `docs-index.json`.
-- Wire into `build` after `generate-llms-txt`. Confluence is merged in by its own
+- **OUTSTANDING (deploy blocker):** the generator is not yet wired into the
+  `build` script (`generate-llms-txt.mjs && next build && next-sitemap`), and
+  `docs-index.json` is gitignored (too large, and rebuilt per deploy). So the
+  deployed bundle has no index and the MCP route throws on first request. Fix:
+  add `generate-index.mjs` to `build` (after `generate-llms-txt`), gated so a
+  missing `VOYAGE_API_KEY` degrades to a vectorless index rather than failing the
+  build, and set `VOYAGE_API_KEY` in Vercel. Confluence is merged in by its own
   adapter (see 3.2), which may run on a separate cadence since Confluence changes
   independently of docs deploys.
 - **Cache vectors by chunk content-hash; only changed chunks re-embed.** This
@@ -151,6 +177,10 @@ Conclusions:
   updates rather than full re-crawl.
 
 ### 3.3 Chat backend + widget
+
+Status: scaffold only. Route + widget live under `lib/chat/scaffold/` (tsconfig-
+excluded); the retrieval, context-building and prompt logic they use is built and
+tested. Wiring live needs `pnpm add ai @ai-sdk/anthropic @ai-sdk/react` + keys.
 
 - **Use the Vercel AI SDK** (`ai` + `@ai-sdk/anthropic`, MIT), not hand-rolled
   SSE. `useChat` on the client handles streaming message state; `streamText` on
@@ -208,10 +238,11 @@ Conclusions:
 | 0 | Spike: chunker + real corpus stats | done |
 | 0.1 | Hardened chunker + source-filtered retrieval + cached embed step, wired into generator | **done, 22 tests** |
 | 2a | MCP tool-logic layer: 8 tools (`search_docs`, `get_section`, 5 live, `validate_sdk_config`) + live Nym client | **done, 65 tests total + live-check** |
-| 2b | MCP transport (Streamable HTTP) under `lib/mcp/scaffold/` | scaffold; API verified vs SDK 1.30.0 types; needs `pnpm add @modelcontextprotocol/sdk` + runtime verify |
-| 1 | Chat: `/api/chat` + widget on Vercel AI SDK | not started (needs deps + keys) |
+| 2b | MCP transport + route (`pages/api/mcp.ts`, Streamable HTTP); core in `lib/mcp/build-server.ts` | **done + validated live** (`tools/list` + `tools/call` over curl; `next build` green) |
+| 2c | Wire `generate-index.mjs` into `build` + set `VOYAGE_API_KEY` in Vercel | **outstanding - deploy blocker** (see 3.1) |
+| 1 | Chat: `/api/chat` + widget on Vercel AI SDK | scaffold only (needs deps + keys) |
 | 4 | Confluence adapter (fetch + sanitise) merged into `docs-index.json` | not started; you host |
-| later | hybrid BM25 retrieval; feedback capture | backlog |
+| later | hybrid BM25 retrieval; feedback capture; rate-limiting on `/api/mcp` | backlog |
 
 ---
 
@@ -222,14 +253,15 @@ Conclusions:
   dependency and per-build/query cost. Both must match at index and query time.
 - **D2 (generation model + budget).** Haiku 4.5 (cost/latency) vs Sonnet
   (quality). Needs a per-query cost ceiling + abuse protection before public.
-- **D3 (MCP hosting).** LEANING: pages-router API route in the docs app
-  (`pages/api/mcp.ts`, public URL `https://nym.com/docs/api/mcp`) so it ships with
-  the existing Vercel deployment, one service to operate. Verified this is
-  buildable with only `@modelcontextprotocol/sdk` (low-level `Server` takes our
-  JSON Schema, so no zod; `mcp-handler` was rejected because it forces app-router +
-  `server@2` + `zod@4` onto a pages-router, zod-free app). Standalone Node server
-  kept as the alternative if a separate `mcp.nym.com` deployable is wanted later.
-  Still open: rate-limiting/abuse policy on the public endpoint.
+- **D3 (MCP hosting).** DECIDED + validated: pages-router API route in the docs
+  app (`pages/api/mcp.ts`, public URL `https://nym.com/docs/api/mcp`), shipping
+  with the existing Vercel deployment (one service). Uses only
+  `@modelcontextprotocol/sdk` (low-level `Server` takes our JSON Schema, so no
+  zod); `mcp-handler` was rejected because it forces app-router + `server@2` +
+  `zod@4` onto a pages-router, zod-free app. The `@hono/node-server` transport
+  accepts Next's wrapped `res` (the main risk, confirmed working). Standalone Node
+  server kept as the alternative for a separate `mcp.nym.com` deployable. Still
+  open under D3: rate-limiting / abuse policy before the endpoint is public.
 - **D4 (Confluence sanitisation + cadence).** What the sanitise step strips and
   who reviews it; full re-crawl vs incremental (CQL lastModified); job frequency.
 

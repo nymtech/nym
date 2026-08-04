@@ -304,8 +304,10 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
   TypeDoc. Fix = regen TypeDoc (user).
 - D3 TunnelState.reason string -> FailureReason object: FIXED at source (types.ts
   discriminated union). Ships on republish.
-- A1 nym-api openapi.json URL missing `/api` prefix: UNRESOLVED, needs a curl
-  (network blocked in my sandbox). Doc-link fix pending.
+- A1 nym-api openapi.json URL missing `/api` prefix: RESOLVED, not a drift. Curl
+  confirmed both `/api-docs/openapi.json` and `/api/api-docs/openapi.json` return
+  200, so the docs link works. Spec paths are `/v1`-relative; `/api` is a
+  deployment prefix the docs correctly prepend.
 
 ### Code changes made (UNVERIFIED here; need user build/publish)
 - `wasm/smolmix/src/state.rs` + `lib.rs`: tsify on TunnelState/FailureReason/
@@ -325,7 +327,11 @@ docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
 6. `pnpm test` in documentation/docs (vitest suites).
 
 ### Outstanding VALIDATOR work (Phase 2; not built)
-- OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1 + endpoints).
+- OpenAPI path-existence vs served spec: DEPRIORITISED. The `apis/*.mdx` pages
+  already embed the live spec via `<RedocStandalone>`, so endpoints are already a
+  projection; only a few hand-written curl paths aren't, and they check out. Low
+  marginal value. (If built: fetch spec, strip the `/api` deployment prefix, diff
+  doc-quoted paths against `.paths` keys.)
 - TypeDoc regen-and-diff CI gate (retires the stale-generated-docs class, D2).
 - Wire the two working checks into CI (advisory first, then gate: see Cloudflare below).
 - version/dist-tag check; scan `.tsx`; more in-repo constants.

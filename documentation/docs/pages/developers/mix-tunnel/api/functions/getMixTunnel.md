@@ -21,4 +21,4 @@ issuing fetch/dns/websocket requests.
 
 ## Source
 
-[sdk/typescript/packages/mix-tunnel/src/index.ts:47](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/index.ts#L47)
+[index.ts:47](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/mix-tunnel/src/index.ts#L47)

@@ -25,4 +25,4 @@ Requires the tunnel to be up: call `setupMixTunnel(opts)` first, or use
 
 ## Source
 
-[mix-fetch/src/index.ts:39](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-fetch/src/index.ts#L39)
+[mix-fetch/src/index.ts:39](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/mix-fetch/src/index.ts#L39)

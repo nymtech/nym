@@ -25,7 +25,7 @@ await client.start({
 
 #### Parameters
 
-• **opts?**: `ClientOpts`
+• **opts?**: `any`
 
 #### Returns
 
@@ -33,7 +33,7 @@ await client.start({
 
 #### Source
 
-[mixnet/wasm/types.ts:33](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L33)
+[mixnet/wasm/types.ts:33](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L33)
 
 ***
 
@@ -60,7 +60,7 @@ await client.stop();
 
 #### Source
 
-[mixnet/wasm/types.ts:46](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L46)
+[mixnet/wasm/types.ts:46](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L46)
 
 ***
 
@@ -87,7 +87,7 @@ const address = await client.selfAddress();
 
 #### Source
 
-[mixnet/wasm/types.ts:59](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L59)
+[mixnet/wasm/types.ts:59](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L59)
 
 ***
 
@@ -124,7 +124,7 @@ await client.setTextMimeTypes(['text/plain', 'application/json']);
 
 #### Source
 
-[mixnet/wasm/types.ts:76](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L76)
+[mixnet/wasm/types.ts:76](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L76)
 
 ***
 
@@ -158,7 +158,7 @@ const mimeTypes = await client.getTextMimeTypes();
 
 #### Source
 
-[mixnet/wasm/types.ts:93](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L93)
+[mixnet/wasm/types.ts:93](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L93)
 
 ***
 
@@ -203,7 +203,7 @@ await client.send({
 
 #### Source
 
-[mixnet/wasm/types.ts:111](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L111)
+[mixnet/wasm/types.ts:111](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L111)
 
 ***
 
@@ -249,4 +249,4 @@ await client.rawSend({
 
 #### Source
 
-[mixnet/wasm/types.ts:130](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L130)
+[mixnet/wasm/types.ts:130](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L130)

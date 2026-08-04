@@ -1,26 +1,39 @@
-// SCAFFOLD - not built, not tested here. Move to `components/ChatWidget.tsx`
-// and mount it once, globally, from `pages/_app.tsx` (inside the ThemeProvider,
-// beside <AnyComponent />). Lives under lib/chat/scaffold/ (tsconfig-excluded)
-// so its AI-SDK import doesn't break `next build` until wired up.
+// SCAFFOLD - chat widget. Move to `components/ChatWidget.tsx` and mount it once,
+// globally, from `pages/_app.tsx` (inside the ThemeProvider). Lives under
+// lib/chat/scaffold/ (tsconfig-excluded) so its AI-SDK import doesn't break
+// `next build` until wired up.
 //
 // Needs:  pnpm add ai @ai-sdk/react
 //
-// VERIFY ON INSTALL:
-//   - useChat import path: `@ai-sdk/react` (v5) or `ai/react` (v4).
-//   - the `api` path includes the /docs basePath, so the request is same-origin
-//     with the docs pages and needs no CSP change.
+// VERIFIED against @ai-sdk/react@4 + ai@7 type definitions:
+//   - useChat returns { messages, status, sendMessage }; there is no `input` /
+//     `handleInputChange` / `handleSubmit` any more, so the widget owns its input
+//     state and calls sendMessage({ text }).
+//   - the endpoint is passed via a transport: new DefaultChatTransport({ api }).
+//   - messages are UIMessage[]; text lives in `message.parts` (type 'text'), not
+//     a `.content` string.
 //
-// Deliberately minimal: floating button + panel wired to useChat. Styling is a
-// placeholder; match it to the Nextra theme when you productionise.
+// Deliberately minimal: floating button + panel. Styling is a placeholder; match
+// it to the Nextra theme when you productionise.
 
 import { useState } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
-  const { messages, input, handleInputChange, handleSubmit, status } = useChat({
-    api: '/docs/api/chat', // basePath is /docs, so this is same-origin
+  const [input, setInput] = useState('');
+  const { messages, status, sendMessage } = useChat({
+    transport: new DefaultChatTransport({ api: '/docs/api/chat' }), // basePath is /docs
   });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || status === 'streaming') return;
+    sendMessage({ text });
+    setInput('');
+  };
 
   if (!open) {
     return (
@@ -42,16 +55,17 @@ export default function ChatWidget() {
       <div style={logStyle}>
         {messages.map((m) => (
           <p key={m.id} style={{ margin: '0.5rem 0' }}>
-            <strong>{m.role === 'user' ? 'You' : 'Assistant'}:</strong> {m.content}
+            <strong>{m.role === 'user' ? 'You' : 'Assistant'}:</strong>{' '}
+            {m.parts.filter((p) => p.type === 'text').map((p) => p.text).join('')}
           </p>
         ))}
         {status === 'streaming' && <p aria-live="polite">…</p>}
       </div>
 
-      <form onSubmit={handleSubmit} style={formStyle}>
+      <form onSubmit={submit} style={formStyle}>
         <input
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about Nym, the SDKs, running a node…"
           aria-label="Your question"
           style={{ flex: 1 }}

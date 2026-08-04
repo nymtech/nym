@@ -80,18 +80,26 @@ Writes `public/docs-index.json` (~5.5MB, gitignored) with vectors + an embed cac
 under `.cache/`. Re-run: only changed chunks re-embed. Without the key it writes a
 vectorless index and warns.
 
-### 4. Chat route + widget (needs AI SDK + keys)
+### 4. Chat route + widget (needs AI SDK + keys) - scaffold rewritten for v7
+
+The scaffold under `lib/chat/scaffold/` is now written for **ai@7 + @ai-sdk/react@4**
+(verified against the installed type defs), not the old v4 API. To wire it live:
 ```
 pnpm add ai @ai-sdk/anthropic @ai-sdk/react
 ```
-- Move `lib/chat/scaffold/chat-route.ts` -> `pages/api/chat.ts`.
+- Move `lib/chat/scaffold/chat-route.ts` -> `pages/api/chat.ts`. Fix its relative
+  imports the same way `pages/api/mcp.ts` did (`../../lib/chat/...`, `../../lib/retrieval/...`).
 - Move `lib/chat/scaffold/ChatWidget.tsx` -> `components/ChatWidget.tsx`, and
   mount `<ChatWidget />` in `pages/_app.tsx` inside the ThemeProvider.
+- `/api/chat` is already in `next.config.js` `outputFileTracingIncludes` (reads the
+  same index).
 - Set `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`; optional `CHAT_MODEL`
   (default `claude-haiku-4-5`; set `claude-opus-4-8` for quality).
 - `pnpm run dev`, open the docs, click "Ask AI".
-- VERIFY: the pages-router streaming call (`pipeDataStreamToResponse`) matches the
-  AI SDK version you installed; v5 renamed helpers.
+- Untestable in the sandbox (needs deps + build). Verify: streaming renders via
+  `pipeUIMessageStreamToResponse` + `useChat`; message text comes from
+  `message.parts`. Citations-as-links are a follow-up (v7 transport hides response
+  headers; the model cites `[n]` inline for now).
 
 ### 5. MCP server - VALIDATED WORKING (2026-08-04)
 

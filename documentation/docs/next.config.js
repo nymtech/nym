@@ -90,6 +90,7 @@ const config = {
   // not in the serverless function's filesystem unless traced in explicitly.
   outputFileTracingIncludes: {
     "/api/mcp": ["./public/docs-index.json"],
+    "/api/chat": ["./public/docs-index.json"],
   },
   async redirects() {
     return [

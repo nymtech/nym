@@ -7,16 +7,11 @@
 // no-ops there. "Ask AI" dispatches a window event ChatWidget listens for.
 
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function PageActions() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
-  // Render client-only: these are interactive buttons with no SSR value, and
-  // rendering them only after mount guarantees the server and first client
-  // render match (no hydration mismatch).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
   const slug = path === '' ? '/index' : path;
@@ -36,8 +31,6 @@ export default function PageActions() {
 
   const askAI = () => window.dispatchEvent(new CustomEvent('nym:ask-ai'));
 
-  if (!mounted) return null;
-
   return (
     <div style={rowStyle}>
       <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
@@ -50,15 +43,13 @@ export default function PageActions() {
   );
 }
 
-// Fixed top-right so there's no DOM surgery into Nextra's content (which risked
-// hydration). Colours use the shared --chat-* vars, so it follows the theme.
+// In-flow at the top of the content (portaled in by PageActionsMount). Colours
+// use the shared --chat-* vars, so it follows the theme.
 const rowStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 70,
-  right: 24,
-  zIndex: 30,
   display: 'flex',
   gap: 8,
+  justifyContent: 'flex-end',
+  margin: '0 0 0.75rem',
 };
 const btnStyle: React.CSSProperties = {
   fontSize: '0.8rem',

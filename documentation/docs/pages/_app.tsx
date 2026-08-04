@@ -7,9 +7,10 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 // Client-only: the widget uses useChat and streams from /docs/api/chat.
 const ChatWidget = dynamic(() => import('components/ChatWidget'), { ssr: false });
-// Client-only (ssr:false) so the per-page Copy/Ask AI buttons never take part in
-// SSR/hydration; the theme.config `main` wrapper route caused a hydration crash.
-const PageActions = dynamic(() => import('components/PageActions'), { ssr: false });
+// Client-only (ssr:false): portals the per-page Copy/Ask AI buttons into the
+// content top. Kept out of SSR/hydration; the theme.config `main` wrapper route
+// caused a hydration crash and fixed positioning hid behind the navbar.
+const PageActionsMount = dynamic(() => import('components/PageActionsMount'), { ssr: false });
 
 const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   const muiTheme = useMemo(
@@ -43,7 +44,7 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={muiTheme}>
       <AnyComponent {...pageProps} />
-      <PageActions />
+      <PageActionsMount />
       <ChatWidget />
     </ThemeProvider>
   );

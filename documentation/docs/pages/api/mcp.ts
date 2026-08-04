@@ -29,7 +29,16 @@ import type { DocIndex } from '../../lib/retrieval/types';
 import { voyageProvider, embedQuery } from '../../lib/retrieval/embed.mjs';
 
 // Heavy, immutable state: loaded once per serverless instance (cold start).
-const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public/docs-index.json'), 'utf-8'));
+const INDEX_PATH = path.join(process.cwd(), 'public/docs-index.json');
+let index: DocIndex;
+try {
+  index = JSON.parse(readFileSync(INDEX_PATH, 'utf-8'));
+} catch (e) {
+  // A legible failure beats an opaque module-eval crash. The usual cause is the
+  // index not being built (run the docs build) or not being traced into this
+  // lambda on Vercel (next.config.js outputFileTracingIncludes for /api/mcp).
+  throw new Error(`MCP route: cannot load ${INDEX_PATH}: ${(e as Error).message}. Build the docs so generate-index.mjs writes it, and ensure it is traced into this function.`);
+}
 const provider = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 const tools: McpTool[] = createTools({ index, embedQuery: (q: string) => embedQuery(q, provider) });
 

@@ -99,8 +99,25 @@ export async function embedChunks(chunks, provider, cache = new Map(), { batchSi
     if (!cache.has(h)) missIdx.push(i);
   });
 
-  for (let b = 0; b < missIdx.length; b += batchSize) {
-    const batch = missIdx.slice(b, b + batchSize);
+  // Batch by a token budget, not just a count: Voyage caps a batch at 120k
+  // tokens, and code tokenizes ~twice as dense as prose (~2 chars/token), so a
+  // fixed count blows the limit. Estimate conservatively (chars/2) and keep a
+  // margin under the cap; batchSize is a hard ceiling on texts per request.
+  const TOKEN_BUDGET = 100_000;
+  const estTokens = (t) => Math.ceil(t.length / 2);
+  let b = 0;
+  while (b < missIdx.length) {
+    const batch = [];
+    let tokens = 0;
+    while (
+      b < missIdx.length &&
+      batch.length < batchSize &&
+      (batch.length === 0 || tokens + estTokens(chunks[missIdx[b]].text) <= TOKEN_BUDGET)
+    ) {
+      tokens += estTokens(chunks[missIdx[b]].text);
+      batch.push(missIdx[b]);
+      b++;
+    }
     const vectors = await provider.embed(batch.map((i) => chunks[i].text));
     batch.forEach((i, j) => cache.set(hashes[i], vectors[j]));
   }

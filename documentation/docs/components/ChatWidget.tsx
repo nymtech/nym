@@ -71,7 +71,9 @@ export default function ChatWidget() {
         aria-hidden={!open}
         style={{
           ...drawerStyle,
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          // +40px clears the box-shadow/border so nothing bleeds onto the right
+          // edge (visible behind the launcher, esp. in dark mode) when closed.
+          transform: open ? 'translateX(0)' : 'translateX(calc(100% + 40px))',
           pointerEvents: open ? 'auto' : 'none',
         }}
       >

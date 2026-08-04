@@ -24,8 +24,18 @@ export default function PageActionsMount() {
   useEffect(() => {
     const node = document.createElement('div');
     const attach = () => {
-      const target = contentEl();
-      if (target && target.firstChild !== node) target.prepend(node);
+      const content = contentEl();
+      if (!content) return;
+      const h1 = content.querySelector('h1');
+      if (h1 && h1.parentElement) {
+        // Float right, placed just before the H1, so the title flows to the left
+        // on the same line and the content below is unaffected.
+        node.style.cssText = 'float: right; margin: 0.2rem 0 0.5rem 1rem;';
+        if (node.nextSibling !== h1) h1.parentElement.insertBefore(node, h1);
+      } else if (content.firstChild !== node) {
+        node.style.cssText = '';
+        content.prepend(node);
+      }
     };
     attach();
     setHost(node);

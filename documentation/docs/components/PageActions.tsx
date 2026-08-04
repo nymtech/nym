@@ -43,13 +43,11 @@ export default function PageActions() {
   );
 }
 
-// In-flow at the top of the content (portaled in by PageActionsMount). Colours
-// use the shared --chat-* vars, so it follows the theme.
+// Portaled in beside the H1 by PageActionsMount (the host div handles float/position).
+// Colours use the shared --chat-* vars, so it follows the theme.
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   gap: 8,
-  justifyContent: 'flex-end',
-  margin: '0 0 0.75rem',
 };
 const btnStyle: React.CSSProperties = {
   fontSize: '0.8rem',

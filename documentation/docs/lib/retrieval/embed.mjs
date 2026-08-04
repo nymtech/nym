@@ -88,7 +88,11 @@ export function mockProvider({ dim = 8 } = {}) {
  * @returns {Promise<{ embedded: EmbeddedChunk[], cache: Map<string, number[]>, stats: { total: number, embedded: number, cached: number } }>}
  */
 export async function embedChunks(chunks, provider, cache = new Map(), { batchSize = 128 } = {}) {
-  const hashes = chunks.map((c) => contentHash(c.text));
+  // Key on model + dim as well as content: vectors from different models live in
+  // different spaces, so a model change must invalidate the cache rather than
+  // silently reuse the old model's vectors for unchanged chunks.
+  const keyPrefix = `${provider.model}:${provider.dim}:`;
+  const hashes = chunks.map((c) => keyPrefix + contentHash(c.text));
 
   const missIdx = [];
   hashes.forEach((h, i) => {

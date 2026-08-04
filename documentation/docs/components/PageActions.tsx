@@ -7,11 +7,16 @@
 // no-ops there. "Ask AI" dispatches a window event ChatWidget listens for.
 
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function PageActions() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  // Render client-only: these are interactive buttons with no SSR value, and
+  // rendering them only after mount guarantees the server and first client
+  // render match (no hydration mismatch).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const path = router.asPath.split(/[#?]/)[0].replace(/\/$/, '');
   const slug = path === '' ? '/index' : path;
@@ -30,6 +35,8 @@ export default function PageActions() {
   };
 
   const askAI = () => window.dispatchEvent(new CustomEvent('nym:ask-ai'));
+
+  if (!mounted) return null;
 
   return (
     <div style={rowStyle}>

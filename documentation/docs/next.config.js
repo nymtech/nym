@@ -86,6 +86,11 @@ nextra.webpack = (config, options) => {
 const config = {
   ...nextra,
   basePath: "/docs",
+  // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
+  // not in the serverless function's filesystem unless traced in explicitly.
+  outputFileTracingIncludes: {
+    "/api/mcp": ["./public/docs-index.json"],
+  },
   async redirects() {
     return [
       // network docs

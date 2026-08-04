@@ -21,3 +21,7 @@ robots.txt
 # Generated retrieval index + embed cache (built at deploy, served by Vercel)
 public/docs-index.json
 .cache/
+
+# Per-page markdown export (built at deploy from pages/; see generate-page-markdown.mjs)
+public/*.md
+public/**/*.md

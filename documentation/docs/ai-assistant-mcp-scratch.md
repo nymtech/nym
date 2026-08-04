@@ -286,6 +286,64 @@ Get it working, then make it nice, then widen the corpus. In order:
    OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1);
    wasm-serde-to-TS-union enum parity (catches D1); version/dist-tag; scan `.tsx`.
 
+## Validation workstream status board (living)
+Single place to see what is done and what is outstanding for the docs-vs-code /
+docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
+
+### Validators built (committed; node-verified, vitest run by user)
+- `scripts/next-scripts/validate-docs-vs-code.mjs`: size+time oracle DERIVED from
+  source (self-invalidating sphinx-packet version pin), 6 facts, scan 14 agree /
+  0 drift. Tests `lib/retrieval/validate-docs-vs-code.test.ts`.
+- `scripts/next-scripts/validate-enum-parity.mjs`: wasm serde vs TS union names,
+  now reports PARITY (D1 fixed). Tests `lib/retrieval/validate-enum-parity.test.ts`.
+
+### Drifts found (3-agent survey) + status
+- D1 TunnelState names (HIGH): FIXED at source (types.ts -> shutting_down/shutdown
+  + tsify generation). Ships on SDK republish.
+- D2 SetupMixTunnelOpts missing preferredGateway: source already has it; STALE
+  TypeDoc. Fix = regen TypeDoc (user).
+- D3 TunnelState.reason string -> FailureReason object: FIXED at source (types.ts
+  discriminated union). Ships on republish.
+- A1 nym-api openapi.json URL missing `/api` prefix: UNRESOLVED, needs a curl
+  (network blocked in my sandbox). Doc-link fix pending.
+
+### Code changes made (UNVERIFIED here; need user build/publish)
+- `wasm/smolmix/src/state.rs` + `lib.rs`: tsify on TunnelState/FailureReason/
+  TaskName; getTunnelState returns typed. Commit b79bda154f. NEEDS wasm build
+  (main unknown: tsify support for the internally-tagged enum).
+- `sdk/typescript/packages/mix-tunnel/src/types.ts`: TunnelState -> discriminated
+  union (D1/D3). NEEDS tsc/build.
+- `documentation/docs/components/playground/MixPlayground.tsx`: narrow `reason.kind`.
+
+### Outstanding USER actions (I cannot run these here)
+1. Build smolmix wasm (`cd wasm/smolmix && make build-debug`), verify tsify emits
+   `TunnelState` in `pkg/smolmix_wasm.d.ts`; fix any compile error (likely tsify).
+2. Build/tsc the TS SDKs.
+3. Regenerate TypeDoc (fixes D2, picks up D1/D3): `generate-typedoc.sh`.
+4. Republish the four TS SDK packages (runbook: root `ts-sdk-publishing.md`).
+5. Curl to settle A1 (which openapi.json URL 200s).
+6. `pnpm test` in documentation/docs (vitest suites).
+
+### Outstanding VALIDATOR work (Phase 2; not built)
+- OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1 + endpoints).
+- TypeDoc regen-and-diff CI gate (retires the stale-generated-docs class, D2).
+- Wire the two working checks into CI (advisory first, then gate: see Cloudflare below).
+- version/dist-tag check; scan `.tsx`; more in-repo constants.
+
+### Docs / wiki
+- `documentation/README.md` "Validating docs against the code": cycle, generate-vs-
+  check, tsify example.
+- Wiki `~/dev/wiki/src/docs-for-ai/checking-vs-projecting.md` (new) + SUMMARY/MOC/
+  rung-5 cross-links.
+
+### References / inputs to fold into the framework
+- Cloudflare "Engineering Standards Enforcement" (Codex): RFC-2119 MUST/SHOULD
+  statements extracted to JSON with stable slug IDs; **approved -> enforced**
+  lifecycle (advisory, then blocking); agent + linter + CLI verification paths.
+  Directly informs (a) graded enforcement for our checks (warn before gate) and
+  (b) stable-ID-per-claim = the contracts idea.
+  https://blog.cloudflare.com/engineering-standards-enforcement/
+
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).
 - D2 generation model + budget (defaulted to Haiku 4.5; abuse protection TODO).

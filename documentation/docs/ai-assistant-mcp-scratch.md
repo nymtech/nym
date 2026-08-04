@@ -132,6 +132,29 @@ Results:
   vectored index). Standalone alt (separate deploy): `tsx lib/mcp/scaffold/standalone.ts`.
 - Still open: rate-limiting/abuse policy on the public endpoint (plan D3).
 
+## Key handling (secrets)
+
+Keys live only in two external stores, never in the repo or a working file. The
+code reads them via `process.env.*`; no value is ever committed or handed to a
+local agent.
+
+- `VOYAGE_API_KEY` (build-time index embedding): a **GitHub Actions secret**
+  (repo Settings -> Secrets and variables -> Actions). Referenced as
+  `${{ secrets.VOYAGE_API_KEY }}` in `.github/workflows/cd-docs.yml`. Without it
+  the build writes a vectorless index (build still passes; `search_docs` returns
+  nothing).
+- `VOYAGE_API_KEY` + `ANTHROPIC_API_KEY` (runtime: query embedding + Claude
+  generation): **Vercel project env vars** (Project -> Settings -> Environment
+  Variables; scope Preview for staging, Production later). Pulled by
+  `vercel pull` at deploy. `ANTHROPIC_API_KEY` is runtime-only (not needed at build).
+
+Local dev caveat: `.env` / `.env*.local` are gitignored, so a key there is never
+committed, but any file under the repo tree is still readable by tooling with
+filesystem access. For local testing prefer exporting in your shell for the
+session (`VOYAGE_API_KEY=... pnpm run dev`) or keep the env file outside the repo
+(e.g. `~/.config/nym-docs.env`) and source it. Better: exercise keys only through
+the staging preview, where they stay in GitHub/Vercel.
+
 ## Open decisions (see plan D1-D4)
 - D1 embeddings provider (defaulted to Voyage dim 1024).
 - D2 generation model + budget (defaulted to Haiku 4.5; abuse protection TODO).

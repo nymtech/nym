@@ -303,8 +303,14 @@ Do these before the PR merges; deferred out of the main work.
    `copy-webpack-plugin` (dead, commented out in next.config.js); confirm
    `raw-loader` / `vm-browserify` are still used; check if a later pnpm/nextra hoists
    gray-matter/github-slugger so the direct dep can drop.
-5. Add the TypeDoc regen-diff gate (now that CI no longer regenerates): a check that
-   `docs:typedoc` output equals the committed `api/` tree, so stale docs fail CI.
+5. TypeDoc regen-diff gate: BUILT (`.github/workflows/ci-docs-typedoc-fresh.yml`).
+   Builds SDK wasm + the 4 packages, runs `docs:typedoc`, fails if the committed
+   `api/` tree differs. Needed a determinism fix: generate-typedoc.sh now pins source
+   links to `develop` (`--gitRevision develop`) instead of per-file SHAs, else the
+   gate would churn every commit. ONE-TIME regen required to go green: the committed
+   docs still have SHA links, so run `pnpm run docs:typedoc` once + commit (this also
+   retires the stale-frozen-SHA links). The gate will be red until that regen, which
+   is it working correctly.
 6. Add the two docs-validation workflows as branch-protection required checks (the
    linkcheck + any new gate) so they block merges.
 

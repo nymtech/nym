@@ -34,6 +34,10 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 ```
 - In case you want to save the file elsewhere, change the path in '-o' flag
 
+- Make sure your `sandbox.env` file contains the correct RPC URL. If not, add this line:
+```sh
+NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
+
 ###### 2. Run your `nym-node` with an additional flag `-c` or `--config-env-file`
 - Specify a path to `sandbox.env`
 - Add all needed commands and options - for example:
@@ -56,7 +60,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 
 ###### 3. Bond your node to Nym Sandbox environment
 - Open [Nym Wallet](https://nym.com/wallet) and switch to testnet
-- Go to [faucet.nymtech.net](https://faucet.nymtech.net) and aquire 101 testnet NYM tokens
+- Go to [https://sandbox-faucet.nymtech.net/](https://sandbox-faucet.nymtech.net/) and aquire 101 testnet NYM tokens
 - Follow the steps on the [bonding page](nodes/nym-node/bonding.mdx)
 
 ![](/images/operators/sandbox.png)
@@ -74,6 +78,6 @@ export NYMNODE_CONFIG_ENV_FILE_ARG=<PATH>/sandbox.env
 
 ## Sandbox Token Faucet
 
-To run your nodes in Sandbox environment, you need testnet version of NYM token, that can be aquired from [faucet.nymtech.net](https://faucet.nymtech.net).
+To run your nodes in Sandbox environment, you need testnet version of NYM token, that can be aquired from [https://sandbox-faucet.nymtech.net/](https://sandbox-faucet.nymtech.net/).
 
 To prevent abuse, the faucet is rate-limited - your request will fail if the requesting wallet already has 101 NYM tokens.

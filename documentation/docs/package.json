@@ -82,6 +82,8 @@
     "crypto-browserify": "^3.12.0",
     "eslint": "8.46.0",
     "eslint-config-next": "13.4.13",
+    "github-slugger": "^2.0.0",
+    "gray-matter": "^4.0.3",
     "https-browserify": "^1.0.0",
     "next-sitemap": "4.2.3",
     "process": "^0.11.10",

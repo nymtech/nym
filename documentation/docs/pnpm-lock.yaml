@@ -195,6 +195,12 @@ importers:
       eslint-config-next:
         specifier: 13.4.13
         version: 13.4.13(eslint@8.46.0)(typescript@5.9.3)
+      github-slugger:
+        specifier: ^2.0.0
+        version: 2.0.0
+      gray-matter:
+        specifier: ^4.0.3
+        version: 4.0.3
       https-browserify:
         specifier: ^1.0.0
         version: 1.0.0

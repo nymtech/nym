@@ -2,7 +2,7 @@
 
 Geolocation currently lives inside `nym-node-status-api` as `monitor/geodata.rs`: an `IpInfoClient`, a `moka` `Cache<NodeId, Location>` with a 24h TTL, and a serial sweep at step 9 of the monitor's strictly-ordered cycle. Results reach consumers by two different routes that can disagree. The dVPN directory reads them out of the persisted `explorer_pretty_bond` JSONB, frozen at gateway-write time; `/explorer/v3/nym-nodes` reads the live in-memory cache, so after a restart it serves `geoip: null` until the sweep refills. Failed lookups are never cached, so a node whose addresses cannot be resolved is retried every cycle against a metered API. An empty country code silently drops a gateway from the dVPN directory (`http/state.rs:431`).
 
-The verifiable-directory stack established the pattern this change follows: a CosmWasm contract maintains an `nym-lthash` accumulator over its own entries and publishes the collapsed 32-byte digest at a fixed raw storage key, so a client can pull the whole set from an untrusted source, recompute, and prove completeness against the chain's `app_hash` via ICS23 and a light-client anchor. `common/nym-directory-client` already implements the anchoring, proving and recompute machinery in a contract-agnostic way, parameterised by contract address and digest key.
+The verifiable-directory stack established the pattern this change follows: a CosmWasm contract maintains an `nym-lthash` accumulator over its own entries and exposes it at a fixed raw storage key, so a client can pull the whole set from an untrusted source, recompute, and prove completeness against the chain's `app_hash` via ICS23 and a light-client anchor. `common/nym-directory-client` implements the anchoring, proving and recompute machinery, in layers of varying generality (see the task 1.2 findings below).
 
 **Merge order matters here.** This change lands on develop *before* `feat/node-directory-publishing`, which is subsequently rebased and remade on top of it. Of the directory stack, only `common/lthash` is on develop today; `common/nym-directory-client`, `common/nym-directory-types` and `contracts/directory/` exist solely on that branch. The contract and the service therefore depend on nothing unmerged, since the accumulator primitive is available and the digest machinery is copy-and-adapted rather than imported. Client-side verification is the one piece that must wait: it has no home until `nym-directory-client` reaches develop. That is a sequencing constraint on the task list, not a gap in the contract, which maintains its digest correctly from the first deployment whether or not tooling exists to check it yet.
 
@@ -211,12 +211,52 @@ The consumer cutover is the deferred follow-up change and carries the real migra
 
 ## Open Questions
 
-All design questions are resolved. Two items remain that require work rather than a decision, and are sequenced in `tasks.md`.
+One item remains that requires work rather than a decision.
 
 - **`MAX_BATCH_SIZE` (task 6.6)** must come from a measured gas profile against the chain's per-transaction cap, counting the accumulator load and save once per transaction. A batch of 50 to 100 is a hypothesis to test, not a value to adopt.
-- **The custom key encoding (task 1.1)** needs a spike before the layout is treated as settled. The key is `(subject_class, subject_id, source)` where `source` is itself a variant carrying two fields, so a manual `PrimaryKey`/`KeyDeserialize` is required rather than a native cw-storage-plus tuple. The directory contract's store structs are the template. This is ordered first because it is the only remaining item that could still move the frozen key layout.
 
-## Resolved
+## Task 1 investigation findings (2026-08-05)
+
+### 1.1 No custom `PrimaryKey` is needed
+
+The premise of this spike was wrong in a useful direction. The directory contract never implements `PrimaryKey`: `StoredNodeEntries` uses the stock tuple impls, calls `key.key()`, and hands the parts to `Path::new` / `Prefix::new` itself (`contracts/directory/src/storage.rs:293`). So the question is not how costly a custom impl would be, but whether the key can be expressed with stock impls. It can:
+
+```
+  (u8 subject_class, Vec<u8> subject_id, Vec<u8> source_encoded)
+```
+
+a plain 3-tuple, with `Source` flattened to bytes by our own helper (`[1][method][agent]`, `[2]`, `[3]`) rather than being a key-component type. Section 3 gets simpler than planned.
+
+**Ordering holds, and the reason is the per-class fixed-width rule.** cw-storage-plus length-prefixes every component except the last, so `Vec<u8>` components sort by length before content. That would break numeric node ordering if ids were variable-width. They are not: `NymNode` is always 4 bytes big-endian and `NymApi` always 32, so within a class the length prefix is constant and ordering falls through to the content. The fixed-width-per-class rule in Decision 2 was chosen for tidiness; it turns out to be load-bearing.
+
+The trailing `source_encoded` is not length-prefixed, so it sorts lexicographically: `Measured` (tag 1) before `SelfDeclared` (2) before `Override` (3), and within `Measured` by method then agent. Correct without further work.
+
+**One scan is not a prefix.** "All entries for a subject" is a prefix on `(class, id)`, mirroring `node_prefix`. "All measurements for a subject" is not, because `source_encoded` is a single opaque component and a prefix cannot reach inside it. This does not matter: a subject holds at most a handful of entries (one per agent, plus self-declared, plus override), so the per-subject scan filters in memory. Splitting `source` into two key components to make it a true prefix would add machinery for a scan of about five items.
+
+**One assumption is compile-gated**: that cw-storage-plus 2.0 implements `KeyDeserialize` for `(u8, Vec<u8>, Vec<u8>)`. Both 3-tuples and `Vec<u8>` have it individually, so this is expected to hold, but it is the single thing a `cargo check` should confirm before section 3 commits to the layout.
+
+### 1.2 `nym-directory-client` is reusable in layers, not wholesale
+
+The earlier claim that it is "contract-agnostic, parameterised by contract address and digest key" was too strong. Measured against the branch:
+
+| layer | coupling | reuse |
+| --- | --- | --- |
+| `proof.rs` | none: takes `(ops, app_hash, key, value)` | unchanged |
+| `contract_storage_key` (in `nym-validator-client`) | none | unchanged |
+| `anchor/checkpoint/*` | none | unchanged |
+| `anchor/helpers.rs` | address-parameterised, but hardcodes the directory's `DIGEST_STATE` constant | needs the storage key threaded through as a parameter |
+| `anchor/light_client.rs`, `anchor/proven.rs` | holds `directory_contract: AccountId` | small generalisation |
+| `anchor/attested.rs`, `key.rs`, `client.rs` | directory-shaped throughout | sibling, not reuse |
+
+So task 7.2 is "parameterise the digest key in `nym-directory-client`, then build a sibling client", not "reuse unchanged". The chain-level anchoring, which is the expensive part, genuinely does come for free.
+
+### The finding that changed a requirement
+
+`get_trusted_directory_digest` reads `DIGEST_LEN` bytes at the proven key and reconstructs via `LtHash16::from_bytes`. The as-built directory therefore stores the **full 2048-byte accumulator** at its raw provable key, and exposes the 32-byte collapse only through an unproven smart query. The spec here originally said the opposite, following the pattern note's "store the compact collapse for a small proof".
+
+The as-built layout is better and the spec now matches it. The accumulator must be persisted on every mutation regardless, to support incremental updates, so persisting a collapse alongside it is an extra write per transaction for a value any client can compute. Proving the accumulator directly also removes the collapse from the set of things that must be computed identically on both sides. Had this gone unnoticed, the reused digest fetch would have rejected our contract on length.
+
+## Resolved## Resolved
 
 - **`NodeInformation.location`** is dropped during the directory rebase, not here. This change merges first and `feat/node-directory-publishing` is rebased on top of it, so the two-homes problem never materialises and nothing here depends on it.
 - **Payload field parity** is kept in full. The fields are already public on today's node status API surfaces, so the disclosure delta is nil; the real delta is permanence, judged acceptable. Narrowing later is a version bump.

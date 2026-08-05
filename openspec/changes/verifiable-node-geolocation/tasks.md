@@ -1,9 +1,9 @@
 ## 1. Spikes and open questions
 
-Task 1.1 is ordered first because it is the only remaining item that could still move the frozen key layout. All design questions are resolved in design.md.
+Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `PrimaryKey` is needed (a stock `(u8, Vec<u8>, Vec<u8>)` tuple suffices), and the digest requirement was corrected to store the full accumulator rather than its collapse.
 
-- [ ] 1.1 Spike the `(subject_class, subject_id, source)` key as a custom `PrimaryKey`/`KeyDeserialize`, using `StoredNodeEntries` in `contracts/directory/src/storage.rs` as the template; confirm prefix scans cover "all entries for a subject" and "all measurements for a subject", and that `NymNode` ids order numerically
-- [ ] 1.2 Confirm the checkpoint/anchor machinery in `common/nym-directory-client` is parameterisable by contract address and digest key without modification, reading it on `feat/node-directory-publishing` since it is not on develop
+- [x] 1.1 Spike the `(subject_class, subject_id, source)` key as a custom `PrimaryKey`/`KeyDeserialize`, using `StoredNodeEntries` in `contracts/directory/src/storage.rs` as the template; confirm prefix scans cover "all entries for a subject" and "all measurements for a subject", and that `NymNode` ids order numerically
+- [x] 1.2 Confirm the checkpoint/anchor machinery in `common/nym-directory-client` is parameterisable by contract address and digest key without modification, reading it on `feat/node-directory-publishing` since it is not on develop
 
 ## 2. Shared types crate
 
@@ -21,9 +21,9 @@ Task 1.1 is ordered first because it is the only remaining item that could still
 ## 3. Contract storage and digest maintenance
 
 - [ ] 3.1 Create `contracts/geolocation/` scaffolding, `Cargo.toml`, `Makefile`, schema binary
-- [ ] 3.2 Implement the entries store over the custom key from 1.1
+- [ ] 3.2 Implement the entries store over the stock `(u8, Vec<u8>, Vec<u8>)` key from 1.1, with `Source` flattened to bytes by a local helper; `cargo check` that `KeyDeserialize` is implemented for that tuple before building on it
 - [ ] 3.3 Implement the whitelist store as a second digest-committed entry class
-- [ ] 3.4 Implement accumulator load/save at the fixed raw digest key, plus the collapse
+- [ ] 3.4 Implement accumulator load/save as raw `DIGEST_LEN` bytes at the fixed digest key (not a `cw-storage-plus` `Item`); expose the 32-byte collapse via smart query only, never persisted
 - [ ] 3.5 Implement the single digest-maintaining wrapper (insert adds, delete subtracts the stored leaf, update subtracts then adds); no handler touches a store directly
 - [ ] 3.6 Add a test asserting a from-scratch re-fold matches the incrementally maintained digest across insert, update, delete and repeated-key sequences
 - [ ] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`
@@ -61,7 +61,7 @@ Task 1.1 is ordered first because it is the only remaining item that could still
 ## 7. Client integration
 
 - [ ] 7.1 Add query and signing traits for the contract in `nym-validator-client`
-- [ ] 7.2 **Gated on the directory merge.** `common/nym-directory-client` is not on develop, so end-to-end client verification (anchor, ICS23-prove the digest key, recompute against the pulled set) cannot be built until `feat/node-directory-publishing` lands. Confirm the machinery is reusable unchanged (task 1.2), then do this after that merge. The contract and service do not depend on it and ship without it
+- [ ] 7.2 **Gated on the directory merge.** `common/nym-directory-client` is not on develop, so end-to-end client verification (anchor, ICS23-prove the digest key, recompute against the pulled set) cannot be built until `feat/node-directory-publishing` lands. Per task 1.2, `proof.rs`, `contract_storage_key` and `anchor/checkpoint/*` reuse unchanged, but the digest-fetch helper hardcodes the directory's `DIGEST_STATE` and needs the storage key threaded through as a parameter, and the top-level client is directory-shaped so this is a sibling rather than reuse. The contract and service do not depend on it and ship without it
 
 ## 8. Node-side signed location artifact
 

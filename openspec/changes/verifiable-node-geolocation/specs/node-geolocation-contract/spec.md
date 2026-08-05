@@ -79,17 +79,25 @@ Each entry MUST record `checked_at`, sourced from block time, and `checked_at` M
 - **WHEN** the same agent resubmits `DE` at a later height
 - **THEN** `checked_at` advances and the global digest changes
 
-### Requirement: The collapsed digest SHALL be readable at a fixed raw storage key
+### Requirement: The full accumulator SHALL be readable at a fixed raw storage key
 
-The contract MUST persist the compact 32-byte collapse of the accumulator as a single value at a fixed, never-changing raw storage key, so a client can obtain an ICS23 proof for it (CosmWasm smart queries carry no proof). The full accumulator MUST be retained in state for incremental updates. A smart query returning the collapsed digest MUST also be exposed for convenience.
+The contract MUST persist the complete `nym-lthash` accumulator, `DIGEST_LEN` bytes (2048 at `ELEMENTS = 1024`), as a single raw value at a fixed, never-changing storage key. That raw value is what a client obtains an ICS23 proof for, since CosmWasm smart queries carry no proof.
+
+The accumulator MUST NOT be stored as a `cw-storage-plus` `Item`: serde cannot derive for `[u8; DIGEST_LEN]`, and base64-encoding it on every write would be wasteful. It is written and read as raw bytes at the fixed key.
+
+The contract MUST additionally expose the 32-byte collapse (`LtHash::out()`, a BLAKE3 over the accumulator state) through a smart query, as an unproven convenience for consumers that only need to compare digests.
+
+The collapse MUST NOT be persisted separately. The accumulator has to be written on every mutation regardless, in order to support incremental updates, so a stored collapse would be an extra write per transaction for a value any client can compute itself. Storing the accumulator at the proven key also lets a verifying client compare accumulators directly, removing the collapse from the set of things that must be computed identically on both sides.
+
+This layout MUST match the directory contract's, whose client-side digest fetch reads `DIGEST_LEN` bytes at the proven key and reconstructs the accumulator from them. A contract storing a 32-byte collapse there instead would be rejected by that machinery on length.
 
 #### Scenario: The digest key is stable and raw-readable
 - **WHEN** a client performs a raw store read at the documented digest key with proofs requested
-- **THEN** it receives the 32-byte collapsed digest together with an ICS23 proof
+- **THEN** it receives the full `DIGEST_LEN`-byte accumulator together with an ICS23 proof
 
-#### Scenario: The smart query and the raw read agree
+#### Scenario: The smart query returns the collapse of the proven accumulator
 - **WHEN** the digest smart query and the raw read are performed at the same height
-- **THEN** they return identical bytes
+- **THEN** the smart query's 32 bytes equal the BLAKE3 collapse of the accumulator returned by the raw read
 
 ### Requirement: The contract SHALL expose paginated enumeration of every digest-committed entry
 
@@ -98,7 +106,7 @@ A client MUST be able to pull the complete committed set through a paged query a
 #### Scenario: Recomputing the pulled set matches the on-chain digest
 - **GIVEN** a client that has paged through the entire enumeration at a fixed height
 - **WHEN** it folds every returned record's canonical leaf
-- **THEN** the collapse of its accumulator equals the digest read from the contract at that height
+- **THEN** its accumulator equals the one proven at the contract's digest key at that height
 
 #### Scenario: Pagination terminates
 - **WHEN** a client pages with the returned cursor until the cursor is absent

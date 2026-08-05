@@ -182,7 +182,7 @@ members = [
     "wasm/zknym-lib",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
     "nym-network-monitor-v3/nym-network-monitor-agent",
-    "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests", "common/cosmwasm-smart-contracts/geolocation-contract",
 ]
 
 default-members = [

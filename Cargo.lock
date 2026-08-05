@@ -7125,6 +7125,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-geolocation-contract-common"
+version = "1.21.5-rc.3"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "nym-go-ffi"
 version = "1.21.5-rc.3"
 dependencies = [

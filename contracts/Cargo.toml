@@ -10,7 +10,7 @@ members = [
     "nym-pool",
     "performance",
     "network-monitors",
-    "vesting",
+    "vesting", "geolocation",
 ]
 
 [workspace.package]
@@ -68,6 +68,7 @@ nym-contracts-common-testing = "1.21.5-rc.1"
 nym-crypto = { version = "1.21.5-rc.1", default-features = false }
 nym-ecash-contract-common = "1.21.5-rc.1"
 nym-group-contract-common = "1.21.5-rc.1"
+nym-geolocation-contract-common = "1.21.5-rc.1"
 nym-mixnet-contract-common = "1.21.5-rc.1"
 nym-multisig-contract-common = "1.21.5-rc.1"
 nym-network-monitors-contract-common = "1.21.5-rc.1"
@@ -115,3 +116,4 @@ nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/mult
 nym-performance-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-performance-contract" }
 nym-pool-contract-common = { path = "../common/cosmwasm-smart-contracts/nym-pool-contract" }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-geolocation-contract-common = { path = "../common/cosmwasm-smart-contracts/geolocation-contract" }

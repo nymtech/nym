@@ -1220,6 +1220,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-geolocation-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common-testing",
+ "nym-geolocation-contract-common",
+]
+
+[[package]]
+name = "nym-geolocation-contract-common"
+version = "1.21.5-rc.3"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-group-contract-common"
 version = "1.21.5-rc.3"
 dependencies = [

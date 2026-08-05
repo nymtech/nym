@@ -29,7 +29,9 @@ import { PAGES_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/page
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/docs-index.json');
-const CACHE_FILE = path.resolve(__dirname, '../../docs/.cache/embed-cache.json');
+// Under node_modules/.cache so Vercel (and CI via actions/cache) persist it
+// between deploys; otherwise every deploy re-embeds the whole corpus from scratch.
+const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/embed-cache.json');
 const STATS_ONLY = process.argv.includes('--stats');
 
 // ---------------------------------------------------------------------------

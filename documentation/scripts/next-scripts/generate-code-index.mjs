@@ -21,7 +21,9 @@ import { voyageProvider, embedChunks } from '../../docs/lib/retrieval/embed.mjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, '../../..'); // repo root
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/code-index.json');
-const CACHE_FILE = path.resolve(__dirname, '../../docs/.cache/code-embed-cache.json');
+// Under node_modules/.cache so Vercel (and CI via actions/cache) persist it
+// between deploys; otherwise every deploy re-embeds the whole code corpus.
+const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/code-embed-cache.json');
 const CODE_MODEL = 'voyage-code-3';
 
 // Curated scope (repo-relative). SDK + wasm + examples + select Sphinx/smolmix crates.

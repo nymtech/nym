@@ -33,8 +33,8 @@ Options:
           bonding information is still a subject to change and this argument should be treated only as a preview of
           future features [env: NYMNODE_BONDING_INFORMATION_OUTPUT=]
   -o, --output <OUTPUT>
-          Specify the output format of the bonding information (`text` or `json`) [env: NYMNODE_OUTPUT=] [default:
-          text] [possible values: text, json]
+          Specify the output format of the bonding information (`text` or `json`) [env: NYMNODE_OUTPUT=] [default: text]
+          [possible values: text, json]
       --public-ips <PUBLIC_IPS>
           Comma separated list of public ip addresses that will be announced to the nym-api and subsequently to the
           clients. In nearly all circumstances, it's going to be identical to the address you're going to use for
@@ -119,8 +119,8 @@ Options:
           Endpoint to query to retrieve current upgrade mode attestation. This argument should never be set outside
           testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTATION_URL=]
       --upgrade-mode-attester-public-key <UPGRADE_MODE_ATTESTER_PUBLIC_KEY>
-          Expected public key of the entity signing the published attestation. This argument should never be set
-          outside testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY=]
+          Expected public key of the entity signing the published attestation. This argument should never be set outside
+          testnets and local networks [env: NYMNODE_UPGRADE_MODE_ATTESTER_PUBKEY=]
       --upstream-exit-policy-url <UPSTREAM_EXIT_POLICY_URL>
           Specifies the url for an upstream source of the exit policy used by this node [env:
           NYMNODE_UPSTREAM_EXIT_POLICY=]

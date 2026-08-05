@@ -10,6 +10,8 @@
 /** @typedef {import('./types').PageRecord} PageRecord */
 /** @typedef {import('./types').Chunk} Chunk */
 
+import GithubSlugger, { slug } from 'github-slugger';
+
 // Chunking targets. A chunk is one heading section; sections larger than
 // MAX_CHARS are split, first on paragraph boundaries and then, if a single
 // paragraph or code block is still too big, on a hard character cap so no
@@ -22,13 +24,13 @@ export const MIN_CHARS = 120;
 // the pages that produced the 6k-token chunks in the Phase 0 spike.
 export const DEFAULT_SKIP_SLUGS = new Set(['generate-fig-spec']);
 
-/** GitHub/Nextra-compatible heading slug for deep-link anchors. */
+// Heading slug for deep-link anchors. Delegates to github-slugger, the same
+// slugger Nextra renders its on-page anchors with (via rehype-slug), so our
+// retrieval deep links match the real anchors exactly rather than approximating
+// them. This is the stateless form (no de-duplication); chunkPages() uses a
+// per-page GithubSlugger instance for the -1/-2 suffixes.
 export function slugify(heading) {
-  return heading
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
+  return slug(heading);
 }
 
 /** chars/4 is the standard rough token estimate; a real tokeniser comes later. */
@@ -145,20 +147,19 @@ export function chunkPages(pages, { siteUrl, maxChars = MAX_CHARS, skipSlugs = D
     const pagePath = page.url.replace(`${siteUrl}/`, '');
     const sections = splitByHeadings(page.body, page.title);
 
-    // Per-page slug counter so repeated headings ("Options", "Usage") get
-    // -1/-2 suffixes, matching github-slugger. Without this, duplicate anchors
-    // collide and every deep link resolves to the first occurrence.
-    const slugCounts = new Map();
+    // Per-page slugger so repeated headings ("Options", "Usage") get -1/-2
+    // suffixes exactly as Nextra does. github-slugger keeps the per-page dedup
+    // state; a fresh instance per page resets it, matching Nextra's per-page anchors.
+    const slugger = new GithubSlugger();
 
     for (const section of sections) {
       const isPageIntro = section.heading === page.title;
       let anchor = '';
       if (!isPageIntro) {
-        const base = slugify(section.heading);
-        if (skipSlugs.has(base)) continue;
-        const n = slugCounts.get(base) ?? 0;
-        slugCounts.set(base, n + 1);
-        anchor = `#${n === 0 ? base : `${base}-${n}`}`;
+        // Skip check uses the un-deduplicated base; skipped sections must not
+        // advance the slugger (so they don't shift later suffixes).
+        if (skipSlugs.has(slugify(section.heading))) continue;
+        anchor = `#${slugger.slug(section.heading)}`;
       }
 
       const parts = packSection(section.text, maxChars);

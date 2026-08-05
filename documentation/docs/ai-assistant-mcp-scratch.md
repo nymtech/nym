@@ -303,7 +303,7 @@ end. All in `documentation/docs/package.json` unless noted.
 | `vm-browserify` | `next.config.js` | webpack `vm` polyfill | verify still needed |
 | `copy-webpack-plugin` | `next.config.js` (COMMENTED OUT) | was for copying wasm assets | **REMOVE candidate: unused/commented** |
 | `gray-matter` (uncommitted) | generators (planned) | replace hand-rolled frontmatter regex | keep once wired |
-| `github-slugger` (uncommitted) | `chunker.mjs` (planned) | retrieval anchors match Nextra's | keep once wired |
+| `github-slugger` | `chunker.mjs` (WIRED) | retrieval anchors match Nextra's rendered ones (via rehype-slug); replaced hand-rolled slugify + dedup Map | keep |
 
 NOT added (pre-existing in develop, only version-bumped): `eslint`, `eslint-config-next`,
 `typescript`. gray-matter + github-slugger are transitive deps of nextra but NOT

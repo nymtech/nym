@@ -3,6 +3,5 @@
   "functions": "Functions",
   "interfaces": "Interfaces",
   "enumerations": "Enumerations",
-  "type-aliases": "Type Aliases",
-  "variables": "Variables"
+  "type-aliases": "Type Aliases"
 }

@@ -24,13 +24,10 @@
 - [WsEventType](type-aliases/WsEventType.md)
 - [WsEventCallback](type-aliases/WsEventCallback.md)
 
-## Variables
-
-- [proxy](variables/proxy.md)
-
 ## Functions
 
 - [getMixTunnel](functions/getMixTunnel.md)
 - [setupMixTunnel](functions/setupMixTunnel.md)
 - [disconnectMixTunnel](functions/disconnectMixTunnel.md)
 - [getTunnelState](functions/getTunnelState.md)
+- [proxy](functions/proxy.md)

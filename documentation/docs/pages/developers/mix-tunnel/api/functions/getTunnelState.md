@@ -16,4 +16,4 @@ Inspect the current tunnel state. Pre-setup reads as `connecting`.
 
 ## Source
 
-[index.ts:68](https://github.com/nymtech/nym/blob/c21c8241da3fe141f1e4a0c9a6a2597bce1a064c/sdk/typescript/packages/mix-tunnel/src/index.ts#L68)
+[sdk/typescript/packages/mix-tunnel/src/index.ts:68](https://github.com/nymtech/nym/blob/429390112bf7ca8aee0dbd32a4308d97e7bbbe11/sdk/typescript/packages/mix-tunnel/src/index.ts#L68)

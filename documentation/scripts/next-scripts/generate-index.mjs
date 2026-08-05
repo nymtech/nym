@@ -25,6 +25,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/lib/retrieval/chunker.mjs';
 import { voyageProvider, embedChunks } from '../../docs/lib/retrieval/embed.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PAGES_DIR = path.resolve(__dirname, '../../docs/pages');
@@ -51,49 +52,6 @@ function getPageOrder(dir) {
     .map(f => f.replace(/\.mdx?$/, ''))
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort();
-}
-
-function extractTitle(content, fallback) {
-  const fm = content.match(/^---[\s\S]*?title:\s*["']?(.+?)["']?\s*$/m);
-  if (fm) return fm[1];
-  const h1 = content.match(/^#\s+(.+)$/m);
-  if (h1) return h1[1];
-  return fallback.replace(/[-_]/g, ' ');
-}
-
-function extractDescription(content) {
-  const fm = content.match(/^---[\s\S]*?description:\s*["']?(.+?)["']?\s*$/m);
-  return fm ? fm[1] : '';
-}
-
-/**
- * Strip frontmatter, imports, and JSX tag lines from MDX, leaving clean
- * Markdown. Fence-aware: lines inside ``` / ~~~ code blocks are kept verbatim,
- * so an `import` statement or `<Component/>` shown in a code example is not
- * mistaken for real MDX and deleted.
- */
-function stripMdx(content) {
-  const s = content.replace(/^---[\s\S]*?---\n*/m, ''); // frontmatter
-  const out = [];
-  let fence = null;
-
-  for (const line of s.split('\n')) {
-    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      const marker = fenceMatch[2][0];
-      if (fence === null) fence = marker;
-      else if (marker === fence) fence = null;
-      out.push(line);
-      continue;
-    }
-    if (fence !== null) { out.push(line); continue; } // inside code: verbatim
-
-    if (/^import\s+.*$/.test(line)) continue;
-    if (/^\s*<\w[\w.-]*(?:\s[^>]*)?\s*\/>\s*$/.test(line)) continue; // self-closing JSX
-    if (/^\s*<\/?\w[\w.-]*(?:\s[^>]*)?\s*>\s*$/.test(line)) continue; // JSX tag line
-    out.push(line);
-  }
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function fileToUrl(filePath) {
@@ -123,12 +81,13 @@ function collectPages(dir) {
 
     if (filePath) {
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const body = stripMdx(raw);
+      const { data, content } = parseFrontmatter(raw);
+      const body = stripMdx(content);
       if (body.length > 0) {
         pages.push({
           source: 'nym-docs',
-          title: extractTitle(raw, key),
-          description: extractDescription(raw),
+          title: pageTitle(data, content, key),
+          description: pageDescription(data),
           url: fileToUrl(filePath),
           body,
         });

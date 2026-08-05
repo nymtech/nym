@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PAGES_DIR = path.resolve(__dirname, '../../docs/pages');
@@ -39,44 +40,6 @@ function getPageOrder(dir) {
     .map(f => f.replace(/\.mdx?$/, ''))
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort();
-}
-
-/** Extract title from frontmatter or first H1. */
-function extractTitle(content, fallback) {
-  const fm = content.match(/^---[\s\S]*?title:\s*["']?(.+?)["']?\s*$/m);
-  if (fm) return fm[1];
-  const h1 = content.match(/^#\s+(.+)$/m);
-  if (h1) return h1[1];
-  return fallback.replace(/[-_]/g, ' ');
-}
-
-/** Extract description from frontmatter. */
-function extractDescription(content) {
-  const fm = content.match(/^---[\s\S]*?description:\s*["']?(.+?)["']?\s*$/m);
-  return fm ? fm[1] : '';
-}
-
-/** Strip frontmatter, imports, and JSX from MDX, leaving clean Markdown. */
-function stripMdx(content) {
-  let s = content;
-
-  // Frontmatter
-  s = s.replace(/^---[\s\S]*?---\n*/m, '');
-
-  // Import statements
-  s = s.replace(/^import\s+.*$/gm, '');
-
-  // Self-closing JSX tags: <Component ... />
-  s = s.replace(/^\s*<\w[\w.-]*(?:\s[^>]*)?\s*\/>\s*$/gm, '');
-
-  // JSX block tags on their own line: <Callout type="info">, </Callout>, etc.
-  // Keep the children — only remove the tag lines themselves.
-  s = s.replace(/^\s*<\/?\w[\w.-]*(?:\s[^>]*)?\s*>\s*$/gm, '');
-
-  // Collapse 3+ blank lines → 2
-  s = s.replace(/\n{3,}/g, '\n\n');
-
-  return s.trim();
 }
 
 /** Convert file path to URL. */
@@ -120,9 +83,10 @@ function collectPages(dir) {
 
     if (filePath) {
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const title = extractTitle(raw, key);
-      const description = extractDescription(raw);
-      const body = stripMdx(raw);
+      const { data, content } = parseFrontmatter(raw);
+      const title = pageTitle(data, content, key);
+      const description = pageDescription(data);
+      const body = stripMdx(content);
 
       if (body.length > 0) {
         pages.push({ title, description, url: fileToUrl(filePath), body });

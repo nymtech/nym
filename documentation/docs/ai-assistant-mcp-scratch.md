@@ -302,7 +302,7 @@ end. All in `documentation/docs/package.json` unless noted.
 | `raw-loader` | `next.config.js` | import files as raw strings | verify still used |
 | `vm-browserify` | `next.config.js` | webpack `vm` polyfill | verify still needed |
 | `copy-webpack-plugin` | `next.config.js` (COMMENTED OUT) | was for copying wasm assets | **REMOVE candidate: unused/commented** |
-| `gray-matter` (uncommitted) | generators (planned) | replace hand-rolled frontmatter regex | keep once wired |
+| `gray-matter` | 3 generators via `lib/retrieval/mdx.mjs` (WIRED) | real YAML frontmatter parsing; replaced 3 non-head-anchored regex copies; fixes body-`---` eating content | keep |
 | `github-slugger` | `chunker.mjs` (WIRED) | retrieval anchors match Nextra's rendered ones (via rehype-slug); replaced hand-rolled slugify + dedup Map | keep |
 
 NOT added (pre-existing in develop, only version-bumped): `eslint`, `eslint-config-next`,
@@ -427,17 +427,15 @@ resolvable (`require.resolve` throws from documentation/docs), so adopting them 
 a direct `package.json` dep + `pnpm install` (fragile on this repo), not free.
 
 Ranked:
-1. `gray-matter` (frontmatter) + ONE shared `stripJsx` helper across the three
-   generators. REPLACE + CONSOLIDATE. Fixes two live bugs: non-head-anchored
-   frontmatter (a body `---`, e.g. a mermaid config header, currently eats content in
-   generate-index / generate-llms-txt) and `import` lines stripped INSIDE code fences
-   in generate-llms-txt (corrupts `llms-full.txt`). S / Low, but touches three
-   build-critical generators and needs the dep add. Re-verify `llms-full.txt` + a few
-   extracted titles. Turnkey detail: `generate-llms-txt.mjs:60` `stripMdx` is the
-   NON-fence-aware copy; `generate-index.mjs:75` and `generate-page-markdown.mjs:57`
-   are the good fence-aware ones. Minimal bug-only fix = make :60 match :75; full win
-   = one shared `strip.mjs`. generate-llms-txt + generate-page-markdown run under node
-   with no network, so the fix is verifiable by running them and diffing output.
+1. `gray-matter` (frontmatter) + ONE shared strip helper across the three generators.
+   DONE. New shared `lib/retrieval/mdx.mjs` (parseFrontmatter/pageTitle/
+   pageDescription/stripMdx); all three generators wired to it; the three duplicated
+   copies removed. Fixed both bugs: non-head-anchored frontmatter (gray-matter is
+   head-anchored) and `import` lines stripped inside code fences (generate-llms-txt
+   now uses the fence-aware strip: 35 code-example imports preserved in llms-full.txt,
+   was 0). All three generators run clean under node (191 pages, 1406 chunks, 192
+   page-markdown files); tests in `lib/retrieval/mdx.test.ts`. Note: `docs-index.json`
+   chunk count moved 1403->1406 (frontmatter/anchor fixes), regenerated on build.
 2. `github-slugger` for `chunker.mjs` slugify + dedup counter. REPLACE. Makes
    retrieval deep-link anchors exactly match Nextra's rendered anchors (they can drift
    today). S / Low, needs the dep add. Changes `docs-index.json` anchors: regen +

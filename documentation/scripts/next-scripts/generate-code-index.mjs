@@ -39,6 +39,13 @@ const ROOTS = [
 
 const EXCLUDE = /(^|\/)(node_modules|target|dist|build|out|\.next|pkg|coverage|__pycache__)(\/|$)|\.d\.ts$/;
 
+// No hand-written source approaches this (the largest is ~76KB), but gitignored
+// build bundles that live under src/ (e.g. a 30MB rollup `src/worker/worker.js`)
+// slip past the directory EXCLUDE, carry near-zero retrieval value, and would
+// explode the index (one 30MB file is ~13k chunks). Skip anything above the cap.
+const MAX_FILE_BYTES = 256 * 1024;
+const oversized = [];
+
 function walk(dir, acc) {
   let entries;
   try {
@@ -51,13 +58,22 @@ function walk(dir, acc) {
     const rel = path.relative(REPO, full);
     if (EXCLUDE.test(rel)) continue;
     if (e.isDirectory()) walk(full, acc);
-    else if (langOf(e.name)) acc.push(full);
+    else if (langOf(e.name)) {
+      if (fs.statSync(full).size > MAX_FILE_BYTES) {
+        oversized.push(rel);
+        continue;
+      }
+      acc.push(full);
+    }
   }
   return acc;
 }
 
 const files = ROOTS.flatMap((r) => walk(path.join(REPO, r), []));
 console.log(`Scanning ${ROOTS.length} roots -> ${files.length} source files ...`);
+if (oversized.length) {
+  console.log(`Skipped ${oversized.length} oversized file(s) (>${MAX_FILE_BYTES / 1024}KB, likely generated bundles): ${oversized.join(', ')}`);
+}
 
 const chunks = [];
 for (const file of files) {

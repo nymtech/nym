@@ -43,18 +43,15 @@ NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
 - Add all needed commands and options - for example:
 
 <Tabs items={[<code>mixnode</code>, <code>exit-gateway</code>]}>
-  <Tabs.Tab>
   This example is for `nym-node --mode mixnode`.
   ```sh
   ./nym-node --config-env-file <PATH>/sandbox.env run --mode mixnode
   ```
-  </Tabs.Tab>
-  <Tabs.Tab>
+
   This example is for `nym-node --mode exit-gateway`.
   ```sh
   ./nym-node --config-file-env <PATH>/sandbox.env run --mode exit-gateway --id <ID> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<HOSTNAME>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <CLOCATION>
   ```
-  </Tabs.Tab>
 </Tabs>
 - In case you downloaded `sandbox.env` to same directory, `<PATH>` is not needed
 

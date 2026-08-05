@@ -25,81 +25,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/lib/retrieval/chunker.mjs';
 import { voyageProvider, embedChunks } from '../../docs/lib/retrieval/embed.mjs';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+import { PAGES_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PAGES_DIR = path.resolve(__dirname, '../../docs/pages');
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/docs-index.json');
 const CACHE_FILE = path.resolve(__dirname, '../../docs/.cache/embed-cache.json');
-const SITE_URL = 'https://nym.com/docs';
-
-const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
 const STATS_ONLY = process.argv.includes('--stats');
-
-// ---------------------------------------------------------------------------
-// Page collection (docs-source adapter: MDX/MD under pages/ -> PageRecord)
-// ---------------------------------------------------------------------------
-
-function getPageOrder(dir) {
-  const metaPath = path.join(dir, '_meta.json');
-  if (fs.existsSync(metaPath)) {
-    try {
-      return Object.keys(JSON.parse(fs.readFileSync(metaPath, 'utf-8')));
-    } catch { /* fall through */ }
-  }
-  return fs.readdirSync(dir)
-    .filter(f => !f.startsWith('_') && !f.startsWith('.'))
-    .map(f => f.replace(/\.mdx?$/, ''))
-    .filter((v, i, a) => a.indexOf(v) === i)
-    .sort();
-}
-
-function fileToUrl(filePath) {
-  const rel = path.relative(PAGES_DIR, filePath)
-    .replace(/\.mdx?$/, '')
-    .replace(/\/index$/, '');
-  return `${SITE_URL}/${rel}`;
-}
-
-function collectPages(dir) {
-  const pages = [];
-  for (const key of getPageOrder(dir)) {
-    const subDir = path.join(dir, key);
-    if (SKIP_DIRS.has(key) && fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) continue;
-
-    let filePath = null;
-    for (const ext of ['.mdx', '.md']) {
-      const p = path.join(dir, `${key}${ext}`);
-      if (fs.existsSync(p)) { filePath = p; break; }
-    }
-    if (!filePath && fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      for (const ext of ['.mdx', '.md']) {
-        const p = path.join(subDir, `index${ext}`);
-        if (fs.existsSync(p)) { filePath = p; break; }
-      }
-    }
-
-    if (filePath) {
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const { data, content } = parseFrontmatter(raw);
-      const body = stripMdx(content);
-      if (body.length > 0) {
-        pages.push({
-          source: 'nym-docs',
-          title: pageTitle(data, content, key),
-          description: pageDescription(data),
-          url: fileToUrl(filePath),
-          body,
-        });
-      }
-    }
-
-    if (fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      pages.push(...collectPages(subDir));
-    }
-  }
-  return pages;
-}
 
 // ---------------------------------------------------------------------------
 // Embed cache (hash -> vector), persisted so only changed chunks re-embed

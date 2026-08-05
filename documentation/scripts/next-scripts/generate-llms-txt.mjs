@@ -12,95 +12,10 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+import { PAGES_DIR, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PAGES_DIR = path.resolve(__dirname, '../../docs/pages');
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/llms-full.txt');
-const SITE_URL = 'https://nym.com/docs';
-
-// Directories to skip entirely (auto-generated API reference, archives, etc.)
-const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Read _meta.json for ordered keys; fall back to alphabetical. */
-function getPageOrder(dir) {
-  const metaPath = path.join(dir, '_meta.json');
-  if (fs.existsSync(metaPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      return Object.keys(meta);
-    } catch { /* fall through */ }
-  }
-  return fs.readdirSync(dir)
-    .filter(f => !f.startsWith('_') && !f.startsWith('.'))
-    .map(f => f.replace(/\.mdx?$/, ''))
-    .filter((v, i, a) => a.indexOf(v) === i)
-    .sort();
-}
-
-/** Convert file path to URL. */
-function fileToUrl(filePath) {
-  let rel = path.relative(PAGES_DIR, filePath)
-    .replace(/\.mdx?$/, '')
-    .replace(/\/index$/, '');
-  return `${SITE_URL}/${rel}`;
-}
-
-// ---------------------------------------------------------------------------
-// Recursive page collector
-// ---------------------------------------------------------------------------
-
-function collectPages(dir) {
-  const pages = [];
-  const order = getPageOrder(dir);
-
-  for (const key of order) {
-    const subDir = path.join(dir, key);
-
-    // Skip excluded directories
-    if (SKIP_DIRS.has(key) && fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      continue;
-    }
-
-    // Find the page file (.mdx preferred over .md)
-    let filePath = null;
-    for (const ext of ['.mdx', '.md']) {
-      const p = path.join(dir, `${key}${ext}`);
-      if (fs.existsSync(p)) { filePath = p; break; }
-    }
-
-    // Or an index file inside a subdirectory
-    if (!filePath && fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      for (const ext of ['.mdx', '.md']) {
-        const p = path.join(subDir, `index${ext}`);
-        if (fs.existsSync(p)) { filePath = p; break; }
-      }
-    }
-
-    if (filePath) {
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      const { data, content } = parseFrontmatter(raw);
-      const title = pageTitle(data, content, key);
-      const description = pageDescription(data);
-      const body = stripMdx(content);
-
-      if (body.length > 0) {
-        pages.push({ title, description, url: fileToUrl(filePath), body });
-      }
-    }
-
-    // Recurse into subdirectory
-    if (fs.existsSync(subDir) && fs.statSync(subDir).isDirectory()) {
-      pages.push(...collectPages(subDir));
-    }
-  }
-
-  return pages;
-}
 
 // ---------------------------------------------------------------------------
 // Main

@@ -20,14 +20,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+// PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
+// the walk differs: this generator uses a flat file collector (below) so it also
+// emits .md for pages not listed in any _meta.json.
+import { PAGES_DIR, SITE_URL, SKIP_DIRS } from '../../docs/lib/retrieval/pages-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PAGES_DIR = path.resolve(__dirname, '../../docs/pages');
 const PUBLIC_DIR = path.resolve(__dirname, '../../docs/public');
-const SITE_URL = 'https://nym.com/docs';
-
-// Auto-generated / non-content trees, kept out of the markdown export.
-const SKIP_DIRS = new Set(['api', 'archive', 'playground']);
 
 /** pages-relative slug: strip extension and a trailing /index; root -> "index". */
 function pageSlug(filePath) {

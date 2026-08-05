@@ -64,6 +64,15 @@ jobs:
         working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
+      # Persist the retrieval embed cache between runs so only changed chunks
+      # re-embed (Voyage). restore-keys picks up the most recent cache; the
+      # per-sha key saves a fresh one each run.
+      - name: Cache retrieval embeddings
+        uses: actions/cache@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-docs-embed-${{ github.sha }}
+          restore-keys: nym-docs-embed-
       - name: Generate llms-full.txt
         run: pnpm run generate:llms
       - name: Build project

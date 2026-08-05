@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 __default_branch__ = "develop"
 
 import os
@@ -11,10 +11,10 @@ import argparse
 import tempfile
 import shlex
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional, Mapping
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Mapping, Tuple
 
 class NodeSetupCLI:
     """All CLI main functions"""
@@ -23,23 +23,62 @@ class NodeSetupCLI:
         self.branch = args.dev
         self.welcome_message = self.print_welcome_message()
         self.mode = self._get_or_prompt_mode(args)
+
+        # Resolve WireGuard up front (CLI > env > env.sh > prompt) so we can
+        # derive the full capability set before fetching anything.
+        self.wg_enabled = self.check_wg_enabled(args)
+
+        # --- Derive capabilities from mode + WireGuard ---
+        #
+        # Ground truth of how Nym node roles compose:
+        #   * every exit-gateway also serves as an entry-gateway
+        #   * every WireGuard node routes exit traffic, so it is effectively an
+        #     exit-gateway (and therefore also an entry-gateway)
+        #   * a non-WireGuard entry-gateway serves entry traffic only
+        #
+        # From that:
+        #   needs_quic       -> any gateway (entry or exit) runs a QUIC bridge
+        #   needs_exit_setup -> exit-gateway OR any WireGuard node
+        #                       (nginx/WSS, NTM routing, exit-policy iptables)
+        #   needs_ufw        -> only where NTM does NOT manage the firewall:
+        #                       mixnodes, and entry-only nodes without WireGuard
+        is_mix = self.mode == "mixnode"
+        is_entry = self.mode == "entry-gateway"
+        is_exit = self.mode == "exit-gateway"
+
+        self.needs_quic = is_entry or is_exit
+        self.needs_exit_setup = is_exit or self.wg_enabled
+        self.needs_ufw = is_mix or (is_entry and not self.wg_enabled)
+
+        # Inform the operator when an entry-gateway is promoted to an effective
+        # exit-gateway purely because WireGuard was enabled.
+        if is_entry and self.wg_enabled:
+            print(
+                "\n[INFO] WireGuard is enabled on an entry-gateway.\n"
+                "       WireGuard nodes route exit traffic, so this node will be\n"
+                "       set up as a full exit-gateway (nginx/WSS, routing, exit\n"
+                "       policy and QUIC) and listed as both entry and exit in the app.\n"
+            )
+
+        # --- Base scripts, always needed ---
         self.prereqs_install_sh = self.fetch_script("nym-node-prereqs-install.sh")
         self.node_install_sh = self.fetch_script("nym-node-install.sh")
         self.service_config_sh = self.fetch_script("setup-systemd-service-file.sh")
         self.start_node_systemd_service_sh = self.fetch_script("start-node-systemd-service.sh")
-        self.is_gwx = self.mode == "exit-gateway"
-        if self.is_gwx:
+
+        # --- Conditional scripts ---
+        self.landing_page_html = None
+        self.nginx_proxy_wss_sh = None
+        self.tunnel_manager_sh = None
+        self.quic_bridge_deployment_sh = None
+
+        if self.needs_exit_setup:
             self.landing_page_html = self.fetch_script("landing-page.html")
             self.nginx_proxy_wss_sh = self.fetch_script("setup-nginx-proxy-wss.sh")
             self.tunnel_manager_sh = self.fetch_script("network_tunnel_manager.sh")
+
+        if self.needs_quic:
             self.quic_bridge_deployment_sh = self.fetch_script("quic_bridge_deployment.sh")
-        else:
-            self.landing_page_html = None
-            self.nginx_proxy_wss_sh = None
-            self.tunnel_manager_sh = None
-            self.wg_ip_tables_manager_sh = None
-            self.wg_ip_tables_test_sh = None
-            self.quic_bridge_deployment_sh = None
 
 
     def print_welcome_message(self):
@@ -202,22 +241,41 @@ class NodeSetupCLI:
         return mode
 
     def fetch_script(self, script_name):
-        """Fetches needed scripts according to a defined mode"""
+        """Fetch a required script over HTTPS.
+
+        Uses Python's urllib rather than shelling out to wget/curl: on a fresh
+        machine those tools are installed *by* the prereqs script, which runs
+        after this constructor, so depending on them here caused intermittent
+        "script not downloaded" failures (notably NTM). urllib is always present
+        with the interpreter, and we retry to ride out transient network blips.
+        """
+        import urllib.request
+        import urllib.error
+
         # print header only the first time
         if not getattr(self, "_fetched_once", False):
             print("\n* * * Fetching required scripts * * *")
             self._fetched_once = True
+
         url = self._return_script_url(script_name)
         print(f"Fetching file from: {url}")
-        result = subprocess.run(["wget", "-qO-", url], capture_output=True, text=True)
-        if result.returncode != 0 or not result.stdout.strip():
-            print(f"wget failed to download the file.")
-            print("stderr:", result.stderr)
-            raise RuntimeError(f"Failed to fetch {url}")
-        # Optional sanity check:
-        first_line = result.stdout.splitlines()[0] if result.stdout else ""
-        print(f"Downloaded {len(result.stdout)} bytes.")
-        return result.stdout
+
+        last_err = None
+        for attempt in range(1, 4):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "nym-node-cli"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = resp.read().decode("utf-8")
+                if not data.strip():
+                    raise RuntimeError("empty response body")
+                print(f"Downloaded {len(data)} bytes.")
+                return data
+            except (urllib.error.URLError, urllib.error.HTTPError, RuntimeError, TimeoutError) as e:
+                last_err = e
+                print(f"[WARN] fetch attempt {attempt}/3 failed for {script_name}: {e}")
+                time.sleep(2 * attempt)
+
+        raise RuntimeError(f"Failed to fetch {url} after 3 attempts: {last_err}")
 
     def _return_script_url(self, script_init_name):
         """Dictionary pointing to scripts url returning value according to a passed key"""
@@ -302,10 +360,6 @@ class NodeSetupCLI:
         os.chmod(path, 0o700)
         return path
 
-    def _check_gwx_mode(self):
-        """Helper: Several fns run only for GWx - this fn checks this condition"""
-        return self.mode == "exit-gateway"
-
     def check_wg_enabled(self, args=None):
         """Determine if WireGuard is enabled; precedence: CLI > env > env.sh > prompt. Persist normalized value."""
 
@@ -313,6 +367,11 @@ class NodeSetupCLI:
 
         def norm(v):
             return "true" if str(v).strip().lower() == "true" else "false"
+
+        # WireGuard is a gateway concept only; mixnodes never route WG traffic.
+        if getattr(self, "mode", None) == "mixnode":
+            os.environ["WIREGUARD"] = "false"
+            return False
 
         val = None
 
@@ -377,6 +436,45 @@ class NodeSetupCLI:
         print("Running:", " ".join(shlex.quote(c) for c in cmd))
         return subprocess.run(cmd, env=env, cwd=cwd, check=check)
 
+
+    def setup_ufw(self):
+        """Configure ufw for nodes NOT managed by the network tunnel manager.
+
+        Applies only to mixnodes and entry-only (non-WireGuard) gateways. Exit
+        gateways and WireGuard nodes are excluded because NTM owns their firewall
+        via complete_networking_configuration; layering ufw on top would clash.
+        """
+        print("\n* * * Setting up firewall using ufw * * *")
+
+        ssh_port = os.environ.get("HOST_SSH_PORT", "22")
+
+        # Base rules common to every ufw-managed node.
+        rules = [
+            f"{ssh_port}/tcp",   # SSH (operator-controlled)
+            "80/tcp",            # HTTP
+            "443/tcp",           # HTTPS
+            "1789/tcp",          # Nym mixnet
+            "1790/tcp",          # Nym mixnet
+            "8080/tcp",          # nym-node HTTP API
+            "9000/tcp",          # clients port
+        ]
+
+        # Entry gateways (non-WireGuard) additionally expose the WSS port.
+        if self.mode == "entry-gateway":
+            rules.append("9001/tcp")  # WSS
+
+        script_lines = [
+            "#!/usr/bin/env bash",
+            "set -euo pipefail",
+            "export DEBIAN_FRONTEND=noninteractive",
+            "echo 'y' | ufw enable || ufw --force enable",
+        ]
+        for rule in rules:
+            script_lines.append(f"ufw allow {rule}")
+        script_lines.append("ufw reload")
+        script_lines.append("ufw status verbose")
+
+        self.run_script("\n".join(script_lines) + "\n")
 
     def run_tunnel_manager_setup(self):
         """A standalone fn to pass full cmd list needed for correct setup and test network tunneling, using an external script"""
@@ -624,14 +722,31 @@ class NodeSetupCLI:
         self.run_script(self.prereqs_install_sh)
         self.run_script(self.node_install_sh)
         self.run_script(self.service_config_sh)
-        self._check_gwx_mode() and self.run_script(self.nginx_proxy_wss_sh)
+
+        # nginx reverse proxy + WSS: only nodes doing exit setup (exit-gateway
+        # or any WireGuard node) serve the landing page and WSS endpoint.
+        if self.needs_exit_setup:
+            self.run_script(self.nginx_proxy_wss_sh)
+
+        # Firewall: ufw is only used where NTM does NOT manage iptables, i.e.
+        # mixnodes and entry-only nodes without WireGuard. On exit / WireGuard
+        # nodes, NTM's complete_networking_configuration owns the firewall and
+        # running ufw on top would conflict with its rules.
+        if self.needs_ufw:
+            self.setup_ufw()
+
         self.run_nym_node_as_service()
         self.run_bonding_prompt()
-        if self._check_gwx_mode():
+
+        # Exit / WireGuard nodes: NTM routing, then (for WireGuard) exit-policy
+        # iptables. QUIC runs on any gateway.
+        if self.needs_exit_setup:
             self.run_tunnel_manager_setup()
-            if self.check_wg_enabled(args):
+            if self.wg_enabled:
                 self.setup_test_wg_ip_tables()
-                self.quic_bridge_deploy()
+
+        if self.needs_quic:
+            self.quic_bridge_deploy()
 
 
 

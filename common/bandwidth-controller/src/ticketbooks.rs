@@ -45,7 +45,7 @@ impl AvailableTicketbook {
     pub fn expired_soon(
         &self,
         datetime: OffsetDateTime,
-        bc_config: BandwidthControllerConfig,
+        bc_config: &BandwidthControllerConfig,
     ) -> bool {
         self.expiration.ecash_datetime() < datetime + bc_config.soon_expiry_threshold
     }
@@ -125,7 +125,7 @@ impl AvailableTicketbooks {
     pub fn remaining_tickets_long_lasting(
         &self,
         typ: TicketType,
-        bc_config: BandwidthControllerConfig,
+        bc_config: &BandwidthControllerConfig,
     ) -> u64 {
         self.tickets_by_type(typ)
             .filter(|ticketbook| !ticketbook.expired_soon(OffsetDateTime::now_utc(), bc_config))
@@ -141,7 +141,7 @@ impl AvailableTicketbooks {
     }
 
     /// Whether `typ` should be proactively restocked
-    pub fn needs_restock(&self, typ: TicketType, bc_config: BandwidthControllerConfig) -> bool {
+    pub fn needs_restock(&self, typ: TicketType, bc_config: &BandwidthControllerConfig) -> bool {
         let remaining = self.remaining_tickets_long_lasting(typ, bc_config);
         remaining <= bc_config.nb_ticket_restock
     }
@@ -149,7 +149,7 @@ impl AvailableTicketbooks {
     pub fn contains_minimal_tickets(
         &self,
         typ: TicketType,
-        bc_config: BandwidthControllerConfig,
+        bc_config: &BandwidthControllerConfig,
     ) -> bool {
         let remaining = self.remaining_unexpired_tickets(typ);
         remaining > bc_config.min_nb_ticket_needed

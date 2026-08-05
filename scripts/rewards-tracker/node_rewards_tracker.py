@@ -32,8 +32,13 @@ HIST_FILE = os.path.join(DATA_DIR, "data.yaml")
 
 SPECTRE_NODES_URL = "https://api.nym.spectredao.net/api/v1/nodes"
 VALIDATOR_BONDED_URL = "https://validator.nymtech.net/api/v1/nym-nodes/bonded"
-VALIDATOR_DESC_URL = "https://validator.nymtech.net/api/v1/nym-nodes/described"
+VALIDATOR_DESC_URL = "https://validator.nymtech.net/api/v2/nym-nodes/described"
 SPECTRE_BAL_URL = "https://api.nym.spectredao.net/api/v1/balances/{address}"
+
+# Spectre's /nodes endpoint returns a bare list with NO pagination envelope and
+# caps at 200 records unless an explicit limit is supplied. It ignores page/size.
+# This is high enough to cover the whole network with headroom.
+SPECTRE_LIMIT = 10000
 
 SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "nym-tools/1.0"})
@@ -82,65 +87,68 @@ def _get_json(url: str, params: Dict[str, Any], timeout: int = 60) -> Any:
     r.raise_for_status()
     return r.json()
 
-def _fetch_all_limit_offset(url: str, limit: int = 1000, timeout: int = 60) -> List[Any]:
-    out: List[Any] = []
-    offset = 0
-    tries = 0
-    while True:
-        tries += 1
-        data = _get_json(url, {"limit": limit, "offset": offset}, timeout=timeout)
-        if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
-            items = data["data"]
-        elif isinstance(data, list):
-            items = data
-        else:
-            break
-        if not items:
-            break
-        out.extend(items)
-        if len(items) < limit:
-            break
-        offset += limit
-        if tries > 500:
-            break
-    return out
+def _extract_items_and_total(data: Any) -> Tuple[List[Any], int]:
+    """Return (items, total) from either a bare list or a {data, pagination} envelope.
+    total is -1 when unknown."""
+    if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
+        items = data["data"]
+        total = to_int((data.get("pagination") or {}).get("total"), -1)
+        return items, total
+    if isinstance(data, list):
+        return data, -1
+    return [], -1
 
 def _fetch_all_page_pagesize(url: str, page_size: int = 1000, timeout: int = 60) -> List[Any]:
+    """Paginate with page/size.
+
+    NOTE: the validator API currently ignores page/size and returns the full set
+    in one response, always reporting pagination.total == full count and
+    page == 0. We therefore stop as soon as we have collected `total` records,
+    and additionally guard against an API that returns the same page repeatedly
+    (which would otherwise loop until the safety cap and massively duplicate rows).
+    """
     out: List[Any] = []
     page = 0
-    tries = 0
+    first_batch: Optional[List[Any]] = None
     while True:
-        tries += 1
         data = _get_json(url, {"page": page, "size": page_size}, timeout=timeout)
-        if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
-            items = data["data"]
-        elif isinstance(data, list):
-            items = data
-        else:
-            break
-        out.extend(items)
-        total = to_int(data.get("pagination", {}).get("total"), -1) if isinstance(data, dict) else -1
-        if total >= 0 and len(out) >= total:
-            break
+        items, total = _extract_items_and_total(data)
         if not items:
             break
+
+        # Authoritative stop: we have everything the server says exists.
+        if total >= 0 and len(out) + len(items) >= total:
+            out.extend(items)
+            break
+
+        # Degenerate guard: total unknown and the server keeps returning the
+        # exact same content regardless of page — bail rather than loop.
+        if total < 0 and first_batch is not None and items == first_batch:
+            break
+        if first_batch is None:
+            first_batch = items
+
+        out.extend(items)
+        if len(items) < page_size:
+            break
+
         page += 1
-        if tries > 500:
+        if page > 500:
             break
     return out
 
 def _fetch_all_single(url: str, timeout: int = 60) -> List[Any]:
     data = _get_json(url, {}, timeout=timeout)
-    if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
-        return data["data"]
-    if isinstance(data, list):
-        return data
-    return []
+    items, _ = _extract_items_and_total(data)
+    return items
 
 def _fetch_all_any(url: str, timeout: int = 60) -> list:
-    got = _fetch_all_limit_offset(url, limit=1000, timeout=timeout)
-    if isinstance(got, list) and got:
-        return got
+    # page/size is the API's current pagination scheme and correctly honours
+    # pagination.total, so it is safe even when the server returns everything at
+    # once. The old limit/offset scheme is no longer supported by the API (the
+    # params are silently ignored), which caused the same full page to be
+    # re-fetched up to the safety cap and produced hundreds of thousands of
+    # duplicate rows. It has been removed.
     got = _fetch_all_page_pagesize(url, page_size=1000, timeout=timeout)
     if isinstance(got, list) and got:
         return got
@@ -164,7 +172,11 @@ def read_wallets_csv(path: str) -> List[Tuple[str, str]]:
 
 def fetch_nodes_all() -> List[Dict[str, Any]]:
     log(f"* * * Fetching nodes from {SPECTRE_NODES_URL} * * *")
-    nodes = _fetch_all_any(SPECTRE_NODES_URL, timeout=90)
+    # Spectre ignores page/size and caps at 200 without an explicit limit, so we
+    # request the full set directly rather than going through the generic
+    # paginator (which would silently stop at the 200 default).
+    data = _get_json(SPECTRE_NODES_URL, {"limit": SPECTRE_LIMIT}, timeout=90)
+    nodes, _ = _extract_items_and_total(data)
     log(f"Fetched {len(nodes)} node(s)")
     return nodes
 
@@ -282,10 +294,15 @@ def scaled_window_change(
     if key not in hist or not hist[key]:
         return None
     cutoff_ts = now - window_days * 24 * 3600
-    candidates = [e for e in hist[key] if to_float(e.get("ts"), 0.0) <= cutoff_ts]
-    if not candidates:
-        return None
-    snap = sorted(candidates, key=lambda x: x.get("ts", 0.0))[-1]
+    ordered = sorted(hist[key], key=lambda x: to_float(x.get("ts"), 0.0))
+
+    # Prefer the most recent snapshot at/older than the cutoff (a true
+    # window-length comparison). If none is that old yet (history younger than
+    # the window), fall back to the OLDEST snapshot we have: the result is still
+    # meaningful because the change is scaled by the actual elapsed span below.
+    candidates = [e for e in ordered if to_float(e.get("ts"), 0.0) <= cutoff_ts]
+    snap = candidates[-1] if candidates else ordered[0]
+
     span_hours = max(0.0, (now - to_float(snap.get("ts"), now)) / 3600.0)
     if span_hours <= 0:
         return None
@@ -382,8 +399,15 @@ def main() -> None:
     out_rows: List[Dict[str, Any]] = []
     rows_by_tag: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
+    # Retain a grace buffer beyond the largest reporting window (30 days).
+    # The window comparison needs a snapshot at/just past its cutoff; if cleanup
+    # pruned everything older than exactly 30 days, no such point survives and
+    # the 30-day figure could never be computed (the historical catch-22 where
+    # it always printed "no 30 days data stored"). Keeping ~32 days guarantees a
+    # comparison point just outside the 30-day boundary always remains.
     THIRTY_DAYS_SEC = 30 * 24 * 3600
-    cleanup_history_older_than(hist, now - THIRTY_DAYS_SEC)  # prune before use
+    RETENTION_SEC = 32 * 24 * 3600
+    cleanup_history_older_than(hist, now - RETENTION_SEC)  # prune before use
 
     for wallet_addr, tag in wallets:
         wallet_nodes = idx_nodes_by_wallet.get(wallet_addr, [])
@@ -501,8 +525,9 @@ def main() -> None:
             out_rows.append(row)
             rows_by_tag[tag].append(row)
 
-    # final prune & save
-    cleanup_history_older_than(hist, now - THIRTY_DAYS_SEC)
+    # final prune & save — prune to the retention buffer (not the 30d window)
+    # so the comparison point just outside 30 days survives into the next run.
+    cleanup_history_older_than(hist, now - RETENTION_SEC)
     save_history(HIST_FILE, hist)
 
     # write CSV

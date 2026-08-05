@@ -124,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
                         .write_all(&serialised)
                         .await
                         .expect("couldn't write to stream");
-                    println!(">> client sent msg {} on conn {}", &i, &conn_id);
+                    println!(">> client sent msg {i} on conn {conn_id}");
                 }
                 Ok::<(), anyhow::Error>(())
             });

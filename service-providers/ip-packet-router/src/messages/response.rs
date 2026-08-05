@@ -1,15 +1,13 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod v6;
-mod v7;
+mod v10;
 mod v8;
 
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_ip_packet_requests::{
-    IpPair, v6::response::IpPacketResponse as IpPacketResponseV6,
-    v7::response::IpPacketResponse as IpPacketResponseV7,
-    v8::response::IpPacketResponse as IpPacketResponseV8,
+    IpPair, v8::response::IpPacketResponse as IpPacketResponseV8,
+    v10::response::IpPacketResponse as IpPacketResponseV10,
 };
 
 use crate::{
@@ -28,10 +26,6 @@ pub(crate) struct VersionedResponse {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Response {
-    StaticConnect {
-        request_id: u64,
-        reply: StaticConnectResponse,
-    },
     DynamicConnect {
         request_id: u64,
         reply: DynamicConnectResponse,
@@ -53,29 +47,6 @@ pub(crate) enum Response {
         request_id: u64,
         reply: InfoResponse,
     },
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum StaticConnectResponse {
-    Success,
-    Failure(StaticConnectFailureReason),
-}
-
-#[derive(thiserror::Error, Debug, Clone)]
-pub(crate) enum StaticConnectFailureReason {
-    #[error("requested ip address is already in use")]
-    RequestedIpAlreadyInUse,
-
-    #[error("client already connected")]
-    ClientAlreadyConnected,
-
-    #[allow(unused)]
-    #[error("request timestamp is out of date")]
-    OutOfDateTimestamp,
-
-    #[allow(unused)]
-    #[error("{0}")]
-    Other(String),
 }
 
 #[derive(Debug, Clone)]
@@ -127,10 +98,9 @@ pub(crate) struct HealthResponse {
 impl VersionedResponse {
     pub(crate) fn try_into_bytes(self) -> Result<Vec<u8>> {
         match self.version {
-            ClientVersion::V6 => IpPacketResponseV6::try_from(self)?.to_bytes(),
-            ClientVersion::V7 => IpPacketResponseV7::try_from(self)?.to_bytes(),
             ClientVersion::V8 => IpPacketResponseV8::try_from(self)?.to_bytes(),
             ClientVersion::V9 => IpPacketResponseV8::try_from(self)?.to_bytes(),
+            ClientVersion::V10 => IpPacketResponseV10::try_from(self)?.to_bytes(),
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })
     }
@@ -166,12 +136,6 @@ pub(crate) enum InfoLevel {
     Warn,
     #[allow(unused)]
     Error,
-}
-
-impl From<StaticConnectFailureReason> for StaticConnectResponse {
-    fn from(failure: StaticConnectFailureReason) -> Self {
-        StaticConnectResponse::Failure(failure)
-    }
 }
 
 impl From<DynamicConnectSuccess> for DynamicConnectResponse {

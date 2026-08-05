@@ -93,11 +93,11 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
     println!();
     println!(
         "Nodesguru: https://nym.explorers.guru/transaction/{}",
-        &res.hash
+        res.hash
     );
-    println!("Mintscan: https://ping.pub/nyx/tx/{}", &res.hash);
-    println!("Transaction result code: {}", &res.tx_result.code.value());
-    println!("Transaction hash: {}", &res.hash);
+    println!("Mintscan: https://ping.pub/nyx/tx/{}", res.hash);
+    println!("Transaction result code: {}", res.tx_result.code.value());
+    println!("Transaction hash: {}", res.hash);
 
     if let Some(output_filename) = args.output {
         println!("\nWriting output log to {output_filename}");

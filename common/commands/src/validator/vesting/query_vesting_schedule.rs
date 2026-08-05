@@ -34,10 +34,7 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     let vesting_address = account_id.to_string();
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    info!(
-        "Getting vesting schedule information for {}...",
-        &vesting_address
-    );
+    info!("Getting vesting schedule information for {vesting_address}...");
 
     let liquid_account_balance = client
         .get_balance(&account_id, denom.to_string())
@@ -155,13 +152,9 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     });
 
     println!();
+    println!("The main account {account_id} also has a regular balance of:");
     println!(
-        "The main account {} also has a regular balance of:",
-        &account_id
-    );
-    println!(
-        "{}  ({})",
-        pretty_coin(&liquid_account_balance),
-        &liquid_account_balance
+        "{}  ({liquid_account_balance})",
+        pretty_coin(&liquid_account_balance)
     );
 }

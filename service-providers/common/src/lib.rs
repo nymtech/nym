@@ -10,6 +10,9 @@ use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 
 pub mod interface;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod storage;
+
 pub const DEFAULT_SERVICE_PROVIDERS_DIR: &str = "service-providers";
 
 // FUTURE WORK:

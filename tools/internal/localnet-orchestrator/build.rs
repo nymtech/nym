@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Failed to perform SQLx migrations")?;
 
-    println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
+    println!("cargo:rustc-env=DATABASE_URL=sqlite://{database_path}");
 
     Ok(())
 }

@@ -222,6 +222,7 @@ pub async fn lp_registration_probe(
             &wg_keypair,
             &gateway_identity,
             bandwidth_controller,
+            None,
             ticket_type,
         ),
     )

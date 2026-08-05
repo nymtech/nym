@@ -7,6 +7,7 @@ import BitfinexIcon from 'src/svg-icons/bitfinex.svg';
 import BybitIcon from 'src/svg-icons/bybit.svg';
 import GateIcon from 'src/svg-icons/gate22.svg';
 import HTXIcon from 'src/svg-icons/htx.svg';
+import SwapNymIcon from 'src/svg-icons/swap-nym.svg';
 import { NymCard } from '..';
 import OsmosisLogo from './osmosis.png';
 
@@ -100,6 +101,12 @@ export const Tutorial = () => {
   };
 
   const exchanges = [
+    {
+      name: 'Nym Swap',
+      tokenType: 'Native NYM (DEX)',
+      url: 'https://swap.nym.com',
+      icon: <SwapNymIcon width={24} height={24} viewBox="0 0 369 368" />,
+    },
     {
       name: 'Bitfinex',
       tokenType: 'Native NYM, ERC-20',

@@ -5,28 +5,50 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-# update, upgrade and install dependencies
-echo -e "\n* * * Installing needed prerequisities * * *"
+# Non-interactive so nothing blocks on a prompt during automated setup
+export DEBIAN_FRONTEND=noninteractive
+set -euo pipefail
 
-apt update  -y && apt --fix-broken install
-apt upgrade
-apt install apt ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git ntp ntpdate neovim tree tmux tig nginx -y
-apt install ufw --fix-missing
+echo -e "\n* * * Installing needed prerequisites * * *"
 
-# enable & setup firewall
-echo -e "\n* * * Setting up firewall using ufw * * * "
-echo "Please enable the firewall in the next prompt for node proper routing."
-echo
-ufw enable
-ufw allow 22/tcp    # SSH - you're in control of these ports
-ufw allow 80/tcp    # HTTP
-ufw allow 443/tcp   # HTTPS
-ufw allow 1789/tcp  # Nym specific
-ufw allow 1790/tcp  # Nym specific
-ufw allow 8080/tcp  # Nym specific - nym-node-api
-ufw allow 9000/tcp  # Nym Specific - clients port
-ufw allow 9001/tcp  # Nym specific - wss port
-ufw allow 51822/udp # WireGuard
-ufw allow in on nymwg to any port 51830 proto tcp # bandwidth queries/topup - inside the tunnel
-ufw reload && \
-ufw status
+# --- Recover from any previously interrupted dpkg/apt state ---
+# A killed install or a reboot mid-install leaves dpkg half-configured and every
+# subsequent apt call fails with: "dpkg was interrupted, you must manually run
+# 'dpkg --configure -a'". Run the recovery unconditionally; it is a no-op when clean.
+echo "Ensuring package system is in a consistent state..."
+dpkg --configure -a || true
+apt-get --fix-broken install -y || true
+
+# --- Update and upgrade ---
+apt-get update -y
+apt-get upgrade -y
+
+# --- Core dependencies (hard requirements) ---
+# If any of these fail the node cannot be set up, so we let a failure surface.
+apt-get install -y \
+  ca-certificates jq curl wget ufw tmux pkg-config build-essential \
+  libssl-dev git nginx
+
+# --- Optional/convenience packages (best-effort) ---
+# Package names differ across Debian 12, Ubuntu 22/24/26 (e.g. ntp -> ntpsec,
+# ntpdate deprecated). Install each independently so a missing one on a given
+# release does not abort the whole run.
+for pkg in tree tig neovim; do
+  apt-get install -y "$pkg" || echo "[WARN] optional package '$pkg' not installed (not available on this release)"
+done
+
+# --- Time sync (critical for WireGuard handshake validity) ---
+# Try modern then legacy providers; whichever exists on this release wins.
+if apt-get install -y ntpsec 2>/dev/null; then
+  echo "[OK] time sync via ntpsec"
+elif apt-get install -y ntp 2>/dev/null; then
+  echo "[OK] time sync via ntp"
+elif apt-get install -y systemd-timesyncd 2>/dev/null; then
+  systemctl enable --now systemd-timesyncd 2>/dev/null || true
+  echo "[OK] time sync via systemd-timesyncd"
+else
+  echo "[WARN] no NTP package could be installed; ensure clock is synced manually"
+fi
+
+echo -e "\n* * * Prerequisites installed * * *"
+echo "Firewall (ufw) configuration is handled by the CLI according to node mode."

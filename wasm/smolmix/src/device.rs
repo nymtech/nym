@@ -28,14 +28,40 @@ pub struct WasmDevice {
     tx_stats: TxStats,
 }
 
+/// Client MTU: Android keeps its mobile MTU (1280); elsewhere use the IPR-reported
+/// MTU (v10) or 1420 for pre-v10 IPRs.
+fn client_mtu(negotiated: Option<u16>) -> usize {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if is_android() {
+            return usize::from(nym_ip_packet_requests::CLIENT_MTU_MOBILE);
+        }
+    }
+    usize::from(negotiated.unwrap_or(nym_ip_packet_requests::CLIENT_MTU_FALLBACK))
+}
+
+/// Sniff the platform from `navigator.userAgent`. Reads the property off the JS
+/// global via reflection so it works in both `Window` and `WorkerGlobalScope`
+/// contexts without pulling in extra web-sys features. Falls back to `false` (1420)
+/// if the property is missing.
+#[cfg(target_arch = "wasm32")]
+fn is_android() -> bool {
+    use wasm_bindgen::JsValue;
+    let global = js_sys::global();
+    js_sys::Reflect::get(&global, &JsValue::from_str("navigator"))
+        .ok()
+        .and_then(|nav| js_sys::Reflect::get(&nav, &JsValue::from_str("userAgent")).ok())
+        .and_then(|ua| ua.as_string())
+        .map(|ua| ua.to_ascii_lowercase().contains("android"))
+        .unwrap_or(false)
+}
+
 impl WasmDevice {
-    pub fn new() -> Self {
+    pub fn new(negotiated_mtu: Option<u16>) -> Self {
         let mut capabilities = DeviceCapabilities::default();
         capabilities.medium = Medium::Ip;
-        // Match the standard Ethernet MTU (1500). 1500 keeps a
-        // packet (plus its LP/IPR framing and SURB headers) within a single
-        // Sphinx packet's payload, avoiding LP-layer fragmentation.
-        capabilities.max_transmission_unit = 1500;
+        // See client_mtu for the per-platform MTU choice.
+        capabilities.max_transmission_unit = client_mtu(negotiated_mtu);
         // Native smolmix also uses Some(1) in the device, but tokio-smoltcp
         // compensates with a burst loop that calls Interface::poll() up to 100
         // times per reactor iteration (each processing 1 packet). Our WASM
@@ -365,7 +391,7 @@ mod tests {
 
     #[test]
     fn push_rx_and_receive() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         dev.push_rx(vec![1, 2, 3]);
 
         let now = Instant::from_millis(0);
@@ -376,7 +402,7 @@ mod tests {
 
     #[test]
     fn transmit_and_drain() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         let now = Instant::from_millis(0);
 
         let tx = dev.transmit(now).expect("should get tx token");
@@ -391,15 +417,16 @@ mod tests {
 
     #[test]
     fn empty_receive_returns_none() {
-        let mut dev = WasmDevice::new();
+        let mut dev = WasmDevice::new(None);
         assert!(dev.receive(Instant::from_millis(0)).is_none());
     }
 
     #[test]
     fn capabilities_are_ip_mode() {
-        let dev = WasmDevice::new();
+        let dev = WasmDevice::new(None);
         let caps = dev.capabilities();
         assert_eq!(caps.medium, Medium::Ip);
-        assert_eq!(caps.max_transmission_unit, 1500);
+        // Native target: the Android sniff is wasm-only, so client_mtu(None) is always the 1420 fallback.
+        assert_eq!(caps.max_transmission_unit, 1420);
     }
 }

@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use nym_ip_packet_requests::IpPair;
 use nym_ip_packet_requests::v9::{self, response::IpPacketResponse};
+use nym_ip_packet_requests::v10::{self, response::IpPacketResponse as IpPacketResponseV10};
 use nym_lp_data::packet::frame::{
     LpFrame, LpFrameKind, SphinxStreamFrameAttributes, SphinxStreamMsgType,
 };
@@ -61,10 +62,17 @@ impl Default for SurbsConfig {
 /// Type alias for the channel receiving batches of reconstructed messages.
 pub type ReconstructedReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
-/// Open an LP stream to the IPR and perform the v9 connect handshake.
-///
-/// Sends an LP Open frame (seq=0, empty payload), then a ConnectRequest
-/// (Data seq=0), and waits for a ConnectSuccess response with allocated IPs.
+/// Cap on the v10 connect attempt when a v9 fallback is still reachable, so a
+/// node whose directory version leads its running process (mid-rollout) falls
+/// back promptly instead of after the full `connect_timeout`. Generously above a
+/// healthy v10 connect so a merely-slow node isn't downgraded spuriously.
+const IPR_V10_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// Open an LP stream and run the connect handshake: Open frame, then a single
+/// connect (Data seq=0) at the protocol version the node's release supports,
+/// chosen from its directory version (`None` = unknown node ⇒ v9). On a v10
+/// connect timeout it retries v9 once, in case the directory version leads the
+/// running IPR. Returns the allocated IPs and, on v10, the reported MTU.
 pub async fn open_and_connect(
     client_input: &Arc<ClientInput>,
     receiver: &mut ReconstructedReceiver,
@@ -72,25 +80,148 @@ pub async fn open_and_connect(
     stream_id: u64,
     surbs: SurbsConfig,
     connect_timeout: Duration,
-) -> Result<IpPair, FetchError> {
+    node_version: Option<&semver::Version>,
+) -> Result<(IpPair, Option<u16>), FetchError> {
     nym_wasm_utils::console_log!("[ipr] sending connect handshake...");
     crate::util::debug_log!("[ipr] stream={stream_id:#018x}");
 
-    // 1. Send LP Open frame (empty payload, seq=0); establishes the stream
+    // 1. Send LP Open frame (empty payload, seq=0); establishes the stream.
+    // Data frames have their own seq space; Open's seq field is independent.
     let open_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Open, 0, &[]);
     send_to_ipr(client_input, ipr_address, open_frame, surbs.open).await?;
 
-    // 2. Send v9 ConnectRequest as LP Data frame (seq=0).
-    // Data frames have their own seq space; Open's seq field is independent.
+    // 2. Connect (Data seq=0) at the version the node's release supports.
+    if node_version.is_none() {
+        crate::util::debug_log!(
+            "[ipr] no directory version for node; connecting v9 (MTU unreported)"
+        );
+    }
+    // Fall through to the v9 connect below unless we settle on v10. A v10 timeout
+    // also falls through, since the directory version can lead the running IPR.
+    match node_version.and_then(nym_ip_packet_requests::best_supported_version) {
+        Some(v) if v == nym_ip_packet_requests::v10::VERSION => {
+            // Bound the v10 attempt so the v9 fallback below stays responsive.
+            let v10_timeout = connect_timeout.min(IPR_V10_ATTEMPT_TIMEOUT);
+            match connect_v10(
+                client_input,
+                receiver,
+                ipr_address,
+                stream_id,
+                0,
+                surbs,
+                v10_timeout,
+            )
+            .await
+            {
+                Ok(success) => return Ok((success.ips, Some(success.mtu))),
+                // Directory version can lead the running IPR; retry v9. seq=0 again is
+                // safe, since the IPR doesn't dedup uplink frames by seq.
+                Err(FetchError::Timeout) => {
+                    crate::util::debug_log!("[ipr] v10 connect timed out; retrying v9");
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Some(v) if v == nym_ip_packet_requests::v9::VERSION => {}
+        Some(other) => {
+            crate::util::debug_log!(
+                "[ipr] node advertises unsupported IPR version v{other}; connecting v9"
+            );
+        }
+        None => {} // unknown node, logged above
+    }
+    let ips = connect_v9(
+        client_input,
+        receiver,
+        ipr_address,
+        stream_id,
+        0,
+        surbs,
+        connect_timeout,
+    )
+    .await?;
+    Ok((ips, None))
+}
+
+/// v10 connect: Data frame at `seq`; returns the IPR's MTU + allocated IPs.
+async fn connect_v10(
+    client_input: &Arc<ClientInput>,
+    receiver: &mut ReconstructedReceiver,
+    ipr_address: &Recipient,
+    stream_id: u64,
+    seq: u32,
+    surbs: SurbsConfig,
+    connect_timeout: Duration,
+) -> Result<nym_ip_packet_requests::v10::response::ConnectSuccess, FetchError> {
+    let (request, request_id) = v10::new_connect_request(None);
+    let request_bytes = request
+        .to_bytes()
+        .map_err(|e| FetchError::Tunnel(format!("failed to serialise v10 connect request: {e}")))?;
+    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
+    send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
+
+    wasmtimer::tokio::timeout(connect_timeout, async {
+        loop {
+            let batch = receiver
+                .next()
+                .await
+                .ok_or_else(|| FetchError::Tunnel("message channel closed".into()))?;
+
+            for msg in batch {
+                let Some((attrs, content)) = decode_lp_stream(&msg.message) else {
+                    continue;
+                };
+                if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
+                    continue;
+                }
+
+                // Ignore stragglers from an earlier version; we selected v10 from
+                // the node's directory version.
+                if content.first() != Some(&v10::VERSION) {
+                    continue;
+                }
+
+                let response = match IpPacketResponseV10::from_bytes(&content) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        crate::util::debug_error!(
+                            "[ipr] malformed v10 response on our stream (dropped): {e}"
+                        );
+                        continue;
+                    }
+                };
+                if response.id() != Some(request_id) {
+                    continue;
+                }
+                return nym_ip_packet_requests::response_helpers::parse_connect_response_v10(
+                    response,
+                )
+                .map_err(|e| FetchError::Tunnel(format!("IPR connect denied: {e}")));
+            }
+        }
+    })
+    .await
+    .map_err(|_| FetchError::Timeout)?
+}
+
+/// v9 connect: pre-v10 path, no MTU reported.
+async fn connect_v9(
+    client_input: &Arc<ClientInput>,
+    receiver: &mut ReconstructedReceiver,
+    ipr_address: &Recipient,
+    stream_id: u64,
+    seq: u32,
+    surbs: SurbsConfig,
+    connect_timeout: Duration,
+) -> Result<IpPair, FetchError> {
     let (request, request_id) = v9::new_connect_request(None);
     let request_bytes = request
         .to_bytes()
         .map_err(|e| FetchError::Tunnel(format!("failed to serialise connect request: {e}")))?;
-    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, 0, &request_bytes);
+    let data_frame = encode_lp_frame(stream_id, SphinxStreamMsgType::Data, seq, &request_bytes);
     send_to_ipr(client_input, ipr_address, data_frame, surbs.data).await?;
 
-    // 3. Wait for ConnectSuccess response
-    let ip_pair = wasmtimer::tokio::timeout(connect_timeout, async {
+    wasmtimer::tokio::timeout(connect_timeout, async {
         loop {
             let batch = receiver
                 .next()
@@ -119,9 +250,6 @@ pub async fn open_and_connect(
                 let response = match IpPacketResponse::from_bytes(&content) {
                     Ok(r) => r,
                     Err(e) => {
-                        // Decoded as LP for our stream + msg_type, but content
-                        // didn't parse as an IPR response. Logged for the same
-                        // reason as the outer decode failure above.
                         crate::util::debug_error!(
                             "[ipr] malformed IpPacketResponse on our stream (dropped): {e}"
                         );
@@ -139,9 +267,7 @@ pub async fn open_and_connect(
         }
     })
     .await
-    .map_err(|_| FetchError::Tunnel("IPR connect timed out".into()))??;
-
-    Ok(ip_pair)
+    .map_err(|_| FetchError::Timeout)?
 }
 
 /// Bundle an IP packet and send it to the IPR as an LP-framed DataRequest.
@@ -263,7 +389,9 @@ async fn send_to_ipr(
 /// Performance-weighted random pick from v9-capable IPRs. Ported from
 /// `nym_sdk::ip_packet_client::discovery::get_best_ipr` to keep the
 /// SDK out of the wasm dep graph.
-pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient, FetchError> {
+pub(crate) async fn discover_ipr(
+    nym_api_urls: &[url::Url],
+) -> Result<(Recipient, semver::Version), FetchError> {
     use nym_validator_client::nym_api::NymApiClientExt;
     use rand::seq::SliceRandom;
     use std::collections::HashMap;
@@ -290,8 +418,18 @@ pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient,
         .map_err(|e| FetchError::Tunnel(format!("list nodes failed: {e}")))?
         .nodes;
 
-    let mut candidates: Vec<(Recipient, u8)> = Vec::new();
+    let mut candidates: Vec<(Recipient, u8, semver::Version)> = Vec::new();
     for exit in exits {
+        // We fetch all nodes above, then keep only those declaring the exit-IPR
+        // role (an exit gateway can be network-requester-only); others don't serve
+        // an IPR, so a v9 connect to them just times out.
+        //
+        // TODO(ipr-perf): rewrite this selection when IPR performance monitoring
+        // lands — fetch only exit gateways and rank on measured IPR health, since
+        // directory `performance` doesn't predict IPR usability.
+        if !exit.supported_roles.exit_ipr {
+            continue;
+        }
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
             continue;
         };
@@ -307,16 +445,45 @@ pub(crate) async fn discover_ipr(nym_api_urls: &[url::Url]) -> Result<Recipient,
         let Ok(addr) = ipr_info.address.parse::<Recipient>() else {
             continue;
         };
-        candidates.push((addr, exit.performance.round_to_integer()));
+        candidates.push((addr, exit.performance.round_to_integer(), version));
     }
 
     let picked = candidates
         .choose_weighted(&mut rand::thread_rng(), |c| c.1 as f64)
         .map_err(|_| FetchError::Tunnel("no v9-capable IPRs available".into()))?;
     nym_wasm_utils::console_log!(
-        "[smolmix] auto-discovered IPR (perf={}): {}",
-        picked.1,
+        "[smolmix] auto-discovered IPR (v{}): {}",
+        picked.2,
         picked.0
     );
-    Ok(picked.0)
+    Ok((picked.0, picked.2.clone()))
+}
+
+/// Look up a node's release version by its identity (the gateway in an IPR
+/// address), so an explicit-address connect can pick the protocol version from
+/// the directory too.
+pub(crate) async fn lookup_node_version(
+    nym_api_urls: &[url::Url],
+    ipr_address: &Recipient,
+) -> Result<semver::Version, FetchError> {
+    use nym_validator_client::nym_api::NymApiClientExt;
+
+    let url = nym_api_urls
+        .first()
+        .ok_or_else(|| FetchError::Tunnel("no nym-api URLs for version lookup".into()))?;
+    let client = nym_wasm_client_core::ApiClient::builder(url.clone())
+        .map_err(|e| FetchError::Tunnel(format!("nym-api builder failed: {e}")))?
+        .build()
+        .map_err(|e| FetchError::Tunnel(format!("nym-api build failed: {e}")))?;
+
+    let gateway = ipr_address.gateway();
+    let node = client
+        .get_all_described_nodes_v2()
+        .await
+        .map_err(|e| FetchError::Tunnel(format!("describe nodes failed: {e}")))?
+        .into_iter()
+        .find(|n| n.ed25519_identity_key() == gateway)
+        .ok_or_else(|| FetchError::Tunnel("IPR node not found in directory".into()))?;
+    semver::Version::parse(node.version())
+        .map_err(|e| FetchError::Tunnel(format!("bad node version: {e}")))
 }

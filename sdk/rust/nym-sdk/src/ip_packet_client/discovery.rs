@@ -21,6 +21,8 @@ pub struct IprWithPerformance {
     pub address: Recipient,
     pub identity: ed25519::PublicKey,
     pub performance: u8,
+    /// The node's release version, used to pick the IPR protocol version up front.
+    pub version: semver::Version,
 }
 
 #[allow(clippy::result_large_err)]
@@ -59,11 +61,25 @@ pub async fn retrieve_exit_nodes_with_performance(
         .map(|described| (described.ed25519_identity_key(), described))
         .collect::<HashMap<_, _>>();
 
-    let exit_gateways = client.get_all_basic_nodes_with_metadata().await?.nodes;
+    let exit_gateways = client
+        .get_all_basic_exit_assigned_nodes_with_metadata()
+        .await?
+        .nodes;
 
     let mut described = Vec::new();
 
     for exit in exit_gateways {
+        // Keep only nodes declaring the exit-IPR role (an exit gateway can be
+        // network-requester-only); others don't serve an IPR, so a v9 connect to
+        // them just times out.
+        //
+        // TODO(ipr-perf): rewrite this selection when IPR performance monitoring
+        // lands — rank on measured IPR health, since directory `performance`
+        // doesn't predict IPR usability.
+        if !exit.supported_roles.exit_ipr {
+            continue;
+        }
+
         let Some(node) = all_nodes.get(&exit.ed25519_identity_pubkey) else {
             continue;
         };
@@ -93,6 +109,7 @@ pub async fn retrieve_exit_nodes_with_performance(
                     address: parsed_address,
                     identity: exit.ed25519_identity_pubkey,
                     performance: exit.performance.round_to_integer(),
+                    version: node_version,
                 })
             }
         }
@@ -101,8 +118,11 @@ pub async fn retrieve_exit_nodes_with_performance(
     Ok(described)
 }
 
-/// Select the highest-performance IPR gateway from the directory.
-pub async fn get_best_ipr(client: nym_http_api_client::Client) -> Result<Recipient, Error> {
+/// Select an IPR gateway from the directory, returning its address and the node's
+/// release version so the caller can pick the IPR protocol version up front.
+pub async fn get_best_ipr(
+    client: nym_http_api_client::Client,
+) -> Result<(Recipient, semver::Version), Error> {
     let nodes = retrieve_exit_nodes_with_performance(client).await?;
     info!("Found {} Exit Gateways", nodes.len());
 
@@ -110,12 +130,26 @@ pub async fn get_best_ipr(client: nym_http_api_client::Client) -> Result<Recipie
         .choose_weighted(&mut rand::thread_rng(), |gw| gw.performance as f64)
         .map_err(|_| Error::NoGatewayAvailable)?;
 
-    let ipr_address = selected_ipr.address;
-
     info!(
-        "Using IPR: {} (Gateway: {}, Performance: {:?})",
-        ipr_address, selected_ipr.identity, selected_ipr.performance
+        "Using IPR: {} (Gateway: {}, version: {})",
+        selected_ipr.address, selected_ipr.identity, selected_ipr.version
     );
 
-    Ok(ipr_address)
+    Ok((selected_ipr.address, selected_ipr.version.clone()))
+}
+
+/// Look up a node's release version by its identity (e.g. the gateway in an IPR
+/// address), so an explicit-address connect can pick the IPR protocol version
+/// from the directory too rather than probing.
+pub async fn lookup_node_version(
+    client: &nym_http_api_client::Client,
+    identity: ed25519::PublicKey,
+) -> Result<semver::Version, Error> {
+    let node = client
+        .get_all_described_nodes_v2()
+        .await?
+        .into_iter()
+        .find(|n| n.ed25519_identity_key() == identity)
+        .ok_or(Error::NoGatewayAvailable)?;
+    semver::Version::parse(node.version()).map_err(|_| Error::NoGatewayAvailable)
 }

@@ -1,5 +1,6 @@
 [package]
 name = "nym-authenticator-client"
+description = "Crate for interacting with the Nym authenticator service provider"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -7,7 +8,9 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-publish = false
+rust-version.workspace = true
+readme.workspace = true
+publish = true
 
 [lints]
 workspace = true

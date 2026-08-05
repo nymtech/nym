@@ -20,6 +20,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "ti
 etherparse = { workspace = true }
 log.workspace = true
 nym-wireguard-types = { workspace = true, optional = true }
+nym-network-defaults = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun.workspace = true

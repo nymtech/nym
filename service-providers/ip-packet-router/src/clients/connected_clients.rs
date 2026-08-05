@@ -11,11 +11,7 @@ use std::{
 use nym_ip_packet_requests::IpPair;
 use tokio::sync::{RwLock, mpsc, oneshot};
 
-use crate::{
-    constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT,
-    error::{IpPacketRouterError, Result},
-    tun_listener,
-};
+use crate::{constants::CLIENT_MIXNET_INACTIVITY_TIMEOUT, tun_listener};
 
 use super::ConnectedClientId;
 
@@ -39,11 +35,6 @@ impl ConnectedClients {
             },
             tun_listener::ConnectedClientsListener::new(connected_client_rx),
         )
-    }
-
-    pub(crate) fn is_ip_connected(&self, ips: &IpPair) -> bool {
-        self.clients_ipv4_mapping.contains_key(&ips.ipv4)
-            || self.clients_ipv6_mapping.contains_key(&ips.ipv6)
     }
 
     pub(crate) fn get_client_from_ip_mut(&mut self, ip: &IpAddr) -> Option<&mut ConnectedClient> {
@@ -132,15 +123,6 @@ impl ConnectedClients {
                 log::error!("Failed to send connected client event: {err}");
             })
             .ok();
-    }
-
-    pub(crate) async fn update_activity(&mut self, ips: &IpPair) -> Result<()> {
-        if let Some(client) = self.clients_ipv4_mapping.get(&ips.ipv4) {
-            *client.last_activity.write().await = Instant::now();
-            Ok(())
-        } else {
-            Err(IpPacketRouterError::FailedToUpdateClientActivity)
-        }
     }
 
     // Identify connected client handlers that have stopped without being told to stop

@@ -14,19 +14,16 @@ use std::sync::Arc;
 use futures::channel::mpsc;
 pub use nym_ip_packet_requests::IpPair;
 use nym_sdk::ipr_wrapper::IpMixStream;
-use smoltcp::iface::Config;
-use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
+use smol_core::{ChannelDevice, Stack, StackConfig};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::bridge::{BridgeShutdownHandle, NymIprBridge};
-use crate::device::NymAsyncDevice;
 use crate::SmolmixError;
-use tokio_smoltcp::{Net, NetConfig};
 
 pub use nym_sdk::mixnet::Recipient;
-pub use tokio_smoltcp::{TcpStream, UdpSocket};
+pub use smol_core::{TcpStream, UdpSocket};
 
 struct ShutdownState {
     bridge_shutdown: BridgeShutdownHandle,
@@ -34,9 +31,9 @@ struct ShutdownState {
 }
 
 struct TunnelInner {
-    /// tokio-smoltcp network stack. Its methods take &self, so multiple tasks can
-    /// open sockets concurrently without locking.
-    net: Net,
+    /// Shared `smol-core` userspace stack. Its methods take &self, so multiple
+    /// tasks can open sockets concurrently without locking.
+    stack: Stack,
     allocated_ips: IpPair,
     /// Mutex only protects shutdown, which is called once and not on the hot path.
     shutdown: Mutex<Option<ShutdownState>>,
@@ -196,6 +193,8 @@ impl Tunnel {
             .map_err(|_| SmolmixError::NotConnected)?;
 
         let allocated_ips = *ipr_stream.allocated_ips();
+        // Read before the bridge consumes the stream. `None` => v9 IPR (device default).
+        let negotiated_mtu = ipr_stream.negotiated_mtu();
 
         // Two channel pairs connect the bridge (async mixnet I/O) to the async
         // device adapter (polled by tokio-smoltcp for raw IP packets):
@@ -210,28 +209,25 @@ impl Tunnel {
         let (bridge, bridge_shutdown) = NymIprBridge::new(ipr_stream, outgoing_rx, incoming_tx);
         let bridge_handle = tokio::spawn(bridge.run());
 
-        // NymAsyncDevice wraps the channel ends as Stream + Sink, which is all
-        // tokio-smoltcp needs to drive the smoltcp Interface internally.
-        let device = NymAsyncDevice::new(incoming_rx, outgoing_tx);
-
-        // Configure smoltcp: raw IP mode (no Ethernet), /32 for the allocated IP,
-        // default route via unspecified (the IPR does the actual routing).
-        let iface_config = Config::new(HardwareAddress::Ip);
-        let net_config = NetConfig::new(
-            iface_config,
-            IpCidr::new(IpAddress::from(allocated_ips.ipv4), 32),
-            vec![IpAddress::from(Ipv4Address::UNSPECIFIED)],
+        // ChannelDevice wraps the channel ends as Stream + Sink — the abstract
+        // IP-packet transport that smol-core's stack drives internally.
+        let device = ChannelDevice::new(
+            incoming_rx,
+            outgoing_tx,
+            negotiated_mtu.map(|mtu| mtu as usize),
         );
 
-        // Net::new spawns the smoltcp reactor as a background task. After this,
-        // tcp_connect/udp_bind create sockets managed by that reactor.
-        let net = Net::new(device, net_config);
+        // Build the smol-core stack: raw IP mode, /32 for the allocated IP, with
+        // the IPR doing the actual routing. Stack::new spawns the smoltcp reactor
+        // as a background task; after this, tcp_connect/udp_socket create sockets
+        // managed by that reactor.
+        let stack = Stack::new(device, StackConfig::new(allocated_ips.ipv4));
 
         info!("Tunnel ready, allocated IP: {}", allocated_ips.ipv4);
 
         Ok(Self {
             inner: Arc::new(TunnelInner {
-                net,
+                stack,
                 allocated_ips,
                 shutdown: Mutex::new(Some(ShutdownState {
                     bridge_shutdown,
@@ -284,7 +280,7 @@ impl Tunnel {
     /// # }
     /// ```
     pub async fn tcp_connect(&self, addr: SocketAddr) -> Result<TcpStream, SmolmixError> {
-        Ok(self.inner.net.tcp_connect(addr).await?)
+        Ok(self.inner.stack.tcp_connect(addr).await?)
     }
 
     /// Create a UDP socket bound to an ephemeral port.
@@ -315,8 +311,7 @@ impl Tunnel {
     /// # }
     /// ```
     pub async fn udp_socket(&self) -> Result<UdpSocket, SmolmixError> {
-        let addr: SocketAddr = ([0, 0, 0, 0], 0).into();
-        Ok(self.inner.net.udp_bind(addr).await?)
+        Ok(self.inner.stack.udp_socket().await?)
     }
 
     /// Create a UDP socket bound to a specific local port.
@@ -325,8 +320,7 @@ impl Tunnel {
     /// the remote side expects replies on a well-known port, or when you need
     /// multiple sockets on distinct ports.
     pub async fn udp_socket_on(&self, port: u16) -> Result<UdpSocket, SmolmixError> {
-        let addr: SocketAddr = ([0, 0, 0, 0], port).into();
-        Ok(self.inner.net.udp_bind(addr).await?)
+        Ok(self.inner.stack.udp_socket_on(port).await?)
     }
 
     /// The IPv4/IPv6 address pair allocated to this tunnel by the IPR.

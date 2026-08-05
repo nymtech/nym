@@ -148,10 +148,16 @@ impl MixnetBasedRegistrationClient {
             self.config.exit.node.ip_address,
         );
 
-        let entry_fut = entry_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardEntry);
-        let exit_fut = exit_auth_client
-            .register_wireguard(&*self.bandwidth_provider, TicketType::V1WireguardExit);
+        let entry_fut = entry_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            self.config.spend_time_skew,
+            TicketType::V1WireguardEntry,
+        );
+        let exit_fut = exit_auth_client.register_wireguard(
+            &*self.bandwidth_provider,
+            self.config.spend_time_skew,
+            TicketType::V1WireguardExit,
+        );
 
         let (entry, exit) = match Box::pin(
             self.cancel_token

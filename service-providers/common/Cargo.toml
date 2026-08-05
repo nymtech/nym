@@ -16,11 +16,16 @@ publish = true
 
 [dependencies]
 nym-bin-common = { workspace = true }
+nym-client-core = { workspace = true, features = [
+    "fs-surb-storage",
+    "fs-gateways-storage",
+    "fs-credentials-storage",
+] }
+nym-credential-storage = { workspace = true }
 nym-sphinx-anonymous-replies = { workspace = true }
 
 async-trait = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
-serde = { workspace = true, features = ["derive"]}
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-

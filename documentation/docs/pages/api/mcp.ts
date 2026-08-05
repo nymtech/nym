@@ -10,8 +10,8 @@
 //     and the live network tools both confirmed).
 //   - The transport bridges Node <-> Web Standard via @hono/node-server; it
 //     accepts Next's wrapped pages-router `res` fine (this was the main risk).
-//     If a future Next/SDK bump breaks that, scaffold/standalone.ts is the
-//     fallback (pristine http.ServerResponse from createServer).
+//     If a future Next/SDK bump breaks that, a standalone Node HTTP host (a
+//     pristine http.ServerResponse from createServer) is the fallback.
 //   - Stateless mode (sessionIdGenerator: undefined) suits serverless: a fresh
 //     Server + transport per request keeps no cross-invocation state.
 //

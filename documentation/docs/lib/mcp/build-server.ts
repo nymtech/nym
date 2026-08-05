@@ -1,6 +1,5 @@
-// MCP server core: wire the tested tool registry onto an SDK Server. Shared by
-// both host options: the live pages-router route (pages/api/mcp.ts) and the
-// standalone HTTP server (scaffold/standalone.ts). Needs @modelcontextprotocol/sdk
+// MCP server core: wire the tested tool registry onto an SDK Server, used by the
+// live pages-router route (pages/api/mcp.ts). Needs @modelcontextprotocol/sdk
 // installed.
 //
 // The low-level `Server` + setRequestHandler(ListToolsRequestSchema /

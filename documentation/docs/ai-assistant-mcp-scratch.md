@@ -286,6 +286,59 @@ Get it working, then make it nice, then widen the corpus. In order:
    OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1);
    wasm-serde-to-TS-union enum parity (catches D1); version/dist-tag; scan `.tsx`.
 
+## Minimisation sweep (hand-rolling + deps) - LIST ONLY, not actioned
+Key reframe: the top "don't hand-roll in prod" items are input validation + error
+handling on the two PUBLIC endpoints, and they cost ~nothing because the deps are
+already resolved. zod@3 + ajv@6/8 are already in the lockfile (via MCP SDK /
+swagger-parser); `ai@7` exports `safeValidateUIMessages` + `cosineSimilarity`.
+
+### A. Runtime (ships to prod) - highest priority, ranked by prod-risk
+1. MCP tool args NOT validated vs each tool's `inputSchema` (public). The low-level
+   `Server` validates only the JSON-RPC envelope; `arguments` reach handlers
+   unchecked (topK as string/negative, query non-string to Voyage, etc.). Fix: ajv
+   (in lockfile) at the `build-server.ts` dispatch choke point, keeps tools.ts
+   SDK-free. Med-High. S.
+2. `chat.ts` handler has NO try/catch around embedQuery/convertToModelMessages. Any
+   Voyage/Anthropic hiccup or malformed body = unhandled 500. Fix: try/catch mirroring
+   `safe()`. No dep. Med. S.
+3. `chat.ts` request body unvalidated/unbounded (public paid endpoint). Fix:
+   `safeValidateUIMessages` from ai@7 (already imported) + a message count/size cap.
+   Zero dep. Med. S.
+4. No rate limiting on `/api/chat` + `/api/mcp` (unauth, spend money per call). Fix:
+   `@upstash/ratelimit` + `@vercel/kv`, or Vercel WAF (no dep). The only genuinely new
+   dep. Med-High. M. (Already tracked as plan D3.)
+5. `cosineSimilarity` in retrieval.ts duplicated. Optional swap to ai@7's export
+   (zero dep); or keep (tested, known zero-guard). Low. S.
+
+### B. Build-time hand-rolling (lower stakes; CI-only, not shipped)
+- DONE: gray-matter, github-slugger, shared fence-aware stripMdx, code-chunker
+  doc-comment grouping, code-index size cap.
+- DEFER: remark/unified MDX->markdown (library-grade JSX strip) - only if the
+  line-based stripper proves lossy.
+- KEEP: token estimate (chars/4; Voyage has no JS tokeniser), content-hash cache
+  (stdlib), Voyage batching (bespoke to 120k cap), markdown chunker (carries anchor
+  metadata a generic splitter discards), Nextra page-walk.
+
+### C. Dependency removals
+- `copy-webpack-plugin`: DEAD (commented out in next.config.js) -> remove.
+- `raw-loader`: ACTIVE (.txt imports) -> keep.
+- `vm-browserify`: ACTIVE (vm polyfill) -> verify the demo needs it.
+- node-polyfill cluster (crypto/stream/https/zlib-browserify, buffer, process, url):
+  for the browser demos (mix-fetch/cosmos/railgun), not the AI feature -> verify each
+  is still needed by the current demos.
+- gray-matter/github-slugger: keep (wired); check if a later pnpm/nextra hoists them
+  so the direct dep can drop.
+
+### D. Deliberately KEEP (hand-rolling justified; do not touch)
+- levenshtein/closestKey (typo hints, 15 lines, bounded input).
+- getJson fetch wrapper (native AbortSignal.timeout; encodeURIComponent guards the URL).
+- getSection chunk-id parsing (app-specific to the id scheme).
+- PageActionsMount MutationObserver (Nextra-integration hack; flag as upgrade-fragile).
+- ChatWidget renders assistant output as PLAIN TEXT (XSS-safe by construction). If
+  markdown rendering is ever added it MUST go via react-markdown + rehype-sanitize /
+  DOMPurify, never raw HTML.
+- threat-model/playground viz (bespoke SVG geometry; d3-scale used where it fits).
+
 ## PR final checks (before merge)
 Do these before the PR merges; deferred out of the main work.
 

@@ -16,6 +16,11 @@ import { PAGES_DIR, collectPages } from '../../docs/lib/retrieval/pages-source.m
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/llms-full.txt');
+// Project the docs version from its single source (docs/package.json) rather than
+// hardcoding it here, where it silently went stale.
+const DOCS_VERSION = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../../docs/package.json'), 'utf-8'),
+).version;
 
 // ---------------------------------------------------------------------------
 // Main
@@ -28,7 +33,7 @@ const lines = [];
 
 // Global header
 lines.push(`# Nym Documentation\n`);
-lines.push(`@version: 1.20.4`);
+lines.push(`@version: ${DOCS_VERSION}`);
 lines.push(`@generated: ${new Date().toISOString().split('T')[0]}`);
 lines.push(`@pages: ${pages.length}`);
 lines.push(`@source: https://github.com/nymtech/nym/tree/develop/documentation/docs`);

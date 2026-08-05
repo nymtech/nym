@@ -22,7 +22,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { streamText, convertToModelMessages, safeValidateUIMessages, type UIMessage } from 'ai';
 import { buildContext } from '../../lib/chat/context';
 import { systemPrompt } from '../../lib/chat/prompt';
 import type { DocIndex } from '../../lib/retrieval/types';
@@ -34,6 +34,11 @@ const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public
 const embedder = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
 const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-haiku-4-5';
+
+// Bounds on an incoming request. A docs chat is a short conversation; these cap
+// the work a single caller can push through the paid embedding + model calls.
+const MAX_MESSAGES = 40;
+const MAX_TOTAL_CHARS = 32_000;
 
 /** Human-friendly name for the model id, for display in the widget. */
 function modelName(id: string): string {
@@ -65,19 +70,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const messages: UIMessage[] = req.body?.messages ?? [];
+  // Validate the client payload against the exact UIMessage parts shape the SDK
+  // expects downstream (convertToModelMessages throws on malformed parts).
+  const validation = await safeValidateUIMessages({ messages: req.body?.messages });
+  if (!validation.success) {
+    res.status(400).json({ error: 'Invalid messages payload' });
+    return;
+  }
+  const messages = validation.data;
+
+  if (messages.length > MAX_MESSAGES) {
+    res.status(400).json({ error: 'Too many messages' });
+    return;
+  }
+  const totalChars = messages.reduce((sum, m) => sum + textOf(m).length, 0);
+  if (totalChars > MAX_TOTAL_CHARS) {
+    res.status(413).json({ error: 'Conversation too large' });
+    return;
+  }
+
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   const query = textOf(lastUser);
+  if (query.length === 0) {
+    res.status(400).json({ error: 'No user message to answer' });
+    return;
+  }
 
-  // Retrieve over docs only (buildContext defaults sources to ["nym-docs"]).
-  const vec = await embedQuery(query, embedder);
-  const { context } = buildContext(vec, index, { topK: 10 });
+  try {
+    // Retrieve over docs only (buildContext defaults sources to ["nym-docs"]).
+    const vec = await embedQuery(query, embedder);
+    const { context } = buildContext(vec, index, { topK: 10 });
 
-  const result = streamText({
-    model: anthropic(CHAT_MODEL),
-    system: systemPrompt(context),
-    messages: await convertToModelMessages(messages),
-  });
+    const result = streamText({
+      model: anthropic(CHAT_MODEL),
+      system: systemPrompt(context),
+      messages: await convertToModelMessages(messages),
+    });
 
-  result.pipeUIMessageStreamToResponse(res);
+    result.pipeUIMessageStreamToResponse(res);
+  } catch (err) {
+    // The stream commits the response once it starts; only send a JSON error if
+    // we failed before any bytes went out (embedding, retrieval, conversion).
+    console.error('chat route failed', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Chat request failed' });
+    }
+  }
 }

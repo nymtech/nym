@@ -293,22 +293,24 @@ already resolved. zod@3 + ajv@6/8 are already in the lockfile (via MCP SDK /
 swagger-parser); `ai@7` exports `safeValidateUIMessages` + `cosineSimilarity`.
 
 ### A. Runtime (ships to prod) - highest priority, ranked by prod-risk
-1. MCP tool args NOT validated vs each tool's `inputSchema` (public). The low-level
-   `Server` validates only the JSON-RPC envelope; `arguments` reach handlers
-   unchecked (topK as string/negative, query non-string to Voyage, etc.). Fix: ajv
-   (in lockfile) at the `build-server.ts` dispatch choke point, keeps tools.ts
-   SDK-free. Med-High. S.
-2. `chat.ts` handler has NO try/catch around embedQuery/convertToModelMessages. Any
-   Voyage/Anthropic hiccup or malformed body = unhandled 500. Fix: try/catch mirroring
-   `safe()`. No dep. Med. S.
-3. `chat.ts` request body unvalidated/unbounded (public paid endpoint). Fix:
-   `safeValidateUIMessages` from ai@7 (already imported) + a message count/size cap.
-   Zero dep. Med. S.
-4. No rate limiting on `/api/chat` + `/api/mcp` (unauth, spend money per call). Fix:
-   `@upstash/ratelimit` + `@vercel/kv`, or Vercel WAF (no dep). The only genuinely new
-   dep. Med-High. M. (Already tracked as plan D3.)
-5. `cosineSimilarity` in retrieval.ts duplicated. Optional swap to ai@7's export
-   (zero dep); or keep (tested, known zero-guard). Low. S.
+1. DONE (2026-08-05). MCP tool args now validated vs each tool's `inputSchema` at the
+   `build-server.ts` dispatch choke point. New `lib/mcp/validate-args.ts` (ajv, compile
+   + cache per schema) + `validate-args.test.ts`; tools.ts stays SDK-free / validator-free.
+   A missing/wrong-typed arg is now a clean isError result instead of a vague downstream
+   failure. Added `ajv@^8.18.0` as a direct dep (was in the tree transitively; needs
+   `pnpm install` to hoist). Logic proto-verified against the real schemas via node.
+2. DONE (2026-08-05). `chat.ts` handler body wrapped in try/catch: a pre-stream failure
+   (embed/retrieval/convert) returns a JSON 500 only if `!res.headersSent` (the stream
+   commits the response once it starts). No dep.
+3. DONE (2026-08-05). `chat.ts` request body validated with `safeValidateUIMessages`
+   (ai@7) + caps: `MAX_MESSAGES = 40`, `MAX_TOTAL_CHARS = 32_000` (413), empty-query
+   guard (400). Verified via node that safeValidateUIMessages rejects undefined / empty
+   array / non-array / malformed parts / bad role. Zero new dep.
+4. DEFERRED (needs infra). No rate limiting on `/api/chat` + `/api/mcp`. Fix:
+   `@upstash/ratelimit` + `@vercel/kv`, or Vercel WAF (no dep). Genuinely new dep + a
+   provisioned KV store; can't test here. Tracked as plan D3 + PR final check.
+5. KEEP (per audit). `cosineSimilarity` in retrieval.ts: tested, known zero-guard
+   behaviour; swapping to ai@7's export is a lateral move, not a minimisation. Leave.
 
 ### B. Build-time hand-rolling (lower stakes; CI-only, not shipped)
 - DONE: gray-matter, github-slugger, shared fence-aware stripMdx, code-chunker
@@ -320,7 +322,9 @@ swagger-parser); `ai@7` exports `safeValidateUIMessages` + `cosineSimilarity`.
   metadata a generic splitter discards), Nextra page-walk.
 
 ### C. Dependency removals
-- `copy-webpack-plugin`: DEAD (commented out in next.config.js) -> remove.
+- `copy-webpack-plugin`: DONE (2026-08-05). Removed from package.json. Only referenced
+  by a commented-out TODO block in next.config.js (left as-is: if ever uncommented, the
+  dep gets re-added then). Needs `pnpm install` to drop from the lockfile.
 - `raw-loader`: ACTIVE (.txt imports) -> keep.
 - `vm-browserify`: ACTIVE (vm polyfill) -> verify the demo needs it.
 - node-polyfill cluster (crypto/stream/https/zlib-browserify, buffer, process, url):
@@ -352,10 +356,13 @@ Do these before the PR merges; deferred out of the main work.
 3. Regenerate the committed doc artefacts fresh and commit: `pnpm run docs:typedoc`
    (needs `wasm/smolmix/pkg/` built + global typedoc) then `pnpm run build` in
    documentation/docs (regenerates llms-full.txt + indexes).
-4. Dependency minimisation sweep (see the dep table below): remove
-   `copy-webpack-plugin` (dead, commented out in next.config.js); confirm
-   `raw-loader` / `vm-browserify` are still used; check if a later pnpm/nextra hoists
-   gray-matter/github-slugger so the direct dep can drop.
+4. Dependency minimisation sweep (see the dep table below): DONE for the runtime items
+   (removed `copy-webpack-plugin`; added `ajv` direct for MCP arg validation; hardened
+   both public endpoints). REQUIRES a lockfile refresh: run `pnpm install` in
+   documentation/docs and commit the updated `documentation/docs/pnpm-lock.yaml`, else
+   ci-docs `pnpm i` (frozen in CI) fails on the package.json/lockfile mismatch. Still
+   open: confirm `raw-loader` / `vm-browserify` are still used; check if a later
+   pnpm/nextra hoists gray-matter/github-slugger so the direct dep can drop.
 5. TypeDoc regen-diff gate: BUILT (`.github/workflows/ci-docs-typedoc-fresh.yml`).
    Builds SDK wasm + the 4 packages, runs `docs:typedoc`, fails if the committed
    `api/` tree differs. Needed a determinism fix: generate-typedoc.sh now pins source
@@ -374,7 +381,8 @@ end. All in `documentation/docs/package.json` unless noted.
 | Dep | Used by | Rationale | Minimisation note |
 |---|---|---|---|
 | `@modelcontextprotocol/sdk` | `pages/api/mcp.ts`, `lib/mcp/*` | MCP server (official SDK; replaced our hand-rolled server) | keep (core) |
-| `ai` | `pages/api/chat.ts` | AI SDK core (`streamText`) for the chat | keep |
+| `ai` | `pages/api/chat.ts` | AI SDK core (`streamText`), `safeValidateUIMessages` (chat body validation) | keep |
+| `ajv` | `lib/mcp/validate-args.ts` | validate MCP tool args vs each tool's JSON Schema at dispatch | keep (was transitive; now direct + hoisted) |
 | `@ai-sdk/anthropic` | `pages/api/chat.ts` | Anthropic provider for the chat | keep |
 | `@ai-sdk/react` | `components/ChatWidget.tsx` | `useChat` hook | keep |
 | `vitest` | `*.test.ts` | unit tests | keep (dev-only) |
@@ -382,7 +390,7 @@ end. All in `documentation/docs/package.json` unless noted.
 | `d3-scale` + `@types/d3-scale` | `components/threat-model/NetworkDiagram.tsx` | diagram scales | keep (viz) |
 | `raw-loader` | `next.config.js` | import files as raw strings | verify still used |
 | `vm-browserify` | `next.config.js` | webpack `vm` polyfill | verify still needed |
-| `copy-webpack-plugin` | `next.config.js` (COMMENTED OUT) | was for copying wasm assets | **REMOVE candidate: unused/commented** |
+| `copy-webpack-plugin` | `next.config.js` (COMMENTED OUT) | was for copying wasm assets | REMOVED (2026-08-05, dead code) |
 | `gray-matter` | 3 generators via `lib/retrieval/mdx.mjs` (WIRED) | real YAML frontmatter parsing; replaced 3 non-head-anchored regex copies; fixes body-`---` eating content | keep |
 | `github-slugger` | `chunker.mjs` (WIRED) | retrieval anchors match Nextra's rendered ones (via rehype-slug); replaced hand-rolled slugify + dedup Map | keep |
 

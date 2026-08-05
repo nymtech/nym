@@ -286,6 +286,28 @@ Get it working, then make it nice, then widen the corpus. In order:
    OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1);
    wasm-serde-to-TS-union enum parity (catches D1); version/dist-tag; scan `.tsx`.
 
+## PR final checks (before merge)
+Do these before the PR merges; deferred out of the main work.
+
+1. Republish the four TS SDK packages (mix-tunnel/fetch/dns/websocket) so the
+   corrected `TunnelState` type (D1 names + D3 `reason` object) actually ships to
+   npm. Runbook: root `ts-sdk-publishing.md`. Until this lands, the published
+   `@nymproject/mix-tunnel@^0.1.0` still has the old type.
+2. After republish: bump `documentation/docs/package.json` `@nymproject/mix-tunnel`
+   to the new version, and restore `MixPlayground.tsx` to the discriminated-union
+   access (`final.state === 'failed' ? final.reason.kind : ''`) it was reverted from.
+3. Regenerate the committed doc artefacts fresh and commit: `pnpm run docs:typedoc`
+   (needs `wasm/smolmix/pkg/` built + global typedoc) then `pnpm run build` in
+   documentation/docs (regenerates llms-full.txt + indexes).
+4. Dependency minimisation sweep (see the dep table below): remove
+   `copy-webpack-plugin` (dead, commented out in next.config.js); confirm
+   `raw-loader` / `vm-browserify` are still used; check if a later pnpm/nextra hoists
+   gray-matter/github-slugger so the direct dep can drop.
+5. Add the TypeDoc regen-diff gate (now that CI no longer regenerates): a check that
+   `docs:typedoc` output equals the committed `api/` tree, so stale docs fail CI.
+6. Add the two docs-validation workflows as branch-protection required checks (the
+   linkcheck + any new gate) so they block merges.
+
 ## Dependencies added on this branch (for the end-of-branch minimisation sweep)
 Every dep added on `max/docs-ai-assistant-mcp`, with why, so we can minimise at the
 end. All in `documentation/docs/package.json` unless noted.

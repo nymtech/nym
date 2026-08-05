@@ -8,7 +8,7 @@ lastUpdated: "2026-02-01"
 
 import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components'
+import { Tabs } from 'nextra/components'
 
 # Sandbox Testnet
 
@@ -26,8 +26,6 @@ This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox 
 
 To run Nym binaries in Sandbox testnet, you need to get `sandbox.env` configuration file and point your binary to it. Follow the steps below:
 
-<Steps>
-
 ###### 1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your binaries:
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
@@ -35,8 +33,10 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 - In case you want to save the file elsewhere, change the path in '-o' flag
 
 - Make sure your `sandbox.env` file contains the correct RPC URL. If not, add this line. If it already exists, replace it with the correct URL:
+
 ```sh
 NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
+```
 
 ###### 2. Run your `nym-node` with an additional flag `-c` or `--config-env-file`
 - Specify a path to `sandbox.env`
@@ -61,8 +61,6 @@ NYM_VALIDATOR_RPC_URL=https://validator-sandbox-1.nymtech.net
 - Follow the steps on the [bonding page](nodes/nym-node/bonding.mdx)
 
 ![](/images/operators/sandbox.png)
-
-</Steps>
 
 <Callout>
 1. If you [built Nym from source](binaries/building-nym), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`

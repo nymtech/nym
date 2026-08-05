@@ -286,6 +286,30 @@ Get it working, then make it nice, then widen the corpus. In order:
    OpenAPI path-existence vs served `/api-docs/openapi.json` (catches A1);
    wasm-serde-to-TS-union enum parity (catches D1); version/dist-tag; scan `.tsx`.
 
+## Dependencies added on this branch (for the end-of-branch minimisation sweep)
+Every dep added on `max/docs-ai-assistant-mcp`, with why, so we can minimise at the
+end. All in `documentation/docs/package.json` unless noted.
+
+| Dep | Used by | Rationale | Minimisation note |
+|---|---|---|---|
+| `@modelcontextprotocol/sdk` | `pages/api/mcp.ts`, `lib/mcp/*` | MCP server (official SDK; replaced our hand-rolled server) | keep (core) |
+| `ai` | `pages/api/chat.ts` | AI SDK core (`streamText`) for the chat | keep |
+| `@ai-sdk/anthropic` | `pages/api/chat.ts` | Anthropic provider for the chat | keep |
+| `@ai-sdk/react` | `components/ChatWidget.tsx` | `useChat` hook | keep |
+| `vitest` | `*.test.ts` | unit tests | keep (dev-only) |
+| `next-sitemap` | build | sitemap.xml / robots.txt | keep |
+| `d3-scale` + `@types/d3-scale` | `components/threat-model/NetworkDiagram.tsx` | diagram scales | keep (viz) |
+| `raw-loader` | `next.config.js` | import files as raw strings | verify still used |
+| `vm-browserify` | `next.config.js` | webpack `vm` polyfill | verify still needed |
+| `copy-webpack-plugin` | `next.config.js` (COMMENTED OUT) | was for copying wasm assets | **REMOVE candidate: unused/commented** |
+| `gray-matter` (uncommitted) | generators (planned) | replace hand-rolled frontmatter regex | keep once wired |
+| `github-slugger` (uncommitted) | `chunker.mjs` (planned) | retrieval anchors match Nextra's | keep once wired |
+
+NOT added (pre-existing in develop, only version-bumped): `eslint`, `eslint-config-next`,
+`typescript`. gray-matter + github-slugger are transitive deps of nextra but NOT
+hoisted, so a direct entry is required to import them; at sweep time, check if a later
+pnpm/nextra hoists them and the direct dep can drop.
+
 ## Validation workstream status board (living)
 Single place to see what is done and what is outstanding for the docs-vs-code /
 docs-rot work. Branch `max/docs-ai-assistant-mcp`. Keep this current.
@@ -369,9 +393,17 @@ mismatch) and were then removed in favour of generation/existing tools. Removed:
   of the `api/` tree; retires the stale-generated-docs class (D2/D3). MUST build the
   SDKs before typedoc (cross-package re-exports resolve from built `dist`, not source),
   else it reproduces the cross-package-stale state and passes while docs are wrong.
-- Build-ordering fix (encode in a command, not memory): a root script
-  `docs:typedoc = run-s build:ci:sdk docs:typedoc:gen`, and restructure `ci-docs.yml`
-  so the order is `pnpm i -> build:ci:sdk -> typedoc` (currently typedoc runs first).
+- Build-ordering fix (encode in a command, not memory). CRITICAL discovery: the mix
+  packages (mix-tunnel/fetch/dns/websocket) are NOT in the static `pnpm-workspace.yaml`
+  (they depend on the unpublished `@nymproject/smolmix-wasm`); they are injected only
+  by `pnpm dev:on` (`dev-mode-add.mjs`), which also needs `wasm/smolmix/pkg/` to exist.
+  So `build:ci:sdk` fails with `EFILTER No packages` unless `dev:on` ran first. The
+  correct order is: build wasm -> `dev:on` -> `pnpm install` -> `build:types` ->
+  `build:ci:sdk` -> `generate-typedoc.sh` -> `dev:off`. `ci-docs.yml` currently runs
+  typedoc BEFORE any of this (and never `dev:on`s), so its downstream API docs are
+  cross-package-stale every run. Fix: a `docs:typedoc` root script wrapping that full
+  order (mirror `prebuild:ci`/`postbuild:ci` which already do dev:on/install/dev:off),
+  and move the `ci-docs.yml` typedoc step to after the SDK build.
 - version/dist-tag check; scan `.tsx`; more in-repo constants.
 
 ### Docs / wiki

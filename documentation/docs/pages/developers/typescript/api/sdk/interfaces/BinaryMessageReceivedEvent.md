@@ -14,7 +14,7 @@
 
 #### Source
 
-[mixnet/wasm/types.ts:253](https://github.com/nymtech/nym/blob/429390112bf7ca8aee0dbd32a4308d97e7bbbe11/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L253)
+[mixnet/wasm/types.ts:253](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L253)
 
 ***
 
@@ -36,4 +36,4 @@
 
 #### Source
 
-[mixnet/wasm/types.ts:254](https://github.com/nymtech/nym/blob/429390112bf7ca8aee0dbd32a4308d97e7bbbe11/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L254)
+[mixnet/wasm/types.ts:254](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L254)

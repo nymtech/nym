@@ -22,4 +22,4 @@ times; the underlying tunnel is a singleton.
 
 ## Source
 
-[mix-fetch/src/index.ts:62](https://github.com/nymtech/nym/blob/429390112bf7ca8aee0dbd32a4308d97e7bbbe11/sdk/typescript/packages/mix-fetch/src/index.ts#L62)
+[mix-fetch/src/index.ts:62](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-fetch/src/index.ts#L62)

@@ -20,4 +20,4 @@ Initialise the mixnet tunnel. Idempotent; safe to call from multiple feature pac
 
 ## Source
 
-[sdk/typescript/packages/mix-tunnel/src/index.ts:55](https://github.com/nymtech/nym/blob/429390112bf7ca8aee0dbd32a4308d97e7bbbe11/sdk/typescript/packages/mix-tunnel/src/index.ts#L55)
+[sdk/typescript/packages/mix-tunnel/src/index.ts:55](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/index.ts#L55)

@@ -7,7 +7,7 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 
 ## 2. Shared types crate
 
-- [ ] 2.1 Create `common/cosmwasm-smart-contracts/geolocation-contract/` with `SubjectClass`, `Method`, `Source`, `LocationEntry`, `AgentPermissions`, and the per-class `subject_id` encoding
+- [x] 2.1 Create `common/cosmwasm-smart-contracts/geolocation-contract/` with `SubjectClass`, `Method`, `Source`, `LocationEntry`, `AgentPermissions`, and the per-class `subject_id` encoding
 - [ ] 2.2 Define the canonical `Location` type mirroring node status API's dVPN shape (`http/models/mod.rs:204`): country, coordinates, city, region, org, postal, timezone, optional ASN record with `asn`/`name`/`domain`/`route`/`kind`; feature-gate the HTTP schema derive. Used uniformly by every source
 - [ ] 2.3 Add payload tests: absent coordinates round-trip as absent (never `0.0, 0.0`), a `hosting` provider type survives verbatim, and the derived `residential | other` form matches node status API for each raw type
 - [ ] 2.4 Implement the opaque versioned payload wrapper (`version: u8` + `Binary` `content`, version byte outside `content`) and the `MAX_PAYLOAD_SIZE` constant; version 1 encodes `content` as UTF-8 JSON
@@ -73,7 +73,7 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 ## 9. Geolocator service
 
 - [ ] 9.1 Create the service crate with config, CLI and logging
-- [ ] 9.2 Implement subject discovery from the mixnet contract, plus configured non-node subjects
+- [ ] 9.2 Implement subject discovery from the mixnet contract (bonded nym-nodes are the only subject class the contract defines)
 - [ ] 9.3 Implement address discovery from node HTTP endpoints, behind a trait so the directory-contract source can replace it later
 - [ ] 9.4 Implement the geolocation lookup client, with the provider allowance exposed as a metric and a per-cycle lookup ceiling
 - [ ] 9.5 Ensure resolved addresses are never persisted, logged durably or exposed

@@ -40,7 +40,7 @@ Rejected because the auth model is the difference that matters. The directory's 
 ```
   entries   (subject_class, subject_id, source) -> LocationEntry
 
-     subject_class  NymNode | NymApi | ...                (closed enum)
+     subject_class  NymNode                               (closed enum, extensible)
      subject_id     Vec<u8>, encoding fixed per class
      source         Measured { method: Method, agent: Addr }
                   | SelfDeclared
@@ -59,14 +59,15 @@ Three considered alternatives were rejected.
 
 Collapsing them into one `Source` makes invalid states unrepresentable. `Measured` carries both the method and the measuring agent, so each agent keeps its own slot and concurrent agents never overwrite one another. `SelfDeclared` has no writer component at all, so a subject has exactly one self-declared slot no matter which agent relayed it, and conflicting relays are resolved by the `declared_at` monotonicity check in Decision 7. `Override` likewise has one slot, and because it names a role rather than an address, rotating the admin does not orphan existing overrides. Prefix ranges still cover "everything for a subject" and "all measurements for a subject".
 
-The subject splits into a closed-enum class and an opaque id whose encoding is fixed per class, so the contract can hold non-node infrastructure without every id being a number:
+The subject splits into a closed-enum class and an opaque id whose encoding is fixed per class, so the contract can hold non-node infrastructure without every id being forced to be a number:
 
 | class | id encoding | rationale |
 | --- | --- | --- |
 | `NymNode` | `u32` big-endian | preserves numeric ordering, and decodes back to `NodeId` for the unbond callback; a decimal string would sort `"10"` before `"9"` |
-| `NymApi` | 32-byte ed25519 identity key | fixed width, and the key the directory's curated entries use in practice |
 
-`SubjectClass` is a closed enum for the same reason `Method` is (Decision 3): it lives in the key, so a new variant needs no leaf-encoding change and no state migration, only a redeploy. The alternative, an admin-managed string set, trades that redeploy for the risk of a typo silently creating an unreachable subject.
+`NymNode` is the only class defined. Nothing else is measured yet, so a second class would be speculative; the class component exists so that adding one later is additive rather than a migration. Concretely, adding a nym-api class keyed by its 32-byte ed25519 identity key costs: a new never-reused discriminant, a fixed id width, one arm in the id codec, and whatever authorisation rule that class needs. It costs no leaf-encoding change, no accumulator re-fold and no state migration, because the class lives in the key rather than the value. What it does cost is a redeploy.
+
+`SubjectClass` is a closed enum for the same reason `Method` is (Decision 3). The alternative, an admin-managed string set, trades that redeploy for the risk of a typo silently creating an unreachable subject.
 
 ### 3. `Method` is a closed enum
 
@@ -227,7 +228,7 @@ The premise of this spike was wrong in a useful direction. The directory contrac
 
 a plain 3-tuple, with `Source` flattened to bytes by our own helper (`[1][method][agent]`, `[2]`, `[3]`) rather than being a key-component type. Section 3 gets simpler than planned.
 
-**Ordering holds, and the reason is the per-class fixed-width rule.** cw-storage-plus length-prefixes every component except the last, so `Vec<u8>` components sort by length before content. That would break numeric node ordering if ids were variable-width. They are not: `NymNode` is always 4 bytes big-endian and `NymApi` always 32, so within a class the length prefix is constant and ordering falls through to the content. The fixed-width-per-class rule in Decision 2 was chosen for tidiness; it turns out to be load-bearing.
+**Ordering holds, and the reason is the per-class fixed-width rule.** cw-storage-plus length-prefixes every component except the last, so `Vec<u8>` components sort by length before content. That would break numeric node ordering if ids were variable-width. They are not: `NymNode` is always 4 bytes big-endian, so within a class the length prefix is constant and ordering falls through to the content. The fixed-width-per-class rule in Decision 2 was chosen for tidiness; it turns out to be load-bearing, which is why an id of the wrong width is rejected rather than accepted and left to sort oddly.
 
 The trailing `source_encoded` is not length-prefixed, so it sorts lexicographically: `Measured` (tag 1) before `SelfDeclared` (2) before `Override` (3), and within `Measured` by method then agent. Correct without further work.
 

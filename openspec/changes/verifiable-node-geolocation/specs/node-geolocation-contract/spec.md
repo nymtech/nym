@@ -4,7 +4,9 @@
 
 Entries MUST be keyed `(subject_class, subject_id, source)` in a single store.
 
-`subject_class` MUST be a closed enum covering the kinds of infrastructure the contract can describe, so the contract is not limited to bonded nym-nodes. `subject_id` MUST be opaque bytes whose encoding is fixed per class and documented once. The `NymNode` class MUST encode its id as a big-endian `u32`, so ids order numerically and decode back to `NodeId` for the unbond callback. Classes whose natural identifier is not a number MUST NOT be forced into one.
+`subject_class` MUST be a closed enum, so the key space is not limited to bonded nym-nodes by construction. It currently defines `NymNode` alone; adding a class is a code upgrade and a redeploy rather than an admin transaction, and MUST require no leaf-encoding change and no re-fold of existing entries, because the class lives in the key. A retired class's discriminant MUST NOT be reused.
+
+`subject_id` MUST be opaque bytes whose encoding is fixed per class and documented once. The `NymNode` class MUST encode its id as a big-endian `u32`, so ids order numerically and decode back to `NodeId` for the unbond callback. Every class MUST fix a single id width, and an id of any other width MUST be rejected: `cw-storage-plus` length-prefixes every key component except the last, so a variable width would make that prefix vary and entries would sort by id length before id content. A class whose natural identifier is not a number MUST NOT be forced into one.
 
 `source` MUST be a single discriminant of the form `Measured { method, agent }`, `SelfDeclared`, or `Override`, so that combinations which are meaningless are not representable. `method` MUST be a closed enum; adding a measurement source MUST be a single new variant requiring no leaf-encoding change, because it lives in the key. A retired variant's discriminant MUST NOT be reused.
 
@@ -30,9 +32,9 @@ Entries MUST be keyed `(subject_class, subject_id, source)` in a single store.
 - **WHEN** the store is scanned in ascending key order
 - **THEN** node 9 precedes node 10
 
-#### Scenario: A non-node subject with a non-numeric id is accepted
-- **WHEN** an authorised agent submits a measurement for a `NymApi` subject identified by its ed25519 identity key
-- **THEN** the entry is stored and is retrievable under that class and id
+#### Scenario: A subject id of the wrong width for its class is rejected
+- **WHEN** an entry is submitted whose subject id is not the fixed width its class requires
+- **THEN** it is rejected, since a varying width would make the key's length prefix vary and entries would stop ordering by id content
 
 ### Requirement: Every state mutation SHALL be routed through a single digest-maintaining wrapper
 
@@ -318,11 +320,20 @@ The contract MUST accept an unbond callback from the configured mixnet contract 
 
 ### Requirement: Only the admin SHALL write override entries
 
-Override entries MUST be writable and removable by the contract admin alone, MUST use the `Override` source, and MUST be digest-committed like any other entry. The contract MUST NOT itself apply any precedence between an override and other sources; resolution is a client concern.
+Override entries MUST be writable and removable by the contract admin alone, MUST use the `Override` source, and MUST be digest-committed like any other entry. Setting and removing are separate admin operations, so an override can be retracted without waiting for the subject to be re-measured. The contract MUST NOT itself apply any precedence between an override and other sources; resolution is a client concern.
 
 #### Scenario: A non-admin cannot write an override
 - **WHEN** a whitelisted measurement agent submits an override entry
 - **THEN** the write is rejected
+
+#### Scenario: The admin removes an override
+- **GIVEN** an override entry for node 42, alongside a measurement and a self-declaration for the same node
+- **WHEN** the admin removes the override
+- **THEN** only the override entry is deleted, its exact leaf is subtracted from the digest, and the other entries for that node remain
+
+#### Scenario: A non-admin cannot remove an override
+- **WHEN** any address other than the admin invokes the override removal
+- **THEN** it is rejected and the entry is unchanged
 
 #### Scenario: An override does not suppress other entries
 - **GIVEN** an override for node 42

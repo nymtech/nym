@@ -142,7 +142,10 @@ run (pick any lightwalletd with `ZEC_SERVER=`):
 
 ```sh
 # watch the wire: real sync against a public lightwalletd, grid-aligned
-# boundaries printed per request, plus the persist/restore broadcast flow
+# boundaries printed per request, then the broadcast flow across five
+# wallet "restarts" — the plan restored from disk each wake-up while real
+# blocks arrive underneath, and the transaction built only at fire time
+# (~7 minutes with the default waits; ZEC_ROUND_SECS=0 for an instant run)
 cargo run --release -p nym-swizzle-zcash --example wallet_sync
 
 # the live suite: reorg detection on real chain data (matching hashes

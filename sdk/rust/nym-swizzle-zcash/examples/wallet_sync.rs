@@ -13,23 +13,30 @@
 //!    the wire: a grid-aligned range, fetched as overlapping shuffled chunks
 //!    through *your* transport (the `BlockSource` implementation below is the
 //!    slot where your own lightwalletd client goes).
-//! 2. **Broadcast, decoupled.** We schedule a send, persist the plan to a
-//!    file, throw everything away, restore it — as if the wallet was killed
-//!    and reopened hours later — and resume. The transaction is *built* only
-//!    at fire time, with an expiry from a freshly fetched tip, and lands in a
-//!    mock broadcaster (sending for real needs a funded seed; the mock prints
-//!    what it would have sent).
+//! 2. **Broadcast, decoupled.** We schedule a send, print exactly what the
+//!    plan commits to (profile, sampled delay in blocks and hours, projected
+//!    fire height, the literal bytes persisted to disk), then play out five
+//!    wake-ups a couple of seconds apart: each round the wallet is "killed
+//!    and reopened", restores the plan from disk, sees on its clock that the
+//!    delay hasn't elapsed, and goes back to sleep — making **no network
+//!    calls** until fire time, exactly as a real wallet should. The hours of
+//!    delay are compressed into seconds (the clock, and the ~one-block-per-
+//!    75-s chain drift it implies, are simulated); the transaction is
+//!    *built* only on the final round, with an expiry from a freshly fetched
+//!    **real** tip, and lands in a mock broadcaster (sending for real needs
+//!    a funded seed; the mock prints what it would have sent).
 //!
 //! ```sh
 //! cargo run --release -p nym-swizzle-zcash --example wallet_sync
 //!
 //! # knobs (defaults shown)
-//! ZEC_SERVER=https://zec.rocks:443 ZEC_GAP=400 \
+//! ZEC_SERVER=https://zec.rocks:443 ZEC_GAP=400 ZEC_ROUNDS=5 ZEC_ROUND_SECS=2 \
 //!     cargo run --release -p nym-swizzle-zcash --example wallet_sync
 //! ```
 //!
 //! This talks to a real public server — the defaults are deliberately gentle
-//! (one grid cell, usually ~1152 compact blocks).
+//! (one grid cell, usually ~1152 compact blocks, and one `GetLatestBlock` at
+//! fire time).
 
 #[path = "support/lightwalletd.rs"]
 mod lightwalletd;
@@ -38,6 +45,7 @@ use std::time::Duration;
 
 use nym_swizzle_zcash::broadcast::{
     expiry_height, needs_refresh_sync, BroadcastPlan, Profile, Scheduler, TxBroadcaster,
+    TARGET_BLOCK_TIME,
 };
 use nym_swizzle_zcash::grid::{quantize, Disposition, QueuedRange};
 use nym_swizzle_zcash::sync::{BlockSource, SyncSession};
@@ -46,6 +54,11 @@ use crate::lightwalletd::{CompactBlock, Lightwalletd};
 
 const DEFAULT_SERVER: &str = "https://zec.rocks:443";
 const DEFAULT_GAP: u64 = 400;
+const DEFAULT_ROUNDS: u32 = 5;
+/// Real seconds between wake-ups — pacing for readability only; the wallet's
+/// clock (and the chain drift it implies) is simulated so the demo runs in
+/// seconds instead of hours.
+const DEFAULT_ROUND_SECS: u64 = 2;
 
 type BoxError = Box<dyn std::error::Error>;
 
@@ -232,52 +245,107 @@ async fn main() -> Result<(), BoxError> {
         "start must be grid-aligned"
     );
 
-    // ---- 2. broadcast: schedule, persist, restart, resume --------------
+    // ---- 2. broadcast: schedule, persist, wake up repeatedly, resume ----
+
+    let rounds: u32 = env_or("ZEC_ROUNDS", DEFAULT_ROUNDS);
+    let round_wait: u64 = env_or("ZEC_ROUND_SECS", DEFAULT_ROUND_SECS);
+    assert!(rounds >= 1, "ZEC_ROUNDS must be at least 1");
 
     println!("\nscheduling a broadcast (decoupled from the sync above):");
     let plan = Scheduler::standard().schedule();
+    let delay_blocks = plan.delay_secs / TARGET_BLOCK_TIME.as_secs();
+    println!("   profile: standard — exponential delay, mean 144 blocks (~3 h), samples above");
+    println!("   576 blocks (~12 h) re-drawn; ZIP 318's transfer-scheduling parameters, so");
+    println!("   this send pools with everyone's migration traffic");
     println!(
-        "   sampled delay: {:.1} h (exponential, mean ~3 h, capped at ~12 h — ZIP 318's",
+        "   sampled delay: {:.1} h = {delay_blocks} blocks — the transaction will be built and",
         plan.delay().as_secs_f64() / 3600.0
     );
-    println!("   transfer-scheduling parameters, so sends pool with migration traffic)");
+    println!(
+        "   sent around height {} (scheduled at {tip}), from a tip fetched at fire time",
+        tip + delay_blocks
+    );
 
     let path = std::env::temp_dir().join("nym-swizzle-zcash-example-plan.txt");
     save_plan(&path, &plan)?;
     println!(
-        "   plan persisted to {} — plain data, no live state",
+        "\n   the whole plan is two integers, persisted to {}:",
         path.display()
     );
-
-    println!("\n   ... pretend the wallet was killed and reopened after the delay ...\n");
-
-    let restored = load_plan(&path)?;
-    std::fs::remove_file(&path).ok();
-
-    // do we need to sync again before sending? only if the anchors aged out
-    let fresh_tip = client.tip().await?;
+    for line in std::fs::read_to_string(&path)?.lines() {
+        println!("      | {line}");
+    }
+    println!("      (a real wallet also stores when it scheduled, to compute elapsed time)");
     println!(
-        "   refresh sync needed? {} (last synced {tip}, tip now {fresh_tip}, anchors live ~2 days)",
-        if needs_refresh_sync(tip, fresh_tip) {
-            "yes — sync on its own session first"
-        } else {
-            "no"
-        }
+        "\n   ... the demo now compresses those {:.1} h into {rounds} wake-ups, {round_wait} s apart ...",
+        plan.delay().as_secs_f64() / 3600.0
     );
 
-    // elapsed >= the sampled delay, so this fires immediately; a wallet that
-    // wakes up early just sleeps the remainder
-    let elapsed = restored.delay() + Duration::from_secs(1);
-    restored
-        .resume(elapsed, &mut MockBroadcaster, || async {
-            // built at FIRE time: expiry comes from a tip fetched now, not
-            // from anything remembered at scheduling time
-            let tip_at_fire = client.tip().await?;
-            let expiry = expiry_height(tip_at_fire);
-            println!("      building now: tip {tip_at_fire}, expiry {expiry} (tip + 40)");
-            Ok::<_, tonic::Status>(format!("demo-tx-expiry-{expiry}").into_bytes())
-        })
-        .await?;
+    // The wallet now gets killed and reopened over and over while the delay
+    // runs down. Each round below is one such wake-up: restore the plan from
+    // disk, see on the (simulated) clock that it isn't time yet, go back to
+    // sleep. No network traffic on early wake-ups — a real wallet checks
+    // nothing but its own clock until fire time — so the chain heights shown
+    // are the drift the wallet would *expect* at ~one block per 75 s; the
+    // real tip is fetched exactly once, when the transaction is built.
+    for round in 1..=rounds {
+        if round_wait > 0 {
+            tokio::time::sleep(Duration::from_secs(round_wait)).await;
+        }
+
+        let restored = load_plan(&path)?;
+        let elapsed = restored
+            .delay()
+            .mul_f64(f64::from(round) / f64::from(rounds));
+        let expected_tip = tip + elapsed.as_secs() / TARGET_BLOCK_TIME.as_secs();
+
+        if round < rounds {
+            println!(
+                "\n   wake-up {round}/{rounds}: restored plan from disk; no network calls — the \
+                 chain should be\n      near {expected_tip} (+{} blocks while asleep); {:.1} h of \
+                 {:.1} h elapsed, {:.1} h left —\n      not time yet, back to sleep",
+                expected_tip - tip,
+                elapsed.as_secs_f64() / 3600.0,
+                restored.delay().as_secs_f64() / 3600.0,
+                restored.remaining(elapsed).as_secs_f64() / 3600.0,
+            );
+            continue;
+        }
+
+        println!(
+            "\n   wake-up {round}/{rounds}: restored plan from disk — the delay has elapsed, firing:"
+        );
+        std::fs::remove_file(&path).ok();
+
+        // fire time: NOW the wallet talks to the network again. Do we need a
+        // refresh sync first? Only if the anchors aged out while we slept.
+        let tip_now = client.tip().await?;
+        println!(
+            "      refresh sync needed? {} (last synced {tip}, tip now {tip_now}, anchors live ~2 days)",
+            if needs_refresh_sync(tip, tip_now) {
+                "yes — sync on its own session first"
+            } else {
+                "no"
+            }
+        );
+
+        // elapsed >= the sampled delay on the last round, so this fires
+        // immediately; a wallet that wakes up early just sleeps the remainder
+        restored
+            .resume(
+                elapsed + Duration::from_secs(1),
+                &mut MockBroadcaster,
+                || async {
+                    // built at FIRE time: expiry comes from a tip fetched now, not
+                    // from anything remembered at scheduling time
+                    let tip_at_fire = client.tip().await?;
+                    let expiry = expiry_height(tip_at_fire);
+                    println!("      building now: tip {tip_at_fire}, expiry {expiry} (tip + 40)");
+                    Ok::<_, tonic::Status>(format!("demo-tx-expiry-{expiry}").into_bytes())
+                },
+            )
+            .await?;
+    }
 
     println!(
         "\ndone. things to poke at: rerun and watch the chunk boundaries change while the\n\

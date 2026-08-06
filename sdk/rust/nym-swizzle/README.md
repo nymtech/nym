@@ -46,19 +46,19 @@ cargo run -p nym-swizzle --example poisson_sampling
 cargo run -p nym-swizzle --example seeded_vrf
 ```
 
-### Live example: Zcash lightwalletd over gRPC
+### Zcash: ready-made policy layer
 
-`nym-swizzle-zcash-example` fetches real compact blocks from a public
-lightwalletd (`zec.rocks`), comparing a direct fetch against overlapping
-chunking, verifying complete coverage and reporting the wastage:
+For Zcash light clients there is a dedicated crate,
+[`nym-swizzle-zcash`](../nym-swizzle-zcash), which packages these primitives
+into chain-specific policy (quantized sync ranges, decoupled persistable
+broadcast scheduling) and ships a live example against a public lightwalletd:
 
 ```sh
-cargo run --release -p nym-swizzle-zcash-example
+cargo run --release -p nym-swizzle-zcash --example wallet_sync
 ```
 
-It lives in its own crate (`sdk/rust/nym-swizzle-zcash`) rather than in
-`examples/` here, because a gRPC/TLS stack does not compile to wasm and would
-break this crate's dependency guarantee.
+It is a separate crate so its example's gRPC/TLS stack (dev-dependencies
+only) never touches this crate's wasm dependency guarantee.
 
 ## Profiling harness
 

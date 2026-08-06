@@ -2,29 +2,35 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [package]
-name = "nym-swizzle-zcash-example"
-description = "Live example: fetching Zcash compact blocks from a lightwalletd over gRPC with nym-swizzle overlapping chunking"
+name = "nym-swizzle-zcash"
+description = "Zcash light-client privacy hygiene on top of nym-swizzle: quantized sync ranges and decoupled, persistable broadcast scheduling"
 version.workspace = true
 authors.workspace = true
 edition = "2021"
 license.workspace = true
 repository = "https://github.com/nymtech/nym/sdk/rust/nym-swizzle-zcash/"
+homepage.workspace = true
+documentation.workspace = true
 rust-version.workspace = true
 readme = "README.md"
-publish = false
+publish = true
 
-# This lives in its own crate rather than as an `examples/` file inside
-# `nym-swizzle` on purpose: `nym-swizzle` guarantees that every one of its
-# non-dev dependencies compiles to `wasm32-unknown-unknown`, and a gRPC/TLS
-# stack does not. Keeping the network example out here preserves that
-# guarantee (and keeps `cargo test -p nym-swizzle` fast).
+# Like `nym-swizzle`, every non-dev dependency must compile for
+# `wasm32-unknown-unknown`. The crate performs no I/O itself — the gRPC/TLS
+# stack below is dev-only, for the live example and the opt-in network tests.
+
+[features]
+serde = ["dep:serde"]
 
 [dependencies]
-nym-swizzle = { workspace = true }
-
 futures = { workspace = true }
+nym-swizzle = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
 # tonic-prost 0.14 is built against prost 0.14, not the workspace's 0.13
 prost = "0.14"
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }
 tonic = { workspace = true, features = ["channel", "tls-ring", "tls-webpki-roots"] }
 tonic-prost = "0.14"

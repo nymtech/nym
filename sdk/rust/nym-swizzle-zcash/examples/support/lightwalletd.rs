@@ -1,13 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! A minimal hand-rolled lightwalletd gRPC client.
+//! A minimal hand-rolled lightwalletd gRPC client, shared by the example and
+//! the (opt-in) network tests.
 //!
-//! Only the three calls this example needs are implemented, against
-//! hand-written `prost` messages rather than generated code. That keeps the
-//! example free of a `build.rs` and a `protoc` install; `prost` skips unknown
-//! fields on decode, so declaring a subset of each message's fields is safe
-//! and forward-compatible.
+//! Only the two calls they need are implemented, against hand-written
+//! `prost` messages rather than generated code. That keeps the crate free of
+//! a `build.rs` and a `protoc` install; `prost` skips unknown fields on
+//! decode, so declaring a subset of each message's fields is safe and
+//! forward-compatible.
 //!
 //! Field numbers and the service path are from lightwalletd's
 //! `compact_formats.proto` / `service.proto`
@@ -73,15 +74,6 @@ pub struct CompactBlock {
     pub vtx: Vec<CompactTx>,
 }
 
-/// What one `GetBlockRange` call returned.
-#[derive(Debug, Default)]
-pub struct FetchedRange {
-    /// Heights received, in the order the server streamed them.
-    pub heights: Vec<u64>,
-    /// Total shielded transactions across those blocks.
-    pub transactions: usize,
-}
-
 /// A lightwalletd client. Cloning is cheap — the underlying [`Channel`] is
 /// reference-counted and multiplexes over one HTTP/2 connection.
 #[derive(Clone, Debug)]
@@ -115,11 +107,11 @@ impl Lightwalletd {
         Ok(response.into_inner().height)
     }
 
-    /// Stream every compact block in the half-open range `[start, end)`.
+    /// Fetch every compact block in the half-open range `[start, end)`.
     ///
     /// The half-open range is converted to lightwalletd's inclusive
     /// `BlockRange` on the wire.
-    pub async fn block_range(&mut self, start: u64, end: u64) -> Result<FetchedRange, Status> {
+    pub async fn block_range(&mut self, start: u64, end: u64) -> Result<Vec<CompactBlock>, Status> {
         debug_assert!(start < end, "empty range {start}..{end}");
         let request = BlockRange {
             start: Some(BlockId::at(start)),
@@ -137,12 +129,11 @@ impl Lightwalletd {
             .await?
             .into_inner();
 
-        let mut fetched = FetchedRange::default();
+        let mut blocks = Vec::new();
         while let Some(block) = stream.message().await? {
-            fetched.transactions += block.vtx.len();
-            fetched.heights.push(block.height);
+            blocks.push(block);
         }
-        Ok(fetched)
+        Ok(blocks)
     }
 }
 

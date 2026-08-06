@@ -30,6 +30,10 @@ pub enum GeolocationContractError {
     #[error("malformed payload content: {0}")]
     MalformedPayload(String),
 
+    /// A storage key's trailing source component could not be decoded.
+    #[error("malformed source encoding: {0}")]
+    InvalidSourceEncoding(String),
+
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },
 

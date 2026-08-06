@@ -821,8 +821,9 @@ impl StorageManager {
     /// submission may legitimately contain no mixnode entries after filtering.
     ///
     /// Uses `INSERT OR IGNORE` so that a retried submission carrying the same
-    /// `(testrun_id, submitter_pubkey)` pair - expected under the orchestrator's at-least-once
-    /// delivery semantics - silently drops the duplicate rows rather than failing the batch.
+    /// `(node_id, test_timestamp, submitter_pubkey)` measurement - expected under the
+    /// orchestrator's at-least-once delivery semantics - silently drops the duplicate rows rather
+    /// than failing the batch.
     pub(super) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,

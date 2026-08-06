@@ -261,15 +261,23 @@ Because the per-signer high-water mark is held in memory, it resets to the proce
 
 ### Requirement: Per-entry validation drops invalid rows without failing the batch, and rows deduplicate at the database
 
-Within an accepted batch, nym-api SHALL validate each result independently: an entry that is not a mixnode, or whose `test_performance` lies outside the range `[0.0, 1.0]`, MUST be logged and skipped WITHOUT failing the batch. Surviving rows MUST be inserted into the `nym_node_stress_testing_result` table keyed by `(testrun_id, submitter_pubkey)` using an insert-or-ignore semantics, so an at-least-once resend of the same testrun is deduplicated at the database. An empty result set MUST be a no-op.
+Within an accepted batch, nym-api SHALL validate each result independently: an entry that is not a mixnode, or whose `test_performance` lies outside the range `[0.0, 1.0]`, MUST be logged and skipped WITHOUT failing the batch. Surviving rows MUST be inserted into the `nym_node_stress_testing_result` table using an insert-or-ignore semantics, so an at-least-once resend of the same testrun is deduplicated at the database. An empty result set MUST be a no-op.
+
+A measurement's identity MUST be the measurement itself - `(node_id, test_timestamp, submitter_pubkey)`, held as a UNIQUE constraint - and MUST NOT be the submitting orchestrator's `testrun_id`, which is an AUTOINCREMENT counter in that orchestrator's own database and is NOT durable: the orchestrator's storage may be wiped, restarting the counter from 1 while its on-chain ed25519 identity persists. Keying on it meant every resubmitted id collided with a stored row and was discarded silently behind a 200 response until the counter climbed back past its previous high-water mark, which takes about as long as the wiped database had been alive. `testrun_id` MUST still be stored, for tracing a row back to the orchestrator's own read surface, but carries no uniqueness guarantee. Each row MUST additionally carry an `id INTEGER PRIMARY KEY AUTOINCREMENT` as a stable store-assigned handle; AUTOINCREMENT (rather than a bare rowid alias) is required so that ids are not reused once retention pruning deletes rows, since reuse would reintroduce the same class of collision one layer up.
+
+The UNIQUE constraint's column order MUST lead with `(node_id, test_timestamp)` so that its backing index also serves the per-node windowed average, which is the only read query against the table and which the previous `(testrun_id, submitter_pubkey)` key could not serve at all.
 
 #### Scenario: An out-of-range performance value is skipped
 - **WHEN** an entry's `test_performance` is outside `[0.0, 1.0]`
 - **THEN** it is logged and skipped while the rest of the batch is inserted
 
 #### Scenario: A resent testrun does not duplicate rows
-- **WHEN** the same `(testrun_id, submitter_pubkey)` is submitted twice due to an at-least-once retry
+- **WHEN** the same measurement, `(node_id, test_timestamp, submitter_pubkey)`, is submitted twice due to an at-least-once retry
 - **THEN** the second insert is ignored and no duplicate row is created
+
+#### Scenario: A wiped orchestrator's restarted counter does not lose measurements
+- **WHEN** an orchestrator's database is wiped, so it re-emits `testrun_id` values it has already used, against a nym-api still holding rows under those ids
+- **THEN** each new measurement is stored, because its identity is its `(node_id, test_timestamp, submitter_pubkey)` triple rather than the reused id
 
 ### Requirement: The signed submission payload is a JSON-signed SignedMessage envelope
 

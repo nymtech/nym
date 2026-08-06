@@ -251,7 +251,7 @@ mod tests {
     fn a_realistic_payload_fits_the_default_size_limit_with_room_to_spare() {
         let payload = LocationPayload::new_v1(&location()).unwrap();
         assert!(
-            payload.content.len() < DEFAULT_MAX_PAYLOAD_SIZE / 2,
+            payload.content.len() < (DEFAULT_MAX_PAYLOAD_SIZE / 2) as usize,
             "a realistic payload is {} bytes against a {DEFAULT_MAX_PAYLOAD_SIZE} byte default limit",
             payload.content.len()
         );

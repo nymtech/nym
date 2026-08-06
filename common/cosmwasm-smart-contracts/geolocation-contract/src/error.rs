@@ -19,7 +19,7 @@ pub enum GeolocationContractError {
 
     /// The payload's `content` exceeded the configured maximum size.
     #[error("payload content is {len} bytes, exceeding the {max} byte limit")]
-    PayloadTooLarge { len: usize, max: usize },
+    PayloadTooLarge { len: usize, max: u32 },
 
     /// A payload was decoded against a version it was not written under. The contract never
     /// raises this, since it stores payloads opaquely; it is for producers and consumers.

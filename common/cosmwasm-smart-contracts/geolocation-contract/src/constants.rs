@@ -16,7 +16,20 @@
 /// A realistic version 1 payload is a few hundred bytes of JSON, so this leaves generous
 /// headroom while still bounding a batch's total transaction size (see task 6.6, which sets
 /// `MAX_BATCH_SIZE` from measured gas).
-pub const DEFAULT_MAX_PAYLOAD_SIZE: usize = 1024;
+pub const DEFAULT_MAX_PAYLOAD_SIZE: u32 = 1024;
+
+/// Default tolerance, in seconds, for a `declared_at` ahead of block time. Covers worst-case
+/// block inclusion plus reasonable clock drift. Without an upper bound at all, one artifact
+/// stamped years ahead would freeze a subject's self-declared slot permanently, since nothing
+/// could ever exceed it.
+pub const DEFAULT_MAX_SKEW_SECS: u64 = 300;
+
+/// Default cap on entries in one batch.
+///
+/// Provisional: task 6.6 sets this from a measured gas profile against the chain's
+/// per-transaction cap, with realistic JSON payloads rather than minimal ones. Treat the
+/// current value as a hypothesis, not a measurement.
+pub const DEFAULT_MAX_BATCH_SIZE: u32 = 50;
 
 /// The payload version whose `content` is UTF-8 JSON. Never reuse a version for another
 /// format; the byte selects the format, not merely the schema.

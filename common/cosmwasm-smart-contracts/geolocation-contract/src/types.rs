@@ -304,11 +304,8 @@ impl LocationPayload {
     /// The bound is passed in rather than read from a constant because it lives in contract
     /// state: a later payload version may need more room, or less, and that should be an
     /// admin transaction rather than a redeploy.
-    pub fn ensure_within_size_limit(
-        &self,
-        max_size: usize,
-    ) -> Result<(), GeolocationContractError> {
-        if self.content.len() > max_size {
+    pub fn ensure_within_size_limit(&self, max_size: u32) -> Result<(), GeolocationContractError> {
+        if self.content.len() > max_size as usize {
             return Err(GeolocationContractError::PayloadTooLarge {
                 len: self.content.len(),
                 max: max_size,
@@ -391,6 +388,25 @@ impl NymNodeLocation {
     }
 }
 
+/// The contract's tunables, all admin-adjustable. Held in state rather than as constants
+/// because each of them can need to move without a redeploy: a payload version may want more
+/// room or less, gas costs shift, and clock tolerance is an operational judgement.
+///
+/// Deliberately cannot express the mixnet contract address, which is set once at instantiation
+/// and never changes. Keeping it out of this type means [`crate::ExecuteMsg::UpdateConfig`] has
+/// no way to reach it.
+#[cw_serde]
+pub struct ContractConfig {
+    /// How far ahead of block time a `declared_at` may be, in seconds.
+    pub max_skew_secs: u64,
+
+    /// Maximum entries in one batch.
+    pub max_batch_size: u32,
+
+    /// Maximum length of a payload's `content`, in bytes.
+    pub max_payload_size: u32,
+}
+
 /// What a whitelisted agent is permitted to write. The flags are independent: an agent may
 /// be trusted to measure without being trusted to relay self-declarations, or the reverse.
 #[cw_serde]
@@ -401,6 +417,86 @@ pub struct AgentPermissions {
 
     /// May write [`Source::SelfDeclared`] entries on a subject's behalf.
     pub can_relay_self_declared: bool,
+}
+
+// ---- query responses ----
+
+/// Response for [`crate::QueryMsg::Config`]: the mutable tunables together with the mixnet
+/// contract address, which is fixed at instantiation and reported here so a client can see
+/// which deployment this contract resolves node identity keys against.
+#[cw_serde]
+pub struct ConfigResponse {
+    pub mixnet_contract_address: Addr,
+    pub config: ContractConfig,
+}
+
+/// Response for [`crate::QueryMsg::Entry`]; `None` if the slot is empty.
+#[cw_serde]
+pub struct EntryResponse {
+    pub entry: Option<LocationEntry>,
+}
+
+/// A `(source, entry)` pair belonging to a single subject.
+#[cw_serde]
+pub struct SourceEntry {
+    pub source: Source,
+    pub entry: LocationEntry,
+}
+
+/// Response for [`crate::QueryMsg::SubjectEntries`] and its siblings: everything held for one
+/// subject, in ascending source order.
+#[cw_serde]
+pub struct SubjectEntriesResponse {
+    pub subject: Subject,
+    pub entries: Vec<SourceEntry>,
+}
+
+/// One whitelisted agent together with its permissions.
+#[cw_serde]
+pub struct WhitelistEntry {
+    pub agent: Addr,
+    pub permissions: AgentPermissions,
+}
+
+#[cw_serde]
+pub struct WhitelistResponse {
+    pub agents: Vec<WhitelistEntry>,
+}
+
+/// The 32-byte collapse of the LtHash accumulator. Unproven: smart queries carry no proof, so
+/// a client that needs one performs a raw store read at the digest key instead.
+#[cw_serde]
+pub struct DigestResponse {
+    pub digest: Binary,
+}
+
+/// A page of the global enumeration across both entry classes, and the input a client folds to
+/// recompute the digest for itself.
+#[cw_serde]
+pub struct AllRecordsPagedResponse {
+    /// Records in ascending key order.
+    pub records: Vec<GeolocationRecord>,
+
+    /// Cursor to pass as the next `start_after`, or `None` when the enumeration is exhausted.
+    pub start_next_after: Option<RecordKey>,
+}
+
+/// The logical key of a digest-committed record: the [`crate::QueryMsg::AllRecords`] cursor,
+/// and the identity half of a [`GeolocationRecord`]. The on-chain storage key is a separate
+/// concern, handled by each store, so this type carries no storage-codec logic.
+#[cw_serde]
+pub enum RecordKey {
+    Location { subject: Subject, source: Source },
+    WhitelistedAgent { agent: Addr },
+}
+
+impl RecordKey {
+    pub const fn class(&self) -> EntryClass {
+        match self {
+            RecordKey::Location { .. } => EntryClass::Location,
+            RecordKey::WhitelistedAgent { .. } => EntryClass::WhitelistedAgent,
+        }
+    }
 }
 
 /// The kind of record a digest leaf commits. The leading byte of every leaf, so a location
@@ -461,6 +557,21 @@ impl GeolocationRecord {
         match self {
             GeolocationRecord::Location { .. } => EntryClass::Location,
             GeolocationRecord::WhitelistedAgent { .. } => EntryClass::WhitelistedAgent,
+        }
+    }
+
+    /// The record's logical key, as used for the enumeration cursor.
+    pub fn key(&self) -> RecordKey {
+        match self {
+            GeolocationRecord::Location {
+                subject, source, ..
+            } => RecordKey::Location {
+                subject: subject.clone(),
+                source: source.clone(),
+            },
+            GeolocationRecord::WhitelistedAgent { agent, .. } => RecordKey::WhitelistedAgent {
+                agent: agent.clone(),
+            },
         }
     }
 

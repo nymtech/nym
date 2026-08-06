@@ -1,26 +1,23 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Executing a quantized range as overlapping, shuffled chunks, through your
-//! transport.
+//! Executing a quantized range on the wire, through your transport.
 //!
-//! [`SyncSession::fetch`] quantizes a queued range (see [`grid`](crate::grid)),
-//! decomposes the emitted range into randomly sized, deliberately overlapping
-//! chunks in shuffled order (via [`nym_swizzle::Range`]), and drives your
-//! [`BlockSource`] to fetch them — so no single request on the wire describes
-//! either your resume point or your actual interval.
+//! [`fetch`] quantizes a queued range (see [`grid`](crate::grid)) and drives
+//! your [`BlockSource`] through the deterministic request sequence from
+//! [`Quantized::requests`]: [`S_FLOOR`](crate::grid::S_FLOOR)-aligned cells,
+//! ascending, disjoint, no randomness. Determinism is the point — every
+//! wallet resuming in the same grid cell at the same tip emits byte-identical
+//! requests, and any per-wallet variation in sizes, order, or overlap would
+//! only hand the server a distinguishing dimension while costing bandwidth.
 //!
 //! Every delivered block reaches your callback tagged with a
 //! [`Disposition`]: discard cover below, hash-check the verify window, scan
-//! the rest. The session resolves [`SyncOutcome::Committed`] only once every
-//! chunk has landed **and** the verify window passed its hash comparison —
+//! the rest. The fetch resolves [`SyncOutcome::Committed`] only once every
+//! request has landed **and** the verify window passed its hash comparison —
 //! buffer your scan results and commit them only on that outcome. On a hash
 //! mismatch it resolves [`SyncOutcome::ReorgDetected`]: rewind and requeue
 //! exactly as your SDK does today.
-//!
-//! The driver never reorders chunks to fetch the verify window early — a
-//! predictable "verify first" shape would be identifying. The check simply
-//! runs whenever the window's chunk happens to arrive.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -58,7 +55,7 @@ pub trait BlockSource {
 /// How a completed sync resolved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyncOutcome {
-    /// All chunks landed and the verify window (if any) matched stored
+    /// All requests landed and the verify window (if any) matched stored
     /// state: commit your buffered scan results.
     Committed,
     /// A verify-window block's hash did not match stored state: a reorg
@@ -70,7 +67,7 @@ pub enum SyncOutcome {
 /// Why a sync could not complete.
 #[derive(Debug)]
 pub enum SyncError<E> {
-    /// A chunk fetch failed in your [`BlockSource`].
+    /// A request failed in your [`BlockSource`].
     Source(E),
     /// The server never delivered some verify-window heights, so the reorg
     /// check cannot conclude and committing is not allowed.
@@ -95,116 +92,85 @@ impl<E: fmt::Display> fmt::Display for SyncError<E> {
 
 impl<E: fmt::Display + fmt::Debug> std::error::Error for SyncError<E> {}
 
-/// A configured sync driver. One instance can run many fetches.
-#[derive(Debug, Default, Clone)]
-pub struct SyncSession {
-    seed: Option<[u8; 32]>,
+/// Quantize `range` and fetch it through `source`, one request at a time, in
+/// ascending order.
+///
+/// Every block is handed to `on_block(height, block, disposition)`. Blocks
+/// tagged [`Disposition::VerifyWindow`] are *first* passed to
+/// `check_hash(height, &block)`, which must answer whether the block matches
+/// the hash your wallet has stored for that height; on the first mismatch
+/// the sync stops issuing requests and resolves
+/// [`SyncOutcome::ReorgDetected`].
+pub async fn fetch<S, F, V>(
+    source: &mut S,
+    range: QueuedRange,
+    tip: u64,
+    mut on_block: F,
+    mut check_hash: V,
+) -> Result<SyncOutcome, SyncError<S::Error>>
+where
+    S: BlockSource,
+    F: FnMut(u64, S::Block, Disposition),
+    V: FnMut(u64, &S::Block) -> bool,
+{
+    let quantized = quantize(range, tip);
+    let mut window = WindowTracker::new(&quantized);
+
+    for (start, end) in quantized.requests() {
+        let blocks = source
+            .block_range(start, end)
+            .await
+            .map_err(SyncError::Source)?;
+        if let ControlFlow::Break(()) =
+            window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
+        {
+            return Ok(SyncOutcome::ReorgDetected);
+        }
+    }
+
+    window.conclude()
 }
 
-impl SyncSession {
-    /// A driver with operating-system randomness (what you want in
-    /// production).
-    pub fn new() -> Self {
-        Self::default()
-    }
+/// Like [`fetch`], with up to `limit` requests in flight at once. Each
+/// in-flight request runs on its own clone of `source` (a lightwalletd
+/// channel clone is cheap and multiplexes over one connection); callbacks
+/// still run sequentially, in arrival order. The request *sequence* is the
+/// same deterministic one as [`fetch`] — concurrency changes completion
+/// order, not what goes on the wire.
+pub async fn fetch_concurrent<S, F, V>(
+    source: &S,
+    limit: usize,
+    range: QueuedRange,
+    tip: u64,
+    mut on_block: F,
+    mut check_hash: V,
+) -> Result<SyncOutcome, SyncError<S::Error>>
+where
+    S: BlockSource + Clone,
+    F: FnMut(u64, S::Block, Disposition),
+    V: FnMut(u64, &S::Block) -> bool,
+{
+    let quantized = quantize(range, tip);
+    let mut window = WindowTracker::new(&quantized);
 
-    /// Use a deterministic seed: the same seed, range and tip produce an
-    /// identical chunk plan (sizes, overlaps and order). For tests and
-    /// reproducing traffic shapes — not for production.
-    pub fn seed(mut self, seed: [u8; 32]) -> Self {
-        self.seed = Some(seed);
-        self
-    }
+    let mut results = futures::stream::iter(quantized.requests().map(|(start, end)| {
+        let mut source = source.clone();
+        async move { source.block_range(start, end).await }
+    }))
+    .buffer_unordered(limit.max(1));
 
-    /// Quantize `range` and fetch it through `source`, one chunk at a time.
-    ///
-    /// Every block is handed to `on_block(height, block, disposition)`.
-    /// Blocks tagged [`Disposition::VerifyWindow`] are *first* passed to
-    /// `check_hash(height, &block)`, which must answer whether the block
-    /// matches the hash your wallet has stored for that height; on the first
-    /// mismatch the sync stops issuing requests and resolves
-    /// [`SyncOutcome::ReorgDetected`].
-    pub async fn fetch<S, F, V>(
-        &self,
-        source: &mut S,
-        range: QueuedRange,
-        tip: u64,
-        mut on_block: F,
-        mut check_hash: V,
-    ) -> Result<SyncOutcome, SyncError<S::Error>>
-    where
-        S: BlockSource,
-        F: FnMut(u64, S::Block, Disposition),
-        V: FnMut(u64, &S::Block) -> bool,
-    {
-        let quantized = quantize(range, tip);
-        let mut window = WindowTracker::new(&quantized);
-
-        for (start, end) in self.plan(&quantized) {
-            let blocks = source
-                .block_range(start, end)
-                .await
-                .map_err(SyncError::Source)?;
-            if let ControlFlow::Break(()) =
-                window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
-            {
-                return Ok(SyncOutcome::ReorgDetected);
-            }
+    while let Some(result) = results.next().await {
+        let blocks = result.map_err(SyncError::Source)?;
+        if let ControlFlow::Break(()) =
+            window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
+        {
+            // dropping the stream cancels in-flight requests; the reorg is
+            // getting re-synced anyway
+            return Ok(SyncOutcome::ReorgDetected);
         }
-
-        window.conclude()
     }
 
-    /// Like [`fetch`](Self::fetch), with up to `limit` chunk requests in
-    /// flight at once. Each in-flight request runs on its own clone of
-    /// `source` (a lightwalletd channel clone is cheap and multiplexes over
-    /// one connection); callbacks still run sequentially, in arrival order.
-    pub async fn fetch_concurrent<S, F, V>(
-        &self,
-        source: &S,
-        limit: usize,
-        range: QueuedRange,
-        tip: u64,
-        mut on_block: F,
-        mut check_hash: V,
-    ) -> Result<SyncOutcome, SyncError<S::Error>>
-    where
-        S: BlockSource + Clone,
-        F: FnMut(u64, S::Block, Disposition),
-        V: FnMut(u64, &S::Block) -> bool,
-    {
-        let quantized = quantize(range, tip);
-        let mut window = WindowTracker::new(&quantized);
-
-        let mut results = futures::stream::iter(self.plan(&quantized).map(|(start, end)| {
-            let mut source = source.clone();
-            async move { source.block_range(start, end).await }
-        }))
-        .buffer_unordered(limit.max(1));
-
-        while let Some(result) = results.next().await {
-            let blocks = result.map_err(SyncError::Source)?;
-            if let ControlFlow::Break(()) =
-                window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
-            {
-                // dropping the stream cancels in-flight chunks; the reorg is
-                // getting re-synced anyway
-                return Ok(SyncOutcome::ReorgDetected);
-            }
-        }
-
-        window.conclude()
-    }
-
-    /// The shuffled, overlapping chunk plan over the emitted range.
-    fn plan(&self, quantized: &Quantized) -> nym_swizzle::ChunkPlan {
-        let (start, end) = quantized.emitted();
-        let mut range = nym_swizzle::Range::new(start, end);
-        if let Some(seed) = self.seed {
-            range = range.seed(seed);
-        }
-        range.plan()
-    }
+    window.conclude()
 }
 
 /// Tracks which verify-window heights have arrived and whether they matched.
@@ -221,8 +187,9 @@ impl WindowTracker {
         Self { remaining }
     }
 
-    /// Deliver one chunk's blocks; breaks on a verify mismatch. Every block
-    /// received up to and including the mismatching one reaches `on_block`.
+    /// Deliver one request's blocks; breaks on a verify mismatch. Every
+    /// block received up to and including the mismatching one reaches
+    /// `on_block`.
     fn absorb<B>(
         &mut self,
         blocks: Vec<(u64, B)>,
@@ -232,10 +199,11 @@ impl WindowTracker {
     ) -> ControlFlow<()> {
         for (height, block) in blocks {
             let disposition = classify(height, quantized);
-            let matches = disposition != Disposition::VerifyWindow || {
+            let mut matches = true;
+            if disposition == Disposition::VerifyWindow {
                 self.remaining.remove(&height);
-                check_hash(height, &block)
-            };
+                matches = check_hash(height, &block);
+            }
             on_block(height, block, disposition);
             if !matches {
                 return ControlFlow::Break(());
@@ -262,7 +230,7 @@ mod tests {
     use std::rc::Rc;
 
     use super::*;
-    use crate::grid::VERIFY_LOOKAHEAD;
+    use crate::grid::{S_FLOOR, VERIFY_LOOKAHEAD};
 
     /// An in-memory chain: block "hash" is a function of height, with an
     /// optional reorg point above which hashes differ.
@@ -345,23 +313,21 @@ mod tests {
         let received = Rc::new(RefCell::new(BTreeSet::new()));
         let r2 = received.clone();
 
-        let outcome = SyncSession::new()
-            .seed([1; 32])
-            .fetch(
-                &mut chain,
-                QueuedRange::catch_up(RESUME, TIP),
-                TIP,
-                move |h, _, _| {
-                    r2.borrow_mut().insert(h);
-                },
-                check_against(stored_hashes()),
-            )
-            .await
-            .unwrap();
+        let outcome = fetch(
+            &mut chain,
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            move |h, _, _| {
+                r2.borrow_mut().insert(h);
+            },
+            check_against(stored_hashes()),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(outcome, SyncOutcome::Committed);
 
-        // the union of requests covers the emitted range exactly
+        // every emitted height arrives exactly once: requests are disjoint
         let q = quantize(QueuedRange::catch_up(RESUME, TIP), TIP);
         let (es, ee) = q.emitted();
         let received = received.borrow();
@@ -369,12 +335,33 @@ mod tests {
         assert_eq!(*received.last().unwrap(), ee - 1);
         assert_eq!(received.len() as u64, ee - es, "gap in coverage");
 
-        // no request spills outside the emitted range
-        for &(s, e) in chain.requests.borrow().iter() {
-            assert!(
-                s >= es && e <= ee,
-                "chunk {s}..{e} spills out of {es}..{ee}"
-            );
+        // the wire requests are exactly the deterministic plan
+        assert_eq!(*chain.requests.borrow(), q.requests().collect::<Vec<_>>());
+    }
+
+    #[tokio::test]
+    async fn requests_are_deterministic_ascending_and_floor_aligned() {
+        let range = QueuedRange::catch_up(RESUME, TIP);
+
+        let mut runs = Vec::new();
+        for _ in 0..2 {
+            let mut chain = FakeChain::new(TIP);
+            fetch(&mut chain, range, TIP, |_, _, _| {}, |_, _| true)
+                .await
+                .unwrap();
+            runs.push(chain.requests.borrow().clone());
+        }
+        assert_eq!(
+            runs[0], runs[1],
+            "identical wallet state must emit identical requests — no randomness"
+        );
+
+        for window in runs[0].windows(2) {
+            assert!(window[0].1 == window[1].0, "requests must ascend gaplessly");
+        }
+        for &(s, e) in &runs[0] {
+            assert_eq!(s % S_FLOOR, 0);
+            assert!(e - s <= S_FLOOR);
         }
     }
 
@@ -383,17 +370,15 @@ mod tests {
         let mut chain = FakeChain::new(TIP);
         chain.reorged_from = Some(RESUME - 3); // fork inside the verify window
 
-        let outcome = SyncSession::new()
-            .seed([1; 32])
-            .fetch(
-                &mut chain,
-                QueuedRange::catch_up(RESUME, TIP),
-                TIP,
-                |_, _, _| {},
-                check_against(stored_hashes()),
-            )
-            .await
-            .unwrap();
+        let outcome = fetch(
+            &mut chain,
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            |_, _, _| {},
+            check_against(stored_hashes()),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(outcome, SyncOutcome::ReorgDetected);
     }
@@ -404,25 +389,24 @@ mod tests {
         chain.reorged_from = Some(RESUME - VERIFY_LOOKAHEAD);
         let requests = chain.requests.clone();
 
-        let outcome = SyncSession::new()
-            .seed([7; 32])
-            .fetch(
-                &mut chain,
-                QueuedRange::catch_up(RESUME, TIP),
-                TIP,
-                |_, _, _| {},
-                check_against(stored_hashes()),
-            )
-            .await
-            .unwrap();
+        let outcome = fetch(
+            &mut chain,
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            |_, _, _| {},
+            check_against(stored_hashes()),
+        )
+        .await
+        .unwrap();
         assert_eq!(outcome, SyncOutcome::ReorgDetected);
 
         let issued = requests.borrow().len();
-        let total = quantize(QueuedRange::catch_up(RESUME, TIP), TIP);
-        let all = SyncSession::new().seed([7; 32]).plan(&total).len();
+        let all = quantize(QueuedRange::catch_up(RESUME, TIP), TIP)
+            .requests()
+            .count();
         assert!(
             issued < all,
-            "driver should stop issuing chunks after the mismatch ({issued} of {all})"
+            "driver should stop issuing requests after the mismatch ({issued} of {all})"
         );
     }
 
@@ -448,16 +432,15 @@ mod tests {
             }
         }
 
-        let err = SyncSession::new()
-            .fetch(
-                &mut Censoring(FakeChain::new(TIP)),
-                QueuedRange::catch_up(RESUME, TIP),
-                TIP,
-                |_, _, _| {},
-                |_, _| true,
-            )
-            .await
-            .unwrap_err();
+        let err = fetch(
+            &mut Censoring(FakeChain::new(TIP)),
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            |_, _, _| {},
+            |_, _| true,
+        )
+        .await
+        .unwrap_err();
 
         match err {
             SyncError::VerifyWindowIncomplete { missing } => {
@@ -470,22 +453,18 @@ mod tests {
     #[tokio::test]
     async fn source_errors_propagate() {
         let mut chain = FakeChain::new(TIP);
-        // fail the first chunk the plan will issue
         let q = quantize(QueuedRange::catch_up(RESUME, TIP), TIP);
-        let first = SyncSession::new().seed([2; 32]).plan(&q).next().unwrap();
-        chain.fail_on = Some(first);
+        chain.fail_on = q.requests().next();
 
-        let err = SyncSession::new()
-            .seed([2; 32])
-            .fetch(
-                &mut chain,
-                QueuedRange::catch_up(RESUME, TIP),
-                TIP,
-                |_, _, _| {},
-                |_, _| true,
-            )
-            .await
-            .unwrap_err();
+        let err = fetch(
+            &mut chain,
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            |_, _, _| {},
+            |_, _| true,
+        )
+        .await
+        .unwrap_err();
         assert!(matches!(err, SyncError::Source(_)));
     }
 
@@ -496,18 +475,17 @@ mod tests {
         let s2 = seen.clone();
 
         let range = QueuedRange::catch_up(RESUME, TIP);
-        SyncSession::new()
-            .fetch(
-                &mut chain,
-                range,
-                TIP,
-                move |h, _, d| {
-                    s2.borrow_mut().entry(d).or_default().insert(h);
-                },
-                check_against(stored_hashes()),
-            )
-            .await
-            .unwrap();
+        fetch(
+            &mut chain,
+            range,
+            TIP,
+            move |h, _, d| {
+                s2.borrow_mut().entry(d).or_default().insert(h);
+            },
+            check_against(stored_hashes()),
+        )
+        .await
+        .unwrap();
 
         let q = quantize(range, TIP);
         let seen = seen.borrow();
@@ -521,42 +499,14 @@ mod tests {
             count(Disposition::CoverBelow),
             q.emitted_len() - (TIP + 1 - RESUME) - VERIFY_LOOKAHEAD
         );
-        // overlapping chunks re-deliver blocks; a set per disposition proves
-        // each height classifies consistently — no height in two buckets
+        // each height classifies exactly one way, and requests are disjoint,
+        // so the buckets partition the emitted range with nothing left over
         let mut union = BTreeSet::new();
         for set in seen.values() {
             assert!(union.is_disjoint(set), "a height classified two ways");
             union.extend(set);
         }
-    }
-
-    #[tokio::test]
-    async fn seeded_sync_is_reproducible() {
-        let range = QueuedRange::catch_up(RESUME, TIP);
-
-        let mut runs = Vec::new();
-        for _ in 0..2 {
-            let mut chain = FakeChain::new(TIP);
-            SyncSession::new()
-                .seed([9; 32])
-                .fetch(&mut chain, range, TIP, |_, _, _| {}, |_, _| true)
-                .await
-                .unwrap();
-            runs.push(chain.requests.borrow().clone());
-        }
-        assert_eq!(runs[0], runs[1], "same seed must replay the same requests");
-
-        let mut chain = FakeChain::new(TIP);
-        SyncSession::new()
-            .seed([10; 32])
-            .fetch(&mut chain, range, TIP, |_, _, _| {}, |_, _| true)
-            .await
-            .unwrap();
-        assert_ne!(
-            runs[0],
-            *chain.requests.borrow(),
-            "different seed should diverge"
-        );
+        assert_eq!(union.len() as u64, q.emitted_len());
     }
 
     #[tokio::test]
@@ -566,26 +516,28 @@ mod tests {
         let received = Rc::new(RefCell::new(BTreeSet::new()));
         let r2 = received.clone();
 
-        let outcome = SyncSession::new()
-            .seed([3; 32])
-            .fetch_concurrent(
-                &chain,
-                4,
-                range,
-                TIP,
-                move |h, _, _| {
-                    r2.borrow_mut().insert(h);
-                },
-                check_against(stored_hashes()),
-            )
-            .await
-            .unwrap();
+        let outcome = fetch_concurrent(
+            &chain,
+            4,
+            range,
+            TIP,
+            move |h, _, _| {
+                r2.borrow_mut().insert(h);
+            },
+            check_against(stored_hashes()),
+        )
+        .await
+        .unwrap();
         assert_eq!(outcome, SyncOutcome::Committed);
 
         let q = quantize(range, TIP);
         let (es, ee) = q.emitted();
         assert_eq!(received.borrow().len() as u64, ee - es);
-        // clones share the request log through the Rc
-        assert!(!chain.requests.borrow().is_empty());
+
+        // concurrency changes completion order, not what goes on the wire:
+        // the request *set* is the same deterministic plan
+        let mut issued = chain.requests.borrow().clone();
+        issued.sort_unstable();
+        assert_eq!(issued, q.requests().collect::<Vec<_>>());
     }
 }

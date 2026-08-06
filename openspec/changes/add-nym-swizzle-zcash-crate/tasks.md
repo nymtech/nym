@@ -55,3 +55,9 @@
 - [x] 8.1 `openspec validate add-nym-swizzle-zcash-crate` passes.
 - [x] 8.2 `cargo test -p nym-swizzle-zcash` (unit) green; wasm check green; example runs against the live server; ignored suite run once locally and green.
 - [x] 8.3 Confirm every spec scenario maps to a test or a documented manual verification step.
+
+## 9. Reviewer follow-up (2026-08-06)
+
+- [x] 9.1 Drop randomized chunking from the sync driver: the emitted range goes on the wire deterministically — `Quantized::requests()` splits at network-uniform `S_FLOOR`-aligned boundaries, ascending, disjoint, no random sizes/overlap/shuffle/seed; `SyncSession` collapses to free `sync::fetch` / `sync::fetch_concurrent`; docs, example, README, and live tests updated (cover is now the only sync overhead).
+- [x] 9.2 Pin the network-wide range convention as half-open (ladder by half-open length), with boundary tests at 1152/2304-rung multiples and doc notes on the divergence an inclusive reading would cause.
+- [x] 9.3 Pin `S_FLOOR` to the `SHARD * 2^j` ladder family with a compile-time assertion (divisibility alone misses non-power-of-two multiples); strengthened the ladder unit test to check the power-of-two quotient.

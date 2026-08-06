@@ -20,7 +20,9 @@
 //! - [`grid`] — **quantized sync ranges**: every emitted `GetBlockRange`
 //!   is widened to a network-wide grid, so all wallets resuming in the same
 //!   grid cell send byte-identical requests (anonymity by collision).
-//!   [`sync`] executes those ranges as overlapping, shuffled chunks.
+//!   [`sync`] puts those ranges on the wire deterministically — grid-aligned
+//!   cells, ascending, no randomness, because variation within a collision
+//!   set only makes a wallet more distinguishable, not less.
 //! - [`broadcast`] — **decoupled broadcast scheduling**: transactions are
 //!   sent after a randomized multi-hour delay calibrated to blend with
 //!   network-wide traffic, from a schedule that survives wallet restarts.
@@ -50,4 +52,4 @@ pub use broadcast::{
     TxBroadcaster, TARGET_BLOCK_TIME,
 };
 pub use grid::{classify, quantize, Disposition, Quantized, QueuedRange, RangeKind};
-pub use sync::{BlockSource, SyncError, SyncOutcome, SyncSession};
+pub use sync::{BlockSource, SyncError, SyncOutcome};

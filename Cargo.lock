@@ -7133,7 +7133,9 @@ dependencies = [
  "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
+ "serde_json",
  "thiserror 2.0.19",
+ "utoipa",
 ]
 
 [[package]]
@@ -7991,6 +7993,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-time",
  "nym-gateway-probe",
+ "nym-geolocation-contract-common",
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-mixnet-contract-common",

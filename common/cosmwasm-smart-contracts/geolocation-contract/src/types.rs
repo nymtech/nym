@@ -197,6 +197,27 @@ pub struct LocationPayload {
     pub content: Binary,
 }
 
+impl LocationPayload {
+    /// Reject a payload whose `content` exceeds the configured limit. The only validation
+    /// the contract performs on a payload, and the only one it can perform.
+    ///
+    /// The bound is passed in rather than read from a constant because it lives in contract
+    /// state: a later payload version may need more room, or less, and that should be an
+    /// admin transaction rather than a redeploy.
+    pub fn ensure_within_size_limit(
+        &self,
+        max_size: usize,
+    ) -> Result<(), GeolocationContractError> {
+        if self.content.len() > max_size {
+            return Err(GeolocationContractError::PayloadTooLarge {
+                len: self.content.len(),
+                max: max_size,
+            });
+        }
+        Ok(())
+    }
+}
+
 /// The subject's own attestation over a self-declared location, present only on
 /// [`Source::SelfDeclared`] entries.
 #[cw_serde]
@@ -241,6 +262,20 @@ pub struct AgentPermissions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_payload_size_limit_bounds_content_and_is_inclusive() {
+        let payload = LocationPayload {
+            version: 1,
+            content: vec![0u8; 10].into(),
+        };
+
+        assert!(payload.ensure_within_size_limit(10).is_ok());
+        assert_eq!(
+            payload.ensure_within_size_limit(9),
+            Err(GeolocationContractError::PayloadTooLarge { len: 10, max: 9 })
+        );
+    }
 
     #[test]
     fn subject_class_tag_is_stable() {

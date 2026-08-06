@@ -217,7 +217,7 @@ The stored payload MUST be `{ version: u8, content }` where `content` is raw byt
 
 Verbatim storage is required, not merely permitted, because a relayed self-declaration's signature is over these bytes. Any re-serialisation could change field ordering or numeric formatting and break verification against the stored value.
 
-The contract MUST enforce a maximum payload size, since it can no longer reject a malformed payload and an unbounded one would inflate both state and every verifier's recompute.
+The contract MUST enforce a maximum payload size, since it can no longer reject a malformed payload and an unbounded one would inflate both state and every verifier's recompute. That bound MUST be held in contract state and be admin-adjustable, so that a payload version needing more room, or less, does not require a redeploy.
 
 Under `version = 1` the `content` bytes MUST be UTF-8 JSON, so a web consumer can base64-decode and parse without obtaining a schema. The contract MUST remain agnostic to this: the version byte selects the format, and a later version MAY use a different one. The version byte MUST sit outside `content` so that the format itself, and not merely the schema, can change.
 

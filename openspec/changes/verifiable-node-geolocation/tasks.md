@@ -8,13 +8,13 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 ## 2. Shared types crate
 
 - [x] 2.1 Create `common/cosmwasm-smart-contracts/geolocation-contract/` with `SubjectClass`, `Method`, `Source`, `LocationEntry`, `AgentPermissions`, and the per-class `subject_id` encoding
-- [ ] 2.2 Define the canonical `Location` type mirroring node status API's dVPN shape (`http/models/mod.rs:204`): country, coordinates, city, region, org, postal, timezone, optional ASN record with `asn`/`name`/`domain`/`route`/`kind`; feature-gate the HTTP schema derive. Used uniformly by every source
-- [ ] 2.3 Add payload tests: absent coordinates round-trip as absent (never `0.0, 0.0`), a `hosting` provider type survives verbatim, and the derived `residential | other` form matches node status API for each raw type
-- [ ] 2.4 Implement the opaque versioned payload wrapper (`version: u8` + `Binary` `content`, version byte outside `content`) and the `MAX_PAYLOAD_SIZE` constant; version 1 encodes `content` as UTF-8 JSON
+- [x] 2.2 Define the canonical `Location` type mirroring node status API's dVPN shape (`http/models/mod.rs:204`): country, coordinates, city, region, org, postal, timezone, optional ASN record with `asn`/`name`/`domain`/`route`/`kind`. Put the whole payload module behind a non-default `payload` feature the contract never enables, since `f64` coordinates in the wasm would fail `cosmwasm-check`, and gate the HTTP schema derive on top of that. Used uniformly by every source
+- [x] 2.3 Add payload tests: absent coordinates round-trip as absent (never `0.0, 0.0`), a `hosting` provider type survives verbatim, and the derived `residential | other` form matches node status API for each raw type
+- [x] 2.4 Implement the opaque versioned payload wrapper (`version: u8` + `Binary` `content`, version byte outside `content`) and the size bound, which is contract state seeded from `DEFAULT_MAX_PAYLOAD_SIZE` rather than a hardcoded constant, since a later payload version may need a different one; version 1 encodes `content` as UTF-8 JSON
 - [ ] 2.5 Implement the compact value codec (`to_bytes` / `try_from_bytes`) with round-trip and truncation-rejection tests, storing `content` verbatim
 - [ ] 2.6 Implement the canonical `digest_leaf()` with a contract-unique domain tag, class tags per entry class, and length prefixing on every variable field
 - [ ] 2.7 Add leaf tests: distinct keys with equal values differ, length-prefix disambiguation, class tags cannot collide, `checked_at` is committed
-- [ ] 2.8 Define the domain-separated `NymNodeLocation` signing payload shared by node, service and contract, carrying a full `Location`
+- [ ] 2.8 Define the domain-separated `NymNodeLocation` signing payload shared by node, service and contract. Split it: an ungated byte-level builder over the opaque payload bytes, which is what the contract verifies against, plus a typed `NymNodeLocation` carrying a full `Location` under the `payload` feature that encodes and delegates to it
 - [ ] 2.9 Publish leaf-encoding conformance vectors as fixtures, so contract and verifier cannot drift (design decision 9)
 - [ ] 2.10 Define `InstantiateMsg`, `ExecuteMsg`, `QueryMsg` and response types
 
@@ -26,12 +26,12 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 - [ ] 3.4 Implement accumulator load/save as raw `DIGEST_LEN` bytes at the fixed digest key (not a `cw-storage-plus` `Item`); expose the 32-byte collapse via smart query only, never persisted
 - [ ] 3.5 Implement the single digest-maintaining wrapper (insert adds, delete subtracts the stored leaf, update subtracts then adds); no handler touches a store directly
 - [ ] 3.6 Add a test asserting a from-scratch re-fold matches the incrementally maintained digest across insert, update, delete and repeated-key sequences
-- [ ] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`
+- [ ] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`, max payload size (defaulting to `DEFAULT_MAX_PAYLOAD_SIZE`)
 
 ## 4. Contract transactions
 
 - [ ] 4.1 Implement batched measurement submission with one accumulator load/save per transaction and per-entry read-modify-write
-- [ ] 4.2 Enforce `MAX_BATCH_SIZE`, `MAX_PAYLOAD_SIZE` and all-or-nothing batch semantics; store payload bytes verbatim without parsing
+- [ ] 4.2 Enforce `MAX_BATCH_SIZE`, the configured max payload size and all-or-nothing batch semantics; store payload bytes verbatim without parsing
 - [ ] 4.3 Enforce whitelist membership and the `can_measure` permission on measurement writes
 - [ ] 4.4 Implement self-declaration relay: verify the ed25519 signature against the identity key resolved from the mixnet contract, enforce the `can_relay_self_declared` permission
 - [ ] 4.5 Enforce strict `declared_at` monotonicity and the `MAX_SKEW` future bound, with distinguishable errors for stale, skewed and bad-signature rejections

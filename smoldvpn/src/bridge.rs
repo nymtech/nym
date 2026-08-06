@@ -1,35 +1,40 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! QUIC bridge client — an alternative WireGuard data-plane transport for
-//! clients blocked from pure UDP.
+//! Bridge client — an alternative WireGuard data-plane transport for clients
+//! blocked from pure UDP.
 //!
-//! The QUIC connection itself — cert-pinning verifier (ed25519 identity, SNI ∈
-//! cert alt-names, cert SPKI == pinned key), ALPN `hq-29`, endpoint bind and
-//! dial — is delegated to the canonical [`nym_bridges`] client
-//! ([`nym_bridges::transport::quic::transport_conn`]) rather than reimplemented
-//! here, so this crate can never drift from the bridge server. This module only
-//! adds the datapath framing on top: one reliable `open_bi()` stream carrying
-//! WireGuard packets, each prefixed by a 2-byte big-endian length.
+//! The bridge connection itself — cert-pinning verifier (ed25519 identity, SNI
+//! ∈ cert alt-names, cert SPKI == pinned key), ALPN, endpoint bind and dial,
+//! IPv4 endpoint selection — is delegated to the canonical [`nym_bridges`]
+//! client ([`nym_bridges::connection::BridgeConn`]) rather than reimplemented
+//! here, so this crate can never drift from the bridge server and picks up
+//! new transports (today: `quic_plain`; `tls_plain` is defined in the wire
+//! format but not yet implemented by `nym_bridges`) without changes here. This
+//! module only adds the datapath framing on top of `BridgeConn`'s raw duplex
+//! stream: one reliable stream carrying WireGuard packets, each prefixed by a
+//! 2-byte big-endian length — the same convention `nym_bridges`'s own
+//! `UdpForwarder` uses internally.
 //!
 //! Only ever fronts the two-hop entry leg (the bridge is bound 1:1 to a gateway
-//! and forwards to its WireGuard port); there is no QUIC one-hop mode and no
+//! and forwards to its WireGuard port); there is no bridge one-hop mode and no
 //! gateway-selection handshake.
 //!
-//! Note: [`nym_bridges`] dials the first address it is given and binds dual-stack
-//! `[::]:0`; it does not set QUIC keep-alive/BBR. The directory lists a bridge's
-//! IPv6 address first, but clients are IPv4-only for now, so [`connect`] reorders
-//! the candidates to put IPv4 first before handing them over. WireGuard's own
-//! persistent-keepalive keeps the long-lived session and its NAT mapping alive.
+//! Note: `BridgeConn` picks the first IPv4 address among the candidates and
+//! errors if none is present (clients are IPv4-only for now, so an IPv6-only
+//! bridge just isn't usable yet); it does not set QUIC keep-alive/BBR.
+//! WireGuard's own persistent-keepalive keeps the long-lived session and its
+//! NAT mapping alive.
 
-use std::net::SocketAddr;
 use std::sync::Once;
 use std::time::Duration;
 
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
-use nym_bridges::transport::quic::{transport_conn, ClientOptions};
-use quinn::{Connection, RecvStream, SendStream};
+use nym_bridges::connection::BridgeConn;
+use nym_bridges::error::TransportError;
+use nym_bridges::types::ClientConfig;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tokio_util::sync::CancellationToken;
 
@@ -42,35 +47,27 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 static INSTALL_PROVIDER: Once = Once::new();
 
 /// Bridge connection parameters, sourced from the gateway directory / VPN API.
-#[derive(Clone, Debug)]
-pub struct BridgeParams {
-    /// Candidate bridge socket addresses. The directory lists a bridge's IPv6
-    /// address first; [`connect`] reorders these to prefer IPv4 (clients are
-    /// IPv4-only for now) before the bridge client dials the first one.
-    pub addresses: Vec<SocketAddr>,
-    /// SNI host to present (falls back to the bridge IP string if `None`).
-    pub sni_host: Option<String>,
-    /// Pinned ed25519 identity public key, standard-base64 as carried in the
-    /// gateway directory. The `nym_bridges` client decodes and verifies it
-    /// against the server certificate at connect time.
-    pub id_pubkey_base64: String,
+///
+/// This *is* `nym_bridges`'s own [`ClientConfig`] (in turn
+/// `nym_bridges_types::ClientConfig`, the shape shared with
+/// nym-node-status-api and nym-sdk-session) rather than a locally duplicated
+/// struct — one variant per transport kind (`QuicPlain`/`TlsPlain`), each
+/// carrying candidate addresses, an optional SNI host override, and the pinned
+/// ed25519 identity public key (standard-base64) verified against the server
+/// certificate at connect time.
+pub type BridgeParams = ClientConfig;
+
+/// Sending half of the bridge transport.
+pub(crate) struct BridgeSender {
+    framed: FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>,
 }
 
-/// Sending half of the QUIC bridge transport. Holds the connection so the QUIC
-/// session (and its endpoint driver) stays alive for the lifetime of the
-/// datapath.
-pub(crate) struct QuicBridgeSender {
-    framed: FramedWrite<SendStream, LengthDelimitedCodec>,
-    _conn: Connection,
+/// Receiving half of the bridge transport.
+pub(crate) struct BridgeReceiver {
+    framed: FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>,
 }
 
-/// Receiving half of the QUIC bridge transport.
-pub(crate) struct QuicBridgeReceiver {
-    framed: FramedRead<RecvStream, LengthDelimitedCodec>,
-    _conn: Connection,
-}
-
-impl QuicBridgeSender {
+impl BridgeSender {
     pub(crate) async fn send(&mut self, packet: &[u8]) -> Result<()> {
         self.framed
             .send(Bytes::copy_from_slice(packet))
@@ -79,7 +76,7 @@ impl QuicBridgeSender {
     }
 }
 
-impl QuicBridgeReceiver {
+impl BridgeReceiver {
     pub(crate) async fn recv(&mut self) -> Result<Vec<u8>> {
         match self.framed.next().await {
             Some(Ok(frame)) => Ok(frame.to_vec()),
@@ -96,9 +93,9 @@ fn framed_codec() -> LengthDelimitedCodec {
 }
 
 /// Diagnostic: attempt a full bridge connect (real ed25519 cert pinning + open
-/// the WireGuard bi-stream), then drop it. `Ok(())` means the QUIC handshake and
-/// stream open succeeded. Useful for testing QUIC-gateway reachability without
-/// bringing up a whole tunnel (see the `quic-probe` example).
+/// the WireGuard bi-stream), then drop it. `Ok(())` means the handshake and
+/// stream open succeeded. Useful for testing bridge-gateway reachability
+/// without bringing up a whole tunnel (see the `quic-probe` example).
 pub async fn probe(params: &BridgeParams, cancel: &CancellationToken) -> Result<()> {
     let (_send, _recv) = connect(params, cancel).await?;
     Ok(())
@@ -109,57 +106,52 @@ pub async fn probe(params: &BridgeParams, cancel: &CancellationToken) -> Result<
 pub(crate) async fn connect(
     params: &BridgeParams,
     cancel: &CancellationToken,
-) -> Result<(QuicBridgeSender, QuicBridgeReceiver)> {
+) -> Result<(BridgeSender, BridgeReceiver)> {
     // `nym_bridges` builds a rustls `ClientConfig` via the process-default crypto
     // provider; install ring before the first connect.
     INSTALL_PROVIDER.call_once(|| {
         let _ = rustls::crypto::ring::default_provider().install_default();
     });
 
-    // The bridge client dials the first address; the directory lists IPv6 first but clients are
-    // IPv4-only for now, so prefer IPv4 (stable sort keeps relative order within each family).
-    let mut addresses = params.addresses.clone();
-    addresses.sort_by_key(|a| a.is_ipv6());
+    // `BridgeConn::try_connect` is itself cancel-aware (it races the dial and the
+    // stream open against `cancel`), so the timeout is the only wrapping needed here.
+    let bridge_conn = tokio::time::timeout(CONNECT_TIMEOUT, dial(params.clone(), cancel.clone()))
+        .await
+        .map_err(|_| DvpnError::Bridge("connect timed out".into()))?
+        .map_err(|e| match e {
+            TransportError::Cancelled => DvpnError::Cancelled,
+            e => DvpnError::Bridge(format!("connect: {e}")),
+        })?;
 
-    let options = ClientOptions {
-        addresses,
-        host: params.sni_host.clone(),
-        id_pubkey: params.id_pubkey_base64.clone(),
-    };
-
-    let conn: Connection = tokio::select! {
-        _ = cancel.cancelled() => return Err(DvpnError::Cancelled),
-        r = tokio::time::timeout(CONNECT_TIMEOUT, transport_conn(&options)) => {
-            r.map_err(|_| DvpnError::Bridge("connect timed out".into()))?
-             .map_err(|e| DvpnError::Bridge(format!("connect: {e}")))?
-        }
-    };
-
-    // Bound `open_bi()` by the same timeout + cancellation as the handshake: quinn can block it
-    // waiting for bidirectional-stream credit, so a stalled/adversarial bridge must not be able to
-    // leave `connect` hanging past the caller's cancel or the connect deadline.
-    let (send, recv) = tokio::select! {
-        _ = cancel.cancelled() => return Err(DvpnError::Cancelled),
-        r = tokio::time::timeout(CONNECT_TIMEOUT, conn.open_bi()) => {
-            r.map_err(|_| DvpnError::Bridge("open_bi timed out".into()))?
-             .map_err(|e| DvpnError::Bridge(format!("open_bi: {e}")))?
-        }
-    };
-
-    // quinn's SendStream/RecvStream implement tokio AsyncWrite/AsyncRead, so they
-    // frame directly. Park the connection in both halves so the endpoint driver
-    // keeps running for the lifetime of the datapath (quinn keeps the driver
-    // alive while any connection is live, even after its `Endpoint` is dropped).
+    let (reader, writer) = bridge_conn.into_parts();
     Ok((
-        QuicBridgeSender {
-            framed: FramedWrite::new(send, framed_codec()),
-            _conn: conn.clone(),
+        BridgeSender {
+            framed: FramedWrite::new(writer, framed_codec()),
         },
-        QuicBridgeReceiver {
-            framed: FramedRead::new(recv, framed_codec()),
-            _conn: conn,
+        BridgeReceiver {
+            framed: FramedRead::new(reader, framed_codec()),
         },
     ))
+}
+
+/// `BridgeConn::try_connect` takes an extra `on_socket_open(RawFd)` callback on
+/// Linux/Android (e.g. for a VPN's protect-socket hook) that doesn't exist on
+/// other targets. Smoldvpn has no such hook today, so this just passes
+/// `nym_bridges`'s own no-op (`SOCKET_OPEN_NOP`) to satisfy the signature.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+async fn dial(
+    params: ClientConfig,
+    cancel: CancellationToken,
+) -> std::result::Result<BridgeConn, TransportError> {
+    BridgeConn::try_connect(params, cancel, nym_bridges::connection::SOCKET_OPEN_NOP).await
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+async fn dial(
+    params: ClientConfig,
+    cancel: CancellationToken,
+) -> std::result::Result<BridgeConn, TransportError> {
+    BridgeConn::try_connect(params, cancel).await
 }
 
 #[cfg(test)]
@@ -172,7 +164,8 @@ mod tests {
     use super::*;
     use base64::prelude::{Engine as _, BASE64_STANDARD};
     use futures::{SinkExt, StreamExt};
-    use nym_bridges::transport::quic::{create_endpoint, ServerConfig};
+    use nym_bridges::transport::quic::{create_endpoint, ClientOptions, ServerConfig};
+    use std::net::SocketAddr;
 
     /// Spawn a `nym_bridges` QUIC bridge server (fixed identity) that echoes each
     /// framed WireGuard packet back. Returns its address, the pinned public key
@@ -220,11 +213,11 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn bridge_framing_and_pinning_roundtrip() {
         let (addr, id_pubkey_base64, sni) = spawn_mock_bridge();
-        let params = BridgeParams {
+        let params = BridgeParams::QuicPlain(ClientOptions {
             addresses: vec![addr],
-            sni_host: Some(sni),
-            id_pubkey_base64,
-        };
+            host: Some(sni),
+            id_pubkey: id_pubkey_base64,
+        });
         let cancel = CancellationToken::new();
         let (mut sender, mut receiver) = connect(&params, &cancel).await.expect("bridge connect");
 
@@ -240,11 +233,11 @@ mod tests {
         // Corrupt the pinned key while keeping the (correct) SNI.
         let mut bytes = BASE64_STANDARD.decode(&id_pubkey_base64).unwrap();
         bytes[0] ^= 0xFF;
-        let params = BridgeParams {
+        let params = BridgeParams::QuicPlain(ClientOptions {
             addresses: vec![addr],
-            sni_host: Some(sni),
-            id_pubkey_base64: BASE64_STANDARD.encode(bytes),
-        };
+            host: Some(sni),
+            id_pubkey: BASE64_STANDARD.encode(bytes),
+        });
         let cancel = CancellationToken::new();
         assert!(
             connect(&params, &cancel).await.is_err(),

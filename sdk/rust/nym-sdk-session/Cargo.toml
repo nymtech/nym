@@ -36,6 +36,7 @@ nym-lp = { workspace = true }
 nym-lp-data = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
 nym-task = { workspace = true }
+nym-bridges-types = { workspace = true, features = ["serde"] }
 
 async-trait = { workspace = true }
 bip39 = { workspace = true }

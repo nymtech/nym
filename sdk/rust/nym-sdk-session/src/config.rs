@@ -66,9 +66,9 @@ pub struct SessionConfig {
     /// per-session data.
     pub data_path: PathBuf,
     /// Optional dVPN gateway-directory URL. When set, the session fetches it to
-    /// enrich gateway monikers and to enable QUIC-bridge entry selection
-    /// (`register_two_hop_quic`). Fetched best-effort — a failure is logged and
-    /// treated as an empty directory.
+    /// enrich gateway monikers and to enable bridge-capable entry selection
+    /// (`register_two_hop_bridge`). Fetched best-effort — a failure is logged
+    /// and treated as an empty directory.
     pub dvpn_directory_url: Option<String>,
     /// Opt-in automatic chain-side restock. `None` (default) provisions once and never deposits in
     /// the background; the tunnel still tops up from already-stored tickets. `Some(policy)` lets a

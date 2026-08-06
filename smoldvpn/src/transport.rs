@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 
-use crate::bridge::{QuicBridgeReceiver, QuicBridgeSender};
+use crate::bridge::{BridgeReceiver, BridgeSender};
 use crate::error::{DvpnError, Result};
 
 /// Size of the reusable Direct-UDP receive buffer: the maximum a UDP datagram can be (64 KiB). The
@@ -52,7 +52,7 @@ impl std::fmt::Debug for SocketProtector {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum WgSender {
     Direct(Arc<UdpSocket>),
-    Quic(QuicBridgeSender),
+    Quic(BridgeSender),
 }
 
 /// Receiving half of the active WireGuard packet transport.
@@ -63,7 +63,7 @@ pub(crate) enum WgReceiver {
         /// Reused across recvs so a fresh buffer isn't allocated per packet.
         buf: Box<[u8]>,
     },
-    Quic(QuicBridgeReceiver),
+    Quic(BridgeReceiver),
 }
 
 impl WgSender {

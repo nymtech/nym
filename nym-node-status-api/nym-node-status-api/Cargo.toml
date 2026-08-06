@@ -73,6 +73,7 @@ utoipauto = { workspace = true }
 zeroize = { workspace = true }
 
 nym-node-metrics = { workspace = true }
+nym-bridges-types  = { workspace = true, features=["serde", "utoipa"]}
 
 [build-dependencies]
 anyhow = { workspace = true }

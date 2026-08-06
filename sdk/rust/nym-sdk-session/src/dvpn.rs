@@ -3,37 +3,30 @@
 
 //! Minimal client for the dVPN gateway directory.
 //!
-//! QUIC bridge parameters (and human monikers) are not carried by the nym-api
+//! Bridge parameters (and human monikers) are not carried by the nym-api
 //! described-nodes the session selects from; they live in a separate dVPN
 //! directory HTTP endpoint. This module fetches that directory once and indexes
 //! it by gateway identity so selection can enrich a gateway's name/country and
-//! require a QUIC-bridge-capable entry.
+//! require a bridge-capable entry.
+//!
+//! Bridge parameters are exposed as `nym_bridges_types::ClientConfig` — the
+//! same shared type `nym_bridges`'s `BridgeConn` dials and nym-node-status-api
+//! serves — rather than a locally duplicated struct, so this crate doesn't own
+//! any bridge-transport-specific fields and picks up new transport kinds
+//! automatically as `nym_bridges` implements them.
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::time::Duration;
 
+use nym_bridges_types::{ClientConfig, PersistedClientConfig};
 use serde::Deserialize;
-
-/// QUIC bridge connection parameters for a gateway, sourced from the dVPN
-/// directory. The datapath consumes these to front the WireGuard entry leg with
-/// a QUIC bridge.
-#[derive(Clone, Debug)]
-pub struct QuicBridge {
-    /// Candidate bridge socket addresses.
-    pub addresses: Vec<SocketAddr>,
-    /// SNI host to present to the bridge (if advertised).
-    pub sni_host: Option<String>,
-    /// Base64-encoded ed25519 identity public key the bridge cert is pinned to.
-    pub id_pubkey_base64: String,
-}
 
 /// Per-gateway directory metadata indexed by base58 identity.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DirEntry {
     pub name: Option<String>,
     pub country: Option<String>,
-    pub quic: Option<QuicBridge>,
+    pub bridge: Option<ClientConfig>,
 }
 
 /// The fetched dVPN directory, indexed by base58 gateway identity.
@@ -71,7 +64,11 @@ impl DvpnDirectory {
                         .location
                         .and_then(|l| l.two_letter_iso_country_code)
                         .filter(|c| !c.is_empty()),
-                    quic: gw.bridges.and_then(|b| b.into_quic()),
+                    bridge: gw.bridges.and_then(|v| {
+                        serde_json::from_value::<PersistedClientConfig>(v)
+                            .ok()
+                            .and_then(first_usable_transport)
+                    }),
                 },
             );
         }
@@ -83,15 +80,26 @@ impl DvpnDirectory {
         self.entries.get(identity_base58)
     }
 
-    /// Whether the gateway advertises a QUIC bridge.
-    pub(crate) fn has_quic(&self, identity_base58: &str) -> bool {
+    /// Whether the gateway advertises a usable bridge transport (any kind).
+    pub(crate) fn has_bridge(&self, identity_base58: &str) -> bool {
         self.entries
             .get(identity_base58)
-            .is_some_and(|e| e.quic.is_some())
+            .is_some_and(|e| e.bridge.is_some())
     }
 }
 
-// --- Wire types (only the fields we consume). ---
+/// The first transport `nym_bridges_types::ClientConfig::is_usable` accepts,
+/// regardless of transport kind — a malformed earlier entry (no routable
+/// address, or no identity pin) must not shadow a valid later one, and this
+/// crate doesn't need to know which transport kinds exist to pick one:
+/// `nym_bridges`'s `BridgeConn` is the thing that dispatches on the variant.
+fn first_usable_transport(cfg: PersistedClientConfig) -> Option<ClientConfig> {
+    cfg.usable_transports().next().cloned()
+}
+
+// --- Wire types (only the fields we consume; `bridges` is the shared
+// `nym_bridges_types::PersistedClientConfig` shape, parsed leniently so one
+// gateway's malformed bridge info can't fail the whole directory fetch). ---
 
 #[derive(Deserialize)]
 struct RawGateway {
@@ -101,7 +109,7 @@ struct RawGateway {
     #[serde(default)]
     location: Option<RawLocation>,
     #[serde(default)]
-    bridges: Option<RawBridges>,
+    bridges: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -110,123 +118,86 @@ struct RawLocation {
     two_letter_iso_country_code: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct RawBridges {
-    #[serde(default)]
-    transports: Vec<RawTransport>,
-}
-
-impl RawBridges {
-    /// The first *usable* `quic_plain` transport, parsed into a [`QuicBridge`].
-    fn into_quic(self) -> Option<QuicBridge> {
-        // Consider every `quic_plain` transport and return the first that yields a usable bridge — a
-        // malformed earlier entry (no routable address, or no identity pin) must not shadow a valid
-        // later one.
-        self.transports
-            .into_iter()
-            .filter(|t| t.transport_type == "quic_plain")
-            .find_map(|t| {
-                let args = t.args?;
-                let addresses = args
-                    .addresses
-                    .iter()
-                    .filter_map(|a| a.parse::<SocketAddr>().ok())
-                    .collect::<Vec<_>>();
-                if addresses.is_empty() {
-                    return None;
-                }
-                // The identity pin is what the bridge's certificate is verified against, so a bridge
-                // without one is unusable — don't advertise it as QUIC-capable. Trim surrounding
-                // whitespace so a padded directory value still base64-decodes at connect time.
-                let id_pubkey_base64 = args.id_pubkey.trim().to_string();
-                if id_pubkey_base64.is_empty() {
-                    return None;
-                }
-                let sni_host = args
-                    .host
-                    .map(|h| h.trim().to_string())
-                    .filter(|h| !h.is_empty());
-                Some(QuicBridge {
-                    addresses,
-                    sni_host,
-                    id_pubkey_base64,
-                })
-            })
-    }
-}
-
-#[derive(Deserialize)]
-struct RawTransport {
-    transport_type: String,
-    #[serde(default)]
-    args: Option<RawQuicArgs>,
-}
-
-#[derive(Deserialize)]
-struct RawQuicArgs {
-    #[serde(default)]
-    addresses: Vec<String>,
-    #[serde(default)]
-    host: Option<String>,
-    id_pubkey: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn bridges(json: &str) -> RawBridges {
-        serde_json::from_str(json).expect("valid RawBridges json")
+    /// Parse a `PersistedClientConfig` JSON body (as served by the dVPN
+    /// directory) straight into a [`ClientConfig`], the same path `fetch` uses.
+    fn bridge_from_json(json: &str) -> Option<ClientConfig> {
+        serde_json::from_str::<PersistedClientConfig>(json)
+            .ok()
+            .and_then(first_usable_transport)
     }
 
     #[test]
-    fn into_quic_skips_broken_first_transport() {
+    fn skips_broken_first_transport() {
         // The first quic_plain has a blank id_pubkey (unusable); a valid later transport must still
         // be selected rather than shadowed.
-        let quic = bridges(
-            r#"{"transports":[
+        let bridge = bridge_from_json(
+            r#"{"version":"0","transports":[
                 {"transport_type":"quic_plain","args":{"addresses":["1.2.3.4:443"],"host":"a","id_pubkey":""}},
                 {"transport_type":"quic_plain","args":{"addresses":["5.6.7.8:443"],"host":"b","id_pubkey":"PINKEY"}}
             ]}"#,
         )
-        .into_quic()
-        .expect("a usable quic bridge exists");
-        assert_eq!(quic.id_pubkey_base64, "PINKEY");
-        assert_eq!(quic.addresses, vec!["5.6.7.8:443".parse().unwrap()]);
+        .expect("a usable bridge transport exists");
+        let ClientConfig::QuicPlain(opts) = bridge else {
+            panic!("expected quic_plain");
+        };
+        assert_eq!(opts.id_pubkey, "PINKEY");
+        assert_eq!(opts.addresses, vec!["5.6.7.8:443".parse().unwrap()]);
     }
 
     #[test]
-    fn into_quic_trims_id_pubkey_and_host() {
-        let quic = bridges(
-            r#"{"transports":[
+    fn a_padded_value_is_still_usable() {
+        // Trimming-for-connect is `nym_bridges`'s job (it decodes/verifies the pin and SNI at
+        // dial time); this crate only needs to recognise the transport as usable, unmodified.
+        let bridge = bridge_from_json(
+            r#"{"version":"0","transports":[
                 {"transport_type":"quic_plain","args":{"addresses":["1.2.3.4:443"],"host":"  sni.example  ","id_pubkey":"  PADDED  "}}
             ]}"#,
         )
-        .into_quic()
-        .expect("a usable quic bridge exists");
-        assert_eq!(quic.id_pubkey_base64, "PADDED");
-        assert_eq!(quic.sni_host.as_deref(), Some("sni.example"));
+        .expect("a usable bridge transport exists");
+        let ClientConfig::QuicPlain(opts) = bridge else {
+            panic!("expected quic_plain");
+        };
+        assert_eq!(opts.id_pubkey, "  PADDED  ");
+        assert_eq!(opts.host.as_deref(), Some("  sni.example  "));
     }
 
     #[test]
-    fn into_quic_none_when_all_unusable() {
+    fn none_when_all_unusable() {
         // No routable address, then a whitespace-only pin — neither is usable.
-        assert!(bridges(
-            r#"{"transports":[
+        assert!(bridge_from_json(
+            r#"{"version":"0","transports":[
                 {"transport_type":"quic_plain","args":{"addresses":[],"id_pubkey":"X"}},
                 {"transport_type":"quic_plain","args":{"addresses":["1.2.3.4:443"],"id_pubkey":"   "}}
             ]}"#,
         )
-        .into_quic()
         .is_none());
     }
 
     #[test]
-    fn into_quic_ignores_non_quic_transports() {
-        assert!(bridges(
-            r#"{"transports":[{"transport_type":"other","args":{"addresses":["1.2.3.4:443"],"id_pubkey":"K"}}]}"#,
+    fn any_usable_transport_kind_is_accepted() {
+        // A `tls_plain` transport is picked up too — this crate doesn't special-case `quic_plain`;
+        // whichever transport `nym_bridges`'s `BridgeConn` can dial is fine.
+        let bridge = bridge_from_json(
+            r#"{"version":"0","transports":[{"transport_type":"tls_plain","args":{"addresses":["1.2.3.4:443"],"id_pubkey":"K"}}]}"#,
         )
-        .into_quic()
+        .expect("a usable bridge transport exists");
+        assert!(matches!(bridge, ClientConfig::TlsPlain(_)));
+    }
+
+    #[test]
+    fn unrecognised_transport_type_makes_the_whole_config_unparseable() {
+        // `nym_bridges_types::ClientConfig` is a closed enum (`quic_plain` | `tls_plain`): unlike
+        // an ad hoc parser, an entirely unknown transport type fails deserialization of the
+        // *whole* config, not just that one entry. `fetch` treats that failure the same as "no
+        // bridge info" for the gateway — accepted trade-off for sharing the canonical wire type
+        // instead of hand-rolling a lenient one.
+        assert!(bridge_from_json(
+            r#"{"version":"0","transports":[{"transport_type":"obfs4","args":{"addresses":["1.2.3.4:443"],"id_pubkey":"K"}}]}"#,
+        )
         .is_none());
     }
 }

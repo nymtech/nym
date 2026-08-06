@@ -491,6 +491,7 @@ nym-metrics = { version = "1.21.5-rc.3", path = "common/nym-metrics" }
 nym-mixnet-client = { version = "1.21.5-rc.3", path = "common/client-libs/mixnet-client" }
 nym-mixnet-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-multisig-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/multisig-contract" }
+nym-geolocation-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/geolocation-contract" }
 nym-network-defaults = { version = "1.21.5-rc.3", path = "common/network-defaults" }
 nym-node-tester-utils = { version = "1.21.5-rc.3", path = "common/node-tester-utils" }
 nym-noise = { version = "1.21.5-rc.3", path = "common/nymnoise" }

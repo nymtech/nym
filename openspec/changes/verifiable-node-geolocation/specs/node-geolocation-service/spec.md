@@ -2,7 +2,7 @@
 
 ### Requirement: The service SHALL discover its subject set from the mixnet contract
 
-Each cycle the service MUST query the mixnet contract for the set of bonded nym-nodes and treat those node ids as its `Node` subjects. `Named` subjects MUST come from local configuration, so other NYM infrastructure can be measured without a contract change.
+Each cycle the service MUST query the mixnet contract for the set of bonded nym-nodes and treat those node ids as its subject set. Bonded nym-nodes are the only subject class the contract defines, so the service needs no other subject source; the discovery path MUST be structured so that adding a class later extends the subject set rather than reshaping the measurement, batching and submission paths.
 
 A node that unbonds MUST drop out of the subject set on the next cycle, and the service MUST NOT submit further measurements for it.
 

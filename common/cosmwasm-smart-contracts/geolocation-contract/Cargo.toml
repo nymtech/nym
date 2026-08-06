@@ -21,6 +21,8 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }
 
+nym-mixnet-contract-common = { workspace = true }
+
 [features]
 schema = []
 

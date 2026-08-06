@@ -7130,6 +7130,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "nym-mixnet-contract-common",
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.19",

@@ -243,6 +243,19 @@ pub enum PrometheusMetric {
         help = "The total number of test packets received back across all submitted testruns"
     ))]
     TestPacketsReceived,
+
+    #[strum(props(help = "The number of submitted stress-test results that nym-api newly stored"))]
+    SubmittedResultsAccepted,
+
+    #[strum(props(
+        help = "The number of submitted stress-test results that nym-api discarded because it had already stored that measurement. Expected to be non-zero when a batch is retried; a persistently non-zero value means measurements are being lost"
+    ))]
+    SubmittedResultsDuplicate,
+
+    #[strum(props(
+        help = "The number of submitted stress-test results that nym-api dropped in per-entry validation (non-mixnode entry, or performance score outside [0, 1])"
+    ))]
+    SubmittedResultsRejected,
 }
 
 impl PrometheusMetric {
@@ -312,6 +325,9 @@ impl PrometheusMetric {
             PrometheusMetric::KnownAgentsAnnounced => Metric::new_int_gauge(&name, help),
             PrometheusMetric::TestPacketsSent => Metric::new_int_counter(&name, help),
             PrometheusMetric::TestPacketsReceived => Metric::new_int_counter(&name, help),
+            PrometheusMetric::SubmittedResultsAccepted => Metric::new_int_counter(&name, help),
+            PrometheusMetric::SubmittedResultsDuplicate => Metric::new_int_counter(&name, help),
+            PrometheusMetric::SubmittedResultsRejected => Metric::new_int_counter(&name, help),
         }
     }
 
@@ -425,7 +441,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(29, PrometheusMetric::COUNT)
+        assert_eq!(32, PrometheusMetric::COUNT)
     }
 
     #[test]

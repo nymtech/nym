@@ -731,15 +731,16 @@ impl NymApiStorage {
     }
 
     /// Persist the given stress-testing results, produced by an authorised network monitor
-    /// orchestrator, into the database.
+    /// orchestrator, into the database. Returns the number of rows actually inserted, i.e. excluding
+    /// any that deduplicated against a measurement already stored.
     pub(crate) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,
-    ) -> Result<(), NymApiStorageError> {
-        self.manager
+    ) -> Result<u64, NymApiStorageError> {
+        Ok(self
+            .manager
             .insert_nym_node_stress_testing_results(results)
-            .await?;
-        Ok(())
+            .await?)
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

@@ -129,6 +129,16 @@ The result submitter SHALL forward completed testruns to nym-api at `POST /v3/ny
 - **WHEN** two batches are produced within the same clock tick
 - **THEN** the second batch's timestamp is bumped so it is strictly greater than the first, satisfying nym-api's replay check
 
+The submitter MUST NOT treat a successful POST as proof that the batch was stored: rows deduplicate at the database, so an accepted batch can store nothing. It MUST therefore read the per-result counts nym-api returns (`accepted`, `duplicates`, `rejected`), record each as a counter, and log a warning whenever `duplicates` or `rejected` is non-zero. A count that is absent (an older nym-api that does not report them) MUST be treated as "not reported" rather than as zero, and so neither logged nor counted.
+
+#### Scenario: A batch that stored nothing is reported rather than silently accepted
+- **WHEN** nym-api accepts a batch but deduplicates every result in it away
+- **THEN** the submitter records the duplicate count and logs a warning, rather than inferring success from the 200 response
+
+#### Scenario: Absent counts are not mistaken for zero
+- **WHEN** the submitting orchestrator is talking to a nym-api that does not report the per-result counts
+- **THEN** submission proceeds normally and no count is recorded or warned about, because "not reported" is distinct from "nothing stored"
+
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
 The stale-data eviction task SHALL clear `testrun_in_progress` rows older than `test_timeout` (default 5 minutes), so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days). One eviction sweep MUST run before the HTTP server begins serving.
@@ -266,6 +276,12 @@ Within an accepted batch, nym-api SHALL validate each result independently: an e
 A measurement's identity MUST be the measurement itself - `(node_id, test_timestamp, submitter_pubkey)`, held as a UNIQUE constraint - and MUST NOT be the submitting orchestrator's `testrun_id`, which is an AUTOINCREMENT counter in that orchestrator's own database and is NOT durable: the orchestrator's storage may be wiped, restarting the counter from 1 while its on-chain ed25519 identity persists. Keying on it meant every resubmitted id collided with a stored row and was discarded silently behind a 200 response until the counter climbed back past its previous high-water mark, which takes about as long as the wiped database had been alive. `testrun_id` MUST still be stored, for tracing a row back to the orchestrator's own read surface, but carries no uniqueness guarantee. Each row MUST additionally carry an `id INTEGER PRIMARY KEY AUTOINCREMENT` as a stable store-assigned handle; AUTOINCREMENT (rather than a bare rowid alias) is required so that ids are not reused once retention pruning deletes rows, since reuse would reintroduce the same class of collision one layer up.
 
 The UNIQUE constraint's column order MUST lead with `(node_id, test_timestamp)` so that its backing index also serves the per-node windowed average, which is the only read query against the table and which the previous `(testrun_id, submitter_pubkey)` key could not serve at all.
+
+Because insert-or-ignore makes "accepted" and "stored" different outcomes, the response MUST report the split: how many results were newly stored, how many deduplicated against an already-stored measurement, and how many were dropped by per-entry validation, the three summing to the number submitted. nym-api MUST additionally log a warning when any result deduplicated away. Every count MUST be optional on the wire so that this response stays readable by an orchestrator predating it, and so that adding the counts cannot turn a stored batch into a decode failure at a reader that ignores them.
+
+#### Scenario: A batch that stores nothing is distinguishable from one that stores everything
+- **WHEN** every result in an accepted batch deduplicates against an already-stored measurement
+- **THEN** the response reports zero accepted and a non-zero duplicate count, and nym-api logs a warning, rather than returning an indistinguishable success
 
 #### Scenario: An out-of-range performance value is skipped
 - **WHEN** an entry's `test_performance` is outside `[0.0, 1.0]`

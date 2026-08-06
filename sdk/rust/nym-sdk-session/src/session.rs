@@ -36,12 +36,13 @@ use url::Url;
 use zeroize::Zeroizing;
 
 use crate::config::{RestockPolicy, SessionConfig};
-use crate::dvpn::{DvpnDirectory, QuicBridge};
+use crate::dvpn::DvpnDirectory;
 use crate::error::SessionError;
 use crate::fetcher::TimeoutFetcher;
 use crate::gateway::{self, GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
 use crate::registration_cache::RegistrationCache;
 use nym_api_requests::models::described::v2::NymNodeDescriptionV2;
+use nym_bridges_types::ClientConfig;
 
 /// Number of tickets to reserve when checking for / spending a stored ticketbook.
 const TICKETS_TO_SPEND: u32 = 1;
@@ -76,9 +77,9 @@ pub struct HopConfig {
     pub gateway_identity: ed25519::PublicKey,
     /// Directory metadata for this hop's gateway (identity, node id, country, IP).
     pub gateway: GatewayInfo,
-    /// QUIC bridge params for this hop, set only for a QUIC entry hop (see
-    /// [`Session::register_two_hop_quic`]); `None` for direct/exit hops.
-    pub bridge: Option<QuicBridge>,
+    /// Bridge params for this hop, set only for a bridge-fronted entry hop (see
+    /// [`Session::register_two_hop_bridge`]); `None` for direct/exit hops.
+    pub bridge: Option<ClientConfig>,
 }
 
 /// The result of registering a tunnel: one hop for single-hop, two for two-hop.
@@ -502,11 +503,12 @@ impl Session {
     }
 
     /// Like [`register_two_hop`](Self::register_two_hop), but the ENTRY gateway
-    /// must advertise a QUIC bridge (per the configured dVPN directory). The
-    /// returned `entry` hop carries its [`QuicBridge`] in `bridge`. Fails with
-    /// [`SessionError::NoQuicGateway`] if no QUIC entry matches the spec.
-    /// (QUIC only fronts the two-hop entry leg; the exit is registered normally.)
-    pub async fn register_two_hop_quic(
+    /// must advertise a usable bridge transport (per the configured dVPN
+    /// directory). The returned `entry` hop carries its `ClientConfig` in
+    /// `bridge`. Fails with [`SessionError::NoBridgeGateway`] if no bridge-capable
+    /// entry matches the spec. (The bridge only fronts the two-hop entry leg;
+    /// the exit is registered normally.)
+    pub async fn register_two_hop_bridge(
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
@@ -518,7 +520,7 @@ impl Session {
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
-        entry_quic: bool,
+        entry_requires_bridge: bool,
     ) -> Result<Registration, SessionError> {
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
@@ -532,7 +534,7 @@ impl Session {
             entry,
             WgRole::Entry,
             self.directory.as_ref(),
-            entry_quic,
+            entry_requires_bridge,
             None,
         )?;
         // Exclude the entry gateway so a two-hop tunnel never uses one gateway twice.
@@ -545,10 +547,10 @@ impl Session {
             Some(&entry_gw.identity),
         )?;
 
-        // The entry hop carries QUIC bridge params only when QUIC was required
-        // (selection guarantees `entry_gw.quic` is `Some` in that case).
-        let entry_bridge = if entry_quic {
-            entry_gw.quic.clone()
+        // The entry hop carries bridge params only when a bridge was required
+        // (selection guarantees `entry_gw.bridge` is `Some` in that case).
+        let entry_bridge = if entry_requires_bridge {
+            entry_gw.bridge.clone()
         } else {
             None
         };

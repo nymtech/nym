@@ -784,6 +784,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1116,9 +1122,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.11.1"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
+checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 dependencies = [
  "serde",
 ]
@@ -1808,7 +1814,7 @@ dependencies = [
  "ark-ff",
  "ark-serialize",
  "cosmwasm-core",
- "curve25519-dalek",
+ "curve25519-dalek 4.1.3",
  "digest 0.10.7",
  "ecdsa",
  "ed25519-zebra",
@@ -2191,9 +2197,26 @@ dependencies = [
  "cpufeatures 0.2.17",
  "curve25519-dalek-derive",
  "digest 0.10.7",
- "fiat-crypto",
+ "fiat-crypto 0.2.9",
  "rustc_version 0.4.1",
  "serde",
+ "subtle 2.6.1",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5eed333089e2e1c1ac8c6c0398e5e2497b4c9926ca6d0365ed1e099afa5bc23"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.0",
+ "curve25519-dalek-derive",
+ "digest 0.11.3",
+ "fiat-crypto 0.3.0",
+ "rand_core 0.10.1",
+ "rustc_version 0.4.1",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -2505,7 +2528,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7c1832837b905bbfb5101e07cc24c8deddf52f93225eee6ead5f4d63d53ddcb"
 dependencies = [
  "const-oid 0.9.6",
- "pem-rfc7468",
+ "pem-rfc7468 0.7.0",
  "zeroize",
 ]
 
@@ -2516,6 +2539,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71fd89660b2dc699704064e59e9dba0147b903e85319429e131620d022be411b"
 dependencies = [
  "const-oid 0.10.2",
+ "pem-rfc7468 1.0.0",
  "zeroize",
 ]
 
@@ -2807,6 +2831,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ed25519"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29fcf32e6c73d1079f83ab4d782de2d81620346a5f38c6237a86a22f8368980a"
+dependencies = [
+ "pkcs8 0.11.0",
+ "signature 3.0.0",
+]
+
+[[package]]
 name = "ed25519-compact"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2835,11 +2869,27 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
- "curve25519-dalek",
- "ed25519",
+ "curve25519-dalek 4.1.3",
+ "ed25519 2.2.3",
  "rand_core 0.6.4",
  "serde",
  "sha2 0.10.9",
+ "subtle 2.6.1",
+ "zeroize",
+]
+
+[[package]]
+name = "ed25519-dalek"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
+dependencies = [
+ "curve25519-dalek 5.0.0",
+ "ed25519 3.0.0",
+ "rand_core 0.10.1",
+ "serde",
+ "sha2 0.11.0",
+ "signature 3.0.0",
  "subtle 2.6.1",
  "zeroize",
 ]
@@ -2850,8 +2900,8 @@ version = "4.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d9ce6874da5d4415896cd45ffbc4d1cfc0c4f9c079427bd870742c30f2f65a9"
 dependencies = [
- "curve25519-dalek",
- "ed25519",
+ "curve25519-dalek 4.1.3",
+ "ed25519 2.2.3",
  "hashbrown 0.14.5",
  "hex",
  "rand_core 0.6.4",
@@ -2881,7 +2931,7 @@ dependencies = [
  "generic-array 0.14.7",
  "group",
  "hkdf",
- "pem-rfc7468",
+ "pem-rfc7468 0.7.0",
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1",
@@ -3095,6 +3145,12 @@ name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
+
+[[package]]
+name = "fiat-crypto"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "filetime"
@@ -6086,25 +6142,24 @@ dependencies = [
 
 [[package]]
 name = "nym-bridges"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "549055569a0fdcc2af37e5eee39b4502011fe51dc863676dacd40f6cee65e39e"
+version = "0.2.1-rc.1"
+source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#06a7e15f3d89abf306d3af509d03406e587ce686"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bs58",
  "bytes",
- "ed25519-dalek",
+ "ed25519-dalek 3.0.0",
  "futures",
  "getrandom 0.4.2",
- "hex",
  "lazy_static",
  "lru-slab",
+ "nym-bridges-types",
  "once_cell",
  "pin-project-lite",
  "quinn",
  "quinn-proto",
- "rand 0.8.6",
+ "rand 0.10.2",
  "rcgen 0.14.8",
  "ring",
  "rustc-hash",
@@ -6113,17 +6168,27 @@ dependencies = [
  "serde",
  "serde_json",
  "slab",
- "socket2 0.6.4",
+ "socket2 0.5.10",
  "thiserror 2.0.19",
  "tinyvec",
  "tokio",
  "tokio-rustls 0.26.4",
  "tokio-util",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "uuid",
  "webpki-roots 1.0.7",
  "x509-parser",
+]
+
+[[package]]
+name = "nym-bridges-types"
+version = "0.2.1-rc.1"
+source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#06a7e15f3d89abf306d3af509d03406e587ce686"
+dependencies = [
+ "serde",
+ "uniffi 0.31.1",
+ "utoipa",
 ]
 
 [[package]]
@@ -6737,9 +6802,9 @@ dependencies = [
  "bs58",
  "cipher 0.4.4",
  "ctr",
- "curve25519-dalek",
+ "curve25519-dalek 4.1.3",
  "digest 0.10.7",
- "ed25519-dalek",
+ "ed25519-dalek 2.2.0",
  "generic-array 0.14.7",
  "hkdf",
  "hmac 0.12.1",
@@ -7972,6 +8037,7 @@ dependencies = [
  "moka",
  "nym-api-requests",
  "nym-bin-common",
+ "nym-bridges-types",
  "nym-contracts-common",
  "nym-credential-proxy-lib",
  "nym-credentials",
@@ -8290,6 +8356,7 @@ dependencies = [
  "nym-authenticator-requests",
  "nym-bandwidth-controller",
  "nym-bandwidth-fetcher",
+ "nym-bridges-types",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-credential-storage",
@@ -9741,6 +9808,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pem-rfc7468"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6305423e0e7738146434843d1694d621cce767262b2a86910beab705e4493d9"
+dependencies = [
+ "base64ct",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11054,9 +11130,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.14.1"
+version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9"
+checksum = "2f4925028c7eb5d1fcdaf196971378ed9d2c1c4efc7dc5d011256f76c99c0a96"
 dependencies = [
  "web-time",
  "zeroize",
@@ -11102,7 +11178,7 @@ dependencies = [
  "der 0.7.10",
  "digest 0.10.7",
  "ecdsa",
- "ed25519-dalek",
+ "ed25519-dalek 2.2.0",
  "hmac 0.12.1",
  "p256",
  "p384",
@@ -11926,7 +12002,7 @@ dependencies = [
  "aes-gcm",
  "blake2 0.10.6",
  "chacha20poly1305",
- "curve25519-dalek",
+ "curve25519-dalek 4.1.3",
  "rand_core 0.6.4",
  "rustc_version 0.4.1",
  "sha2 0.10.9",
@@ -11966,7 +12042,7 @@ dependencies = [
  "byteorder",
  "chacha",
  "ctr",
- "curve25519-dalek",
+ "curve25519-dalek 4.1.3",
  "digest 0.10.7",
  "hkdf",
  "hmac 0.12.1",
@@ -12540,7 +12616,7 @@ checksum = "fc997743ecfd4864bbca8170d68d9b2bee24653b034210752c2d883ef4b838b1"
 dependencies = [
  "bytes",
  "digest 0.10.7",
- "ed25519",
+ "ed25519 2.2.3",
  "ed25519-consensus",
  "flex-error",
  "futures",
@@ -12787,9 +12863,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.11.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e61e67053d25a4e82c844e8424039d9745781b3fc4f32b8d55ed50f5f667ef3"
+checksum = "bb4ebadaa0af04fab11ae01eb5f9fdb5f9c5b875506e210e71c07873528baa7f"
 dependencies = [
  "tinyvec_macros",
 ]
@@ -12823,9 +12899,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.3"
+version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
  "bytes",
  "libc",
@@ -14070,9 +14146,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.23.2"
+version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d258b83ceec21034727ecee8c382cfa6c3e133699b0742c64571814fb420c9f7"
+checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",
@@ -15125,7 +15201,7 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
- "curve25519-dalek",
+ "curve25519-dalek 4.1.3",
  "rand_core 0.6.4",
  "serde",
  "zeroize",

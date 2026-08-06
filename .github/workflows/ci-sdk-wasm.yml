@@ -8,6 +8,7 @@ on:
       - "clients/client-core/**"
       - "common/**"
       - "sdk/rust/nym-swizzle/**"
+      - "sdk/rust/nym-swizzle-zcash/**"
       - ".github/workflows/ci-sdk-wasm.yml"
 
 jobs:

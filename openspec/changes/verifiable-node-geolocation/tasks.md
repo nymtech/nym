@@ -15,8 +15,8 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 - [x] 2.6 Implement the canonical `digest_leaf()` with class tags per entry class and length prefixing on every variable field. No contract-wide domain tag: leaves are only ever summed into this contract's own accumulator, so the class tag is the separation that matters
 - [x] 2.7 Add leaf tests: distinct keys with equal values differ, length-prefix disambiguation, class tags cannot collide, `checked_at` is committed
 - [x] 2.8 Define the domain-separated `NymNodeLocation` signing payload shared by node, service and contract. The signing payload hangs off `LocationPayload`, so the signed bytes always come from the payload that will be served, and `NymNodeLocation` carries that payload rather than a typed `Location` (it is relayed verbatim, so it is never decoded on this path). Both are therefore ungated, and no `payload`-gated code is needed at all. The signed bytes are `domain_tag || node_id BE || declared_at LE || version || content`, with `version` bound so a relayer cannot restate v1-signed content as v2
-- [ ] 2.9 Publish leaf-encoding conformance vectors as fixtures, so contract and verifier cannot drift (design decision 9)
-- [ ] 2.10 Define `InstantiateMsg`, `ExecuteMsg`, `QueryMsg` and response types
+- [x] 2.9 **Dropped as premature.** Conformance vectors guard drift between two implementations of the leaf encoding, and there is only one: the verifying client imports `digest_leaf()` from this crate. A second implementation, most likely a browser verifier, is far enough off that fixtures would be speculative. Revisit when one is actually being written; until then design decision 9's drift guard is "there is only one implementation" rather than shared vectors
+- [x] 2.10 Define `InstantiateMsg`, `ExecuteMsg`, `QueryMsg` and response types
 
 ## 3. Contract storage and digest maintenance
 

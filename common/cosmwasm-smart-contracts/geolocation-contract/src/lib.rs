@@ -14,5 +14,5 @@ pub mod types;
 pub mod payload;
 
 pub use error::*;
-pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+pub use msg::{ExecuteMsg, InitialAgent, InstantiateMsg, Measurement, MigrateMsg, QueryMsg};
 pub use types::*;

@@ -56,9 +56,9 @@ The wrapper MUST apply: insert folds `add(leaf)`; delete folds `remove(leaf)` co
 
 Each digest-committed record MUST fold exactly one leaf. The leaf MUST begin with a byte tag identifying the entry class, MUST commit the full key (subject class, subject id, source) as well as the value, and MUST length-prefix every variable-width field. Fixed-width integers MUST use a fixed, documented endianness.
 
-The encoding MUST be byte-for-byte identical in the contract and in any verifying client. It is a frozen wire format: changing it is a breaking migration requiring a new domain tag and a re-fold of the whole accumulator.
+The encoding MUST be byte-for-byte identical in the contract and in any verifying client. It is a frozen wire format: changing it is a breaking migration requiring a re-fold of the whole accumulator, during which no intermediate state is verifiable.
 
-The contract's domain tag MUST differ from the directory contract's, so leaves cannot collide across contracts.
+Separation is required only within this contract's own accumulator, which is the only place leaves are summed together: the class tag keeps the entry classes apart and the length prefixes keep records apart within a class. Leaves are not required to be distinguishable from another contract's, since each contract has its own accumulator and an ICS23 proof binds to a specific contract address and storage key, so a leaf from elsewhere can never enter this contract's sum.
 
 #### Scenario: Distinct keys with equal values produce distinct leaves
 - **GIVEN** the same location value stored for node 1 and for node 2
@@ -178,7 +178,9 @@ The contract MUST provide an admin-invokable, paginated purge of a de-whiteliste
 
 ### Requirement: Relayed self-declarations SHALL be node-signed with a strictly monotonic declared_at
 
-A self-declaration entry MUST carry the subject node's ed25519 signature over a domain-separated payload binding the node id, the location and a node-supplied `declared_at`. The contract MUST verify that signature against the node's identity key as resolved from the mixnet contract.
+A self-declaration entry MUST carry the subject node's ed25519 signature over a domain-separated payload binding the node id, the payload version, the payload bytes and a node-supplied `declared_at`. The contract MUST verify that signature against the node's identity key as resolved from the mixnet contract, and MUST derive the signed bytes from the payload it is about to store rather than from any re-encoding of it.
+
+The payload version MUST be signed alongside the payload bytes, so that a relayer cannot present bytes signed under one version as another. Otherwise the signature would still verify while the relayer, not the node, decided which format consumers interpret those bytes as.
 
 The contract MUST accept the write only when `declared_at` is strictly greater than the `declared_at` already stored for that subject, which makes replay of a superseded artifact impossible, and only when `declared_at` does not exceed block time by more than `MAX_SKEW`, which prevents a far-future timestamp from permanently freezing the slot. There MUST be no lower bound on `declared_at`; monotonicity alone governs the past.
 

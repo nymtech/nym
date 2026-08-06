@@ -112,11 +112,15 @@ The node serves a signed `NymNodeLocation` artifact over HTTP and the geolocator
 A bare signature over `(node_id, location)` is replayable forever: anyone who once saw the artifact could resubmit last year's value after the node moved, and the contract could not tell, because the signature is genuinely valid.
 
 ```
-  payload = domain_tag || node_id || location || declared_at
+  payload = domain_tag || node_id || declared_at || version || content
 
   accepted iff  declared_at >  stored.declared_at        (strict monotonicity)
           and   declared_at <= block_time + MAX_SKEW     (no far-future pinning)
 ```
+
+`content` sits last so it needs no length prefix. The payload `version` is signed as well: without it a relayer could take v1-signed content, store it as `version = 2` with the signature still verifying, and thereby choose which format consumers believe those bytes are in. There is only one self-declared slot per subject, so that choice would be the relayer's rather than the node's.
+
+The domain tag is load-bearing here, unlike in the digest leaf where Decision 9 declines one. A node's identity key signs several unrelated message types, and the directory contract's node payload (`node_id || lp(label) || sequence || lp(data)`) also opens with the node id, so without separation a directory signature could be parsed as a location declaration, its label length and first label bytes landing where `declared_at` is read. `MAX_SKEW` happens to reject the timestamps that produces, but that is an accident of the replay bound, not a property to rely on.
 
 The `location` component of that payload is the stored opaque payload bytes, length-prefixed, never a parsed `Location`. This follows from Decision 10a, since the contract must verify against exactly the bytes it stores, and it is also what lets the contract build the payload without linking the payload types at all (Decision 10). The shared signing-payload helper is therefore byte-level, with the typed `NymNodeLocation` a thin wrapper over it on the producer side.
 
@@ -134,7 +138,7 @@ The consequence is that change detection is agent-local, best-effort, and lost o
 
 ### 9. Copy-and-adapt the digest machinery rather than extracting a shared crate
 
-The verifiable-digest pattern note explicitly blesses either route and observes that distinct `domain_tag`s keep leaves apart, with the ICS23 proof already bound to a specific contract address and storage key. Generic cw-storage-plus wrappers over differing key arities and value codecs cost more than they save at two consumers. Drift between the two implementations is guarded by shared conformance test vectors for the leaf encoding rather than by shared code, since drift between contract and verifier is the failure that actually matters.
+The verifiable-digest pattern note explicitly blesses either route, observing that the ICS23 proof is already bound to a specific contract address and storage key. It also suggests distinct `domain_tag`s to keep the two contracts' leaves apart, which on inspection is unnecessary and is not done here: each contract sums into its own accumulator, so a leaf from another contract can never enter this one's sum, and the separation that does matter is the leading class tag within our own accumulator. A leaf-format change re-folds the accumulator wholesale, and no intermediate state of that re-fold is verifiable, so nothing needs to distinguish an old leaf from a new one either. The signing payload in Decision 7 is a different case and does carry a domain tag, because there one key signs several message types. Generic cw-storage-plus wrappers over differing key arities and value codecs cost more than they save at two consumers. Drift between the two implementations is guarded by shared conformance test vectors for the leaf encoding rather than by shared code, since drift between contract and verifier is the failure that actually matters.
 
 ### 10. One uniform `Location` payload for every entry, matching the node status API shape
 
@@ -178,7 +182,19 @@ The second reason is that it removes the payload encoding from the frozen surfac
 
 That choice is what makes the `version` byte load-bearing rather than decorative. Prost's field tags handle additive evolution natively, which is why the directory contract needs no version field; JSON has no equivalent, so the byte becomes the actual evolution mechanism rather than cheap insurance. It sits outside `content` so a future version can change the *format*, not merely the schema.
 
-`content` is `Binary` rather than a `String`. A `String` holding raw JSON would cost nothing extra in state and would even save consumers the base64 step, but it forecloses the non-JSON future the version byte exists for, and it double-escapes the payload in every query response. (A `String` holding *base64* would additionally pay roughly 33% inflation in state and in every leaf, since the compact codec stores whatever bytes the string contains.)
+`content` is `Binary` rather than a `String`. A `String` holding raw JSON would cost nothing extra in state and would even save consumers the base64 step, but it forecloses the non-JSON future the version byte exists for, and it double-escapes the payload in every query response. (A `String` holding *base64* would additionally pay roughly 33% inflation in every digest leaf, which commits whatever bytes the field holds.)
+
+### 10b. Entries are stored as ordinary JSON values, not a hand-rolled byte codec
+
+The directory contract stores its entry values through a bespoke `to_bytes` / `try_from_bytes` codec. This change deliberately does not, and uses a stock `cw-storage-plus` map value instead.
+
+The saving was measured rather than assumed: on a realistic entry, JSON costs 473 bytes against a compact codec's 304, and 598 against 380 once an attestation is present. Most of that gap is `Binary` fields becoming base64, at 33% each, plus field names. At ten thousand entries the difference is roughly a megabyte of chain state, and proportionally more write gas on every sweep.
+
+That was judged not worth it. A bespoke format brings its own framing to get wrong, its own truncation handling, and its own migration story, and it becomes semi-frozen the moment a client reads a raw stored value under an ICS23 proof. JSON is additive under serde defaults, and a raw store read returns something a consumer can parse without our decoder, which is the same reasoning that made the payload itself JSON.
+
+The verbatim-bytes invariant is unaffected: `Binary` round-trips through base64 losslessly, so `content` is returned exactly as submitted. This warrants a test rather than an assumption.
+
+The digest leaf is a separate encoding and stays hand-rolled. It commits the key as well as the value and is concatenated into a hash rather than delimited by a buffer end, so it length-prefixes every variable field. Storage encoding and leaf encoding answer different questions, and only the leaf is frozen.
 
 **JSON is not canonical, which makes verbatim handling a correctness invariant rather than an optimisation.** Prost output varies little between implementations, but JSON varies in key ordering, whitespace and float formatting. Because the self-declared path signs the payload bytes, any component performing `from_slice` followed by `to_vec` can emit different bytes and silently break verification. `Location` carries two `f64` coordinates, and without serde_json's `float_roundtrip` feature the default parser's fast path can round-trip a value such as `25.1164` to a different nearest-representable float. The workspace already pins that feature at `Cargo.toml:359` for exactly this reason, having hit it before on signed JSON payloads.
 
@@ -198,7 +214,7 @@ Field parity is otherwise complete. `org`, `postal`, `city`, `region` and `timez
 
 ## Risks / Trade-offs
 
-- **The key layout and leaf framing are frozen by the digest** → Decisions 2, 3 and 4 are one-way doors. Reversing any of them re-hashes every entry and requires a migration that re-folds the whole accumulator under a new `domain_tag`. They are settled before implementation for that reason. The payload *contents* are deliberately not in this category, because Decision 10a keeps them opaque to the contract and to the leaf.
+- **The key layout and leaf framing are frozen by the digest** → Decisions 2, 3 and 4 are one-way doors. Reversing any of them re-hashes every entry and requires a migration that re-folds the whole accumulator, with no verifiable intermediate state. They are settled before implementation for that reason. The payload *contents* are deliberately not in this category, because Decision 10a keeps them opaque to the contract and to the leaf.
 - **An opaque payload means garbage can be committed and must be tolerated forever** → the contract cannot reject a malformed location, so every consumer parses defensively and a bad entry stays in the digest until overwritten or purged. Mitigated by producer-side validation in the shared types crate, and bounded by the max-size constant so the damage is a bad value rather than state bloat.
 - **A JSON payload re-serialised anywhere on the relay path silently invalidates a node's signature** → JSON key ordering, whitespace and f64 formatting all vary between implementations, and `Location` carries two `f64` coordinates. Mitigated by treating verbatim handling as an invariant with a dedicated round-trip test, and by the workspace's existing `float_roundtrip` pin on serde_json (`Cargo.toml:359`). The failure mode is silent and delayed, so it must be caught by test rather than by review.
 - **A mutation path that bypasses the digest wrapper breaks completeness permanently, and silently** → every state change routes through one wrapper, as the directory contract does; no handler touches the maps directly. Worth a test that fails if a new store method is added outside the wrapper.

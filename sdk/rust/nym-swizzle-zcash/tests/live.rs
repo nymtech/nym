@@ -19,7 +19,7 @@
 mod lightwalletd;
 
 use nym_swizzle_zcash::grid::{quantize, Disposition, QueuedRange, S_FLOOR, VERIFY_LOOKAHEAD};
-use nym_swizzle_zcash::sync::{BlockSource, SyncOutcome, SyncSession};
+use nym_swizzle_zcash::sync::{self, BlockSource, SyncOutcome};
 
 use crate::lightwalletd::{CompactBlock, Lightwalletd};
 
@@ -103,16 +103,15 @@ async fn verify_window_commits_then_detects_reorg_on_real_data() {
 
     // clean run: stored state agrees with the chain -> committed
     let mut source = LiveSource::new(&client);
-    let outcome = SyncSession::new()
-        .fetch(
-            &mut source,
-            range,
-            tip,
-            |_, _, _| {},
-            |height, block: &CompactBlock| stored.get(&height) == Some(&block.hash),
-        )
-        .await
-        .expect("live sync failed");
+    let outcome = sync::fetch(
+        &mut source,
+        range,
+        tip,
+        |_, _, _| {},
+        |height, block: &CompactBlock| stored.get(&height) == Some(&block.hash),
+    )
+    .await
+    .expect("live sync failed");
     assert_eq!(outcome, SyncOutcome::Committed);
 
     // the widened, grid-aligned boundaries really went on the wire
@@ -124,22 +123,23 @@ async fn verify_window_commits_then_detects_reorg_on_real_data() {
     let (&h, _) = corrupted.iter().next().unwrap();
     corrupted.insert(h, vec![0xde, 0xad, 0xbe, 0xef]);
 
-    let outcome = SyncSession::new()
-        .fetch(
-            &mut LiveSource::new(&client),
-            range,
-            tip,
-            |_, _, _| {},
-            |height, block: &CompactBlock| corrupted.get(&height) == Some(&block.hash),
-        )
-        .await
-        .expect("live sync failed");
+    let outcome = sync::fetch(
+        &mut LiveSource::new(&client),
+        range,
+        tip,
+        |_, _, _| {},
+        |height, block: &CompactBlock| corrupted.get(&height) == Some(&block.hash),
+    )
+    .await
+    .expect("live sync failed");
     assert_eq!(outcome, SyncOutcome::ReorgDetected);
 }
 
-/// Every sync's wire footprint sits on the public grid: the union of the
-/// (shuffled, overlapping) requests starts on a multiple of the spacing,
-/// ends grid-aligned or at the tip, and covers the emitted range exactly.
+/// Every sync's wire footprint sits on the public grid: requests are
+/// ascending, disjoint, S_FLOOR-aligned cells whose union starts on a
+/// multiple of the spacing, ends grid-aligned or at the tip, and covers the
+/// emitted range exactly — deterministically, so any wallet in the same
+/// cell at the same tip sends byte-identical requests.
 #[tokio::test]
 #[ignore = "talks to a public lightwalletd; run with -- --ignored"]
 async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
@@ -150,18 +150,17 @@ async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
 
     let mut source = LiveSource::new(&client);
     let mut heights = std::collections::BTreeSet::new();
-    SyncSession::new()
-        .fetch(
-            &mut source,
-            range,
-            tip,
-            |h, _, _| {
-                heights.insert(h);
-            },
-            |_, _| true,
-        )
-        .await
-        .expect("live sync failed");
+    sync::fetch(
+        &mut source,
+        range,
+        tip,
+        |h, _, _| {
+            heights.insert(h);
+        },
+        |_, _| true,
+    )
+    .await
+    .expect("live sync failed");
 
     let (es, ee) = quantized.emitted();
     let min_start = source.requests.iter().map(|r| r.0).min().unwrap();
@@ -173,6 +172,15 @@ async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
         "union end neither grid-aligned nor tip-capped"
     );
     assert_eq!((min_start, max_end), (es, ee));
+
+    // the requests themselves are the deterministic plan: ascending,
+    // disjoint, floor-aligned cells
+    assert_eq!(source.requests, quantized.requests().collect::<Vec<_>>());
+    for &(s, e) in &source.requests {
+        assert_eq!(s % S_FLOOR, 0, "request start off the floor grid");
+        assert!(e - s <= S_FLOOR);
+    }
+
     assert_eq!(
         heights.len() as u64,
         ee - es,
@@ -183,9 +191,10 @@ async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
 }
 
 /// Measured overhead for the two regimes that occur in practice. The daily
-/// incremental sync is fetched live (cover + chunk-overlap cost, in actual
-/// streamed blocks); the long catch-up is arithmetic only, to keep the test
-/// polite to the public server.
+/// incremental sync is fetched live (grid cover, in actual streamed
+/// blocks); the long catch-up is arithmetic only, to keep the test polite
+/// to the public server. Requests are disjoint, so cover is the only
+/// overhead — streamed equals the emitted length exactly.
 #[tokio::test]
 #[ignore = "talks to a public lightwalletd; run with -- --ignored"]
 async fn overhead_measured_for_daily_and_catch_up_regimes() {
@@ -198,37 +207,38 @@ async fn overhead_measured_for_daily_and_catch_up_regimes() {
 
     let quant_ratio = quantized.emitted_len() as f64 / (gap + 1) as f64;
 
-    // overlapping chunks re-deliver blocks: `streamed` counts every delivery
-    // (the real bandwidth), `wanted` deduplicates to unique needed heights
     let mut streamed = 0u64;
     let mut wanted = std::collections::BTreeSet::new();
-    SyncSession::new()
-        .fetch(
-            &mut LiveSource::new(&client),
-            range,
-            tip,
-            |h, _, d| {
-                streamed += 1;
-                if d == Disposition::Requested {
-                    wanted.insert(h);
-                }
-            },
-            |_, _| true,
-        )
-        .await
-        .expect("live sync failed");
-    let total_ratio = streamed as f64 / (gap + 1) as f64;
+    sync::fetch(
+        &mut LiveSource::new(&client),
+        range,
+        tip,
+        |h, _, d| {
+            streamed += 1;
+            if d == Disposition::Requested {
+                wanted.insert(h);
+            }
+        },
+        |_, _| true,
+    )
+    .await
+    .expect("live sync failed");
 
     println!(
         "daily incremental ({gap}-block gap, spacing {}):",
         quantized.spacing()
     );
     println!(
-        "  quantization: {} blocks emitted = {quant_ratio:.2}x the gap",
+        "  quantization: {} blocks emitted = {quant_ratio:.2}x the gap; cover is the \
+         only overhead",
         quantized.emitted_len()
     );
-    println!("  live streamed (incl. chunk overlap): {streamed} blocks = {total_ratio:.2}x");
     assert_eq!(wanted.len() as u64, gap + 1);
+    assert_eq!(
+        streamed,
+        quantized.emitted_len(),
+        "requests are disjoint: streamed blocks must equal the emitted length exactly"
+    );
     assert!(
         quant_ratio <= 3.0,
         "daily quantization overhead {quant_ratio:.2}x above the expected band"

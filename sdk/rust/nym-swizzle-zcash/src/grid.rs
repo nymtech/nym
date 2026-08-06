@@ -28,8 +28,24 @@
 pub const SHARD: u64 = 144;
 
 /// The minimum grid spacing in blocks (`SHARD * 8`, roughly one day). Ranges
-/// shorter than this still quantize to a full cell of this size.
+/// shorter than this still quantize to a full cell of this size. Also the
+/// unit the emitted range is split into on the wire (see
+/// [`Quantized::requests`]).
 pub const S_FLOOR: u64 = 1152;
+
+// The ladder is `SHARD * 2^j`, so the floor must itself be a rung: a floor
+// off the doubling family would silently stop nesting with the ZIP 318
+// anchor grid. Checked at compile time so it cannot drift.
+const _: () = {
+    assert!(
+        S_FLOOR.is_multiple_of(SHARD),
+        "S_FLOOR must be a multiple of SHARD"
+    );
+    assert!(
+        (S_FLOOR / SHARD).is_power_of_two(),
+        "S_FLOOR must sit on the SHARD * 2^j ladder"
+    );
+};
 
 /// How many blocks immediately below a catch-up's resume point are re-fetched
 /// so their hashes can be compared against stored state — the reorg check.
@@ -136,6 +152,27 @@ impl Quantized {
     pub fn emitted_len(&self) -> u64 {
         self.emitted.1 - self.emitted.0
     }
+
+    /// The deterministic sequence of wire requests covering the emitted
+    /// range: split at [`S_FLOOR`]-aligned boundaries, ascending, disjoint,
+    /// gapless. No randomness anywhere — every wallet resuming in the same
+    /// grid cell at the same tip emits **byte-identical requests in
+    /// identical order**; that collision is the mechanism, and any
+    /// per-wallet variation (sizes, overlap, order) would only add a
+    /// distinguishing dimension on top of costing bandwidth.
+    ///
+    /// The emitted start is a multiple of the spacing (itself a multiple of
+    /// [`S_FLOOR`]), so every request is exactly one full [`S_FLOOR`] cell —
+    /// except the last, which is shorter only when the emitted end is capped
+    /// at the tip. The split exists for retry practicality on long
+    /// catch-ups; a failed request can be retried without refetching the
+    /// whole range.
+    pub fn requests(&self) -> impl Iterator<Item = (u64, u64)> + '_ {
+        let (start, end) = self.emitted;
+        (start..end)
+            .step_by(S_FLOOR as usize)
+            .map(move |s| (s, (s + S_FLOOR).min(end)))
+    }
 }
 
 /// Quantize a queued range against the current chain tip.
@@ -151,6 +188,15 @@ impl Quantized {
 ///
 /// Steps 1–3 apply uniformly to every queued range regardless of kind: no
 /// classification of where a range's edges came from is needed.
+///
+/// **Convention: ranges are half-open, and the ladder in step 1 is chosen by
+/// half-open length.** This rule is network-wide by construction — two
+/// implementations reading it differently would emit different ranges from
+/// identical wallet states and partition the collision sets — so the
+/// boundary cases are pinned by tests: a range of exactly 1152 blocks takes
+/// `S = 1152` and one of 1153 takes `S = 2304`. Note a catch-up scans the
+/// tip block too, so a wallet exactly 1152 blocks behind the tip has a
+/// 1153-block range and takes `S = 2304`.
 ///
 /// Panics if the range is empty or extends past `tip + 1`.
 pub fn quantize(range: QueuedRange, tip: u64) -> Quantized {
@@ -250,9 +296,70 @@ mod tests {
         assert_eq!(ladder(S_FLOOR + 1), 2 * S_FLOOR);
         assert_eq!(ladder(4 * S_FLOOR), 4 * S_FLOOR);
         assert_eq!(ladder(4 * S_FLOOR + 1), 8 * S_FLOOR);
-        // every rung is a multiple of the ZIP 318 shard
+        // every rung sits on the SHARD * 2^j family — divisibility alone
+        // would not catch a floor like 3 * SHARD that never nests
         for len in [1, 100, 5_000, 100_000, 10_000_000] {
-            assert_eq!(ladder(len) % SHARD, 0);
+            let rung = ladder(len);
+            assert_eq!(rung % SHARD, 0);
+            assert!(
+                (rung / SHARD).is_power_of_two(),
+                "rung {rung} off the ladder"
+            );
+        }
+    }
+
+    /// Pins the network-wide range convention: ranges are half-open and the
+    /// ladder is chosen by half-open length. An implementation reading the
+    /// rule inclusively diverges exactly at rung-multiple gaps and would
+    /// partition the collision sets.
+    #[test]
+    fn half_open_convention_pinned_at_rung_boundaries() {
+        // a scan of exactly 1152 blocks takes S = 1152; one more block
+        // crosses to the next rung
+        assert_eq!(quantize(QueuedRange::scan(0, 1152), TIP).spacing(), 1152);
+        assert_eq!(quantize(QueuedRange::scan(0, 1153), TIP).spacing(), 2304);
+        assert_eq!(quantize(QueuedRange::scan(0, 2304), TIP).spacing(), 2304);
+        assert_eq!(quantize(QueuedRange::scan(0, 2305), TIP).spacing(), 4608);
+
+        // a catch-up scans the tip block too: a wallet exactly 1152 behind
+        // has a 1153-block half-open range, so S = 2304 (an inclusive
+        // reading of the rule would give 1152 here)
+        let q = quantize(QueuedRange::catch_up(TIP - 1152, TIP), TIP);
+        assert_eq!(q.spacing(), 2304);
+        let q = quantize(QueuedRange::catch_up(TIP - 1151, TIP), TIP);
+        assert_eq!(q.spacing(), 1152);
+
+        // on-grid scan ends stay put under the half-open reading
+        let q = quantize(QueuedRange::scan(2304, 3456), TIP);
+        assert_eq!(q.emitted(), (2304, 3456));
+    }
+
+    #[test]
+    fn requests_split_at_floor_boundaries_ascending_disjoint_gapless() {
+        for &(start, len) in &[
+            (500_000u64, 100u64), // one cell
+            (500_000, 1153),      // S = 2304: two full cells
+            (123_456, 98_765),    // many cells
+            (TIP - 500, 501),     // tip-capped: last request short
+        ] {
+            let q = quantize(QueuedRange::scan(start, start + len), TIP);
+            let requests: Vec<_> = q.requests().collect();
+            let (es, ee) = q.emitted();
+
+            assert_eq!(requests.first().unwrap().0, es);
+            assert_eq!(requests.last().unwrap().1, ee);
+            for window in requests.windows(2) {
+                // ascending, disjoint, gapless: each request begins exactly
+                // where the previous ended
+                assert_eq!(window[0].1, window[1].0);
+            }
+            for &(s, e) in &requests {
+                assert_eq!(s % S_FLOOR, 0, "request start off the floor grid");
+                assert!(
+                    e - s == S_FLOOR || e == ee,
+                    "only a tip-capped final request may be short"
+                );
+            }
         }
     }
 

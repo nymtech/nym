@@ -10,9 +10,11 @@
 //! 1. **Sync.** We simulate a wallet resuming a few hundred blocks behind the
 //!    tip, and print the request a naive wallet would send (its exact resume
 //!    point — a linking key across sessions) next to what actually goes on
-//!    the wire: a grid-aligned range, fetched as overlapping shuffled chunks
-//!    through *your* transport (the `BlockSource` implementation below is the
-//!    slot where your own lightwalletd client goes).
+//!    the wire: a grid-aligned range, fetched as a deterministic ascending
+//!    sequence of grid-cell requests through *your* transport (the
+//!    `BlockSource` implementation below is the slot where your own
+//!    lightwalletd client goes). Determinism is deliberate: every wallet
+//!    resuming in the same cell says exactly the same thing.
 //! 2. **Broadcast, decoupled.** We schedule a send, print exactly what the
 //!    plan commits to (profile, sampled delay in blocks and hours, projected
 //!    fire height, the literal bytes persisted to disk), then play out five
@@ -48,7 +50,7 @@ use nym_swizzle_zcash::broadcast::{
     TARGET_BLOCK_TIME,
 };
 use nym_swizzle_zcash::grid::{quantize, Disposition, QueuedRange};
-use nym_swizzle_zcash::sync::{BlockSource, SyncSession};
+use nym_swizzle_zcash::sync::{self, BlockSource};
 
 use crate::lightwalletd::{CompactBlock, Lightwalletd};
 
@@ -157,7 +159,7 @@ async fn main() -> Result<(), BoxError> {
     let mut client = Lightwalletd::connect(server).await?;
     let tip = client.tip().await?;
 
-    // ---- 1. sync: quantized range, swizzled chunks --------------------
+    // ---- 1. sync: quantized range, deterministic requests --------------
 
     let resume = tip - gap;
     let range = QueuedRange::catch_up(resume, tip);
@@ -170,35 +172,35 @@ async fn main() -> Result<(), BoxError> {
         tip + 1
     );
     println!("      the start height IS the wallet's previous session — a linking key\n");
-    println!("   this wallet sends chunks covering: {es}..{ee}");
+    println!("   this wallet requests exactly: {es}..{ee}");
     println!(
         "      grid spacing {}; start is a grid multiple ({es} = {} x {}), so every",
         quantized.spacing(),
         es / quantized.spacing(),
         quantized.spacing()
     );
-    println!("      wallet resuming anywhere in this cell emits the same boundaries.\n");
-    println!("   requests on the wire (shuffled, overlapping — checkable below):");
+    println!("      wallet resuming anywhere in this cell says exactly the same thing.\n");
+    println!("   requests on the wire (deterministic: ascending 1152-block grid cells,");
+    println!("   no randomness — variation inside a collision set would only stand out):");
 
     let mut source = LoggingSource {
         client: client.clone(),
         requests: Vec::new(),
     };
     let mut counts = std::collections::BTreeMap::<Disposition, u64>::new();
-    let outcome = SyncSession::new()
-        .fetch(
-            &mut source,
-            range,
-            tip,
-            |_, _, disposition| *counts.entry(disposition).or_default() += 1,
-            |height, _block| {
-                // your wallet compares its stored hash for `height` here; this
-                // demo wallet has no database, so it accepts what it sees
-                let _ = height;
-                true
-            },
-        )
-        .await?;
+    let outcome = sync::fetch(
+        &mut source,
+        range,
+        tip,
+        |_, _, disposition| *counts.entry(disposition).or_default() += 1,
+        |height, _block| {
+            // your wallet compares its stored hash for `height` here; this
+            // demo wallet has no database, so it accepts what it sees
+            let _ = height;
+            true
+        },
+    )
+    .await?;
 
     let n = |d: Disposition| counts.get(&d).copied().unwrap_or(0);
     let wanted = n(Disposition::Requested);
@@ -348,10 +350,11 @@ async fn main() -> Result<(), BoxError> {
     }
 
     println!(
-        "\ndone. things to poke at: rerun and watch the chunk boundaries change while the\n\
-         {es}..{ee} union stays put; move ZEC_GAP around a grid boundary; and run the\n\
-         opt-in live tests (cargo test -p nym-swizzle-zcash -- --ignored) for the\n\
-         reorg-detection path against real chain data."
+        "\ndone. things to poke at: rerun and watch the {es}..{ee} requests repeat\n\
+         byte-identically — any wallet resuming anywhere in this cell sends exactly\n\
+         these; move ZEC_GAP around a grid boundary; and run the opt-in live tests\n\
+         (cargo test -p nym-swizzle-zcash -- --ignored) for the reorg-detection path\n\
+         against real chain data."
     );
 
     Ok(())

@@ -25,7 +25,7 @@ Constraints from stakeholders:
 - A library crate `nym-swizzle-zcash` at `sdk/rust/nym-swizzle-zcash/` implementing Mechanisms 1 and 2 as a thin policy layer composing `nym-swizzle`.
 - Trait slots for the wallet author's transport (`BlockSource` for sync, `TxBroadcaster` for send) — the crate performs no I/O itself.
 - Persistable, restart-safe broadcast schedules (plain-old-data; delay sampled exactly once).
-- A live example against a real public lightwalletd (blocks real, send mocked) demonstrating quantized+swizzled sync and broadcast save-and-resume.
+- A live example against a real public lightwalletd (blocks real, send mocked) demonstrating quantized sync and broadcast save-and-resume.
 - Opt-in integration tests on real chain data: verify-window/reorg rule, grid alignment of emitted ranges, and overhead measurement for the daily-sync and long-catch-up regimes.
 - Preserve the wasm32 guarantee for the library's non-dev dependency graph.
 
@@ -59,7 +59,7 @@ trait BlockSource {
 }
 ```
 
-(Concretely as an `async fn` in trait / return-position-impl-Trait per the crate's MSRV; if the workspace MSRV predates stable AFIT, a boxed-future signature is used instead — same shape.) `Vec` rather than a `Stream` keeps the trait object-safe-adjacent and trivial to implement; chunks are bounded (~hundreds of compact blocks), so buffering one chunk is fine.
+(Concretely as an `async fn` in trait / return-position-impl-Trait per the crate's MSRV; if the workspace MSRV predates stable AFIT, a boxed-future signature is used instead — same shape.) `Vec` rather than a `Stream` keeps the trait object-safe-adjacent and trivial to implement; requests are bounded (at most `S_FLOOR = 1152` compact blocks each), so buffering one is fine.
 
 *Alternative considered:* requiring a `Height` trait on `B` — more ceremony for implementers with no gain; the pair is simpler.
 
@@ -67,19 +67,23 @@ trait BlockSource {
 
 `grid::quantize(range, tip) -> Quantized` implements ladder selection, rounding, tip capping, and the verify-lookahead widening as pure functions on `u64`s, with the review's constants as named public consts (`SHARD = 144`, `S_FLOOR = 1152`, `VERIFY_LOOKAHEAD = 10`). `grid::classify(height, &Quantized) -> Disposition { CoverBelow, VerifyWindow, Requested, CoverAbove }` classifies delivered heights. Pure functions make the review's arithmetic directly unit-testable against worked examples, and wallet authors who want only the math (not the driver) can use it alone. The uniform rule "steps 1–4 apply to every queued range regardless of tag" means the public input is just `RangeKind::{Scan, Verify}` — `Verify` is the only tag with special behavior (no separate request; lookahead enforcement), `FoundNote` needs nothing beyond step 3, which is unconditional here.
 
+Two pins added per reviewer follow-up (2026-08-06), because the rule is network-wide by construction and two divergent-but-correct implementations would partition the collision sets: (a) the range convention is **half-open**, with ladder selection by half-open length, boundary-tested at rung multiples (a 1152-block range takes `S = 1152`, 1153 takes `S = 2304` — so a wallet exactly 1152 behind the tip takes 2304, where an inclusive reading would give 1152); (b) `S_FLOOR` is asserted at compile time to sit on the `SHARD * 2^j` ladder — divisibility by the shard alone would admit a floor like `3 * SHARD` that silently stops nesting.
+
 *Alternative considered:* hiding quantization inside the sync driver — rejected; the pure layer is the most reusable and most verifiable part.
 
-### D4. Sync driver composes `grid` with `nym_swizzle::Range`, and withholds commit until the verify window passes
+### D4. Sync driver puts the emitted range on the wire deterministically, and withholds commit until the verify window passes
 
-`SyncSession::fetch(queued: QueuedRange, tip, source, sink)`:
+*(Revised per reviewer follow-up, 2026-08-06. The original design executed the emitted range as `nym_swizzle::Range` overlapping shuffled chunks; that was dropped: the point of quantization is that every wallet resuming in the same cell says exactly the same thing, so randomization within that collision set buys nothing against the lightwalletd adversary, the overlap costs real bandwidth — measured ~1.3x on top of quantization's ~2x — and per-wallet variation in chunk sizes/order is itself a distinguishing dimension. As a side effect the sync module no longer uses `nym-swizzle` at all; the dependency remains for `Delay` in the broadcast scheduler.)*
 
-1. Quantize `[a, b]` → `[a', b']` (with verify widening).
-2. Build a `nym_swizzle::Range::new(a', b')` chunk plan (overlapping, shuffled; seedable for tests via the same `seed([u8; 32])` convention).
-3. Drive `source.block_range` per chunk (sequential or bounded-concurrent, mirroring `ChunkPlan`'s two push drivers).
+`sync::fetch(source, queued: QueuedRange, tip, sink, check_hash)`:
+
+1. Quantize `[a, b)` → `[a', b')` (with verify widening).
+2. Put `[a', b')` on the wire as `Quantized::requests()`: split at network-uniform `S_FLOOR`-aligned boundaries, ascending, disjoint, gapless — one request when the emitted range is a single cell; the split exists for retry practicality on long catch-ups. No random sizes, no overlap, no shuffle, no seeds.
+3. Drive `source.block_range` per request (sequential `fetch`, or `fetch_concurrent` with bounded in-flight clones — concurrency changes completion order, never what goes on the wire).
 4. Deliver each block to the wallet's sink with its `Disposition`. Verify-window blocks are handed to a wallet callback that compares hashes against stored state and answers match/mismatch — the crate cannot see the wallet's DB.
-5. The call resolves to `SyncOutcome::Committed` only after every chunk has landed *and* the verify check passed; a mismatch resolves to `SyncOutcome::ReorgDetected` (wallet rewinds and requeues, exactly as its SDK does today). The driver never reorders chunks to fetch the verify window early — the review forbids serializing chunks for that purpose.
+5. The call resolves to `SyncOutcome::Committed` only after every request has landed *and* the verify check passed; a mismatch resolves to `SyncOutcome::ReorgDetected` (wallet rewinds and requeues, exactly as its SDK does today).
 
-Deduplication of overlap/cover blocks stays the wallet's job (`nym-swizzle` convention), but `Disposition` tells it which rule to apply (`CoverBelow` ⇒ discard without scanning; `CoverAbove` ⇒ dedupe against scan state, scan what's new).
+Requests are disjoint, so nothing is fetched twice; `Disposition` tells the wallet which rule to apply to cover (`CoverBelow` ⇒ discard without scanning; `CoverAbove` ⇒ dedupe against scan state, scan what's new).
 
 ### D5. Broadcast schedule is plain-old-data, sampled once, resumable
 
@@ -119,7 +123,7 @@ README and example rustdoc are written for Zcash wallet developers as the sole a
 
 - [Public server dependency in example/tests] → opt-in (`#[ignore]`), modest ranges, `ZEC_SERVER` override, clear failure messages; CI never runs them by default.
 - [Clock handling across restarts is subtle (wasm has no reliable monotonic-across-restart clock)] → the crate never reads wall clocks for resume; the wallet supplies elapsed time, and the docs show the correct persist-schedule-moment pattern. Worst case (wallet lies about elapsed) degrades that wallet's own anonymity only.
-- [`Vec`-per-chunk buffering in `BlockSource`] → chunk sizes are bounded by the plan; documented. Streaming can be added later without breaking the trait (new method with default impl or a v2 trait).
+- [`Vec`-per-request buffering in `BlockSource`] → requests are bounded at `S_FLOOR` (1152) compact blocks; documented. Streaming can be added later without breaking the trait (new method with default impl or a v2 trait).
 - [Constants may drift from the review as ZIP 318 evolves] → all constants are named, documented with their derivation, and centralized in `grid`/`broadcast`; changing them is a one-line diff with tests asserting the documented values.
 - [Verify-window hash check depends on wallet cooperation] → the driver structurally withholds `Committed` until the callback answers; a wallet that answers dishonestly only harms itself. Documented.
 - [Crate rename breaks anyone referencing `nym-swizzle-zcash-example`] → it was `publish = false` and referenced only by CI/docs in-repo; those references are updated in this change.

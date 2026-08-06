@@ -36,11 +36,14 @@ over any transport.)
 start rounded down, end rounded up, grid spacing scaled to the range and
 never below one day of blocks. Every wallet resuming anywhere in the same
 grid cell emits **identical boundaries** — anonymity by collision, not by
-noise. The range is then fetched as randomly sized, overlapping, shuffled
-chunks, so no single request describes anyone's actual interval. The reorg
-check (the few blocks below the resume point that wallets re-fetch and
-compare) rides *inside* the widened range — a separate ten-block request
-just below your resume point would have named it exactly.
+noise. The range goes on the wire deterministically: ascending, disjoint,
+day-sized grid cells, no random sizes, no overlap, no shuffling. That
+determinism is deliberate — every wallet in the cell says exactly the same
+thing, and per-wallet variation inside a collision set would only hand the
+server a distinguishing dimension while costing bandwidth. The reorg check
+(the few blocks below the resume point that wallets re-fetch and compare)
+rides *inside* the widened range — a separate ten-block request just below
+your resume point would have named it exactly.
 
 **Decoupled broadcasts** (`broadcast`). Sends are delayed by an exponential
 draw with a mean of 144 blocks (~3 hours), capped at 576 (~12 hours) — the
@@ -60,7 +63,7 @@ You implement two traits — deliberately two, because a session should sync
 *or* broadcast, never both, and ideally against different servers:
 
 ```rust
-use nym_swizzle_zcash::{BlockSource, QueuedRange, SyncSession, SyncOutcome};
+use nym_swizzle_zcash::{sync, BlockSource, QueuedRange, SyncOutcome};
 
 struct MyClient { /* your gRPC / proxied / tunnelled lightwalletd client */ }
 
@@ -75,18 +78,17 @@ impl BlockSource for MyClient {
 }
 
 // the routine catch-up, from your resume point to the tip
-let outcome = SyncSession::new()
-    .fetch(
-        &mut my_client,
-        &QueuedRange::catch_up(resume_point, tip),
-        tip,
-        |height, block, disposition| {
-            // disposition says what to do: discard cover, scan the rest;
-            // buffer results — commit only on SyncOutcome::Committed
-        },
-        |height, block| my_db.stored_hash(height) == block.hash(), // reorg check
-    )
-    .await?;
+let outcome = sync::fetch(
+    &mut my_client,
+    QueuedRange::catch_up(resume_point, tip),
+    tip,
+    |height, block, disposition| {
+        // disposition says what to do: discard cover, scan the rest;
+        // buffer results — commit only on SyncOutcome::Committed
+    },
+    |height, block| my_db.stored_hash(height) == block.hash(), // reorg check
+)
+.await?;
 
 if outcome == SyncOutcome::ReorgDetected {
     // rewind and requeue, exactly as your SDK does today
@@ -118,22 +120,24 @@ hand.
 
 Privacy here is bought with bandwidth and patience, and the bill is real:
 
-- **Sync:** a wallet one day behind downloads roughly 2–3× the compact
-  blocks it strictly needs (grid cover plus chunk overlap). Compact blocks
-  are small; a session's cover tops out around half a megabyte. Cover blocks
-  arrive tagged, so discarding them is one branch in your scan loop.
+- **Sync:** a wallet one day behind downloads roughly 2× the compact blocks
+  it strictly needs — grid cover is the *only* overhead, since the requests
+  are disjoint and exact. Compact blocks are small; a session's cover tops
+  out around half a megabyte. Cover blocks arrive tagged, so discarding them
+  is one branch in your scan loop.
 - **Send:** the default profile delays broadcasts by ~3 hours on average,
   up to 12. That's the price of pooling with roughly a hundred comparable
   transactions instead of standing alone. There's a `fast()` profile
   (~30 min mean) when users need it — with a smaller crowd to hide in, and
   the docs say so.
 
-One thing we'd rather flag than have you find out: the tuning of the *chunk*
-sizes and overlaps inherits `nym-swizzle`'s stance — conservative defaults,
-exposed knobs, **no validated anonymity numbers**. The grid constants and
-broadcast parameters, by contrast, follow ZIP 318's published design. And
-keep the defaults: a custom grid floor or delay distribution makes your
-wallet recognisably different, which is the opposite of hiding.
+One thing we'd rather flag than have you find out: the grid constants and
+broadcast parameters follow ZIP 318's published design, but **anonymity by
+collision is only as strong as the crowd that collides** — it grows with the
+number of wallets emitting the identical rule, and no one has field-measured
+those set sizes yet. Which is also why you should keep the defaults: a
+custom grid floor, split rule, or delay distribution makes your wallet
+recognisably different, which is the opposite of hiding.
 
 ## Don't take our word for it
 
@@ -158,9 +162,10 @@ cargo test -p nym-swizzle-zcash -- --ignored
 cargo test -p nym-swizzle-zcash
 ```
 
-Or skip our tooling entirely: point your wallet's existing client at the
-`SyncSession` driver and log what `block_range` gets asked for — every union
-of requests should start on a multiple of the printed grid spacing. The
+Or skip our tooling entirely: point your wallet's existing client at
+`sync::fetch` and log what `block_range` gets asked for — ascending
+1152-block grid cells, identical on every run from the same state, with the
+union starting on a multiple of the printed grid spacing. The
 grid, delay, and expiry constants all cite their public sources
 ([ZIP 318](https://zips.z.cash/zip-0318),
 [ZIP 203](https://zips.z.cash/zip-0203),

@@ -57,4 +57,4 @@
 
 - [x] 8.1 `openspec validate add-nym-swizzle` passes.
 - [x] 8.2 `cargo test -p nym-swizzle`, examples run, profiling harness runs and passes; review generated plots.
-- [ ] 8.3 Reviewer pass on the privacy semantics: rejection-resampling, snapping determinism, downward-only start extension, unvalidated-tuning caveats.
+- [x] 8.3 Reviewer pass on the privacy semantics: rejection-resampling, snapping determinism, downward-only start extension, unvalidated-tuning caveats. Satisfied by the external review "Baseline hygiene for Zcash light clients: proposal for nym-swizzle" (C. Diaz, 2026-07-27), which reviewed the crate's mechanisms and proposed the Zcash-specific refinements now tracked as a separate change.

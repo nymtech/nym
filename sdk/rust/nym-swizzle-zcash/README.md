@@ -5,9 +5,11 @@ decoupled, restart-safe broadcast scheduling, packaged as a small library you
 plug your own `lightwalletd` client into.
 
 Built by [Nym](https://nym.com) on top of [`nym-swizzle`](../nym-swizzle),
-and deliberately tiny: two dependencies (`nym-swizzle`, `futures`), no
-network stack, no build script, compiles to `wasm32-unknown-unknown`. You
-keep your transport; the crate decides what goes on the wire and when.
+and deliberately tiny: `nym-swizzle`, `futures`, and — by default, for the
+persistable plan types — `serde` (drop it with `default-features = false`).
+No network stack, no build script, compiles to `wasm32-unknown-unknown` in
+both feature configurations. You keep your transport; the crate decides
+what goes on the wire and when.
 
 ## The problem: your lightwalletd is watching
 

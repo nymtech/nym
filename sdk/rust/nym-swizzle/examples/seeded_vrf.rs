@@ -3,7 +3,7 @@
 
 //! Seeded (VRF-style) deterministic sampling: same seed, same result.
 //!
-//! All sampling in this crate defaults to `OsRng`, but a fixed 32-byte seed
+//! All sampling in this crate defaults to OS entropy, but a fixed 32-byte seed
 //! switches it to a deterministic ChaCha20 CSPRNG: the same seed and
 //! configuration reproduce byte-identical plans and delay sequences.
 //!

@@ -14,10 +14,12 @@ the pattern itself:
 - **`range`** — decompose an index range into randomly sized, deliberately
   overlapping, shuffled chunks with full-coverage guarantees, plus start-edge
   obfuscation: randomized start overlap (anonymity by noise) and checkpoint
-  snapping (anonymity by collision).
+  snapping (anonymity by collision). Push drivers execute the plan with
+  bounded concurrency, either fire-and-forget (`for_each_concurrent`) or
+  yielding each chunk's result as it completes (`stream_concurrent`).
 
-All sampling is crypto-grade (`OsRng` by default) and seedable (ChaCha20) for
-reproducible plans — seeds derived from a VRF are treated as opaque seed
+All sampling is crypto-grade (OS entropy by default) and seedable (ChaCha20)
+for reproducible plans — seeds derived from a VRF are treated as opaque seed
 material.
 
 ```rust

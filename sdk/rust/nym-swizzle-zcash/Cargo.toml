@@ -20,12 +20,21 @@ publish = true
 # stack below is dev-only, for the live example and the opt-in network tests.
 
 [features]
+# `serde` is on by default so `BroadcastPlan`/`StoredPlan` serialize out of
+# the box; disable with `default-features = false` (the wasm guarantee is
+# checked in both configurations)
+default = ["serde"]
 serde = ["dep:serde"]
 
 [dependencies]
 futures = { workspace = true }
 nym-swizzle = { workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+
+[[example]]
+name = "wallet_sync"
+# the example persists plans as JSON through the PlanStore slot
+required-features = ["serde"]
 
 [dev-dependencies]
 # tonic-prost 0.14 is built against prost 0.14, not the workspace's 0.13

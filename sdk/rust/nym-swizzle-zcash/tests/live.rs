@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Opt-in tests against a real lightwalletd — the "don't take our word for
-//! it" suite. Ignored by default so ordinary `cargo test` never touches the
-//! network; run them yourself with:
+//! it" suite. Gated behind an environment variable (not `#[ignore]`: this
+//! repository's CI runs ignored tests as its expensive-test step, and a
+//! public lightwalletd should not be part of CI); without the variable the
+//! tests skip instantly and touch no network. Run them yourself with:
 //!
 //! ```sh
-//! cargo test -p nym-swizzle-zcash -- --ignored
+//! NYM_SWIZZLE_ZCASH_LIVE_TESTS=1 cargo test -p nym-swizzle-zcash
 //!
 //! # or against a server you trust more than our default
-//! ZEC_SERVER=https://your-lightwalletd:443 cargo test -p nym-swizzle-zcash -- --ignored
+//! NYM_SWIZZLE_ZCASH_LIVE_TESTS=1 ZEC_SERVER=https://your-lightwalletd:443 \
+//!     cargo test -p nym-swizzle-zcash
 //! ```
 //!
 //! They fetch a few thousand compact blocks in total — modest on purpose;
@@ -18,13 +21,29 @@
 #[path = "../examples/support/lightwalletd.rs"]
 mod lightwalletd;
 
-use nym_swizzle_zcash::grid::{quantize, Disposition, QueuedRange, S_FLOOR, VERIFY_LOOKAHEAD};
+use nym_swizzle_zcash::grid::{
+    quantize, Disposition, Quantized, QueuedRange, S_FLOOR, VERIFY_LOOKAHEAD,
+};
 use nym_swizzle_zcash::sync::{self, BlockSource, SyncOutcome};
 
 use crate::lightwalletd::{CompactBlock, Lightwalletd};
 
 /// Stay well behind the tip so a range can't straddle a reorg mid-test.
 const TIP_MARGIN: u64 = 1000;
+
+/// The env var that opts into the live suite.
+const LIVE_ENV: &str = "NYM_SWIZZLE_ZCASH_LIVE_TESTS";
+
+/// `true` when the live suite is enabled; otherwise prints why the test is
+/// skipping and returns `false` (the test then passes as a no-op).
+fn live_enabled() -> bool {
+    if std::env::var_os(LIVE_ENV).is_some() {
+        true
+    } else {
+        eprintln!("skipped: set {LIVE_ENV}=1 to run the live lightwalletd tests");
+        false
+    }
+}
 
 async fn connect() -> (Lightwalletd, u64) {
     let server =
@@ -75,8 +94,10 @@ impl BlockSource for LiveSource {
 /// deliberately placed within [`VERIFY_LOOKAHEAD`] of a grid boundary, so
 /// the one-cell widening rule runs against the live server too.
 #[tokio::test]
-#[ignore = "talks to a public lightwalletd; run with -- --ignored"]
 async fn verify_window_commits_then_detects_reorg_on_real_data() {
+    if !live_enabled() {
+        return;
+    }
     let (mut client, tip) = connect().await;
 
     // resume 5 blocks above a boundary: closer than the lookahead, so the
@@ -141,8 +162,10 @@ async fn verify_window_commits_then_detects_reorg_on_real_data() {
 /// emitted range exactly — deterministically, so any wallet in the same
 /// cell at the same tip sends byte-identical requests.
 #[tokio::test]
-#[ignore = "talks to a public lightwalletd; run with -- --ignored"]
 async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
+    if !live_enabled() {
+        return;
+    }
     let (client, tip) = connect().await;
 
     let range = QueuedRange::catch_up(tip - 200, tip);
@@ -190,14 +213,24 @@ async fn emitted_boundaries_are_grid_aligned_and_coverage_is_exact() {
     assert_eq!(*heights.last().unwrap(), ee - 1);
 }
 
+/// The overhead bound the quantization arithmetic actually guarantees:
+/// start extension is below one spacing, plus at most one lookahead
+/// widening; the end is tip-capped. A fixed ratio flakes when widening
+/// triggers near a spacing boundary.
+fn structural_bound(gap: u64, quantized: &Quantized) -> u64 {
+    (gap + 1) + quantized.spacing() + VERIFY_LOOKAHEAD
+}
+
 /// Measured overhead for the two regimes that occur in practice. The daily
 /// incremental sync is fetched live (grid cover, in actual streamed
 /// blocks); the long catch-up is arithmetic only, to keep the test polite
 /// to the public server. Requests are disjoint, so cover is the only
 /// overhead — streamed equals the emitted length exactly.
 #[tokio::test]
-#[ignore = "talks to a public lightwalletd; run with -- --ignored"]
 async fn overhead_measured_for_daily_and_catch_up_regimes() {
+    if !live_enabled() {
+        return;
+    }
     let (client, tip) = connect().await;
 
     // -- daily incremental: one day behind (one S_FLOOR of blocks) --------
@@ -240,8 +273,9 @@ async fn overhead_measured_for_daily_and_catch_up_regimes() {
         "requests are disjoint: streamed blocks must equal the emitted length exactly"
     );
     assert!(
-        quant_ratio <= 3.0,
-        "daily quantization overhead {quant_ratio:.2}x above the expected band"
+        quantized.emitted_len() <= structural_bound(gap, &quantized),
+        "daily emitted length {} exceeds the structural bound",
+        quantized.emitted_len()
     );
 
     // -- long catch-up: a month behind (arithmetic only) ------------------
@@ -257,7 +291,8 @@ async fn overhead_measured_for_daily_and_catch_up_regimes() {
         quantized.emitted_len()
     );
     assert!(
-        ratio <= 3.0,
-        "catch-up quantization overhead {ratio:.2}x above the expected band"
+        quantized.emitted_len() <= structural_bound(gap, &quantized),
+        "catch-up emitted length {} exceeds the structural bound",
+        quantized.emitted_len()
     );
 }

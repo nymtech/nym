@@ -40,7 +40,11 @@ noise. The range goes on the wire deterministically: ascending, disjoint,
 day-sized grid cells, no random sizes, no overlap, no shuffling. That
 determinism is deliberate — every wallet in the cell says exactly the same
 thing, and per-wallet variation inside a collision set would only hand the
-server a distinguishing dimension while costing bandwidth. The reorg check
+server a distinguishing dimension while costing bandwidth. (Two grids are in
+play here, deliberately different: the *quantization spacing* that sets the
+emitted boundaries scales with the range — one day minimum, doubling for
+longer catch-ups — while the *wire-split unit* that chops the emitted range
+into individual requests is always the fixed one-day cell.) The reorg check
 (the few blocks below the resume point that wallets re-fetch and compare)
 rides *inside* the widened range — a separate ten-block request just below
 your resume point would have named it exactly.
@@ -95,26 +99,50 @@ if outcome == SyncOutcome::ReorgDetected {
 }
 ```
 
-And the send path, in two phases so it survives restarts:
+And the send path — three small impls, then two calls. Persistence is its
+own slot (`PlanStore`) because the delay outlives your process:
 
 ```rust
-use nym_swizzle_zcash::{Scheduler, BroadcastPlan, TxBroadcaster, expiry_height};
+use nym_swizzle_zcash::{PlanStore, Scheduler, StoredPlan, TxBroadcaster, expiry_height};
+use nym_swizzle_zcash::broadcast::resume_pending;
+
+// your send transport — deliberately a different trait (and ideally a
+// different server) than the sync side
+struct MyBroadcaster { /* your client, pointed at your send server */ }
+
+impl TxBroadcaster for MyBroadcaster {
+    type Error = MyError;
+    async fn broadcast(&mut self, raw_tx: &[u8]) -> Result<(), MyError> {
+        // one SendTransaction on the wire
+    }
+}
+
+// your persistence — a row in the wallet database, a file, anything that
+// can hold one StoredPlan (Serialize/Deserialize with the default feature)
+struct MyPlanStore { /* handle to your storage */ }
+
+impl PlanStore for MyPlanStore {
+    type Error = MyError;
+    async fn save(&mut self, plan: &StoredPlan) -> Result<(), MyError> { /* upsert */ }
+    async fn load(&mut self) -> Result<Option<StoredPlan>, MyError> { /* select */ }
+    async fn clear(&mut self) -> Result<(), MyError> { /* delete */ }
+}
 
 // phase 1: at "user pressed send" — sample ONCE, persist, forget
-let plan = Scheduler::standard().schedule();
-my_db.save(("plan", plan.delay_secs, plan.profile), ("scheduled_at", now));
+Scheduler::standard().schedule_into(&mut my_store, unix_now_secs()).await?;
 
-// phase 2: at every wallet startup (and right after phase 1)
-let plan = my_db.load_plan();
-plan.resume(now - scheduled_at, &mut my_broadcaster, || async {
+// phase 2: at every wallet startup (and right after phase 1) — waits out
+// the remaining delay, builds at fire time, sends, clears the store;
+// returns Ok(false) untouched when nothing is pending
+resume_pending(&mut my_store, &mut MyBroadcaster { /* .. */ }, unix_now_secs(), || async {
     let tip = fetch_fresh_tip().await?;          // AFTER the delay, on purpose
     build_tx(spend_request, expiry_height(tip))  // expiry = fresh tip + 40
 }).await?;
 ```
 
-Enable the `serde` cargo feature if you'd rather derive
-`Serialize`/`Deserialize` on `BroadcastPlan` than store two integers by
-hand.
+The `serde` feature (on by default; disable with `default-features = false`)
+derives `Serialize`/`Deserialize` on the plan types — the fields are public
+primitives either way, so any storage works.
 
 ## What it costs — honestly
 
@@ -147,15 +175,14 @@ run (pick any lightwalletd with `ZEC_SERVER=`):
 ```sh
 # watch the wire: real sync against a public lightwalletd, grid-aligned
 # boundaries printed per request, then the broadcast flow across five
-# wallet "restarts" — the plan restored from disk each wake-up while real
-# blocks arrive underneath, and the transaction built only at fire time
-# (~7 minutes with the default waits; ZEC_ROUND_SECS=0 for an instant run)
+# wallet "restarts" — the plan loaded from the PlanStore each wake-up,
+# no network calls until fire time, transaction built against a fresh tip
 cargo run --release -p nym-swizzle-zcash --example wallet_sync
 
-# the live suite: reorg detection on real chain data (matching hashes
-# commit, a corrupted hash trips ReorgDetected), grid alignment of every
-# emitted boundary, and measured overhead for both sync regimes
-cargo test -p nym-swizzle-zcash -- --ignored
+# the live suite (opt-in by env var): reorg detection on real chain data
+# (matching hashes commit, a corrupted hash trips ReorgDetected), grid
+# alignment of every emitted request, and measured overhead per regime
+NYM_SWIZZLE_ZCASH_LIVE_TESTS=1 cargo test -p nym-swizzle-zcash
 
 # the pure logic, no network: quantization arithmetic, coverage and
 # reproducibility invariants, delay distribution bounds

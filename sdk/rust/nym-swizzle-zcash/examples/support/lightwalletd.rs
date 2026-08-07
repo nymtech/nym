@@ -110,12 +110,21 @@ impl Lightwalletd {
     /// Fetch every compact block in the half-open range `[start, end)`.
     ///
     /// The half-open range is converted to lightwalletd's inclusive
-    /// `BlockRange` on the wire.
+    /// `BlockRange` on the wire. An empty or inverted range is a proper
+    /// error — a `debug_assert` would compile out in release builds and let
+    /// nonsense requests reach the server.
     pub async fn block_range(&mut self, start: u64, end: u64) -> Result<Vec<CompactBlock>, Status> {
-        debug_assert!(start < end, "empty range {start}..{end}");
+        if start >= end {
+            return Err(Status::invalid_argument(format!(
+                "empty or inverted block range {start}..{end}"
+            )));
+        }
+        // lightwalletd's BlockRange is inclusive at BOTH ends: converting the
+        // half-open [start, end) means naming the last wanted height
+        let last_inclusive = end - 1;
         let request = BlockRange {
             start: Some(BlockId::at(start)),
-            end: Some(BlockId::at(end - 1)),
+            end: Some(BlockId::at(last_inclusive)),
         };
 
         self.inner.ready().await.map_err(connect_error)?;

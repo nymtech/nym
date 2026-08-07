@@ -48,8 +48,8 @@ pub mod grid;
 pub mod sync;
 
 pub use broadcast::{
-    blocks, expiry_height, needs_refresh_sync, BroadcastError, BroadcastPlan, Profile, Scheduler,
-    TxBroadcaster, TARGET_BLOCK_TIME,
+    blocks, expiry_height, needs_refresh_sync, BroadcastError, BroadcastPlan, PlanStore, Profile,
+    ResumePendingError, Scheduler, StoredPlan, TxBroadcaster, TARGET_BLOCK_TIME,
 };
 pub use grid::{classify, quantize, Disposition, Quantized, QueuedRange, RangeKind};
 pub use sync::{BlockSource, SyncError, SyncOutcome};

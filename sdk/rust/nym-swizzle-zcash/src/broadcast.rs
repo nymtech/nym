@@ -214,6 +214,12 @@ impl BroadcastPlan {
 
     /// Wait out the remainder of the delay, then build and send.
     ///
+    /// Consumes the plan on purpose: firing is terminal, and a plan has no
+    /// further meaning once its broadcast has gone out (the persisted copy
+    /// is what outlives the process — clear it after firing, which the
+    /// [`resume_pending`] helper does for you). The type is `Copy`, so
+    /// consumption costs nothing.
+    ///
     /// `elapsed` is how much time has passed since [`Scheduler::schedule`] —
     /// you persisted the scheduling moment, so you know. Freshly scheduled
     /// and never restarted? Pass `Duration::ZERO`.
@@ -245,6 +251,131 @@ impl BroadcastPlan {
             })
             .await
     }
+}
+
+/// A [`BroadcastPlan`] coupled with the moment it was scheduled — the two
+/// things a wallet must persist to resume after a restart. Plain data with
+/// public fields; with the (default) `serde` feature it also derives
+/// `Serialize`/`Deserialize`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StoredPlan {
+    /// The sampled plan.
+    pub plan: BroadcastPlan,
+    /// When the plan was scheduled, in caller-supplied seconds (e.g. unix
+    /// time). The crate never reads clocks — portable to wasm, and a wallet
+    /// that misreports time degrades only its own anonymity.
+    pub scheduled_at_secs: u64,
+}
+
+/// Your slot: persisting a pending broadcast plan in whatever storage your
+/// wallet already has. At most one plan is stored at a time; saving replaces
+/// any previous one.
+///
+/// Implement this once and the persist–restart–resume–clear lifecycle
+/// becomes two calls: [`Scheduler::schedule_into`] at send time and
+/// [`resume_pending`] at every startup.
+#[allow(async_fn_in_trait)] // futures are awaited in place, no Send bound needed
+pub trait PlanStore {
+    /// Your storage error.
+    type Error;
+
+    /// Persist `plan`, replacing any previously stored one.
+    async fn save(&mut self, plan: &StoredPlan) -> Result<(), Self::Error>;
+    /// Load the pending plan, if one is stored.
+    async fn load(&mut self) -> Result<Option<StoredPlan>, Self::Error>;
+    /// Remove the stored plan (a no-op when none is stored).
+    async fn clear(&mut self) -> Result<(), Self::Error>;
+}
+
+/// Why a store-integrated resumption failed.
+#[derive(Debug)]
+pub enum ResumePendingError<St, B, S> {
+    /// The [`PlanStore`] failed to load, save, or clear.
+    Store(St),
+    /// The broadcast itself failed (building or sending).
+    Broadcast(BroadcastError<B, S>),
+}
+
+impl<St: std::fmt::Display, B: std::fmt::Display, S: std::fmt::Display> std::fmt::Display
+    for ResumePendingError<St, B, S>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResumePendingError::Store(e) => write!(f, "plan store failed: {e}"),
+            ResumePendingError::Broadcast(e) => e.fmt(f),
+        }
+    }
+}
+
+impl<St, B, S> std::error::Error for ResumePendingError<St, B, S>
+where
+    St: std::fmt::Display + std::fmt::Debug,
+    B: std::fmt::Display + std::fmt::Debug,
+    S: std::fmt::Display + std::fmt::Debug,
+{
+}
+
+impl Scheduler {
+    /// Sample the delay — exactly once — and persist the plan through the
+    /// store, stamped with `now_secs` (your clock, e.g. unix seconds).
+    /// Follow up with [`resume_pending`], which also covers the happy path
+    /// where the process never restarts.
+    pub async fn schedule_into<S: PlanStore>(
+        &mut self,
+        store: &mut S,
+        now_secs: u64,
+    ) -> Result<StoredPlan, S::Error> {
+        let stored = StoredPlan {
+            plan: self.schedule(),
+            scheduled_at_secs: now_secs,
+        };
+        store.save(&stored).await?;
+        Ok(stored)
+    }
+}
+
+/// Resume the pending broadcast, if the store holds one: wait out the
+/// remaining delay (computed from `now_secs` against the stored scheduling
+/// moment), build at fire time, hand the transaction to `broadcaster`, and
+/// clear the store. Returns `Ok(false)` — with no waiting and no side
+/// effects — when nothing is pending.
+///
+/// Call this at every wallet startup (and right after
+/// [`Scheduler::schedule_into`]); a wallet that dies mid-delay then fires on
+/// its next launch.
+///
+/// **Delivery is at-least-once, not exactly-once.** The store is cleared
+/// only *after* the broadcast succeeds — clearing first would silently lose
+/// the send if the process died in between, which is worse for a payment.
+/// The flip side: a crash after the send but before the clear leaves the
+/// plan pending, and the next startup will build and send *again*. Make
+/// your builder idempotent with respect to the spend intent (lock the notes
+/// you're spending, or have the builder check whether the intent already
+/// reached the chain and return the same transaction).
+pub async fn resume_pending<St, Bx, F, Fut, E>(
+    store: &mut St,
+    broadcaster: &mut Bx,
+    now_secs: u64,
+    build: F,
+) -> Result<bool, ResumePendingError<St::Error, E, Bx::Error>>
+where
+    St: PlanStore,
+    Bx: TxBroadcaster,
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<Vec<u8>, E>>,
+{
+    let Some(stored) = store.load().await.map_err(ResumePendingError::Store)? else {
+        return Ok(false);
+    };
+    let elapsed = Duration::from_secs(now_secs.saturating_sub(stored.scheduled_at_secs));
+    stored
+        .plan
+        .resume(elapsed, broadcaster, build)
+        .await
+        .map_err(ResumePendingError::Broadcast)?;
+    store.clear().await.map_err(ResumePendingError::Store)?;
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -393,5 +524,81 @@ mod tests {
         let json = serde_json::to_string(&plan).unwrap();
         let back: BroadcastPlan = serde_json::from_str(&json).unwrap();
         assert_eq!(plan, back);
+    }
+
+    #[derive(Default)]
+    struct MemStore {
+        stored: Option<StoredPlan>,
+    }
+
+    impl PlanStore for MemStore {
+        type Error = std::convert::Infallible;
+        async fn save(&mut self, plan: &StoredPlan) -> Result<(), Self::Error> {
+            self.stored = Some(*plan);
+            Ok(())
+        }
+        async fn load(&mut self) -> Result<Option<StoredPlan>, Self::Error> {
+            Ok(self.stored)
+        }
+        async fn clear(&mut self) -> Result<(), Self::Error> {
+            self.stored = None;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn store_lifecycle_schedules_resumes_and_clears() {
+        let scheduled_at = 1_700_000_000u64;
+        let mut store = MemStore::default();
+        let stored = Scheduler::standard()
+            .seed([21; 32])
+            .schedule_into(&mut store, scheduled_at)
+            .await
+            .unwrap();
+        assert_eq!(
+            store.stored,
+            Some(stored),
+            "plan persisted at schedule time"
+        );
+
+        // "restart": all in-memory state gone, only the store remains
+        let mut broadcaster = MockBroadcaster { sent: Vec::new() };
+        let fired = resume_pending(
+            &mut store,
+            &mut broadcaster,
+            scheduled_at + stored.plan.delay_secs + 1,
+            || async { Ok::<_, std::convert::Infallible>(vec![7]) },
+        )
+        .await
+        .unwrap();
+
+        assert!(fired);
+        assert_eq!(broadcaster.sent, vec![vec![7]]);
+        assert_eq!(store.stored, None, "a fired plan must be cleared");
+    }
+
+    #[tokio::test]
+    async fn resume_pending_without_plan_is_a_noop() {
+        let mut store = MemStore::default();
+        let mut broadcaster = MockBroadcaster { sent: Vec::new() };
+        let fired = resume_pending(&mut store, &mut broadcaster, 1_700_000_000, || async {
+            Ok::<_, std::convert::Infallible>(vec![1])
+        })
+        .await
+        .unwrap();
+        assert!(!fired);
+        assert!(broadcaster.sent.is_empty(), "no plan, no broadcast");
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn stored_plan_serde_round_trip() {
+        let stored = StoredPlan {
+            plan: Scheduler::fast().seed([22; 32]).schedule(),
+            scheduled_at_secs: 1_700_000_000,
+        };
+        let json = serde_json::to_string(&stored).unwrap();
+        let back: StoredPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(stored, back);
     }
 }

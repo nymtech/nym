@@ -13,11 +13,15 @@
 //!
 //! Every delivered block reaches your callback tagged with a
 //! [`Disposition`]: discard cover below, hash-check the verify window, scan
-//! the rest. The fetch resolves [`SyncOutcome::Committed`] only once every
-//! request has landed **and** the verify window passed its hash comparison —
-//! buffer your scan results and commit them only on that outcome. On a hash
-//! mismatch it resolves [`SyncOutcome::ReorgDetected`]: rewind and requeue
-//! exactly as your SDK does today.
+//! the rest. Every response is checked for **complete delivery** — exactly
+//! the heights of its request, no gaps, no duplicates, nothing outside the
+//! range — so a censoring or padding server surfaces as
+//! [`SyncError::IncompleteDelivery`] instead of a silently short sync. The
+//! fetch resolves [`SyncOutcome::Committed`] only once every request has
+//! delivered its full range **and** the verify window passed its hash
+//! comparison — buffer your scan results and commit them only on that
+//! outcome. On a hash mismatch it resolves [`SyncOutcome::ReorgDetected`]:
+//! rewind and requeue exactly as your SDK does today.
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -45,6 +49,10 @@ pub trait BlockSource {
     /// Fetch every block in the half-open height range `[start, end)`,
     /// returning each with its height. (lightwalletd's `BlockRange` is
     /// inclusive on both ends — request `[start, end - 1]` on the wire.)
+    ///
+    /// Requests are bounded at [`S_FLOOR`](crate::grid::S_FLOOR) (1152)
+    /// compact blocks — roughly 1–2 MB — so buffering one response in a
+    /// `Vec` is bounded regardless of how far behind the wallet is.
     async fn block_range(
         &mut self,
         start: u64,
@@ -69,8 +77,21 @@ pub enum SyncOutcome {
 pub enum SyncError<E> {
     /// A request failed in your [`BlockSource`].
     Source(E),
-    /// The server never delivered some verify-window heights, so the reorg
-    /// check cannot conclude and committing is not allowed.
+    /// A response did not deliver exactly its requested range: heights were
+    /// missing, duplicated, or outside the request. A censored or padded
+    /// response can never reach [`SyncOutcome::Committed`].
+    IncompleteDelivery {
+        /// The half-open request whose response was deficient.
+        request: (u64, u64),
+        /// Requested heights that never arrived.
+        missing: u64,
+        /// Delivered heights that were duplicates or outside the request.
+        unexpected: u64,
+    },
+    /// The verify window never completed even though every request passed
+    /// delivery verification. Unreachable when the emitted range contains
+    /// the window (which quantization guarantees); kept as a defensive
+    /// backstop so a future planning bug fails loudly instead of committing.
     VerifyWindowIncomplete {
         /// Verify-window heights that were never delivered.
         missing: Vec<u64>,
@@ -81,6 +102,15 @@ impl<E: fmt::Display> fmt::Display for SyncError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SyncError::Source(e) => write!(f, "block source failed: {e}"),
+            SyncError::IncompleteDelivery {
+                request: (start, end),
+                missing,
+                unexpected,
+            } => write!(
+                f,
+                "response for {start}..{end} did not deliver exactly the requested range \
+                 ({missing} height(s) missing, {unexpected} duplicate/out-of-range); cannot commit"
+            ),
             SyncError::VerifyWindowIncomplete { missing } => write!(
                 f,
                 "server never delivered {} verify-window height(s) ({missing:?}); cannot commit",
@@ -91,6 +121,32 @@ impl<E: fmt::Display> fmt::Display for SyncError<E> {
 }
 
 impl<E: fmt::Display + fmt::Debug> std::error::Error for SyncError<E> {}
+
+/// Verify a response delivered exactly the heights of its half-open request:
+/// no gaps, no duplicates, nothing outside the range. Order-independent; the
+/// bookkeeping is one flag per requested height, bounded by the wire-split
+/// unit ([`S_FLOOR`](crate::grid::S_FLOOR)).
+fn verify_delivery<B, E>(request: (u64, u64), blocks: &[(u64, B)]) -> Result<(), SyncError<E>> {
+    let (start, end) = request;
+    let mut seen = vec![false; (end - start) as usize];
+    let mut unexpected = 0u64;
+    for (height, _) in blocks {
+        match height.checked_sub(start).map(|i| i as usize) {
+            Some(i) if i < seen.len() && !seen[i] => seen[i] = true,
+            _ => unexpected += 1,
+        }
+    }
+    let missing = seen.iter().filter(|delivered| !**delivered).count() as u64;
+    if missing == 0 && unexpected == 0 {
+        Ok(())
+    } else {
+        Err(SyncError::IncompleteDelivery {
+            request,
+            missing,
+            unexpected,
+        })
+    }
+}
 
 /// Quantize `range` and fetch it through `source`, one request at a time, in
 /// ascending order.
@@ -121,6 +177,7 @@ where
             .block_range(start, end)
             .await
             .map_err(SyncError::Source)?;
+        verify_delivery((start, end), &blocks)?;
         if let ControlFlow::Break(()) =
             window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
         {
@@ -155,12 +212,15 @@ where
 
     let mut results = futures::stream::iter(quantized.requests().map(|(start, end)| {
         let mut source = source.clone();
-        async move { source.block_range(start, end).await }
+        async move { ((start, end), source.block_range(start, end).await) }
     }))
+    // lower clamp: `limit.max(1)` raises a zero limit to 1 (futures'
+    // concurrency adapters panic on 0); larger limits pass through
     .buffer_unordered(limit.max(1));
 
-    while let Some(result) = results.next().await {
+    while let Some((request, result)) = results.next().await {
         let blocks = result.map_err(SyncError::Source)?;
+        verify_delivery(request, &blocks)?;
         if let ControlFlow::Break(()) =
             window.absorb(blocks, &quantized, &mut on_block, &mut check_hash)
         {
@@ -410,44 +470,143 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn commit_requires_complete_verify_window() {
-        /// A source that silently drops the verify-window heights.
-        #[derive(Clone)]
-        struct Censoring(FakeChain);
+    /// A source that tampers with an honest response: drops a height range,
+    /// duplicates a block, or appends one from outside the request.
+    #[derive(Clone)]
+    struct Tampering {
+        chain: FakeChain,
+        drop_heights: Option<(u64, u64)>,
+        duplicate_first: bool,
+        append_out_of_range: bool,
+    }
 
-        impl BlockSource for Censoring {
-            type Block = FakeBlock;
-            type Error = String;
-            async fn block_range(
-                &mut self,
-                start: u64,
-                end: u64,
-            ) -> Result<Vec<(u64, FakeBlock)>, String> {
-                let blocks = self.0.block_range(start, end).await?;
-                Ok(blocks
-                    .into_iter()
-                    .filter(|(h, _)| !(RESUME - VERIFY_LOOKAHEAD..RESUME).contains(h))
-                    .collect())
+    impl Tampering {
+        fn new(chain: FakeChain) -> Self {
+            Self {
+                chain,
+                drop_heights: None,
+                duplicate_first: false,
+                append_out_of_range: false,
             }
         }
+    }
 
-        let err = fetch(
-            &mut Censoring(FakeChain::new(TIP)),
+    impl BlockSource for Tampering {
+        type Block = FakeBlock;
+        type Error = String;
+        async fn block_range(
+            &mut self,
+            start: u64,
+            end: u64,
+        ) -> Result<Vec<(u64, FakeBlock)>, String> {
+            let mut blocks = self.chain.block_range(start, end).await?;
+            if let Some((ds, de)) = self.drop_heights {
+                blocks.retain(|(h, _)| !(ds..de).contains(h));
+            }
+            if self.duplicate_first {
+                let first = blocks.first().cloned().expect("nonempty response");
+                blocks.push(first);
+            }
+            if self.append_out_of_range {
+                blocks.push((end + 500, FakeBlock { hash: 0 }));
+            }
+            Ok(blocks)
+        }
+    }
+
+    async fn expect_incomplete_delivery(source: Tampering) -> SyncError<String> {
+        fetch(
+            &mut source.clone(),
             QueuedRange::catch_up(RESUME, TIP),
             TIP,
             |_, _, _| {},
             |_, _| true,
         )
         .await
-        .unwrap_err();
+        .expect_err("tampered delivery must not complete")
+    }
 
-        match err {
-            SyncError::VerifyWindowIncomplete { missing } => {
-                assert_eq!(missing.len(), VERIFY_LOOKAHEAD as usize)
+    #[tokio::test]
+    async fn censored_verify_window_is_incomplete_delivery() {
+        let mut source = Tampering::new(FakeChain::new(TIP));
+        source.drop_heights = Some((RESUME - VERIFY_LOOKAHEAD, RESUME));
+
+        match expect_incomplete_delivery(source).await {
+            SyncError::IncompleteDelivery {
+                missing,
+                unexpected,
+                ..
+            } => {
+                assert_eq!(missing, VERIFY_LOOKAHEAD);
+                assert_eq!(unexpected, 0);
             }
-            other => panic!("expected VerifyWindowIncomplete, got {other:?}"),
+            other => panic!("expected IncompleteDelivery, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn censored_requested_heights_are_incomplete_delivery() {
+        // heights the wallet actually asked for, well above the verify window
+        let mut source = Tampering::new(FakeChain::new(TIP));
+        source.drop_heights = Some((RESUME + 100, RESUME + 105));
+
+        match expect_incomplete_delivery(source).await {
+            SyncError::IncompleteDelivery { missing, .. } => assert_eq!(missing, 5),
+            other => panic!("expected IncompleteDelivery, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn censored_cover_heights_are_incomplete_delivery() {
+        // cover-only heights: the emitted range is the contract, not just
+        // the wallet's requested sub-range
+        let q = quantize(QueuedRange::catch_up(RESUME, TIP), TIP);
+        let (es, _) = q.emitted();
+        assert!(es < RESUME - VERIFY_LOOKAHEAD, "test needs cover below");
+        let mut source = Tampering::new(FakeChain::new(TIP));
+        source.drop_heights = Some((es, es + 3));
+
+        match expect_incomplete_delivery(source).await {
+            SyncError::IncompleteDelivery { missing, .. } => assert_eq!(missing, 3),
+            other => panic!("expected IncompleteDelivery, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn duplicate_and_out_of_range_heights_are_unexpected() {
+        let mut source = Tampering::new(FakeChain::new(TIP));
+        source.duplicate_first = true;
+        source.append_out_of_range = true;
+
+        match expect_incomplete_delivery(source).await {
+            SyncError::IncompleteDelivery {
+                missing,
+                unexpected,
+                ..
+            } => {
+                assert_eq!(missing, 0);
+                assert_eq!(unexpected, 2);
+            }
+            other => panic!("expected IncompleteDelivery, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrent_fetch_also_enforces_delivery() {
+        let mut source = Tampering::new(FakeChain::new(TIP));
+        source.drop_heights = Some((RESUME + 100, RESUME + 101));
+
+        let err = fetch_concurrent(
+            &source,
+            4,
+            QueuedRange::catch_up(RESUME, TIP),
+            TIP,
+            |_, _, _| {},
+            |_, _| true,
+        )
+        .await
+        .expect_err("tampered delivery must not complete");
+        assert!(matches!(err, SyncError::IncompleteDelivery { .. }));
     }
 
     #[tokio::test]

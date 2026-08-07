@@ -41,11 +41,11 @@ use std::future::Future;
 use std::time::Duration;
 
 use futures::StreamExt;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use rand010::seq::SliceRandom;
+use rand010::RngExt as _;
 
 use crate::delay::Delay;
-use crate::rng::{sample_bounded, validate_sampling, CryptoRngCore, RngSource, Sampling};
+use crate::rng::{sample_bounded, validate_sampling, CryptoRng, RngSource, Sampling};
 
 /// A checkpoint grid for [`Range::snap_start`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -228,7 +228,7 @@ impl Range {
     }
 
     /// Use a caller-supplied crypto-grade random generator.
-    pub fn with_rng<R: CryptoRngCore + 'static>(mut self, rng: R) -> Self {
+    pub fn with_rng<R: CryptoRng + Send + 'static>(mut self, rng: R) -> Self {
         self.rng = RngSource::custom(rng);
         self
     }
@@ -260,7 +260,7 @@ impl Range {
         let mut chunks = Vec::new();
         let mut cursor = start;
         loop {
-            let size = self.rng.gen_range(chunk_min..=chunk_max);
+            let size = self.rng.random_range(chunk_min..=chunk_max);
             let chunk_end = cursor.saturating_add(size).min(self.end);
             chunks.push((cursor, chunk_end));
             if chunk_end == self.end {
@@ -272,7 +272,7 @@ impl Range {
             let max_valid = (size - 1).min(chunk_end - start);
             let hi = overlap_max.min(max_valid);
             let lo = overlap_min.min(hi);
-            let overlap = self.rng.gen_range(lo..=hi);
+            let overlap = self.rng.random_range(lo..=hi);
             cursor = chunk_end - overlap;
         }
 
@@ -397,6 +397,8 @@ impl ChunkPlan {
             .collect();
 
         futures::stream::iter(jobs)
+            // lower clamp: `limit.max(1)` raises a zero limit to 1 (futures'
+            // concurrency adapters panic on 0); larger limits pass through
             .for_each_concurrent(limit.max(1), |((start, end), delay)| {
                 let f = &f;
                 async move {
@@ -407,6 +409,44 @@ impl ChunkPlan {
                 }
             })
             .await;
+    }
+
+    /// Like [`for_each_concurrent`](ChunkPlan::for_each_concurrent), but for
+    /// closures that return a value: yields each chunk's output as that chunk
+    /// completes (completion order, not plan order), so callers can collect,
+    /// fold, or short-circuit without threading results through shared state.
+    ///
+    /// Exactly one output is yielded per chunk. When an inter-chunk delay is
+    /// configured, each chunk's delay is pre-sampled and elapses inside its
+    /// own task before the closure's future is polled, exactly as in
+    /// [`for_each_concurrent`](ChunkPlan::for_each_concurrent).
+    pub fn stream_concurrent<F, Fut, T>(
+        mut self,
+        limit: usize,
+        f: F,
+    ) -> impl futures::Stream<Item = T>
+    where
+        F: Fn(u64, u64) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let mut delay = self.delay.take();
+        let jobs: Vec<((u64, u64), Option<Duration>)> = (&mut self)
+            .map(|chunk| (chunk, delay.as_mut().map(|d| d.sample())))
+            .collect();
+
+        futures::stream::iter(jobs)
+            .map(move |((start, end), delay)| {
+                let work = f(start, end);
+                async move {
+                    if let Some(delay) = delay {
+                        crate::timer::sleep(delay).await;
+                    }
+                    work.await
+                }
+            })
+            // lower clamp: `limit.max(1)` raises a zero limit to 1 (futures'
+            // concurrency adapters panic on 0); larger limits pass through
+            .buffer_unordered(limit.max(1))
     }
 }
 

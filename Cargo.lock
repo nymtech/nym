@@ -8618,7 +8618,7 @@ dependencies = [
  "nym-topology",
  "rand 0.8.6",
  "rand_chacha 0.3.1",
- "rand_distr",
+ "rand_distr 0.4.3",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -8849,22 +8849,22 @@ dependencies = [
 
 [[package]]
 name = "nym-swizzle"
-version = "1.21.5-rc.1"
+version = "1.21.5-rc.3"
 dependencies = [
  "futures",
- "getrandom 0.2.17",
- "log",
+ "getrandom 0.4.2",
  "plotters",
- "rand 0.8.6",
- "rand_chacha 0.3.1",
- "rand_distr",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
+ "rand_distr 0.6.0",
  "tokio",
+ "tracing",
  "wasmtimer",
 ]
 
 [[package]]
 name = "nym-swizzle-zcash"
-version = "1.21.5-rc.1"
+version = "1.21.5-rc.3"
 dependencies = [
  "futures",
  "nym-swizzle",
@@ -10529,6 +10529,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_distr"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d431c2703ccf129de4d45253c03f49ebb22b97d6ad79ee3ecfc7e3f4862c1d8"
+dependencies = [
+ "num-traits",
+ "rand 0.10.2",
+]
+
+[[package]]
 name = "rand_pcg"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12001,7 +12011,7 @@ dependencies = [
  "hmac 0.12.1",
  "lioness",
  "rand 0.8.6",
- "rand_distr",
+ "rand_distr 0.4.3",
  "sha2 0.10.9",
  "subtle 2.6.1",
  "x25519-dalek",

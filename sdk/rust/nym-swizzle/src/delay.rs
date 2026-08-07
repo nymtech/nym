@@ -27,7 +27,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crate::rng::{sample_bounded, validate_sampling, CryptoRngCore, RngSource, Sampling};
+use crate::rng::{sample_bounded, validate_sampling, CryptoRng, RngSource, Sampling};
 
 /// A configured randomized-delay scheduler. Construct with
 /// [`uniform`](Delay::uniform), [`poisson`](Delay::poisson) or
@@ -125,11 +125,19 @@ impl Delay {
         self
     }
 
-    /// Set both bounds at once.
+    /// Set both bounds at once. The pair is validated against itself, not
+    /// against previously configured bounds, so any valid pair is accepted
+    /// regardless of the sampler's current configuration.
     ///
     /// Panics if `min > max`.
-    pub fn bounds(self, min: Duration, max: Duration) -> Self {
-        self.max(max).min(min)
+    pub fn bounds(mut self, min: Duration, max: Duration) -> Self {
+        assert!(
+            min <= max,
+            "delay bounds inverted: min {min:?} > max {max:?}"
+        );
+        self.min = min;
+        self.max = Some(max);
+        self
     }
 
     /// Use a deterministic ChaCha20 generator seeded with `seed`: the same
@@ -142,7 +150,7 @@ impl Delay {
     }
 
     /// Use a caller-supplied crypto-grade random generator.
-    pub fn with_rng<R: CryptoRngCore + 'static>(mut self, rng: R) -> Self {
+    pub fn with_rng<R: CryptoRng + Send + 'static>(mut self, rng: R) -> Self {
         self.rng = RngSource::custom(rng);
         self
     }
@@ -201,6 +209,46 @@ mod tests {
             let s = d.sample();
             assert!(s >= Duration::from_secs(1) && s <= Duration::from_secs(8));
         }
+    }
+
+    #[test]
+    fn poisson_with_min_only_terminates_and_shifts() {
+        // regression: a minimum bound with no maximum previously risked the
+        // rejection path; the memoryless shift samples it exactly
+        let mut d = Delay::poisson(Duration::from_secs(2))
+            .min(Duration::from_secs(600))
+            .seed([8u8; 32]);
+        let n = 5_000u32;
+        let mut total = Duration::ZERO;
+        for _ in 0..n {
+            let s = d.sample();
+            assert!(s >= Duration::from_secs(600));
+            total += s;
+        }
+        let mean = total / n;
+        assert!(
+            mean >= Duration::from_secs(601) && mean <= Duration::from_secs(603),
+            "min-truncated poisson mean should be ~min + mean, got {mean:?}"
+        );
+    }
+
+    #[test]
+    fn bounds_rebind_below_previous_min() {
+        // regression: `bounds` used to validate the new max against the old
+        // min and panic on this perfectly valid pair
+        let mut d = Delay::uniform(Duration::from_secs(100), Duration::from_secs(200))
+            .bounds(Duration::ZERO, Duration::from_secs(20))
+            .seed([12u8; 32]);
+        for _ in 0..100 {
+            assert!(d.sample() <= Duration::from_secs(20));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "delay bounds inverted")]
+    fn bounds_rejects_inverted_pair() {
+        let _ = Delay::poisson(Duration::from_secs(1))
+            .bounds(Duration::from_secs(9), Duration::from_secs(3));
     }
 
     #[test]

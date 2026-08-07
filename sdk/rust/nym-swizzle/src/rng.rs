@@ -6,41 +6,43 @@
 //!
 //! Three tiers of randomness are supported:
 //!
-//! 1. [`OsRng`](rand::rngs::OsRng) — the default: unpredictable,
-//!    cryptographically sourced.
+//! 1. The operating system's entropy source ([`getrandom04::SysRng`]) — the
+//!    default: unpredictable, cryptographically sourced.
 //! 2. A fixed 32-byte seed driving a ChaCha20 CSPRNG — deterministic
 //!    reproducibility: the same seed and configuration produce byte-identical
 //!    chunk plans and delay sequences. Seeds derived externally (e.g. from a
 //!    VRF output) are treated as opaque seed material.
-//! 3. A caller-supplied generator implementing [`RngCore`] + [`CryptoRng`].
+//! 3. A caller-supplied generator implementing [`CryptoRng`] (which in
+//!    `rand_core` ≥ 0.9 already implies the base RNG interface).
 //!
 //! Bounded sampling uses **rejection-resampling**: out-of-bounds samples are
 //! discarded and redrawn rather than clamped, so no probability spike
 //! accumulates at the bounds.
 
-use rand::rngs::OsRng;
-use rand::{CryptoRng, Rng, RngCore, SeedableRng};
-use rand_chacha::ChaCha20Rng;
-use rand_distr::{Distribution as _, Exp, Normal};
+use std::convert::Infallible;
 
-/// Object-safe combination of [`RngCore`] and [`CryptoRng`], so caller-supplied
-/// generators can be stored without generic plumbing. Blanket-implemented for
-/// every suitable RNG.
-pub trait CryptoRngCore: RngCore + CryptoRng + Send {}
+use getrandom04::SysRng;
+use rand010::rand_core::UnwrapErr;
+use rand010::{RngExt as _, SeedableRng, TryCryptoRng, TryRng};
+use rand_chacha010::ChaCha20Rng;
+use rand_distr06::{Distribution as _, Exp, Normal};
 
-impl<T: RngCore + CryptoRng + Send> CryptoRngCore for T {}
+/// The marker trait caller-supplied generators must implement, re-exported
+/// from `rand_core` (via `rand` 0.10): `CryptoRng` is a subtrait of the base
+/// RNG interface, so a single bound covers both.
+pub use rand010::CryptoRng;
 
-/// The randomness source used by a primitive: `OsRng` by default, or any
+/// The randomness source used by a primitive: OS entropy by default, or any
 /// caller-supplied crypto-grade generator (including a seeded ChaCha20 for
 /// deterministic reproduction).
 pub(crate) enum RngSource {
-    Os(OsRng),
-    Custom(Box<dyn CryptoRngCore>),
+    Os(UnwrapErr<SysRng>),
+    Custom(Box<dyn CryptoRng + Send>),
 }
 
 impl Default for RngSource {
     fn default() -> Self {
-        RngSource::Os(OsRng)
+        RngSource::Os(UnwrapErr(SysRng))
     }
 }
 
@@ -49,7 +51,7 @@ impl RngSource {
         RngSource::Custom(Box::new(ChaCha20Rng::from_seed(seed)))
     }
 
-    pub(crate) fn custom<R: CryptoRngCore + 'static>(rng: R) -> Self {
+    pub(crate) fn custom<R: CryptoRng + Send + 'static>(rng: R) -> Self {
         RngSource::Custom(Box::new(rng))
     }
 }
@@ -63,29 +65,26 @@ impl std::fmt::Debug for RngSource {
     }
 }
 
-impl RngCore for RngSource {
-    fn next_u32(&mut self) -> u32 {
+// The rand_core 0.10 idiom: implement `TryRng` with an infallible error and
+// mark `TryCryptoRng`; blanket impls then provide `Rng` and `CryptoRng`.
+impl TryRng for RngSource {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
         match self {
-            RngSource::Os(rng) => rng.next_u32(),
-            RngSource::Custom(rng) => rng.next_u32(),
+            RngSource::Os(rng) => rng.try_next_u32(),
+            RngSource::Custom(rng) => rng.try_next_u32(),
         }
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
         match self {
-            RngSource::Os(rng) => rng.next_u64(),
-            RngSource::Custom(rng) => rng.next_u64(),
+            RngSource::Os(rng) => rng.try_next_u64(),
+            RngSource::Custom(rng) => rng.try_next_u64(),
         }
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        match self {
-            RngSource::Os(rng) => rng.fill_bytes(dest),
-            RngSource::Custom(rng) => rng.fill_bytes(dest),
-        }
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Infallible> {
         match self {
             RngSource::Os(rng) => rng.try_fill_bytes(dest),
             RngSource::Custom(rng) => rng.try_fill_bytes(dest),
@@ -94,7 +93,7 @@ impl RngCore for RngSource {
 }
 
 // safety: both variants hold crypto-grade generators
-impl CryptoRng for RngSource {}
+impl TryCryptoRng for RngSource {}
 
 /// How a bounded quantity (a delay, a start-overlap magnitude) is sampled.
 ///
@@ -124,9 +123,11 @@ pub enum Sampling {
     },
 }
 
-/// After this many out-of-bounds draws, fall back to a uniform in-bounds draw
-/// rather than looping forever on a pathological configuration (e.g. a normal
-/// whose mass lies almost entirely outside `[min, max]`).
+/// After this many out-of-bounds draws, use the distribution-appropriate
+/// termination fallback rather than looping forever on a pathological
+/// configuration (e.g. a normal whose mass lies almost entirely outside
+/// `[min, max]`). The fallback is never a constant — a point mass at a bound
+/// is the fingerprint spike this module exists to prevent.
 const MAX_REJECTION_RETRIES: usize = 1000;
 
 /// Sample from `sampling` restricted to `[min, max]` by rejection-resampling.
@@ -146,17 +147,50 @@ pub(crate) fn sample_bounded(rng: &mut RngSource, sampling: &Sampling, min: f64,
     match sampling {
         Sampling::Uniform => {
             assert!(max.is_finite(), "uniform sampling requires a finite max");
-            rng.gen_range(min..=max)
+            rng.random_range(min..=max)
         }
         Sampling::Poisson { mean } => {
             assert!(*mean > 0.0, "poisson sampling requires mean > 0");
             let exp = Exp::new(1.0 / mean).expect("mean checked positive above");
-            reject_into_bounds(rng, min, max, |rng| exp.sample(rng))
+            if max.is_infinite() {
+                // exact, not a fallback: by memorylessness, the exponential
+                // conditioned on exceeding `min` is exactly `min` plus a
+                // fresh exponential draw — no rejection needed, and no
+                // distortion however far `min` sits into the tail
+                return min + exp.sample(rng);
+            }
+            reject_into_bounds(
+                rng,
+                min,
+                max,
+                |rng| exp.sample(rng),
+                |rng| rng.random_range(min..=max),
+            )
         }
         Sampling::Normal { mean, std_dev } => {
             assert!(*std_dev > 0.0, "normal sampling requires std_dev > 0");
             let normal = Normal::new(*mean, *std_dev).expect("std_dev checked positive above");
-            reject_into_bounds(rng, min, max, |rng| normal.sample(rng))
+            reject_into_bounds(
+                rng,
+                min,
+                max,
+                |rng| normal.sample(rng),
+                |rng| {
+                    if max.is_finite() {
+                        rng.random_range(min..=max)
+                    } else {
+                        // no memoryless trick exists for the normal: fall back to
+                        // a shifted half-normal — still a documented distortion
+                        // in this pathological case, but continuous, with no
+                        // point mass at `min` (a constant would be a fingerprint
+                        // spike, the artifact rejection-resampling exists to
+                        // prevent)
+                        let half =
+                            Normal::new(0.0, *std_dev).expect("std_dev checked positive above");
+                        min + half.sample(rng).abs()
+                    }
+                },
+            )
         }
     }
 }
@@ -166,6 +200,7 @@ fn reject_into_bounds(
     min: f64,
     max: f64,
     mut draw: impl FnMut(&mut RngSource) -> f64,
+    fallback: impl FnOnce(&mut RngSource) -> f64,
 ) -> f64 {
     for _ in 0..MAX_REJECTION_RETRIES {
         let sample = draw(rng);
@@ -173,18 +208,14 @@ fn reject_into_bounds(
             return sample;
         }
     }
-    // pathological configuration: virtually no mass inside [min, max]. A
-    // uniform in-bounds draw terminates at the cost of a (documented)
-    // distributional distortion in this edge case only.
-    log::debug!(
+    // pathological configuration: virtually no mass inside [min, max]. The
+    // distribution-appropriate fallback terminates at the cost of a
+    // (documented) distributional distortion in this edge case only.
+    tracing::debug!(
         "rejection sampling exhausted {MAX_REJECTION_RETRIES} retries for bounds \
-         [{min}, {max}]; falling back to a uniform in-bounds draw"
+         [{min}, {max}]; using the termination fallback"
     );
-    if max.is_finite() {
-        rng.gen_range(min..=max)
-    } else {
-        min
-    }
+    fallback(rng)
 }
 
 /// Validate construction-time bounds shared by the public builders.
@@ -257,6 +288,50 @@ mod tests {
         };
         let s = sample_bounded(&mut rng, &sampling, 0.0, 1.0);
         assert!((0.0..=1.0).contains(&s));
+    }
+
+    #[test]
+    fn min_only_exponential_is_memoryless_shift() {
+        let mut rng = seeded();
+        // min sits 60 means into the tail: naive rejection would exhaust
+        // every retry budget; the memoryless shift is exact and immediate
+        let sampling = Sampling::Poisson { mean: 1.0 };
+        let n = 20_000;
+        let mut sum = 0.0;
+        let mut at_min = 0usize;
+        for _ in 0..n {
+            let s = sample_bounded(&mut rng, &sampling, 60.0, f64::INFINITY);
+            assert!(s >= 60.0);
+            sum += s;
+            if s == 60.0 {
+                at_min += 1;
+            }
+        }
+        let mean = sum / n as f64;
+        assert!(
+            (60.9..61.1).contains(&mean),
+            "min-truncated exponential mean should be min + mean, got {mean}"
+        );
+        assert!(at_min == 0, "continuous sampler put point mass at min");
+    }
+
+    #[test]
+    fn min_only_normal_fallback_is_not_constant() {
+        let mut rng = seeded();
+        // mass entirely below min with no upper bound: retries exhaust, and
+        // the shifted half-normal fallback must not collapse to a constant
+        let sampling = Sampling::Normal {
+            mean: -1_000.0,
+            std_dev: 1.0,
+        };
+        let draws: Vec<f64> = (0..50)
+            .map(|_| sample_bounded(&mut rng, &sampling, 5.0, f64::INFINITY))
+            .collect();
+        assert!(draws.iter().all(|&s| s >= 5.0));
+        assert!(
+            draws.iter().any(|&s| s != draws[0]),
+            "unbounded-max fallback returned a constant — a boundary spike"
+        );
     }
 
     #[test]

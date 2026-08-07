@@ -74,7 +74,8 @@
 //! Every non-dev dependency compiles for `wasm32-unknown-unknown`; the crate
 //! is designed to be wrapped, unmodified, by a `wasm-pack` wrapper crate. On
 //! wasm targets, timing uses [`wasmtimer`] and randomness reaches the browser
-//! through `getrandom`'s `js` feature.
+//! through `getrandom`'s `wasm_js` backend (enable it with
+//! `RUSTFLAGS='--cfg getrandom_backend="wasm_js"'`).
 
 #![warn(missing_docs)]
 

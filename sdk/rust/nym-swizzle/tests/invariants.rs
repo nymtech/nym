@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::StreamExt;
 use nym_swizzle::{ChunkPlan, Delay, Range, Snap};
 
 fn seed(n: u8) -> [u8; 32] {
@@ -336,6 +337,84 @@ async fn for_each_concurrent_respects_limit_and_completes() {
         max_in_flight.load(Ordering::SeqCst) <= 4,
         "concurrency limit exceeded: {}",
         max_in_flight.load(Ordering::SeqCst)
+    );
+}
+
+#[tokio::test]
+async fn stream_concurrent_yields_one_output_per_chunk() {
+    let make_plan = || {
+        Range::new(0, 5000)
+            .chunk_size(10..=50)
+            .seed(seed(11))
+            .plan()
+    };
+    let mut expected: Vec<(u64, u64)> = make_plan().chunks().to_vec();
+    expected.sort_unstable();
+
+    let mut outputs: Vec<(u64, u64)> = make_plan()
+        .stream_concurrent(4, |start, end| async move { (start, end) })
+        .collect()
+        .await;
+    outputs.sort_unstable();
+
+    assert_eq!(
+        outputs, expected,
+        "exactly one output per chunk, no more, no fewer"
+    );
+}
+
+#[tokio::test]
+async fn stream_concurrent_respects_limit() {
+    let plan = Range::new(0, 5000)
+        .chunk_size(10..=50)
+        .seed(seed(12))
+        .plan();
+    let expected = plan.len();
+
+    let in_flight = Arc::new(AtomicUsize::new(0));
+    let max_in_flight = Arc::new(AtomicUsize::new(0));
+    let (in_flight_c, max_c) = (in_flight.clone(), max_in_flight.clone());
+
+    let outputs: Vec<()> = plan
+        .stream_concurrent(4, move |_, _| {
+            let in_flight = in_flight_c.clone();
+            let max_in_flight = max_c.clone();
+            async move {
+                let now = in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+                max_in_flight.fetch_max(now, Ordering::SeqCst);
+                tokio::time::sleep(Duration::from_millis(2)).await;
+                in_flight.fetch_sub(1, Ordering::SeqCst);
+            }
+        })
+        .collect()
+        .await;
+
+    assert_eq!(outputs.len(), expected);
+    assert!(
+        max_in_flight.load(Ordering::SeqCst) <= 4,
+        "concurrency limit exceeded: {}",
+        max_in_flight.load(Ordering::SeqCst)
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn stream_concurrent_applies_inter_chunk_delays() {
+    let plan = Range::new(0, 100)
+        .chunk_size(30..=40)
+        .seed(seed(13))
+        .plan()
+        .delay(Delay::uniform(Duration::from_secs(1), Duration::from_secs(2)).seed(seed(13)));
+    let chunks = plan.len() as u64;
+
+    let started = tokio::time::Instant::now();
+    // limit 1: delays elapse sequentially, so total time lower-bounds at 1s
+    // per chunk under auto-advanced paused time
+    let _: Vec<()> = plan.stream_concurrent(1, |_, _| async {}).collect().await;
+    let elapsed = started.elapsed();
+
+    assert!(
+        elapsed >= Duration::from_secs(chunks),
+        "expected at least {chunks}s of accumulated delay, got {elapsed:?}"
     );
 }
 

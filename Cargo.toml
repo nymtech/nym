@@ -346,6 +346,7 @@ rand_chacha = "0.3"
 rand_chacha010 = { package = "rand_chacha", version = "=0.10.0" }
 rand_core = "0.6.3"
 rand_distr = "0.4"
+rand_distr06 = { package = "rand_distr", version = "0.6" }
 rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }

@@ -18,13 +18,13 @@
 //!
 //! Run with: `cargo run -p nym-swizzle --example fetch_blocks_overlapping`
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-
+use futures::StreamExt;
 use nym_swizzle::{Range, Snap};
 
-async fn get_blocks(start: u64, end: u64) {
+async fn get_blocks(start: u64, end: u64) -> usize {
     // stand-in for a lightwalletd-style compact-block range fetch
     println!("  get_blocks({start}, {end})  [{} blocks]", end - start);
+    (end - start) as usize
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -48,16 +48,14 @@ async fn main() {
         plan.len()
     );
 
-    let fetched = AtomicUsize::new(0);
-    let fetched_ref = &fetched;
-    plan.for_each_concurrent(4, |start, end| async move {
-        get_blocks(start, end).await;
-        fetched_ref.fetch_add((end - start) as usize, Ordering::Relaxed);
-    })
-    .await;
+    // `stream_concurrent` yields each chunk's result as it completes, so the
+    // tally needs no shared state threaded through the closure
+    let total_fetched: usize = plan
+        .stream_concurrent(4, get_blocks)
+        .fold(0, |acc, fetched| async move { acc + fetched })
+        .await;
 
     let total_needed = (tip - true_resume_point) as usize;
-    let total_fetched = fetched.load(Ordering::Relaxed);
     println!(
         "fetched {total_fetched} blocks to cover {total_needed} \
          ({}% deliberate waste)",

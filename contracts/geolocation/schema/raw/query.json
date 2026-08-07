@@ -1,0 +1,331 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "A single entry, by its full key.",
+      "type": "object",
+      "required": [
+        "entry"
+      ],
+      "properties": {
+        "entry": {
+          "type": "object",
+          "required": [
+            "source",
+            "subject"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/definitions/Source"
+            },
+            "subject": {
+              "$ref": "#/definitions/Subject"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Every entry for one subject, across all sources. Unpaginated: a subject holds at most one entry per agent plus a self-declaration and an override.",
+      "type": "object",
+      "required": [
+        "subject_entries"
+      ],
+      "properties": {
+        "subject_entries": {
+          "type": "object",
+          "required": [
+            "subject"
+          ],
+          "properties": {
+            "subject": {
+              "$ref": "#/definitions/Subject"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Every entry for one bonded nym-node. The common case of [`Self::SubjectEntries`], saving callers that work in `NodeId`s from assembling a [`Subject`] themselves.",
+      "type": "object",
+      "required": [
+        "nym_node_entries"
+      ],
+      "properties": {
+        "nym_node_entries": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Only the measured entries for one subject, dropping any self-declaration and override.",
+      "type": "object",
+      "required": [
+        "subject_measurements"
+      ],
+      "properties": {
+        "subject_measurements": {
+          "type": "object",
+          "required": [
+            "subject"
+          ],
+          "properties": {
+            "subject": {
+              "$ref": "#/definitions/Subject"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Paginated enumeration of every digest-committed record, across both entry classes. This is the global pull a client folds to recompute and verify the digest, so it has to cover the agent whitelist as well as the location entries.",
+      "type": "object",
+      "required": [
+        "all_records"
+      ],
+      "properties": {
+        "all_records": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/RecordKey"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The 32-byte collapse of the accumulator. A convenience for comparing digests; it carries no proof, since smart queries cannot. Proving requires a raw store read at the documented digest key.",
+      "type": "object",
+      "required": [
+        "digest"
+      ],
+      "properties": {
+        "digest": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "The full agent whitelist. Unpaginated: the set is small and NYM-controlled.",
+      "type": "object",
+      "required": [
+        "whitelist"
+      ],
+      "properties": {
+        "whitelist": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "Method": {
+      "description": "How a measurement was obtained. Closed enum for the same reason [`SubjectClass`] is: it lives in the key, so adding a vendor or a technique is one variant with no leaf-encoding change and no state migration.\n\nRetiring a variant is a migration that must subtract every affected leaf from the accumulator before deleting the entries, and its discriminant must be tombstoned rather than reused.",
+      "oneOf": [
+        {
+          "description": "An ipinfo.io lookup of the subject's resolved addresses.",
+          "type": "string",
+          "enum": [
+            "ip_info"
+          ]
+        }
+      ]
+    },
+    "RecordKey": {
+      "description": "The logical key of a digest-committed record: the [`crate::QueryMsg::AllRecords`] cursor, and the identity half of a [`GeolocationRecord`]. The on-chain storage key is a separate concern, handled by each store, so this type carries no storage-codec logic.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "location"
+          ],
+          "properties": {
+            "location": {
+              "type": "object",
+              "required": [
+                "source",
+                "subject"
+              ],
+              "properties": {
+                "source": {
+                  "$ref": "#/definitions/Source"
+                },
+                "subject": {
+                  "$ref": "#/definitions/Subject"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "whitelisted_agent"
+          ],
+          "properties": {
+            "whitelisted_agent": {
+              "type": "object",
+              "required": [
+                "agent"
+              ],
+              "properties": {
+                "agent": {
+                  "$ref": "#/definitions/Addr"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Source": {
+      "description": "Who asserted an entry, as the final component of its key. A single discriminant rather than separate `kind` and `writer` components, so combinations that would be meaningless are not representable.",
+      "oneOf": [
+        {
+          "description": "A third-party measurement. Carries the measuring agent, so each authorised agent occupies its own slot and concurrent agents never overwrite one another.",
+          "type": "object",
+          "required": [
+            "measured"
+          ],
+          "properties": {
+            "measured": {
+              "type": "object",
+              "required": [
+                "agent",
+                "method"
+              ],
+              "properties": {
+                "agent": {
+                  "$ref": "#/definitions/Addr"
+                },
+                "method": {
+                  "$ref": "#/definitions/Method"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The subject's own signed declaration, relayed by some agent. Carries no writer component, so a subject has exactly one self-declared slot no matter which agent relayed it; conflicting relays are resolved by `declared_at` monotonicity.",
+          "type": "string",
+          "enum": [
+            "self_declared"
+          ]
+        },
+        {
+          "description": "An admin-set value. Names the admin role rather than an address, so transferring the role does not orphan existing overrides.",
+          "type": "string",
+          "enum": [
+            "override"
+          ]
+        }
+      ]
+    },
+    "Subject": {
+      "description": "The subject an entry describes: its class plus the id whose encoding that class fixes. This typed form is what messages and query responses carry; [`Subject::id_bytes`] is the opaque per-class encoding used in the storage key and the digest leaf.",
+      "oneOf": [
+        {
+          "description": "A bonded nym-node. The id encodes as a big-endian `u32`, so ids order numerically under the store's key ordering and decode back to a [`NodeId`] for the mixnet unbond callback.",
+          "type": "object",
+          "required": [
+            "nym_node"
+          ],
+          "properties": {
+            "nym_node": {
+              "type": "object",
+              "required": [
+                "node_id"
+              ],
+              "properties": {
+                "node_id": {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

@@ -32,6 +32,14 @@ pub enum GeolocationContractError {
     #[error("malformed payload content: {0}")]
     MalformedPayload(String),
 
+    /// A config value that would leave the contract unable to accept writes.
+    #[error("invalid contract configuration: {reason}")]
+    InvalidConfig { reason: &'static str },
+
+    /// A storage key's leading subject-class byte matched no known class.
+    #[error("unknown subject class tag {tag}")]
+    UnknownSubjectClass { tag: u8 },
+
     /// A storage key's trailing source component could not be decoded.
     #[error("malformed source encoding: {0}")]
     InvalidSourceEncoding(String),

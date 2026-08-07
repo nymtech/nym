@@ -1,17 +1,18 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ContractConfig;
+use crate::constants::{DEFAULT_MAX_BATCH_SIZE, DEFAULT_MAX_PAYLOAD_SIZE, DEFAULT_MAX_SKEW_SECS};
 use crate::types::{
     AgentPermissions, LocationPayload, Method, NymNodeLocation, RecordKey, Source, Subject,
 };
-use cosmwasm_schema::cw_serde;
-use nym_mixnet_contract_common::NodeId;
-
 #[cfg(feature = "schema")]
 use crate::types::{
     AllRecordsPagedResponse, ConfigResponse, DigestResponse, EntryResponse, SubjectEntriesResponse,
     WhitelistResponse,
 };
+use cosmwasm_schema::cw_serde;
+use nym_mixnet_contract_common::NodeId;
 
 /// An agent whitelisted at instantiation, with the permissions it starts with.
 #[cw_serde]
@@ -44,6 +45,16 @@ pub struct InstantiateMsg {
     pub max_skew_secs: Option<u64>,
     pub max_batch_size: Option<u32>,
     pub max_payload_size: Option<u32>,
+}
+
+impl InstantiateMsg {
+    pub fn initial_contract_config(&self) -> ContractConfig {
+        ContractConfig {
+            max_skew_secs: self.max_skew_secs.unwrap_or(DEFAULT_MAX_SKEW_SECS),
+            max_batch_size: self.max_batch_size.unwrap_or(DEFAULT_MAX_BATCH_SIZE),
+            max_payload_size: self.max_payload_size.unwrap_or(DEFAULT_MAX_PAYLOAD_SIZE),
+        }
+    }
 }
 
 #[cw_serde]

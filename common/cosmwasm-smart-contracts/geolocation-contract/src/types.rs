@@ -51,6 +51,14 @@ impl SubjectClass {
         }
     }
 
+    /// Recover a class from its [`SubjectClass::tag`], as read back out of a storage key.
+    pub fn try_from_tag(tag: u8) -> Result<Self, GeolocationContractError> {
+        match tag {
+            n if n == SubjectClass::NymNode as u8 => Ok(SubjectClass::NymNode),
+            other => Err(GeolocationContractError::UnknownSubjectClass { tag: other }),
+        }
+    }
+
     const fn as_str(self) -> &'static str {
         match self {
             SubjectClass::NymNode => "nym_node",
@@ -195,6 +203,10 @@ impl Source {
             Source::Measured { agent, .. } => Some(agent),
             Source::SelfDeclared | Source::Override => None,
         }
+    }
+
+    pub fn is_measured(&self) -> bool {
+        matches!(self, Source::Measured { .. })
     }
 
     /// Flatten to the trailing key component: `[tag]`, plus `[method][agent]` for a
@@ -396,6 +408,7 @@ impl NymNodeLocation {
 /// and never changes. Keeping it out of this type means [`crate::ExecuteMsg::UpdateConfig`] has
 /// no way to reach it.
 #[cw_serde]
+#[derive(Copy)]
 pub struct ContractConfig {
     /// How far ahead of block time a `declared_at` may be, in seconds.
     pub max_skew_secs: u64,
@@ -405,6 +418,27 @@ pub struct ContractConfig {
 
     /// Maximum length of a payload's `content`, in bytes.
     pub max_payload_size: u32,
+}
+
+impl ContractConfig {
+    /// Reject a configuration under which the contract could accept no useful write at all.
+    ///
+    /// Both zeroes are admin-fixable rather than permanent, but neither announces itself: the
+    /// contract keeps instantiating, keeps querying, and simply rejects every agent
+    /// submission until somebody works out why.
+    pub fn validate(&self) -> Result<(), GeolocationContractError> {
+        if self.max_batch_size == 0 {
+            return Err(GeolocationContractError::InvalidConfig {
+                reason: "a max_batch_size of 0 rejects every batch",
+            });
+        }
+        if self.max_payload_size == 0 {
+            return Err(GeolocationContractError::InvalidConfig {
+                reason: "a max_payload_size of 0 rejects every non-empty payload",
+            });
+        }
+        Ok(())
+    }
 }
 
 /// What a whitelisted agent is permitted to write. The flags are independent: an agent may
@@ -976,9 +1010,17 @@ mod tests {
     }
 
     #[test]
-    fn subject_class_tag_is_stable() {
+    fn subject_class_tag_is_stable_and_round_trips() {
         // frozen wire format: changing this value re-hashes every existing entry
         assert_eq!(SubjectClass::NymNode.tag(), 1);
+        assert_eq!(
+            SubjectClass::try_from_tag(SubjectClass::NymNode.tag()),
+            Ok(SubjectClass::NymNode)
+        );
+        assert_eq!(
+            SubjectClass::try_from_tag(0),
+            Err(GeolocationContractError::UnknownSubjectClass { tag: 0 })
+        );
     }
 
     #[test]

@@ -13,14 +13,14 @@
 - [x] 2.2 Ladder selection + quantization: `quantize(range, kind, tip)` → emitted `[a', b')` per steps 1–3 (start down, end up, tip cap), returning a struct that retains the requested range for classification.
 - [x] 2.3 Verify-lookahead enforcement: for a catch-up with resume point `a`, widen `a'` by one grid cell when `a − a' < VERIFY_LOOKAHEAD`; expose the verify window on the quantized result; `RangeKind::{Scan, Verify}` with `Verify` emitting no separate request.
 - [x] 2.4 `classify(height, &quantized)` → `Disposition::{CoverBelow, VerifyWindow, Requested, CoverAbove}`.
-- [x] 2.5 Unit tests: worked examples from the review's arithmetic (ladder choice per gap size, floor clamping, tip capping, same-cell collision, boundary widening at exactly 10, off-by-one edges at grid multiples), plus property-style tests (emitted range always contains requested range; `a' ≤ a − 10` for catch-ups; `b' ≥ b` unless tip-capped; overhead < 2× for any gap).
+- [x] 2.5 Unit tests: worked examples from the review's arithmetic (ladder choice per gap size, floor clamping, tip capping, same-cell collision, boundary widening at exactly 10, off-by-one edges at grid multiples), plus property-style tests (emitted range always contains requested range; `a' ≤ a − 10` for catch-ups above the genesis lookahead; `b' ≥ b` unless tip-capped; emitted length bounded by `len + 2·spacing`, with the near-genesis and one-block edge cases asserted separately — the sub-2× overhead figure applies per practical regime, not to degenerate gaps).
 
 ## 3. Sync driver + BlockSource slot
 
 - [x] 3.1 `BlockSource` trait: generic block type, `block_range(start, end) -> Result<Vec<(u64, Block)>, Error>` over half-open ranges; document that the crate does no I/O and boundaries are chosen by the crate.
-- [x] 3.2 `SyncSession::fetch`: quantize, build a seedable `nym_swizzle::Range` chunk plan over the emitted range, drive the source (sequential and bounded-concurrent variants mirroring `ChunkPlan`'s push drivers), deliver `(block, Disposition)` to the wallet's sink.
+- [x] 3.2 `SyncSession::fetch`: quantize, build a seedable `nym_swizzle::Range` chunk plan over the emitted range, drive the source (sequential and bounded-concurrent variants mirroring `ChunkPlan`'s push drivers), deliver `(block, Disposition)` to the wallet's sink. *(Superseded by 9.1: the seedable chunk plan was replaced by deterministic ascending grid-cell requests.)*
 - [x] 3.3 Verify-window bookkeeping: track which heights of the window have arrived, invoke the wallet's hash-comparison callback when the window is complete, resolve `SyncOutcome::{Committed, ReorgDetected}`; never reorder or serialize chunks to fetch the window early.
-- [x] 3.4 Unit tests with an in-memory `BlockSource` fake: chunk union == emitted range (no gaps/spill), shuffled issue order, seeded reproducibility, commit withheld until verify answered, mismatch ⇒ `ReorgDetected`, dispositions correct across all four zones including cover-above dedupe signalling.
+- [x] 3.4 Unit tests with an in-memory `BlockSource` fake: chunk union == emitted range (no gaps/spill), shuffled issue order, seeded reproducibility, commit withheld until verify answered, mismatch ⇒ `ReorgDetected`, dispositions correct across all four zones including cover-above dedupe signalling. *(Superseded by 9.1: shuffled-order and seeded-reproducibility tests became determinism/ascending-order tests.)*
 
 ## 4. Broadcast scheduler + TxBroadcaster slot
 

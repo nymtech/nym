@@ -1,19 +1,27 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// fine in test code
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
+
 use crate::contract::{execute, instantiate, migrate, query};
-use cosmwasm_std::Storage;
+use crate::storage::{parse_raw_key, GEOLOCATION_CONTRACT_STORAGE};
+use cosmwasm_std::{Addr, Storage};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
     PermissionedFn, QueryFn, RandExt, TestableNymContract,
 };
-use nym_geolocation_contract_common::constants::storage_keys;
+use nym_geolocation_contract_common::constants::{storage_keys, PAYLOAD_VERSION_1};
 use nym_geolocation_contract_common::{
-    ExecuteMsg, GeolocationContractError, InstantiateMsg, MigrateMsg, QueryMsg,
+    AgentPermissions, ExecuteMsg, GeolocationContractError, GeolocationRecord, InstantiateMsg,
+    LocationAttestation, LocationEntry, LocationPayload, Method, MigrateMsg, QueryMsg, Source,
+    Subject,
 };
-use nym_mixnet_contract_common::ContractState;
+use nym_lthash::LtHash16;
+use nym_mixnet_contract_common::{ContractState, NodeId};
 
 pub struct GeolocationContract;
 
@@ -94,6 +102,39 @@ pub fn init_contract_tester() -> ContractTester<GeolocationContract> {
     tester
 }
 
+/// The only measured source there is: an ipinfo lookup performed by `agent`.
+pub fn measured_by(agent: &Addr) -> Source {
+    Source::Measured {
+        method: Method::IpInfo,
+        agent: agent.clone(),
+    }
+}
+
+/// An entry with opaque `content` and no attestation, as a measurement or an override
+/// produces. The content is never parsed by anything under test, so gibberish is the point.
+pub fn location_entry(content: &[u8], checked_at: u64) -> LocationEntry {
+    LocationEntry {
+        payload: LocationPayload {
+            version: PAYLOAD_VERSION_1,
+            content: content.to_vec().into(),
+        },
+        checked_at,
+        attestation: None,
+    }
+}
+
+/// A self-declared entry, carrying the node's attestation. The signature is a placeholder:
+/// nothing below the transaction layer verifies it, and the digest leaf commits it as bytes.
+pub fn attested_location_entry(content: &[u8], checked_at: u64, declared_at: u64) -> LocationEntry {
+    LocationEntry {
+        attestation: Some(LocationAttestation {
+            declared_at,
+            signature: vec![7u8; 64].into(),
+        }),
+        ..location_entry(content, checked_at)
+    }
+}
+
 pub trait GeolocationContractTesterExt:
     ContractOpts<
         ExecuteMsg = ExecuteMsg,
@@ -110,7 +151,177 @@ pub trait GeolocationContractTesterExt:
     + EmbeddedMixnetContractExt
     + Sized
 {
-    //
+    fn digest(&self) -> LtHash16 {
+        GEOLOCATION_CONTRACT_STORAGE.load_digest(self).unwrap()
+    }
+
+    fn add_dummy_agent(&mut self) -> Addr {
+        let addr = self.generate_account();
+        GEOLOCATION_CONTRACT_STORAGE
+            .set_whitelisted_agent(
+                self,
+                addr.clone(),
+                AgentPermissions {
+                    can_measure: true,
+                    can_relay_self_declared: true,
+                },
+            )
+            .unwrap();
+        addr
+    }
+
+    fn set_node_measurement(
+        &mut self,
+        node_id: NodeId,
+        source: Source,
+        content: &[u8],
+        checked_at: u64,
+    ) {
+        self.set_node_entry(node_id, source, location_entry(content, checked_at))
+    }
+
+    /// Write one entry through the digest wrapper.
+    fn set_node_entry(&mut self, node_id: NodeId, source: Source, entry: LocationEntry) {
+        GEOLOCATION_CONTRACT_STORAGE
+            .set_entry(self, Subject::new_nym_node(node_id), source, entry)
+            .unwrap();
+    }
+
+    /// Write several entries under a single accumulator load and save, the way
+    /// `SubmitMeasurements` will. Repeated keys within one batch are allowed and resolve to
+    /// the last write.
+    fn set_node_entry_batch(
+        &mut self,
+        entries: impl IntoIterator<Item = (NodeId, Source, LocationEntry)>,
+    ) {
+        GEOLOCATION_CONTRACT_STORAGE
+            .set_entries(
+                self,
+                entries
+                    .into_iter()
+                    .map(|(node_id, source, entry)| {
+                        (Subject::new_nym_node(node_id), source, entry)
+                    }),
+            )
+            .unwrap();
+    }
+
+    fn set_node_measurement_content(&mut self, node_id: NodeId, content: &[u8]) {
+        let agent = self.get_agent();
+        self.set_node_measurement(node_id, measured_by(&agent), content, 1234)
+    }
+
+    fn set_dummy_measurement_from(&mut self, node_id: NodeId, agent: &Addr) {
+        let content = format!("dummy-measurement-for-node-{node_id}-from-{agent}");
+        self.set_node_measurement(node_id, measured_by(agent), content.as_bytes(), 1234)
+    }
+
+    fn set_dummy_node_measurement(&mut self, node_id: NodeId) {
+        let content = format!("dummy-measurement-for-node-{node_id}");
+        self.set_node_measurement_content(node_id, content.as_bytes());
+    }
+
+    fn node_measurements(&self, node_id: NodeId) -> Vec<(Source, LocationEntry)> {
+        GEOLOCATION_CONTRACT_STORAGE
+            .subject_entries(self, &Subject::new_nym_node(node_id))
+            .unwrap()
+            .into_iter()
+            .filter(|(source, _)| source.is_measured())
+            .collect()
+    }
+
+    fn node_heartbeat(&mut self, node_id: NodeId) {
+        let (source, mut entry) = self.node_measurements(node_id).first().unwrap().clone();
+        entry.checked_at += 1;
+        GEOLOCATION_CONTRACT_STORAGE
+            .set_entry(self, Subject::new_nym_node(node_id), source, entry)
+            .unwrap();
+    }
+
+    fn update_dummy_node_measurement(&mut self, node_id: NodeId) {
+        let (source, mut entry) = self.node_measurements(node_id).first().unwrap().clone();
+        entry.checked_at += 1;
+        let mut old_payload = entry.payload.content.to_vec();
+        old_payload.push(42);
+        entry.payload.content = old_payload.into();
+        GEOLOCATION_CONTRACT_STORAGE
+            .set_entry(self, Subject::new_nym_node(node_id), source, entry)
+            .unwrap();
+    }
+
+    fn set_dummy_node_override(&mut self, node_id: NodeId) {
+        let content = format!("dummy-node-override-for-{node_id}");
+        self.set_node_measurement(node_id, Source::Override, content.as_bytes(), 1234);
+    }
+
+    fn set_dummy_node_self_declared(&mut self, node_id: NodeId) {
+        let content = format!("dummy-node-self-declared-for-{node_id}");
+        self.set_node_entry(
+            node_id,
+            Source::SelfDeclared,
+            attested_location_entry(content.as_bytes(), 1234, 1000),
+        )
+    }
+
+    /// A single entry as stored, or `None` if that source has written nothing for the node.
+    fn node_entry(&self, node_id: NodeId, source: &Source) -> Option<LocationEntry> {
+        GEOLOCATION_CONTRACT_STORAGE
+            .may_load_entry(self, &Subject::new_nym_node(node_id), source)
+            .unwrap()
+    }
+
+    /// Every digest-committed record, across both entry classes - the set a verifying client
+    /// folds to recompute the digest.
+    fn all_records(&self) -> Vec<GeolocationRecord> {
+        GEOLOCATION_CONTRACT_STORAGE.all_records(self).unwrap()
+    }
+
+    fn remove_node_entry(&mut self, node_id: NodeId, source: &Source) {
+        GEOLOCATION_CONTRACT_STORAGE
+            .remove_entry(self, &Subject::new_nym_node(node_id), source)
+            .unwrap();
+    }
+
+    fn remove_all_node_entries(&mut self, node_id: NodeId) {
+        GEOLOCATION_CONTRACT_STORAGE
+            .remove_all_entries_for_subject(self, &Subject::new_nym_node(node_id))
+            .unwrap();
+    }
+
+    fn remove_agent(&mut self, agent: &Addr) {
+        GEOLOCATION_CONTRACT_STORAGE
+            .remove_whitelisted_agent(self, agent)
+            .unwrap();
+    }
+
+    fn get_agent(&self) -> Addr {
+        GEOLOCATION_CONTRACT_STORAGE
+            .all_whitelisted_agents(self)
+            .unwrap()
+            .first()
+            .expect("no agents set")
+            .agent
+            .clone()
+    }
+
+    fn remove_all_locations(&mut self) {
+        let entries = GEOLOCATION_CONTRACT_STORAGE.all_entries(self).unwrap();
+        for (key, _) in entries {
+            let (subject, source) = parse_raw_key(key).unwrap();
+            GEOLOCATION_CONTRACT_STORAGE
+                .remove_entry(self, &subject, &source)
+                .unwrap();
+        }
+    }
+
+    fn remove_all_agents(&mut self) {
+        let agents = GEOLOCATION_CONTRACT_STORAGE
+            .all_whitelisted_agents(self)
+            .unwrap();
+        for agent in agents {
+            self.remove_agent(&agent.agent);
+        }
+    }
 }
 
 impl GeolocationContractTesterExt for ContractTester<GeolocationContract> {}

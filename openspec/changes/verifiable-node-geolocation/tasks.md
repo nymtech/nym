@@ -21,12 +21,12 @@ Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `Primar
 ## 3. Contract storage and digest maintenance
 
 - [ ] 3.1 Create `contracts/geolocation/` scaffolding, `Cargo.toml`, `Makefile`, schema binary
-- [ ] 3.2 Implement the entries store as a stock `Map<(u8, Vec<u8>, Vec<u8>), LocationEntry>` over the key from 1.1, with `Source` flattened to bytes by a local helper; `cargo check` that `KeyDeserialize` is implemented for that tuple before building on it. With JSON values (2.5) a plain `Map` suffices, so the directory's manual `Path`/`Prefix` handling is not needed here
-- [ ] 3.3 Implement the whitelist store as a second digest-committed entry class
-- [ ] 3.4 Implement accumulator load/save as raw `DIGEST_LEN` bytes at the fixed digest key (not a `cw-storage-plus` `Item`); expose the 32-byte collapse via smart query only, never persisted
-- [ ] 3.5 Implement the single digest-maintaining wrapper (insert adds, delete subtracts the stored leaf, update subtracts then adds); no handler touches a store directly
-- [ ] 3.6 Add a test asserting a from-scratch re-fold matches the incrementally maintained digest across insert, update, delete and repeated-key sequences
-- [ ] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`, max payload size (defaulting to `DEFAULT_MAX_PAYLOAD_SIZE`)
+- [x] 3.2 Implement the entries store as a stock `Map<(u8, Vec<u8>, Vec<u8>), LocationEntry>` over the key from 1.1, with `Source` flattened to bytes by a local helper; `cargo check` that `KeyDeserialize` is implemented for that tuple before building on it. With JSON values (2.5) a plain `Map` suffices, so the directory's manual `Path`/`Prefix` handling is not needed here. Task 1.1's compile-gated assumption is confirmed: cw-storage-plus 2.0 does implement `KeyDeserialize` for the tuple, so the paged enumeration in 5.2 can decode a full key
+- [x] 3.3 Implement the whitelist store as a second digest-committed entry class
+- [x] 3.4 Implement accumulator load/save as raw `DIGEST_LEN` bytes at the fixed digest key (not a `cw-storage-plus` `Item`); expose the 32-byte collapse via smart query only, never persisted
+- [x] 3.5 Implement the single digest-maintaining wrapper (insert adds, delete subtracts the stored leaf, update subtracts then adds); no handler touches a store directly. Enforced structurally rather than by convention: the two digest-committed `Map`s are private to `storage.rs`, so a handler cannot reach them even by mistake. `set_entries` folds a whole batch under one accumulator load/save, which is what 4.1 needs
+- [x] 3.6 Add a test asserting a from-scratch re-fold matches the incrementally maintained digest across insert, update, delete and repeated-key sequences. Also covers batch-order independence (so nobody later "fixes" it by imposing a sort), delete-everything returning the accumulator to the identity, no-op removals, and that the key decodes back to the typed `(Subject, Source)` it was written under. Mutation-tested: dropping the replacement subtract, the delete subtract, the whitelist from the enumeration, or the whitelist add each fail it
+- [x] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`, max payload size (defaulting to `DEFAULT_MAX_PAYLOAD_SIZE`). Initial agents go in through the digest wrapper, so the whitelist is committed from block one rather than only from the first admin transaction. Added `ContractConfig::validate`, rejecting a zero `max_batch_size` or `max_payload_size`: both leave the contract instantiating and querying normally while rejecting every agent submission, and 4.10's `UpdateConfig` needs the same check
 
 ## 4. Contract transactions
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::queries::query_admin;
+use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
 use crate::transactions::try_update_contract_admin;
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -17,14 +18,22 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, GeolocationContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
-    todo!();
+    let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
+    let config = msg.initial_contract_config();
+    GEOLOCATION_CONTRACT_STORAGE.initialise(
+        deps,
+        info.sender,
+        mixnet_contract_address,
+        msg.initial_whitelist,
+        config,
+    )?;
 
     Ok(Response::default())
 }
@@ -88,21 +97,29 @@ mod tests {
     #[cfg(test)]
     mod contract_instantiation {
         use super::*;
-        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
-        use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
-        use cosmwasm_std::Addr;
+        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi};
+        use nym_geolocation_contract_common::constants::{
+            DEFAULT_MAX_BATCH_SIZE, DEFAULT_MAX_PAYLOAD_SIZE, DEFAULT_MAX_SKEW_SECS,
+        };
+        use nym_geolocation_contract_common::{AgentPermissions, ContractConfig, InitialAgent};
+        use nym_lthash::LtHash16;
+
+        fn init_message(api: &MockApi) -> InstantiateMsg {
+            InstantiateMsg {
+                mixnet_contract_address: api.addr_make("mixnet-contract").to_string(),
+                initial_whitelist: vec![],
+                max_skew_secs: None,
+                max_batch_size: None,
+                max_payload_size: None,
+            }
+        }
 
         #[test]
         fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
             let mut deps = mock_dependencies();
             let env = mock_env();
-            let init_msg = InstantiateMsg {
-                mixnet_contract_address: deps.api.addr_make("mixnet-contract").to_string(),
-                initial_whitelist: vec![],
-                max_skew_secs: None,
-                max_batch_size: None,
-                max_payload_size: None,
-            };
+            let init_msg = init_message(&deps.api);
 
             let some_sender = deps.api.addr_make("some_sender");
             instantiate(
@@ -115,6 +132,198 @@ mod tests {
             GEOLOCATION_CONTRACT_STORAGE
                 .contract_admin
                 .assert_admin(deps.as_ref(), &some_sender)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn stores_the_mixnet_contract_address() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let init_msg = init_message(&deps.api);
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            assert_eq!(
+                GEOLOCATION_CONTRACT_STORAGE
+                    .mixnet_contract_address
+                    .load(&deps.storage)?,
+                deps.api.addr_make("mixnet-contract")
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn an_unparseable_mixnet_contract_address_is_rejected() {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mut init_msg = init_message(&deps.api);
+            init_msg.mixnet_contract_address = "not-an-address".to_owned();
+
+            let some_sender = deps.api.addr_make("some_sender");
+            let res = instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            );
+
+            assert!(res.is_err());
+        }
+
+        #[test]
+        fn every_omitted_tunable_falls_back_to_its_default() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let init_msg = init_message(&deps.api);
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            assert_eq!(
+                GEOLOCATION_CONTRACT_STORAGE.config.load(&deps.storage)?,
+                ContractConfig {
+                    max_skew_secs: DEFAULT_MAX_SKEW_SECS,
+                    max_batch_size: DEFAULT_MAX_BATCH_SIZE,
+                    max_payload_size: DEFAULT_MAX_PAYLOAD_SIZE,
+                }
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn explicitly_provided_tunables_are_honoured() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mut init_msg = init_message(&deps.api);
+            init_msg.max_skew_secs = Some(30);
+            init_msg.max_batch_size = Some(7);
+            init_msg.max_payload_size = Some(4096);
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            assert_eq!(
+                GEOLOCATION_CONTRACT_STORAGE.config.load(&deps.storage)?,
+                ContractConfig {
+                    max_skew_secs: 30,
+                    max_batch_size: 7,
+                    max_payload_size: 4096,
+                }
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn a_configuration_that_could_accept_no_write_is_rejected() {
+            // neither zero is permanent, since the admin can update either, but neither
+            // announces itself: the contract would instantiate, keep answering queries, and
+            // reject every agent submission until somebody worked out why
+            for make_inert in [
+                |msg: &mut InstantiateMsg| msg.max_batch_size = Some(0),
+                |msg: &mut InstantiateMsg| msg.max_payload_size = Some(0),
+            ] {
+                let mut deps = mock_dependencies();
+                let mut init_msg = init_message(&deps.api);
+                make_inert(&mut init_msg);
+
+                let some_sender = deps.api.addr_make("some_sender");
+                let res = instantiate(
+                    deps.as_mut(),
+                    mock_env(),
+                    message_info(&some_sender, &[]),
+                    init_msg,
+                );
+
+                assert!(matches!(
+                    res,
+                    Err(GeolocationContractError::InvalidConfig { .. })
+                ));
+            }
+
+            // a zero skew is a different thing entirely and stays accepted: it admits no
+            // clock drift at all, which is a strict policy rather than an inert contract
+            let mut deps = mock_dependencies();
+            let mut init_msg = init_message(&deps.api);
+            init_msg.max_skew_secs = Some(0);
+
+            let some_sender = deps.api.addr_make("some_sender");
+            assert!(instantiate(
+                deps.as_mut(),
+                mock_env(),
+                message_info(&some_sender, &[]),
+                init_msg,
+            )
+            .is_ok());
+        }
+
+        #[test]
+        fn the_initial_whitelist_is_stored_and_committed_to_the_digest() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let mut init_msg = init_message(&deps.api);
+            init_msg.initial_whitelist = vec![
+                InitialAgent {
+                    agent: deps.api.addr_make("agent1").to_string(),
+                    permissions: AgentPermissions {
+                        can_measure: true,
+                        can_relay_self_declared: false,
+                    },
+                },
+                InitialAgent {
+                    agent: deps.api.addr_make("agent2").to_string(),
+                    permissions: AgentPermissions {
+                        can_measure: false,
+                        can_relay_self_declared: true,
+                    },
+                },
+            ];
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            let whitelisted = GEOLOCATION_CONTRACT_STORAGE.all_whitelisted_agents(&deps.storage)?;
+            assert_eq!(whitelisted.len(), 2);
+            assert_eq!(
+                GEOLOCATION_CONTRACT_STORAGE
+                    .may_load_agent_permissions(&deps.storage, &deps.api.addr_make("agent1"))?,
+                Some(AgentPermissions {
+                    can_measure: true,
+                    can_relay_self_declared: false
+                })
+            );
+
+            // the whitelist is a digest-committed entry class, not configuration: read-time
+            // authorisation is only sound if a client can verify which writers were authorised
+            assert_digest_is_refold(&deps.storage);
+            assert_ne!(
+                GEOLOCATION_CONTRACT_STORAGE.load_digest(&deps.storage)?,
+                LtHash16::new(),
+                "initial agents must actually move the digest"
+            );
 
             Ok(())
         }

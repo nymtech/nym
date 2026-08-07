@@ -57,4 +57,15 @@ pub mod storage_keys {
 
     /// `Item<[u8; lthash::DIGEST_LEN]>` - the full LtHash accumulator state.
     pub const DIGEST_STATE: &str = "digest_state";
+
+    /// `Item<ContractConfig>`: runtime configuration set at instantiation.
+    pub const CONFIG: &str = "config";
+
+    /// `Map<(u8, Vec<u8>, Vec<u8>), LocationEntry>`: location entries, keyed by subject
+    /// class, subject id and the flattened source.
+    pub const ENTRIES: &str = "entries";
+
+    /// `Map<Addr, AgentPermissions>`: the agent whitelist, a digest-committed entry class
+    /// in its own right rather than mere configuration.
+    pub const WHITELIST: &str = "whitelist";
 }

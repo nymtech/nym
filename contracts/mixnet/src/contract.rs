@@ -5,7 +5,7 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
-use crate::queued_migrations::introduce_node_families_contract;
+use crate::queued_migrations::introduce_geolocation_contract;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_json_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
@@ -29,6 +29,7 @@ fn default_initial_state(
     rewarding_validator_address: Addr,
     vesting_contract_address: Addr,
     node_families_contract_address: Addr,
+    geolocation_contract_address: Addr,
 ) -> ContractState {
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
@@ -37,6 +38,7 @@ fn default_initial_state(
         rewarding_validator_address,
         vesting_contract_address,
         node_families_contract_address,
+        geolocation_contract_address,
         rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
             delegations_params: DelegationsParams {
@@ -95,12 +97,14 @@ pub fn instantiate(
     let node_families_contract_address = deps
         .api
         .addr_validate(&msg.node_families_contract_address)?;
+    let geolocation_contract_address = deps.api.addr_validate(&msg.geolocation_contract_address)?;
     let state = default_initial_state(
         &msg,
         info.sender.clone(),
         rewarding_validator_address.clone(),
         vesting_contract_address,
         node_families_contract_address,
+        geolocation_contract_address,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -648,19 +652,24 @@ pub fn migrate(
     let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
 
     if !skip_state_updates {
-        let addr = deps
-            .api
-            .addr_validate(&msg.node_families_contract_address)?;
-        introduce_node_families_contract(deps.branch(), addr)?;
+        let addr = deps.api.addr_validate(&msg.geolocation_contract_address)?;
+        introduce_geolocation_contract(deps.branch(), addr)?;
     }
 
-    // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
+    // due to circular dependency on contract addresses (e.g.. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration
     if let Some(vesting_contract_address) = msg.vesting_contract_address {
         let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
         current_state.vesting_contract_address =
             deps.api.addr_validate(&vesting_contract_address)?;
+        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    }
+
+    if let Some(node_families_contract_address) = msg.node_families_contract_address {
+        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+        current_state.node_families_contract_address =
+            deps.api.addr_validate(&node_families_contract_address)?;
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 
@@ -691,6 +700,7 @@ mod tests {
             rewarding_validator_address: deps.api.addr_make("foomp123").to_string(),
             vesting_contract_address: deps.api.addr_make("bar456").to_string(),
             node_families_contract_address: deps.api.addr_make("baz789").to_string(),
+            geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
             rewarding_denom: "uatom".to_string(),
             epochs_in_interval: 1234,
             epoch_duration: Duration::from_secs(4321),
@@ -732,6 +742,7 @@ mod tests {
             rewarding_validator_address: deps.api.addr_make("foomp123"),
             vesting_contract_address: deps.api.addr_make("bar456"),
             node_families_contract_address: deps.api.addr_make("baz789"),
+            geolocation_contract_address: deps.api.addr_make("geolocation"),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

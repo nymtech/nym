@@ -47,3 +47,14 @@ pub const PAYLOAD_VERSION_1: u8 = 1;
 ///
 /// The directory's payload carries no tag of its own, so this separation is one-directional.
 pub const NYM_NODE_LOCATION_DOMAIN_TAG: &[u8] = b"nym-node-location-declaration-v1";
+
+pub mod storage_keys {
+    /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
+    pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";
+
+    /// `Admin` (cw-controllers): admin allowed to perform privileged operations.
+    pub const CONTRACT_ADMIN: &str = "contract-admin";
+
+    /// `Item<[u8; lthash::DIGEST_LEN]>` - the full LtHash accumulator state.
+    pub const DIGEST_STATE: &str = "digest_state";
+}

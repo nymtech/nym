@@ -88,6 +88,7 @@ impl TestableNymContract for MixnetContract {
                 .api
                 .addr_make("node-families-contract")
                 .to_string(),
+            geolocation_contract_address: deps.api.addr_make("geolocation").to_string(),
             rewarding_denom: TEST_DENOM.to_string(),
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),

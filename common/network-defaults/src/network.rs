@@ -169,40 +169,14 @@ impl NymNetworkDetails {
 
     #[cfg(feature = "env")]
     pub fn new_from_env() -> Self {
-        fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
-            match var(env) {
-                Ok(var) => {
-                    if var.is_empty() {
-                        None
-                    } else {
-                        Some(var)
-                    }
-                }
-                Err(VarError::NotPresent) => None,
-                err => panic!("Unable to set: {err:?}"),
-            }
-        }
-
         let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or_else(|e| {
             panic!(
                 "{} is set but could not be parsed: {e}",
                 var_names::NYM_APIS
             )
         });
-        // NYM_APIS was introduced to replace the singular NYM_API; fall back to it so
-        // setups that only ever configured NYM_API (via setup_env's legacy migration
-        // or otherwise) keep working.
         let nym_api_urls = if nym_api_urls.is_empty() {
-            let legacy_api = get_optional_env(var_names::NYM_API).unwrap_or_else(|| {
-                panic!(
-                    "neither {} nor legacy {} is set",
-                    var_names::NYM_APIS,
-                    var_names::NYM_API
-                )
-            });
-            let url = Url::parse(&legacy_api)
-                .unwrap_or_else(|e| panic!("{} is not a valid url: {e}", var_names::NYM_API));
-            vec![url.into()]
+            vec![parse_legacy_nym_api()]
         } else {
             nym_api_urls
         };
@@ -571,6 +545,32 @@ fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Result<Vec<ApiUrl>, serde_json::E
         Ok(raw) if !raw.is_empty() => serde_json::from_str(&raw),
         _ => Ok(Vec::new()),
     }
+}
+
+#[cfg(feature = "env")]
+fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+    match var(env) {
+        Ok(var) => (!var.is_empty()).then_some(var),
+        Err(VarError::NotPresent) => None,
+        err => panic!("Unable to set: {err:?}"),
+    }
+}
+
+// NYM_APIS was introduced to replace the singular NYM_API; fall back to it so
+// setups that only ever configured NYM_API (via setup_env's legacy migration
+// or otherwise) keep working.
+#[cfg(feature = "env")]
+fn parse_legacy_nym_api() -> ApiUrl {
+    let legacy_api = get_optional_env(var_names::NYM_API).unwrap_or_else(|| {
+        panic!(
+            "neither {} nor legacy {} is set",
+            var_names::NYM_APIS,
+            var_names::NYM_API
+        )
+    });
+    Url::parse(&legacy_api)
+        .unwrap_or_else(|e| panic!("{} is not a valid url: {e}", var_names::NYM_API))
+        .into()
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]

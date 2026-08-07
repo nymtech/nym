@@ -120,7 +120,7 @@ impl Config {
     ) -> Result<Self, ValidatorClientError> {
         let api_url = details
             .endpoints
-            .get(0)
+            .first()
             .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
             .api_url
             .clone()

@@ -1,11 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{GAS_PRICE_AMOUNT, mainnet, sandbox};
+use crate::{GAS_PRICE_AMOUNT, mainnet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Not;
 use url::Url;
+
+pub mod v2;
 
 #[cfg(feature = "env")]
 use crate::var_names;
@@ -58,12 +60,8 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub networking: NetworkingSpecifics,
-    /// deprecated use self.nym_api_urls() or self.networking.nym_api_urls
     pub nym_api_urls: Option<Vec<ApiUrl>>,
-    /// deprecated use self.nym_vpn_api_urls() or self.networking.nym_vpn_api_urls
     pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
-    /// deprecated use self.nym_vpn_api_urls() or self.networking.nym_vpn_api_urls
     pub nym_vpn_api_url: Option<String>,
 }
 
@@ -106,30 +104,6 @@ impl From<ApiUrlConst<'_>> for ApiUrl {
     }
 }
 
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct DnsFallback {
-    pub url: String,
-    pub addresses: Vec<String>,
-}
-
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
-#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
-pub struct NetworkingSpecifics {
-    pub nym_api_urls: Vec<ApiUrl>,
-    pub nym_vpn_api_urls: Vec<ApiUrl>,
-    pub dns_fallbacks: Vec<DnsFallback>,
-    // pub internal_nameservers: std::any::Any,
-    // pub covert channels: std::any::Any,
-}
-
-// by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
-impl Default for NetworkingSpecifics {
-    fn default() -> Self {
-        NymNetworkDetails::mainnet_specifics()
-    }
-}
-
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
 impl Default for NymNetworkDetails {
     fn default() -> Self {
@@ -156,11 +130,6 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
-            networking: NetworkingSpecifics {
-                nym_api_urls: Default::default(),
-                nym_vpn_api_urls: Default::default(),
-                dns_fallbacks: Default::default(),
-            },
             nym_vpn_api_url: Default::default(),
             nym_api_urls: Default::default(),
             nym_vpn_api_urls: Default::default(),
@@ -264,7 +233,6 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
             },
-            networking: Self::mainnet_specifics(),
             nym_vpn_api_url: parse_optional_str(mainnet::NYM_VPN_API),
             nym_api_urls: Some(mainnet::NYM_APIS.iter().copied().map(Into::into).collect()),
             nym_vpn_api_urls: Some(
@@ -274,31 +242,6 @@ impl NymNetworkDetails {
                     .map(Into::into)
                     .collect(),
             ),
-        }
-    }
-
-    pub(crate) fn mainnet_specifics() -> NetworkingSpecifics {
-        NetworkingSpecifics {
-            nym_api_urls: mainnet::NYM_APIS.iter().copied().map(Into::into).collect(),
-            nym_vpn_api_urls: mainnet::NYM_VPN_APIS
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
-            dns_fallbacks: Vec::new(),
-        }
-    }
-
-    #[allow(unused)]
-    pub(crate) fn sandbox_specifics() -> NetworkingSpecifics {
-        NetworkingSpecifics {
-            nym_api_urls: sandbox::NYM_APIS.iter().copied().map(Into::into).collect(),
-            nym_vpn_api_urls: sandbox::NYM_VPN_APIS
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect(),
-            dns_fallbacks: Vec::new(),
         }
     }
 
@@ -468,12 +411,8 @@ impl NymNetworkDetails {
     }
 
     pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
-        self.networking.nym_api_urls = urls.into_iter().map(Into::into).collect();
-        if self.networking.nym_api_urls.is_empty() {
-            self.nym_vpn_api_urls = None;
-        } else {
-            self.nym_api_urls = Some(self.networking.nym_api_urls.clone());
-        }
+        let urls: Vec<ApiUrl> = urls.into_iter().map(Into::into).collect();
+        self.nym_api_urls = (!urls.is_empty()).then_some(urls);
     }
 
     #[must_use]
@@ -483,34 +422,29 @@ impl NymNetworkDetails {
     }
 
     pub fn set_nym_vpn_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
-        self.networking.nym_vpn_api_urls = urls.into_iter().map(Into::into).collect();
-        if self.networking.nym_vpn_api_urls.is_empty() {
+        let urls: Vec<ApiUrl> = urls.into_iter().map(Into::into).collect();
+        if urls.is_empty() {
             self.nym_vpn_api_urls = None;
             self.nym_vpn_api_url = None
         } else {
-            self.nym_vpn_api_urls = Some(self.networking.nym_vpn_api_urls.clone());
-            self.nym_vpn_api_url = Some(
-                self.networking
-                    .nym_vpn_api_urls
-                    .first()
-                    .expect("array cannot be empty")
-                    .url
-                    .clone(),
-            );
+            self.nym_vpn_api_url = Some(urls.first().expect("checked non-empty above").url.clone());
+            self.nym_vpn_api_urls = Some(urls);
         }
     }
 
     #[must_use]
     pub fn with_nym_vpn_api_urls<U: Into<ApiUrl>>(mut self, urls: Vec<U>) -> Self {
-        self.set_nym_api_urls(urls);
+        self.set_nym_vpn_api_urls(urls);
         self
     }
 
-    /// Returns the configured `networking.nym_api_urls` if any are set, otherwise
+    /// Returns the configured `nym_api_urls` if any are set, otherwise
     /// falls back to the api urls derived from `endpoints` (the legacy validator list).
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
-        if !self.networking.nym_api_urls.is_empty() {
-            return self.networking.nym_api_urls.clone();
+        if let Some(urls) = &self.nym_api_urls
+            && !urls.is_empty()
+        {
+            return urls.clone();
         }
 
         self.endpoints
@@ -522,18 +456,18 @@ impl NymNetworkDetails {
 
     #[cfg(feature = "env")]
     fn nym_api_urls_str(&self) -> Option<String> {
-        serde_json::to_string(&self.networking.nym_api_urls)
+        serde_json::to_string(&self.nym_api_urls())
             .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
             .ok()
     }
 
     pub fn nym_vpn_api_urls(&self) -> Vec<ApiUrl> {
-        self.networking.nym_vpn_api_urls.clone()
+        self.nym_vpn_api_urls.clone().unwrap_or_default()
     }
 
     #[cfg(feature = "env")]
     fn nym_vpn_api_urls_str(&self) -> Option<String> {
-        serde_json::to_string(&self.networking.nym_vpn_api_urls)
+        serde_json::to_string(&self.nym_vpn_api_urls())
             .inspect_err(|e| tracing::warn!("failed to serialize nym_vpn_api_urls for env: {e}"))
             .ok()
     }

@@ -26,4 +26,6 @@ pub use constants::*;
 #[cfg(all(feature = "env", feature = "network"))]
 pub use env_setup::*;
 #[cfg(feature = "network")]
+pub use network::v2;
+#[cfg(feature = "network")]
 pub use network::*;

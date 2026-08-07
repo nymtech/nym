@@ -3,8 +3,7 @@
 
 #[cfg(feature = "network")]
 use crate::{
-    ApiUrlConst, ChainDetails, DenomDetails, NetworkingSpecifics, NymContracts, NymNetworkDetails,
-    ValidatorDetails,
+    ApiUrlConst, ChainDetails, DenomDetails, NymContracts, NymNetworkDetails, ValidatorDetails,
 };
 #[cfg(feature = "network")]
 use std::ops::Not;
@@ -119,19 +118,9 @@ pub fn network_details() -> NymNetworkDetails {
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        networking: network_specifics(),
         nym_api_urls: Some(NYM_APIS.iter().copied().map(Into::into).collect()),
         nym_vpn_api_urls: Some(NYM_VPN_APIS.iter().copied().map(Into::into).collect()),
         nym_vpn_api_url: parse_optional_str(NYM_VPN_API),
-    }
-}
-
-#[cfg(feature = "network")]
-pub fn network_specifics() -> NetworkingSpecifics {
-    NetworkingSpecifics {
-        nym_api_urls: NYM_APIS.iter().copied().map(Into::into).collect(),
-        nym_vpn_api_urls: NYM_VPN_APIS.iter().copied().map(Into::into).collect(),
-        dns_fallbacks: Vec::new(),
     }
 }
 

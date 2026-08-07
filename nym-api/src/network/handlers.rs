@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network::models::{ContractInformation, NetworkDetails};
+use crate::network::models::{ContractInformation, NetworkDetails, NetworkDetailsV2};
 use crate::node_status_api::models::AxumResult;
 use crate::signers_cache::handlers::signers_routes;
 use crate::support::config::CHAIN_STALL_THRESHOLD;
@@ -13,7 +13,7 @@ use nym_api_requests::models::{
 };
 use nym_api_requests::signable::SignableMessageBody;
 use nym_contracts_common::ContractBuildInformation;
-use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_http_api_common::{FormattedResponse, OutputParams, OutputParamsV2};
 use std::collections::HashMap;
 use time::OffsetDateTime;
 use tower_http::compression::CompressionLayer;
@@ -22,6 +22,7 @@ use utoipa::ToSchema;
 pub(crate) fn nym_network_routes() -> Router<AppState> {
     Router::new()
         .route("/details", axum::routing::get(network_details))
+        .route("/details-v2", axum::routing::get(network_details_v2))
         .route("/chain-status", axum::routing::get(chain_status))
         .route(
             "/chain-blocks-status",
@@ -57,6 +58,36 @@ async fn network_details(
     let output = output.output.unwrap_or_default();
 
     output.to_response(state.network_details().to_owned())
+}
+
+/// Identical to [`network_details`], except the returned `network` field uses the v2
+/// (grouped `networking` block) version of the network details struct. This endpoint
+/// is not a v2 of this API - it lives alongside `/details` under the same `/v1/network`
+/// path - it's only the struct on the wire that changed shape.
+#[utoipa::path(
+    tag = "network",
+    get,
+    context_path = "/v1/network",
+    path = "/details-v2",
+    responses(
+        (status = 200, content(
+            (NetworkDetailsV2 = "application/json"),
+            (NetworkDetailsV2 = "application/yaml"),
+        ))
+    ),
+    params(OutputParams)
+)]
+async fn network_details_v2(
+    Query(output): Query<OutputParamsV2>,
+    State(state): State<AppState>,
+) -> FormattedResponse<NetworkDetailsV2> {
+    let output = output.output.unwrap_or_default();
+
+    let details = state.network_details().to_owned();
+    output.to_response(NetworkDetailsV2::new(
+        details.connected_nyxd,
+        details.network.into(),
+    ))
 }
 
 #[utoipa::path(

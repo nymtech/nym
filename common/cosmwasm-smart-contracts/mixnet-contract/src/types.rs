@@ -216,6 +216,10 @@ pub struct ContractState {
     /// so that it could be removed from any family it belongs to.
     pub node_families_contract_address: Addr,
 
+    /// Address of the geolocation contract. It is called whenever nym-node unbonds,
+    /// so that it geolocation data could be removed from the underlying storage.
+    pub geolocation_contract_address: Addr,
+
     /// The expected denom used for rewarding (and realistically any other operation).
     /// Default: `unym`
     pub rewarding_denom: String,

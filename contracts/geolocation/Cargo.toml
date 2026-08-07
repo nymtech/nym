@@ -20,16 +20,33 @@ cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
+cosmwasm-schema = { workspace = true, optional = true }
+nym-mixnet-contract-common = { workspace = true }
+nym-lthash = { workspace = true }
+
 
 nym-geolocation-contract-common = { workspace = true }
-cosmwasm-schema = { workspace = true, optional = true }
+nym-contracts-common = { workspace = true }
+
+# Optional deps activated by the `testable-geolocation-contract` feature so
+# downstream crates can pull in `crate::testing` for their own test harnesses.
+nym-contracts-common-testing = { workspace = true, optional = true }
+nym-mixnet-contract = { workspace = true, optional = true, features = ["testable-mixnet-contract"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+# make the testing helpers available for this crate's own unit tests via
+# `cfg(test)`; downstream crates instead pull these in through the
+# `testable-geolocation-contract` feature.
 nym-contracts-common-testing = { workspace = true }
+nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
 
 [features]
 schema-gen = ["nym-geolocation-contract-common/schema", "cosmwasm-schema"]
+testable-geolocation-contract = [
+    "nym-contracts-common-testing",
+    "nym-mixnet-contract",
+]
 
 
 [lints]

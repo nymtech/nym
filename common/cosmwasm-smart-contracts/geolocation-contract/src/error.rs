@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::SubjectClass;
+use cosmwasm_std::Addr;
 use cw_controllers::AdminError;
+use nym_mixnet_contract_common::NodeId;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -36,6 +38,21 @@ pub enum GeolocationContractError {
 
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },
+
+    /// The referenced node is not a bonded node in the mixnet contract.
+    #[error("node {node_id} is not a bonded node in the mixnet contract")]
+    NodeNotBonded { node_id: NodeId },
+
+    /// A cross-contract callback was received from a sender other than the
+    /// configured mixnet contract.
+    #[error("address {sender} is not authorised to invoke the mixnet-contract callback")]
+    UnauthorisedMixnetCallback { sender: Addr },
+
+    /// The persisted LtHash digest accumulator was not the expected length, so it
+    /// could not be loaded (state corruption - the contract always writes exactly
+    /// `nym_lthash::DIGEST_LEN` bytes).
+    #[error("the stored digest accumulator is corrupt (unexpected length)")]
+    CorruptDigestState,
 
     #[error(transparent)]
     Admin(#[from] AdminError),

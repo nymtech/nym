@@ -118,7 +118,10 @@ impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
     ) -> Result<Self, ValidatorClientError> {
-        let api_url = details.endpoints[0]
+        let api_url = details
+            .endpoints
+            .get(0)
+            .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
             .api_url
             .clone()
             .ok_or(ValidatorClientError::NoAPIUrlAvailable)?

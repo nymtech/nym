@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{GAS_PRICE_AMOUNT, mainnet};
+use crate::{GAS_PRICE_AMOUNT, mainnet, sandbox};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Not;
@@ -315,6 +315,19 @@ impl NymNetworkDetails {
         }
     }
 
+    #[allow(unused)]
+    pub(crate) fn sandbox_specifics() -> NetworkingSpecifics {
+        NetworkingSpecifics {
+            nym_api_urls: sandbox::NYM_APIS.iter().copied().map(Into::into).collect(),
+            nym_vpn_api_urls: sandbox::NYM_VPN_APIS
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect(),
+            dns_fallbacks: Vec::new(),
+        }
+    }
+
     #[rustfmt::skip]
     #[cfg(feature = "env")]
     pub fn export_to_env(self) {
@@ -519,8 +532,18 @@ impl NymNetworkDetails {
         self
     }
 
+    /// Returns the configured `networking.nym_api_urls` if any are set, otherwise
+    /// falls back to the api urls derived from `endpoints` (the legacy validator list).
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
-        self.networking.nym_api_urls.clone()
+        if !self.networking.nym_api_urls.is_empty() {
+            return self.networking.nym_api_urls.clone();
+        }
+
+        self.endpoints
+            .iter()
+            .filter_map(|e| e.api_url())
+            .map(ApiUrl::from)
+            .collect()
     }
 
     #[cfg(feature = "env")]

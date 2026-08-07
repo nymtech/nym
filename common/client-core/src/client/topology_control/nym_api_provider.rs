@@ -7,11 +7,8 @@ use nym_topology::NymTopology;
 use nym_topology::provider_trait::{ToTopologyMetadata, TopologyProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nym_api::error::NymAPIError;
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
 use std::cmp::min;
 use tracing::{debug, error, warn};
-use url::Url;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Config {
@@ -43,34 +40,16 @@ pub struct NymApiTopologyProvider {
     config: Config,
 
     validator_client: nym_http_api_client::Client,
-    nym_api_urls: Vec<Url>,
-    currently_used_api: usize,
     use_bincode: bool,
 }
 
 impl NymApiTopologyProvider {
-    pub fn new(
-        config: impl Into<Config>,
-        mut nym_api_urls: Vec<Url>,
-        validator_client: nym_http_api_client::Client,
-    ) -> Self {
-        nym_api_urls.shuffle(&mut thread_rng());
-        let mut provider = NymApiTopologyProvider {
+    pub fn new(config: impl Into<Config>, validator_client: nym_http_api_client::Client) -> Self {
+        Self {
             config: config.into(),
             validator_client,
-            nym_api_urls,
-            currently_used_api: 0,
             use_bincode: true,
-        };
-        // Set all API URLs - the client will try them in order with automatic failover
-        provider.validator_client.change_base_urls(
-            provider
-                .nym_api_urls
-                .iter()
-                .map(|u| u.clone().into())
-                .collect(),
-        );
-        provider
+        }
     }
 
     pub fn disable_bincode(&mut self) {
@@ -79,30 +58,6 @@ impl NymApiTopologyProvider {
         // This would require recreating the client without bincode.
         // For now, we'll track the preference but it won't take effect.
         warn!("Disabling bincode on existing client is not currently supported");
-    }
-
-    fn use_next_nym_api(&mut self) {
-        if self.nym_api_urls.len() == 1 {
-            warn!(
-                "There's only a single nym API available - it won't be possible to use a different one"
-            );
-            return;
-        }
-
-        self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
-
-        // Provide all URLs starting from the next one in rotation order
-        // This enables automatic failover to other endpoints
-        let rotated_urls: Vec<_> = self
-            .nym_api_urls
-            .iter()
-            .cycle()
-            .skip(self.currently_used_api)
-            .take(self.nym_api_urls.len())
-            .map(|u| u.clone().into())
-            .collect();
-
-        self.validator_client.change_base_urls(rotated_urls)
     }
 
     async fn try_get_extended_topology(&mut self) -> Result<NymTopology, NymAPIError> {
@@ -270,10 +225,6 @@ impl NymApiTopologyProvider {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        let Some(topology) = self.get_current_compatible_topology().await else {
-            self.use_next_nym_api();
-            return None;
-        };
-        Some(topology)
+        self.get_current_compatible_topology().await
     }
 }

@@ -7161,6 +7161,7 @@ dependencies = [
  "cfg-if",
  "encoding_rs",
  "fastrand",
+ "h2 0.4.14",
  "hickory-resolver",
  "http 1.4.2",
  "inventory",

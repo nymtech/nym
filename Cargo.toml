@@ -157,6 +157,8 @@ members = [
     "sdk/ffi/shared",
     "sdk/rust/nym-sdk",
     "sdk/rust/nym-sdk-session",
+    "sdk/rust/nym-swizzle",
+    "sdk/rust/nym-swizzle-zcash",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -344,6 +346,7 @@ rand_chacha = "0.3"
 rand_chacha010 = { package = "rand_chacha", version = "=0.10.0" }
 rand_core = "0.6.3"
 rand_distr = "0.4"
+rand_distr06 = { package = "rand_distr", version = "0.6" }
 rayon = "1.5.1"
 regex = "1.10.6"
 reqwest = { version = "0.13.1", default-features = false }
@@ -522,6 +525,7 @@ nym-sphinx-routing = { version = "1.21.5-rc.3", path = "common/nymsphinx/routing
 nym-sphinx-types = { version = "1.21.5-rc.3", path = "common/nymsphinx/types" }
 nym-statistics-common = { version = "1.21.5-rc.3", path = "common/statistics" }
 nym-store-cipher = { version = "1.21.5-rc.3", path = "common/store-cipher" }
+nym-swizzle = { version = "1.21.5-rc.3", path = "sdk/rust/nym-swizzle" }
 nym-task = { version = "1.21.5-rc.3", path = "common/task" }
 nym-tun = { version = "1.21.5-rc.3", path = "common/tun" }
 nym-test-utils = { version = "1.21.5-rc.3", path = "common/test-utils" }

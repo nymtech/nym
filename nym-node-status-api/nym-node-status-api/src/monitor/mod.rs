@@ -138,12 +138,8 @@ impl Monitor {
 
         let gateways = described_nodes
             .values()
-            .filter_map(|node| {
-                if node.description.declared_role.entry || node.description.declared_role.exit_ipr {
-                    Some(node)
-                } else {
-                    None
-                }
+            .filter(|node| {
+                node.description.declared_role.entry || node.description.declared_role.exit_ipr
             })
             .collect::<Vec<_>>();
 

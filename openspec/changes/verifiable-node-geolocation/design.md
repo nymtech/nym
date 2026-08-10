@@ -236,9 +236,13 @@ The consumer cutover is the deferred follow-up change and carries the real migra
 
 ## Open Questions
 
-One item remains that requires work rather than a decision.
+None outstanding.
 
-- **`MAX_BATCH_SIZE` (task 6.6)** must come from a measured gas profile against the chain's per-transaction cap, counting the accumulator load and save once per transaction. A batch of 50 to 100 is a hypothesis to test, not a value to adopt.
+**`MAX_BATCH_SIZE` was resolved by dropping the measurement rather than performing it.** The original plan was to profile gas against the chain's per-transaction cap and adopt the result. That was reconsidered once the tunable became admin-adjustable contract state: the instantiated value only has to be safe, not optimal, and the figure that matters belongs to whichever chain the contract actually runs on. Measuring against a localnet with different gas parameters would produce a number that looks authoritative and is not.
+
+The harness cost was also real. `cw-multi-test` executes contracts as native Rust rather than in a wasm VM, so it meters no gas at all, and no contract in this repo has a gas-measurement harness to borrow. Obtaining the number needs a built wasm plus a deployed transaction, or a `cosmwasm-vm` metered instance written from scratch.
+
+The default of 50 stands on a size argument instead, which needs no harness: at the 1024-byte payload ceiling, 50 entries carry ~50 KB of content, and `Binary` serialises as base64 in JSON, so the message exceeds 60 KB. A batch is bounded by transaction size well before per-entry gas binds. An operator who has measured the real cost raises or lowers the bound with `UpdateConfig`.
 
 ## Task 1 investigation findings (2026-08-05)
 

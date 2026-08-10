@@ -14,8 +14,7 @@
 /// here are closed.
 ///
 /// A realistic version 1 payload is a few hundred bytes of JSON, so this leaves generous
-/// headroom while still bounding a batch's total transaction size (see task 6.6, which sets
-/// `MAX_BATCH_SIZE` from measured gas).
+/// headroom while still bounding a batch's total transaction size.
 pub const DEFAULT_MAX_PAYLOAD_SIZE: u32 = 1024;
 
 /// Default tolerance, in seconds, for a `declared_at` ahead of block time. Covers worst-case
@@ -26,9 +25,14 @@ pub const DEFAULT_MAX_SKEW_SECS: u64 = 300;
 
 /// Default cap on entries in one batch.
 ///
-/// Provisional: task 6.6 sets this from a measured gas profile against the chain's
-/// per-transaction cap, with realistic JSON payloads rather than minimal ones. Treat the
-/// current value as a hypothesis, not a measurement.
+/// Chosen to be conservative rather than optimal, and never measured against a chain: at the
+/// payload ceiling above, 50 entries are already ~50 KB of content before `Binary`'s base64
+/// expansion pushes the message past 60 KB, which bounds a batch by transaction size well
+/// before per-entry gas becomes the limit.
+///
+/// This is only the value instantiation starts from. The effective bound is contract state, so
+/// an operator who has measured the real cost on the chain they run against raises or lowers it
+/// with [`crate::ExecuteMsg::UpdateConfig`] rather than needing a redeploy.
 pub const DEFAULT_MAX_BATCH_SIZE: u32 = 50;
 
 /// The payload version whose `content` is UTF-8 JSON. Never reuse a version for another

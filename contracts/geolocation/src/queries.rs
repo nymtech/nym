@@ -879,20 +879,25 @@ mod tests {
             );
 
             // clamping must not cost anything: paging on still reaches every record
-            assert_eq!(page_through_unbounded(&test, Some(over as u32))?, over + 1);
+            assert_eq!(page_through_within(&test, Some(over as u32), 8)?, over + 1);
 
             Ok(())
         }
 
-        /// [`page_through`] without this module's fixed record count, for the one test that
-        /// builds a larger store; returns how many records the enumeration yielded.
-        fn page_through_unbounded(
+        /// [`page_through`] for the one test that builds a store larger than this module's
+        /// fixed record count; returns how many records the enumeration yielded.
+        ///
+        /// Bounded like its sibling, and for the same reason: a cursor that cycles rather than
+        /// advancing has to fail the test rather than hang the suite.
+        fn page_through_within(
             test: &impl GeolocationContractTesterExt,
             limit: Option<u32>,
+            max_pages: usize,
         ) -> anyhow::Result<usize> {
             let mut count = 0;
             let mut start_after = None;
-            loop {
+
+            for _ in 0..max_pages {
                 let res = page(test, start_after, limit)?;
                 count += res.records.len();
                 match res.start_next_after {
@@ -900,6 +905,8 @@ mod tests {
                     None => return Ok(count),
                 }
             }
+
+            panic!("the cursor never retired")
         }
 
         #[test]

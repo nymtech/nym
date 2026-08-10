@@ -32,6 +32,64 @@ pub enum GeolocationContractError {
     #[error("malformed payload content: {0}")]
     MalformedPayload(String),
 
+    /// The sender is not on the agent whitelist at all.
+    #[error("address {agent} is not a whitelisted agent")]
+    NotWhitelisted { agent: Addr },
+
+    /// The sender is whitelisted but lacks the flag this particular write needs. Kept
+    /// distinct from [`Self::NotWhitelisted`] because the two say different things to an
+    /// operator: one is "you were never authorised", the other "you were, but not for this".
+    #[error("agent {agent} lacks the {permission} permission")]
+    MissingAgentPermission {
+        agent: Addr,
+        permission: &'static str,
+    },
+
+    /// A batch carried more entries than the configured maximum.
+    #[error("batch holds {size} entries, exceeding the {max} entry limit")]
+    BatchTooLarge { size: usize, max: u32 },
+
+    /// The same subject appeared twice in one relay batch.
+    ///
+    /// Measurements deliberately allow a repeated key, resolving to the last write, but a
+    /// self-declaration cannot: monotonicity is checked against stored state, so two
+    /// declarations for one node in a batch would both pass and the last-written one could be
+    /// the older. Rejecting the batch keeps validity independent of the order it arrives in,
+    /// which resolving the duplicate would not.
+    #[error("node {node_id} appears more than once in the same relay batch")]
+    DuplicateDeclaration { node_id: NodeId },
+
+    /// A node's stored identity key could not be decoded into 32 raw ed25519 bytes.
+    #[error("node {node_id} has a malformed identity key in its mixnet bond")]
+    InvalidIdentityKey { node_id: NodeId },
+
+    /// A self-declaration's signature did not verify against the node's identity key.
+    #[error("the self-declaration's signature did not verify against the node's identity key")]
+    InvalidSignature,
+
+    /// A self-declaration that does not supersede the one already stored: a replay of a
+    /// superseded artifact, or of the current one.
+    #[error("node {node_id} declared at {declared_at}, not after the stored {stored}")]
+    StaleDeclaration {
+        node_id: NodeId,
+        declared_at: u64,
+        stored: u64,
+    },
+
+    /// A self-declaration stamped further ahead of block time than the skew allows. Kept
+    /// distinct from [`Self::StaleDeclaration`] because it is an operational fault - a node
+    /// clock running fast - rather than a replay, and presents as "the geolocator is broken"
+    /// if the two are conflated.
+    #[error(
+        "node {node_id} declared at {declared_at}, more than {max_skew_secs}s ahead of block time {block_time}"
+    )]
+    DeclarationTooFarInFuture {
+        node_id: NodeId,
+        declared_at: u64,
+        block_time: u64,
+        max_skew_secs: u64,
+    },
+
     /// A config value that would leave the contract unable to accept writes.
     #[error("invalid contract configuration: {reason}")]
     InvalidConfig { reason: &'static str },

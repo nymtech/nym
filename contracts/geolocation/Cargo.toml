@@ -16,6 +16,7 @@ name = "nym_geolocation_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -32,6 +33,7 @@ nym-contracts-common = { workspace = true }
 # downstream crates can pull in `crate::testing` for their own test harnesses.
 nym-contracts-common-testing = { workspace = true, optional = true }
 nym-mixnet-contract = { workspace = true, optional = true, features = ["testable-mixnet-contract"] }
+nym-crypto = { workspace = true, optional = true, features = ["asymmetric", "rand"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -40,12 +42,16 @@ anyhow = { workspace = true }
 # `testable-geolocation-contract` feature.
 nym-contracts-common-testing = { workspace = true }
 nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 
 [features]
 schema-gen = ["nym-geolocation-contract-common/schema", "cosmwasm-schema"]
 testable-geolocation-contract = [
     "nym-contracts-common-testing",
     "nym-mixnet-contract",
+    "nym-crypto",
+    "nym-crypto/asymmetric",
+    "nym-crypto/rand",
 ]
 
 

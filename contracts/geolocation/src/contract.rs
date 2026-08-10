@@ -3,7 +3,12 @@
 
 use crate::queries::query_admin;
 use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
-use crate::transactions::try_update_contract_admin;
+use crate::transactions::{
+    try_handle_node_unbonding, try_relay_self_declarations, try_remove_entries,
+    try_remove_override, try_remove_whitelisted_agent, try_set_override,
+    try_set_whitelisted_agent, try_submit_measurements, try_update_config,
+    try_update_contract_admin,
+};
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -47,19 +52,29 @@ pub fn execute(
 ) -> Result<Response, GeolocationContractError> {
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
-        ExecuteMsg::SubmitMeasurements { measurements } => todo!(),
-        ExecuteMsg::RelaySelfDeclarations { declarations } => todo!(),
-        ExecuteMsg::SetOverride { subject, payload } => todo!(),
-        ExecuteMsg::RemoveOverride { subject } => todo!(),
-        ExecuteMsg::SetWhitelistedAgent { agent, permissions } => todo!(),
-        ExecuteMsg::RemoveWhitelistedAgent { agent } => todo!(),
-        ExecuteMsg::PurgeAgentEntries { agent, limit } => todo!(),
+        ExecuteMsg::SubmitMeasurements { measurements } => {
+            try_submit_measurements(deps, env, info, measurements)
+        }
+        ExecuteMsg::RelaySelfDeclarations { declarations } => {
+            try_relay_self_declarations(deps, env, info, declarations)
+        }
+        ExecuteMsg::SetOverride { subject, payload } => {
+            try_set_override(deps, env, info, subject, payload)
+        }
+        ExecuteMsg::RemoveOverride { subject } => try_remove_override(deps, info, subject),
+        ExecuteMsg::SetWhitelistedAgent { agent, permissions } => {
+            try_set_whitelisted_agent(deps, info, agent, permissions)
+        }
+        ExecuteMsg::RemoveWhitelistedAgent { agent } => {
+            try_remove_whitelisted_agent(deps, info, agent)
+        }
+        ExecuteMsg::RemoveEntries { keys } => try_remove_entries(deps, info, keys),
         ExecuteMsg::UpdateConfig {
             max_skew_secs,
             max_batch_size,
             max_payload_size,
-        } => todo!(),
-        ExecuteMsg::OnNymNodeUnbond { node_id } => todo!(),
+        } => try_update_config(deps, info, max_skew_secs, max_batch_size, max_payload_size),
+        ExecuteMsg::OnNymNodeUnbond { node_id } => try_handle_node_unbonding(deps, info, node_id),
     }
 }
 

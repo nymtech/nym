@@ -37,8 +37,8 @@ fn default_initial_state(
         owner: Some(owner),
         rewarding_validator_address,
         vesting_contract_address,
-        node_families_contract_address,
-        geolocation_contract_address,
+        node_families_contract_address: Some(node_families_contract_address),
+        geolocation_contract_address: Some(geolocation_contract_address),
         rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
             delegations_params: DelegationsParams {
@@ -669,7 +669,7 @@ pub fn migrate(
     if let Some(node_families_contract_address) = msg.node_families_contract_address {
         let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
         current_state.node_families_contract_address =
-            deps.api.addr_validate(&node_families_contract_address)?;
+            Some(deps.api.addr_validate(&node_families_contract_address)?);
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 
@@ -741,8 +741,8 @@ mod tests {
             owner: Some(deps.api.addr_make("sender")),
             rewarding_validator_address: deps.api.addr_make("foomp123"),
             vesting_contract_address: deps.api.addr_make("bar456"),
-            node_families_contract_address: deps.api.addr_make("baz789"),
-            geolocation_contract_address: deps.api.addr_make("geolocation"),
+            node_families_contract_address: Some(deps.api.addr_make("baz789")),
+            geolocation_contract_address: Some(deps.api.addr_make("geolocation")),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

@@ -4,7 +4,8 @@
 use crate::ContractConfig;
 use crate::constants::{DEFAULT_MAX_BATCH_SIZE, DEFAULT_MAX_PAYLOAD_SIZE, DEFAULT_MAX_SKEW_SECS};
 use crate::types::{
-    AgentPermissions, LocationPayload, Method, NymNodeLocation, RecordKey, Source, Subject,
+    AgentPermissions, EntryKey, LocationPayload, Method, NymNodeLocation, RecordKey, Source,
+    Subject,
 };
 #[cfg(feature = "schema")]
 use crate::types::{
@@ -95,13 +96,18 @@ pub enum ExecuteMsg {
     ///
     /// Non-destructive: the agent's entries stay in storage and in the digest, and a
     /// conforming client stops honouring them immediately, because authorisation is evaluated
-    /// against the current whitelist at read time. [`Self::PurgeAgentEntries`] cleans up
+    /// against the current whitelist at read time. [`Self::RemoveEntries`] cleans up
     /// afterwards, as hygiene rather than as the security control.
     RemoveWhitelistedAgent { agent: String },
 
-    /// Delete up to `limit` entries written by a de-whitelisted agent, folding each removal
-    /// into the digest. Admin only. Call repeatedly until nothing is left to purge.
-    PurgeAgentEntries { agent: String, limit: Option<u32> },
+    /// Delete the named entries, folding each removal into the digest. Admin only.
+    ///
+    /// Explicit keys rather than a purge scoped to one agent. The agent sits inside the trailing
+    /// `source` key component, so there is no index by agent and a scoped purge would have to
+    /// scan the whole store on every page, one admin transaction at a time. The admin instead
+    /// pages [`QueryMsg::AllRecords`] off-chain, decides exactly what should go and names it, so
+    /// the cost is proportional to what is deleted rather than to what is stored.
+    RemoveEntries { keys: Vec<EntryKey> },
 
     /// Transfer the admin role. Admin only. There is always exactly one admin.
     UpdateAdmin { admin: String },

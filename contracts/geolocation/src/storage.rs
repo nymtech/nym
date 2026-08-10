@@ -6,8 +6,8 @@ use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
 use nym_geolocation_contract_common::constants::storage_keys;
 use nym_geolocation_contract_common::{
-    AgentPermissions, ContractConfig, GeolocationContractError, GeolocationRecord, InitialAgent,
-    LocationEntry, Source, Subject, SubjectClass, WhitelistEntry,
+    AgentPermissions, ContractConfig, EntryKey, GeolocationContractError, GeolocationRecord,
+    InitialAgent, LocationEntry, Source, Subject, SubjectClass, WhitelistEntry,
 };
 use nym_lthash::LtHash16;
 
@@ -123,7 +123,7 @@ impl GeolocationStorage {
             .may_load(store, entry_storage_key(subject, source))?)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "testable-geolocation-contract"))]
     pub(crate) fn all_entries(
         &self,
         storage: &dyn Storage,
@@ -181,6 +181,18 @@ impl GeolocationStorage {
         agent: &Addr,
     ) -> Result<Option<AgentPermissions>, GeolocationContractError> {
         Ok(self.whitelist.may_load(store, agent.clone())?)
+    }
+
+    /// The permissions currently held by `agent`, rejecting a sender that is not whitelisted.
+    pub(crate) fn must_load_agent_permissions(
+        &self,
+        store: &dyn Storage,
+        agent: &Addr,
+    ) -> Result<AgentPermissions, GeolocationContractError> {
+        self.may_load_agent_permissions(store, agent)?
+            .ok_or_else(|| GeolocationContractError::NotWhitelisted {
+                agent: agent.clone(),
+            })
     }
 
     /// The whole whitelist, in ascending address order. Unpaginated: the set is small and
@@ -324,6 +336,49 @@ impl GeolocationStorage {
         self.set_entries(store, [(subject, source, entry)])
     }
 
+    /// Retire one entry's exact stored leaf and delete it, reporting whether anything was
+    /// there to remove.
+    fn fold_remove_entry(
+        &self,
+        store: &mut dyn Storage,
+        digest: &mut LtHash16,
+        subject: &Subject,
+        source: &Source,
+    ) -> Result<bool, GeolocationContractError> {
+        let key = entry_storage_key(subject, source);
+        let Some(old) = self.entries.may_load(store, key.clone())? else {
+            return Ok(false);
+        };
+
+        digest.subtract(
+            &GeolocationRecord::new_location(subject.clone(), source.clone(), old).digest_leaf(),
+        );
+        self.entries.remove(store, key);
+        Ok(true)
+    }
+
+    /// Delete many entries under a single accumulator load and save. Idempotent per key:
+    /// naming an entry that is not there removes nothing and leaves the digest untouched,
+    /// including the stored bytes, since a batch that removed nothing never saves.
+    pub(crate) fn remove_entries(
+        &self,
+        store: &mut dyn Storage,
+        keys: impl IntoIterator<Item = EntryKey>,
+    ) -> Result<(), GeolocationContractError> {
+        let mut digest = self.load_digest(store)?;
+        let mut removed_any = false;
+        for key in keys {
+            if self.fold_remove_entry(store, &mut digest, &key.subject, &key.source)? {
+                removed_any = true;
+            }
+        }
+
+        if removed_any {
+            self.save_digest(store, &digest);
+        }
+        Ok(())
+    }
+
     /// Delete a single entry, keeping the digest in sync. Idempotent: removing an absent
     /// entry leaves the digest untouched.
     pub(crate) fn remove_entry(
@@ -332,18 +387,7 @@ impl GeolocationStorage {
         subject: &Subject,
         source: &Source,
     ) -> Result<(), GeolocationContractError> {
-        let key = entry_storage_key(subject, source);
-        let Some(old) = self.entries.may_load(store, key.clone())? else {
-            return Ok(());
-        };
-
-        let mut digest = self.load_digest(store)?;
-        digest.subtract(
-            &GeolocationRecord::new_location(subject.clone(), source.clone(), old).digest_leaf(),
-        );
-        self.entries.remove(store, key);
-        self.save_digest(store, &digest);
-        Ok(())
+        self.remove_entries(store, [EntryKey::new(subject.clone(), source.clone())])
     }
 
     /// Delete every entry held for one subject, across all sources, in a single digest
@@ -352,13 +396,14 @@ impl GeolocationStorage {
         &self,
         store: &mut dyn Storage,
         subject: &Subject,
-    ) -> Result<(), GeolocationContractError> {
+    ) -> Result<usize, GeolocationContractError> {
         // collect first: the scan borrows the store immutably and we then mutate it
         let existing = self.subject_entries(store, subject)?;
         if existing.is_empty() {
-            return Ok(());
+            return Ok(0);
         }
 
+        let removed = existing.len();
         let mut digest = self.load_digest(store)?;
         for (source, entry) in existing {
             let key = entry_storage_key(subject, &source);
@@ -368,7 +413,7 @@ impl GeolocationStorage {
             self.entries.remove(store, key);
         }
         self.save_digest(store, &digest);
-        Ok(())
+        Ok(removed)
     }
 
     /// Add an agent to the whitelist, or replace an existing agent's permissions, keeping
@@ -599,18 +644,12 @@ mod tests {
             vec![
                 // node 9 before node 10: big-endian ids order numerically, where a decimal
                 // string would not
-                RecordKey::Location {
-                    subject: Subject::new_nym_node(9),
-                    source: measured_by(&agent)
-                },
-                RecordKey::Location {
-                    subject: Subject::new_nym_node(10),
-                    source: Source::SelfDeclared
-                },
-                RecordKey::Location {
-                    subject: Subject::new_nym_node(10),
-                    source: Source::Override
-                },
+                RecordKey::Location(EntryKey::new(Subject::new_nym_node(9), measured_by(&agent))),
+                RecordKey::Location(EntryKey::new(
+                    Subject::new_nym_node(10),
+                    Source::SelfDeclared
+                )),
+                RecordKey::Location(EntryKey::new(Subject::new_nym_node(10), Source::Override)),
                 RecordKey::WhitelistedAgent { agent },
             ]
         );

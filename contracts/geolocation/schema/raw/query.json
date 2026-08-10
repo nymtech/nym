@@ -190,6 +190,23 @@
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
     },
+    "EntryKey": {
+      "description": "Names one location entry: which subject, and which source asserted it. What a reader queries by and what [`crate::ExecuteMsg::RemoveEntries`] deletes by.\n\nA named pair rather than a tuple, because the two components are not interchangeable and the storage key's ordering depends on which is which.",
+      "type": "object",
+      "required": [
+        "source",
+        "subject"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/Source"
+        },
+        "subject": {
+          "$ref": "#/definitions/Subject"
+        }
+      },
+      "additionalProperties": false
+    },
     "Method": {
       "description": "How a measurement was obtained. Closed enum for the same reason [`SubjectClass`] is: it lives in the key, so adding a vendor or a technique is one variant with no leaf-encoding change and no state migration.\n\nRetiring a variant is a migration that must subtract every affected leaf from the accumulator before deleting the entries, and its discriminant must be tombstoned rather than reused.",
       "oneOf": [
@@ -203,7 +220,7 @@
       ]
     },
     "RecordKey": {
-      "description": "The logical key of a digest-committed record: the [`crate::QueryMsg::AllRecords`] cursor, and the identity half of a [`GeolocationRecord`]. The on-chain storage key is a separate concern, handled by each store, so this type carries no storage-codec logic.",
+      "description": "The logical key of a digest-committed record: the [`crate::QueryMsg::AllRecords`] cursor, and the identity half of a [`GeolocationRecord`]. The on-chain storage key is a separate concern, handled by each store, so this type carries no storage-codec logic.\n\nDeliberately not what [`crate::ExecuteMsg::RemoveEntries`] accepts, even though it can name a location entry: it can also name a whitelist entry, and a whitelist entry must only be removed through [`crate::ExecuteMsg::RemoveWhitelistedAgent`], where the digest and the authorisation semantics are handled together.",
       "oneOf": [
         {
           "type": "object",
@@ -212,20 +229,7 @@
           ],
           "properties": {
             "location": {
-              "type": "object",
-              "required": [
-                "source",
-                "subject"
-              ],
-              "properties": {
-                "source": {
-                  "$ref": "#/definitions/Source"
-                },
-                "subject": {
-                  "$ref": "#/definitions/Subject"
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/definitions/EntryKey"
             }
           },
           "additionalProperties": false

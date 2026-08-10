@@ -1097,4 +1097,126 @@ mod tests {
             Ok(())
         }
     }
+
+    /// The whole point of the contract, exercised the way a verifying client actually would:
+    /// through the public query surface only, touching no storage helper and no handler.
+    ///
+    /// Every other test here checks one link of that chain against contract internals. This one
+    /// checks the chain end to end, which matters because the enumeration and `all_records` now
+    /// share `entries_paged`, so comparing them no longer cross-checks two implementations.
+    #[cfg(test)]
+    mod client_recompute {
+        use super::*;
+        use crate::testing::{init_contract_tester, measured_by, GeolocationContractTesterExt};
+        use nym_contracts_common_testing::{ArbitraryContractStorageReader, ChainOpts, ContractOpts};
+        use nym_geolocation_contract_common::constants::{storage_keys, PAYLOAD_VERSION_1};
+        use nym_geolocation_contract_common::{GeolocationRecord, LocationPayload, QueryMsg};
+        use nym_lthash::{LtHash16, DIGEST_LEN};
+
+        /// A payload version this contract has never been taught to read. It stores and commits
+        /// opaque bytes, so nothing about enumerating or folding an entry may depend on the
+        /// version byte - which is what lets a version 2 payload ship without a migration.
+        const PAYLOAD_VERSION_2: u8 = PAYLOAD_VERSION_1 + 1;
+
+        fn versioned_entry(version: u8, content: &[u8]) -> LocationEntry {
+            LocationEntry {
+                payload: LocationPayload {
+                    version,
+                    content: content.to_vec().into(),
+                },
+                checked_at: 1234,
+                attestation: None,
+            }
+        }
+
+        #[test]
+        fn a_client_recomputes_the_digest_from_the_query_surface_alone() -> anyhow::Result<()> {
+            let mut test = init_contract_tester();
+            let agent = test.add_dummy_agent();
+            test.add_dummy_agent();
+
+            for node_id in [1, 2, 3] {
+                test.set_dummy_measurement_from(node_id, &agent);
+                test.set_dummy_node_self_declared(node_id);
+                test.set_dummy_node_override(node_id);
+            }
+
+            // a store holding two payload versions at once, which is the state any version
+            // rollout passes through
+            test.set_node_entry(
+                4,
+                measured_by(&agent),
+                versioned_entry(PAYLOAD_VERSION_2, b"v2-content"),
+            );
+            test.set_node_entry(
+                5,
+                Source::Override,
+                versioned_entry(PAYLOAD_VERSION_1, b"v1-content"),
+            );
+
+            // ---- from here on, only what a client can reach without trusting the node ----
+
+            let mut pulled = Vec::new();
+            let mut start_after = None;
+            let mut pages = 0;
+            loop {
+                assert!(pages < 20, "the enumeration did not terminate");
+                pages += 1;
+
+                // small enough that the enumeration has to page, and to cross from the location
+                // entries into the whitelist mid-page
+                let page: AllRecordsPagedResponse = test.query(&QueryMsg::AllRecords {
+                    start_after,
+                    limit: Some(4),
+                })?;
+                pulled.extend(page.records);
+
+                let Some(cursor) = page.start_next_after else {
+                    break;
+                };
+                start_after = Some(cursor);
+            }
+
+            // 11 location entries and 2 agents, so a truncated pull is legible as that rather
+            // than only as a digest mismatch
+            assert_eq!(pulled.len(), 13);
+            assert!(pages > 1, "the fixture is too small to have paged at all");
+            assert_eq!(
+                pulled
+                    .iter()
+                    .filter(|record| matches!(
+                        record,
+                        GeolocationRecord::Location(location)
+                            if location.entry.payload.version == PAYLOAD_VERSION_2
+                    ))
+                    .count(),
+                1,
+                "the unreadable payload version must survive the enumeration verbatim"
+            );
+
+            let mut recomputed = LtHash16::new();
+            for record in &pulled {
+                recomputed.add(&record.digest_leaf());
+            }
+
+            // the accumulator is what an ICS23 proof covers, so a client that wants proof
+            // compares these directly and never has to reproduce the collapse at all
+            let proven = test.must_read_from_contract_storage(
+                test.contract_address.clone(),
+                storage_keys::DIGEST_STATE,
+            )?;
+            let proven: [u8; DIGEST_LEN] = proven
+                .as_slice()
+                .try_into()
+                .expect("the digest key must hold a whole accumulator");
+            assert_eq!(recomputed, LtHash16::from_bytes(&proven));
+
+            // and the smart query serves the collapse of that same value, for clients that only
+            // need to compare digests and can live without a proof
+            let digest: DigestResponse = test.query(&QueryMsg::Digest {})?;
+            assert_eq!(digest.digest.to_vec(), recomputed.out().to_vec());
+
+            Ok(())
+        }
+    }
 }

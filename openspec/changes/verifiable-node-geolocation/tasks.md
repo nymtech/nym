@@ -97,11 +97,11 @@ than its collapse.
   rejected without paying for the cross-contract bond lookup or the ed25519 verify. Strictly greater rather than
   greater-or-equal, so re-relaying an unchanged artifact is a replay rather than a heartbeat: unlike a measurement, a
   self-declaration can only be refreshed by the node signing a new one
-- [x] 4.6 Implement admin override set/remove under the `Override` source. Set and remove are separate operations, so
-  an override can be retracted without waiting for a re-measurement, and removal touches only the `Override` slot. The
+- [x] 4.6 Implement admin override set/remove under the `Override` source. Set and remove are separate operations, so an
+  override can be retracted without waiting for a re-measurement, and removal touches only the `Override` slot. The
   subject is deliberately not checked against the mixnet contract: the override is the admin's escape hatch, and a
-  bonding check would only apply to one of the subject classes the enum is meant to grow. Removing an absent override
-  is a no-op rather than an error
+  bonding check would only apply to one of the subject classes the enum is meant to grow. Removing an absent override is
+  a no-op rather than an error
 - [x] 4.7 Implement admin whitelist add/modify/remove, folding each into the digest. Add and modify are one operation,
   since they differ only in whether a leaf has to be retired first. Removal is non-destructive by design, leaving the
   agent's entries in storage and in the digest for 4.8 to reclaim. The grant's flags go into the event attributes:
@@ -147,23 +147,46 @@ than its collapse.
   which deployment a self-declaration's identity key was resolved against before it can judge what that entry proves.
   The whitelist query is what makes read-time authorisation usable, so its test asserts that de-whitelisting is visible
   immediately while the agent's entries stay in storage
-- [ ] 5.5 Generate contract schema
+- [x] 5.5 Generate contract schema
 
 ## 6. Contract testing
 
-- [ ] 6.1 Unit tests per handler covering the authorisation matrix (non-whitelisted, wrong permission, non-admin
-  override, wrong unbond sender)
-- [ ] 6.2 Batch tests: ordering independence, repeated key within a batch, oversized rejection, one-bad-entry rollback
-- [ ] 6.3 Replay tests: superseded artifact, equal timestamp, far-future timestamp, slow node clock
+- [x] 6.1 Unit tests per handler covering the authorisation matrix (non-whitelisted, wrong permission, non-admin
+  override, wrong unbond sender). **Written with the handlers in section 4 rather than as a later pass**, on the
+  grounds that a handler which writes unauthorised entries should not exist even briefly. Each named case has a test:
+  `{measurement_submission,self_declaration_relay}::a_non_whitelisted_sender_is_rejected`,
+  `an_agent_without_{can_measure,can_relay_self_declared}_is_rejected`,
+  `admin_overrides::a_non_admin_cannot_{set,remove}_an_override`, and
+  `unbond_callback::only_the_configured_mixnet_contract_may_invoke_it`. Five handlers the checklist does not name are
+  covered too (whitelist set and remove, `RemoveEntries`, `UpdateConfig`, `UpdateAdmin`), and
+  `a_non_admin_cannot_change_the_whitelist` runs the check from a *whitelisted agent*, so being trusted to measure
+  cannot be parlayed into granting that trust or revoking a rival
+- [x] 6.2 Batch tests: ordering independence, repeated key within a batch, oversized rejection, one-bad-entry rollback.
+  All four covered by 3.6 and 4.1/4.2/4.4: `storage::batch_order_does_not_affect_the_digest`,
+  `a_key_repeated_within_one_batch_is_not_double_counted` plus the two handler-level repeat tests (which deliberately
+  differ: a measurement batch resolves a repeat to the last write, a relay batch rejects it), four oversized tests
+  including the exactly-at-the-limit boundary, and `one_{oversized_payload,bad_artifact}_fails_the_whole_batch_without_
+  writing_anything`. Ordering independence is asserted at the storage layer only: the handler folds through the same
+  `set_entries`, so a handler-level variant would re-exercise one code path from two places
+- [x] 6.3 Replay tests: superseded artifact, equal timestamp, far-future timestamp, slow node clock. All four covered by
+  4.5, one test each: `replaying_a_superseded_artifact_is_rejected`,
+  `re_relaying_the_current_artifact_is_rejected_rather_than_treated_as_a_heartbeat` (the equal-timestamp case, named for
+  the property rather than the input), `a_declaration_beyond_the_skew_window_is_rejected_but_the_window_itself_is_
+  inclusive`, and `a_node_whose_clock_lags_is_not_locked_out`
 - [x] 6.4 App-level test of the mixnet unbond callback dispatching to this contract (deps-level tests do not dispatch
   sub-messages). Done in 4.9 as `unbonding_through_the_mixnet_contract_reaches_this_handler`, alongside the deps-level
   handler tests it complements
 - [ ] 6.5 End-to-end recompute test: page the full enumeration, fold every leaf, assert equality with the queried
   digest, including a store holding two payload versions
-- [ ] 6.6 Measure gas for a full batch and set `MAX_BATCH_SIZE` from the result; record the number in design.md. Measure
-  with realistic JSON payloads, not minimal ones: version 1 encodes `content` as JSON rather than protobuf, so entries
-  run roughly two to three times larger than a prost equivalent and the batch is bounded by total transaction bytes as
-  much as by per-entry gas
+- [x] 6.6 **Dropped as not worth the harness.** The measurement was to set `MAX_BATCH_SIZE` from a gas profile, but
+  `cw-multi-test` executes contracts as native Rust rather than in a wasm VM and meters no gas at all, and no contract
+  in this repo has a harness to borrow; obtaining the number needs a built wasm plus a deployed transaction, or a
+  `cosmwasm-vm` metered instance written from scratch. What makes that cost unjustified is 3.7's decision to hold the
+  bound in admin-adjustable state: the instantiated value only has to be safe, and the figure that matters belongs to
+  whichever chain the contract runs on, set later with `UpdateConfig`. The default of 50 now rests on a size argument
+  needing no harness - at the payload ceiling, 50 entries are ~50 KB of content, and `Binary` is base64 in JSON, so a
+  batch is bounded by transaction size well before per-entry gas binds. Recorded in design.md; the constant's doc no
+  longer calls itself a hypothesis awaiting measurement
 
 ## 7. Client integration
 

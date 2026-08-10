@@ -3,11 +3,11 @@
 
 use cosmwasm_std::{Addr, DepsMut, Order, Storage};
 use cw_controllers::Admin;
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::{Bound, Item, Map};
 use nym_geolocation_contract_common::constants::storage_keys;
 use nym_geolocation_contract_common::{
     AgentPermissions, ContractConfig, EntryKey, GeolocationContractError, GeolocationRecord,
-    InitialAgent, LocationEntry, Source, Subject, SubjectClass, WhitelistEntry,
+    InitialAgent, LocationEntry, LocationRecord, Source, Subject, SubjectClass, WhitelistEntry,
 };
 use nym_lthash::LtHash16;
 
@@ -29,12 +29,16 @@ type EntryStorageKey = (u8, Vec<u8>, Vec<u8>);
 /// The prefix covering one subject's contiguous range: everything but the source.
 type SubjectPrefix = (u8, Vec<u8>);
 
-fn entry_storage_key(subject: &Subject, source: &Source) -> EntryStorageKey {
+pub(crate) fn entry_storage_key(subject: &Subject, source: &Source) -> EntryStorageKey {
     (
         subject.class().tag(),
         subject.id_bytes(),
         source.to_key_bytes(),
     )
+}
+
+pub(crate) fn build_storage_key(raw: EntryKey) -> EntryStorageKey {
+    entry_storage_key(&raw.subject, &raw.source)
 }
 
 fn subject_prefix(subject: &Subject) -> SubjectPrefix {
@@ -123,15 +127,28 @@ impl GeolocationStorage {
             .may_load(store, entry_storage_key(subject, source))?)
     }
 
-    #[cfg(any(test, feature = "testable-geolocation-contract"))]
-    pub(crate) fn all_entries(
+    pub(crate) fn entries_paged(
         &self,
-        storage: &dyn Storage,
-    ) -> Result<Vec<(EntryStorageKey, LocationEntry)>, GeolocationContractError> {
-        Ok(self
+        store: &dyn Storage,
+        start_next_after: Option<EntryStorageKey>,
+        limit: usize,
+    ) -> Result<Vec<LocationRecord>, GeolocationContractError> {
+        let start = start_next_after.map(Bound::exclusive);
+        let mut entries = Vec::new();
+        for record in self
             .entries
-            .range(storage, None, None, Order::Ascending)
-            .collect::<Result<Vec<_>, _>>()?)
+            .range(store, start, None, Order::Ascending)
+            .take(limit)
+        {
+            let (raw_key, entry) = record?;
+            let (subject, source) = parse_raw_key(raw_key)?;
+            entries.push(LocationRecord {
+                subject,
+                source,
+                entry,
+            });
+        }
+        Ok(entries)
     }
 
     /// Everything held for one subject, in ascending source order.
@@ -195,14 +212,17 @@ impl GeolocationStorage {
             })
     }
 
-    /// The whole whitelist, in ascending address order. Unpaginated: the set is small and
-    /// NYM-controlled.
-    pub(crate) fn all_whitelisted_agents(
+    pub(crate) fn whitelisted_agents_paged(
         &self,
         store: &dyn Storage,
+        start_after: Option<Addr>,
+        limit: usize,
     ) -> Result<Vec<WhitelistEntry>, GeolocationContractError> {
+        let start = start_after.map(Bound::exclusive);
+
         self.whitelist
-            .range(store, None, None, Order::Ascending)
+            .range(store, start, None, Order::Ascending)
+            .take(limit)
             .map(|record| {
                 let (agent, permissions) = record?;
                 Ok(WhitelistEntry { agent, permissions })
@@ -210,39 +230,30 @@ impl GeolocationStorage {
             .collect()
     }
 
+    /// The whole whitelist, in ascending address order. Unpaginated: the set is small and
+    /// NYM-controlled.
+    pub(crate) fn all_whitelisted_agents(
+        &self,
+        store: &dyn Storage,
+    ) -> Result<Vec<WhitelistEntry>, GeolocationContractError> {
+        self.whitelisted_agents_paged(store, None, usize::MAX)
+    }
+
     // ---- global enumeration ----
 
-    /// Every digest-committed record, across both entry classes.
-    ///
-    /// This is the definition of what the accumulator is supposed to equal: fold each of
-    /// these leaves into an empty digest and the result must be the stored one. It is also
-    /// what a client pulls and folds to verify completeness for itself, which is why the
-    /// whitelist is in here rather than being treated as configuration.
-    ///
-    /// Unbounded, and so an internal helper rather than a query handler; the paged query
-    /// takes a cursor over the same records.
+    #[cfg(any(test, feature = "testable-geolocation-contract"))]
     pub(crate) fn all_records(
         &self,
         store: &dyn Storage,
     ) -> Result<Vec<GeolocationRecord>, GeolocationContractError> {
-        let locations = self
-            .entries
-            .range(store, None, None, Order::Ascending)
-            .map(|record| {
-                let (key, entry) = record?;
-                let (subject, source) = parse_raw_key(key)?;
-                Ok(GeolocationRecord::new_location(subject, source, entry))
-            });
+        let locations = self.entries_paged(store, None, usize::MAX)?;
+        let agents = self.all_whitelisted_agents(store)?;
 
-        let agents = self
-            .whitelist
-            .range(store, None, None, Order::Ascending)
-            .map(|record| {
-                let (agent, permissions) = record?;
-                Ok(GeolocationRecord::new_whitelisted_agent(agent, permissions))
-            });
-
-        locations.chain(agents).collect()
+        Ok(locations
+            .into_iter()
+            .map(GeolocationRecord::from)
+            .chain(agents.into_iter().map(GeolocationRecord::from))
+            .collect())
     }
 
     // ---- digest accumulator (raw `DIGEST_STATE` key) ----
@@ -461,6 +472,19 @@ impl GeolocationStorage {
     }
 }
 
+pub mod retrieval_limits {
+    /// Page size for the global enumeration when the caller names none.
+    ///
+    /// Modest, because a record carries a whole payload rather than an identifier. This is the
+    /// query a verifying client pages through in full, so the ceiling is what keeps one page
+    /// inside the queried node's gas limit.
+    pub const ALL_RECORDS_DEFAULT_LIMIT: u32 = 50;
+
+    /// Ceiling on the global enumeration's page size. An over-large request is clamped rather
+    /// than rejected: a client asking for too much wants the records, not an error.
+    pub const ALL_RECORDS_MAX_LIMIT: u32 = 100;
+}
+
 /// Fold every stored record into an empty accumulator - what a verifying client does with the
 /// paged enumeration - and assert the maintained digest agrees.
 ///
@@ -480,9 +504,7 @@ pub(crate) fn assert_digest_is_refold(store: &dyn Storage) {
 }
 
 // The entries store's key: `(subject_class_tag, subject_id, source)`.
-pub(crate) fn parse_raw_key(
-    key: EntryStorageKey,
-) -> Result<(Subject, Source), GeolocationContractError> {
+fn parse_raw_key(key: EntryStorageKey) -> Result<(Subject, Source), GeolocationContractError> {
     let (subject_class_tag, subject_id, source) = key;
     let subject_class = SubjectClass::try_from_tag(subject_class_tag)?;
     let subject = Subject::try_from_id_bytes(subject_class, &subject_id)?;

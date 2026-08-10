@@ -525,6 +525,21 @@ pub struct AllRecordsPagedResponse {
     pub start_next_after: Option<RecordKey>,
 }
 
+impl AllRecordsPagedResponse {
+    /// Wrap an already-assembled page, taking the cursor from its final record.
+    ///
+    /// `records` must be in ascending key order, which is what every store this reads from
+    /// yields. The cursor comes from the page as a whole rather than from whichever class was
+    /// added last, so a page that spans two classes needs no special handling and adding a
+    /// third class later cannot silently truncate it.
+    pub fn new(records: Vec<GeolocationRecord>) -> AllRecordsPagedResponse {
+        AllRecordsPagedResponse {
+            start_next_after: records.last().map(GeolocationRecord::key),
+            records,
+        }
+    }
+}
+
 /// Names one location entry: which subject, and which source asserted it. What a reader
 /// queries by and what [`crate::ExecuteMsg::RemoveEntries`] deletes by.
 ///
@@ -588,52 +603,74 @@ impl EntryClass {
 /// A digest-committed record, together with the key it is stored under. Everything the
 /// accumulator folds is one of these, and [`GeolocationRecord::digest_leaf`] is the only
 /// place the canonical leaf encoding lives.
+/// The variants wrap the per-class record types rather than restating their fields, so each
+/// class is described in exactly one place. Serde's external tagging makes a newtype variant
+/// transparent, so this is the same JSON a struct variant would produce.
 #[cw_serde]
 pub enum GeolocationRecord {
     /// A location entry for one subject from one source.
-    Location {
-        subject: Subject,
-        source: Source,
-        entry: LocationEntry,
-    },
+    Location(LocationRecord),
 
     /// One whitelisted agent and its permissions. Folded into the same digest as location
     /// entries, because measured entries carry no signature and a client verifying the
     /// digest would otherwise have no way to tell which writers were authorised.
-    WhitelistedAgent {
-        agent: Addr,
-        permissions: AgentPermissions,
-    },
+    WhitelistedAgent(WhitelistEntry),
+}
+
+#[cw_serde]
+pub struct LocationRecord {
+    pub subject: Subject,
+    pub source: Source,
+    pub entry: LocationEntry,
+}
+
+impl LocationRecord {
+    pub fn entry_key(&self) -> EntryKey {
+        EntryKey {
+            subject: self.subject.clone(),
+            source: self.source.clone(),
+        }
+    }
+}
+
+impl From<LocationRecord> for GeolocationRecord {
+    fn from(value: LocationRecord) -> Self {
+        GeolocationRecord::Location(value)
+    }
+}
+
+impl From<WhitelistEntry> for GeolocationRecord {
+    fn from(value: WhitelistEntry) -> Self {
+        GeolocationRecord::WhitelistedAgent(value)
+    }
 }
 
 impl GeolocationRecord {
     pub fn new_location(subject: Subject, source: Source, entry: LocationEntry) -> Self {
-        GeolocationRecord::Location {
+        GeolocationRecord::Location(LocationRecord {
             subject,
             source,
             entry,
-        }
+        })
     }
 
     pub fn new_whitelisted_agent(agent: Addr, permissions: AgentPermissions) -> Self {
-        GeolocationRecord::WhitelistedAgent { agent, permissions }
+        GeolocationRecord::WhitelistedAgent(WhitelistEntry { agent, permissions })
     }
 
     pub const fn class(&self) -> EntryClass {
         match self {
-            GeolocationRecord::Location { .. } => EntryClass::Location,
-            GeolocationRecord::WhitelistedAgent { .. } => EntryClass::WhitelistedAgent,
+            GeolocationRecord::Location(..) => EntryClass::Location,
+            GeolocationRecord::WhitelistedAgent(..) => EntryClass::WhitelistedAgent,
         }
     }
 
     /// The record's logical key, as used for the enumeration cursor.
     pub fn key(&self) -> RecordKey {
         match self {
-            GeolocationRecord::Location {
-                subject, source, ..
-            } => RecordKey::Location(EntryKey::new(subject.clone(), source.clone())),
-            GeolocationRecord::WhitelistedAgent { agent, .. } => RecordKey::WhitelistedAgent {
-                agent: agent.clone(),
+            GeolocationRecord::Location(record) => RecordKey::Location(record.entry_key()),
+            GeolocationRecord::WhitelistedAgent(entry) => RecordKey::WhitelistedAgent {
+                agent: entry.agent.clone(),
             },
         }
     }
@@ -662,11 +699,11 @@ impl GeolocationRecord {
 
         let mut buf = vec![self.class().tag()];
         match self {
-            GeolocationRecord::Location {
+            GeolocationRecord::Location(LocationRecord {
                 subject,
                 source,
                 entry,
-            } => {
+            }) => {
                 // the id needs no length prefix: the class byte immediately before it fixes
                 // its width. That is the same invariant the storage key ordering already
                 // depends on (see `SubjectClass::id_len`), so a class with a variable-width
@@ -693,7 +730,7 @@ impl GeolocationRecord {
                     buf.extend_from_slice(attestation.signature.as_slice());
                 }
             }
-            GeolocationRecord::WhitelistedAgent { agent, permissions } => {
+            GeolocationRecord::WhitelistedAgent(WhitelistEntry { agent, permissions }) => {
                 push_len_prefixed(&mut buf, agent.as_str().as_bytes());
                 buf.push(u8::from(permissions.can_measure));
                 buf.push(u8::from(permissions.can_relay_self_declared));

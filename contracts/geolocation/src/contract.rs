@@ -1,7 +1,10 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::queries::query_admin;
+use crate::queries::{
+    query_admin, query_all_records_paged, query_config, query_digest, query_entry,
+    query_nym_node_entries, query_subject_entries, query_subject_measurements, query_whitelist,
+};
 use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
 use crate::transactions::{
     try_handle_node_unbonding, try_relay_self_declarations, try_remove_entries,
@@ -82,14 +85,24 @@ pub fn execute(
 pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, GeolocationContractError> {
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
-        QueryMsg::Config {} => todo!(),
-        QueryMsg::Entry { subject, source } => todo!(),
-        QueryMsg::SubjectEntries { subject } => todo!(),
-        QueryMsg::NymNodeEntries { node_id } => todo!(),
-        QueryMsg::SubjectMeasurements { subject } => todo!(),
-        QueryMsg::AllRecords { start_after, limit } => todo!(),
-        QueryMsg::Digest {} => todo!(),
-        QueryMsg::Whitelist {} => todo!(),
+        QueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
+        QueryMsg::Entry { subject, source } => Ok(to_json_binary(&query_entry(
+            deps, subject, source,
+        )?)?),
+        QueryMsg::SubjectEntries { subject } => {
+            Ok(to_json_binary(&query_subject_entries(deps, subject)?)?)
+        }
+        QueryMsg::NymNodeEntries { node_id } => {
+            Ok(to_json_binary(&query_nym_node_entries(deps, node_id)?)?)
+        }
+        QueryMsg::SubjectMeasurements { subject } => {
+            Ok(to_json_binary(&query_subject_measurements(deps, subject)?)?)
+        }
+        QueryMsg::AllRecords { start_after, limit } => Ok(to_json_binary(
+            &query_all_records_paged(deps, start_after, limit)?,
+        )?),
+        QueryMsg::Digest {} => Ok(to_json_binary(&query_digest(deps)?)?),
+        QueryMsg::Whitelist {} => Ok(to_json_binary(&query_whitelist(deps)?)?),
     }
 }
 

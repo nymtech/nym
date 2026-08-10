@@ -5863,6 +5863,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-node-families-contract-common",
  "nym-node-requests",
  "nym-node-tester-utils",

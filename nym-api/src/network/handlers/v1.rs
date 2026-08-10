@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::network::models::{ContractInformation, NetworkDetails};
@@ -19,7 +19,7 @@ use time::OffsetDateTime;
 use tower_http::compression::CompressionLayer;
 use utoipa::ToSchema;
 
-pub(crate) fn nym_network_routes() -> Router<AppState> {
+pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/details", axum::routing::get(network_details))
         .route("/chain-status", axum::routing::get(chain_status))

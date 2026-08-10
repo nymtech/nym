@@ -10,7 +10,6 @@ use nym_sdk::{
 };
 use nym_topology::NymTopology;
 use tracing::*;
-use url::Url;
 
 pub fn mixnet_debug_config(
     min_gateway_performance: Option<u8>,
@@ -62,24 +61,6 @@ pub async fn fetch_topology(
     network_details: &NymNetworkDetails,
     debug_config: &DebugConfig,
 ) -> Result<NymTopology, String> {
-    // get Nym API URLs from network_details
-    let nym_api_urls: Vec<Url> = network_details
-        .nym_api_urls
-        .as_ref()
-        .map(|urls| urls.iter().filter_map(|u| u.url.parse().ok()).collect())
-        .or_else(|| {
-            network_details
-                .endpoints
-                .first()
-                .and_then(|e| e.api_url())
-                .map(|url| vec![url])
-        })
-        .unwrap_or_default();
-
-    let Some(nym_api_url) = nym_api_urls.first() else {
-        return Err(String::from("No nym-api URLs available to fetch topology"));
-    };
-
     let topology_config = NymApiTopologyProviderConfig {
         min_mixnode_performance: debug_config.topology.minimum_mixnode_performance,
         min_gateway_performance: debug_config.topology.minimum_gateway_performance,
@@ -87,9 +68,12 @@ pub async fn fetch_topology(
         ignore_egress_epoch_role: debug_config.topology.ignore_egress_epoch_role,
     };
 
-    let api_client = nym_http_api_client::Client::new_url(nym_api_url.clone(), None)
-        .map_err(|e| e.to_string())?;
-    let mut provider = NymApiTopologyProvider::new(topology_config, nym_api_urls, api_client);
+    let api_client =
+        nym_http_api_client::ClientBuilder::new_with_fronted_urls(network_details.nym_api_urls())
+            .map_err(|e| e.to_string())?
+            .build()
+            .map_err(|e| e.to_string())?;
+    let mut provider = NymApiTopologyProvider::new(topology_config, api_client);
 
     match provider.get_new_topology().await {
         Some(topology) => {

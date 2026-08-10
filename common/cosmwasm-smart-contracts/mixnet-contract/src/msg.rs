@@ -20,7 +20,7 @@ use crate::{
 use crate::{OperatingCostRange, ProfitMarginRange};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
-use nym_contracts_common::{IdentityKey, Percent, signing::MessageSignature};
+use nym_contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use std::time::Duration;
 
 #[cfg(feature = "schema")]
@@ -57,7 +57,7 @@ use crate::{
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 #[cfg(feature = "schema")]
-use nym_contracts_common::{ContractBuildInformation, signing::Nonce};
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -282,6 +282,17 @@ pub enum ExecuteMsg {
         delegate: String,
     },
 
+    /// Move an existing delegation from one node onto one or more other nodes in a
+    /// single settlement, without the stake returning to the wallet first. The accrued
+    /// reward on the source is settled and the full amount (original stake + reward) is
+    /// split across `targets` proportionally to their weights, then delegated. Resolved
+    /// at the epoch rollover, like a normal delegation. A single target moves everything;
+    /// a target may be the source node itself to keep a share in place.
+    Redelegate {
+        from_node_id: NodeId,
+        targets: Vec<RedelegationTarget>,
+    },
+
     // reward-related
     RewardNode {
         #[serde(alias = "mix_id")]
@@ -398,6 +409,13 @@ impl ExecuteMsg {
             ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, .. } => {
                 format!("removing delegation from mixnode {mix_id} on behalf")
             }
+            ExecuteMsg::Redelegate {
+                from_node_id,
+                targets,
+            } => format!(
+                "redelegating from node {from_node_id} onto {} target(s)",
+                targets.len()
+            ),
             ExecuteMsg::RewardNode { node_id, .. } => format!("rewarding node {node_id}"),
             ExecuteMsg::WithdrawOperatorReward { .. } => "withdrawing operator reward".into(),
             ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. } => {
@@ -911,6 +929,20 @@ pub enum QueryMsg {
 pub struct VestedDelegationMigrationEntry {
     pub mix_id: NodeId,
     pub owner: String,
+}
+
+/// Maximum number of targets in a single redelegation.
+pub const MAX_REDELEGATION_TARGETS: usize = 16;
+
+/// A single destination for a redelegation, alongside the weight of the share it
+/// should receive. The moved amount (original stake + accrued reward) is split across
+/// all targets proportionally to the sum of their weights.
+#[cw_serde]
+pub struct RedelegationTarget {
+    /// Destination node for this share of the delegation.
+    pub to_node_id: NodeId,
+    /// Relative weight of this share. Must be greater than zero.
+    pub weight: u32,
 }
 
 #[cw_serde]

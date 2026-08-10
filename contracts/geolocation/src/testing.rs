@@ -299,6 +299,20 @@ pub trait GeolocationContractTesterExt:
             .unwrap()
     }
 
+    /// What `agent` measured for this node, or `None` if it has written nothing for it. The
+    /// single-entry counterpart of [`Self::node_measurements`].
+    fn measurement_by(&self, node_id: NodeId, agent: &Addr) -> Option<LocationEntry> {
+        self.node_entry(node_id, &measured_by(agent))
+    }
+
+    /// Fold every stored record from scratch and assert the maintained digest agrees.
+    ///
+    /// The assertion after any mutation: an accumulator that has drifted still hashes, still
+    /// compares equal to itself, and is wrong in a way nothing else notices.
+    fn assert_digest_is_refold(&self) {
+        crate::storage::assert_digest_is_refold(self)
+    }
+
     /// Every digest-committed record, across both entry classes - the set a verifying client
     /// folds to recompute the digest.
     fn all_records(&self) -> Vec<GeolocationRecord> {

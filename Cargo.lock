@@ -9022,6 +9022,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-ecash-contract-common",
+ "nym-geolocation-contract-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-mixnet-contract-common",

@@ -190,7 +190,16 @@ than its collapse.
 
 ## 7. Client integration
 
-- [ ] 7.1 Add query and signing traits for the contract in `nym-validator-client`
+- [x] 7.1 Add query and signing traits for the contract in `nym-validator-client`. `GeolocationQueryClient` /
+  `PagedGeolocationQueryClient` and `GeolocationSigningClient`, following the network-monitors pair as the template,
+  including its exhaustive `match` tests: every `QueryMsg` and `ExecuteMsg` variant must map to a helper or the test
+  stops compiling, so a variant added later cannot be silently missed. Resolving a contract address needed the usual
+  plumbing first (`NymContracts`, `TypedNymContracts`, `NymContractsProvider`, the env var, and a mainnet placeholder of
+  `""` matching the performance contract's, since this one is not deployed). `OnNymNodeUnbond` is exposed for
+  completeness and documented as unusable: the contract accepts it only from its configured mixnet address, and in
+  production it arrives as a sub-message rather than as a signed transaction. `get_all_geolocation_records` documents
+  that `collect_paged!` pulls one query at a time and so does *not* pin a height, which anything comparing the result
+  against a proven digest has to do for itself
 - [ ] 7.2 **Gated on the directory merge.** `common/nym-directory-client` is not on develop, so end-to-end client
   verification (anchor, ICS23-prove the digest key, recompute against the pulled set) cannot be built until
   `feat/node-directory-publishing` lands. Per task 1.2, `proof.rs`, `contract_storage_key` and `anchor/checkpoint/*`

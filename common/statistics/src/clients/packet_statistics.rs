@@ -533,7 +533,7 @@ impl PacketStatisticsControl {
     }
 
     fn report_counters(&self) {
-        log::trace!("packet statistics: {:?}", &self.stats);
+        log::trace!("packet statistics: {:?}", self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();
         log::debug!("{summary_sent}");
         log::debug!("{summary_recv}");

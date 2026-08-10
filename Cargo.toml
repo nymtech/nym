@@ -319,7 +319,7 @@ jwt-simple = { version = "0.12.12", default-features = false, features = [
 ] }
 k256 = "0.13"
 lazy_static = "1.5.0"
-ledger-transport = "0.10.0"
+ledger-transport = "0.11.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
 mime = "0.3.17"

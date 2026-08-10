@@ -9,29 +9,31 @@
 //! IPv4 endpoint selection — is delegated to the canonical [`nym_bridges`]
 //! client ([`nym_bridges::connection::BridgeConn`]) rather than reimplemented
 //! here, so this crate can never drift from the bridge server and picks up
-//! new transports (today: `quic_plain`; `tls_plain` is defined in the wire
-//! format but not yet implemented by `nym_bridges`) without changes here. This
-//! module only adds the datapath framing on top of `BridgeConn`'s raw duplex
-//! stream: one reliable stream carrying WireGuard packets, each prefixed by a
-//! 2-byte big-endian length — the same convention `nym_bridges`'s own
-//! `UdpForwarder` uses internally.
+//! new transports (today: `quic_plain` and `tls_plain`, both implemented by
+//! `BridgeConn::try_connect`) without changes here. This module only adds the
+//! datapath framing on top of `BridgeConn`'s raw duplex stream: one reliable
+//! stream carrying WireGuard packets, each prefixed by a 2-byte big-endian
+//! length — the same convention `nym_bridges`'s own `UdpForwarder` uses
+//! internally.
 //!
 //! Only ever fronts the two-hop entry leg (the bridge is bound 1:1 to a gateway
 //! and forwards to its WireGuard port); there is no bridge one-hop mode and no
 //! gateway-selection handshake.
 //!
-//! Note: `BridgeConn` picks the first IPv4 address among the candidates and
-//! errors if none is present (clients are IPv4-only for now, so an IPv6-only
-//! bridge just isn't usable yet); it does not set QUIC keep-alive/BBR.
-//! WireGuard's own persistent-keepalive keeps the long-lived session and its
-//! NAT mapping alive.
+//! Note: for the QUIC transport, `BridgeConn` picks the first IPv4 address
+//! among the candidates and errors if none is present (clients are IPv4-only
+//! for now, so an IPv6-only bridge just isn't usable yet; the TLS transport
+//! has no such restriction). `nym_bridges` itself sets QUIC keep-alive (20s)
+//! and BBR congestion control on that connection; WireGuard's own
+//! persistent-keepalive is a separate, higher-layer mechanism that keeps the
+//! long-lived session and its NAT mapping alive.
 
-use std::sync::Once;
+use std::sync::{Arc, Mutex, Once};
 use std::time::Duration;
 
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
-use nym_bridges::connection::BridgeConn;
+use nym_bridges::connection::{BridgeConn, TransportCloser};
 use nym_bridges::error::TransportError;
 use nym_bridges::types::ClientConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -57,14 +59,37 @@ static INSTALL_PROVIDER: Once = Once::new();
 /// certificate at connect time.
 pub type BridgeParams = ClientConfig;
 
+/// Ends the underlying `nym_bridges` transport connection (see
+/// [`TransportCloser`]) once both the [`BridgeSender`] and [`BridgeReceiver`]
+/// halves that share it have been dropped. This is distinct from shutting
+/// down the reader/writer halves themselves: for QUIC, `reader`/`writer` are
+/// only one stream on a connection that outlives them, and skipping this
+/// step means the connection is never told to close and falls back on its
+/// own idle timeout instead.
+///
+/// The `Mutex` only exists to make this `Sync` (`dyn TransportCloser` isn't)
+/// so `Arc<BridgeCloser>` can be held across the `.await`s in the sender/
+/// receiver tasks; it's touched once, in `drop`.
+struct BridgeCloser(Mutex<Option<Box<dyn TransportCloser>>>);
+
+impl Drop for BridgeCloser {
+    fn drop(&mut self) {
+        if let Some(closer) = self.0.get_mut().unwrap_or_else(|e| e.into_inner()).take() {
+            tokio::spawn(closer.close());
+        }
+    }
+}
+
 /// Sending half of the bridge transport.
 pub(crate) struct BridgeSender {
     framed: FramedWrite<Box<dyn AsyncWrite + Send + Unpin>, LengthDelimitedCodec>,
+    _closer: Arc<BridgeCloser>,
 }
 
 /// Receiving half of the bridge transport.
 pub(crate) struct BridgeReceiver {
     framed: FramedRead<Box<dyn AsyncRead + Send + Unpin>, LengthDelimitedCodec>,
+    _closer: Arc<BridgeCloser>,
 }
 
 impl BridgeSender {
@@ -123,13 +148,19 @@ pub(crate) async fn connect(
             e => DvpnError::Bridge(format!("connect: {e}")),
         })?;
 
-    let (reader, writer) = bridge_conn.into_parts();
+    // `closer` must be closed once both halves are done with the connection
+    // (see `BridgeCloser`'s docs) -- shared via `Arc` so that happens when
+    // whichever of `BridgeSender`/`BridgeReceiver` is dropped last runs it.
+    let (reader, writer, closer) = bridge_conn.into_parts();
+    let closer = Arc::new(BridgeCloser(Mutex::new(Some(closer))));
     Ok((
         BridgeSender {
             framed: FramedWrite::new(writer, framed_codec()),
+            _closer: closer.clone(),
         },
         BridgeReceiver {
             framed: FramedRead::new(reader, framed_codec()),
+            _closer: closer,
         },
     ))
 }

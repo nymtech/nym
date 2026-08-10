@@ -84,8 +84,8 @@ fn build_stack(
 enum TransportChoice {
     /// Real UDP datagrams to the entry gateway.
     Direct,
-    /// QUIC bridge fronting the two-hop entry leg.
-    Quic(BridgeParams),
+    /// Bridge connection wrapping the two-hop entry leg.
+    Bridged(BridgeParams),
 }
 
 /// Bandwidth monitoring/top-up settings for the tunnel: the endpoint + thresholds to poll, and an
@@ -142,7 +142,7 @@ impl TunnelBuilder {
 
     /// Route the WireGuard data plane over a QUIC bridge (two-hop only).
     pub fn quic_bridge(mut self, params: BridgeParams) -> Self {
-        self.transport = TransportChoice::Quic(params);
+        self.transport = TransportChoice::Bridged(params);
         self
     }
 
@@ -248,7 +248,7 @@ impl Tunnel {
         let two_hop = builder.exit.is_some();
 
         // QUIC bridging only fronts the two-hop entry leg.
-        if matches!(builder.transport, TransportChoice::Quic(_)) && !two_hop {
+        if matches!(builder.transport, TransportChoice::Bridged(_)) && !two_hop {
             return Err(DvpnError::QuicRequiresTwoHop);
         }
 
@@ -298,15 +298,15 @@ impl Tunnel {
             TransportChoice::Direct => {
                 direct_transport(builder.entry.endpoint, builder.protector.as_ref()).await?
             }
-            TransportChoice::Quic(params) => {
+            TransportChoice::Bridged(params) => {
                 let (s, r) = bridge::connect(params, &cancel).await?;
-                (WgSender::Quic(s), WgReceiver::Quic(r))
+                (WgSender::Bridged(s), WgReceiver::Bridged(r))
             }
         };
 
         info!(
             two_hop,
-            quic = matches!(builder.transport, TransportChoice::Quic(_)),
+            bridge = matches!(builder.transport, TransportChoice::Bridged(_)),
             assigned = %assigned,
             mtu = interface_mtu,
             entry_endpoint = %builder.entry.endpoint,

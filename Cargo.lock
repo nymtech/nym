@@ -1539,7 +1539,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -6222,7 +6222,7 @@ dependencies = [
 [[package]]
 name = "nym-bridges"
 version = "0.2.1-rc.1"
-source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#06a7e15f3d89abf306d3af509d03406e587ce686"
+source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#8fb1377e9ed904f5b5677e4df0f7573977523be0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -6247,7 +6247,7 @@ dependencies = [
  "serde",
  "serde_json",
  "slab",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "thiserror 2.0.19",
  "tinyvec",
  "tokio",
@@ -6263,7 +6263,7 @@ dependencies = [
 [[package]]
 name = "nym-bridges-types"
 version = "0.2.1-rc.1"
-source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#06a7e15f3d89abf306d3af509d03406e587ce686"
+source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.1#8fb1377e9ed904f5b5677e4df0f7573977523be0"
 dependencies = [
  "serde",
  "uniffi 0.31.1",
@@ -13446,21 +13446,6 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.12+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
-dependencies = [
- "indexmap 2.14.0",
- "serde_core",
- "serde_spanned 1.1.1",
- "toml_datetime 0.7.5+spec-1.1.0",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.15",
-]
-
-[[package]]
-name = "toml"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81f3d15e84cbcd896376e6730314d59fb5a87f31e4b038454184435cd57defee"
@@ -13490,15 +13475,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.7.5+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
-dependencies = [
- "serde_core",
 ]
 
 [[package]]
@@ -14158,7 +14134,7 @@ dependencies = [
  "serde",
  "tempfile",
  "textwrap",
- "toml 0.9.12+spec-1.1.0",
+ "toml 0.8.23",
  "uniffi_internal_macros 0.31.1",
  "uniffi_meta 0.31.1",
  "uniffi_pipeline 0.31.1",
@@ -14267,7 +14243,7 @@ dependencies = [
  "quote",
  "serde",
  "syn 2.0.117",
- "toml 0.9.12+spec-1.1.0",
+ "toml 0.8.23",
  "uniffi_meta 0.31.1",
 ]
 
@@ -14935,7 +14911,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

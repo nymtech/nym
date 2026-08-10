@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #![allow(deprecated)]
-use crate::network::handlers::ContractVersionSchemaResponse;
+use crate::network::handlers::v1::ContractVersionSchemaResponse;
 use utoipa::OpenApi;
 use utoipauto::utoipauto;
 

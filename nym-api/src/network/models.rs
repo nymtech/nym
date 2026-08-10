@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_config::defaults::v2::NymNetworkDetails as NymNetworkDetailsV2;
-use nym_config::defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails;
+use nym_network_defaults::NymNetworkDetails as NymNetworkDetailsV2;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

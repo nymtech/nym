@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Api, Deps, DepsMut, Env, Event, MessageInfo, Response, 
 use nym_geolocation_contract_common::constants::events;
 use nym_geolocation_contract_common::{
     AgentPermissions, EntryKey, GeolocationContractError, LocationEntry, LocationPayload,
-    Measurement, NymNodeLocation, RecordKey, Source, Subject,
+    Measurement, NymNodeLocation, Source, Subject,
 };
 use nym_mixnet_contract_common::{MixnetContractQuerier, NodeId};
 use std::collections::BTreeSet;
@@ -284,7 +284,6 @@ fn ensure_admin(deps: Deps<'_>, sender: &Addr) -> Result<(), GeolocationContract
     Ok(())
 }
 
-
 /// Create or replace an admin override for a subject.
 ///
 /// The [`Source::Override`] slot names the admin *role* rather than the address that wrote it,
@@ -311,8 +310,8 @@ pub fn try_set_override(
     let config = storage.config.load(deps.storage)?;
     payload.ensure_within_size_limit(config.max_payload_size)?;
 
-    let event = Event::new(events::SET_OVERRIDE)
-        .add_attribute(events::ATTR_SUBJECT, subject.to_string());
+    let event =
+        Event::new(events::SET_OVERRIDE).add_attribute(events::ATTR_SUBJECT, subject.to_string());
 
     storage.set_entry(
         deps.storage,
@@ -1478,7 +1477,10 @@ mod tests {
             test.advance_time_by(60);
             set_override(&mut test, &admin, 42, b"second").unwrap();
             assert_eq!(
-                test.node_entry(42, &Source::Override).unwrap().payload.content,
+                test.node_entry(42, &Source::Override)
+                    .unwrap()
+                    .payload
+                    .content,
                 b"second".to_vec()
             );
             // one override slot per subject, so replacing retires the old leaf rather than
@@ -1513,7 +1515,10 @@ mod tests {
                 GeolocationContractError::Admin(AdminError::NotAdmin {})
             );
             assert_eq!(
-                test.node_entry(42, &Source::Override).unwrap().payload.content,
+                test.node_entry(42, &Source::Override)
+                    .unwrap()
+                    .payload
+                    .content,
                 b"admin says so".to_vec()
             );
         }
@@ -1580,7 +1585,10 @@ mod tests {
             // the source names the admin *role*, not the address that wrote it, so the entry
             // stays under the same key and the new admin inherits it
             assert_eq!(
-                test.node_entry(42, &Source::Override).unwrap().payload.content,
+                test.node_entry(42, &Source::Override)
+                    .unwrap()
+                    .payload
+                    .content,
                 b"set by the old admin".to_vec()
             );
             assert_eq!(
@@ -1815,6 +1823,7 @@ mod tests {
         use cosmwasm_std::testing::message_info;
         use cw_controllers::AdminError;
         use nym_contracts_common_testing::{AdminExt, ContractOpts, RandExt};
+        use nym_geolocation_contract_common::RecordKey;
 
         fn remove(
             test: &mut impl GeolocationContractTesterExt,
@@ -1893,9 +1902,7 @@ mod tests {
                 .all_records()
                 .into_iter()
                 .filter_map(|record| match record.key() {
-                    RecordKey::Location(key)
-                        if key.source.agent() == Some(&compromised) =>
-                    {
+                    RecordKey::Location(key) if key.source.agent() == Some(&compromised) => {
                         Some(key)
                     }
                     _ => None,
@@ -1906,7 +1913,9 @@ mod tests {
             remove(&mut test, &admin, stale).unwrap();
 
             for node_id in [1, 2] {
-                assert!(test.node_entry(node_id, &measured_by(&compromised)).is_none());
+                assert!(test
+                    .node_entry(node_id, &measured_by(&compromised))
+                    .is_none());
                 assert!(test.node_entry(node_id, &measured_by(&honest)).is_some());
             }
             assert_digest_is_refold(&test);
@@ -1968,10 +1977,10 @@ mod tests {
             remove(
                 &mut test,
                 &admin,
-                vec![measured_key(7, &agent), EntryKey::new(
-                    Subject::new_nym_node(1),
-                    Source::Override,
-                )],
+                vec![
+                    measured_key(7, &agent),
+                    EntryKey::new(Subject::new_nym_node(1), Source::Override),
+                ],
             )
             .unwrap();
 
@@ -2035,9 +2044,7 @@ mod tests {
     mod unbond_callback {
         use super::*;
         use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
-        use crate::testing::{
-            init_contract_tester, measured_by, GeolocationContractTesterExt,
-        };
+        use crate::testing::{init_contract_tester, measured_by, GeolocationContractTesterExt};
         use cosmwasm_std::testing::message_info;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
         use nym_contracts_common_testing::{AdminExt, RandExt};
@@ -2195,7 +2202,7 @@ mod tests {
         use cw_controllers::AdminError;
         use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, RandExt};
         use nym_geolocation_contract_common::constants::{
-            DEFAULT_MAX_BATCH_SIZE, DEFAULT_MAX_PAYLOAD_SIZE, DEFAULT_MAX_SKEW_SECS,
+            DEFAULT_MAX_PAYLOAD_SIZE, DEFAULT_MAX_SKEW_SECS,
         };
         use nym_geolocation_contract_common::{ContractConfig, ExecuteMsg};
 

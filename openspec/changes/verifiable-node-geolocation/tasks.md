@@ -127,10 +127,26 @@ than its collapse.
 
 ## 5. Contract queries
 
-- [ ] 5.1 Single entry, all entries for a subject, and all measurements for a subject
+- [x] 5.1 Single entry, all entries for a subject, and all measurements for a subject. Four handlers over storage reads
+  that already existed, plus `NymNodeEntries` as the `SubjectEntries` shorthand for the one subject class there is. An
+  empty slot and an unknown subject are `None` and an empty set rather than errors: asking whether a source wrote
+  anything is a question, not a claim that it did. `SubjectMeasurements` filters in memory, since `source` is one opaque
+  key component and a prefix cannot reach inside it. The dispatcher is tested through `query()` rather than only by
+  calling the handlers, because all four return one of two shapes and a transposed match arm would otherwise pass
 - [ ] 5.2 Paginated enumeration of every digest-committed entry across both classes, with a cursor
-- [ ] 5.3 Digest smart query, plus documentation of the fixed raw key for ICS23 proofs
-- [ ] 5.4 Whitelist query
+- [x] 5.3 Digest smart query, plus documentation of the fixed raw key for ICS23 proofs. The query serves
+  `LtHash16::out()`, never the accumulator: a client needing a proof reads the raw key and collapses it itself, and a
+  test pins that the two agree by doing exactly that. An untouched contract answers with the identity's collapse rather
+  than erroring, since nothing has written the key yet. The `DIGEST_STATE` doc now states the three things a verifier
+  depends on - verbatim key bytes with no `cw-storage-plus` namespacing, `DIGEST_LEN` bytes of accumulator rather than a
+  32-byte collapse, and stability across migrations - because renaming it would break every verifier silently
+- [x] 5.4 Whitelist query, **and the config query alongside it**, which had no task of its own. Both are unpaginated:
+  the whitelist is small and NYM-controlled, and a client needs all of it before it can decide which measured entries to
+  honour, so paging would move the reassembly into every caller rather than saving anyone work. The config reports the
+  mixnet contract address next to the tunables rather than giving it a query of its own, since a reader has to know
+  which deployment a self-declaration's identity key was resolved against before it can judge what that entry proves.
+  The whitelist query is what makes read-time authorisation usable, so its test asserts that de-whitelisting is visible
+  immediately while the agent's entries stay in storage
 - [ ] 5.5 Generate contract schema
 
 ## 6. Contract testing

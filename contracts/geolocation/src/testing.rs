@@ -6,7 +6,7 @@
 #![allow(clippy::expect_used)]
 
 use crate::contract::{execute, instantiate, migrate, query};
-use crate::storage::{parse_raw_key, GEOLOCATION_CONTRACT_STORAGE};
+use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
 use cosmwasm_std::{Addr, Storage};
 use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
 use nym_contracts_common_testing::{
@@ -334,11 +334,12 @@ pub trait GeolocationContractTesterExt:
     }
 
     fn remove_all_locations(&mut self) {
-        let entries = GEOLOCATION_CONTRACT_STORAGE.all_entries(self).unwrap();
-        for (key, _) in entries {
-            let (subject, source) = parse_raw_key(key).unwrap();
+        let entries = GEOLOCATION_CONTRACT_STORAGE
+            .entries_paged(self, None, usize::MAX)
+            .unwrap();
+        for record in entries {
             GEOLOCATION_CONTRACT_STORAGE
-                .remove_entry(self, &subject, &source)
+                .remove_entry(self, &record.subject, &record.source)
                 .unwrap();
         }
     }

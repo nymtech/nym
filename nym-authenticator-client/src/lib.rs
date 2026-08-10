@@ -292,7 +292,7 @@ impl AuthenticatorClient {
                 ClientMessage::Initial(Box::new(v6::registration::InitMessage { pub_key }))
             }
         };
-        trace!("sending init msg to {}: {:?}", &self.ip_addr, &init_message);
+        trace!("sending init msg to {}: {:?}", self.ip_addr, init_message);
         let response = self
             .send_and_wait_for_response(&init_message)
             .await
@@ -309,7 +309,7 @@ impl AuthenticatorClient {
 
                 trace!(
                     "received \"pending-registration\" msg from {}: {:?}",
-                    &self.ip_addr, &pending_registration_response
+                    self.ip_addr, pending_registration_response
                 );
 
                 // if the node reports upgrade mode, we can use the corresponding token for registration
@@ -332,7 +332,7 @@ impl AuthenticatorClient {
                     .finalise_registration(self.keypair.private_key(), Some(bandwidth_claim));
                 let client_message = ClientMessage::Final(finalized_message);
 
-                trace!("sending final msg to {}: {client_message:?}", &self.ip_addr);
+                trace!("sending final msg to {}: {client_message:?}", self.ip_addr);
 
                 let response = self
                     .send_and_wait_for_response(&client_message)
@@ -355,7 +355,7 @@ impl AuthenticatorClient {
 
         trace!(
             "received \"registered\" msg from {}: {:?}",
-            &self.ip_addr, &registered_data
+            self.ip_addr, registered_data
         );
 
         let gateway_data = WireguardConfiguration {

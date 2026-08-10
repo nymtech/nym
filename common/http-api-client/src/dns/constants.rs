@@ -54,6 +54,10 @@ pub const VERCEL_COM_IPS: &[IpAddr] = &[
 pub const NYM_API_CDN: &str = "cdn1.media-platform.net";
 pub const NYM_API_CDN_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(172, 104, 178, 252))];
 
+pub const NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM: &str = "edge1.streaming-gateway.com";
+pub const NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM_IPS: &[IpAddr] =
+    &[IpAddr::V4(Ipv4Addr::new(139, 162, 57, 231))];
+
 pub const NYM_COM_DOMAIN: &str = "nym.com";
 pub const NYM_COM_IPS: &[IpAddr] = &[IpAddr::V4(Ipv4Addr::new(76, 76, 21, 22))];
 
@@ -98,6 +102,10 @@ pub fn default_static_addrs() -> HashMap<String, Vec<IpAddr>> {
     m.insert(VERCEL_APP_DOMAIN.to_string(), VERCEL_APP_IPS.to_vec());
     m.insert(VERCEL_COM_DOMAIN.to_string(), VERCEL_COM_IPS.to_vec());
     m.insert(NYM_API_CDN.to_string(), NYM_API_CDN_IPS.to_vec());
+    m.insert(
+        NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM.to_string(),
+        NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM_IPS.to_vec(),
+    );
     m.insert(NYM_COM_DOMAIN.to_string(), NYM_COM_IPS.to_vec());
     m.insert(NYM_STATS_API_DOMAIN.to_string(), NYM_STATS_API_IPS.to_vec());
     m.insert(NYM_RPC_DOMAIN.to_string(), NYM_RPC_IPS.to_vec());

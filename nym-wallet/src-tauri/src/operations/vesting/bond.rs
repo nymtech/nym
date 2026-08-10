@@ -134,8 +134,8 @@ pub async fn vesting_update_pledge(
     let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
     log::info!(
         ">>> Pledge update, current pledge {}, new pledge {}",
-        &current_pledge,
-        &new_pledge,
+        current_pledge,
+        new_pledge,
     );
 
     let res = match new_pledge.amount.cmp(&current_pledge.amount) {

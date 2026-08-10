@@ -202,15 +202,15 @@ pub async fn update_pledge(
     let delta = guard.attempt_convert_to_base_coin(dec_delta.clone())?;
     log::info!(
         ">>> Pledge update, current pledge {}, new pledge {}",
-        &current_pledge,
-        &new_pledge,
+        current_pledge,
+        new_pledge,
     );
 
     let res = match new_pledge.amount.cmp(&current_pledge.amount) {
         Ordering::Greater => {
             log::info!(
                 "Pledge increase, calculated additional pledge {}, fee = {:?}",
-                &dec_delta,
+                dec_delta,
                 fee,
             );
             guard.current_client()?.nyxd.pledge_more(delta, fee).await?
@@ -218,7 +218,7 @@ pub async fn update_pledge(
         Ordering::Less => {
             log::info!(
                 "Pledge reduction, calculated reduction pledge {}, fee = {:?}",
-                &dec_delta,
+                dec_delta,
                 fee,
             );
             guard

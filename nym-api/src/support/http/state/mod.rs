@@ -217,7 +217,7 @@ impl AppState {
                 Ok(read_lock.clone())
             }
             None => {
-                tracing::trace!("No cache for {}, refreshing data...", &address);
+                tracing::trace!("No cache for {}, refreshing data...", address);
 
                 let address_info = self
                     .address_info_cache

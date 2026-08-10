@@ -33,7 +33,7 @@ pub async fn balance(args: Args, client: QueryClient, address_from_mnemonic: Opt
 
     info!(
         "Getting vesting schedule information for {}...",
-        &vesting_address
+        vesting_address
     );
 
     let original_vesting = client.original_vesting(&vesting_address).await;
@@ -52,7 +52,7 @@ pub async fn balance(args: Args, client: QueryClient, address_from_mnemonic: Opt
 
             println!(
                 "Account {} has\n{} vested with\n{} available to be withdrawn to the main account (balance {})",
-                &account_id,
+                account_id,
                 pretty_cosmwasm_coin(&res.amount),
                 pretty_coin(&spendable_coins),
                 pretty_coin(&liquid_account_balance),

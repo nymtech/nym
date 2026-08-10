@@ -113,16 +113,14 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
                 node_id: mix_id,
                 proxy,
                 ..
-            } => {
-                if owner.as_str() == client.nyxd.address().as_ref() {
-                    table.add_row(vec![
-                        "not-sure-if-applicable".into(),
-                        mix_id.to_string(),
-                        "-".to_string(),
-                        "Undelegate".to_string(),
-                        proxy.map(Addr::into_string).unwrap_or_else(|| "-".into()),
-                    ]);
-                }
+            } if owner.as_str() == client.nyxd.address().as_ref() => {
+                table.add_row(vec![
+                    "not-sure-if-applicable".into(),
+                    mix_id.to_string(),
+                    "-".to_string(),
+                    "Undelegate".to_string(),
+                    proxy.map(Addr::into_string).unwrap_or_else(|| "-".into()),
+                ]);
             }
             _ => {}
         }

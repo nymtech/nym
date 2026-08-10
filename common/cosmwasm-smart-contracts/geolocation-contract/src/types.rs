@@ -127,6 +127,16 @@ impl Subject {
     }
 }
 
+impl Display for Subject {
+    /// `class:id`, e.g. `nym_node:42`. Used for event attributes and error messages, never for
+    /// storage or the digest leaf, both of which use [`Subject::id_bytes`].
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Subject::NymNode { node_id } => write!(f, "{}:{node_id}", self.class()),
+        }
+    }
+}
+
 /// How a measurement was obtained. Closed enum for the same reason [`SubjectClass`] is: it
 /// lives in the key, so adding a vendor or a technique is one variant with no leaf-encoding
 /// change and no state migration.
@@ -515,19 +525,41 @@ pub struct AllRecordsPagedResponse {
     pub start_next_after: Option<RecordKey>,
 }
 
+/// Names one location entry: which subject, and which source asserted it. What a reader
+/// queries by and what [`crate::ExecuteMsg::RemoveEntries`] deletes by.
+///
+/// A named pair rather than a tuple, because the two components are not interchangeable and
+/// the storage key's ordering depends on which is which.
+#[cw_serde]
+pub struct EntryKey {
+    pub subject: Subject,
+    pub source: Source,
+}
+
+impl EntryKey {
+    pub const fn new(subject: Subject, source: Source) -> Self {
+        EntryKey { subject, source }
+    }
+}
+
 /// The logical key of a digest-committed record: the [`crate::QueryMsg::AllRecords`] cursor,
 /// and the identity half of a [`GeolocationRecord`]. The on-chain storage key is a separate
 /// concern, handled by each store, so this type carries no storage-codec logic.
+///
+/// Deliberately not what [`crate::ExecuteMsg::RemoveEntries`] accepts, even though it can name
+/// a location entry: it can also name a whitelist entry, and a whitelist entry must only be
+/// removed through [`crate::ExecuteMsg::RemoveWhitelistedAgent`], where the digest and the
+/// authorisation semantics are handled together.
 #[cw_serde]
 pub enum RecordKey {
-    Location { subject: Subject, source: Source },
+    Location(EntryKey),
     WhitelistedAgent { agent: Addr },
 }
 
 impl RecordKey {
     pub const fn class(&self) -> EntryClass {
         match self {
-            RecordKey::Location { .. } => EntryClass::Location,
+            RecordKey::Location(..) => EntryClass::Location,
             RecordKey::WhitelistedAgent { .. } => EntryClass::WhitelistedAgent,
         }
     }
@@ -599,10 +631,7 @@ impl GeolocationRecord {
         match self {
             GeolocationRecord::Location {
                 subject, source, ..
-            } => RecordKey::Location {
-                subject: subject.clone(),
-                source: source.clone(),
-            },
+            } => RecordKey::Location(EntryKey::new(subject.clone(), source.clone())),
             GeolocationRecord::WhitelistedAgent { agent, .. } => RecordKey::WhitelistedAgent {
                 agent: agent.clone(),
             },

@@ -32,8 +32,8 @@ pub fn introduce_geolocation_contract(
         vesting_contract_address: old.vesting_contract_address,
         rewarding_denom: old.rewarding_denom,
         params: old.params,
-        node_families_contract_address: old.node_families_contract_address,
-        geolocation_contract_address,
+        node_families_contract_address: Some(old.node_families_contract_address),
+        geolocation_contract_address: Some(geolocation_contract_address),
     };
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &updated)?;
 

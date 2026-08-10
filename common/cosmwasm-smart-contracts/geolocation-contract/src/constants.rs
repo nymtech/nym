@@ -48,6 +48,53 @@ pub const PAYLOAD_VERSION_1: u8 = 1;
 /// The directory's payload carries no tag of its own, so this separation is one-directional.
 pub const NYM_NODE_LOCATION_DOMAIN_TAG: &[u8] = b"nym-node-location-declaration-v1";
 
+/// Event names and attribute keys the contract's handlers emit.
+pub mod events {
+    /// Emitted once per successful measurement batch, not once per entry: a batch runs to
+    /// `MAX_BATCH_SIZE` and per-entry events would swamp the block for no gain, since the
+    /// entries themselves are queryable.
+    pub const SUBMIT_MEASUREMENTS: &str = "submit_measurements";
+
+    /// Emitted once per successful self-declaration relay batch.
+    pub const RELAY_SELF_DECLARATIONS: &str = "relay_self_declarations";
+
+    /// Emitted when the admin creates or replaces an override entry.
+    pub const SET_OVERRIDE: &str = "set_override";
+
+    /// Emitted when the admin removes an override entry.
+    pub const REMOVE_OVERRIDE: &str = "remove_override";
+
+    /// Emitted when the admin deletes a batch of entries by explicit key.
+    pub const REMOVE_ENTRIES: &str = "remove_entries";
+
+    /// Emitted when the admin adds an agent or changes an existing agent's permissions.
+    pub const SET_WHITELISTED_AGENT: &str = "set_whitelisted_agent";
+
+    /// Emitted when the admin removes an agent from the whitelist.
+    pub const REMOVE_WHITELISTED_AGENT: &str = "remove_whitelisted_agent";
+
+    /// Emitted when the admin changes the contract's tunables.
+    pub const UPDATE_CONFIG: &str = "update_config";
+
+    /// Emitted when the mixnet unbond callback clears a node's entries.
+    pub const ON_NYM_NODE_UNBOND: &str = "on_nym_node_unbond";
+
+    pub const ATTR_AGENT: &str = "agent";
+    pub const ATTR_COUNT: &str = "count";
+    pub const ATTR_SUBJECT: &str = "subject";
+
+    // the whitelist is the only authorisation a measured entry has, so the grant itself goes in
+    // the log: current state is queryable, but who was granted what and when is not
+    pub const ATTR_CAN_MEASURE: &str = "can_measure";
+    pub const ATTR_CAN_RELAY_SELF_DECLARED: &str = "can_relay_self_declared";
+
+    // likewise the resulting tunables, so a change is auditable after the fact rather than only
+    // observable as current state
+    pub const ATTR_MAX_SKEW_SECS: &str = "max_skew_secs";
+    pub const ATTR_MAX_BATCH_SIZE: &str = "max_batch_size";
+    pub const ATTR_MAX_PAYLOAD_SIZE: &str = "max_payload_size";
+}
+
 pub mod storage_keys {
     /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
     pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";

@@ -1273,6 +1273,7 @@ name = "nym-geolocation-contract"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -1280,6 +1281,7 @@ dependencies = [
  "cw2",
  "nym-contracts-common",
  "nym-contracts-common-testing",
+ "nym-crypto",
  "nym-geolocation-contract-common",
  "nym-lthash",
  "nym-mixnet-contract",
@@ -1333,6 +1335,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-geolocation-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
@@ -1432,13 +1435,11 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "cw2",
- "node-families",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
- "nym-node-families-contract-common",
  "nym-performance-contract-common",
  "serde",
 ]

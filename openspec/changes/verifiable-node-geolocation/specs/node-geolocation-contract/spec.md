@@ -122,12 +122,14 @@ Batches MUST be all-or-nothing. The contract MUST enforce a `MAX_BATCH_SIZE` and
 
 Because the accumulator is commutative, batch ordering MUST NOT affect the resulting digest, and the contract MUST NOT impose an ordering requirement on submitted entries.
 
+A measurement batch MAY carry the same key more than once, resolving to the last write. A self-declaration relay batch MUST instead reject a repeated subject, for the reason given under the self-declaration requirement below.
+
 #### Scenario: Batch ordering does not affect the digest
 - **GIVEN** the same set of entries submitted as two batches in different orders against identical starting state
 - **THEN** the resulting digests are identical
 
-#### Scenario: A repeated key within one batch folds correctly
-- **GIVEN** a batch containing two writes to the same key
+#### Scenario: A repeated key within one measurement batch folds correctly
+- **GIVEN** a measurement batch containing two writes to the same key
 - **WHEN** it is applied
 - **THEN** the stored value is the later one and the digest matches a from-scratch re-fold
 
@@ -165,16 +167,34 @@ An agent without `can_measure` MUST NOT write measurement entries. An agent with
 
 Removing an agent from the whitelist MUST NOT delete its entries, but a conforming client MUST treat entries whose writer is not currently whitelisted as unauthorised. This makes compromise recovery immediate and requires no enumeration by agent.
 
-The contract MUST provide an admin-invokable, paginated purge of a de-whitelisted agent's entries, for storage hygiene rather than as a security control. The purge MUST fold each removal into the digest.
+The contract MUST provide an admin-invokable removal of entries named by explicit key, in batches bounded by `MAX_BATCH_SIZE`, folding each removal into the digest. Reclaiming the space a de-whitelisted agent's entries occupy is one use of it, for storage hygiene rather than as a security control.
 
-#### Scenario: De-whitelisting neutralises an agent without a purge
+Removal MUST NOT be scoped to an agent. The agent is the trailing component of an entry's key, so nothing indexes by it and an agent-scoped sweep would have to scan the whole store on every page, with each page a separate admin transaction. Naming keys explicitly instead puts the pagination in the client, which already pages the enumeration to verify the digest, and makes the on-chain cost proportional to what is deleted rather than to what is stored.
+
+Explicit removal MUST also be able to name entries no agent-scoped sweep could reach. A measurement may name a subject that was never bonded, since measurements do not consult the mixnet contract, and the unbond callback never fires for such a subject; without explicit removal that entry would be permanent.
+
+Naming a key that holds no entry MUST NOT fail the batch, because the admin acts on an enumeration read at an earlier height and an entry it names may since have been removed or replaced.
+
+Explicit removal MUST NOT be able to name a whitelist entry, which is removable only through the whitelist operation, so that revocation and its authorisation meaning stay in one place.
+
+#### Scenario: De-whitelisting neutralises an agent without removing anything
 - **GIVEN** an agent with existing measurement entries
 - **WHEN** the admin removes it from the whitelist
 - **THEN** its entries remain in storage and in the digest, and a conforming client rejects them as unauthorised
 
-#### Scenario: Purging a de-whitelisted agent keeps the digest consistent
-- **WHEN** the admin purges a de-whitelisted agent's entries across several paginated calls
-- **THEN** each removal subtracts its exact leaf and a from-scratch re-fold matches the resulting digest
+#### Scenario: Reclaiming a de-whitelisted agent's entries keeps the digest consistent
+- **GIVEN** a de-whitelisted agent whose entries the admin has selected from the enumeration
+- **WHEN** the admin removes them by explicit key
+- **THEN** only those entries are deleted, each removal subtracts its exact leaf, and a from-scratch re-fold matches the resulting digest
+
+#### Scenario: An entry for a subject that was never bonded can be removed
+- **GIVEN** a measurement entry naming a subject that has never been bonded
+- **WHEN** the admin removes it by explicit key
+- **THEN** it is deleted and its leaf subtracted, this being the only path that can reach it
+
+#### Scenario: Removal is admin-only
+- **WHEN** any address other than the admin invokes removal, including the agent that wrote the entry
+- **THEN** it is rejected and the entry is unchanged
 
 ### Requirement: Relayed self-declarations SHALL be node-signed with a strictly monotonic declared_at
 
@@ -185,6 +205,10 @@ The payload version MUST be signed alongside the payload bytes, so that a relaye
 The contract MUST accept the write only when `declared_at` is strictly greater than the `declared_at` already stored for that subject, which makes replay of a superseded artifact impossible, and only when `declared_at` does not exceed block time by more than `MAX_SKEW`, which prevents a far-future timestamp from permanently freezing the slot. There MUST be no lower bound on `declared_at`; monotonicity alone governs the past.
 
 A rejection caused by the skew bound MUST be distinguishable from a rejection caused by an invalid signature or a stale timestamp.
+
+The subject MUST be bonded and not unbonding in the mixnet contract. An absent bond carries no identity key to verify against, and an unbonding node's entries are about to be deleted by the unbond callback, so accepting one would only add a leaf that is immediately removed.
+
+The contract MUST reject a relay batch in which the same subject appears more than once. Monotonicity is evaluated against stored state, so two artifacts for one subject would both pass validation while whichever was written last would stand regardless of its `declared_at`, letting the relayer rather than the node decide which one wins. Resolving the duplicate against a running value instead would make a batch's validity depend on the order it arrives in, which the batching requirement forbids.
 
 The entry MUST record both `declared_at` (when the node signed) and the relay's `checked_at` (when it reached the chain).
 
@@ -210,6 +234,15 @@ The entry MUST record both `declared_at` (when the node signed) and the relay's 
 #### Scenario: A signature that does not match the node's identity key is rejected
 - **WHEN** an agent relays an artifact whose signature does not verify against the subject's identity key in the mixnet contract
 - **THEN** the write is rejected
+
+#### Scenario: A declaration for a node that is not bonded is rejected
+- **WHEN** an agent relays an artifact for a subject that has no bond in the mixnet contract, or whose bond is unbonding
+- **THEN** the write is rejected
+
+#### Scenario: A subject repeated within one relay batch is rejected
+- **GIVEN** a relay batch containing two validly signed artifacts for the same subject
+- **WHEN** it is submitted
+- **THEN** the whole batch is rejected whichever order the two appear in, so the relayer cannot use ordering to install the older artifact
 
 ### Requirement: The contract SHALL treat the location payload as opaque versioned bytes
 

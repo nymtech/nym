@@ -11,10 +11,10 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::nym_node::{NodeDetailsResponse, NodeOwnershipResponse, Role};
 use mixnet_contract_common::reward_params::RewardedSetParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochId, ExecuteMsg, InitialRewardingParams, InstantiateMsg, Interval,
-    MigrateMsg, MixnetContractQuerier, NodeCostParams, NodeId, NymNode, NymNodeBondingPayload,
-    QueryMsg, RoleAssignment, SignableNymNodeBondingMsg, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT,
-    DEFAULT_PROFIT_MARGIN_PERCENT,
+    ContractState, CurrentIntervalResponse, EpochId, ExecuteMsg, InitialRewardingParams,
+    InstantiateMsg, Interval, MigrateMsg, MixnetContractQuerier, NodeCostParams, NodeId, NymNode,
+    NymNodeBondingPayload, QueryMsg, RoleAssignment, SignableNymNodeBondingMsg,
+    DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
 };
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature};
 use nym_contracts_common::Percent;
@@ -103,6 +103,21 @@ impl TestableNymContract for MixnetContract {
     }
 }
 
+#[derive(Clone, Default, Debug)]
+pub enum EmbeddedContractAddressUpdate {
+    Update {
+        new: Option<Addr>,
+    },
+    #[default]
+    NoChange,
+}
+
+impl From<Option<Addr>> for EmbeddedContractAddressUpdate {
+    fn from(new: Option<Addr>) -> Self {
+        EmbeddedContractAddressUpdate::Update { new }
+    }
+}
+
 pub trait EmbeddedMixnetContractExt:
     ChainOpts + ArbitraryContractStorageWriter + ArbitraryContractStorageReader + RandExt + BankExt
 {
@@ -146,6 +161,26 @@ pub trait EmbeddedMixnetContractExt:
         let address = self.mixnet_contract_address()?;
 
         self.set_contract_storage_value(address, key, value)
+    }
+
+    /// Patch the embedded mixnet contract's stored sibling-contract addresses
+    /// Test-only fixup for the chicken-and-egg wiring:
+    /// the mixnet is instantiated with placeholder addresses before its sibling
+    /// contracts exist, and in production a migration backfills them.
+    fn set_mixnet_sibling_contracts(
+        &mut self,
+        node_families_contract_address: EmbeddedContractAddressUpdate,
+        geolocation_contract_address: EmbeddedContractAddressUpdate,
+    ) -> StdResult<()> {
+        let mut state: ContractState =
+            self.read_from_mixnet_contract_storage(crate::constants::CONTRACT_STATE_KEY)?;
+        if let EmbeddedContractAddressUpdate::Update { new } = node_families_contract_address {
+            state.node_families_contract_address = new;
+        }
+        if let EmbeddedContractAddressUpdate::Update { new } = geolocation_contract_address {
+            state.geolocation_contract_address = new;
+        }
+        self.write_to_mixnet_contract_storage_value(crate::constants::CONTRACT_STATE_KEY, &state)
     }
 
     fn current_mixnet_epoch(&self) -> StdResult<EpochId> {
@@ -225,6 +260,16 @@ pub trait EmbeddedMixnetContractExt:
     }
 
     fn bond_dummy_nymnode_for(&mut self, node_owner: &Addr) -> Result<NodeId, StdError> {
+        Ok(self.bond_dummy_nymnode_for_with_keypair(node_owner)?.0)
+    }
+
+    /// Like [`Self::bond_dummy_nymnode_for`] but also returns the node's ed25519 identity
+    /// keypair, so a caller can produce signatures that verify against the bonded node's
+    /// on-chain identity key (e.g. a relayed geolocation self-declaration).
+    fn bond_dummy_nymnode_for_with_keypair(
+        &mut self,
+        node_owner: &Addr,
+    ) -> Result<(NodeId, ed25519::KeyPair), StdError> {
         let pledge = coins(100_000000, TEST_DENOM);
         let keypair = ed25519::KeyPair::new(self.raw_rng());
         let identity_key = keypair.public_key().to_base58_string();
@@ -265,12 +310,19 @@ pub trait EmbeddedMixnetContractExt:
             },
         )?;
 
-        Ok(bond.details.unwrap().bond_information.node_id)
+        Ok((bond.details.unwrap().bond_information.node_id, keypair))
     }
 
     fn bond_dummy_nymnode(&mut self) -> Result<NodeId, StdError> {
         let node_owner = self.generate_account_with_balance();
         self.bond_dummy_nymnode_for(&node_owner)
+    }
+
+    /// Like [`Self::bond_dummy_nymnode`] but also returns the node's ed25519 identity keypair
+    /// (see [`Self::bond_dummy_nymnode_for_with_keypair`]).
+    fn bond_dummy_nymnode_with_keypair(&mut self) -> Result<(NodeId, ed25519::KeyPair), StdError> {
+        let node_owner = self.generate_account_with_balance();
+        self.bond_dummy_nymnode_for_with_keypair(&node_owner)
     }
 
     fn unbond_nymnode(&mut self, node_id: NodeId) -> Result<(), StdError> {

@@ -547,7 +547,7 @@ mod tests {
     #[cfg(test)]
     mod measurement_submission {
         use super::*;
-        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
         use crate::testing::{
             init_contract_tester, measured_by, node_measurement, GeolocationContractTesterExt,
         };
@@ -593,7 +593,7 @@ mod tests {
                 test.node_entry(2, &source).unwrap().payload.content,
                 b"second".to_vec()
             );
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -606,7 +606,7 @@ mod tests {
             let content = [0x00, 0xff, 0x7b, 0x22, 0x80, 0x41];
             submit(&mut test, &agent, vec![node_measurement(1, &content)]).unwrap();
 
-            let entry = test.node_entry(1, &measured_by(&agent)).unwrap();
+            let entry = test.measurement_by(1, &agent).unwrap();
             assert_eq!(entry.payload.content.as_slice(), content);
             // measured entries carry nobody's signature; only a relayed declaration does
             assert_eq!(entry.attestation, None);
@@ -624,7 +624,7 @@ mod tests {
             // `checked_at` is what makes freshness provable, so it cannot be something the
             // submitter chooses
             assert_eq!(
-                test.node_entry(1, &measured_by(&agent)).unwrap().checked_at,
+                test.measurement_by(1, &agent).unwrap().checked_at,
                 block_time
             );
         }
@@ -646,21 +646,21 @@ mod tests {
             // disagreement is meant to be visible rather than collapsed: whoever wrote last
             // must not have overwritten the other's answer
             assert_eq!(
-                test.node_entry(1, &measured_by(&first))
+                test.measurement_by(1, &first)
                     .unwrap()
                     .payload
                     .content,
                 b"from-first".to_vec()
             );
             assert_eq!(
-                test.node_entry(1, &measured_by(&second))
+                test.measurement_by(1, &second)
                     .unwrap()
                     .payload
                     .content,
                 b"from-second".to_vec()
             );
             assert_eq!(test.node_measurements(1).len(), 2);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -676,14 +676,14 @@ mod tests {
             .unwrap();
 
             assert_eq!(
-                test.node_entry(1, &measured_by(&agent))
+                test.measurement_by(1, &agent)
                     .unwrap()
                     .payload
                     .content,
                 b"fresh".to_vec()
             );
             // the superseded leaf was retired inside the batch rather than left summed in
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -693,18 +693,18 @@ mod tests {
 
             submit(&mut test, &agent, vec![node_measurement(1, b"unchanged")]).unwrap();
             let before = test.digest();
-            let first_checked_at = test.node_entry(1, &measured_by(&agent)).unwrap().checked_at;
+            let first_checked_at = test.measurement_by(1, &agent).unwrap().checked_at;
 
             test.advance_time_by(60);
             submit(&mut test, &agent, vec![node_measurement(1, b"unchanged")]).unwrap();
 
             // the whole point of the heartbeat: an agent re-submitting an unchanged location
             // has to move the digest, otherwise verifying it would say nothing about freshness
-            let entry = test.node_entry(1, &measured_by(&agent)).unwrap();
+            let entry = test.measurement_by(1, &agent).unwrap();
             assert_eq!(entry.payload.content, b"unchanged".to_vec());
             assert_eq!(entry.checked_at, first_checked_at + 60);
             assert_ne!(test.digest(), before);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -720,7 +720,7 @@ mod tests {
                     agent: stranger.clone()
                 }
             );
-            assert!(test.node_entry(1, &measured_by(&stranger)).is_none());
+            assert!(test.measurement_by(1, &stranger).is_none());
         }
 
         #[test]
@@ -744,7 +744,7 @@ mod tests {
             // and the already-written entry survives: de-whitelisting neutralises it for
             // readers rather than deleting it
             assert_eq!(
-                test.node_entry(1, &measured_by(&agent))
+                test.measurement_by(1, &agent)
                     .unwrap()
                     .payload
                     .content,
@@ -821,7 +821,7 @@ mod tests {
             // the bound is inclusive, so an agent filling a batch exactly is not punished
             submit(&mut test, &agent, full).unwrap();
             assert_eq!(test.node_measurements(max - 1).len(), 1);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -852,9 +852,9 @@ mod tests {
             // the valid entries either side of the bad one are not written: every check runs
             // before any write, so nothing has to be rolled back
             for node_id in [1, 2, 3] {
-                assert!(test.node_entry(node_id, &measured_by(&agent)).is_none());
+                assert!(test.measurement_by(node_id, &agent).is_none());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -923,7 +923,7 @@ mod tests {
     #[cfg(test)]
     mod self_declaration_relay {
         use super::*;
-        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
         use crate::testing::{
             init_contract_tester, signed_declaration, GeolocationContractTesterExt,
         };
@@ -988,7 +988,7 @@ mod tests {
             let attestation = entry.attestation.unwrap();
             assert_eq!(attestation.declared_at, declared_at);
             assert_eq!(attestation.signature, declaration.signature);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1337,7 +1337,7 @@ mod tests {
             for node_id in [first, second, third] {
                 assert!(test.node_entry(node_id, &Source::SelfDeclared).is_none());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1412,14 +1412,13 @@ mod tests {
                 .attributes
                 .iter()
                 .any(|attr| attr.key == events::ATTR_COUNT && attr.value == "2"));
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
     }
 
     #[cfg(test)]
     mod admin_overrides {
         use super::*;
-        use crate::storage::assert_digest_is_refold;
         use crate::testing::{
             init_contract_tester, location_entry, measured_by, GeolocationContractTesterExt,
         };
@@ -1472,7 +1471,7 @@ mod tests {
             assert_eq!(entry.checked_at, test.env().block.time.seconds());
             // an override is the admin asserting a location, not the subject attesting to one
             assert_eq!(entry.attestation, None);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
 
             test.advance_time_by(60);
             set_override(&mut test, &admin, 42, b"second").unwrap();
@@ -1486,7 +1485,7 @@ mod tests {
             // one override slot per subject, so replacing retires the old leaf rather than
             // adding a second entry
             assert_eq!(test.node_entries(42).len(), 1);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1539,9 +1538,9 @@ mod tests {
             // retracting an override must not wait on a re-measurement, so it cannot take the
             // other sources with it
             assert!(test.node_entry(42, &Source::Override).is_none());
-            assert!(test.node_entry(42, &measured_by(&agent)).is_some());
+            assert!(test.measurement_by(42, &agent).is_some());
             assert!(test.node_entry(42, &Source::SelfDeclared).is_some());
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1626,16 +1625,16 @@ mod tests {
             remove_override(&mut test, &admin, 42).unwrap();
 
             assert_eq!(test.digest(), before);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
     }
 
     #[cfg(test)]
     mod admin_whitelist {
         use super::*;
-        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
         use crate::testing::{
-            init_contract_tester, measured_by, node_measurement, GeolocationContractTesterExt,
+            init_contract_tester, node_measurement, GeolocationContractTesterExt,
         };
         use cosmwasm_std::testing::message_info;
         use cw_controllers::AdminError;
@@ -1692,7 +1691,7 @@ mod tests {
             // a measured entry carries no signature, so the whitelist is the only evidence a
             // verifying client has that its writer was ever authorised
             assert_ne!(test.digest(), before);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1730,8 +1729,8 @@ mod tests {
 
             // revoking one flag leaves the other alone, and does not touch what was already
             // written under it
-            assert!(test.node_entry(1, &measured_by(&agent)).is_some());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(1, &agent).is_some());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1752,8 +1751,8 @@ mod tests {
                     .unwrap(),
                 None
             );
-            assert!(test.node_entry(7, &measured_by(&agent)).is_some());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(7, &agent).is_some());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1809,14 +1808,14 @@ mod tests {
             remove_agent(&mut test, &admin, &stranger).unwrap();
 
             assert_eq!(test.digest(), before);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
     }
 
     #[cfg(test)]
     mod explicit_entry_removal {
         use super::*;
-        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
         use crate::testing::{
             init_contract_tester, measured_by, node_measurement, GeolocationContractTesterExt,
         };
@@ -1863,16 +1862,16 @@ mod tests {
             )
             .unwrap();
 
-            assert!(test.node_entry(1, &measured_by(&first)).is_none());
-            assert!(test.node_entry(3, &measured_by(&first)).is_none());
+            assert!(test.measurement_by(1, &first).is_none());
+            assert!(test.measurement_by(3, &first).is_none());
             assert!(test.node_entry(2, &Source::SelfDeclared).is_none());
 
             // and nothing else went with them
-            assert!(test.node_entry(2, &measured_by(&first)).is_some());
+            assert!(test.measurement_by(2, &first).is_some());
             for node_id in [1, 2, 3] {
-                assert!(test.node_entry(node_id, &measured_by(&second)).is_some());
+                assert!(test.measurement_by(node_id, &second).is_some());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1894,7 +1893,7 @@ mod tests {
                 compromised.to_string(),
             )
             .unwrap();
-            assert!(test.node_entry(1, &measured_by(&compromised)).is_some());
+            assert!(test.measurement_by(1, &compromised).is_some());
 
             // step two reclaims the space, at the admin's leisure, from a key list worked out
             // off-chain against the enumeration
@@ -1914,11 +1913,11 @@ mod tests {
 
             for node_id in [1, 2] {
                 assert!(test
-                    .node_entry(node_id, &measured_by(&compromised))
+                    .measurement_by(node_id, &compromised)
                     .is_none());
-                assert!(test.node_entry(node_id, &measured_by(&honest)).is_some());
+                assert!(test.measurement_by(node_id, &honest).is_some());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1938,12 +1937,12 @@ mod tests {
                 vec![node_measurement(99_999, b"nobody home")],
             )
             .unwrap();
-            assert!(test.node_entry(99_999, &measured_by(&agent)).is_some());
+            assert!(test.measurement_by(99_999, &agent).is_some());
 
             remove(&mut test, &admin, vec![measured_key(99_999, &agent)]).unwrap();
 
-            assert!(test.node_entry(99_999, &measured_by(&agent)).is_none());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(99_999, &agent).is_none());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -1961,7 +1960,7 @@ mod tests {
                     GeolocationContractError::Admin(AdminError::NotAdmin {})
                 );
             }
-            assert!(test.node_entry(1, &measured_by(&agent)).is_some());
+            assert!(test.measurement_by(1, &agent).is_some());
         }
 
         #[test]
@@ -1985,8 +1984,8 @@ mod tests {
             .unwrap();
 
             assert_eq!(test.digest(), before);
-            assert!(test.node_entry(1, &measured_by(&agent)).is_some());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(1, &agent).is_some());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -2036,14 +2035,14 @@ mod tests {
                 .may_load_agent_permissions(&test, &agent)
                 .unwrap()
                 .is_some());
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
     }
 
     #[cfg(test)]
     mod unbond_callback {
         use super::*;
-        use crate::storage::{assert_digest_is_refold, GEOLOCATION_CONTRACT_STORAGE};
+        use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
         use crate::testing::{init_contract_tester, measured_by, GeolocationContractTesterExt};
         use cosmwasm_std::testing::message_info;
         use mixnet_contract::testable_mixnet_contract::EmbeddedMixnetContractExt;
@@ -2088,7 +2087,7 @@ mod tests {
             ] {
                 assert!(test.node_entry(42, &source).is_none());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
 
             assert_eq!(res.events[0].ty, events::ON_NYM_NODE_UNBOND);
             assert!(res.events[0]
@@ -2108,8 +2107,8 @@ mod tests {
 
             assert!(test.node_entries(42).is_empty());
             assert_eq!(test.node_entries(43).len(), 4);
-            assert!(test.node_entry(43, &measured_by(&survivor)).is_some());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(43, &survivor).is_some());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -2128,7 +2127,7 @@ mod tests {
                     .unwrap()
                     .is_some());
             }
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -2149,7 +2148,7 @@ mod tests {
                     }
                 );
             }
-            assert!(test.node_entry(42, &measured_by(&agent)).is_some());
+            assert!(test.measurement_by(42, &agent).is_some());
         }
 
         #[test]
@@ -2165,8 +2164,8 @@ mod tests {
             unbond(&mut test, &mixnet, 42).unwrap();
 
             assert_eq!(test.digest(), before);
-            assert!(test.node_entry(7, &measured_by(&agent)).is_some());
-            assert_digest_is_refold(&test);
+            assert!(test.measurement_by(7, &agent).is_some());
+            test.assert_digest_is_refold();
         }
 
         #[test]
@@ -2187,14 +2186,13 @@ mod tests {
             // the whitelisted agent is the only record left, since it is a different entry
             // class and one node unbonding says nothing about who may measure
             assert_eq!(test.all_records().len(), 1);
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
     }
 
     #[cfg(test)]
     mod admin_config_and_role {
         use super::*;
-        use crate::storage::assert_digest_is_refold;
         use crate::testing::{
             init_contract_tester, measured_by, node_measurement, GeolocationContractTesterExt,
         };
@@ -2339,7 +2337,7 @@ mod tests {
 
             submit(&mut test, &agent, &big).unwrap();
             assert_eq!(
-                test.node_entry(1, &measured_by(&agent))
+                test.measurement_by(1, &agent)
                     .unwrap()
                     .payload
                     .content
@@ -2359,9 +2357,9 @@ mod tests {
 
             // not retroactive: the entry stays readable and stays in the digest, and shrinking
             // the stored set is a removal rather than a config change
-            let entry = test.node_entry(1, &measured_by(&agent)).unwrap();
+            let entry = test.measurement_by(1, &agent).unwrap();
             assert_eq!(entry.payload.content, b"a payload of some length".to_vec());
-            assert_digest_is_refold(&test);
+            test.assert_digest_is_refold();
         }
 
         #[test]

@@ -490,7 +490,7 @@ pub mod retrieval_limits {
 ///
 /// Lives here rather than in the test module below because the instantiate tests need it too:
 /// initial whitelisting is a digest-committed write like any other.
-#[cfg(test)]
+#[cfg(any(test, feature = "testable-geolocation-contract"))]
 pub(crate) fn assert_digest_is_refold(store: &dyn Storage) {
     let mut refolded = LtHash16::new();
     #[allow(clippy::unwrap_used)]
@@ -534,27 +534,27 @@ mod tests {
         let mut test = init_contract_tester();
 
         let agent1 = test.add_dummy_agent();
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         let agent2 = test.add_dummy_agent();
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         test.set_dummy_measurement_from(1, &agent1);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         test.set_dummy_measurement_from(1, &agent2);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         test.set_dummy_node_self_declared(1);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         test.set_dummy_node_override(1);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         // replacing a value: the old leaf has to be retired with the exact bytes that were
         // stored, so this is the step a reconstructed-rather-than-loaded old value fails
         test.update_dummy_node_measurement(1);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
 
         // a heartbeat: unchanged location, later `checked_at`. It has to move the digest,
         // otherwise verifying the digest would say nothing about freshness
@@ -597,7 +597,7 @@ mod tests {
         // last write wins, and the superseded leaf was retired within the batch rather than
         // left summed into the accumulator alongside it
         assert_eq!(test.node_entry(1, &source), Some(last));
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
     }
 
     #[test]
@@ -643,7 +643,7 @@ mod tests {
         test.remove_agent(&stranger);
 
         assert_eq!(test.digest(), before);
-        assert_digest_is_refold(&test);
+        test.assert_digest_is_refold();
     }
 
     #[test]

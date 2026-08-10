@@ -318,6 +318,10 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.node_families_contract_address = Some(address);
     }
 
+    pub fn set_geolocation_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.geolocation_contract_address = Some(address);
+    }
+
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
@@ -355,6 +359,10 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
             .contracts
             .node_families_contract_address
             .as_ref()
+    }
+
+    fn geolocation_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.geolocation_contract_address.as_ref()
     }
 
     fn ecash_contract_address(&self) -> Option<&AccountId> {

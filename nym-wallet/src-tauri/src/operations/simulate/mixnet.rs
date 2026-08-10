@@ -109,8 +109,8 @@ pub async fn simulate_update_pledge(
     let dec_delta = guard.calculate_coin_delta(&current_pledge, &new_pledge)?;
     log::info!(
         ">>> Simulate pledge update, current pledge {}, new pledge {}",
-        &current_pledge,
-        &new_pledge,
+        current_pledge,
+        new_pledge,
     );
 
     match new_pledge.amount.cmp(&current_pledge.amount) {

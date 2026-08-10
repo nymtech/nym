@@ -36,7 +36,7 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
 
     info!(
         "Getting vesting schedule information for {}...",
-        &vesting_address
+        vesting_address
     );
 
     let liquid_account_balance = client
@@ -157,11 +157,11 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     println!();
     println!(
         "The main account {} also has a regular balance of:",
-        &account_id
+        account_id
     );
     println!(
         "{}  ({})",
         pretty_coin(&liquid_account_balance),
-        &liquid_account_balance
+        liquid_account_balance
     );
 }

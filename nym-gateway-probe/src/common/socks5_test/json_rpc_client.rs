@@ -69,7 +69,7 @@ impl JsonRpcClient {
                 }
                 Err(e) => {
                     error_msg.push(e.to_string());
-                    error!("{}", &e);
+                    error!("{}", e);
                 }
             }
         }

@@ -309,7 +309,7 @@ impl AuthenticatorClient {
 
                 trace!(
                     "received \"pending-registration\" msg from {}: {:?}",
-                    &self.ip_addr, &pending_registration_response
+                    self.ip_addr, pending_registration_response
                 );
 
                 // if the node reports upgrade mode, we can use the corresponding token for registration
@@ -355,7 +355,7 @@ impl AuthenticatorClient {
 
         trace!(
             "received \"registered\" msg from {}: {:?}",
-            &self.ip_addr, &registered_data
+            self.ip_addr, registered_data
         );
 
         let gateway_data = WireguardConfiguration {

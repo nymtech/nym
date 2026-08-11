@@ -1,0 +1,35 @@
+[package]
+name = "nym-geolocator"
+description = "Simple service for looking up locations of Nym nodes and publishing them to the smart contract"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+humantime = { workspace = true }
+
+axum = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-http-api-client = { workspace = true }
+nym-node-requests = { workspace = true, features = ["client"] }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-geolocation-contract-common = { workspace = true }
+
+
+[lints]
+workspace = true

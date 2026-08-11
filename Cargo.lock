@@ -7139,6 +7139,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-geolocator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "humantime",
+ "nym-bin-common",
+ "nym-geolocation-contract-common",
+ "nym-http-api-client",
+ "nym-node-requests",
+ "nym-validator-client",
+ "time",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "utoipa-swagger-ui",
+]
+
+[[package]]
 name = "nym-go-ffi"
 version = "1.21.5-rc.3"
 dependencies = [

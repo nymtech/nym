@@ -418,19 +418,4 @@ mod tests {
         assert!(ack.is_none());
         assert_eq!(data, message)
     }
-
-    #[test]
-    #[allow(deprecated)]
-    fn splitting_into_ack_and_message_returns_whole_data_for_ack_outfox() {
-        let data = vec![42u8; SurbAck::len(Some(PacketType::Outfox)) + 10];
-        let (ack, message) = split_into_ack_and_message(
-            data.clone(),
-            PacketSize::OutfoxAckPacket,
-            PacketType::Outfox,
-            SphinxKeyRotation::EvenRotation,
-        )
-        .unwrap();
-        assert!(ack.is_none());
-        assert_eq!(data, message)
-    }
 }

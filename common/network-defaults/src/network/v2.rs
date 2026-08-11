@@ -1,20 +1,30 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! V2 of [`super::NymNetworkDetails`], grouping the api-url configuration into a single
+//! V2 of [`v1::NymNetworkDetails`], grouping the api-url configuration into a single
 //! [`NetworkingSpecifics`] block and adding room for DNS fallback configuration.
 //!
-//! Build one of these via `.into()` from an existing [`super::NymNetworkDetails`] (or
-//! `super::NymNetworkDetails::new_mainnet().into()`, etc.) rather than constructing it
-//! from scratch, so that all of the existing builder methods on the v1 type keep working.
+//! This is now the canonical representation: `new_empty`/`new_mainnet`/`new_sandbox`/
+//! `new_from_env`/`export_to_env` are all implemented here, directly against the
+//! `mainnet`/`sandbox` consts and env vars. [`v1::NymNetworkDetails`] (v1) is derived
+//! from this one via `.into()` (see the `From` impls below) rather than the other way
+//! around, so parsing/exporting only needs to be correct in one place.
 
-use super::{ApiUrl, ChainDetails, NymContracts, ValidatorDetails};
-use crate::sandbox;
+use crate::GAS_PRICE_AMOUNT;
+use crate::network::{ApiUrl, ChainDetails, DenomDetailsOwned, NymContracts, ValidatorDetails};
+use crate::{mainnet, sandbox, v1};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::net::IpAddr;
+
+#[cfg(feature = "env")]
+use std::env::{VarError, var};
+#[cfg(feature = "env")]
+use std::ffi::OsStr;
+#[cfg(feature = "env")]
+use url::Url;
 
 // `#[schema(as = ...)]` gives these a distinct OpenAPI component name from their v1
 // namesakes (`nym_network_defaults::NymNetworkDetails` et al.) - without it, utoipa would
@@ -49,10 +59,7 @@ pub struct DnsFallback {
     pub addresses: Vec<String>,
 }
 
-/// Pins for mainnet's own domains (nym-api, nym-vpn-api) plus the domain-fronting
-/// hosts they can hide behind, taken from [`crate::dns::default_static_addrs`] - the
-/// same table the DNS resolver falls back to when regular resolution is untrustworthy.
-fn dns_fallbacks(raw: HashMap<String, Vec<IpAddr>>) -> Vec<DnsFallback> {
+pub(crate) fn dns_fallbacks(raw: HashMap<String, Vec<IpAddr>>) -> Vec<DnsFallback> {
     let mut fallbacks: Vec<DnsFallback> = raw
         .into_iter()
         .map(|(url, addresses)| DnsFallback {
@@ -65,9 +72,9 @@ fn dns_fallbacks(raw: HashMap<String, Vec<IpAddr>>) -> Vec<DnsFallback> {
 }
 
 /// Reads `dns_fallbacks` from the [`crate::var_names::DNS_FALLBACKS`] env var, as a
-/// JSON-encoded `Vec<DnsFallback>`. If unset (or empty), falls back to
-/// [`mainnet_dns_fallbacks`] when `network_name` is mainnet's - there are no compiled-in pins
-/// for any other network yet - otherwise it's simply empty.
+/// JSON-encoded `Vec<DnsFallback>`. If unset (or empty), falls back to the compiled-in
+/// `mainnet`/`sandbox` pins matching `network_name` - there are none for any other network
+/// yet, so it's simply empty in that case.
 #[cfg(feature = "env")]
 fn dns_fallbacks_from_env(network_name: &str) -> Vec<DnsFallback> {
     use crate::var_names;
@@ -80,11 +87,11 @@ fn dns_fallbacks_from_env(network_name: &str) -> Vec<DnsFallback> {
                 var_names::DNS_FALLBACKS
             )
         }),
-        _ if network_name == crate::mainnet::NETWORK_NAME => {
-            dns_fallbacks(crate::mainnet::dns::default_static_addrs())
+        _ if network_name == mainnet::NETWORK_NAME => {
+            dns_fallbacks(mainnet::dns::default_static_addrs())
         }
-        _ if network_name == crate::sandbox::NETWORK_NAME => {
-            dns_fallbacks(crate::sandbox::dns::default_static_addrs())
+        _ if network_name == sandbox::NETWORK_NAME => {
+            dns_fallbacks(sandbox::dns::default_static_addrs())
         }
         _ => Vec::new(),
     }
@@ -97,6 +104,55 @@ fn serialize_dns_fallbacks(fallbacks: &[DnsFallback]) -> String {
         .unwrap_or_default()
 }
 
+/// `""` is treated the same as unset - mirrors the legacy env-var convention used
+/// throughout `mainnet.rs`/`sandbox.rs` for "this network has no contract deployed yet".
+fn parse_optional_str(raw: &str) -> Option<String> {
+    (!raw.is_empty()).then(|| raw.to_string())
+}
+
+#[cfg(feature = "env")]
+fn serialize_api_urls(urls: &[ApiUrl]) -> Option<String> {
+    serde_json::to_string(urls)
+        .inspect_err(|e| tracing::warn!("failed to serialize api urls for env: {e}"))
+        .ok()
+}
+
+#[cfg(feature = "env")]
+fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Result<Vec<ApiUrl>, serde_json::Error> {
+    match var(k) {
+        Ok(raw) if !raw.is_empty() => serde_json::from_str(&raw),
+        _ => Ok(Vec::new()),
+    }
+}
+
+#[cfg(feature = "env")]
+fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+    match var(env) {
+        Ok(var) => (!var.is_empty()).then_some(var),
+        Err(VarError::NotPresent) => None,
+        err => panic!("Unable to set: {err:?}"),
+    }
+}
+
+// NYM_APIS was introduced to replace the singular NYM_API; fall back to it so
+// setups that only ever configured NYM_API (via setup_env's legacy migration
+// or otherwise) keep working.
+#[cfg(feature = "env")]
+fn parse_legacy_nym_api() -> ApiUrl {
+    use crate::var_names;
+
+    let legacy_api = get_optional_env(var_names::NYM_API).unwrap_or_else(|| {
+        panic!(
+            "neither {} nor legacy {} is set",
+            var_names::NYM_APIS,
+            var_names::NYM_API
+        )
+    });
+    Url::parse(&legacy_api)
+        .unwrap_or_else(|e| panic!("{} is not a valid url: {e}", var_names::NYM_API))
+        .into()
+}
+
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
 impl Default for NymNetworkDetails {
     fn default() -> Self {
@@ -107,8 +163,8 @@ impl Default for NymNetworkDetails {
 /// Converts from the existing (v1) network details, deriving `networking` from its
 /// `nym_api_urls()` / `nym_vpn_api_urls()` accessors. There's no DNS fallback data on v1,
 /// so `dns_fallbacks` always starts out empty.
-impl From<super::NymNetworkDetails> for NymNetworkDetails {
-    fn from(v1: super::NymNetworkDetails) -> Self {
+impl From<v1::NymNetworkDetails> for NymNetworkDetails {
+    fn from(v1: v1::NymNetworkDetails) -> Self {
         NymNetworkDetails {
             networking: NetworkingSpecifics {
                 nym_api_urls: v1.nym_api_urls(),
@@ -125,7 +181,7 @@ impl From<super::NymNetworkDetails> for NymNetworkDetails {
 
 /// Converts back down to the v1 shape for callers that aren't ready to consume the new
 /// fields yet. `dns_fallbacks` is dropped, since v1 has nowhere to put it.
-impl From<NymNetworkDetails> for super::NymNetworkDetails {
+impl From<NymNetworkDetails> for v1::NymNetworkDetails {
     fn from(v2: NymNetworkDetails) -> Self {
         let nym_vpn_api_url = v2
             .networking
@@ -133,7 +189,7 @@ impl From<NymNetworkDetails> for super::NymNetworkDetails {
             .first()
             .map(|url| url.url.clone());
 
-        super::NymNetworkDetails {
+        v1::NymNetworkDetails {
             network_name: v2.network_name,
             chain_details: v2.chain_details,
             endpoints: v2.endpoints,
@@ -149,47 +205,360 @@ impl From<NymNetworkDetails> for super::NymNetworkDetails {
 
 impl NymNetworkDetails {
     pub fn new_empty() -> Self {
-        super::NymNetworkDetails::new_empty().into()
+        NymNetworkDetails {
+            network_name: Default::default(),
+            chain_details: ChainDetails {
+                bech32_account_prefix: Default::default(),
+                mix_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+                stake_denom: DenomDetailsOwned {
+                    base: Default::default(),
+                    display: Default::default(),
+                    display_exponent: Default::default(),
+                },
+            },
+            endpoints: Default::default(),
+            contracts: Default::default(),
+            networking: NetworkingSpecifics {
+                nym_api_urls: Vec::new(),
+                nym_vpn_api_urls: Vec::new(),
+                dns_fallbacks: Vec::new(),
+            },
+        }
     }
 
     pub fn new_mainnet() -> Self {
-        let mut base: NymNetworkDetails = super::NymNetworkDetails::new_mainnet().into();
-        base.networking.dns_fallbacks = dns_fallbacks(crate::mainnet::dns::default_static_addrs());
-        base
+        NymNetworkDetails {
+            network_name: mainnet::NETWORK_NAME.into(),
+            chain_details: ChainDetails::mainnet(),
+            endpoints: mainnet::validators(),
+            contracts: NymContracts {
+                mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
+                vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
+                performance_contract_address: parse_optional_str(
+                    mainnet::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
+                network_monitors_contract_address: parse_optional_str(
+                    mainnet::NETWORK_MONITORS_CONTRACT_ADDRESS,
+                ),
+                node_families_contract_address: parse_optional_str(
+                    mainnet::NODE_FAMILIES_CONTRACT_ADDRESS,
+                ),
+                ecash_contract_address: parse_optional_str(mainnet::ECASH_CONTRACT_ADDRESS),
+                group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
+                multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
+                coconut_dkg_contract_address: parse_optional_str(
+                    mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
+            },
+            networking: NetworkingSpecifics {
+                nym_api_urls: mainnet::NYM_APIS.iter().copied().map(Into::into).collect(),
+                nym_vpn_api_urls: mainnet::NYM_VPN_APIS
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+                dns_fallbacks: dns_fallbacks(mainnet::dns::default_static_addrs()),
+            },
+        }
     }
 
     pub fn new_sandbox() -> Self {
-        sandbox::network_details().into()
+        NymNetworkDetails {
+            network_name: sandbox::NETWORK_NAME.into(),
+            chain_details: ChainDetails {
+                bech32_account_prefix: sandbox::BECH32_PREFIX.to_string(),
+                mix_denom: sandbox::MIX_DENOM.into(),
+                stake_denom: sandbox::STAKE_DENOM.into(),
+            },
+            endpoints: sandbox::validators(),
+            contracts: NymContracts {
+                mixnet_contract_address: parse_optional_str(sandbox::MIXNET_CONTRACT_ADDRESS),
+                vesting_contract_address: parse_optional_str(sandbox::VESTING_CONTRACT_ADDRESS),
+                performance_contract_address: parse_optional_str(
+                    sandbox::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
+                network_monitors_contract_address: parse_optional_str(
+                    sandbox::NETWORK_MONITORS_CONTRACT_ADDRESS,
+                ),
+                node_families_contract_address: parse_optional_str(
+                    sandbox::NODE_FAMILIES_CONTRACT_ADDRESS,
+                ),
+                ecash_contract_address: parse_optional_str(sandbox::ECASH_CONTRACT_ADDRESS),
+                group_contract_address: parse_optional_str(sandbox::GROUP_CONTRACT_ADDRESS),
+                multisig_contract_address: parse_optional_str(sandbox::MULTISIG_CONTRACT_ADDRESS),
+                coconut_dkg_contract_address: parse_optional_str(
+                    sandbox::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
+            },
+            networking: NetworkingSpecifics {
+                nym_api_urls: sandbox::NYM_APIS.iter().copied().map(Into::into).collect(),
+                nym_vpn_api_urls: sandbox::NYM_VPN_APIS
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect(),
+                dns_fallbacks: dns_fallbacks(sandbox::dns::default_static_addrs()),
+            },
+        }
     }
 
     #[cfg(feature = "env")]
     pub fn new_from_env() -> Self {
-        let mut details: NymNetworkDetails = super::NymNetworkDetails::new_from_env().into();
-        details.networking.dns_fallbacks = dns_fallbacks_from_env(&details.network_name);
-        details
+        use crate::var_names;
+
+        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_APIS
+            )
+        });
+        let nym_api_urls = if nym_api_urls.is_empty() {
+            vec![parse_legacy_nym_api()]
+        } else {
+            nym_api_urls
+        };
+        let nym_api = nym_api_urls
+            .first()
+            .expect("nym_api_urls is guaranteed non-empty at this point");
+        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_VPN_APIS
+            )
+        });
+
+        let network_name = var(var_names::NETWORK_NAME).expect("network name not set");
+        let dns_fallbacks = dns_fallbacks_from_env(&network_name);
+
+        NymNetworkDetails {
+            network_name,
+            chain_details: ChainDetails {
+                bech32_account_prefix: var(var_names::BECH32_PREFIX)
+                    .expect("bech32 prefix not set"),
+                mix_denom: DenomDetailsOwned {
+                    base: var(var_names::MIX_DENOM).expect("mix denomination base not set"),
+                    display: var(var_names::MIX_DENOM_DISPLAY)
+                        .expect("mix denomination display not set"),
+                    display_exponent: var(var_names::DENOMS_EXPONENT)
+                        .expect("denomination exponent not set")
+                        .parse()
+                        .expect("denomination exponent is not u32"),
+                },
+                stake_denom: DenomDetailsOwned {
+                    base: var(var_names::STAKE_DENOM).expect("stake denomination base not set"),
+                    display: var(var_names::STAKE_DENOM_DISPLAY)
+                        .expect("stake denomination display not set"),
+                    display_exponent: var(var_names::DENOMS_EXPONENT)
+                        .expect("denomination exponent not set")
+                        .parse()
+                        .expect("denomination exponent is not u32"),
+                },
+            },
+            endpoints: vec![ValidatorDetails::new(
+                var(var_names::NYXD).expect("nyxd validator not set"),
+                Some(nym_api.url.clone()),
+                get_optional_env(var_names::NYXD_WEBSOCKET),
+            )],
+            contracts: NymContracts {
+                mixnet_contract_address: get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS),
+                vesting_contract_address: get_optional_env(var_names::VESTING_CONTRACT_ADDRESS),
+                performance_contract_address: get_optional_env(
+                    var_names::PERFORMANCE_CONTRACT_ADDRESS,
+                ),
+                network_monitors_contract_address: get_optional_env(
+                    var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
+                ),
+                node_families_contract_address: get_optional_env(
+                    var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
+                ),
+                ecash_contract_address: get_optional_env(var_names::ECASH_CONTRACT_ADDRESS),
+                group_contract_address: get_optional_env(var_names::GROUP_CONTRACT_ADDRESS),
+                multisig_contract_address: get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS),
+                coconut_dkg_contract_address: get_optional_env(
+                    var_names::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
+            },
+            networking: NetworkingSpecifics {
+                nym_api_urls,
+                nym_vpn_api_urls,
+                dns_fallbacks,
+            },
+        }
     }
 
-    /// Exports the v1-shared fields via [`super::NymNetworkDetails::export_to_env`], plus
-    /// `networking.dns_fallbacks` (as JSON) to [`crate::var_names::DNS_FALLBACKS`] - mirroring
-    /// how [`Self::new_from_env`] reads it back. Leaves `DNS_FALLBACKS` untouched if
-    /// `dns_fallbacks` is empty, same as how the v1 exporter skips unset optional fields.
+    /// Exports every field to its env var (mirroring [`Self::new_from_env`]'s reads),
+    /// including `networking.dns_fallbacks` (as JSON) to
+    /// [`crate::var_names::DNS_FALLBACKS`]. Leaves `DNS_FALLBACKS` untouched if
+    /// `dns_fallbacks` is empty, same as how optional contract addresses are skipped
+    /// when unset.
+    #[rustfmt::skip]
     #[cfg(feature = "env")]
     pub fn export_to_env(self) {
         use crate::var_names;
         use std::env::set_var;
 
-        let dns_fallbacks = self.networking.dns_fallbacks.clone();
-        let v1: super::NymNetworkDetails = self.into();
-        v1.export_to_env();
-
-        if !dns_fallbacks.is_empty() {
-            unsafe {
-                set_var(
-                    var_names::DNS_FALLBACKS,
-                    serialize_dns_fallbacks(&dns_fallbacks),
-                )
+        fn set_optional_var(var_name: &str, value: Option<String>) {
+            if let Some(value) = value {
+                unsafe { set_var(var_name, value) }
             }
         }
+
+        unsafe {
+            let nym_api_urls = serialize_api_urls(&self.networking.nym_api_urls);
+            let nym_vpn_api_urls = serialize_api_urls(&self.networking.nym_vpn_api_urls);
+            let dns_fallbacks = self.networking.dns_fallbacks;
+
+            set_var(var_names::NETWORK_NAME, self.network_name);
+            set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
+
+            set_var(var_names::MIX_DENOM, self.chain_details.mix_denom.base);
+            set_var(var_names::MIX_DENOM_DISPLAY, self.chain_details.mix_denom.display);
+
+            set_var(var_names::STAKE_DENOM, self.chain_details.stake_denom.base);
+            set_var(var_names::STAKE_DENOM_DISPLAY, self.chain_details.stake_denom.display);
+
+            set_var(var_names::DENOMS_EXPONENT, self.chain_details.mix_denom.display_exponent.to_string());
+
+            if let Some(e) = self.endpoints.first() {
+                set_var(var_names::NYXD, e.nyxd_url.clone());
+                set_optional_var(var_names::NYM_API, e.api_url.clone());
+                set_optional_var(var_names::NYXD_WEBSOCKET, e.websocket_url.clone());
+            }
+
+            set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
+            set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+            set_optional_var(var_names::NETWORK_MONITORS_CONTRACT_ADDRESS, self.contracts.network_monitors_contract_address);
+            set_optional_var(var_names::NODE_FAMILIES_CONTRACT_ADDRESS, self.contracts.node_families_contract_address);
+            set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
+            set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
+            set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
+            set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
+
+            set_optional_var(var_names::NYM_VPN_APIS, nym_vpn_api_urls);
+            set_optional_var(var_names::NYM_APIS, nym_api_urls);
+
+            if !dns_fallbacks.is_empty() {
+                set_var(var_names::DNS_FALLBACKS, serialize_dns_fallbacks(&dns_fallbacks));
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn with_network_name(mut self, network_name: String) -> Self {
+        self.network_name = network_name;
+        self
+    }
+
+    #[must_use]
+    pub fn with_chain_details(mut self, chain_details: ChainDetails) -> Self {
+        self.chain_details = chain_details;
+        self
+    }
+
+    #[must_use]
+    pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
+        self.chain_details.bech32_account_prefix = prefix.into();
+        self
+    }
+
+    #[must_use]
+    pub fn with_mix_denom(mut self, mix_denom: DenomDetailsOwned) -> Self {
+        self.chain_details.mix_denom = mix_denom;
+        self
+    }
+
+    #[must_use]
+    pub fn with_stake_denom(mut self, stake_denom: DenomDetailsOwned) -> Self {
+        self.chain_details.stake_denom = stake_denom;
+        self
+    }
+
+    #[must_use]
+    pub fn with_base_mix_denom<S: Into<String>>(mut self, base_mix_denom: S) -> Self {
+        self.chain_details.mix_denom = DenomDetailsOwned::base_only(base_mix_denom.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_base_stake_denom<S: Into<String>>(mut self, base_stake_denom: S) -> Self {
+        self.chain_details.stake_denom = DenomDetailsOwned::base_only(base_stake_denom.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_additional_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+        self.endpoints.push(endpoint);
+        self
+    }
+
+    #[must_use]
+    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+        self.endpoints = vec![endpoint];
+        self
+    }
+
+    #[must_use]
+    pub fn with_contracts(mut self, contracts: NymContracts) -> Self {
+        self.contracts = contracts;
+        self
+    }
+
+    #[must_use]
+    pub fn with_mixnet_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.mixnet_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.vesting_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_node_families_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.node_families_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_ecash_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.ecash_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_group_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.group_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_multisig_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.multisig_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_performance_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.performance_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_network_monitors_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.network_monitors_contract_address = contract.map(Into::into);
+        self
     }
 
     #[must_use]
@@ -219,7 +588,15 @@ impl NymNetworkDetails {
     }
 
     pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
-        self.networking.nym_api_urls.clone()
+        if self.networking.nym_api_urls.is_empty() {
+            return self.networking.nym_api_urls.clone();
+        }
+
+        self.endpoints
+            .iter()
+            .filter_map(|e| e.api_url())
+            .map(ApiUrl::from)
+            .collect()
     }
 
     pub fn nym_vpn_api_urls(&self) -> Vec<ApiUrl> {
@@ -228,6 +605,10 @@ impl NymNetworkDetails {
 
     pub fn dns_fallbacks(&self) -> Vec<DnsFallback> {
         self.networking.dns_fallbacks.clone()
+    }
+
+    pub fn default_gas_price_amount(&self) -> f64 {
+        GAS_PRICE_AMOUNT
     }
 }
 
@@ -259,9 +640,9 @@ mod tests {
     }
 
     #[test]
-    fn dns_fallbacks_from_env_defaults_to_empty_when_unset_on_non_mainnet() {
+    fn dns_fallbacks_from_env_defaults_to_empty_when_unset_on_unknown_network() {
         with_dns_fallbacks_var_cleared(|| {
-            assert_eq!(dns_fallbacks_from_env(sandbox::NETWORK_NAME), Vec::new());
+            assert_eq!(dns_fallbacks_from_env("some-unknown-network"), Vec::new());
         });
     }
 
@@ -269,8 +650,18 @@ mod tests {
     fn dns_fallbacks_from_env_falls_back_to_mainnet_pins_when_unset() {
         with_dns_fallbacks_var_cleared(|| {
             assert_eq!(
-                dns_fallbacks_from_env(crate::mainnet::NETWORK_NAME),
-                dns_fallbacks(crate::mainnet::dns::default_static_addrs())
+                dns_fallbacks_from_env(mainnet::NETWORK_NAME),
+                dns_fallbacks(mainnet::dns::default_static_addrs())
+            );
+        });
+    }
+
+    #[test]
+    fn dns_fallbacks_from_env_falls_back_to_sandbox_pins_when_unset() {
+        with_dns_fallbacks_var_cleared(|| {
+            assert_eq!(
+                dns_fallbacks_from_env(sandbox::NETWORK_NAME),
+                dns_fallbacks(sandbox::dns::default_static_addrs())
             );
         });
     }
@@ -296,14 +687,54 @@ mod tests {
                 .with_dns_fallbacks(fallbacks.clone())
                 .export_to_env();
 
-            assert_eq!(
-                dns_fallbacks_from_env(crate::mainnet::NETWORK_NAME),
-                fallbacks
-            );
+            assert_eq!(dns_fallbacks_from_env(mainnet::NETWORK_NAME), fallbacks);
             assert_eq!(
                 NymNetworkDetails::new_from_env().networking.dns_fallbacks,
                 fallbacks
             );
         });
+    }
+
+    #[test]
+    fn new_mainnet_dns_fallbacks_are_not_empty() {
+        assert!(
+            !NymNetworkDetails::new_mainnet()
+                .networking
+                .dns_fallbacks
+                .is_empty()
+        );
+    }
+
+    // regression test: new_sandbox() used to go through sandbox::network_details().into(),
+    // and the v1 -> v2 `From` impl always zeroes dns_fallbacks - so this silently stayed
+    // empty even after sandbox::dns pins were added.
+    #[test]
+    fn new_sandbox_dns_fallbacks_are_not_empty() {
+        assert!(
+            !NymNetworkDetails::new_sandbox()
+                .networking
+                .dns_fallbacks
+                .is_empty()
+        );
+    }
+
+    // v1's new_mainnet()/new_sandbox() are now thin `v2::...().into()` wrappers - check the
+    // v1-visible fields still come out right despite the construction living here now.
+    #[test]
+    fn v1_new_mainnet_still_reports_mainnet_details() {
+        let v1 = crate::NymNetworkDetails::new_mainnet();
+        assert_eq!(v1.network_name, mainnet::NETWORK_NAME);
+        assert!(!v1.nym_api_urls().is_empty());
+        assert!(v1.contracts.mixnet_contract_address.is_some());
+    }
+
+    #[test]
+    fn v1_and_v2_mainnet_agree_on_shared_fields() {
+        let v1 = crate::NymNetworkDetails::new_mainnet();
+        let v2 = NymNetworkDetails::new_mainnet();
+        assert_eq!(v1.network_name, v2.network_name);
+        assert_eq!(v1.chain_details, v2.chain_details);
+        assert_eq!(v1.nym_api_urls(), v2.networking.nym_api_urls);
+        assert_eq!(v1.nym_vpn_api_urls(), v2.networking.nym_vpn_api_urls);
     }
 }

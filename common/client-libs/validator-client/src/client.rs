@@ -34,7 +34,7 @@ use nym_mixnet_contract_common::EpochRewardedSet;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
 };
-use nym_network_defaults::NymNetworkDetails;
+use nym_network_defaults::{ApiUrl, NymNetworkDetails};
 use std::net::IpAddr;
 use time::Date;
 use url::Url;
@@ -89,7 +89,7 @@ macro_rules! collect_paged_skimmed_v2 {
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Config {
-    api_url: Url,
+    api_urls: Vec<ApiUrl>,
     nyxd_url: Url,
 
     // TODO: until refactored, this is a dead field under some features
@@ -105,9 +105,9 @@ impl TryFrom<NymNetworkDetails> for Config {
 }
 
 impl Config {
-    pub fn new(nyxd_url: Url, api_url: Url, nyxd_config: nyxd::Config) -> Self {
+    pub fn new(nyxd_url: Url, api_urls: Vec<ApiUrl>, nyxd_config: nyxd::Config) -> Self {
         Config {
-            api_url,
+            api_urls,
             nyxd_url,
             nyxd_config,
         }
@@ -118,18 +118,13 @@ impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
     ) -> Result<Self, ValidatorClientError> {
-        let api_url = details
-            .endpoints
-            .first()
-            .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
-            .api_url
-            .clone()
-            .ok_or(ValidatorClientError::NoAPIUrlAvailable)?
-            .parse()
-            .map_err(ValidatorClientError::MalformedUrlProvided)?;
+        let api_urls = details.nym_api_urls();
+        if api_urls.is_empty() {
+            return Err(ValidatorClientError::NoAPIUrlAvailable);
+        }
 
         Ok(Config {
-            api_url,
+            api_urls,
             nyxd_url: details.endpoints[0]
                 .nyxd_url
                 .parse()
@@ -140,9 +135,9 @@ impl Config {
 
     // TODO: this method shouldn't really exist as all information should be included immediately
     // via `from_nym_network_details`, but it's here for, you guessed it, legacy compatibility
-    pub fn with_urls(mut self, nyxd_url: Url, api_url: Url) -> Self {
+    pub fn with_urls(mut self, nyxd_url: Url, api_urls: Vec<ApiUrl>) -> Self {
         self.nyxd_url = nyxd_url;
-        self.api_url = api_url;
+        self.api_urls = api_urls;
         self
     }
 
@@ -175,9 +170,7 @@ impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(prefix, mnemonic)?;
 
-        Ok(Self::new_signing_with_rpc_client(
-            config, rpc_client, wallet,
-        ))
+        Self::new_signing_with_rpc_client(config, rpc_client, wallet)
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
@@ -191,7 +184,7 @@ impl Client<crate::ReqwestRpcClient, DirectSecp256k1HdWallet> {
     pub fn new_reqwest_signing(
         config: Config,
         mnemonic: bip39::Mnemonic,
-    ) -> DirectSigningReqwestRpcValidatorClient {
+    ) -> Result<DirectSigningReqwestRpcValidatorClient, ValidatorClientError> {
         let rpc_client = crate::ReqwestRpcClient::new(config.nyxd_url.clone());
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
@@ -204,7 +197,7 @@ impl Client<crate::ReqwestRpcClient, DirectSecp256k1HdWallet> {
 impl Client<HttpRpcClient> {
     pub fn new_query(config: Config) -> Result<QueryHttpRpcValidatorClient, ValidatorClientError> {
         let rpc_client = http_client(config.nyxd_url.as_str())?;
-        Ok(Self::new_with_rpc_client(config, rpc_client))
+        Self::new_with_rpc_client(config, rpc_client)
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
@@ -215,34 +208,47 @@ impl Client<HttpRpcClient> {
 
 #[allow(deprecated)]
 impl Client<crate::ReqwestRpcClient> {
-    pub fn new_reqwest_query(config: Config) -> QueryReqwestRpcValidatorClient {
+    pub fn new_reqwest_query(
+        config: Config,
+    ) -> Result<QueryReqwestRpcValidatorClient, ValidatorClientError> {
         let rpc_client = crate::ReqwestRpcClient::new(config.nyxd_url.clone());
         Self::new_with_rpc_client(config, rpc_client)
     }
 }
 
 impl<C> Client<C> {
-    pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
-        let nym_api_client = nym_http_api_client::Client::new(config.api_url.clone(), None);
+    pub fn new_with_rpc_client(
+        config: Config,
+        rpc_client: C,
+    ) -> Result<Self, ValidatorClientError> {
+        let urls = config.api_urls.clone();
+        let nym_api_client =
+            nym_http_api_client::ClientBuilder::new_with_fronted_urls(urls)?.build()?;
 
-        Client {
+        Ok(Client {
             nym_api: nym_api_client,
             nyxd: NyxdClient::new(config.nyxd_config, rpc_client),
-        }
+        })
     }
 }
 
 impl<C, S> Client<C, S> {
-    pub fn new_signing_with_rpc_client(config: Config, rpc_client: C, signer: S) -> Self
+    pub fn new_signing_with_rpc_client(
+        config: Config,
+        rpc_client: C,
+        signer: S,
+    ) -> Result<Self, ValidatorClientError>
     where
         S: OfflineSigner,
     {
-        let nym_api_client = nym_http_api_client::Client::new(config.api_url.clone(), None);
+        let urls = config.api_urls.clone();
+        let nym_api_client =
+            nym_http_api_client::ClientBuilder::new_with_fronted_urls(urls)?.build()?;
 
-        Client {
+        Ok(Client {
             nym_api: nym_api_client,
             nyxd: NyxdClient::new_signing(config.nyxd_config, rpc_client, signer),
-        }
+        })
     }
 }
 

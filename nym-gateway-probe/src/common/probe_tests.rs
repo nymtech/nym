@@ -32,6 +32,7 @@ use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient
 use nym_topology::HardcodedTopologyProvider;
 use rand010::SeedableRng;
 use rand010::rngs::SysRng;
+use std::net::SocketAddr;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
@@ -130,7 +131,12 @@ pub async fn wg_probe(
         registered_data.wg_port(),
     );
 
-    let wg_endpoint = format!("{gateway_ip}:{}", registered_data.wg_port());
+    // SocketAddr's Display impl brackets IPv6 addresses ([addr]:port);
+    // a manual format!("{ip}:{port}") does not, and produces an
+    // unparseable endpoint whenever gateway_ip is IPv6 (ambiguous with
+    // the address's own colons). No node currently advertises IPv6
+    // first in its ip_address list, so this was previously latent.
+    let wg_endpoint = SocketAddr::new(gateway_ip, registered_data.wg_port()).to_string();
 
     info!("Successfully registered with the gateway");
 
@@ -547,4 +553,32 @@ pub(crate) async fn do_socks5_connectivity_test(
     socks5_client.disconnect().await;
 
     Ok(Socks5ProbeResults::with_http_result(result))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+    // wg_endpoint used to be built with format!("{gateway_ip}:{port}"),
+    // which is unparseable for IPv6 (its own colons collide with the
+    // port separator). SocketAddr's Display brackets IPv6 correctly;
+    // this pins that behavior so it can't silently regress back to a
+    // manual format!.
+    #[test]
+    fn wg_endpoint_brackets_ipv6() {
+        let gateway_ip = IpAddr::V6(Ipv6Addr::new(
+            0x2a02, 0x16b, 0x1a04, 0x1, 0x5054, 0xff, 0xfe00, 0x69,
+        ));
+        let endpoint = SocketAddr::new(gateway_ip, 51822).to_string();
+        assert_eq!(endpoint, "[2a02:16b:1a04:1:5054:ff:fe00:69]:51822");
+        assert!(endpoint.parse::<SocketAddr>().is_ok());
+    }
+
+    #[test]
+    fn wg_endpoint_ipv4_unaffected() {
+        let gateway_ip = IpAddr::V4(Ipv4Addr::new(217, 118, 194, 69));
+        let endpoint = SocketAddr::new(gateway_ip, 51822).to_string();
+        assert_eq!(endpoint, "217.118.194.69:51822");
+        assert!(endpoint.parse::<SocketAddr>().is_ok());
+    }
 }

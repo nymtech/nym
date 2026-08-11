@@ -636,17 +636,20 @@ mod test {
         Ok(())
     }
 
+    /// TEMP HOTFIX: edge1 must stay unpinned while removed from NYM_VPN_APIS.
+    /// Flip: restore pin insert + assert pinned to 139.162.57.231.
     #[test]
-    fn edge1_streaming_gateway_com_is_pinned_to_live_ipv4() {
+    fn edge1_streaming_gateway_com_is_not_statically_pinned_during_hotfix() {
         let addrs = constants::default_static_addrs();
-        let pinned = addrs
-            .get(constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM)
-            .expect("edge1.streaming-gateway.com must be statically pinned after smoke");
-        assert_eq!(
-            pinned,
-            &constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM_IPS.to_vec()
+        assert!(
+            !addrs.contains_key(constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM),
+            "edge1 must not be statically pinned while temporarily removed from defaults"
         );
-        assert_eq!(pinned, &vec![IpAddr::V4(Ipv4Addr::new(139, 162, 57, 231))]);
+        // Keep the flip-ready pin value from rotting while the insert is commented out.
+        assert_eq!(
+            constants::NYM_VPN_API_EDGE1_STREAMING_GATEWAY_COM_IPS,
+            &[IpAddr::V4(Ipv4Addr::new(139, 162, 57, 231))]
+        );
     }
 
     // Test the nameserver trial functionality with mostly nameservers guaranteed to be broken and

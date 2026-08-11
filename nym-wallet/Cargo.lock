@@ -3127,9 +3127,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.8"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5017294ff4bb30944501348f6f8e42e6ad28f42c8bbef7a74029aff064a4e3c2"
+checksum = "6cb093c84e8bd9b188d4c4a8cb6579fc016968d14c99882163cd3ff402a4f155"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -3293,7 +3293,7 @@ dependencies = [
  "futures-channel",
  "futures-io",
  "futures-util",
- "h2 0.4.8",
+ "h2 0.4.15",
  "hickory-proto",
  "http 1.3.1",
  "idna",
@@ -3571,7 +3571,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
- "h2 0.4.8",
+ "h2 0.4.15",
  "http 1.3.1",
  "http-body 1.0.1",
  "httparse",
@@ -5229,6 +5229,7 @@ dependencies = [
  "cfg-if",
  "encoding_rs",
  "fastrand",
+ "h2 0.4.15",
  "hickory-resolver",
  "http 1.3.1",
  "inventory",
@@ -7077,7 +7078,7 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
- "h2 0.4.8",
+ "h2 0.4.15",
  "http 1.3.1",
  "http-body 1.0.1",
  "http-body-util",

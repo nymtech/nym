@@ -16,8 +16,6 @@ pub trait GatewayPacketRouter {
         // data he takes the SURB-ACK and first hop address.
         // currently SURB-ACKs are attached in EVERY packet, even cover, so this is always true
         let sphinx_ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
-        let outfox_ack_overhead =
-            PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
             // note: if we ever fail to route regular outfox, it might be because I've removed a match on
@@ -30,23 +28,8 @@ pub trait GatewayPacketRouter {
                     received_acks.push(received_packet);
                 }
 
-                n if n <= PacketSize::OutfoxAckPacket.plaintext_size() => {
-                    // we don't know the real size of the payload, it could be anything <= 48 bytes
-                    trace!("received outfox ack");
-                    received_acks.push(received_packet);
-                }
-
                 n if n == PacketSize::RegularPacket.plaintext_size() - sphinx_ack_overhead => {
                     trace!("received regular sphinx packet");
-                    received_messages.push(received_packet);
-                }
-
-                n if n
-                    == PacketSize::OutfoxRegularPacket
-                        .plaintext_size()
-                        .saturating_sub(outfox_ack_overhead) =>
-                {
-                    trace!("received regular outfox packet");
                     received_messages.push(received_packet);
                 }
 

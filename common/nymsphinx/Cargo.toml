@@ -56,7 +56,3 @@ sphinx = [
     "nym-sphinx-params/sphinx",
     "nym-sphinx-types/sphinx",
 ]
-outfox = [
-    "nym-sphinx-params/outfox",
-    "nym-sphinx-types/outfox",
-]

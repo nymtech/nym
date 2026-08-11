@@ -1,8 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_defaults::v2::NymNetworkDetails as NymNetworkDetailsV2;
-use nym_network_defaults::NymNetworkDetails;
+use nym_network_defaults::{v1, v2};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -10,12 +9,12 @@ use utoipa::ToSchema;
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NetworkDetails {
     pub(crate) connected_nyxd: String,
-    pub(crate) network: NymNetworkDetails,
+    pub(crate) network: v1::NymNetworkDetails,
 }
 
 impl NetworkDetails {
     #[allow(unused)]
-    pub fn new(connected_nyxd: String, network: NymNetworkDetails) -> Self {
+    pub fn new(connected_nyxd: String, network: v1::NymNetworkDetails) -> Self {
         Self {
             connected_nyxd,
             network,
@@ -28,11 +27,11 @@ impl NetworkDetails {
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NetworkDetailsV2 {
     pub(crate) connected_nyxd: String,
-    pub(crate) network: NymNetworkDetailsV2,
+    pub(crate) network: v2::NymNetworkDetails,
 }
 
 impl NetworkDetailsV2 {
-    pub fn new(connected_nyxd: String, network: NymNetworkDetailsV2) -> Self {
+    pub fn new(connected_nyxd: String, network: v2::NymNetworkDetails) -> Self {
         Self {
             connected_nyxd,
             network,

@@ -664,7 +664,7 @@ impl ClientBuilder {
     // would be constructed using `nym_api_urls` or `nym_vpn_api_urls`
     #[deprecated(note = "use explicit Self::new_with_fronted_urls instead")]
     pub fn from_network(
-        network: &nym_network_defaults::NymNetworkDetails,
+        network: &nym_network_defaults::v2::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
         let urls = network.nym_api_urls();
         Self::new_with_fronted_urls(urls.clone())

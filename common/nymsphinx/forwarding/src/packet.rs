@@ -138,6 +138,10 @@ impl MixPacket {
     }
 
     pub fn into_v1_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        #[allow(deprecated)]
+        if self.packet_type == PacketType::Outfox {
+            return Err(MixPacketFormattingError::OutfoxNotSupported);
+        }
         Ok(std::iter::once(self.packet_type as u8)
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
@@ -180,6 +184,10 @@ impl MixPacket {
     }
 
     pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        #[allow(deprecated)]
+        if self.packet_type == PacketType::Outfox {
+            return Err(MixPacketFormattingError::OutfoxNotSupported);
+        }
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())

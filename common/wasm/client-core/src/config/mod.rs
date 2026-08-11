@@ -213,8 +213,6 @@ impl From<TrafficWasm> for ConfigTraffic {
             .use_extended_packet_size
             .then_some(PacketSize::ExtendedPacket32);
 
-        let packet_type = PacketType::Mix;
-
         ConfigTraffic {
             average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms as u64),
             message_sending_average_delay: Duration::from_millis(
@@ -227,7 +225,7 @@ impl From<TrafficWasm> for ConfigTraffic {
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: use_extended_packet_size,
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
-            packet_type,
+            packet_type: PacketType::Mix,
             disable_mix_hops: traffic.disable_mix_hops,
         }
     }
@@ -245,7 +243,6 @@ impl From<ConfigTraffic> for TrafficWasm {
                 .disable_main_poisson_packet_distribution,
             use_legacy_sphinx_format: traffic.use_legacy_sphinx_format,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),
-            use_outfox: traffic.packet_type == PacketType::Outfox,
             disable_mix_hops: traffic.disable_mix_hops,
         }
     }

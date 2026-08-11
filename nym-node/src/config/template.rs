@@ -273,6 +273,13 @@ stats_storage = '{{ gateway_tasks.storage_paths.stats_storage }}'
 
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
 cosmos_mnemonic = '{{ gateway_tasks.storage_paths.cosmos_mnemonic }}'
+{{#if gateway_tasks.storage_paths.bridge_client_params}}
+# Path to file containing bridge client params to be served in the node self-described.
+# Populated externally (e.g. by bridge-cfg) as part of nym-bridge setup; omitted entirely
+# when nym-bridge isn't in use, matching how this field is absent from the config of any
+# node that was never configured for it.
+bridge_client_params = '{{ gateway_tasks.storage_paths.bridge_client_params }}'
+{{/if}}
 
 ##### service providers nym-node config options #####
 
@@ -383,3 +390,87 @@ gateway_registrations = '{{ service_providers.storage_paths.authenticator.gatewa
 
 
 "#;
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{Config, ConfigBuilder};
+    use nym_config::NymConfigTemplate;
+    use std::path::PathBuf;
+
+    // Builds a config rooted at a fresh temp directory, unique per call so
+    // parallel test runs don't collide.
+    fn test_config(name: &str) -> (Config, PathBuf) {
+        let dir = std::env::temp_dir().join(format!(
+            "nym-node-template-test-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let config_path = dir.join("config.toml");
+        let cfg = ConfigBuilder::new("test-node".to_string(), config_path.clone(), dir)
+            .build()
+            .unwrap();
+        (cfg, config_path)
+    }
+
+    // bridge_client_params must round-trip through save + reload unchanged.
+    // This is the regression covered by
+    // https://github.com/nymtech/nym/issues/7026: the field is part of the
+    // Config struct and loads fine, but the template used to render every
+    // save() never mentioned it, so it silently vanished from config.toml
+    // on the very next `nym-node run --write-changes`, even though nothing
+    // in memory ever lost it.
+    #[test]
+    fn bridge_client_params_survives_a_save_reload_round_trip() {
+        let (mut cfg, config_path) = test_config("bridge-set");
+        let expected = PathBuf::from("/var/lib/nym-node/bridge_client_params.json");
+        cfg.gateway_tasks.storage_paths.bridge_client_params = Some(expected.clone());
+
+        let rendered = cfg.format_to_string();
+        assert!(
+            rendered.contains("bridge_client_params ="),
+            "rendered config.toml is missing the bridge_client_params key entirely:\n{rendered}"
+        );
+
+        std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        std::fs::write(&config_path, &rendered).unwrap();
+        let reloaded = Config::read_from_toml_file(&config_path).unwrap();
+
+        assert_eq!(
+            reloaded.gateway_tasks.storage_paths.bridge_client_params,
+            Some(expected),
+            "bridge_client_params did not survive a save+reload round trip"
+        );
+
+        std::fs::remove_dir_all(config_path.parent().unwrap()).ok();
+    }
+
+    // A node that never configured nym-bridge must keep working exactly as
+    // it does today: no bridge_client_params key in config.toml at all, and
+    // it must still load cleanly (this is the status quo for every gateway
+    // that isn't running nym-bridge, so the fix must not disturb it).
+    #[test]
+    fn absent_bridge_client_params_stays_absent_and_still_loads() {
+        let (cfg, config_path) = test_config("bridge-unset");
+        assert_eq!(cfg.gateway_tasks.storage_paths.bridge_client_params, None);
+
+        let rendered = cfg.format_to_string();
+        assert!(
+            !rendered.contains("bridge_client_params"),
+            "bridge_client_params should be omitted entirely when unset:\n{rendered}"
+        );
+
+        std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        std::fs::write(&config_path, &rendered).unwrap();
+        let reloaded = Config::read_from_toml_file(&config_path).unwrap();
+
+        assert_eq!(
+            reloaded.gateway_tasks.storage_paths.bridge_client_params,
+            None
+        );
+
+        std::fs::remove_dir_all(config_path.parent().unwrap()).ok();
+    }
+}

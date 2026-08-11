@@ -57,6 +57,10 @@ impl SurbAck {
     where
         R: RngCore + CryptoRng,
     {
+        let PacketType::Mix = packet_type else {
+            return Err(NymTopologyError::OutfoxNotSupported);
+        };
+
         let route = if disable_mix_hops {
             topology.empty_route_to_egress(recipient.gateway())?
         } else {
@@ -67,10 +71,6 @@ impl SurbAck {
         let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
-
-        let PacketType::Mix = packet_type else {
-            return Err(NymTopologyError::OutfoxNotSupported);
-        };
 
         let packet_size = PacketSize::AckPacket.payload_size();
         let surb_ack_packet = NymPacket::sphinx_build(

@@ -15,9 +15,7 @@ pub(crate) fn routes() -> Router<AppState> {
 }
 
 /// Identical to [`crate::network::handlers::v1::network_details`], except the returned `network` field uses the v2
-/// (grouped `networking` block) version of the network details struct. This endpoint
-/// is not a v2 of this API - it lives alongside `/details` under the same `/v1/network`
-/// path - it's only the struct on the wire that changed shape.
+/// (grouped `networking` block) version of the network details struct.
 #[utoipa::path(
     tag = "network",
     get,
@@ -37,9 +35,5 @@ async fn network_details(
 ) -> FormattedResponse<NetworkDetailsV2> {
     let output = output.output.unwrap_or_default();
 
-    let details = state.network_details().to_owned();
-    output.to_response(NetworkDetailsV2::new(
-        details.connected_nyxd,
-        details.network,
-    ))
+    output.to_response(state.network_details().to_owned())
 }

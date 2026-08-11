@@ -34,6 +34,11 @@ pub const NYXD_WS_LITE: &str = "NYXD_WS_LITE";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
 pub const NYM_VPN_API: &str = "NYM_VPN_API";
 pub const NYM_VPN_APIS: &str = "NYM_VPN_APIS";
+
+// JSON-encoded `Vec<nym_network_defaults::v2::DnsFallback>`. Configured independently of
+// `NETWORK_NAME` - there's no compile-time default seeded for this one, so it stays empty
+// unless an operator sets it explicitly.
+pub const DNS_FALLBACKS: &str = "DNS_FALLBACKS";
 pub const CLIENT_STATS_COLLECTION_PROVIDER: &str = "CLIENT_STATS_COLLECTION_PROVIDER";
 pub const UPGRADE_MODE_ATTESTATION_URL: &str = "UPGRADE_MODE_ATTESTATION_URL";
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str = "UPGRADE_MODE_ATTESTER_ED25519_PUBKEY";

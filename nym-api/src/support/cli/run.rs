@@ -11,7 +11,7 @@ use crate::ecash::state::EcashState;
 use crate::epoch_operations::EpochAdvancer;
 use crate::key_rotation::KeyRotationController;
 use crate::mixnet_contract_cache::cache::MixnetContractCache;
-use crate::network::models::NetworkDetails;
+use crate::network::models::NetworkDetailsV2 as NetworkDetails;
 use crate::node_describe_cache::cache::DescribedNodes;
 use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
@@ -41,7 +41,7 @@ use crate::{
     node_families, node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
-use nym_config::defaults::NymNetworkDetails;
+use nym_config::defaults::v2::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::Coin;

@@ -9,8 +9,8 @@ use nym_sphinx_params::{PacketSize, PacketType, SphinxKeyRotation};
 use nym_sphinx_types::header::shared_secret::ExpandedSharedSecret;
 use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymPacketError,
-    NymProcessedPacket, OutfoxError, OutfoxProcessedPacket, PrivateKey, ProcessedPacketData,
-    REPLAY_TAG_SIZE, SphinxError, Version as SphinxPacketVersion,
+    NymProcessedPacket, PrivateKey, ProcessedPacketData, REPLAY_TAG_SIZE, SphinxError,
+    Version as SphinxPacketVersion,
 };
 use std::fmt::Display;
 use thiserror::Error;
@@ -97,9 +97,6 @@ pub enum PacketProcessingError {
     #[error("failed to recover the expected SURB-Ack packet: {0}")]
     MalformedSurbAck(#[from] SurbAckRecoveryError),
 
-    #[error("failed to process received outfox packet: {0}")]
-    OutfoxProcessingError(#[from] OutfoxError),
-
     #[error("attempted to partially process an outfox packet")]
     PartialOutfoxProcessing,
 
@@ -108,6 +105,9 @@ pub enum PacketProcessingError {
 
     #[error("this packet has already been processed before")]
     PacketReplay,
+
+    #[error("encountered a packet type that is not currently supported by the network")]
+    UnsupportedPacketType,
 }
 
 impl PacketProcessingError {
@@ -151,8 +151,7 @@ impl PartiallyUnwrappedPacket {
                     expanded_shared_secret,
                 }
             }
-
-            NymPacket::Outfox(_) => PartialMixProcessingResult::Outfox,
+            _ => return Err((received_data, PacketProcessingError::UnsupportedPacketType)),
         };
         Ok(PartiallyUnwrappedPacket {
             received_data,
@@ -281,43 +280,6 @@ fn wrap_processed_sphinx_packet(
     })
 }
 
-fn wrap_processed_outfox_packet(
-    packet: OutfoxProcessedPacket,
-    packet_size: PacketSize,
-    packet_type: PacketType,
-    key_rotation: SphinxKeyRotation,
-) -> Result<MixProcessingResult, PacketProcessingError> {
-    let next_address = *packet.next_address();
-    let packet = packet.into_packet();
-    if packet.is_final_hop() {
-        let processing_data = process_final_hop(
-            DestinationAddressBytes::from_bytes(next_address),
-            packet.recover_plaintext()?.to_vec(),
-            packet_size,
-            packet_type,
-            key_rotation,
-        )?;
-        Ok(MixProcessingResult {
-            packet_version: MixPacketVersion::Outfox,
-            processing_data,
-        })
-    } else {
-        let packet = MixPacket::new(
-            NymNodeRoutingAddress::try_from_bytes(&next_address)?,
-            NymPacket::Outfox(packet),
-            PacketType::Outfox,
-            SphinxKeyRotation::Unknown,
-        );
-        Ok(MixProcessingResult {
-            packet_version: MixPacketVersion::Outfox,
-            processing_data: MixProcessingResultData::ForwardHop {
-                packet,
-                delay: None,
-            },
-        })
-    }
-}
-
 fn perform_final_processing(
     packet: NymProcessedPacket,
     packet_size: PacketSize,
@@ -328,9 +290,7 @@ fn perform_final_processing(
         NymProcessedPacket::Sphinx(packet) => {
             wrap_processed_sphinx_packet(packet, packet_size, packet_type, key_rotation)
         }
-        NymProcessedPacket::Outfox(packet) => {
-            wrap_processed_outfox_packet(packet, packet_size, packet_type, key_rotation)
-        }
+        _ => Err(PacketProcessingError::UnsupportedPacketType),
     }
 }
 
@@ -359,16 +319,19 @@ fn split_into_ack_and_message(
     packet_type: PacketType,
     key_rotation: SphinxKeyRotation,
 ) -> Result<(Option<MixPacket>, Vec<u8>), PacketProcessingError> {
+    #[allow(deprecated)]
     match packet_size {
-        PacketSize::AckPacket | PacketSize::OutfoxAckPacket => {
+        PacketSize::OutfoxAckPacket | PacketSize::OutfoxRegularPacket => {
+            Err(PacketProcessingError::UnsupportedPacketType)
+        }
+        PacketSize::AckPacket => {
             trace!("received an ack packet!");
             Ok((None, data))
         }
         PacketSize::RegularPacket
         | PacketSize::ExtendedPacket8
         | PacketSize::ExtendedPacket16
-        | PacketSize::ExtendedPacket32
-        | PacketSize::OutfoxRegularPacket => {
+        | PacketSize::ExtendedPacket32 => {
             trace!("received a normal packet!");
             let (ack_data, message) = split_hop_data_into_ack_and_message(data, packet_type)?;
             let (ack_first_hop, ack_packet) =
@@ -382,6 +345,7 @@ fn split_into_ack_and_message(
             let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_type, key_rotation);
             Ok((Some(forward_ack), message))
         }
+        _ => Err(PacketProcessingError::UnsupportedPacketType),
     }
 }
 
@@ -424,8 +388,8 @@ fn process_forward_hop(
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn splitting_hop_data_works_for_sufficiently_long_payload() {
+    #[test]
+    fn splitting_hop_data_works_for_sufficiently_long_payload() {
         let short_data = vec![42u8];
         assert!(split_hop_data_into_ack_and_message(short_data, PacketType::Mix).is_err());
 
@@ -441,27 +405,8 @@ mod tests {
         assert_eq!(data.len(), SurbAck::len(Some(PacketType::Mix)) * 4)
     }
 
-    #[tokio::test]
-    async fn splitting_hop_data_works_for_sufficiently_long_payload_outfox() {
-        let short_data = vec![42u8];
-        assert!(split_hop_data_into_ack_and_message(short_data, PacketType::Outfox).is_err());
-
-        let sufficient_data = vec![42u8; SurbAck::len(Some(PacketType::Outfox))];
-        let (ack, data) =
-            split_hop_data_into_ack_and_message(sufficient_data.clone(), PacketType::Outfox)
-                .unwrap();
-        assert_eq!(sufficient_data, ack);
-        assert!(data.is_empty());
-
-        let long_data = vec![42u8; SurbAck::len(Some(PacketType::Outfox)) * 5];
-        let (ack, data) =
-            split_hop_data_into_ack_and_message(long_data, PacketType::Outfox).unwrap();
-        assert_eq!(ack.len(), SurbAck::len(Some(PacketType::Outfox)));
-        assert_eq!(data.len(), SurbAck::len(Some(PacketType::Outfox)) * 4)
-    }
-
-    #[tokio::test]
-    async fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
+    #[test]
+    fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
         let data = vec![42u8; SurbAck::len(Some(PacketType::Mix)) + 10];
         let (ack, message) = split_into_ack_and_message(
             data.clone(),
@@ -474,8 +419,9 @@ mod tests {
         assert_eq!(data, message)
     }
 
-    #[tokio::test]
-    async fn splitting_into_ack_and_message_returns_whole_data_for_ack_outfox() {
+    #[test]
+    #[allow(deprecated)]
+    fn splitting_into_ack_and_message_returns_whole_data_for_ack_outfox() {
         let data = vec![42u8; SurbAck::len(Some(PacketType::Outfox)) + 10];
         let (ack, message) = split_into_ack_and_message(
             data.clone(),

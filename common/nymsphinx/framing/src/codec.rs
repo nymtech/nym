@@ -15,6 +15,9 @@ use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Error, Debug)]
 pub enum NymCodecError {
+    #[error("attempted to use outfox, but it is currently not supported by the network")]
+    OutfoxNotSupported,
+
     #[error("the packet size information was malformed: {0}")]
     InvalidPacketSize(#[from] InvalidPacketSize),
 
@@ -99,8 +102,9 @@ impl Decoder for NymCodec {
         let packet = if let Some(slice) = packet_bytes.get(..) {
             // here it could be debatable whether stream is corrupt or not,
             // but let's go with the safer approach and assume it is.
+            #[allow(deprecated)]
             match header.packet_type {
-                PacketType::Outfox => NymPacket::outfox_from_bytes(slice)?,
+                PacketType::Outfox => return Err(NymCodecError::OutfoxNotSupported),
                 PacketType::Mix => NymPacket::sphinx_from_bytes(slice)?,
             }
         } else {
@@ -144,9 +148,7 @@ impl Decoder for NymCodec {
 mod packet_encoding {
     use super::*;
     use nym_sphinx_params::PacketType;
-    use nym_sphinx_params::packet_version::{
-        CURRENT_PACKET_VERSION, INITIAL_PACKET_VERSION_NUMBER,
-    };
+    use nym_sphinx_params::packet_version::CURRENT_PACKET_VERSION;
     use nym_sphinx_types::{
         DESTINATION_ADDRESS_LENGTH, Delay as SphinxDelay, Destination, DestinationAddressBytes,
         IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH, Node, NodeAddressBytes, NymPacket, PrivateKey,
@@ -161,61 +163,9 @@ mod packet_encoding {
         }
     }
 
-    fn dummy_outfox() -> Header {
-        Header {
-            packet_type: PacketType::Outfox,
-            packet_size: PacketSize::OutfoxRegularPacket,
-            ..dummy_legacy_header()
-        }
-    }
-
-    fn dummy_legacy_header() -> Header {
-        Header {
-            packet_version: PacketVersion::try_from(INITIAL_PACKET_VERSION_NUMBER).unwrap(),
-            packet_size: Default::default(),
-            key_rotation: Default::default(),
-            packet_type: Default::default(),
-        }
-    }
-
     fn random_pubkey() -> nym_sphinx_types::PublicKey {
         let private_key = PrivateKey::random();
         (&private_key).into()
-    }
-
-    fn make_valid_outfox_packet(size: PacketSize) -> NymPacket {
-        let node1_pk = random_pubkey();
-        let node1 = Node::new(
-            NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
-            node1_pk,
-        );
-        let node2_pk = random_pubkey();
-        let node2 = Node::new(
-            NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
-            node2_pk,
-        );
-        let node3_pk = random_pubkey();
-        let node3 = Node::new(
-            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
-            node3_pk,
-        );
-
-        let node4_pk = random_pubkey();
-        let node4 = Node::new(
-            NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
-            node4_pk,
-        );
-
-        let destination = Destination::new(
-            DestinationAddressBytes::from_bytes([3u8; DESTINATION_ADDRESS_LENGTH]),
-            [4u8; IDENTIFIER_LENGTH],
-        );
-
-        let route = &[node1, node2, node3, node4];
-
-        let payload = vec![1; 48];
-
-        NymPacket::outfox_build(payload, route, &destination, Some(size.plaintext_size())).unwrap()
     }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
@@ -273,24 +223,6 @@ mod packet_encoding {
 
         assert_eq!(decoded.header, header);
         assert_eq!(decoded.packet.to_bytes().unwrap(), sphinx_bytes)
-    }
-
-    #[test]
-    fn whole_outfox_can_be_decoded_from_a_valid_encoded_instance() {
-        let header = dummy_outfox();
-        let packet = make_valid_outfox_packet(PacketSize::OutfoxRegularPacket);
-        let packet_bytes = packet.to_bytes().unwrap();
-
-        NymPacket::outfox_from_bytes(packet_bytes.as_slice()).unwrap();
-
-        let packet = FramedNymPacket { header, packet };
-
-        let mut bytes = BytesMut::new();
-        NymCodec.encode(packet, &mut bytes).unwrap();
-        let decoded = NymCodec.decode(&mut bytes).unwrap().unwrap();
-
-        assert_eq!(decoded.header, header);
-        assert_eq!(decoded.packet.to_bytes().unwrap(), packet_bytes)
     }
 
     #[cfg(test)]

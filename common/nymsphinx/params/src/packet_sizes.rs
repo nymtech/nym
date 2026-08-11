@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PacketType;
-#[cfg(feature = "outfox")]
-use nym_sphinx_types::{MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD};
-#[cfg(feature = "sphinx")]
-use nym_sphinx_types::{PAYLOAD_OVERHEAD_SIZE, header::HEADER_SIZE};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
+
+#[cfg(feature = "sphinx")]
+use nym_sphinx_types::{PAYLOAD_OVERHEAD_SIZE, header::HEADER_SIZE};
 
 // each sphinx packet contains mandatory header and payload padding + markers
 #[cfg(feature = "sphinx")]
@@ -37,11 +35,6 @@ const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
 #[cfg(feature = "sphinx")]
 const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + SPHINX_PACKET_OVERHEAD;
 
-#[cfg(feature = "outfox")]
-const OUTFOX_ACK_PACKET_SIZE: usize = MIN_PACKET_SIZE + OUTFOX_PACKET_OVERHEAD;
-#[cfg(feature = "outfox")]
-const OUTFOX_REGULAR_PACKET_SIZE: usize = 2 * 1024 + OUTFOX_PACKET_OVERHEAD;
-
 #[derive(Debug, Error)]
 pub enum InvalidPacketSize {
     #[error("{received} is not a valid packet size tag")]
@@ -56,6 +49,7 @@ pub enum InvalidPacketSize {
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum PacketSize {
     // for example instant messaging use case
     #[default]
@@ -78,11 +72,14 @@ pub enum PacketSize {
     #[serde(rename = "extended16")]
     ExtendedPacket16 = 5,
 
+    // make sure to retain old values to never reuse them
     #[serde(rename = "outfox_regular")]
+    #[deprecated]
     OutfoxRegularPacket = 6,
 
     // for sending SURB-ACKs
     #[serde(rename = "outfox_ack")]
+    #[deprecated]
     OutfoxAckPacket = 7,
 }
 
@@ -110,8 +107,6 @@ impl FromStr for PacketSize {
             "extended8" => Ok(Self::ExtendedPacket8),
             "extended16" => Ok(Self::ExtendedPacket16),
             "extended32" => Ok(Self::ExtendedPacket32),
-            "outfox_regular" => Ok(Self::OutfoxRegularPacket),
-            "outfox_ack" => Ok(Self::OutfoxAckPacket),
             s => Err(InvalidPacketSize::UnknownExtendedPacketVariant {
                 received: s.to_string(),
             }),
@@ -120,6 +115,7 @@ impl FromStr for PacketSize {
 }
 
 impl Display for PacketSize {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             PacketSize::RegularPacket => write!(f, "regular"),
@@ -153,8 +149,6 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::ExtendedPacket8 as u8) => Ok(Self::ExtendedPacket8),
             _ if value == (PacketSize::ExtendedPacket16 as u8) => Ok(Self::ExtendedPacket16),
             _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
-            _ if value == (PacketSize::OutfoxRegularPacket as u8) => Ok(Self::OutfoxRegularPacket),
-            _ if value == (PacketSize::OutfoxAckPacket as u8) => Ok(Self::OutfoxAckPacket),
             v => Err(InvalidPacketSize::UnknownPacketTag { received: v }),
         }
     }
@@ -174,10 +168,6 @@ impl PacketSize {
             PacketSize::ExtendedPacket16 => EXTENDED_PACKET_SIZE_16,
             #[cfg(feature = "sphinx")]
             PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
-            #[cfg(feature = "outfox")]
-            PacketSize::OutfoxRegularPacket => OUTFOX_REGULAR_PACKET_SIZE,
-            #[cfg(feature = "outfox")]
-            PacketSize::OutfoxAckPacket => OUTFOX_ACK_PACKET_SIZE,
             _ => 0,
         }
     }
@@ -191,8 +181,6 @@ impl PacketSize {
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => HEADER_SIZE,
-            #[cfg(feature = "outfox")]
-            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => MIX_PARAMS_LEN,
             _ => 0,
         }
     }
@@ -206,10 +194,7 @@ impl PacketSize {
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => PAYLOAD_OVERHEAD_SIZE,
-            #[cfg(feature = "outfox")]
-            PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => {
-                OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN // Mix params are calculated into the total overhead so we take them out here
-            }
+
             _ => 0,
         }
     }
@@ -233,17 +218,12 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket16)
         } else if PacketSize::ExtendedPacket32.size() == size {
             Ok(PacketSize::ExtendedPacket32)
-        } else if PacketSize::OutfoxRegularPacket.size() == size
-            || PacketSize::OutfoxRegularPacket.size() == size + 6
-        {
-            Ok(PacketSize::OutfoxRegularPacket)
-        } else if PacketSize::OutfoxAckPacket.size() == size {
-            Ok(PacketSize::OutfoxAckPacket)
         } else {
             Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
     }
 
+    #[allow(deprecated)]
     pub fn is_extended_size(&self) -> bool {
         match self {
             PacketSize::RegularPacket
@@ -272,8 +252,6 @@ impl PacketSize {
         let overhead = match packet_type {
             #[cfg(feature = "sphinx")]
             PacketType::Mix => SPHINX_PACKET_OVERHEAD,
-            #[cfg(feature = "outfox")]
-            PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
             _ => 0,
         };
         let packet_size = plaintext_size + overhead;

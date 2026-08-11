@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::NymPayloadBuilder;
-use crate::message::{ACK_OVERHEAD, NymMessage, OUTFOX_ACK_OVERHEAD};
+use crate::message::{ACK_OVERHEAD, NymMessage};
 use nym_crypto::Digest;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_acknowledgements::AckKey;
@@ -113,10 +113,10 @@ pub trait FragmentPreparer {
         // each reply attaches the digest of the encryption key so that the recipient could
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
-        let expected_plaintext = match packet_type {
-            PacketType::Outfox => fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + reply_overhead,
-            _ => fragment.serialized_size() + ACK_OVERHEAD + reply_overhead,
+        let PacketType::Mix = packet_type else {
+            return Err(NymTopologyError::OutfoxNotSupported);
         };
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
@@ -200,12 +200,10 @@ pub trait FragmentPreparer {
         monitoring::fragment_sent(&fragment, self.nonce(), destination);
 
         let non_reply_overhead = x25519::PUBLIC_KEY_SIZE;
-        let expected_plaintext = match packet_type {
-            PacketType::Outfox => {
-                fragment.serialized_size() + OUTFOX_ACK_OVERHEAD + non_reply_overhead
-            }
-            _ => fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead,
+        let PacketType::Mix = packet_type else {
+            return Err(NymTopologyError::OutfoxNotSupported);
         };
+        let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
 
         // the reason we're unwrapping (or rather 'expecting') here rather than handling the error
         // more gracefully is that this error should never be reached as it implies incorrect chunking
@@ -257,13 +255,9 @@ pub trait FragmentPreparer {
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
+        #[allow(deprecated)]
         let packet = match packet_type {
-            PacketType::Outfox => NymPacket::outfox_build(
-                packet_payload,
-                route.as_slice(),
-                &destination,
-                Some(packet_size.plaintext_size()),
-            )?,
+            PacketType::Outfox => return Err(NymTopologyError::OutfoxNotSupported),
             PacketType::Mix => NymPacket::sphinx_build(
                 self.use_legacy_sphinx_format(),
                 packet_size.payload_size(),

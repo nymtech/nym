@@ -191,9 +191,6 @@ pub struct TrafficWasm {
     /// in the case of reply surbs, the recipient must also understand the new encoding
     pub use_legacy_sphinx_format: bool,
 
-    /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
-    pub use_outfox: bool,
-
     /// Indicates whether to mix hops or not. If mix hops are enabled, traffic
     /// will be routed as usual, to the entry gateway, through three mix nodes, egressing
     /// through the exit gateway. If mix hops are disabled, traffic will be routed directly
@@ -216,11 +213,7 @@ impl From<TrafficWasm> for ConfigTraffic {
             .use_extended_packet_size
             .then_some(PacketSize::ExtendedPacket32);
 
-        let packet_type = if traffic.use_outfox {
-            PacketType::Outfox
-        } else {
-            PacketType::Mix
-        };
+        let packet_type = PacketType::Mix;
 
         ConfigTraffic {
             average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms as u64),

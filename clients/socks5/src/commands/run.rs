@@ -40,9 +40,6 @@ pub(crate) struct Run {
     /// This includes things like disabling cover traffic, no per hop delays, etc.
     #[clap(long, hide = true)]
     medium_toggle: bool,
-
-    #[clap(long, hide = true, action)]
-    outfox: bool,
 }
 
 impl From<Run> for OverrideConfig {
@@ -57,7 +54,6 @@ impl From<Run> for OverrideConfig {
             medium_toggle: run_config.medium_toggle,
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
-            outfox: run_config.outfox,
             stats_reporting_address: run_config.common_args.stats_reporting_address,
             forget_me: run_config.common_args.forget_me.into(),
         }

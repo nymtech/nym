@@ -8641,6 +8641,7 @@ dependencies = [
  "rand 0.8.6",
  "serde",
  "thiserror 2.0.19",
+ "tracing",
  "zeroize",
 ]
 
@@ -8761,7 +8762,6 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "1.21.5-rc.3"
 dependencies = [
- "nym-outfox",
  "sphinx-packet",
  "thiserror 2.0.19",
 ]

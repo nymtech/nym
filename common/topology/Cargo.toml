@@ -34,10 +34,7 @@ wasm-bindgen = { workspace = true, optional = true }
 nym-crypto = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
-nym-sphinx-types = { workspace = true, features = [
-    "sphinx",
-    "outfox",
-] }
+nym-sphinx-types = { workspace = true, features = ["sphinx"] }
 
 
 # I'm not sure how to feel about pulling in this dependency here...

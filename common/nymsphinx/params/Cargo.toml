@@ -21,5 +21,4 @@ nym-sphinx-types = { workspace = true }
 
 [features]
 default = ["sphinx"]
-sphinx = ["nym-sphinx-types/outfox"]
-outfox = ["nym-sphinx-types/outfox"]
+sphinx = []

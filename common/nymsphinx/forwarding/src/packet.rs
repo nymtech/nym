@@ -14,6 +14,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MixPacketFormattingError {
+    #[error("attempted to use outfox, but it is currently not supported by the network")]
+    OutfoxNotSupported,
+
     #[error("too few bytes provided to recover from bytes")]
     TooFewBytesProvided,
 
@@ -120,9 +123,10 @@ impl MixPacket {
         // make sure the received data length corresponds to a valid packet
         let _ = PacketSize::get_type(packet_size)?;
 
+        #[allow(deprecated)]
         let packet = match packet_type {
             PacketType::Mix => NymPacket::sphinx_from_bytes(packet_data)?,
-            PacketType::Outfox => NymPacket::outfox_from_bytes(packet_data)?,
+            PacketType::Outfox => return Err(MixPacketFormattingError::OutfoxNotSupported),
         };
 
         Ok(MixPacket {
@@ -161,9 +165,10 @@ impl MixPacket {
         // make sure the received data length corresponds to a valid packet
         let _ = PacketSize::get_type(packet_size)?;
 
+        #[allow(deprecated)]
         let packet = match packet_type {
             PacketType::Mix => NymPacket::sphinx_from_bytes(packet_data)?,
-            PacketType::Outfox => NymPacket::outfox_from_bytes(packet_data)?,
+            PacketType::Outfox => return Err(MixPacketFormattingError::OutfoxNotSupported),
         };
 
         Ok(MixPacket {

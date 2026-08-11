@@ -10,6 +10,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymTopologyError {
+    #[error("attempted to use outfox, but it is currently not supported by the network")]
+    OutfoxNotSupported,
+
     #[error(
         "the provided network topology is empty - there are no valid nodes on it - the network request(s) probably failed"
     )]
@@ -63,9 +66,6 @@ pub enum NymTopologyError {
     // We can't import SurbAckRecoveryError due to cyclic dependency, this is a bit dirty
     #[error("Could not build payload")]
     PayloadBuilder,
-
-    #[error("Outfox: {0}")]
-    Outfox(#[from] nym_sphinx_types::OutfoxError),
 
     #[error("{0}")]
     FromSlice(#[from] TryFromSliceError),

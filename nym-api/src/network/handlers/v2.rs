@@ -37,9 +37,5 @@ async fn network_details(
 ) -> FormattedResponse<NetworkDetailsV2> {
     let output = output.output.unwrap_or_default();
 
-    let details = state.network_details().to_owned();
-    output.to_response(NetworkDetailsV2::new(
-        details.connected_nyxd,
-        details.network.into(),
-    ))
+    output.to_response(state.network_details().to_owned().into())
 }

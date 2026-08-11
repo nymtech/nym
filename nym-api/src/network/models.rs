@@ -33,6 +33,7 @@ pub struct NetworkDetailsV2 {
 }
 
 impl NetworkDetailsV2 {
+    #[allow(unused)]
     pub fn new(connected_nyxd: String, network: NymNetworkDetailsV2) -> Self {
         Self {
             connected_nyxd,

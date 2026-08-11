@@ -53,7 +53,7 @@ pub use nym_api_requests::{
         PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
         SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
     },
-    NymNetworkDetailsResponse,
+    NymNetworkDetailsResponse, NymNetworkDetailsV2Response,
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 
@@ -1426,6 +1426,15 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_network_details(&self) -> Result<NymNetworkDetailsResponse, NymAPIError> {
         self.get_json(
             &[routes::V1_API_VERSION, routes::NETWORK, routes::DETAILS],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_network_details_v2(&self) -> Result<NymNetworkDetailsV2Response, NymAPIError> {
+        self.get_json(
+            &[routes::V2_API_VERSION, routes::NETWORK, routes::DETAILS],
             NO_PARAMS,
         )
         .await

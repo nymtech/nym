@@ -14,6 +14,7 @@ pub struct NetworkDetails {
 }
 
 impl NetworkDetails {
+    #[allow(unused)]
     pub fn new(connected_nyxd: String, network: NymNetworkDetails) -> Self {
         Self {
             connected_nyxd,
@@ -23,9 +24,7 @@ impl NetworkDetails {
 }
 
 /// Same shape as [`NetworkDetails`], but carries the v2 (grouped `networking` block)
-/// version of the network details struct. This is *not* a v2 of the API - it's the
-/// existing `/v1/network` API surface serving the newer struct shape alongside the
-/// original one.
+/// version of the network details struct, served from `/v2/network/details`.
 #[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NetworkDetailsV2 {
     pub(crate) connected_nyxd: String,

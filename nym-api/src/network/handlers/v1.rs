@@ -56,7 +56,7 @@ async fn network_details(
 ) -> FormattedResponse<NetworkDetails> {
     let output = output.output.unwrap_or_default();
 
-    output.to_response(state.network_details().to_owned())
+    output.to_response(state.network_details().to_owned().into())
 }
 
 #[utoipa::path(

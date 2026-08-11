@@ -146,7 +146,7 @@ where
         )?,
         PacketType::Outfox => {
             return Err(CoverMessageError::InvalidTopologyError(
-                NymTopologyError::OutfoxNotSupported,
+                NymTopologyError::PacketTypeNotSupported,
             ));
         }
     };

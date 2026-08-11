@@ -10,8 +10,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymTopologyError {
-    #[error("attempted to use outfox, but it is currently not supported by the network")]
-    OutfoxNotSupported,
+    #[error("attempted to an unsupported packet type (probably outfox)")]
+    PacketTypeNotSupported,
 
     #[error(
         "the provided network topology is empty - there are no valid nodes on it - the network request(s) probably failed"

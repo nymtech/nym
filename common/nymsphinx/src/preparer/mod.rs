@@ -114,7 +114,7 @@ pub trait FragmentPreparer {
         // lookup correct key for decryption,
         let reply_overhead = ReplySurbKeyDigestAlgorithm::output_size();
         let PacketType::Mix = packet_type else {
-            return Err(NymTopologyError::OutfoxNotSupported);
+            return Err(NymTopologyError::PacketTypeNotSupported);
         };
         let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + reply_overhead;
 
@@ -201,7 +201,7 @@ pub trait FragmentPreparer {
 
         let non_reply_overhead = x25519::PUBLIC_KEY_SIZE;
         let PacketType::Mix = packet_type else {
-            return Err(NymTopologyError::OutfoxNotSupported);
+            return Err(NymTopologyError::PacketTypeNotSupported);
         };
         let expected_plaintext = fragment.serialized_size() + ACK_OVERHEAD + non_reply_overhead;
 
@@ -257,7 +257,7 @@ pub trait FragmentPreparer {
         // there's absolutely no reason for this call to fail.
         #[allow(deprecated)]
         let packet = match packet_type {
-            PacketType::Outfox => return Err(NymTopologyError::OutfoxNotSupported),
+            PacketType::Outfox => return Err(NymTopologyError::PacketTypeNotSupported),
             PacketType::Mix => NymPacket::sphinx_build(
                 self.use_legacy_sphinx_format(),
                 packet_size.payload_size(),

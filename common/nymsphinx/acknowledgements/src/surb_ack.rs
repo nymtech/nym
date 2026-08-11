@@ -58,7 +58,7 @@ impl SurbAck {
         R: RngCore + CryptoRng,
     {
         let PacketType::Mix = packet_type else {
-            return Err(NymTopologyError::OutfoxNotSupported);
+            return Err(NymTopologyError::PacketTypeNotSupported);
         };
 
         let route = if disable_mix_hops {

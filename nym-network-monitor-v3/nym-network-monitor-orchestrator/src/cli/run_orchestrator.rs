@@ -125,7 +125,7 @@ impl Args {
     pub(crate) fn build_orchestrator_config(&self) -> anyhow::Result<Config> {
         Ok(Config {
             nyxd_rpc_endpoint: self.rpc_url.clone(),
-            nym_api_endpoint: self.nym_api_endpoint.clone(),
+            nym_api_endpoints: vec![self.nym_api_endpoint.clone().into()],
             http_server_bind_address: self.http_server_bind_address,
             test_interval: self.test_interval,
             test_timeout: self.test_timeout,

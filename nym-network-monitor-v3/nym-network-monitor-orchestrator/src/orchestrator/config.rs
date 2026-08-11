@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Context;
-use nym_network_defaults::{NymNetworkDetails, env_configured};
+use nym_network_defaults::{ApiUrl, NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{client, nyxd};
 use std::net::SocketAddr;
@@ -19,7 +19,7 @@ pub(crate) struct Config {
     pub(crate) nyxd_rpc_endpoint: Option<Url>,
 
     /// HTTP endpoint of the nym-api to which test results are submitted.
-    pub(crate) nym_api_endpoint: Url,
+    pub(crate) nym_api_endpoints: Vec<ApiUrl>,
 
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     pub(crate) http_server_bind_address: SocketAddr,
@@ -118,7 +118,7 @@ impl Config {
 
         let nyxd_config = nyxd::Config::try_from_nym_network_details(&base_network_details)?;
         let client_config =
-            client::Config::new(nyxd_endpoint, self.nym_api_endpoint.clone(), nyxd_config);
+            client::Config::new(nyxd_endpoint, self.nym_api_endpoints.clone(), nyxd_config);
 
         info!("using the following config: {client_config:#?}");
         Ok(client_config)

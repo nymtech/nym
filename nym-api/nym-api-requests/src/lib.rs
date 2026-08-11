@@ -15,7 +15,7 @@ pub mod signable;
 // The response type we fetch from the network details endpoint.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NymNetworkDetailsResponse {
-    pub network: nym_config::defaults::NymNetworkDetails,
+    pub network: nym_config::defaults::v1::NymNetworkDetails,
 }
 
 // The response type we fetch from the v2 network details endpoint.

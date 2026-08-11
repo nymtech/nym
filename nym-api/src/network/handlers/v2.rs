@@ -40,6 +40,6 @@ async fn network_details(
     let details = state.network_details().to_owned();
     output.to_response(NetworkDetailsV2::new(
         details.connected_nyxd,
-        details.network,
+        details.network.into(),
     ))
 }

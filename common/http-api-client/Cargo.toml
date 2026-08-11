@@ -17,7 +17,7 @@ publish = true
 [features]
 default=["tunneling"]
 tunneling=[]
-network-defaults = ["dep:nym-network-defaults"]
+network-defaults = ["nym-network-defaults/network"]
 debug-inventory = ["nym-http-api-client-macro/debug-inventory"]
 
 [dependencies]
@@ -46,7 +46,7 @@ mime = { workspace = true }
 
 nym-http-api-common = { workspace = true }
 nym-bin-common = { workspace = true }
-nym-network-defaults = { workspace = true, optional = true }
+nym-network-defaults = { workspace = true }
 nym-http-api-client-macro = { workspace = true }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]

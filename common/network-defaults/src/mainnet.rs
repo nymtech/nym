@@ -79,6 +79,9 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
         front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
     },
     // TEMP HOTFIX: edge1 removed until clients with static DNS pin + soft-fail ship.
+    // Deploy: nym-api serves /v1/network/details from env via setup_env + new_from_env.
+    // If NYM_VPN_APIS is already set under CONFIGURED, update/remove edge1 in that env too
+    // (binary defaults alone will not overwrite). DoD: curl network/details has no edge1.
     // Re-enable (flip): restore the ApiUrlConst for https://edge1.streaming-gateway.com/api/
     // ApiUrlConst {
     //     url: "https://edge1.streaming-gateway.com/api/",
@@ -272,4 +275,19 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
+}
+
+#[cfg(all(test, feature = "network"))]
+mod tests {
+    use super::NYM_VPN_APIS;
+
+    #[test]
+    fn nym_vpn_apis_omit_edge1_during_hotfix() {
+        assert!(
+            !NYM_VPN_APIS
+                .iter()
+                .any(|api| api.url.contains("edge1.streaming-gateway.com")),
+            "TEMP HOTFIX: NYM_VPN_APIS must omit edge1 until flip-back"
+        );
+    }
 }

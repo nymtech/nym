@@ -76,3 +76,35 @@ impl From<LocationResponse> for Location {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pins why [`crate::ip_info_lookup::client::IpInfoClient::locate`] has to reject on status
+    /// and on an empty country *before* trusting a parsed response.
+    ///
+    /// Every field here has a default and unknown fields are ignored, so nothing about a
+    /// successful parse implies ipinfo actually answered the question. Deserialisation cannot be
+    /// the thing that catches a bad token, and an entry asserting country "" at 0,0 is
+    /// indistinguishable from a real answer once it is on the chain.
+    #[test]
+    fn bodies_that_are_not_locations_still_parse_as_one() {
+        let not_locations = [
+            // an expired or wrong token
+            r#"{"error":{"title":"Wrong token","message":"Please provide a valid token"}}"#,
+            // a 200 for an address ipinfo will not place
+            r#"{"ip":"10.0.0.1","bogon":true}"#,
+            r#"{}"#,
+        ];
+
+        for body in not_locations {
+            let parsed: LocationResponse = serde_json::from_str(body)
+                .unwrap_or_else(|err| panic!("{body} unexpectedly failed to parse: {err}"));
+
+            assert!(parsed.two_letter_iso_country_code.is_empty());
+            assert_eq!(parsed.loc.latitude, 0.0);
+            assert_eq!(parsed.loc.longitude, 0.0);
+        }
+    }
+}

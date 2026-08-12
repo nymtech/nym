@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::ip_info_lookup::client::IpInfoClient;
 use crate::ip_info_lookup::models::LocationResponse;
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ struct CachedResponse {
 }
 
 pub(crate) struct IpInfoLookup {
+    // TODO: perhaps switch ipinfo crate
     client: IpInfoClient,
     cache_ttl: Duration,
 
@@ -27,6 +29,14 @@ pub(crate) struct IpInfoLookup {
 }
 
 impl IpInfoLookup {
+    pub(crate) fn new(config: Config, token: String) -> Self {
+        IpInfoLookup {
+            client: IpInfoClient::new(token),
+            cache_ttl: config.ip_info_lookup_cache_ttl,
+            lookup_cache: HashMap::new(),
+        }
+    }
+
     pub(crate) async fn lookup_address(&mut self, ip: IpAddr) -> anyhow::Result<LocationResponse> {
         if let Some(cached) = self.lookup_cache.get(&ip) {
             if cached.at + self.cache_ttl > OffsetDateTime::now_utc() {

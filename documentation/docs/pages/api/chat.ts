@@ -33,7 +33,10 @@ import { voyageProvider, embedQuery } from '../../lib/retrieval/embed.mjs';
 const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public/docs-index.json'), 'utf-8'));
 const embedder = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
-const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-haiku-4-5';
+// Sonnet 5 rather than Haiku: the job is synthesising an answer from retrieved
+// sections and citing them accurately, and Haiku 4.5 was visibly weaker at it.
+// Override per-deployment with CHAT_MODEL; no redeploy of this file needed.
+const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-5';
 
 // Bounds on an incoming request. A docs chat is a short conversation; these cap
 // the work a single caller can push through the paid embedding + model calls.
@@ -45,6 +48,7 @@ function modelName(id: string): string {
   const map: Record<string, string> = {
     'claude-haiku-4-5': 'Claude Haiku 4.5',
     'claude-sonnet-5': 'Claude Sonnet 5',
+    'claude-opus-5': 'Claude Opus 5',
     'claude-opus-4-8': 'Claude Opus 4.8',
   };
   return map[id] ?? id;
@@ -99,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Retrieve over docs only (buildContext defaults sources to ["nym-docs"]).
     const vec = await embedQuery(query, embedder);
-    const { context } = buildContext(vec, index, { topK: 10 });
+    const { context, citations } = buildContext(vec, index, { topK: 10 });
 
     const result = streamText({
       model: anthropic(CHAT_MODEL),
@@ -107,7 +111,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       messages: await convertToModelMessages(messages),
     });
 
-    result.pipeUIMessageStreamToResponse(res);
+    // Citations ride as message metadata (v7 has no response-header path to
+    // useChat). Emitted on `start` so the widget can linkify `[n]` markers as
+    // the text streams in, rather than only once the message completes.
+    result.pipeUIMessageStreamToResponse(res, {
+      messageMetadata: ({ part }) => (part.type === 'start' ? { citations } : undefined),
+    });
   } catch (err) {
     // The stream commits the response once it starts; only send a JSON error if
     // we failed before any bytes went out (embedding, retrieval, conversion).

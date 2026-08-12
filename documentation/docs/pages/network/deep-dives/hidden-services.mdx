@@ -7,6 +7,12 @@ lastUpdated: "2026-07-29"
 ---
 
 import { Callout } from 'nextra/components'
+import dynamic from 'next/dynamic'
+
+export const SurbDirectory = dynamic(
+  () => import('../../../components/threat-model/SurbDirectory').then((m) => m.SurbDirectory),
+  { ssr: false },
+)
 
 # SURBs vs Tor hidden services
 
@@ -41,25 +47,9 @@ In Tor, every client downloads the same descriptor. In Nym, every client needs i
 
 That difference drives everything below.
 
-```
-Tor: one reusable descriptor
-                                        ┌─────────┐
-   hidden service ── publishes 1x ───▶  │  HSDir  │
-                                        └────┬────┘
-                          same copy served to many clients
-                       ┌───────────┼───────────┐
-                       ▼           ▼           ▼
-                    client A    client B    client C
+Raise the client demand and watch the two upload tracks diverge. Tor's stays flat, because one descriptor serves every reader however many there are. Nym's thickens, because every client consumes a SURB and the service has to keep the directory stocked. Then press the attacker button: draining the stock forces an immediate refill, which is the fingerprint the service most needs to avoid emitting.
 
-Nym: single-use SURBs, one per client
-                                        ┌──────────┐
-   hidden service ── pushes batches ──▶ │  "HSDir" │
-     (continuous, must replenish)       └────┬─────┘
-                         distinct SURB consumed per client
-                       ┌───────────┼───────────┐
-                       ▼           ▼           ▼
-                    client A    client B    client C
-```
+<SurbDirectory />
 
 ## Why the naive port leaks location
 

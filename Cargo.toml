@@ -182,7 +182,10 @@ members = [
     "wasm/zknym-lib",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
     "nym-network-monitor-v3/nym-network-monitor-agent",
-    "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests", "common/cosmwasm-smart-contracts/geolocation-contract", "nym-geolocator",
+    "nym-network-monitor-v3/nym-network-monitor-orchestrator-requests",
+    "common/cosmwasm-smart-contracts/geolocation-contract",
+    "nym-geolocator",
+    "nym-geolocator/nym-geolocator-requests",
 ]
 
 default-members = [
@@ -488,6 +491,7 @@ nym-mixnet-client = { version = "1.21.5-rc.3", path = "common/client-libs/mixnet
 nym-mixnet-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-multisig-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/multisig-contract" }
 nym-geolocation-contract-common = { version = "1.21.5-rc.3", path = "common/cosmwasm-smart-contracts/geolocation-contract" }
+nym-geolocator-requests = { version = "1.21.5-rc.3", path = "nym-geolocator/nym-geolocator-requests" }
 nym-network-defaults = { version = "1.21.5-rc.3", path = "common/network-defaults" }
 nym-node-tester-utils = { version = "1.21.5-rc.3", path = "common/node-tester-utils" }
 nym-noise = { version = "1.21.5-rc.3", path = "common/nymnoise" }

@@ -6,7 +6,6 @@ use crate::ip_info_lookup::models::LocationResponse;
 use http::{Method, StatusCode};
 use reqwest::{Request, RequestBuilder};
 use std::net::IpAddr;
-use tracing::log::error;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -22,6 +21,13 @@ fn ip_info_url() -> Url {
 }
 
 impl IpInfoClient {
+    pub(crate) fn new(token: String) -> Self {
+        IpInfoClient {
+            client: reqwest::Client::new(),
+            token: Zeroizing::new(token),
+        }
+    }
+
     pub(crate) async fn locate(&self, ip: IpAddr) -> Result<LocationResponse, GeoLocatorError> {
         let mut url = ip_info_url();
         url.path_segments_mut().unwrap().push(&ip.to_string());
@@ -43,11 +49,30 @@ impl IpInfoClient {
             .text()
             .await
             .map_err(|source| GeoLocatorError::IpInfoRequestFailure { source })?;
+
+        // a rejected request must fail rather than fall through to deserialisation. Every field
+        // of `LocationResponse` has a default and unknown fields are ignored, so ipinfo's error
+        // body parses perfectly happily into a location of country "" at 0,0. An expired token
+        // would then not fail at all: it would quietly relocate the entire network to the Gulf
+        // of Guinea and commit that to the chain as freshly checked fact
         if !status.is_success() {
-            error!("ipinfo request failed with status {status}: {raw_response}")
+            return Err(GeoLocatorError::IpInfoRequestRejected {
+                status,
+                body: raw_response,
+            });
         }
 
-        serde_json::from_str(&raw_response)
-            .map_err(|source| GeoLocatorError::IpInfoResponseDeserialisationFailure { source })
+        let response: LocationResponse = serde_json::from_str(&raw_response)
+            .map_err(|source| GeoLocatorError::IpInfoResponseDeserialisationFailure { source })?;
+
+        // ipinfo also answers 200 with those same empty defaults for an address it cannot place,
+        // a bogon being the common case. That is an absent location, not a location, and the
+        // difference is invisible once it has been written: an entry asserting country "" is
+        // indistinguishable from a real answer to anything reading the contract
+        if response.two_letter_iso_country_code.is_empty() {
+            return Err(GeoLocatorError::IpInfoNoLocationData);
+        }
+
+        Ok(response)
     }
 }

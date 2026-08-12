@@ -6,11 +6,9 @@ use nym_geolocation_contract_common::{GeolocationRecord, Subject};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::PagedGeolocationQueryClient;
 use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::error;
 
 #[derive(Clone)]
@@ -26,7 +24,7 @@ impl SubmittedLocation {
 }
 
 pub(crate) struct OnChainNodes {
-    nodes: Arc<RwLock<HashMap<NodeId, SubmittedLocation>>>,
+    nodes: HashMap<NodeId, SubmittedLocation>,
 }
 
 impl OnChainNodes {
@@ -68,29 +66,38 @@ impl OnChainNodes {
             );
         }
 
-        Ok(OnChainNodes {
-            nodes: Arc::new(RwLock::new(nodes)),
-        })
+        Ok(OnChainNodes { nodes })
     }
 
-    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, HashMap<NodeId, SubmittedLocation>> {
-        self.nodes.read().await
+    pub(crate) fn get(&self) -> &HashMap<NodeId, SubmittedLocation> {
+        &self.nodes
     }
 
-    pub(crate) async fn has_expired(&self, node_id: NodeId, ttl: Duration) -> bool {
-        let guard = self.nodes.read().await;
-        let Some(entry) = guard.get(&node_id) else {
+    pub(crate) fn has_expired(&self, node_id: NodeId, ttl: Duration) -> bool {
+        let Some(entry) = self.nodes.get(&node_id) else {
             return true;
         };
 
         entry.has_expired(OffsetDateTime::now_utc(), ttl)
     }
 
-    pub(crate) async fn update_submitted(&self, node: NodeId, location: Location) {
+    /// Drop the view of every node that is no longer bonded.
+    ///
+    /// The contract deletes a node's entries itself when it unbonds, so anything left here for a
+    /// departed node describes a record that no longer exists on chain. Without this the
+    /// expiration check keeps finding those entries expired, re-measures them and writes them
+    /// back - and the measurement path performs no bonding check, so the contract accepts them.
+    /// That undoes the unbond callback, and the resurrected entries are then beyond its reach
+    /// forever, leaving orphans only an admin `RemoveEntries` can clear.
+    pub(crate) fn retain_bonded(&mut self, bonded: &HashSet<NodeId>) {
+        self.nodes.retain(|node_id, _| bonded.contains(node_id));
+    }
+
+    pub(crate) fn update_submitted(&mut self, node: NodeId, location: Location) {
         // yes, it's not fully in async with chain, but that's perfectly fine, the only purpose
         // of this is for the task to know whether it should refresh the node ipinfo
         // (which happens on a multi-day cadence, so few seconds of desync are acceptable)
-        self.nodes.write().await.insert(
+        self.nodes.insert(
             node,
             SubmittedLocation {
                 location,

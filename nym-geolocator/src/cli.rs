@@ -1,9 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use clap::Parser;
 use nym_bin_common::bin_info;
 use nym_validator_client::nyxd::bip39;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -24,6 +26,13 @@ pub(crate) struct HttpArgs {
         alias = "http-bearer-token"
     )]
     pub(crate) http_auth_token: String,
+
+    #[clap(
+        long,
+        env = "NYM_GEOLOCATOR_HTTP_BIND_ADDRESS",
+        default_value = "[::]:8080"
+    )]
+    pub(crate) bind_address: SocketAddr,
 }
 
 #[derive(Debug, clap::Args)]
@@ -54,6 +63,14 @@ pub(crate) struct GeolocationArgs {
     #[clap(long, default_value = "30days", env = "NYM_GEOLOCATOR_GEODATA_TTL")]
     #[clap(value_parser = humantime::parse_duration)]
     pub(crate) geodata_ttl: Duration,
+
+    #[clap(
+        long,
+        default_value = "1h",
+        env = "NYM_GEOLOCATOR_EXPIRATION_POLLING_INTERVAL"
+    )]
+    #[clap(value_parser = humantime::parse_duration)]
+    pub(crate) expiration_polling_interval: Duration,
 
     #[clap(
         long,
@@ -94,4 +111,30 @@ pub(crate) struct Args {
     /// Useful in local testing setups against networks different from mainnet
     #[clap(short, long)]
     pub(crate) config_env_file: Option<PathBuf>,
+
+    #[clap(flatten)]
+    pub(crate) http: HttpArgs,
+
+    #[clap(flatten)]
+    pub(crate) scraper: ScraperArgs,
+
+    #[clap(flatten)]
+    pub(crate) geolocation: GeolocationArgs,
+
+    #[clap(flatten)]
+    pub(crate) chain: ChainArgs,
+}
+
+impl Args {
+    pub(crate) fn to_config(&self) -> Config {
+        Config {
+            described_node_refresh_interval: self.scraper.node_refresh_interval,
+            number_of_concurrent_node_queries: self.scraper.number_of_concurrent_node_queries,
+            node_info_query_timeout: self.scraper.node_info_query_timeout,
+            geolocation_data_ttl: self.geolocation.geodata_ttl,
+            ip_info_lookup_cache_ttl: self.geolocation.ip_info_lookup_cache_ttl,
+            bonded_nodes_refresh_interval: self.chain.bond_refresh_interval,
+            geolocation_expiration_polling_interval: self.geolocation.expiration_polling_interval,
+        }
+    }
 }

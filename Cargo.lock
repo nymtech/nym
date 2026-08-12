@@ -7151,6 +7151,8 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "nym-geolocation-contract-common",
+ "nym-geolocator-requests",
+ "nym-http-api-common",
  "nym-network-defaults",
  "nym-node-requests",
  "nym-task",
@@ -7165,7 +7167,17 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-swagger-ui",
+ "utoipauto",
  "zeroize",
+]
+
+[[package]]
+name = "nym-geolocator-requests"
+version = "1.21.5-rc.3"
+dependencies = [
+ "schemars 0.8.22",
+ "serde",
+ "utoipa",
 ]
 
 [[package]]

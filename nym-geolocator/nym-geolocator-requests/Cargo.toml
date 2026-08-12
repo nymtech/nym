@@ -1,0 +1,22 @@
+[package]
+name = "nym-geolocator-requests"
+description = "Nym Geolocator API endpoint definitions and functions"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+schemars = { workspace = true, features = ["preserve_order"] }
+serde = { workspace = true, features = ["derive"] }
+
+utoipa = { workspace = true }
+
+[lints]
+workspace = true

@@ -105,11 +105,20 @@ Because generation is constrained to retrieved context, the assistant reports th
 |---|---|---|---|
 | `VOYAGE_API_KEY` | build **and** runtime | our code, explicitly | Embedding chunks during the build, and embedding each query at call time |
 | `ANTHROPIC_API_KEY` | runtime only | the Anthropic provider, implicitly | Generation for the chat assistant |
-| `CHAT_MODEL` | runtime, optional | our code | Overrides which model answers, without a redeploy of the code |
+| `CHAT_MODEL` | runtime, optional | our code | Which model answers in the chat widget |
+| `CHAT_MIN_SCORE` | runtime, optional | our code | Similarity floor below which a chunk is not treated as a source |
 
 `VOYAGE_API_KEY` is needed in **both** places for a reason worth stating: the build embeds the corpus, and every query must be embedded at request time with the same model, or the vectors are not comparable. `ANTHROPIC_API_KEY` never appears in our source because the provider reads it from the environment itself, so it is easy to forget when provisioning.
 
 The MCP server needs only the Voyage key. It returns retrieved sections to the calling agent and leaves generation to that agent's own model, which is why it costs nothing per call beyond one query embedding.
+
+## Retrieval threshold
+
+Retrieval fetches a fixed number of nearest chunks, then discards anything below a similarity floor (`CHAT_MIN_SCORE`). The floor is what makes "this is not covered in the documentation" possible as an answer.
+
+Without it the floor is effectively zero, and since cosine similarity over normalised embeddings is essentially never negative, *every* question returns a full set of chunks no matter how unrelated. The assistant would then be handed ten irrelevant sections for an off-topic question and asked to answer only from them, and the interface would list ten sources beneath a reply saying the topic is not covered.
+
+The trade-off runs both ways: set it too high and genuine questions lose citations they should have had. It is tuned by asking something deliberately outside the corpus and confirming that comes back with nothing, while real questions keep their sources.
 
 ## Machine-readable surfaces
 

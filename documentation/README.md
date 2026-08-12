@@ -123,9 +123,57 @@ Local: `http://localhost:3000/docs/llms.txt` and `.../llms-full.txt`. Production
 ### Retrieval & keys
 Two build-time indexes, no vector database: a docs index (`voyage-3-large`) and a
 code index (`voyage-code-3`), built during `pnpm run build` and gitignored.
-Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
-at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
-Actions and Vercel secrets, never in the repo. 
+Embeddings use Voyage; generation uses Anthropic Claude.
+
+**Where each key must be set.** The two are needed at different stages, so they do
+not go in the same place. Setting only one of them fails in a way that looks
+unrelated to the key, so check both before debugging anything else.
+
+| Key | GitHub Actions | Vercel project env | Why |
+|-----|----------------|--------------------|-----|
+| `VOYAGE_API_KEY` | **required** | **required** | The build embeds the corpus, and `/api/chat` and `/api/mcp` embed each incoming query at request time. Both stages call Voyage, so it is needed in both places. |
+| `ANTHROPIC_API_KEY` | not needed | **required** | Generation happens only at runtime. Nothing in the build calls Claude. |
+
+`ANTHROPIC_API_KEY` never appears in our source: the `@ai-sdk/anthropic` provider
+reads it from the environment itself, so grepping for it finds nothing and it is
+easy to forget when provisioning. Symptoms of each being missing:
+
+- **No `VOYAGE_API_KEY` at build**: `generate-index.mjs` fails and the deploy stops.
+- **No `VOYAGE_API_KEY` at runtime**: the build succeeds, then every chat and every
+  MCP `search_docs` call fails when it tries to embed the query.
+- **No `ANTHROPIC_API_KEY`**: retrieval works and the MCP server is fully
+  functional, but the chat widget returns an error on every question. The MCP
+  server does not need this key at all: it hands retrieved sections back to the
+  calling agent and lets that agent's own model do the generating.
+
+Keys live in GitHub Actions and Vercel secrets, never in the repo. `VOYAGE_API_KEY`
+is already wired into `.github/workflows/cd-docs.yml`.
+
+### Tunables
+Everything below has a working default; none of it is required to run. Runtime
+values can be changed in Vercel without a redeploy of the code.
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `CHAT_MODEL` | `claude-sonnet-5` | Which model answers in the widget. The tier matters here: the job is synthesising an answer from retrieved sections and citing them, and Haiku was visibly weaker at it. |
+| `CHAT_MIN_SCORE` | `0.3` | Cosine-similarity floor for retrieval. **Starting value, not a measured one.** Below this a chunk is not treated as a source. Set too low, every question returns a full set of "sources" however unrelated, and the "not covered in the docs" answer can never fire; set too high, real questions lose their citations. Tune it by asking something deliberately off-topic and confirming it comes back with no sources. |
+
+Compile-time constants, changed in source rather than the environment:
+
+| Constant | Where | Default | Effect |
+|----------|-------|---------|--------|
+| `MAX_MESSAGES` | `pages/api/chat.ts` | `40` | Longest accepted conversation. A bound on what one caller can push through the paid calls. |
+| `MAX_TOTAL_CHARS` | `pages/api/chat.ts` | `32_000` | Largest accepted request body, counted over text parts. |
+| `topK` | `pages/api/chat.ts` (`buildContext` call) | `10` | How many chunks are retrieved per question, before `CHAT_MIN_SCORE` filters them. |
+| `MAX_CHARS` | `lib/retrieval/chunker.mjs` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
+| `INPUT_MAX_HEIGHT` | `components/ChatWidget.tsx` | `140` | How far the chat textarea grows before it scrolls internally. |
+
+<!-- prettier-ignore -->
+> [!IMPORTANT]
+> The query embedding and the index embedding must come from the same model.
+> Changing the provider or model in `lib/retrieval/embed.mjs` requires a full
+> re-index: querying a `voyage-3` index with `voyage-3-large` vectors returns
+> meaningless neighbours rather than an error.
 
 ### Keeping docs honest against the code
 The docs assert facts the source can settle: constant values, sizes, types, API

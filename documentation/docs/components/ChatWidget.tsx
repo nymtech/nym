@@ -2,7 +2,7 @@
 // once globally from pages/_app.tsx via next/dynamic (ssr: false), so it never
 // participates in SSR/hydration.
 //
-// Deps:  ai, @ai-sdk/react
+// Deps:  ai, @ai-sdk/react, react-markdown, remark-gfm
 //
 // v7 notes:
 //   - useChat returns { messages, status, sendMessage }; the widget owns its
@@ -10,9 +10,9 @@
 //   - the endpoint is passed via a transport: new DefaultChatTransport({ api }).
 //   - messages are UIMessage[]; text lives in `message.parts` (type 'text').
 //
-// Styling is still placeholder-grade (inline styles); align with the docs design
-// system next. The drawer stays mounted and slides via transform so the
-// conversation persists across open/close.
+// The drawer stays mounted and slides via transform, so the conversation
+// persists across open/close. It is also why every internal link here uses
+// next/link: a full page load would remount this component and lose it.
 
 import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -21,13 +21,9 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-/** Shape of the citation list the route attaches as message metadata. */
-interface Citation {
-  n: number;
-  title: string;
-  heading: string;
-  url: string;
-}
+// The citation list the route attaches as message metadata. Imported as a type
+// so the retrieval module never reaches the client bundle.
+import type { Citation } from '../lib/chat/context';
 
 /**
  * Chunk URLs are absolute (`https://nym.com/docs/...`), baked in at index time.
@@ -48,9 +44,17 @@ function docsHref(url: string): string {
  * Turn the model's inline `[n]` markers into markdown links to the cited
  * section, so react-markdown renders them as anchors.
  *
- * Split on fenced and inline code first: an example containing `arr[0]` must
- * not be rewritten into a link. The negative lookahead leaves real markdown
- * links (`[1](url)`) alone.
+ * Split on fenced and inline code first, so an example containing `arr[0]` is
+ * not rewritten into a link. The negative lookahead leaves real markdown links
+ * (`[1](url)`) alone.
+ *
+ * Known limits, all cosmetic: this only recognises ``` fences and single-backtick
+ * spans, so `[1]` inside a 4-space indented block, a ~~~ fence, or a
+ * ``double-backtick`` span still gets linked. A fence that is still streaming has
+ * no closing ```, so its contents are briefly treated as prose until the closing
+ * chunk arrives, and permanently if the answer is truncated before it. Doing this
+ * on the parsed AST (a rehype plugin skipping nodes under code/pre) would be
+ * correct by construction.
  */
 function linkifyCitations(text: string, citations: Citation[]): string {
   if (citations.length === 0) return text;
@@ -115,6 +119,11 @@ export default function ChatWidget() {
   // Grow the textarea to fit its content, up to a cap. Reset to `auto` first so
   // it can shrink again when text is deleted; scrollHeight only ever grows
   // against a fixed height.
+  //
+  // Do not wrap this in useCallback. It is passed as the ref callback, so a new
+  // identity each render is what makes React reattach and re-measure, which is
+  // what shrinks the box after submit clears the value. A stable identity would
+  // silently break that, because setInput('') fires no change event.
   const resize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
@@ -271,8 +280,10 @@ export default function ChatWidget() {
 }
 
 // Colours reference CSS variables (defined in pages/styles.css) that flip under
-// html.dark, so the widget follows the docs light/dark theme. Layout is still
-// placeholder-grade; refine to the design system later.
+// html.dark, so the widget follows the docs light/dark theme. Anything needing a
+// selector or a keyframe lives in that stylesheet instead, since inline styles
+// can express neither.
+
 // Asymmetric turns: the user's words sit in a tinted bubble on the right, the
 // answer runs flush-left with no bubble. Answers carry tables, headings and code
 // blocks, and a bubble fights that content rather than framing it. The asymmetry
@@ -298,8 +309,10 @@ const userBubbleStyle: React.CSSProperties = {
   whiteSpace: 'pre-wrap',
   overflowWrap: 'anywhere',
 };
-// Answers are markdown: headings, lists, tables and code all need room. Keeping
-// the block scoped here avoids leaking chat styles into the docs theme.
+// Answers are markdown: headings, lists, tables and code all need room. The
+// class pairs with .nym-chat-prose rules in styles.css, which handle what inline
+// styles cannot reach (code inside pre); both stay namespaced so nothing leaks
+// into the docs theme.
 const proseStyle: React.CSSProperties = {
   fontSize: '0.9rem',
   lineHeight: 1.55,

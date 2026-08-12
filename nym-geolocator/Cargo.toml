@@ -13,12 +13,14 @@ readme.workspace = true
 publish = false
 
 [dependencies]
+async-trait = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 humantime = { workspace = true }
 http = { workspace = true }
 futures = { workspace = true }
+ipinfo = { workspace = true }
 url = { workspace = true }
 reqwest = { workspace = true, features = ["json", "query"] }
 serde = { workspace = true, features = ["derive"] }

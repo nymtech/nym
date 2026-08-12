@@ -1,14 +1,16 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::nyx::client::NyxClient;
 use nym_geolocation_contract_common::payload::Location;
 use nym_geolocation_contract_common::{GeolocationRecord, Subject};
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use nym_validator_client::nyxd::contract_traits::PagedGeolocationQueryClient;
 use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::error;
 
 #[derive(Clone)]
@@ -23,13 +25,14 @@ impl SubmittedLocation {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct OnChainNodes {
-    nodes: HashMap<NodeId, SubmittedLocation>,
+    nodes: Arc<RwLock<HashMap<NodeId, SubmittedLocation>>>,
 }
 
 impl OnChainNodes {
-    pub(crate) async fn build_new(client: &DirectSigningHttpRpcNyxdClient) -> anyhow::Result<Self> {
-        let addr = client.address();
+    pub(crate) async fn build_new(client: &NyxClient) -> anyhow::Result<Self> {
+        let addr = client.address().await;
         let records = client.get_all_geolocation_records().await?;
 
         let mut nodes = HashMap::new();
@@ -66,15 +69,18 @@ impl OnChainNodes {
             );
         }
 
-        Ok(OnChainNodes { nodes })
+        Ok(OnChainNodes {
+            nodes: Arc::new(RwLock::new(nodes)),
+        })
     }
 
-    pub(crate) fn get(&self) -> &HashMap<NodeId, SubmittedLocation> {
-        &self.nodes
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, HashMap<NodeId, SubmittedLocation>> {
+        self.nodes.read().await
     }
 
-    pub(crate) fn has_expired(&self, node_id: NodeId, ttl: Duration) -> bool {
-        let Some(entry) = self.nodes.get(&node_id) else {
+    pub(crate) async fn has_expired(&self, node_id: NodeId, ttl: Duration) -> bool {
+        let guard = self.nodes.read().await;
+        let Some(entry) = guard.get(&node_id) else {
             return true;
         };
 
@@ -89,20 +95,27 @@ impl OnChainNodes {
     /// back - and the measurement path performs no bonding check, so the contract accepts them.
     /// That undoes the unbond callback, and the resurrected entries are then beyond its reach
     /// forever, leaving orphans only an admin `RemoveEntries` can clear.
-    pub(crate) fn retain_bonded(&mut self, bonded: &HashSet<NodeId>) {
-        self.nodes.retain(|node_id, _| bonded.contains(node_id));
+    pub(crate) async fn retain_bonded(&self, bonded: &HashSet<NodeId>) {
+        self.nodes
+            .write()
+            .await
+            .retain(|node_id, _| bonded.contains(node_id));
     }
 
-    pub(crate) fn update_submitted(&mut self, node: NodeId, location: Location) {
+    pub(crate) async fn update_submitted(&self, updates: Vec<(NodeId, Location)>) {
         // yes, it's not fully in async with chain, but that's perfectly fine, the only purpose
         // of this is for the task to know whether it should refresh the node ipinfo
         // (which happens on a multi-day cadence, so few seconds of desync are acceptable)
-        self.nodes.insert(
-            node,
-            SubmittedLocation {
-                location,
-                checked_at: OffsetDateTime::now_utc(),
-            },
-        );
+        let checked_at = OffsetDateTime::now_utc();
+        let mut guard = self.nodes.write().await;
+        for (node, location) in updates {
+            guard.insert(
+                node,
+                SubmittedLocation {
+                    location,
+                    checked_at,
+                },
+            );
+        }
     }
 }

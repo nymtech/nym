@@ -130,7 +130,7 @@ The far-future guard is load-bearing. Without it, one signature stamped years ah
 
 ### 8. IP addresses are never written on-chain
 
-`NodeInformation` carries both `hostname` and `ip_addresses`, so an operator who wants to stay behind DNS announces a hostname only. The geolocator must resolve that hostname to geolocate it, and writing the resolved address on-chain would deanonymise precisely the operator who opted out. Resolved addresses are transient in the service: never logged durably, never exposed.
+`NodeInformation` carries both `hostname` and `ip_addresses`. Announcing the addresses explicitly is the node's own responsibility, so a node publishing only a hostname is misconfigured and is skipped rather than resolved: neither the geolocator nor a client should be performing DNS lookups on a node's behalf. The addresses the service does obtain stay transient in it: never persisted, never logged durably, never exposed. Committing them on-chain would turn each node's address set into a permanent, digest-committed record that the geolocation data itself has no use for.
 
 Storing a hash of the address set, which would have made change detection stateless, does not work. IPv4 is 2^32, so an unsalted hash is brute-forceable, and a contract-wide salt is public. A hash of an IP is an IP.
 

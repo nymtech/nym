@@ -18,7 +18,7 @@ A node that unbonds MUST drop out of the subject set on the next cycle, and the 
 
 ### Requirement: The service SHALL discover addresses from node HTTP endpoints, and later from the directory contract
 
-The service MUST determine each node's announced addresses by querying the node's own HTTP endpoint. Where a node announces a hostname rather than addresses, the service MUST resolve it in order to perform the lookup.
+The service MUST determine each node's announced addresses by querying the node's own HTTP endpoint. A node MUST announce its addresses explicitly, so one that announces only a hostname is misconfigured and MUST be skipped rather than resolved: neither this service nor a client should be performing DNS lookups on a node's behalf.
 
 The service MUST be structured so that the address source can be switched to the directory contract's node-published information without changing the measurement, batching or submission paths.
 
@@ -29,17 +29,17 @@ A node whose addresses cannot be discovered MUST be skipped for that cycle, MUST
 - **WHEN** the cycle runs
 - **THEN** that node is skipped with a logged warning and every other node is still measured and submitted
 
-#### Scenario: A hostname-only node is measured
+#### Scenario: A hostname-only node is skipped
 - **GIVEN** a node announcing a hostname and no addresses
-- **WHEN** the service measures it
-- **THEN** the hostname is resolved, the resolved address is geolocated, and the result is submitted
+- **WHEN** the cycle runs
+- **THEN** the service submits no measurement for it and every other node is still measured
 
-### Requirement: Resolved addresses SHALL NOT be persisted or exposed
+### Requirement: Discovered addresses SHALL NOT be persisted or exposed
 
-Addresses obtained by the service, whether announced or resolved from a hostname, MUST be held only for the duration of the lookup. They MUST NOT be written to the contract, MUST NOT appear in durable logs, and MUST NOT be exposed on any service endpoint. This protects operators who deliberately announce a hostname instead of an address.
+Addresses obtained by the service MUST be held in memory only. They MUST NOT be persisted, MUST NOT be written to the contract, MUST NOT appear in durable logs, and MUST NOT be exposed on any service endpoint. The service does retain them in memory across cycles, because the address-change detection below compares against them, but that baseline MUST NOT outlive the process.
 
-#### Scenario: A resolved address leaves no durable trace
-- **GIVEN** a hostname-only node that has been measured
+#### Scenario: A discovered address leaves no durable trace
+- **GIVEN** a node that has been measured
 - **WHEN** the service's persisted state and durable logs are inspected
 - **THEN** the resolved address appears in neither
 

@@ -673,7 +673,8 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
 
 // extension help to provide extra functionalities based on existing queries:

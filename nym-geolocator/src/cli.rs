@@ -56,6 +56,14 @@ pub(crate) struct ScraperArgs {
         default_value_t = 16
     )]
     pub(crate) number_of_concurrent_node_queries: usize,
+
+    /// Maximum number of addresses a node may announce before its details are rejected outright.
+    #[clap(
+        long,
+        env = "NYM_GEOLOCATOR_MAX_ADDRESSES_PER_NODE",
+        default_value_t = 3
+    )]
+    pub(crate) max_addresses_per_node: usize,
 }
 
 #[derive(Debug, clap::Args)]
@@ -79,6 +87,14 @@ pub(crate) struct GeolocationArgs {
     )]
     #[clap(value_parser = humantime::parse_duration)]
     pub(crate) ip_info_lookup_cache_ttl: Duration,
+
+    /// Maximum number of nodes measured in a single sweep, bounding the cold-start burst.
+    #[clap(
+        long,
+        env = "NYM_GEOLOCATOR_MAX_NODES_MEASURED_PER_SWEEP",
+        default_value_t = 250
+    )]
+    pub(crate) max_nodes_measured_per_sweep: usize,
 
     /// https://github.com/ipinfo/rust
     #[clap(long, env = "NYM_GEOLOCATOR_IPINFO_API_TOKEN")]
@@ -131,10 +147,12 @@ impl Args {
             described_node_refresh_interval: self.scraper.node_refresh_interval,
             number_of_concurrent_node_queries: self.scraper.number_of_concurrent_node_queries,
             node_info_query_timeout: self.scraper.node_info_query_timeout,
+            max_addresses_per_node: self.scraper.max_addresses_per_node,
             geolocation_data_ttl: self.geolocation.geodata_ttl,
             ip_info_lookup_cache_ttl: self.geolocation.ip_info_lookup_cache_ttl,
             bonded_nodes_refresh_interval: self.chain.bond_refresh_interval,
             geolocation_expiration_polling_interval: self.geolocation.expiration_polling_interval,
+            max_nodes_measured_per_sweep: self.geolocation.max_nodes_measured_per_sweep,
         }
     }
 }

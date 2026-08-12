@@ -8,7 +8,12 @@ use crate::http::run_http_server;
 use crate::http::state::AppState;
 use crate::ip_info_lookup::IpInfoLookup;
 use crate::node_scraper::NodeScraper;
+use crate::node_scraper::address_source::AddressSource;
+use crate::node_scraper::address_source::http::HttpAddressSource;
 use crate::node_scraper::nodes::KnownNodes;
+use crate::node_scraper::tracker::AddressTracker;
+use crate::nyx::client::NyxClient;
+use crate::nyx::location_pusher::LocationPusher;
 use crate::nyx::nodes::BondedNymNodes;
 use crate::nyx::state::OnChainNodes;
 use clap::Parser;
@@ -16,14 +21,15 @@ use nym_bin_common::bin_info_owned;
 use nym_bin_common::logging::setup_tracing_logger;
 use nym_network_defaults::{NymNetworkDetails, setup_env};
 use nym_task::ShutdownManager;
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use std::ops::Deref;
+use std::sync::Arc;
 use tracing::info;
 
 pub(crate) mod cli;
 pub(crate) mod config;
 pub(crate) mod error;
 pub(crate) mod geolocator;
+mod helpers;
 pub(crate) mod http;
 pub(crate) mod ip_info_lookup;
 pub(crate) mod node_scraper;
@@ -42,11 +48,7 @@ async fn main() -> anyhow::Result<()> {
 
     // retrieve initial state from the network
     let network_details = NymNetworkDetails::new_from_env();
-    let client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic_and_network_details(
-        args.chain.nyxd_addr.as_str(),
-        network_details,
-        args.chain.mnemonic,
-    )?;
+    let client = NyxClient::new(args.chain.nyxd_addr, network_details, args.chain.mnemonic)?;
 
     // all nym-nodes that are currently bonded
     info!("building initial state of bonded nym nodes...");
@@ -61,34 +63,49 @@ async fn main() -> anyhow::Result<()> {
     let on_chain_nodes = OnChainNodes::build_new(&client).await?;
     info!(
         "retrieved {} geolocation data entries",
-        on_chain_nodes.get().len()
+        on_chain_nodes.read().await.len()
     );
 
     // all ips of bonded nodes
     info!("building initial state of self-described node ips... - this could take a while");
-    let known_nodes = KnownNodes::build_new(config, bonded_nodes.read().await.deref()).await;
+    let address_source: Arc<dyn AddressSource> = Arc::new(HttpAddressSource::new(config));
+    let known_nodes = KnownNodes::build_new(
+        config,
+        address_source.as_ref(),
+        bonded_nodes.read().await.deref(),
+    )
+    .await;
     info!(
         "retrieved self-described data of {} nym nodes",
-        known_nodes.len()
+        known_nodes.len().await
     );
+    let address_tracker = AddressTracker::new(config, address_source, known_nodes);
 
     // build the tasks
     let mut shutdown_manager = ShutdownManager::build_new_default()?;
 
-    let described_scraper = NodeScraper::new(config, bonded_nodes.clone(), known_nodes);
-    let ip_info_lookup = IpInfoLookup::new(config, args.geolocation.ipinfo_api_token);
+    let described_scraper = NodeScraper::new(bonded_nodes.clone(), address_tracker);
+    let ip_info_lookup = IpInfoLookup::new(config, args.geolocation.ipinfo_api_token)?;
+    let max_batch_size = helpers::retrieve_maximum_contract_batch_size(&client).await?;
+    let location_pusher =
+        LocationPusher::new(client.clone(), on_chain_nodes.clone(), max_batch_size);
 
     let mut geolocator = Geolocator::new(
         config,
-        client,
+        client.clone(),
+        location_pusher.clone(),
         bonded_nodes.clone(),
         on_chain_nodes,
         described_scraper,
-        ip_info_lookup,
+        ip_info_lookup.clone(),
         shutdown_manager.clone_shutdown_token(),
     );
 
-    let http_app_state = AppState { bonded_nodes };
+    let http_app_state = AppState {
+        bonded_nodes,
+        location_pusher,
+        ip_info_lookup,
+    };
     let http_router = build_router(http_app_state, args.http.http_auth_token)?;
     let http_server_fut = run_http_server(
         http_router,

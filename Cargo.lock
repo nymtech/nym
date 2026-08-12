@@ -3594,6 +3594,17 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
+
+[[package]]
+name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
@@ -4550,6 +4561,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipinfo"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ad2b98165c2c9d03284b23b65ccbab010ca7dd9f7776f2e8c666b19507768a5"
+dependencies = [
+ "ipnetwork 0.21.1",
+ "lazy_static",
+ "lru",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4566,6 +4592,12 @@ checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "ipnetwork"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf370abdafd54d13e54a620e8c3e1145f28e46cc9d704bc6d94414559df41763"
 
 [[package]]
 name = "is-terminal"
@@ -5250,6 +5282,15 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
+]
 
 [[package]]
 name = "lru-slab"
@@ -6917,7 +6958,7 @@ dependencies = [
  "fastrand",
  "futures",
  "humantime-serde",
- "ipnetwork",
+ "ipnetwork 0.20.0",
  "mock_instant",
  "nym-authenticator-requests",
  "nym-client-core",
@@ -7143,11 +7184,13 @@ name = "nym-geolocator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "clap",
  "futures",
  "http 1.4.2",
  "humantime",
+ "ipinfo",
  "nym-bin-common",
  "nym-crypto",
  "nym-geolocation-contract-common",
@@ -7795,7 +7838,7 @@ dependencies = [
  "dirs",
  "futures",
  "humantime-serde",
- "ipnetwork",
+ "ipnetwork 0.20.0",
  "log",
  "nym-async-file-watcher",
  "nym-bin-common",
@@ -7865,7 +7908,7 @@ dependencies = [
  "human-repr",
  "humantime-serde",
  "indicatif",
- "ipnetwork",
+ "ipnetwork 0.20.0",
  "lioness",
  "nym-bin-common",
  "nym-client-core-config-types",
@@ -9262,7 +9305,7 @@ dependencies = [
  "defguard_wireguard_rs",
  "futures",
  "ip_network",
- "ipnetwork",
+ "ipnetwork 0.20.0",
  "mock_instant",
  "nym-authenticator-requests",
  "nym-credential-verification",
@@ -10785,6 +10828,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "h2 0.4.14",
  "http 1.4.2",
  "http-body 1.0.1",
  "http-body-util",

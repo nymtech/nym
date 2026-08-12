@@ -14,6 +14,14 @@ pub(crate) struct Config {
     /// Timeout for querying a single node for its detailed information (ip addresses) (e.g. `10s`).
     pub(crate) node_info_query_timeout: Duration,
 
+    /// Maximum number of addresses a node may announce before its details are rejected outright.
+    ///
+    /// The announced list is unverified input and every entry in it costs a metered lookup, so
+    /// without a bound one node claiming a thousand addresses drains the provider allowance for
+    /// the whole network. Rejected rather than truncated: taking the first few would let a node
+    /// choose which of its addresses gets geolocated simply by ordering them.
+    pub(crate) max_addresses_per_node: usize,
+
     /// Validity of geolocation data (e.g. 30 days) before new information is pushed to the contract
     pub(crate) geolocation_data_ttl: Duration,
 
@@ -25,4 +33,12 @@ pub(crate) struct Config {
 
     /// How often should the geolocator check for expired geolocation data
     pub(crate) geolocation_expiration_polling_interval: Duration,
+
+    /// Maximum number of nodes measured in a single sweep.
+    ///
+    /// Bounds the two bursts that are otherwise unbounded: a fresh agent, which has nothing on
+    /// chain and so finds every node due at once, and the mass expiry that follows from it,
+    /// since everything measured in one sweep expires in one sweep. Spreading the work also
+    /// desynchronises those timestamps, so the burst flattens out over the first few TTLs.
+    pub(crate) max_nodes_measured_per_sweep: usize,
 }

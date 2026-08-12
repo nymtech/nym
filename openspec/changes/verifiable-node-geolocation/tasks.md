@@ -218,21 +218,21 @@ than its collapse.
 
 ## 9. Geolocator service
 
-- [ ] 9.1 Create the service crate with config, CLI and logging
-- [ ] 9.2 Implement subject discovery from the mixnet contract (bonded nym-nodes are the only subject class the contract
+- [x] 9.1 Create the service crate with config, CLI and logging
+- [x] 9.2 Implement subject discovery from the mixnet contract (bonded nym-nodes are the only subject class the contract
   defines)
-- [ ] 9.3 Implement address discovery from node HTTP endpoints, behind a trait so the directory-contract source can
+- [x] 9.3 Implement address discovery from node HTTP endpoints, behind a trait so the directory-contract source can
   replace it later
 - [ ] 9.4 Implement the geolocation lookup client, with the provider allowance exposed as a metric and a per-cycle
   lookup ceiling
-- [ ] 9.5 Ensure resolved addresses are never persisted, logged durably or exposed
-- [ ] 9.6 Implement the regular sweep, submitting unchanged results so `checked_at` advances
-- [ ] 9.7 Implement the local address baseline and the change-triggered measurement, with cold start recording a
+- [x] 9.5 Ensure resolved addresses are never persisted, logged durably or exposed
+- [x] 9.6 Implement the regular sweep, submitting unchanged results so `checked_at` advances
+- [x] 9.7 Implement the local address baseline and the change-triggered measurement, with cold start recording a
   baseline rather than re-measuring everything
 - [ ] 9.8 Implement batching and submission, with self-declaration relays in separate batches
 - [ ] 9.9 Implement self-declaration fetch and verbatim relay, forwarding the received bytes without parsing and
   re-emitting them, and tolerating stale rejections
-- [ ] 9.10 Ensure a failed lookup submits nothing and leaves the previous entry untouched
+- [x] 9.10 Ensure a failed lookup submits nothing and leaves the previous entry untouched
 
 ## 10. Re-test endpoint
 

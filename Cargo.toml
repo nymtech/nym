@@ -312,6 +312,7 @@ indicatif = "0.18.0"
 inquire = "0.6.2"
 inventory = "0.3.21"
 ip_network = "0.4.1"
+ipinfo = "3.5.0"
 ipnetwork = "0.20"
 itertools = "0.14.0"
 jwt-simple = { version = "0.12.12", default-features = false, features = [

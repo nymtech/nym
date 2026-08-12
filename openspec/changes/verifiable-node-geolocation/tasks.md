@@ -223,25 +223,25 @@ than its collapse.
   defines)
 - [x] 9.3 Implement address discovery from node HTTP endpoints, behind a trait so the directory-contract source can
   replace it later
-- [ ] 9.4 Implement the geolocation lookup client, with the provider allowance exposed as a metric and a per-cycle
-  lookup ceiling
+- [x] 9.4 Implement the geolocation lookup client, with a per-sweep measurement ceiling and an error logged when the
+  provider reports its quota exhausted
 - [x] 9.5 Ensure resolved addresses are never persisted, logged durably or exposed
 - [x] 9.6 Implement the regular sweep, submitting unchanged results so `checked_at` advances
 - [x] 9.7 Implement the local address baseline and the change-triggered measurement, with cold start recording a
   baseline rather than re-measuring everything
-- [ ] 9.8 Implement batching and submission, with self-declaration relays in separate batches
-- [ ] 9.9 Implement self-declaration fetch and verbatim relay, forwarding the received bytes without parsing and
-  re-emitting them, and tolerating stale rejections
+- [x] 9.8 Implement batching and submission, with self-declaration relays never sharing a transaction with measurements
+- [x] 9.9 Implement the self-declaration relay endpoint: verify the received artifact as the contract would, then
+  forward its bytes verbatim without parsing and re-emitting them, reporting a stale rejection as a conflict
 - [x] 9.10 Ensure a failed lookup submits nothing and leaves the previous entry untouched
 
 ## 10. Re-test endpoint
 
-- [ ] 10.1 Implement the HTTP endpoint with bearer-token authentication (unlimited)
-- [ ] 10.2 Implement node-identity-signed authentication, restricted to the signing node as subject
-- [ ] 10.3 Implement replay protection: signed timestamp, validity window, seen-set
-- [ ] 10.4 Implement the burst limit: per-node counter of unchanged node-requested measurements, configurable threshold
+- [x] 10.1 Implement the HTTP endpoint with bearer-token authentication (unlimited)
+- [x] 10.2 Implement node-identity-signed authentication, restricted to the signing node as subject
+- [x] 10.3 Implement replay protection: signed timestamp, validity window, seen-set
+- [x] 10.4 Implement the burst limit: per-node counter of unchanged node-requested measurements, configurable threshold
   and cooldown, reset on a changed result, read against the contract's current value
-- [ ] 10.5 Ensure sweep and bearer-token measurements never increment the burst counter
+- [x] 10.5 Ensure sweep and bearer-token measurements never increment the burst counter
 
 ## 11. Verification and documentation
 

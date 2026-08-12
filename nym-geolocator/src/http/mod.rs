@@ -6,6 +6,9 @@ use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use tracing::{error, info};
 
+pub(crate) mod burst;
+pub(crate) mod error;
+pub(crate) mod replay;
 pub(crate) mod router;
 pub(crate) mod state;
 

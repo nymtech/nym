@@ -286,11 +286,13 @@ impl Source {
 /// relayed self-declaration's signature is over exactly these bytes, and JSON key ordering,
 /// whitespace and floating-point formatting all vary between implementations.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct LocationPayload {
     /// Selects the format of `content`. A version is never reused for another format.
     pub version: u8,
 
     /// The opaque payload bytes, stored and returned exactly as submitted.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = Byte))]
     pub content: Binary,
 }
 
@@ -375,6 +377,7 @@ pub struct LocationEntry {
 /// this path decodes the payload, so this type needs no `Location` and stays free of the
 /// `payload` feature, which is also what lets the contract use it.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymNodeLocation {
     pub node_id: NodeId,
 
@@ -385,6 +388,7 @@ pub struct NymNodeLocation {
     pub payload: LocationPayload,
 
     /// The node's ed25519 signature over [`Self::signing_payload`].
+    #[cfg_attr(feature = "utoipa", schema(value_type = String, format = Byte))]
     pub signature: Binary,
 }
 

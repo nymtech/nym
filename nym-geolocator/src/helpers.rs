@@ -3,15 +3,19 @@
 
 use anyhow::bail;
 use ipinfo::IpDetails;
+use nym_geolocation_contract_common::ContractConfig;
 use nym_geolocation_contract_common::payload::{Asn, Coordinates, Location};
 use nym_validator_client::nyxd::contract_traits::GeolocationQueryClient;
 
-pub(super) async fn retrieve_maximum_contract_batch_size<C>(client: &C) -> anyhow::Result<usize>
+/// Read the contract's tunables once, at startup.
+///
+/// Not re-read per request: changing them takes an admin transaction, which is a multisig, and
+/// restarting the binary alongside one is no burden.
+pub(super) async fn retrieve_contract_config<C>(client: &C) -> anyhow::Result<ContractConfig>
 where
     C: GeolocationQueryClient + Send + Sync,
 {
-    let config = client.get_geolocation_config().await?;
-    Ok(config.config.max_batch_size as usize)
+    Ok(client.get_geolocation_config().await?.config)
 }
 
 fn parse_coordinates(raw: String) -> Option<Coordinates> {

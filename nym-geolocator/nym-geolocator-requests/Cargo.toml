@@ -17,6 +17,18 @@ schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 
 utoipa = { workspace = true }
+time = { workspace = true, features = ["serde-well-known"] }
+
+# the response carries the contract's canonical `Location` rather than a parallel definition
+# of it, which would be free to drift from what actually gets committed on chain
+nym-geolocation-contract-common = { workspace = true, features = ["payload", "utoipa"] }
+nym-mixnet-contract-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+
+[dev-dependencies]
+nym-crypto = { workspace = true, features = ["asymmetric", "serde", "rand"] }
+nym-test-utils = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

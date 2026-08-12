@@ -72,18 +72,22 @@ Because addresses are not stored on-chain, this baseline is local to each agent 
 
 Results MUST be submitted in batches not exceeding the contract's `MAX_BATCH_SIZE`. The service MUST pre-validate entries against the contract's rules before submission, since batches are all-or-nothing.
 
-Self-declaration relays MUST be submitted in their own batches, separate from measurements, because their signatures were produced elsewhere and cannot be fully pre-validated against contract state; this keeps one bad artifact from failing a measurement sweep.
+Self-declaration relays MUST NOT share a transaction with measurements. A relay carries data the service did not produce and whose acceptance depends on contract state it does not control, so one bad artifact must never be able to fail a measurement sweep. Because relays arrive one at a time on their own endpoint rather than being gathered during a cycle, each is submitted in a transaction of its own and the separation is structural rather than a batching rule to observe.
 
 The service MUST NOT rely on any particular ordering of entries within a batch.
 
-#### Scenario: A rejected relay batch does not lose measurements
-- **GIVEN** a cycle producing both measurements and one self-declaration relay carrying an invalid signature
-- **WHEN** the results are submitted
-- **THEN** the measurement batches succeed and only the relay batch fails
+#### Scenario: A rejected relay cannot lose measurements
+- **GIVEN** a relay carrying an invalid signature, arriving while a measurement sweep is submitting
+- **WHEN** it is rejected
+- **THEN** no measurement batch is affected, because the relay was never part of one
 
 ### Requirement: The service SHALL relay node-signed self-declarations without modification
 
-Where a node serves a signed `NymNodeLocation` artifact, the service MUST fetch it and relay it to the contract verbatim, preserving the node's signature and its `declared_at`. The service MUST NOT synthesise, re-sign or alter a self-declaration.
+The service MUST expose an endpoint on which a node submits its own signed `NymNodeLocation` artifact, and MUST relay what it receives to the contract verbatim, preserving the node's signature and its `declared_at`. The service MUST NOT synthesise, re-sign or alter a self-declaration.
+
+The node pushes rather than the service polling, because a declaration changes only when the operator changes it: polling every node on a schedule would spend a request per node per cycle to discover nothing almost every time, and would still relay a new declaration no sooner than the next poll. A pull path MAY be added later for nodes that cannot reach the service, and would reuse the same verification and relay.
+
+Before relaying, the service MUST reject an artifact the contract would reject: one whose signature does not verify against the node's identity key, whose payload exceeds the configured size, whose `declared_at` is further ahead than the configured skew allows, or which is not newer than the declaration already stored. This is an optimisation and not the security control, which remains the contract's own verification; it exists so a bad artifact costs a rejected HTTP request rather than a failed transaction.
 
 The artifact's location payload MUST already be the uniform `Location` shape the contract stores. The service MUST NOT widen, normalise or fill in a partial self-declaration, because doing so would change the signed bytes and because the resulting entry would then be attributable to the node while carrying data the node never asserted.
 
@@ -94,12 +98,12 @@ The service MUST forward the payload bytes exactly as received and MUST NOT pars
 - **WHEN** the service relays it and the resulting entry is read back from the contract
 - **THEN** the stored `content` is byte-for-byte identical to the bytes the node served, and the node's signature verifies against it
 
-The service MUST tolerate the contract rejecting a relay as stale, since another agent may have relayed a newer artifact first, and MUST NOT treat that as a cycle failure.
+The service MUST tolerate the contract rejecting a relay as stale, since another agent may have relayed a newer artifact first. It MUST NOT treat that as a service failure, and MUST distinguish it from a relay that failed for any other reason, so that a node retrying against several agents is told its declaration is already on chain rather than that something went wrong.
 
 #### Scenario: A stale relay rejection is benign
 - **GIVEN** two agents relaying the same node's artifacts, where another agent has already submitted a newer one
 - **WHEN** this agent's relay is rejected as stale
-- **THEN** the service logs it and continues the cycle
+- **THEN** the service reports the conflict to the caller and stays healthy
 
 ### Requirement: The service SHALL expose an authenticated re-test endpoint with two authentication modes
 
@@ -175,11 +179,13 @@ This is deliberately unlike the behaviour it replaces, where an unresolvable nod
 
 ### Requirement: The service SHALL bound its consumption of the metered lookup provider
 
-The service MUST expose the provider's remaining allowance as an operational metric and MUST apply a configurable ceiling on lookups per cycle. Exhausting the allowance MUST degrade to skipping measurements rather than aborting the cycle or crashing.
+The service MUST apply a configurable ceiling on the subjects measured per sweep. Exhausting the provider's allowance MUST degrade to skipping measurements rather than aborting the cycle or crashing.
+
+Because that degradation is indistinguishable from an ordinary lookup failure while affecting every subject at once, the service MUST log an error when the provider reports its quota exhausted. No further reporting is required: the service knows what it spends only as a count of requests it made, and the allowance itself lives on the provider account, so any figure it published would be a restatement of its own configuration rather than a measurement.
 
 Repeated failures for one subject MUST NOT cause unbounded retries within a cycle.
 
 #### Scenario: Allowance exhaustion degrades gracefully
 - **GIVEN** a provider allowance that runs out partway through a sweep
 - **WHEN** the cycle continues
-- **THEN** the already-measured results are still submitted, remaining subjects are skipped with a warning, and the service stays running
+- **THEN** the already-measured results are still submitted, the exhaustion is logged as an error, remaining subjects are skipped, and the service stays running

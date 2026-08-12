@@ -12,8 +12,7 @@ use utoipauto::utoipauto;
 // can't be automatically discovered
 // https://github.com/ProbablyClem/utoipauto/issues/13#issuecomment-1974911829
 #[utoipauto(
-    paths = "./nym-geolocator/src",
-    "./nym-geolocator-requests/src from nym-geolocator-requests"
+    paths = "./nym-geolocator/src, ./nym-geolocator/nym-geolocator-requests/src from nym-geolocator-requests"
 )]
 #[derive(OpenApi)]
 #[openapi(

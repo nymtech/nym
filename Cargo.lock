@@ -7218,8 +7218,14 @@ dependencies = [
 name = "nym-geolocator-requests"
 version = "1.21.5-rc.3"
 dependencies = [
+ "nym-crypto",
+ "nym-geolocation-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
  "schemars 0.8.22",
  "serde",
+ "serde_json",
+ "time",
  "utoipa",
 ]
 

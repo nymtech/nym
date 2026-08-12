@@ -283,7 +283,7 @@ Below we break down [performance calculation](#mixnet-node-performance-calculati
 
 ## Rewards Calculation
 
-Once the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
+Once the [rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (currently 60 mixnodes, 80 entry gateways, and 100 exit gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of <span style={{display: 'inline-block'}}><EpochRewardBudget /></span> NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
 
 If a node is active in the rewarded set, it will receive rewards in the end of the epoch, the size is dependant on [stake saturation](../tokenomics.mdx#stake-saturation) and [performance](#performance-calculation). This is how rewards get distributed between nodes in the rewarded set.
 

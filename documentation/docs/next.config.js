@@ -1421,12 +1421,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/docs/developers/clients",
-        destination: "/docs/developers/clients/socks5",
-        permanent: false,
-        basePath: false,
-      },
-      {
         source: "/developers/rust/importing",
         destination: "/docs/developers/rust/importing",
         permanent: true,

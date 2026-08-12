@@ -89,7 +89,7 @@ One execute message carries many entries, with a single accumulator load and sav
 
 LtHash is commutative, so batch ordering does not affect the resulting digest. Agents need no canonical ordering and two agents submitting overlapping batches in different orders converge. This property should be stated explicitly so it is not later "fixed" by imposing a sort.
 
-Batches are all-or-nothing, the CosmWasm default. An agent controls what it submits and can pre-validate against the same rules, with one exception: the self-declaration relay path carries data the agent did not produce and whose signature it cannot fully pre-validate against contract state. Self-declaration relays therefore go in their own batches, so one bad signature cannot fail a measurement sweep.
+Batches are all-or-nothing, the CosmWasm default. An agent controls what it submits and can pre-validate against the same rules, with one exception: the self-declaration relay path carries data the agent did not produce, whose acceptance turns on contract state it does not control. The contract therefore keeps relays in a separate execute message, and the service relays each artifact in a transaction of its own as it arrives, so one bad artifact cannot fail a measurement sweep.
 
 `MAX_BATCH_SIZE` is enforced by the contract and must be chosen by measuring gas against the chain's per-transaction cap, not guessed.
 

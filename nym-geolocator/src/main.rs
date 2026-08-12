@@ -3,6 +3,8 @@
 
 use crate::cli::Args;
 use crate::geolocator::Geolocator;
+use crate::http::burst::BurstLimiter;
+use crate::http::replay::ReplayGuard;
 use crate::http::router::build_router;
 use crate::http::run_http_server;
 use crate::http::state::AppState;
@@ -86,9 +88,9 @@ async fn main() -> anyhow::Result<()> {
 
     let described_scraper = NodeScraper::new(bonded_nodes.clone(), address_tracker);
     let ip_info_lookup = IpInfoLookup::new(config, args.geolocation.ipinfo_api_token)?;
-    let max_batch_size = helpers::retrieve_maximum_contract_batch_size(&client).await?;
+    let contract_config = helpers::retrieve_contract_config(&client).await?;
     let location_pusher =
-        LocationPusher::new(client.clone(), on_chain_nodes.clone(), max_batch_size);
+        LocationPusher::new(client.clone(), on_chain_nodes.clone(), &contract_config);
 
     let mut geolocator = Geolocator::new(
         config,
@@ -96,15 +98,22 @@ async fn main() -> anyhow::Result<()> {
         location_pusher.clone(),
         bonded_nodes.clone(),
         on_chain_nodes,
-        described_scraper,
+        described_scraper.clone(),
         ip_info_lookup.clone(),
         shutdown_manager.clone_shutdown_token(),
     );
 
     let http_app_state = AppState {
-        bonded_nodes,
+        client,
+        contract_config,
+        scraper: described_scraper,
         location_pusher,
         ip_info_lookup,
+        replay_guard: ReplayGuard::new(config.retest_request_validity_window),
+        burst_limiter: BurstLimiter::new(
+            config.retest_burst_threshold,
+            config.retest_burst_cooldown,
+        ),
     };
     let http_router = build_router(http_app_state, args.http.http_auth_token)?;
     let http_server_fut = run_http_server(

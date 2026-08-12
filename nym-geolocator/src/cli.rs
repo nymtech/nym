@@ -33,6 +33,23 @@ pub(crate) struct HttpArgs {
         default_value = "[::]:8080"
     )]
     pub(crate) bind_address: SocketAddr,
+
+    /// How long a node-signed re-test request stays valid after it was signed.
+    #[clap(long, env = "NYM_GEOLOCATOR_RETEST_REQUEST_VALIDITY_WINDOW", value_parser = humantime::parse_duration, default_value = "30s")]
+    pub(crate) retest_request_validity_window: Duration,
+
+    /// How many consecutive node-requested measurements may return an unchanged location before
+    /// that node is put into cooldown.
+    #[clap(
+        long,
+        env = "NYM_GEOLOCATOR_RETEST_BURST_THRESHOLD",
+        default_value_t = 3
+    )]
+    pub(crate) retest_burst_threshold: u32,
+
+    /// How long a node that has spent its re-test allowance must wait.
+    #[clap(long, env = "NYM_GEOLOCATOR_RETEST_BURST_COOLDOWN", value_parser = humantime::parse_duration, default_value = "7days")]
+    pub(crate) retest_burst_cooldown: Duration,
 }
 
 #[derive(Debug, clap::Args)]
@@ -153,6 +170,9 @@ impl Args {
             bonded_nodes_refresh_interval: self.chain.bond_refresh_interval,
             geolocation_expiration_polling_interval: self.geolocation.expiration_polling_interval,
             max_nodes_measured_per_sweep: self.geolocation.max_nodes_measured_per_sweep,
+            retest_request_validity_window: self.http.retest_request_validity_window,
+            retest_burst_threshold: self.http.retest_burst_threshold,
+            retest_burst_cooldown: self.http.retest_burst_cooldown,
         }
     }
 }

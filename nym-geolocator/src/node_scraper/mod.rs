@@ -86,12 +86,19 @@ impl NodeScraper {
         self.address_tracker.refresh_all(&bonded).await
     }
 
+    /// The bond of a single node, as of the last chain refresh, if it is currently bonded.
+    ///
+    /// Also carries the identity key a node-signed request is verified against.
+    pub(crate) async fn bonded_node(&self, node_id: NodeId) -> Option<MinimalNymNode> {
+        self.bonded_nym_nodes.read().await.get(&node_id).cloned()
+    }
+
     /// Refresh a single node on demand, for a caller that measures it itself.
     ///
     /// Answers `None` for a node that is not bonded, since the contract deletes a node's entries
     /// when it unbonds and has no way to delete them a second time.
     pub(crate) async fn refresh_node(&self, node_id: NodeId) -> Option<NodeAddresses> {
-        let bond = self.bonded_nym_nodes.read().await.get(&node_id).cloned()?;
+        let bond = self.bonded_node(node_id).await?;
         self.address_tracker.refresh_node(bond).await
     }
 }

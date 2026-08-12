@@ -34,6 +34,20 @@ pub(crate) struct Config {
     /// How often should the geolocator check for expired geolocation data
     pub(crate) geolocation_expiration_polling_interval: Duration,
 
+    /// How long a node-signed re-test request stays valid after it was signed.
+    ///
+    /// Short by design: it is the window in which a captured request could be replayed before
+    /// the monotonicity check is what stops it, and a node has no reason to sign one long
+    /// before sending it.
+    pub(crate) retest_request_validity_window: Duration,
+
+    /// How many consecutive node-requested measurements may return an unchanged location before
+    /// that node is put into cooldown.
+    pub(crate) retest_burst_threshold: u32,
+
+    /// How long a node that has spent its re-test allowance must wait.
+    pub(crate) retest_burst_cooldown: Duration,
+
     /// Maximum number of nodes measured in a single sweep.
     ///
     /// Bounds the two bursts that are otherwise unbounded: a fresh agent, which has nothing on

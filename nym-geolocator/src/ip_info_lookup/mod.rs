@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::helpers::ip_info_to_location;
 use anyhow::bail;
-use ipinfo::{BatchReqOpts, IpDetails, IpInfoConfig};
+use ipinfo::{BatchReqOpts, IpDetails, IpError, IpErrorKind, IpInfoConfig};
 use nym_geolocation_contract_common::payload::Location;
 use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 use std::collections::{BTreeMap, HashMap};
@@ -13,7 +13,21 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
+
+/// Report the one provider failure that is neither transient nor confined to a single address.
+///
+/// Everything else surfaces as a node left unmeasured this cycle and retried on the next, which is
+/// ordinary. Quota exhaustion looks identical from the outside and is not: no location anywhere on
+/// the network refreshes until it resets, so `checked_at` quietly stops advancing for every node
+/// at once, which is precisely the freshness signal consumers read.
+fn report_quota_exhaustion(err: &IpError) {
+    if err.kind() == IpErrorKind::RateLimitExceededError {
+        error!(
+            "the ipinfo lookup quota is exhausted - no node locations will refresh until it resets: {err}"
+        );
+    }
+}
 
 struct CachedResponse {
     at: OffsetDateTime,
@@ -56,7 +70,8 @@ impl IpInfoLookupInner {
         let response = self
             .client
             .lookup_batch(&lookup_batch, BatchReqOpts::default())
-            .await?;
+            .await
+            .inspect_err(report_quota_exhaustion)?;
         let mut results = cached_responses;
 
         for (ip, res) in response {
@@ -80,7 +95,11 @@ impl IpInfoLookupInner {
             }
         }
 
-        let response = self.client.lookup(&ip.to_string()).await?;
+        let response = self
+            .client
+            .lookup(&ip.to_string())
+            .await
+            .inspect_err(report_quota_exhaustion)?;
         self.lookup_cache.insert(
             ip,
             CachedResponse {
@@ -112,20 +131,20 @@ impl IpInfoLookup {
     }
 
     pub(crate) async fn batch_lookup(
-        &mut self,
+        &self,
         ips: &[IpAddr],
     ) -> anyhow::Result<HashMap<IpAddr, IpDetails>> {
         self.inner.lock().await.batch_lookup(ips).await
     }
 
-    pub(crate) async fn lookup_address(&mut self, ip: IpAddr) -> anyhow::Result<IpDetails> {
+    pub(crate) async fn lookup_address(&self, ip: IpAddr) -> anyhow::Result<IpDetails> {
         self.inner.lock().await.lookup_address(ip).await
     }
 
     /// Locate a single node. The counterpart of [`Self::lookup_node_locations`] for the http
     /// handlers, which act on one node at a time.
     pub(crate) async fn lookup_node_location(
-        &mut self,
+        &self,
         ips: Vec<IpAddr>,
     ) -> anyhow::Result<Option<Location>> {
         if ips.is_empty() {
@@ -151,7 +170,7 @@ impl IpInfoLookup {
     /// A node that could not be located is absent from the result rather than reported: there is
     /// no assertion to make for it, and it stays due so the next sweep retries it.
     pub(crate) async fn lookup_node_locations(
-        &mut self,
+        &self,
         nodes: Vec<(NodeId, Vec<IpAddr>)>,
     ) -> Vec<(NodeId, Location)> {
         // deduplicated because the provider bills per address, and two nodes announcing the same

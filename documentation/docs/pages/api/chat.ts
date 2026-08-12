@@ -11,12 +11,8 @@
 //   - useChat sends UIMessage[] (parts-based); the server converts them with
 //     `await convertToModelMessages()` (async) before passing to streamText.
 //
-// NOTE (follow-up): the v4 scaffold rode citations in an `x-nym-citations`
-// response header the widget read. v7's transport model does not surface response
-// headers to useChat, so citations-as-links need an in-stream data part or message
-// metadata instead. For this first cut the model cites `[n]` inline (the system
-// prompt instructs it), referencing the numbered context; wiring `[n]` to source
-// URLs is a follow-up. `citations` is still computed here for that next step.
+// Citations reach the client as message metadata, not a response header: v7's
+// transport does not surface headers to useChat.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -42,6 +38,17 @@ const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-5';
 // the work a single caller can push through the paid embedding + model calls.
 const MAX_MESSAGES = 40;
 const MAX_TOTAL_CHARS = 32_000;
+
+// Retrieval floor. `search()` defaults this to 0, and cosine similarity over
+// normalised embeddings is effectively never negative, so without a floor every
+// question returns a full topK of "sources" no matter how unrelated. That made
+// the empty-context branch of systemPrompt() unreachable: the model would say a
+// topic was not covered while the widget listed ten sources underneath it.
+//
+// Starting value, not a measured one. Tune it against a few deliberately
+// off-topic questions ("what is the capital of France") and check they come back
+// with zero hits while real questions keep theirs.
+const MIN_SCORE = Number(process.env.CHAT_MIN_SCORE ?? 0.3);
 
 /** Human-friendly name for the model id, for display in the widget. */
 function modelName(id: string): string {
@@ -103,7 +110,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Retrieve over docs only (buildContext defaults sources to ["nym-docs"]).
     const vec = await embedQuery(query, embedder);
-    const { context, citations } = buildContext(vec, index, { topK: 10 });
+    const { context, citations } = buildContext(vec, index, {
+      topK: 10,
+      minScore: MIN_SCORE,
+    });
 
     const result = streamText({
       model: anthropic(CHAT_MODEL),

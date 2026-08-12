@@ -17,6 +17,7 @@
 import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
+import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -32,9 +33,15 @@ interface Citation {
  * Chunk URLs are absolute (`https://nym.com/docs/...`), baked in at index time.
  * Strip the origin so a citation keeps the reader inside whatever deployment
  * they are on: localhost and Vercel previews would otherwise jump to production.
+ *
+ * The `/docs` basePath comes off too, because these are handed to next/link,
+ * which re-adds it. Leaving it on yields `/docs/docs/...`.
  */
 function docsHref(url: string): string {
-  return url.replace(/^https?:\/\/[^/]+(?=\/docs\/)/, '');
+  const path = url.replace(/^https?:\/\/[^/]+/, '');
+  // The lookahead keeps a docs-root chunk (`/docs`, `/docs#anchor`) from being
+  // mangled, and stops `/docsomething` matching.
+  return path.replace(/^\/docs(?=[/#?]|$)/, '') || '/';
 }
 
 /**
@@ -89,10 +96,18 @@ export default function ChatWidget() {
     return () => document.body.classList.remove('nym-chat-open');
   }, [open]);
 
+  // 'submitted' covers the gap between sending and the first token, which on this
+  // route means a Voyage embedding plus retrieval plus Claude's first byte. That
+  // window is seconds long, so guarding only 'streaming' leaves it wide open to a
+  // second Enter press, and useChat has no in-flight guard of its own: it would
+  // start a second billed request and interleave two answers. 'error' stays
+  // sendable so a failed question can be retried.
+  const busy = status === 'submitted' || status === 'streaming';
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || status === 'streaming') return;
+    if (!text || busy) return;
     sendMessage({ text });
     setInput('');
   };
@@ -162,9 +177,9 @@ export default function ChatWidget() {
               </p>
               <p style={{ margin: 0 }}>
                 Building an agent? Point it at our{' '}
-                <a href="/docs/developers/mcp" style={linkStyle}>
+                <Link href="/developers/mcp" style={linkStyle}>
                   MCP server
-                </a>{' '}
+                </Link>{' '}
                 instead, for docs search plus live network tools.
               </p>
             </div>
@@ -179,13 +194,17 @@ export default function ChatWidget() {
             const isLast = m.id === messages[messages.length - 1]?.id;
             // The caret belongs on the answer being written, not on a finished one.
             const streamingHere = status === 'streaming' && isLast && m.role !== 'user';
+            const citeHrefs = new Set(citations.map((c) => docsHref(c.url)));
             return (
               <div key={m.id} style={m.role === 'user' ? userRowStyle : assistantRowStyle}>
                 {m.role === 'user' ? (
                   <p style={userBubbleStyle}>{text}</p>
                 ) : (
-                  <div style={proseStyle}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  <div className="nym-chat-prose" style={proseStyle}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={makeMdComponents(citeHrefs)}
+                    >
                       {linkifyCitations(text, citations)}
                     </ReactMarkdown>
                     {streamingHere && <span className="nym-chat-caret" aria-hidden="true" />}
@@ -197,10 +216,10 @@ export default function ChatWidget() {
                         <ol style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem' }}>
                           {citations.map((c) => (
                             <li key={c.n} style={{ margin: '0.2rem 0' }}>
-                              <a href={docsHref(c.url)} style={linkStyle}>
+                              <Link href={docsHref(c.url)} style={linkStyle}>
                                 {c.title}
                                 {c.heading ? ` - ${c.heading}` : ''}
-                              </a>
+                              </Link>
                             </li>
                           ))}
                         </ol>
@@ -236,15 +255,15 @@ export default function ChatWidget() {
             aria-label="Your question"
             style={inputStyle}
           />
-          <button type="submit" disabled={status === 'streaming'} style={sendStyle}>
+          <button type="submit" disabled={busy} style={sendStyle}>
             Send
           </button>
         </form>
 
         <div style={footerStyle}>
-          <a href="/docs/use-with-ai" style={linkStyle}>
+          <Link href="/use-with-ai" style={linkStyle}>
             How to use these docs with AI &rarr;
-          </a>
+          </Link>
         </div>
       </aside>
     </>
@@ -294,14 +313,8 @@ const sourcesStyle: React.CSSProperties = {
   borderRadius: '0 6px 6px 0',
   fontSize: '0.8rem',
 };
-const inlineCodeStyle: React.CSSProperties = {
-  background: 'var(--chat-code-bg, rgba(127,127,127,0.16))',
-  borderRadius: 4,
-  padding: '0.1em 0.35em',
-  fontSize: '0.85em',
-};
 const preStyle: React.CSSProperties = {
-  background: 'var(--chat-code-bg, rgba(127,127,127,0.16))',
+  background: 'var(--chat-surface)',
   borderRadius: 6,
   padding: '0.6rem 0.7rem',
   overflowX: 'auto',
@@ -311,39 +324,56 @@ const tableWrapStyle: React.CSSProperties = { overflowX: 'auto' };
 
 // Headings are demoted: an answer's `##` must not outrank the drawer's own
 // title, and the drawer is too narrow for full-size heading type.
-const mdComponents = {
-  h1: (p: any) => <p style={mdHeadingStyle} {...p} />,
-  h2: (p: any) => <p style={mdHeadingStyle} {...p} />,
-  h3: (p: any) => <p style={mdHeadingStyle} {...p} />,
-  h4: (p: any) => <p style={mdHeadingStyle} {...p} />,
-  p: (p: any) => <p style={{ margin: '0 0 0.6rem' }} {...p} />,
-  ul: (p: any) => <ul style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem' }} {...p} />,
-  ol: (p: any) => <ol style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem' }} {...p} />,
-  li: (p: any) => <li style={{ margin: '0.15rem 0' }} {...p} />,
-  // A citation marker is a link whose entire text is the reference number, which
-  // is what linkifyCitations() produces. Ordinary prose links are never bare
-  // digits, so this cleanly separates the two without a custom markdown node.
-  a: ({ children, ...p }: any) =>
-    /^\d+$/.test(String(children)) ? (
-      <a className="nym-chat-cite" {...p}>
+// Built per message so the link override can check an href against that answer's
+// own citations. `node` is destructured off every override below: react-markdown
+// passes the hast node down, and spreading it would put an object on a real DOM
+// attribute.
+const makeMdComponents = (citeHrefs: Set<string>) => ({
+  h1: ({ node, ...p }: any) => <p style={mdHeadingStyle} {...p} />,
+  h2: ({ node, ...p }: any) => <p style={mdHeadingStyle} {...p} />,
+  h3: ({ node, ...p }: any) => <p style={mdHeadingStyle} {...p} />,
+  h4: ({ node, ...p }: any) => <p style={mdHeadingStyle} {...p} />,
+  p: ({ node, ...p }: any) => <p style={{ margin: '0 0 0.6rem' }} {...p} />,
+  ul: ({ node, ...p }: any) => <ul style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem' }} {...p} />,
+  ol: ({ node, ...p }: any) => <ol style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem' }} {...p} />,
+  li: ({ node, ...p }: any) => <li style={{ margin: '0.15rem 0' }} {...p} />,
+  a: ({ children, node, href, ...p }: any) => {
+    // The pill asserts "this came from the docs index", so it must be earned by
+    // the href, not by the link text. Checking the text alone let a model-authored
+    // `[2](https://elsewhere)` wear the same badge: linkifyCitations skips links
+    // that are already in link form, so such a link reaches here untouched.
+    const isCitation = /^\d+$/.test(String(children)) && citeHrefs.has(href);
+    if (isCitation) {
+      return (
+        <Link href={href} className="nym-chat-cite">
+          {children}
+        </Link>
+      );
+    }
+    // Internal links route client-side; a full load would remount the widget
+    // from _app and discard the conversation.
+    return href?.startsWith('/') ? (
+      <Link href={href} style={linkStyle}>
         {children}
-      </a>
+      </Link>
     ) : (
-      <a style={linkStyle} {...p}>
+      <a href={href} style={linkStyle} target="_blank" rel="noopener noreferrer" {...p}>
         {children}
       </a>
-    ),
-  pre: (p: any) => <pre style={preStyle} {...p} />,
-  code: ({ inline, ...p }: any) =>
-    inline ? <code style={inlineCodeStyle} {...p} /> : <code {...p} />,
-  table: (p: any) => (
+    );
+  },
+  pre: ({ node, ...p }: any) => <pre style={preStyle} {...p} />,
+  // No `code` override: react-markdown v9 removed the `inline` prop, so a
+  // component cannot distinguish an inline span from a fenced block. That
+  // distinction is a descendant selector in styles.css (.nym-chat-prose code).
+  table: ({ node, ...p }: any) => (
     <div style={tableWrapStyle}>
       <table style={{ borderCollapse: 'collapse', width: '100%' }} {...p} />
     </div>
   ),
-  th: (p: any) => <th style={mdCellStyle} {...p} />,
-  td: (p: any) => <td style={mdCellStyle} {...p} />,
-};
+  th: ({ node, ...p }: any) => <th style={mdCellStyle} {...p} />,
+  td: ({ node, ...p }: any) => <td style={mdCellStyle} {...p} />,
+});
 const mdHeadingStyle: React.CSSProperties = {
   margin: '0.8rem 0 0.35rem',
   fontWeight: 600,

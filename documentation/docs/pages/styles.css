@@ -197,7 +197,7 @@ html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
   background-color: transparent !important;
 }
 
-/* ── TOC (hidden — subsections live in sidebar) ── */
+/* TOC (hidden; subsections live in the sidebar) */
 
 .nextra-toc {
   display: none !important;
@@ -654,6 +654,23 @@ html.dark {
   vertical-align: text-bottom;
   background: var(--chat-accent);
   animation: nym-chat-caret 1s step-end infinite;
+}
+
+/* Code inside answers. Done in CSS rather than a react-markdown `code` override
+   because v9 dropped the `inline` prop, so a component override cannot tell an
+   inline span from a fenced block. Descendant selectors can. */
+.nym-chat-prose code {
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+.nym-chat-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
 }
 
 /* Citation markers: the widget's trust surface, so make them scannable and

@@ -133,7 +133,12 @@ than its collapse.
   anything is a question, not a claim that it did. `SubjectMeasurements` filters in memory, since `source` is one opaque
   key component and a prefix cannot reach inside it. The dispatcher is tested through `query()` rather than only by
   calling the handlers, because all four return one of two shapes and a transposed match arm would otherwise pass
-- [ ] 5.2 Paginated enumeration of every digest-committed entry across both classes, with a cursor
+- [x] 5.2 Paginated enumeration of every digest-committed entry across both classes, with a cursor. `AllRecords` walks
+  the location entries first and continues into the whitelist with whatever slots remain, so a page may straddle the two
+  and a client never has to know there are two stores. The cursor is a `RecordKey` naming which class it is in, which is
+  what lets a resumed scan skip straight to the whitelist rather than re-deriving where the boundary fell. Limits live
+  in `retrieval_limits` alongside the other contracts' conventions (`ALL_RECORDS_DEFAULT_LIMIT` 50,
+  `ALL_RECORDS_MAX_LIMIT` 100)
 - [x] 5.3 Digest smart query, plus documentation of the fixed raw key for ICS23 proofs. The query serves
   `LtHash16::out()`, never the accumulator: a client needing a proof reads the raw key and collapses it itself, and a
   test pins that the two agree by doing exactly that. An untouched contract answers with the identity's collapse rather
@@ -176,8 +181,13 @@ than its collapse.
 - [x] 6.4 App-level test of the mixnet unbond callback dispatching to this contract (deps-level tests do not dispatch
   sub-messages). Done in 4.9 as `unbonding_through_the_mixnet_contract_reaches_this_handler`, alongside the deps-level
   handler tests it complements
-- [ ] 6.5 End-to-end recompute test: page the full enumeration, fold every leaf, assert equality with the queried
-  digest, including a store holding two payload versions
+- [x] 6.5 End-to-end recompute test, as `a_client_recomputes_the_digest_from_the_query_surface_alone`. Pages the full
+  enumeration at a limit small enough to force several pages and to cross from the location entries into the whitelist
+  mid-page, folds every leaf, and compares against both the raw-key accumulator (what an ICS23 proof actually covers)
+  and the `Digest` smart query's collapse. The fixture holds a payload under a version the contract has never been
+  taught to read, pinning that nothing in enumeration or folding depends on the version byte, which is what lets a
+  version 2 payload ship without a migration. It also asserts the record count, so a truncated pull is legible as that
+  rather than only as a digest mismatch
 - [x] 6.6 **Dropped as not worth the harness.** The measurement was to set `MAX_BATCH_SIZE` from a gas profile, but
   `cw-multi-test` executes contracts as native Rust rather than in a wasm VM and meters no gas at all, and no contract
   in this repo has a harness to borrow; obtaining the number needs a built wasm plus a deployed transaction, or a
@@ -200,7 +210,7 @@ than its collapse.
   production it arrives as a sub-message rather than as a signed transaction. `get_all_geolocation_records` documents
   that `collect_paged!` pulls one query at a time and so does *not* pin a height, which anything comparing the result
   against a proven digest has to do for itself
-- [ ] 7.2 **Gated on the directory merge.** `common/nym-directory-client` is not on develop, so end-to-end client
+- [x] 7.2 **Deferred to the directory merge, ships without it.** `common/nym-directory-client` is not on develop, so end-to-end client
   verification (anchor, ICS23-prove the digest key, recompute against the pulled set) cannot be built until
   `feat/node-directory-publishing` lands. Per task 1.2, `proof.rs`, `contract_storage_key` and `anchor/checkpoint/*`
   reuse unchanged, but the digest-fetch helper hardcodes the directory's `DIGEST_STATE` and needs the storage key
@@ -220,7 +230,7 @@ parsed-and-reserialised payload with `f64` coordinates fails verification (see t
 `Cargo.toml:359`). No requirement changes, since no spec obliges a node to serve one; the service spec only obliges the
 service to accept what it is given.
 
-- [ ] 8.1 Add a nym-node CLI command that signs a re-test request with the node's identity key and sends it to a
+- [x] 8.1 Add a nym-node CLI command that signs a re-test request with the node's identity key and sends it to a
   geolocator agent
 
 ## 9. Geolocator service
@@ -252,9 +262,39 @@ service to accept what it is given.
 
 ## 11. Verification and documentation
 
-- [ ] 11.1 `cargo build` and `cargo test` across the workspace and the contracts workspace
-- [ ] 11.2 Build the contract wasm and check its size
-- [ ] 11.3 Document the trust model and the client verification flow, mirroring `docs/directory/README.md`
-- [ ] 11.4 Document the deferred node status API migration, including the payload-width constraint and the cold-start
-  cliff at `http/state.rs:431`
-- [ ] 11.5 Run `openspec validate verifiable-node-geolocation --strict`
+- [x] 11.1 `cargo build` and `cargo test` across the workspace and the contracts workspace. Both green. Two call sites
+  this change had missed surfaced only here, both of them a field added to a struct that other crates construct:
+  `geolocation_contract_address` was absent from the sandbox `NymContracts` literal
+  (`nym-wallet-types/src/network/sandbox.rs`) and from the mixnet `InstantiateMsg` built by the localnet generator
+  (`common/commands/src/validator/cosmwasm/generators/mixnet.rs`). Both fixed following their sibling fields exactly:
+  sandbox takes the empty-string-means-undeployed convention `PERFORMANCE_CONTRACT_ADDRESS` already uses, and the
+  generator gained a `--geolocation-contract-address` argument falling back to the `GEOLOCATION_CONTRACT_ADDRESS` env
+  var. `nym-data-observatory` is excluded from both commands: its `sqlx::query!` macros verify SQL at compile time
+  against a live database, so it cannot build here at all, and this change does not touch it
+- [x] 11.2 Build the contract wasm and check its size. **409.5 KiB**, between `nym_performance_contract` at 394.1 and
+  `cw3_flex_multisig` at 463.7, against `mixnet_contract` at 1232.4; unremarkable, and no size work is called for.
+  Two build caveats, neither specific to this contract. The per-contract `Makefile` omits `--lib`, so it also builds
+  `src/bin/schema.rs`, and a binary must link the CosmWasm host functions that only exist inside the VM; the root
+  `Makefile:97` passes `--lib` and is the build that matters. Even then the link fails on the local toolchain, because
+  rustc 1.97.1's `wasm-ld` rejects the undefined host imports that older versions emitted as wasm imports, and there is
+  no `rust-toolchain.toml` pinning anything against the declared MSRV of 1.86. `nym-performance-contract`, untouched by
+  this change, fails identically, and `-C link-arg=--allow-undefined` builds all eleven contracts. Worth settling
+  separately, since today nobody on a current rustc can build any contract wasm locally
+- [x] 11.3 Document the trust model and the client verification flow, mirroring `docs/directory/README.md`. Written to
+  `docs/geolocation/README.md`, with a mermaid flow using the reference doc's legend (solid arrows are trusted writes or
+  trust inputs, dotted arrows are untrusted data verified after the fact) and validated by rendering it rather than by
+  eye. Covers the three sources and what authenticates each, why authorisation is read-time and therefore why the
+  whitelist is data a client must verify rather than configuration it may assume, the accumulator and why the raw key
+  holds the whole thing, what is deliberately absent and why a hash of an IP is an IP, and the six-step recompute route
+- [x] 11.4 Document the deferred node status API migration, including the payload-width constraint and the cold-start
+  cliff at `http/state.rs:431`. Written to `docs/geolocation/node-status-api-migration.md`. Reframed against what the
+  code now actually holds rather than against the plan: the `Location`, `Asn` and `AsnKind` adapters are already
+  implemented and tested in `http/models/mod.rs`, so the migration is a sourcing and policy problem rather than a
+  data-shape one. What it must decide is which of several entries to serve, whether to verify the digest, and above all
+  what a node with *no* entry means. That last one is where the cliff moves: today a failed lookup yields
+  `Location::empty()` and the `len() != 2` filter silently drops the gateway, so failure and absence are
+  indistinguishable, whereas the geolocator never writes an empty country and a failed lookup submits nothing, making
+  absence explicit and telling the two cases apart for the first time. Also records the `geoip.ip_address` field that
+  cannot be reproduced, the two deliberate parity deviations, and the rule that no contracts-workspace member may take
+  `payload` as a normal dependency
+- [x] 11.5 Run `openspec validate verifiable-node-geolocation --strict`. Passes

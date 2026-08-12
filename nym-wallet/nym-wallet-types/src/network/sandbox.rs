@@ -26,6 +26,7 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 // \/ TODO: this has to be updated once the contract is deployed
 pub(crate) const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+pub(crate) const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
@@ -59,6 +60,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
             performance_contract_address: parse_optional_str(PERFORMANCE_CONTRACT_ADDRESS),
+            geolocation_contract_address: parse_optional_str(GEOLOCATION_CONTRACT_ADDRESS),
             network_monitors_contract_address: parse_optional_str(
                 NETWORK_MONITORS_CONTRACT_ADDRESS,
             ),

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.85"
+version = "1.1.86"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"

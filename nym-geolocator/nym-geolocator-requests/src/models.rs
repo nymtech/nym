@@ -5,6 +5,7 @@ use nym_crypto::asymmetric::ed25519;
 use nym_geolocation_contract_common::payload::Location;
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use time::OffsetDateTime;
 
 /// The bytes a node signs to request a measurement of itself: `domain_tag || node_id || signed_at`.
@@ -95,6 +96,24 @@ pub struct MeasurementResponse {
     /// The location submitted for the node. The addresses it was derived from are deliberately
     /// absent: they are never exposed on any endpoint.
     pub location: Location,
+}
+
+impl fmt::Display for MeasurementResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "node {} was measured in {}",
+            self.node_id, self.location.two_letter_iso_country_code
+        )?;
+
+        // the country is always present, since a measurement without one is never submitted, but
+        // the provider does leave the finer fields blank for some addresses
+        if !self.location.city.is_empty() {
+            write!(f, " ({})", self.location.city)?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Confirmation that a self-declaration was relayed to the contract.

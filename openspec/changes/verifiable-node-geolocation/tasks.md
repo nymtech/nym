@@ -207,14 +207,21 @@ than its collapse.
   threaded through as a parameter, and the top-level client is directory-shaped so this is a sibling rather than reuse.
   The contract and service do not depend on it and ship without it
 
-## 8. Node-side signed location artifact
+## 8. Node-side commands
 
-- [ ] 8.1 Add the `NymNodeLocation` type and its signing to nym-node
-- [ ] 8.2 Serve the signed artifact over the node's HTTP API
-- [ ] 8.3 Test that the served artifact verifies against the node's identity key using the shared payload from 2.8, and
-  that its signed bytes survive a node -> service -> contract -> reader round trip byte-for-byte
-- [ ] 8.4 Add a regression test that a parsed-and-reserialised payload with `f64` coordinates fails verification,
-  pinning why the relay path must stay verbatim (see the `float_roundtrip` pin at `Cargo.toml:359`)
+Scope reduced 2026-08-12. Producing and serving the signed `NymNodeLocation` artifact moves to a later change: the
+relay path that consumes it is complete and verified on the service side (9.9), but nothing on a node emits one yet,
+and building the producer without the operator tooling around it would leave a surface nobody exercises. What remains
+here is the piece an operator needs now.
+
+Deferred with it, to be picked up alongside the producer: serving the artifact over the node's HTTP API, the
+node -> service -> contract -> reader byte-for-byte round trip test, and the regression test that a
+parsed-and-reserialised payload with `f64` coordinates fails verification (see the `float_roundtrip` pin at
+`Cargo.toml:359`). No requirement changes, since no spec obliges a node to serve one; the service spec only obliges the
+service to accept what it is given.
+
+- [ ] 8.1 Add a nym-node CLI command that signs a re-test request with the node's identity key and sends it to a
+  geolocator agent
 
 ## 9. Geolocator service
 

@@ -7220,6 +7220,7 @@ version = "1.21.5-rc.3"
 dependencies = [
  "nym-crypto",
  "nym-geolocation-contract-common",
+ "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-test-utils",
  "schemars 0.8.22",
@@ -7923,6 +7924,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway",
  "nym-gateway-stats-storage",
+ "nym-geolocator-requests",
  "nym-http-api-client",
  "nym-http-api-common",
  "nym-ip-packet-router",

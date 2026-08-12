@@ -6,6 +6,7 @@ pub(super) mod build_info;
 pub(super) mod debug;
 pub(super) mod migrate;
 pub(crate) mod node_details;
+pub(super) mod request_geolocation_check;
 pub(crate) mod reset_sphinx_keys;
 pub(super) mod run;
 pub(super) mod sign;

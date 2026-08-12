@@ -90,9 +90,18 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 | FAQPage | Question-answer pages |
 
 ## AI assistant, MCP server & machine-readability
-The docs are built to be consumed by AI agents and LLMs, not just read. Design
-detail lives in `docs/ai-assistant-mcp-plan.md`; the build/test worklog in
-`docs/ai-assistant-mcp-scratch.md`. The consumer-facing guide is `/docs/use-with-ai`.
+The docs are built to be consumed by AI agents and LLMs, not just read.
+
+- **How it works**: `docs/pages/developers/mcp/architecture.mdx` (published at
+  `/docs/developers/mcp/architecture`) covers the build-time retrieval pipeline,
+  the chunker, the embedding cache, and how the MCP route and chat backend serve
+  from a static index with no vector database. Start there before changing
+  anything under `lib/retrieval/`, `lib/mcp/` or `scripts/next-scripts/generate-*`.
+- **Tool reference**: `/docs/developers/mcp` for the tool catalogue and client setup.
+- **Consumer-facing guide**: `/docs/use-with-ai`.
+
+Working notes (`docs/ai-assistant-mcp-plan.md`, `docs/ai-assistant-mcp-scratch.md`)
+are gitignored and local to the author's tree, so do not rely on them being present.
 
 - **Ask AI**: an in-docs chat (right-hand sidebar) that answers from the
   documentation with citations, powered by retrieval plus Claude.
@@ -116,12 +125,12 @@ Two build-time indexes, no vector database: a docs index (`voyage-3-large`) and 
 code index (`voyage-code-3`), built during `pnpm run build` and gitignored.
 Embeddings use Voyage; generation uses Anthropic Claude. Keys (`VOYAGE_API_KEY`
 at build and runtime, `ANTHROPIC_API_KEY` for the chat at runtime) live in GitHub
-Actions and Vercel secrets, never in the repo. See the worklog's key-handling notes.
+Actions and Vercel secrets, never in the repo. 
 
 ### Keeping docs honest against the code
 The docs assert facts the source can settle: constant values, sizes, types, API
 signatures, endpoint paths. The goal is that those never drift from the code. The
-principle we settled on: **generate or project the fact from its single source, and
+principle here is: **generate or project the fact from its single source, and
 lean on existing tools, rather than shipping bespoke drift-checkers.** A checker keeps
 two copies and diffs them; generation keeps one copy and makes drift impossible.
 
@@ -159,12 +168,6 @@ For hand-written prose that states a fact (e.g. "a Sphinx packet is 2413 bytes")
 there is no generator, prose cannot be projected. We rely on careful authoring, which
 a survey of the docs found holds up well: the drift concentrated in hand-typed
 constants and stale generated docs, not in careful prose.
-
-During the audit we prototyped deterministic drift-checkers (a source-derived numeric
-oracle, a Rust/TS enum-parity check). They did their job, they found the "2000 bytes"
-packet-size drift and the `TunnelState` name mismatch, then were removed in favour of
-the generation-based guards above. The reasoning, and the general "checking vs
-projecting" framing, is written up in the wiki (`docs-for-ai/checking-vs-projecting`).
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

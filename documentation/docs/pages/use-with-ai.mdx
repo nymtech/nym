@@ -56,3 +56,11 @@ See the [MCP server reference](/developers/mcp) for the tool catalogue, client
 configuration, and examples. The live tools (node counts, gateway health, token
 supply, chain status) are the reason to use this over a static file: an agent can
 ask "is gateway X in the active set right now?" and get a current answer.
+
+## How all of this works
+
+The assistant and the MCP server read the same semantic index, built when the docs
+deploy and served as a static file rather than from a vector database. If you want
+to know what the answers are worth, or you are extending any of it, see
+[How it works](/developers/mcp/architecture): chunking, embeddings and their cache,
+and how citations resolve back to a specific section.

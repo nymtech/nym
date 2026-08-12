@@ -24,6 +24,8 @@ Nym's mixnet mode goes further. It adds timing obfuscation and cover traffic aga
 
 Nym's mixnet closes that L3 gap with four changes. It adds random delays at each mix node to break timing correlations. It adds cover traffic, so observers cannot tell when real communication is occurring. It routes per packet rather than using Tor's per-session circuits, so there is no long-lived path to observe. It uses a blockchain-based topology instead of Tor's centralised directory authority.
 
+The two also differ in what they can carry. Tor is TCP-only by design, while Nym's [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) routes raw IP, so UDP and any other IP protocol pass through. That is a design difference rather than a ranking, but it decides whether a given application can use the network at all.
+
 The trade-off is latency. Tor is faster because it adds no mixing delays. So it may be a better fit for general browsing, where timing protection against L3 is not needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
 
 ## Nym vs I2P

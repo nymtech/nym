@@ -6,7 +6,6 @@ section: "Network"
 lastUpdated: "2026-07-29"
 ---
 
-import { Callout } from 'nextra/components'
 import { ActorsReference } from 'components/threat-model/ThreatModelReference'
 
 # Threat actors
@@ -18,21 +17,50 @@ L3G), a vantage, what it observes, and what it costs to become.
 
 <ActorsReference />
 
-## L2 is the primary adversary
+## L2 is the primary adversary for most applications
 
 The destination is the one party you must talk to directly, and it is cheap to
-run or compromise. That makes it the primary adversary. No amount of in-transit
-mixing changes what the destination sees, because mixing reshapes traffic
-between hops and the destination sees only what arrives. See
+run or compromise. For most applications that makes it the primary adversary. No
+amount of in-transit mixing changes what the destination sees, because mixing
+reshapes traffic between hops and the destination sees only what arrives. See
 [the two-layer model](/network/threat-model/two-layer-model) for why this is the
-central point.
+central point. All three worked examples land here:
+[browsing](/network/threat-model/examples/browsing),
+[messaging](/network/threat-model/examples/messaging), and
+[wallet](/network/threat-model/examples/wallet).
 
-<Callout type="info">
-L2 presupposes a clearnet exit. When both ends run Nym, there is no exit gateway
-and no third-party server. The endpoint is a Nym client reached end to end that
-never learns your IP. End to end, the L2 adversary does not exist. See
-[exit security](/developers/concepts/exit-security).
-</Callout>
+Two cases displace it.
+
+- **There is no destination.** L2 presupposes a clearnet exit. When both ends run
+  Nym there is no exit gateway and no third-party server: the endpoint is a Nym
+  client reached end to end that never learns your IP. End to end, the L2
+  adversary does not exist. See
+  [end to end](/network/threat-model/configurations/end-to-end).
+- **The threat is the fact of communication, not its content.** If being seen to
+  communicate at all is the risk, as in journalism, activism, or legal work, then
+  a network observer that can watch traffic at several points (L3G, the global
+  passive adversary or GPA) is the adversary that decides your configuration, and
+  it is the only one the mixnet's timing protection addresses. [Choose a
+  defence](/network/threat-model/choose-config) sorts the configurations by which
+  of these you are facing.
+
+### What each choice buys
+
+The distinction changes what you select for, and the two answers barely overlap.
+
+| | Defending against L2 | Defending against L3G |
+|---|---|---|
+| **You are buying** | Identity separation at the destination | In-transit timing protection |
+| **Mechanisms** | Exit rotation, short-lived connections, no cross-session correlators, request-shape discipline | Mixing delays, Poisson sending, cover traffic |
+| **Cost** | Client discipline, some convenience | Latency and bandwidth |
+| **Does nothing about** | What a network observer infers from your traffic pattern | What the destination reads once traffic arrives |
+
+Mixing delays buy the first case very little. Cover traffic and Poisson timing
+buy the second case everything and do nothing about what the destination reads.
+Selecting the L3G configuration because it sounds stronger, without the hygiene
+that L2 demands, leaves the destination-facing vectors wide open. That is the
+category error [the two-layer model](/network/threat-model/two-layer-model)
+describes.
 
 ## L1 is application-specific
 

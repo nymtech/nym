@@ -49,7 +49,7 @@ impl IpInfoLookupInner {
         let mut cached_responses = HashMap::new();
         let mut ip_strings = Vec::new();
         for ip in ips {
-            if let Some(cached) = self.lookup_cache.get(&ip) {
+            if let Some(cached) = self.lookup_cache.get(ip) {
                 if cached.at + self.cache_ttl > OffsetDateTime::now_utc() {
                     cached_responses.insert(*ip, cached.response.clone());
                     continue;

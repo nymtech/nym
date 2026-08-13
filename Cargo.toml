@@ -207,6 +207,7 @@ default-members = [
     "tools/nymvisor",
     "nym-network-monitor-v3/nym-network-monitor-orchestrator",
     "nym-network-monitor-v3/nym-network-monitor-agent",
+    "nym-geolocator"
 ]
 
 exclude = ["contracts", "nym-wallet", "cpu-cycles"]

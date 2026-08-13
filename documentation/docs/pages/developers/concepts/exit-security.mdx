@@ -10,9 +10,9 @@ lastUpdated: "2026-08-12"
 
 import { Callout } from 'nextra/components'
 
-Every tool that reaches an external service through the Nym mixnet shares the same exit security model: the Exit Gateway sees your **destination** and any payload you did not encrypt yourself, but not who you are. The model itself, what each hop sees and the trust it implies, is documented once on [Exit Gateway Services](/network/infrastructure/exit-services). This page is the developer-facing half: which exit your package uses, how to pin one, and what your application is responsible for.
+Every tool that reaches an external service through the Nym mixnet shares one exit security model. The Exit Gateway sees your **destination** and any payload you did not encrypt yourself. It does not see who you are. [Exit Gateway Services](/network/infrastructure/exit-services) documents that model once: what each hop sees, and the trust it implies. This page is the developer-facing half. It covers which exit your package uses, how to pin one, and what your application is responsible for.
 
-Tools where both ends run a Nym client ([`nym-sdk`](/developers/rust), the [TypeScript SDK](/developers/typescript)) never exit the mixnet at all. Traffic stays Sphinx-encrypted from your client to the peer's, there is no Exit Gateway and no clearnet hop, and nothing on this page applies: there is no exit to trust and no payload exposed to one. For the threat-model verdicts on that mode, see [end to end](/network/threat-model/configurations/end-to-end).
+Tools where both ends run a Nym client ([`nym-sdk`](/developers/rust), the [TypeScript SDK](/developers/typescript)) never exit the mixnet at all. Traffic stays Sphinx-encrypted from your client to the peer's client. There is no Exit Gateway and no clearnet hop, so nothing on this page applies. No exit exists to trust, and no payload is exposed to one. For the threat-model verdicts on that mode, see [end to end](/network/threat-model/configurations/end-to-end).
 
 ## Which exit your package uses
 
@@ -24,7 +24,11 @@ Exit Gateways run two proxy services, and which one carries your traffic is deci
 | [`mix-tunnel`](/developers/mix-tunnel) and everything built on it: [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket) | [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) | Destination IP and port |
 | [SOCKS5 module](/developers/rust/socks5) and the [standalone `nym-socks5-client`](/developers/clients/socks5) | [Network Requester](/network/infrastructure/exit-services#network-requester) | Destination **hostname** and port with `socks5h://`, an IP otherwise. Plus your Nym address, unless anonymous replies are on |
 
-Two practical differences follow. The IPR works at the network layer and never learns the hostname you resolved, while the NR resolves DNS for you and sees the name itself, but only if you use `socks5h://`; with plain `socks5://` your client resolves first and the lookup goes out over clearnet. Separately, the default SOCKS5 configuration sends replies to a return address, so the NR also receives your Nym address, which is stable across sessions and names your Entry Gateway. Turn on anonymous replies (`--use-anonymous-replies` on the standalone client) to withhold it. See [the exit trust model](/network/infrastructure/exit-services#trust-model) for why that matters.
+Two practical differences follow.
+
+The first is DNS. The IPR works at the network layer and never learns the hostname you resolved. The NR resolves DNS for you, so it sees the name, but only with `socks5h://`. With plain `socks5://` your client resolves first and the lookup goes out over clearnet.
+
+The second is identity. The default SOCKS5 configuration sends replies to a return address. The NR therefore receives your Nym address, which is stable across sessions and names your Entry Gateway. Turn on anonymous replies (`--use-anonymous-replies` on the standalone client) to withhold it. See [the exit trust model](/network/infrastructure/exit-services#trust-model) for why that matters.
 
 ## Protect the payload
 
@@ -75,11 +79,11 @@ let client = Socks5MixnetClient::connect_with(selector, None).await?;
 
 ## Cover traffic and Poisson timing
 
-The mixnet's timing protection against network observers comes from mixing delays, Poisson sending, and cover traffic. The browser and wasm packages expose switches to turn the last two off, trading that protection for latency and bandwidth:
+The mixnet's timing protection against network observers comes from mixing delays, Poisson sending, and cover traffic. The browser and wasm packages expose switches to turn the last two off. That trades timing protection for latency and bandwidth:
 
 - `disableCoverTraffic` and `disablePoissonTraffic` on [`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it.
 
-The native `smolmix` crate does not expose them. Configure the mixnet client yourself and pass it to `Tunnel::from_stream`. Turning either off changes nothing about what the *exit* sees; it weakens you against a [network observer](/network/threat-model/actors#actor-L3G), which is the only adversary the mixing was buying you anything against.
+The native `smolmix` crate does not expose them. Configure the mixnet client yourself and pass it to `Tunnel::from_stream`. Turning either off changes nothing about what the *exit* sees. It weakens you against a [network observer](/network/threat-model/actors#actor-L3G), the only actor the mixing protects you from.
 
 ## Read more
 

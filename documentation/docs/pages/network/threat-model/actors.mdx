@@ -32,17 +32,15 @@ central point. All three worked examples land here:
 Two cases displace it.
 
 - **There is no destination.** L2 presupposes a clearnet exit. When both ends run
-  Nym there is no exit gateway and no third-party server: the endpoint is a Nym
-  client reached end to end that never learns your IP. End to end, the L2
-  adversary does not exist. See
-  [end to end](/network/threat-model/configurations/end-to-end).
-- **The threat is the fact of communication, not its content.** If being seen to
-  communicate at all is the risk, as in journalism, activism, or legal work, then
-  a network observer that can watch traffic at several points (L3G, the global
-  passive adversary or GPA) is the adversary that decides your configuration, and
-  it is the only one the mixnet's timing protection addresses. [Choose a
-  defence](/network/threat-model/choose-config) sorts the configurations by which
-  of these you are facing.
+  Nym there is no exit gateway. The other party is a Nym client, reached end to
+  end, and it never learns your IP address. End to end, the L2 adversary does not
+  exist. See [end to end](/network/threat-model/configurations/end-to-end).
+- **The threat is the fact of communication, not its content.** Journalism,
+  activism and legal work carry this risk. The adversary is then L3G, the global
+  network observer, also called the global passive adversary. L3G decides your
+  configuration, and the mixnet's timing protection addresses no other actor.
+  [Choose a defence](/network/threat-model/choose-config) sorts the
+  configurations by which of these you face.
 
 ### What each choice buys
 

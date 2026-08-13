@@ -35,7 +35,7 @@ Client → Entry Gateway → Mixnodes1..3 → Exit Gateway (NR) → SOCKS connec
 ```
 
 Because it operates at the application layer, the NR:
-- Resolves DNS on behalf of the client, but only when the client sends a hostname. SOCKS5 also permits a pre-resolved IPv4 or IPv6 address, and an application that resolves locally has already leaked the DNS query on clearnet. Use `socks5h://` (or `curl --socks5-hostname`) to send the name rather than the address
+- Resolves DNS on behalf of the client, but only when the client sends a hostname. SOCKS5 also permits a pre-resolved IPv4 or IPv6 address. An application that resolves locally has already leaked the DNS query on clearnet. Use `socks5h://`, or `curl --socks5-hostname`, to send the name rather than the address
 - Opens individual TCP connections per SOCKS request
 - Can enforce allow/deny lists on destination hosts and ports
 

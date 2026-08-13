@@ -159,10 +159,10 @@ Set `floor` to the lowest index the start may reach. A wallet birthday would
 leak, so prefer an activation height, or 0.
 
 **Align the floor with the grid when you use both.** Snapping rounds down, and
-it never crosses below the floor. If the floor sits off-grid, a start in the
-first partial interval above it has no grid point available, and the plan emits
-the true start unchanged. Choose a floor that is a multiple of the spacing, or a
-member of the checkpoint list.
+it never crosses below the floor. A start in the first partial interval above an
+off-grid floor therefore has no grid point available. The plan emits the true
+start unchanged. Choose a floor that is a multiple of the spacing, or a member
+of the checkpoint list.
 
 ### Executing the plan
 

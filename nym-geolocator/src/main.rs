@@ -29,7 +29,6 @@ use tracing::info;
 
 pub(crate) mod cli;
 pub(crate) mod config;
-pub(crate) mod error;
 pub(crate) mod geolocator;
 mod helpers;
 pub(crate) mod http;

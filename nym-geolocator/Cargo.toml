@@ -22,10 +22,7 @@ http = { workspace = true }
 futures = { workspace = true }
 ipinfo = { workspace = true }
 url = { workspace = true }
-reqwest = { workspace = true, features = ["json", "query"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-thiserror = { workspace = true }
 zeroize = { workspace = true }
 
 axum = { workspace = true }

@@ -14,6 +14,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::error;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct SubmittedLocation {
     pub(crate) checked_at: OffsetDateTime,
     pub(crate) location: Location,

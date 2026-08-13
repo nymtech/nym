@@ -125,6 +125,15 @@ Two build-time indexes, no vector database: a docs index (`voyage-3-large`) and 
 code index (`voyage-code-3`), built during `pnpm run build` and gitignored.
 Embeddings use Voyage; generation uses Anthropic Claude.
 
+The code index covers the crates the documentation makes claims about: the SDKs
+and wasm packages, Sphinx, the core clients, the exit services (IPR and Network
+Requester), the gateway protocol, credentials, and `nym-node`. The list is
+`ROOTS` in `scripts/next-scripts/generate-code-index.mjs`. A path outside it
+cannot be cited by `search_code` and cannot be checked against the prose, so
+that list is the boundary of what the docs can be held to. Both index files are
+traced into the `/api/mcp` lambda and parsed at every cold start, so widen it
+because the docs describe something, not because it exists.
+
 **Embedding cost and caching.** Vectors are cached by chunk content hash
 (`lib/retrieval/embed.mjs`), so a rebuild only embeds chunks whose text actually
 changed. The cache key includes the model and dimension, so switching embedding

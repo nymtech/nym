@@ -92,8 +92,10 @@ struct OrphanEntry {
 
 /// How long orphan frames are kept while waiting for their stream to be
 /// registered. The Open/Data race window is milliseconds wide; anything
-/// older belongs to a stream that will never be accepted.
-const ORPHAN_TTL: Duration = Duration::from_secs(30);
+/// older belongs to a stream that will never be accepted. (The cleanup
+/// sweep runs every [`MAX_CLEANUP_INTERVAL`], so effective retention is
+/// up to `ORPHAN_TTL + MAX_CLEANUP_INTERVAL`.)
+const ORPHAN_TTL: Duration = Duration::from_secs(5);
 /// Maximum number of distinct unregistered streams to buffer frames for.
 const MAX_ORPHAN_STREAMS: usize = 64;
 /// Maximum frames buffered per orphan stream.

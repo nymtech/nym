@@ -10,12 +10,12 @@ use nym_sphinx_addressing::nodes::{
 use nym_sphinx_params::PacketType;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_types::delays::Delay;
-use nym_sphinx_types::{MIN_PACKET_SIZE, NymPacket, NymPacketError};
+use nym_sphinx_types::{NymPacket, NymPacketError};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, RngCore};
-
 use std::time;
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Debug)]
 pub struct SurbAck {
@@ -26,6 +26,9 @@ pub struct SurbAck {
 
 #[derive(Debug, Error)]
 pub enum SurbAckRecoveryError {
+    #[error("attempted to use outfox, but it is currently not supported by the network")]
+    OutfoxNotSupported,
+
     #[error(
         "received an invalid number of bytes to deserialize the SURB-Ack. Got {received}, expected {expected}"
     )]
@@ -54,6 +57,10 @@ impl SurbAck {
     where
         R: RngCore + CryptoRng,
     {
+        let PacketType::Mix = packet_type else {
+            return Err(NymTopologyError::PacketTypeNotSupported);
+        };
+
         let route = if disable_mix_hops {
             topology.empty_route_to_egress(recipient.gateway())?
         } else {
@@ -64,27 +71,16 @@ impl SurbAck {
         let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
-        let packet_size = match packet_type {
-            PacketType::Outfox => surb_ack_payload.len().max(MIN_PACKET_SIZE),
-            PacketType::Mix => PacketSize::AckPacket.payload_size(),
-        };
 
-        let surb_ack_packet = match packet_type {
-            PacketType::Outfox => NymPacket::outfox_build(
-                surb_ack_payload,
-                route.as_slice(),
-                &destination,
-                Some(packet_size),
-            )?,
-            PacketType::Mix => NymPacket::sphinx_build(
-                use_legacy_sphinx_format,
-                packet_size,
-                surb_ack_payload,
-                &route,
-                &destination,
-                &delays,
-            )?,
-        };
+        let packet_size = PacketSize::AckPacket.payload_size();
+        let surb_ack_packet = NymPacket::sphinx_build(
+            use_legacy_sphinx_format,
+            packet_size,
+            surb_ack_payload,
+            &route,
+            &destination,
+            &delays,
+        )?;
 
         // in our case, the last hop is a gateway that does NOT do any delays
         let expected_total_delay = delays.iter().take(delays.len() - 1).sum();
@@ -99,15 +95,13 @@ impl SurbAck {
     }
 
     pub fn len(packet_type: Option<PacketType>) -> usize {
+        if let Some(PacketType::Outfox) = packet_type {
+            error!("attempted to use an outfox packet - setting it back to sphinx.")
+        };
+
         // TODO: this will be variable once/if we decide to introduce optimization described
         // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
-        let packet_type = packet_type.unwrap_or(PacketType::Mix);
-        match packet_type {
-            PacketType::Outfox => {
-                PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
-            }
-            PacketType::Mix => PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN,
-        }
+        PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
     }
 
     pub fn expected_total_delay(&self) -> Delay {
@@ -136,7 +130,7 @@ impl SurbAck {
         // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
         let address_offset = MAX_NODE_ADDRESS_UNPADDED_LEN;
         let packet = match packet_type {
-            PacketType::Outfox => NymPacket::outfox_from_bytes(&b[address_offset..])?,
+            PacketType::Outfox => return Err(SurbAckRecoveryError::OutfoxNotSupported),
             PacketType::Mix => NymPacket::sphinx_from_bytes(&b[address_offset..])?,
         };
 

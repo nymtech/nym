@@ -13,7 +13,7 @@ use nym_api_requests::models::v3::{
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::error;
+use tracing::{error, warn};
 
 /// Accept a batch of stress-test results from an authorised network monitor orchestrator.
 ///
@@ -26,13 +26,17 @@ use tracing::error;
 ///
 /// Individual result entries that fail per-entry validation (non-mixnode role, performance score
 /// outside `[0.0, 1.0]`) are logged as errors and dropped, but do not fail the batch.
+///
+/// The response reports how many results were stored, deduplicated against an already-stored
+/// measurement, and dropped by validation, so that a submitter can tell an accepted-and-stored
+/// batch from an accepted-but-discarded one.
 #[utoipa::path(
     tag = "Nym Nodes",
     post,
     path = "/stress-testing/batch-submit",
     context_path = "/v3/nym-nodes",
     responses(
-        (status = 200, description = "the submitted batch has been accepted and stored"),
+        (status = 200, body = StressTestBatchSubmissionResponse, description = "the submitted batch has been accepted, with a per-result breakdown of what was stored"),
         (status = 400, description = "the submitted request is stale or replayed"),
         (status = 401, description = "the submitted request was unauthorised or failed integrity check"),
     ),
@@ -98,7 +102,8 @@ async fn batch_submit_stress_testing_results(
 
     // 6. process received results
     let signer = body.body.signer;
-    let mut mixnode_results = Vec::with_capacity(body.body.results.len());
+    let submitted = body.body.results.len();
+    let mut mixnode_results = Vec::with_capacity(submitted);
     for result in body.body.results {
         if !result.is_mixnode {
             error!(
@@ -120,12 +125,34 @@ async fn batch_submit_stress_testing_results(
         mixnode_results.push(NymNodeStressTestingResult::from_submission(&signer, result));
     }
 
-    state
+    // anything dropped above never reaches the database, so it must not be counted as a duplicate
+    let attempted = mixnode_results.len();
+    let rejected = submitted - attempted;
+
+    let accepted = state
         .storage()
         .insert_nym_node_stress_testing_results(mixnode_results)
-        .await?;
+        .await? as usize;
 
-    Ok(Json(StressTestBatchSubmissionResponse {}))
+    // insert-or-ignore means a batch can be fully accepted yet store nothing, so report the split
+    // rather than leaving the submitter to infer it from a bare 200.
+    let duplicates = attempted.saturating_sub(accepted);
+    if duplicates > 0 {
+        warn!(
+            %signer,
+            accepted,
+            duplicates,
+            "some submitted stress testing results were already stored and have been discarded - \
+             expected when a batch is retried, but a persistently non-zero count means this \
+             orchestrator's measurements are being dropped"
+        );
+    }
+
+    Ok(Json(StressTestBatchSubmissionResponse {
+        accepted: Some(accepted),
+        duplicates: Some(duplicates),
+        rejected: Some(rejected),
+    }))
 }
 
 /// Report whether the given identity key is currently recognised by this nym-api as an

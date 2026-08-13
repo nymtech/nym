@@ -849,7 +849,9 @@ apply_port_allowlist() {
   configure_exit_dns_and_icmp
   
   # keep redundant ports commented out for governance transparency
-  declare -A PORT_MAPPINGS=(
+  # declared with -g so the single source of truth is visible to the
+  # verification functions (test_port_range_rules) as well, not just here.
+  declare -gA PORT_MAPPINGS=(
     ["FTP"]="20-21"
     ["SSH"]="22"
     ["WHOIS"]="43"
@@ -888,9 +890,11 @@ apply_port_allowlist() {
     ["TelnetOverTLS"]="992"
     ["IMAPOverTLS"]="993"
     ["POP3OverTLS"]="995"
+    ["NodemavenSOCKS5Proxy"]="1080-2080"
     ["WorldOfWorldcraft1"]="1119-1120"
     ["OpenVPN"]="1194"
     ["WireGuardPeer"]="51820-51822"
+    ["GameServerComm"]="1212"
     ["QTServerAdmin"]="1220"
     ["PKTKRB"]="1293"
     ["TelegramMTProto"]="1400"
@@ -902,6 +906,8 @@ apply_port_allowlist() {
     ["PPTP"]="1723"
     ["RTSPAlt"]="1755"
     ["MSNP"]="1863"
+    ["NightfallCityComm"]="1900"
+    ["RemoteDesktopProtocol1"]="1923"
     ["Gemini"]="1965"
     ["NFS"]="2049"
     ["DiscordVoiceChat2"]="2053"
@@ -918,11 +924,14 @@ apply_port_allowlist() {
     # Within WhatsAppRange
     #["SteamGaming1"]="3478-3480"
     ["WhatsAppRange"]="3478-3484"
+    ["BattlefieldEA"]="3659"
     ["SVN"]="3690"
     ["WorldOfWorldcraft2"]="3724"
     ["WorldOfWorldcraft3"]="4000"
+    ["MagicWormhole"]="4001"
     ["RWHOIS"]="4321"
     ["SteamGaming2"]="4379-4380"
+    ["Jitsi"]="4443"
     ["MoneroMiningPools2"]="4444"
     ["Virtuozzo"]="4643"
     ["RTPVOIP"]="5000-5005"
@@ -931,7 +940,10 @@ apply_port_allowlist() {
     ["Zoom2"]="5091"
     ["ICQ"]="5190"
     ["XMPP"]="5222-5223"
+    ["WhatsAppVoiceVideo"]="5224-5227"
     ["AndroidMarket"]="5228"
+    ["ViberDesktop1"]="5242"
+    ["ViberDesktop2"]="5243"
     ["EufyTLS"]="5349"
     ["PostgreSQL"]="5432"
     ["WorldOfWorldcraft6"]="6012"
@@ -940,10 +952,14 @@ apply_port_allowlist() {
     ["WorldOfWorldcraft9"]="6250"
     ["WebSocket"]="6300"
     ["DatabasesAlt"]="6543"
+    ["RemoteDesktopComm2"]="6568"
     ["IRCv3TLS"]="6697"
+    ["Iroh"]="7842"
+    ["ViberDesktop3"]="7985"
     ["HTTPAlternate"]="8008"
     ["GaduGadu"]="8074"
     ["WorldOfWorldcraft5"]="8080"
+    ["NodemavenHTTPProxy"]="8081-9080"
     ["Electrum"]="8082"
     ["WorldOfWorldcraft10"]="8085"
     ["SimplifyMedia"]="8087-8088"
@@ -955,14 +971,17 @@ apply_port_allowlist() {
     ["Zoom3"]="8801-8810"
     ["MQTTS"]="8883" 
     ["HTTPProxy"]="8888"
+    ["Syncplay"]="8995-8999"
     ["WebSocketNym"]="9000"
     ["TorORPort"]="9001"
+    ["CrocFileTransfer"]="9009-9013"
     ["TorDirPort"]="9030"
     ["Tari"]="9053"
     ["LiteCoinP2P"]="9333"
     ["Gaming"]="9339"
     ["Git"]="9418"
     ["HTTPSALT2"]="9443"
+    ["DarkIRCClearnet"]="9600"
     ["Lightning"]="9735"
     ["TeamSpeakVoice"]="9987"
     ["DashNetwork"]="9999"
@@ -970,6 +989,7 @@ apply_port_allowlist() {
     #["NDMP"]="10000"
     #["TeamSpeakQuery"]="10011-10080"
     ["RainbowSixSiege2"]="10000-10099"
+    ["ProxySellerServices"]="10001-10999"
     ["TeamSpeakHTTPS"]="10443"
     ["OpenPGP"]="11371"
     ["EpicGames1"]="12000-65535"
@@ -983,6 +1003,7 @@ apply_port_allowlist() {
     #["MoneroRPC"]="18089"
     #["GoogleVoice"]="19294-19344"
     #["EnsimControlPanel"]="19638"
+    #["RemoteDesktop2"]="21114-21119"
     #["Session"]="22021"
     #["GenshinImpact1"]="22101-22102"
     #["DarkFiTor"]="25551"
@@ -994,6 +1015,7 @@ apply_port_allowlist() {
     #["Steam"]="27000-27050"
     #["GTAFiveM1"]="30110"
     #["FiveMGameServer"]="30120"
+    #["TelegramGroupCallSTUN"]="32001-32003"
     #["GTAFiveM2"]="40120"
     #["TeamSpeakTSDNS"]="41144"
     #["GenshinImpact2"]="42472"    
@@ -1381,34 +1403,62 @@ check_firewall_setup() {
 test_port_range_rules() {
   info "testing port range rules in ${NYM_CHAIN}"
 
-  local port_ranges=(
-    "20-21:tcp:ftp"
-    "80-81:tcp:http"
-    "2082-2083:tcp:cpanel"
-    "5222-5223:tcp:xmpp"
-    "27000-27050:tcp:steam-sample"
-    "989-990:tcp:ftp-tls"
-    "5000-5005:tcp:rtp-voip"
-    "8087-8088:tcp:simplify-media"
-    "8232-8233:tcp:zcash"
-    "8332-8333:tcp:bitcoin"
-    "18080-18081:tcp:monero"
-    "3478-3484:tcp:whatsapp"
-    "50000-65535:tcp:discord"
-    "4379-4380:tcp:steam"
+  # Sample services are selected BY NAME from PORT_MAPPINGS (the single source of
+  # truth) rather than hardcoded port numbers. This guarantees the test can never
+  # drift out of sync with the allowlist: whatever port/range a service maps to
+  # today is exactly what gets checked. Previously the test hardcoded sub-ranges
+  # (steam 27000-27050, monero 18080-18081, discord 50000-65535) that were later
+  # absorbed into the consolidated EpicGames1 range, producing false "missing
+  # rule" errors even though the ports were open. Deriving from PORT_MAPPINGS
+  # eliminates that class of bug entirely.
+  #
+  # If a name below no longer exists in PORT_MAPPINGS it is skipped with a notice
+  # rather than failing, so renaming a mapping never breaks the test run.
+  local sample_services=(
+    SSH                 # single low port
+    HTTP                # small range
+    HTTPS               # single common port
+    WireGuardPeer       # infra range
+    Bitcoin             # crypto range
+    LiteCoinP2P         # crypto single
+    Zoom3               # service range
+    EufyVideoStream     # service range
+    WorldOfWorldcraft7  # gaming range
+    RainbowSixSiege2    # gaming range (absorbs NDMP/TeamSpeakQuery)
+    WhatsAppRange       # messaging range
+    EpicGames1          # the big consolidated high range
   )
 
   local failures=0
-  local start end
-  for entry in "${port_ranges[@]}"; do
-    IFS=':' read -r range proto name <<<"$entry"
-    start=$(echo "$range" | cut -d'-' -f1)
-    end=$(echo "$range" | cut -d'-' -f2)
+  local start end port
 
-    if iptables -t filter -C "$NYM_CHAIN" -p "$proto" --dport "$start:$end" -j ACCEPT 2>/dev/null; then
-      ok "rule ok: $name $proto $range"
+  # PORT_MAPPINGS is populated by apply_port_allowlist. In the normal
+  # complete_networking_configuration / exit_policy_install flow that runs
+  # first, so the array is present. If this test is invoked standalone (before
+  # any install in this process) the array is empty — say so clearly instead of
+  # silently skipping every sample.
+  if [[ "${#PORT_MAPPINGS[@]}" -eq 0 ]]; then
+    warn "PORT_MAPPINGS is empty in this invocation; run exit_policy_install first, or use complete_networking_configuration. Skipping port-range sampling."
+    return 0
+  fi
+
+  for service in "${sample_services[@]}"; do
+    port="${PORT_MAPPINGS[$service]:-}"
+    if [[ -z "$port" ]]; then
+      warn "sample service '$service' not found in PORT_MAPPINGS; skipping"
+      continue
+    fi
+
+    if [[ "$port" == *"-"* ]]; then
+      start="${port%%-*}"; end="${port##*-}"
     else
-      error "missing rule: $name $proto $range"
+      start="$port"; end="$port"
+    fi
+
+    if iptables -t filter -C "$NYM_CHAIN" -p tcp --dport "$start:$end" -j ACCEPT 2>/dev/null; then
+      ok "rule ok: $service tcp $port"
+    else
+      error "missing rule: $service tcp $port"
       ((failures++))
     fi
   done

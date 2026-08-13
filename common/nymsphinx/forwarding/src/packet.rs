@@ -14,6 +14,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MixPacketFormattingError {
+    #[error("attempted to use outfox, but it is currently not supported by the network")]
+    OutfoxNotSupported,
+
     #[error("too few bytes provided to recover from bytes")]
     TooFewBytesProvided,
 
@@ -120,9 +123,10 @@ impl MixPacket {
         // make sure the received data length corresponds to a valid packet
         let _ = PacketSize::get_type(packet_size)?;
 
+        #[allow(deprecated)]
         let packet = match packet_type {
             PacketType::Mix => NymPacket::sphinx_from_bytes(packet_data)?,
-            PacketType::Outfox => NymPacket::outfox_from_bytes(packet_data)?,
+            PacketType::Outfox => return Err(MixPacketFormattingError::OutfoxNotSupported),
         };
 
         Ok(MixPacket {
@@ -134,6 +138,10 @@ impl MixPacket {
     }
 
     pub fn into_v1_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        #[allow(deprecated)]
+        if self.packet_type == PacketType::Outfox {
+            return Err(MixPacketFormattingError::OutfoxNotSupported);
+        }
         Ok(std::iter::once(self.packet_type as u8)
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
@@ -161,9 +169,10 @@ impl MixPacket {
         // make sure the received data length corresponds to a valid packet
         let _ = PacketSize::get_type(packet_size)?;
 
+        #[allow(deprecated)]
         let packet = match packet_type {
             PacketType::Mix => NymPacket::sphinx_from_bytes(packet_data)?,
-            PacketType::Outfox => NymPacket::outfox_from_bytes(packet_data)?,
+            PacketType::Outfox => return Err(MixPacketFormattingError::OutfoxNotSupported),
         };
 
         Ok(MixPacket {
@@ -175,6 +184,10 @@ impl MixPacket {
     }
 
     pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        #[allow(deprecated)]
+        if self.packet_type == PacketType::Outfox {
+            return Err(MixPacketFormattingError::OutfoxNotSupported);
+        }
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())

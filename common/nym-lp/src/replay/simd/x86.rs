@@ -33,6 +33,8 @@ use std::arch::x86_64::{_mm_cmpeq_epi64, _mm_movemask_epi8};
 pub struct X86BitmapOps;
 
 impl BitmapOps for X86BitmapOps {
+    // SAFETY: callers guarantee start_idx + num_words <= bitmap.len() (see debug_assert); SIMD steps guarded by idx + N <= end_idx.
+    #[allow(clippy::indexing_slicing)]
     #[allow(unreachable_code)]
     #[inline(always)]
     fn clear_words(bitmap: &mut [u64], start_idx: usize, num_words: usize) {
@@ -124,6 +126,8 @@ impl BitmapOps for X86BitmapOps {
         }
     }
 
+    // SAFETY: callers guarantee start_idx + num_words <= bitmap.len() (see debug_assert); SIMD steps guarded by idx + N <= end_idx.
+    #[allow(clippy::indexing_slicing)]
     #[allow(unreachable_code)]
     #[inline(always)]
     fn is_range_zero(bitmap: &[u64], start_idx: usize, num_words: usize) -> bool {
@@ -239,6 +243,8 @@ impl BitmapOps for X86BitmapOps {
             .all(|&word| word == 0)
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn set_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
@@ -246,6 +252,8 @@ impl BitmapOps for X86BitmapOps {
         bitmap[word_idx] |= 1u64 << bit_pos;
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn clear_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
@@ -253,6 +261,8 @@ impl BitmapOps for X86BitmapOps {
         bitmap[word_idx] &= !(1u64 << bit_pos);
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn check_bit(bitmap: &[u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
@@ -267,6 +277,8 @@ pub mod atomic {
 
     /// Check and set bit, returning the previous state
     /// This function is not actually atomic! It's just a non-atomic optimization
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     pub fn check_and_set_bit(bitmap: &mut [u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
@@ -297,6 +309,8 @@ pub mod atomic {
     /// - `bitmap` has sufficient size to hold indices up to `end_bit/64`
     /// - `start_bit` and `end_bit` are valid bit indices within the bitmap
     /// - No other thread is concurrently modifying the same memory
+    // SAFETY: per the # Safety contract, bitmap covers end_bit / 64 and start_bit <= end_bit, so all word indices stay < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     #[cfg(target_feature = "avx2")]
     pub unsafe fn set_bits_range(bitmap: &mut [u64], start_bit: u64, end_bit: u64) {
@@ -387,6 +401,8 @@ pub mod atomic {
     /// - `bitmap` has sufficient size to hold indices up to `end_bit/64`
     /// - `start_bit` and `end_bit` are valid bit indices within the bitmap
     /// - No other thread is concurrently modifying the same memory
+    // SAFETY: per the # Safety contract, bitmap covers end_bit / 64 and start_bit <= end_bit, so all word indices stay < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     #[cfg(all(target_feature = "sse2", not(target_feature = "avx2")))]
     pub unsafe fn set_bits_range(bitmap: &mut [u64], start_bit: u64, end_bit: u64) {
@@ -451,6 +467,8 @@ pub mod atomic {
     }
 
     /// Set multiple bits at once using scalar operations (fallback)
+    // SAFETY: per the # Safety contract, bitmap covers end_bit / 64 and start_bit <= end_bit, so all word indices stay < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     #[cfg(not(any(target_feature = "avx2", target_feature = "sse2")))]
     pub fn set_bits_range(bitmap: &mut [u64], start_bit: u64, end_bit: u64) {

@@ -91,11 +91,33 @@ pub mod v3 {
     /// registered in the network-monitors contract.
     pub type StressTestBatchSubmission = SignedMessage<StressTestBatchSubmissionContent>;
 
-    /// Confirmation returned to an orchestrator after a successful submission.
-    /// Currently empty — exists to give the response an explicit type rather than
-    /// relying on `Json(())`.
-    #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-    pub struct StressTestBatchSubmissionResponse {}
+    /// Confirmation returned to an orchestrator after a successful submission, reporting what
+    /// became of the individual results. The three counts sum to the number of results submitted.
+    ///
+    /// Reporting these matters because an accepted batch can still store nothing: rows deduplicate
+    /// at the database with insert-or-ignore semantics, so without a count the submitter cannot
+    /// distinguish "stored" from "silently discarded" - both are a `200`.
+    ///
+    /// Every field is optional so that a newer orchestrator can still read the empty body returned
+    /// by a nym-api predating these counts. `None` therefore means "not reported", which is a
+    /// different signal from `Some(0)`.
+    #[derive(Clone, Debug, Default, Serialize, Deserialize, ToSchema)]
+    pub struct StressTestBatchSubmissionResponse {
+        /// Results newly stored by this submission.
+        #[serde(default)]
+        pub accepted: Option<usize>,
+
+        /// Results that were already stored, i.e. this submission re-sent a measurement nym-api had
+        /// seen before. Expected to be non-zero on the orchestrator's at-least-once retry path; a
+        /// persistently non-zero value means measurements are being discarded.
+        #[serde(default)]
+        pub duplicates: Option<usize>,
+
+        /// Results dropped by per-entry validation (a non-mixnode entry, or a performance score
+        /// outside `[0.0, 1.0]`).
+        #[serde(default)]
+        pub rejected: Option<usize>,
+    }
 
     /// Single stress-test measurement for one node, produced by a network monitor orchestrator.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
@@ -340,6 +362,64 @@ pub mod v3 {
             assert_eq!(
                 signed_bytes, resigned_bytes,
                 "deserialise-then-re-serialise was not a fixed point"
+            );
+        }
+
+        // nym-api and the orchestrator are deployed independently, so an orchestrator carrying the
+        // submission counts may talk to a nym-api that predates them and answers a bare `{}`. That
+        // must deserialise rather than error - a hard failure here would break submissions outright,
+        // which is worse than the missing telemetry - and it must land as `None` rather than
+        // `Some(0)`, because the orchestrator warns on a non-zero duplicate count and "not reported"
+        // must not be mistaken for "nothing was stored".
+        #[test]
+        fn submission_response_tolerates_a_body_without_counts() {
+            let old: StressTestBatchSubmissionResponse = serde_json::from_str("{}")
+                .expect("a response body predating the counts must still deserialise");
+            assert_eq!(old.accepted, None);
+            assert_eq!(old.duplicates, None);
+            assert_eq!(old.rejected, None);
+
+            // and a populated body round-trips with its counts intact
+            let reported = StressTestBatchSubmissionResponse {
+                accepted: Some(48),
+                duplicates: Some(1),
+                rejected: Some(1),
+            };
+            let json = serde_json::to_string(&reported).unwrap();
+            let parsed: StressTestBatchSubmissionResponse = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.accepted, Some(48));
+            assert_eq!(parsed.duplicates, Some(1));
+            assert_eq!(parsed.rejected, Some(1));
+        }
+
+        // The mirror of the above: a nym-api reporting the counts, answering an orchestrator that
+        // predates them and whose type carried no fields at all. Serde must ignore the unknown keys
+        // rather than error.
+        //
+        // This is the more dangerous of the two directions. The client parses with a plain
+        // `serde_json::from_slice`, so a decode failure surfaces as a failed POST, and the
+        // submission watermark is only advanced after a POST succeeds - an old orchestrator would
+        // therefore treat every batch as failed, resubmit the same rows forever and never make
+        // forward progress, while nym-api quietly stored them on the first attempt.
+        #[test]
+        fn submission_response_counts_are_ignored_by_a_reader_predating_them() {
+            // faithful copy of the previously deployed shape
+            #[derive(Deserialize)]
+            struct OldStressTestBatchSubmissionResponse {}
+
+            let json = serde_json::to_string(&StressTestBatchSubmissionResponse {
+                accepted: Some(48),
+                duplicates: Some(1),
+                rejected: Some(1),
+            })
+            .unwrap();
+
+            let parsed: Result<OldStressTestBatchSubmissionResponse, _> =
+                serde_json::from_str(&json);
+            assert!(
+                parsed.is_ok(),
+                "a reader predating the counts rejected {json}: {:?}",
+                parsed.err(),
             );
         }
     }

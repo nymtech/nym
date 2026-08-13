@@ -27,7 +27,7 @@ libcrux-kem = { workspace = true }
 libcrux-ecdh = { workspace = true, features = ["codec"] }
 libcrux-chacha20poly1305 = { workspace = true }
 
-rand09 = { workspace = true }
+rand010 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 libcrux-psq = { workspace = true, features = ["classic-mceliece"] }

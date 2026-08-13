@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #![allow(deprecated)]
-use crate::network::handlers::ContractVersionSchemaResponse;
+use crate::network::handlers::v1::ContractVersionSchemaResponse;
 use utoipa::OpenApi;
 use utoipauto::utoipauto;
 
@@ -38,6 +38,9 @@ use utoipauto::utoipauto;
         nym_config::defaults::DenomDetailsOwned,
         nym_config::defaults::ValidatorDetails,
         nym_config::defaults::NymContracts,
+        nym_config::defaults::v2::NymNetworkDetails,
+        nym_config::defaults::v2::NetworkingSpecifics,
+        nym_config::defaults::v2::DnsFallback,
         ContractVersionSchemaResponse,
         nym_bin_common::build_information::BinaryBuildInformationOwned,
         nym_node_requests::api::v1::node::models::AuxiliaryDetailsV1,

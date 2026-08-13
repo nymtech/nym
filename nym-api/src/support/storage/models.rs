@@ -153,8 +153,9 @@ pub struct HistoricalUptime {
 ///
 /// Produced from the wire-level [`StressTestResult`] via [`Self::from_submission`], which also
 /// renames `test_performance` to `result` to match the on-disk column name and attaches the
-/// submitting orchestrator's identity key so that `(testrun_id, submitter_pubkey)` dedupes
-/// retried at-least-once submissions.
+/// submitting orchestrator's identity key so that `(node_id, test_timestamp, submitter_pubkey)`
+/// dedupes retried at-least-once submissions. `testrun_id` is carried for traceability only and is
+/// not part of any key.
 #[derive(FromRow)]
 pub struct NymNodeStressTestingResult {
     pub testrun_id: i64,

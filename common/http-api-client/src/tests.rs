@@ -251,6 +251,46 @@ fn fronted_host_updating() {
     assert_eq!(current_url.front_str(), Some("cdn1.test"));
 }
 
+// Reproduces the exact url-list shape used for the nymvpn-api config:
+//   [{ "url": "https://nymvpn.com/api/" },
+//    { "url": "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
+//      "fronts": ["yelp.global.ssl.fastly.net"] }]
+//
+// When fronting is enabled and the CURRENT url is the one with no `fronts`
+// configured, `matches_current_host` must consider the fact that the domain
+// doesn't have fronts and compare properly. This test ensures the correct
+// behavior, rotating to the next (fronted) entry in the list.
+#[test]
+#[cfg(feature = "tunneling")]
+fn fronting_enabled_stuck_on_unfronted_first_url() {
+    let plain_url = Url::new("https://nymvpn.com/api/", None).unwrap();
+    let fronted_url = Url::new(
+        "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
+        Some(vec!["https://yelp.global.ssl.fastly.net"]),
+    )
+    .unwrap();
+
+    let client = ClientBuilder::new_with_urls(vec![plain_url, fronted_url])
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
+        .build()
+        .unwrap();
+
+    // client starts on the first, unfronted url.
+    assert_eq!(client.current_url().as_str(), "https://nymvpn.com/api/");
+
+    // offending url matches the plain url
+    let offending = Url::parse("https://nymvpn.com/api/").unwrap();
+    client.maybe_rotate_hosts(Some(offending));
+
+    // should rotate urls.
+    assert_eq!(
+        client.current_url().as_str(),
+        "https://nymvpn-frontdoor.global.ssl.fastly.net/api",
+        "client failed to rotate away from the unfronted url after an error"
+    );
+}
+
 #[test]
 #[cfg(feature = "network-defaults")]
 fn from_network_configures_multiple_urls_and_retries() {
@@ -258,7 +298,7 @@ fn from_network_configures_multiple_urls_and_retries() {
 
     // Create network details with multiple URLs and fronting
     let mut network_details = NymNetworkDetails::new_empty();
-    network_details.nym_api_urls = Some(vec![
+    network_details.set_nym_api_urls(vec![
         ApiUrl {
             url: "https://validator.nymtech.net/api/".to_string(),
             front_hosts: None,
@@ -274,12 +314,10 @@ fn from_network_configures_multiple_urls_and_retries() {
     ]);
 
     // Build client from network details
-    let client = ClientBuilder::new_with_fronted_urls(
-        network_details.nym_api_urls.clone().unwrap_or_default(),
-    )
-    .expect("Failed to create client from network")
-    .build()
-    .expect("Failed to build client");
+    let client = ClientBuilder::new_with_fronted_urls(network_details.nym_api_urls())
+        .expect("Failed to create client from network")
+        .build()
+        .expect("Failed to build client");
 
     // Verify all URLs were configured
     assert_eq!(

@@ -3,6 +3,11 @@ package main
 import (
 	"math"
 	"testing"
+
+	"github.com/amnezia-vpn/amneziawg-go/conn"
+	"github.com/amnezia-vpn/amneziawg-go/device"
+	"github.com/amnezia-vpn/amneziawg-go/tun/netstack"
+	"net/netip"
 )
 
 // Test the abs helper function
@@ -210,9 +215,14 @@ func TestNetstackRequestGo(t *testing.T) {
 	}
 }
 
-// Test the ping function with valid request (will fail due to network setup)
+// Test the ping function against an address that is not a real WireGuard
+// peer, so no handshake can ever complete. CanHandshake must reflect that:
+// dev.Up() succeeding (a local interface coming up) is not evidence of a
+// working handshake with the remote peer -- see hasHandshaked.
 func TestPingFunction(t *testing.T) {
-	// Create a request with valid IP but will fail due to network setup
+	// 1.1.1.1:51820 is not a WireGuard endpoint, and the all-zero key pair
+	// cannot produce a valid Noise session either way, so this can never
+	// handshake with anything.
 	req := NetstackRequestGo{
 		WgIp:               "10.0.0.1",
 		PrivateKey:         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -235,12 +245,13 @@ func TestPingFunction(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	// Check that we got a valid response structure
-	if response.CanHandshake != true {
-		t.Error("Expected CanHandshake to be true")
+	// No peer ever responded, so CanHandshake must be false. Before the fix
+	// this was unconditionally true here, despite every ping and download
+	// attempt failing -- this is exactly the bug hasHandshaked corrects.
+	if response.CanHandshake {
+		t.Error("Expected CanHandshake to be false: no real peer was ever reachable")
 	}
 
-	// The response should show the retry attempts worked
 	t.Logf("Response: CanHandshake=%v, SentHosts=%d, ReceivedHosts=%d, DownloadedFile=%s",
 		response.CanHandshake, response.SentHosts, response.ReceivedHosts, response.DownloadedFile)
 }
@@ -317,4 +328,36 @@ func TestConsecutiveFailureExit(t *testing.T) {
 	}
 
 	t.Logf("Test completed cleanly: sent %d pings, received %d pings", response.SentIps, response.ReceivedIps)
+}
+
+// Test hasHandshaked against a real (never-connected) device: a device that
+// has never exchanged a Noise handshake with its peer must report false,
+// matching last_handshake_time_sec=0. This is the state right after Up(),
+// which is exactly the case the fix moves the CanHandshake check past.
+func TestHasHandshakedBeforeAnyTraffic(t *testing.T) {
+	tun, _, err := netstack.CreateNetTUN(
+		[]netip.Addr{netip.MustParseAddr("10.0.0.2")},
+		[]netip.Addr{netip.MustParseAddr("1.1.1.1")},
+		1280)
+	if err != nil {
+		t.Fatalf("failed to create test TUN: %v", err)
+	}
+	dev := device.NewDevice(tun, conn.NewDefaultBind(), device.NewLogger(device.LogLevelError, ""))
+	defer dev.Close()
+
+	// A syntactically valid peer that nothing will ever respond to.
+	ipc := "private_key=0000000000000000000000000000000000000000000000000000000000000000\n" +
+		"public_key=0000000000000000000000000000000000000000000000000000000000000000\n" +
+		"endpoint=192.0.2.1:51820\n" +
+		"allowed_ip=0.0.0.0/0\n"
+	if err := dev.IpcSet(ipc); err != nil {
+		t.Fatalf("IpcSet failed: %v", err)
+	}
+	if err := dev.Up(); err != nil {
+		t.Fatalf("Up failed: %v", err)
+	}
+
+	if hasHandshaked(dev) {
+		t.Error("hasHandshaked should be false immediately after Up(), before any traffic")
+	}
 }

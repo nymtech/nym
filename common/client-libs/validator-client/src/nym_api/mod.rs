@@ -28,6 +28,7 @@ use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::{IdentityKeyRef, NodeId, NymNodeDetails};
 use std::net::IpAddr;
 use time::format_description::BorrowedFormatItem;
+use time::macros::format_description;
 use time::Date;
 use tracing::instrument;
 
@@ -52,16 +53,15 @@ pub use nym_api_requests::{
         PaginatedCachedNodesResponseV1, PaginatedCachedNodesResponseV2, SemiSkimmedNodeV1,
         SemiSkimmedNodeV3, SemiSkimmedNodesWithMetadata, SkimmedNodeV1,
     },
-    NymNetworkDetailsResponse,
+    NymNetworkDetailsResponse, NymNetworkDetailsV2Response,
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 
 pub mod error;
 pub mod routes;
 
-pub fn rfc_3339_date() -> Vec<BorrowedFormatItem<'static>> {
-    time::format_description::parse("[year]-[month]-[day]").unwrap()
-}
+pub const RFC_3339_DATE_FORMAT: &[BorrowedFormatItem<'static>] =
+    format_description!("[year]-[month]-[day]");
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -1210,7 +1210,7 @@ pub trait NymApiClientExt: ApiClient {
             None => Vec::new(),
             Some(exp) => vec![(
                 ecash::EXPIRATION_DATE_PARAM,
-                exp.format(&rfc_3339_date()).unwrap(),
+                exp.format(RFC_3339_DATE_FORMAT).unwrap(),
             )],
         };
 
@@ -1260,7 +1260,7 @@ pub trait NymApiClientExt: ApiClient {
             None => Vec::new(),
             Some(exp) => vec![(
                 ecash::EXPIRATION_DATE_PARAM,
-                exp.format(&rfc_3339_date()).unwrap(),
+                exp.format(RFC_3339_DATE_FORMAT).unwrap(),
             )],
         };
 
@@ -1426,6 +1426,15 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_network_details(&self) -> Result<NymNetworkDetailsResponse, NymAPIError> {
         self.get_json(
             &[routes::V1_API_VERSION, routes::NETWORK, routes::DETAILS],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    async fn get_network_details_v2(&self) -> Result<NymNetworkDetailsV2Response, NymAPIError> {
+        self.get_json(
+            &[routes::V2_API_VERSION, routes::NETWORK, routes::DETAILS],
             NO_PARAMS,
         )
         .await

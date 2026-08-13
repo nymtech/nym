@@ -821,14 +821,19 @@ impl StorageManager {
     /// submission may legitimately contain no mixnode entries after filtering.
     ///
     /// Uses `INSERT OR IGNORE` so that a retried submission carrying the same
-    /// `(testrun_id, submitter_pubkey)` pair - expected under the orchestrator's at-least-once
-    /// delivery semantics - silently drops the duplicate rows rather than failing the batch.
+    /// `(node_id, test_timestamp, submitter_pubkey)` measurement - expected under the
+    /// orchestrator's at-least-once delivery semantics - silently drops the duplicate rows rather
+    /// than failing the batch.
+    ///
+    /// Returns the number of rows actually inserted, which under `INSERT OR IGNORE` excludes the
+    /// ignored duplicates. The caller reports the difference back to the submitter, so that a batch
+    /// which stored nothing is distinguishable from one that stored everything.
     pub(super) async fn insert_nym_node_stress_testing_results(
         &self,
         results: Vec<NymNodeStressTestingResult>,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<u64, sqlx::Error> {
         if results.is_empty() {
-            return Ok(());
+            return Ok(0);
         }
 
         let mut query_builder = sqlx::QueryBuilder::new(
@@ -844,8 +849,8 @@ impl StorageManager {
                 .push_bind(entry.test_timestamp);
         });
 
-        query_builder.build().execute(&self.connection_pool).await?;
-        Ok(())
+        let res = query_builder.build().execute(&self.connection_pool).await?;
+        Ok(res.rows_affected())
     }
 
     /// Obtains number of network monitor test runs that have occurred within the specified interval.

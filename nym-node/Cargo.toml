@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.36.0"
+version = "1.37.0"
 authors.workspace = true
 edition.workspace = true
 license = "GPL-3.0"
@@ -35,7 +35,8 @@ human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 indicatif = { workspace = true }
 rand = { workspace = true }
-rand09 = { workspace = true }
+rand010 = { workspace = true }
+getrandom04 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

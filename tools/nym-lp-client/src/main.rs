@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
 
     // Test LP handshake
     let topology = Arc::new(topology);
-    let mut client = SpeedtestClient::new(gateway, topology);
+    let mut client = SpeedtestClient::new(gateway, topology)?;
 
     match client.test_lp_handshake().await {
         Ok(duration) => info!("LP handshake successful in {:?}", duration),

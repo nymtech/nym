@@ -27,7 +27,7 @@ impl LocationPusher {
         contract_config: &ContractConfig,
     ) -> Self {
         Self {
-            batch_size: contract_config.max_batch_size as usize,
+            batch_size: (contract_config.max_batch_size as usize).max(1),
             max_payload_size: contract_config.max_payload_size,
             client,
             on_chain_cache,

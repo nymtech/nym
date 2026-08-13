@@ -186,6 +186,60 @@ Compile-time constants, changed in source rather than the environment:
 > re-index: querying a `voyage-3` index with `voyage-3-large` vectors returns
 > meaningless neighbours rather than an error.
 
+### Testing the MCP server
+All commands run from `documentation/docs/`.
+
+**Unit tests** cover the chunkers, retrieval, the embed cache, the Nym API client,
+the MCP tool layer including `validate_sdk_config`, and the chat context and
+prompt. No network, no keys:
+
+```bash
+pnpm test
+```
+
+**Live Nym API check** confirms the five network tools still match production. It
+hits the real endpoints and fails loudly if one has moved, which is the usual way
+a tool silently starts returning nothing:
+
+```bash
+node lib/nym-api/live-check.mjs
+```
+
+**The endpoint itself** speaks plain JSON-RPC, so `curl` exercises it without an
+agent. Note the dual `Accept` header: Streamable HTTP replies as SSE, and the
+server returns `406` without both types.
+
+```bash
+# List the tools
+curl -sS -X POST http://localhost:3000/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# Call one that needs no key
+curl -sS -X POST http://localhost:3000/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"network_summary","arguments":{}}}'
+```
+
+Replies arrive as an SSE frame (`event: message` / `data: {...}`) wrapping the
+JSON-RPC result, not as a bare JSON body.
+
+What each layer needs:
+
+| Tool group | Needs |
+|------------|-------|
+| `validate_sdk_config` | nothing; pure logic |
+| `network_summary`, `circulating_supply`, `chain_status`, `list_gateways`, `get_gateway` | network access to the Nym APIs |
+| `search_docs`, `get_section` | `VOYAGE_API_KEY` **and** a vectored `public/docs-index.json` |
+| `search_code` | the above plus `public/code-index.json`; the tool is simply not exposed when that file is absent |
+
+Against a deployment, swap the host for the deployment URL. If `tools/list`
+answers but `search_docs` fails, that is the Voyage key or a vectorless index
+rather than the transport; `GET /docs/api/chat` on the same deployment reports
+which.
+
 ### Keeping docs honest against the code
 The docs assert facts the source can settle: constant values, sizes, types, API
 signatures, endpoint paths. The goal is that those never drift from the code. The

@@ -1,18 +1,15 @@
-// Pages-router chat API route (AI SDK v7). Retrieval-augmented: embed the query,
-// pull the top doc sections, and stream a Claude answer grounded in them.
+// Backend for the in-docs chat widget. Retrieval-augmented: embed the question,
+// pull the nearest documentation sections, and stream an answer constrained to
+// them. The model is told to answer only from those sections and to cite them,
+// which is what lets the assistant say a topic is not covered instead of
+// inventing an answer.
 //
-// Deps:  ai, @ai-sdk/anthropic
-// Env:   ANTHROPIC_API_KEY (generation), VOYAGE_API_KEY (query embedding),
-//        optional CHAT_MODEL.
+// Citations ride as message metadata rather than a response header, because the
+// client transport does not expose response headers to the widget. That is why
+// they are attached to the stream's `start` event below rather than simply set
+// on the response.
 //
-// v7 notes (validated live against ai@7.0.51 + @ai-sdk/anthropic@4):
-//   - pages-router streaming is `result.pipeUIMessageStreamToResponse(res)`
-//     (v4's pipeDataStreamToResponse is gone).
-//   - useChat sends UIMessage[] (parts-based); the server converts them with
-//     `await convertToModelMessages()` (async) before passing to streamText.
-//
-// Citations reach the client as message metadata, not a response header: v7's
-// transport does not surface headers to useChat.
+// GET doubles as a health check; see configProblems().
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -63,9 +60,11 @@ if (CONFIG_PROBLEMS.length > 0) {
   );
 }
 
-// Sonnet 5 rather than Haiku: the job is synthesising an answer from retrieved
-// sections and citing them accurately, and Haiku 4.5 was visibly weaker at it.
-// Override per-deployment with CHAT_MODEL; no redeploy of this file needed.
+// Model tier matters more here than raw speed. The task is synthesising a
+// grounded answer from several retrieved sections and attributing each claim to
+// the right one, and a model that is merely fast tends to blur the attribution
+// or drift outside the supplied context. CHAT_MODEL overrides this per
+// deployment, so a change needs no redeploy of this file.
 const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-5';
 
 // Bounds on an incoming request. A docs chat is a short conversation; these cap
@@ -95,7 +94,7 @@ function modelName(id: string): string {
   return map[id] ?? id;
 }
 
-/** Pull the plain-text query out of a UIMessage's parts (v7 has no .content). */
+/** A message's text is spread across its parts, so join the text ones back up. */
 function textOf(message: UIMessage | undefined): string {
   return (message?.parts ?? [])
     .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
@@ -168,9 +167,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       messages: await convertToModelMessages(messages),
     });
 
-    // Citations ride as message metadata (v7 has no response-header path to
-    // useChat). Emitted on `start` so the widget can linkify `[n]` markers as
-    // the text streams in, rather than only once the message completes.
+    // Emitted on `start` rather than `finish` so the widget can turn `[n]`
+    // markers into links while the text is still streaming, instead of leaving
+    // them as bare digits until the answer completes.
     result.pipeUIMessageStreamToResponse(res, {
       messageMetadata: ({ part }) => (part.type === 'start' ? { citations } : undefined),
     });

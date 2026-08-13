@@ -1,18 +1,12 @@
-// In-docs chat widget (AI SDK v7). Opens as a right-hand sidebar drawer. Mounted
-// once globally from pages/_app.tsx via next/dynamic (ssr: false), so it never
-// participates in SSR/hydration.
+// In-docs chat widget: a right-hand drawer, mounted once globally from
+// pages/_app.tsx with ssr: false, so it never participates in SSR or hydration.
 //
-// Deps:  ai, @ai-sdk/react, react-markdown, remark-gfm
-//
-// v7 notes:
-//   - useChat returns { messages, status, sendMessage }; the widget owns its
-//     input state and calls sendMessage({ text }).
-//   - the endpoint is passed via a transport: new DefaultChatTransport({ api }).
-//   - messages are UIMessage[]; text lives in `message.parts` (type 'text').
-//
-// The drawer stays mounted and slides via transform, so the conversation
-// persists across open/close. It is also why every internal link here uses
-// next/link: a full page load would remount this component and lose it.
+// The conversation lives in component state and is never persisted, which drives
+// two decisions here. The drawer hides by sliding via transform rather than
+// unmounting, so closing it does not discard the conversation. And every internal
+// link uses next/link, because a full page load would remount this component from
+// _app and lose it. That includes the citation links, which are the thing a reader
+// is most likely to click mid-conversation.
 
 import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -376,9 +370,9 @@ const makeMdComponents = (citeHrefs: Set<string>) => ({
     );
   },
   pre: ({ node, ...p }: any) => <pre style={preStyle} {...p} />,
-  // No `code` override: react-markdown v9 removed the `inline` prop, so a
-  // component cannot distinguish an inline span from a fenced block. That
-  // distinction is a descendant selector in styles.css (.nym-chat-prose code).
+  // Deliberately no `code` override. The renderer gives a component no way to
+  // tell an inline span from a fenced block, so that distinction is drawn with a
+  // descendant selector instead (.nym-chat-prose code in styles.css).
   table: ({ node, ...p }: any) => (
     <div style={tableWrapStyle}>
       <table style={{ borderCollapse: 'collapse', width: '100%' }} {...p} />

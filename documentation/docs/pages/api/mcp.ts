@@ -1,22 +1,22 @@
-// MCP server, mounted as a pages-router API route so it ships with the docs app
-// on Vercel (one deployment to operate, not a second service). Clients point
-// their agent at https://nym.com/docs/api/mcp (the /docs basePath applies).
+// MCP server for AI coding agents, served at https://nym.com/docs/api/mcp (the
+// /docs basePath applies). It is a pages-router API route rather than a separate
+// service so there is one deployment to operate, and so it can read the retrieval
+// index the docs build already produces.
 //
-// Needs:  @modelcontextprotocol/sdk installed.
-// Env:    VOYAGE_API_KEY (query embedding); build public/docs-index.json first.
+// Two constraints shape the code below.
 //
-// VERIFIED WORKING against SDK 1.30.0 (dev server, curl over Streamable HTTP):
-//   - tools/list returns all tools; tools/call round-trips (validate_sdk_config
-//     and the live network tools both confirmed).
-//   - The transport bridges Node <-> Web Standard via @hono/node-server; it
-//     accepts Next's wrapped pages-router `res` fine (this was the main risk).
-//     If a future Next/SDK bump breaks that, a standalone Node HTTP host (a
-//     pristine http.ServerResponse from createServer) is the fallback.
-//   - Stateless mode (sessionIdGenerator: undefined) suits serverless: a fresh
-//     Server + transport per request keeps no cross-invocation state.
+// Stateless. Streamable HTTP supports sessions, but a serverless invocation
+// shares nothing with the next one, so there is nowhere to keep a session. Each
+// request builds its own Server and transport and throws them away.
 //
-// STILL TO CONFIRM under load: per-request lifecycle under concurrent Vercel
-// invocations; rate-limiting/abuse policy on the public endpoint (plan D3).
+// The transport is Web-Standard and Next's pages router is Node-shaped, so the
+// SDK bridges the two and is handed Next's wrapped `res`. That works, but it is
+// the seam most likely to break on a Next or SDK upgrade. If it does, the fallback
+// is hosting the transport on a pristine http.ServerResponse from createServer,
+// as a standalone Node process.
+//
+// The endpoint is public and unauthenticated, and every search costs a paid
+// embedding call, so it wants a rate limiter before it carries real traffic.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -39,9 +39,10 @@ try {
   // lambda on Vercel (next.config.js outputFileTracingIncludes for /api/mcp).
   throw new Error(`MCP route: cannot load ${INDEX_PATH}: ${(e as Error).message}. Build the docs so generate-index.mjs writes it, and ensure it is traced into this function.`);
 }
-// Same reasoning as the index check above: fail at cold start with a message
-// naming the variable, rather than serving tools/list happily and then returning
-// a Voyage 401 from inside the first search_docs call.
+// A misconfigured server that still answers tools/list is worse than one that
+// refuses to start: an agent connects, lists nine tools, and only discovers the
+// problem as an opaque 401 inside its first search. Fail at cold start instead,
+// naming the variable.
 if (!process.env.VOYAGE_API_KEY) {
   throw new Error(
     'MCP route: VOYAGE_API_KEY is not set, so search_docs and search_code cannot ' +

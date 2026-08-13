@@ -9,11 +9,13 @@ jobs:
     env:
       NEXT_PUBLIC_SITE_URL: https://nym.com/docs
       # Build-time index embedding (generate-index.mjs and generate-code-index.mjs).
-      # Required: without it the generators exit non-zero and fail this job, rather
-      # than shipping an index with no vectors that returns nothing for every query.
       # Runtime keys (query embedding + Claude generation) come from the Vercel
       # project env via `vercel pull`, not from here.
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+      # This job publishes, so a missing key must fail it rather than ship an index
+      # with no vectors that returns nothing for every query. Check-only workflows
+      # build without the key on purpose and are unaffected.
+      REQUIRE_EMBEDDINGS: "1"
     defaults:
       run:
         working-directory: documentation/docs

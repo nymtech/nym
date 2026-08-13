@@ -63,20 +63,24 @@ export function voyageProvider({ apiKey, model = 'voyage-3-large', dim = 1024 })
  * Without a key the index still builds, deploys, and returns HTTP 200, but every
  * search returns nothing. That surfaces much later as bad answers, which points
  * at the model rather than at the deploy that dropped the key. So a missing key
- * is fatal in CI and on Vercel.
+ * is fatal for any build that ships.
  *
- * Locally it is only a warning. Building without vectors is a reasonable way to
- * work on chunking or page structure when you do not have a key to hand.
+ * Everywhere else it is a warning. That covers local work on chunking or page
+ * structure, and CI jobs that build only to check the docs still compile. Those
+ * have no reason to spend an embedding run, so keying this on CI would fail them
+ * for a artifact they never serve.
  *
  * @param {string} artifact  what ends up vectorless, named in the message
- * @returns {string | undefined} the key, or undefined when building locally without one
+ * @returns {string | undefined} the key, or undefined when building without one
  */
 export function resolveEmbedKey(artifact) {
   const apiKey = process.env.VOYAGE_API_KEY;
   if (apiKey) return apiKey;
 
-  // GitHub Actions sets CI; Vercel sets VERCEL. Either means this build ships.
-  if (process.env.CI || process.env.VERCEL) {
+  // Vercel sets VERCEL on every build it serves. REQUIRE_EMBEDDINGS is the opt-in
+  // for deploy pipelines elsewhere, so a workflow that publishes cannot quietly
+  // lose its key. Plain CI is deliberately not enough.
+  if (process.env.VERCEL || process.env.REQUIRE_EMBEDDINGS) {
     console.error(
       `\nVOYAGE_API_KEY is not set.\n` +
         `  Refusing to build ${artifact} without vectors: it would deploy cleanly ` +

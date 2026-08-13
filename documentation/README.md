@@ -142,7 +142,7 @@ Each missing key is made to announce itself rather than degrade quietly:
 
 | Missing | What happens |
 |---------|--------------|
-| `VOYAGE_API_KEY` at build | The index generators **exit non-zero and fail the build**, whenever `CI` or `VERCEL` is set. Locally they warn and write a vectorless index instead, which is a legitimate way to work on chunking without a key. |
+| `VOYAGE_API_KEY` at build | The index generators **exit non-zero and fail the build** for anything that ships: Vercel (which sets `VERCEL`), and `cd-docs.yml` (which sets `REQUIRE_EMBEDDINGS`). Everywhere else they warn and write a vectorless index, which is what local work on chunking and the check-only CI builds want. `CI` alone is deliberately not a trigger: `ci-docs.yml` builds to prove the docs compile and has no reason to spend an embedding run. |
 | `VOYAGE_API_KEY` at runtime | `/api/chat` refuses with `503` and names the variable; `/api/mcp` throws at cold start with the same message. |
 | `ANTHROPIC_API_KEY` | `/api/chat` refuses with `503`. The MCP server is unaffected and stays fully functional: it hands retrieved sections to the calling agent and lets that agent's own model generate. |
 | A vectorless index reaching production | Both routes detect it (`embedding.dim` is null) and refuse, rather than serving `200` while every search returns nothing. |

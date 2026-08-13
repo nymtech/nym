@@ -45,12 +45,21 @@ Addresses obtained by the service MUST be held in memory only. They MUST NOT be 
 
 ### Requirement: The service SHALL run a regular sweep and re-submit unchanged results
 
-The service MUST measure every subject on a configurable regular interval, defaulting to approximately one month. It MUST submit a result even when the measured location is identical to the value already on-chain, so that `checked_at` advances and freshness stays verifiable.
+Freshness is a per-subject deadline rather than a whole-set cadence: a subject MUST be measured again once the `checked_at` stored for it is older than a configurable time-to-live, defaulting to approximately one month. The service MUST poll for subjects past that deadline on a much shorter interval, so one falling due is picked up by the next poll rather than waiting on a set-wide cycle.
+
+Each poll is bounded by the per-sweep ceiling below, so a backlog larger than that ceiling MUST drain across successive polls rather than any subject being dropped: measuring a subject clears its deadline and removes it from the due set, so the following poll selects from what remains, and a subject whose measurement failed stays due and is retried. The ceiling therefore bounds a burst rather than throughput, and the polling interval and ceiling MUST together be able to clear the whole subject set well within the time-to-live.
+
+It MUST submit a result even when the measured location is identical to the value already on-chain, so that `checked_at` advances and freshness stays verifiable.
 
 #### Scenario: An unchanged measurement is still submitted
 - **GIVEN** a node whose measured location equals the value already stored under this agent's key
 - **WHEN** the regular sweep runs
 - **THEN** the service still submits it, advancing `checked_at`
+
+#### Scenario: A backlog larger than the per-sweep ceiling drains across polls
+- **GIVEN** more subjects past their deadline than one sweep's ceiling permits
+- **WHEN** successive polls run
+- **THEN** each measures a further batch, and those it measured are no longer due, so the backlog drains rather than any subject being starved
 
 ### Requirement: The service SHALL trigger an explicit measurement when a subject's announced addresses change
 

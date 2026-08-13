@@ -38,7 +38,9 @@ Each leaf commits the key, the payload bytes, `checked_at`, and a class tag, wit
 
 ### What is deliberately absent
 
-**No IP address is ever written on chain, in any form.** Not the address, and not a hash of it: IPv4 has 2^32 addresses, so an unsalted hash is brute-forceable, and a contract-wide salt is public. A hash of an IP is an IP.
+**No node's IP address is ever written on chain, in any form.** Not the address, and not a hash of it: IPv4 has 2^32 addresses, so an unsalted hash is brute-forceable, and a contract-wide salt is public. A hash of an IP is an IP.
+
+The one stored value that resembles an address is the ASN record's `route`, the provider's announced prefix. It is the same string for every node behind that block, so it names the network rather than anything in it, and it is kept because node status API already serves it.
 
 The service holds addresses in memory only, for the duration of a measurement and as the baseline its change detection compares against. They are never persisted, never logged, and never exposed on any endpoint.
 

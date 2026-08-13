@@ -304,7 +304,9 @@ Absence within the payload MUST otherwise follow the existing convention: the em
 
 The canonical `Location` type MUST be defined once in the shared types crate, with any HTTP schema derive feature-gated, so contract, service and consumers share one definition rather than converting between two.
 
-The payload MUST NOT carry IP addresses in any form, including hashes. IPv4's key space makes an unsalted hash trivially reversible, so a hash of an address is an address, and a public contract salt does not change that.
+The payload MUST NOT carry the subject's own IP addresses in any form, including hashes. IPv4's key space makes an unsalted hash trivially reversible, so a hash of an address is an address, and a public contract salt does not change that.
+
+The ASN record's `route` is the sole permitted exception, and is not a subject address: it is the provider's announced prefix, returned identically for every subject behind that block, so it names the network rather than anything within it. It is retained because node status API already serves it on the surface this payload exists to reproduce, and a field discarded here could only be recovered by re-measuring every subject.
 
 #### Scenario: A self-declaration and a measurement decode to the same type
 - **GIVEN** a relayed self-declaration and a measurement for the same subject

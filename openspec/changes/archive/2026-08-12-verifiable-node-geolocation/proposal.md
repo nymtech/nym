@@ -11,7 +11,7 @@ The verifiable-directory work established a pattern for exactly this problem: ho
 - A new standalone **geolocator service** that periodically queries the mixnet contract for bonded nodes, discovers their addresses from their HTTP endpoints, performs geolocation lookups, and submits batched results to the contract.
 - Two measurement cadences: a regular sweep (monthly by default) and an explicit re-test triggered when a node's announced addresses change.
 - An authenticated re-test HTTP endpoint on the service, accepting either a NYM-held bearer token (unlimited) or a request signed by the target node's identity key (burst-limited).
-- Node self-declared location becomes independently attestable: a new signed `NymNodeLocation` artifact the node serves over HTTP and the geolocator relays, so the on-chain self-declaration carries the node's own signature rather than an agent's word.
+- Node self-declared location becomes independently attestable: a signed `NymNodeLocation` artifact the geolocator relays verbatim, so the on-chain self-declaration carries the node's own signature rather than an agent's word. **Only the relay side ships here** (scope reduced 2026-08-12, see tasks section 8): the service endpoint accepts, verifies and relays an artifact, but producing one on a node and serving it over the node's HTTP API move to a later change, so nothing emits one yet. What ships node-side instead is a `nym-node` CLI command that signs a re-test request. No requirement is affected, since no spec obliges a node to serve an artifact; the service spec only obliges the service to accept what it is given.
 
 ## Capabilities
 
@@ -26,7 +26,7 @@ None. This change is additive and touches no existing spec's requirements. The n
 
 ## Impact
 
-**New code**: a `contracts/geolocation/` contract plus its `common/cosmwasm-smart-contracts/geolocation-contract/` shared types crate, a new service crate, and query/signing traits in `nym-validator-client`. The digest machinery is copy-and-adapted from the directory contract rather than extracted into a shared crate: the blast radius is small, the two contracts' `domain_tag`s keep their leaves apart, and generic cw-storage-plus wrappers cost more than they save at two consumers.
+**New code**: a `contracts/geolocation/` contract plus its `common/cosmwasm-smart-contracts/geolocation-contract/` shared types crate, a new service crate, and query/signing traits in `nym-validator-client`. The digest machinery is copy-and-adapted from the directory contract rather than extracted into a shared crate: the blast radius is small, each contract sums into an accumulator of its own so a leaf from one can never enter the other's sum, and generic cw-storage-plus wrappers cost more than they save at two consumers.
 
 **Merge order**: this change lands before `feat/node-directory-publishing`, which is then rebased and remade on top of it. `nym-lthash` is already on develop, and the digest machinery is copy-and-adapted rather than imported, so the contract and service depend on nothing unmerged. The reference implementation they mirror (`contracts/directory/`, `common/nym-directory-client/`) lives only on that branch and is read, not linked. Two consequences follow: end-to-end client verification is gated on `nym-directory-client` reaching develop and is sequenced after the directory merge, and `NodeInformation.location` is dropped during the directory rebase, which makes this contract the single home for a node's self-declared location.
 

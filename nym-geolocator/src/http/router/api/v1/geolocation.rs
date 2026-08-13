@@ -7,6 +7,7 @@ use axum::extract::State;
 use axum::routing::post;
 use axum::{Json, Router};
 use nym_geolocation_contract_common::NymNodeLocation;
+use nym_geolocation_contract_common::payload::Location;
 use nym_geolocator_requests::models::{
     MeasurementResponse, RecheckNodeRequest, RelayResponse, SignedCheckRequest,
 };
@@ -14,6 +15,7 @@ use nym_geolocator_requests::routes::api::v1::geolocation::{
     RECHECK_NODE, RELAY_SELF_DECLARATION, REQUEST_CHECK,
 };
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
+use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 
 pub(crate) fn routes(recheck_node_auth: AuthLayer) -> Router<AppState> {
     Router::new()
@@ -70,9 +72,35 @@ async fn request_geolocation_check(
         .accept_once(node_id, body.signed_at)
         .await?;
 
-    // after the replay check, so a replayed request is turned away without touching the allowance
-    state.burst_limiter.ensure_allowed(node_id).await?;
+    // after the replay check, so a replayed request is turned away without touching the allowance,
+    // and charged before the measurement rather than after it, so that requests still in flight
+    // cannot all pass the check together
+    state.burst_limiter.claim_allowance(node_id).await?;
 
+    let (location, changed) = match measure_claimed(&state, node_id).await {
+        Ok(measured) => measured,
+        Err(err) => {
+            state.burst_limiter.release_claim(node_id).await;
+            return Err(err);
+        }
+    };
+
+    if changed {
+        state.burst_limiter.restore_allowance(node_id).await;
+    }
+
+    Ok(Json(MeasurementResponse { node_id, location }))
+}
+
+/// Measure a node whose allowance has already been claimed, reporting whether the result differs
+/// from what this agent has stored for it.
+///
+/// Separated only so that every way of failing releases the claim, rather than each having to
+/// remember to.
+async fn measure_claimed(
+    state: &AppState,
+    node_id: NodeId,
+) -> Result<(Location, bool), RequestError> {
     // read before measuring, since submitting overwrites the very value being compared against.
     // a failure here also stops us spending a metered lookup we could not then account for
     let stored = state.stored_measurement(node_id).await?;
@@ -82,12 +110,8 @@ async fn request_geolocation_check(
     // a node with nothing stored yet counts as changed: it is asking for a first measurement, not
     // re-asking for one it already has
     let changed = stored.as_ref() != Some(&location);
-    state
-        .burst_limiter
-        .record_measurement(node_id, changed)
-        .await;
 
-    Ok(Json(MeasurementResponse { node_id, location }))
+    Ok((location, changed))
 }
 
 /// Measure a node's location now, bypassing the sweep schedule and any rate limiting.

@@ -289,12 +289,18 @@ rather than the transport; `GET /docs/api/chat` on the same deployment reports
 which.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 27 checks over HTTP: the tool list, transport
-negotiation, retrieval and a `get_section` round-trip, code search, config
-validation, every live network tool, argument-schema rejection, error shapes, and
-the chat health endpoint. It covers what unit tests cannot, namely that the index
-was traced into the lambda, that the keys exist in *that* environment, and that
-the Nym API still returns the field names the tools read.
+`scripts/check-mcp-server.sh` runs 36 checks over HTTP: the tool list, transport
+negotiation, retrieval and a `get_section` round-trip, code search, index
+coverage, config validation, every live network tool, argument-schema rejection,
+error shapes, and the chat health endpoint. It covers what unit tests cannot,
+namely that the index was traced into the lambda, that the keys exist in *that*
+environment, and that the Nym API still returns the field names the tools read.
+
+The **index coverage** group asserts that `search_code` can cite each root in
+`ROOTS`, matching on the returned file path rather than on the search term, since
+prose elsewhere in the corpus mentions all of these by name. A failure there
+normally means the deployed index predates a `ROOTS` change, not that the tool
+broke; rebuild with `VOYAGE_API_KEY` set and redeploy.
 
 ```bash
 # from documentation/

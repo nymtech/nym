@@ -181,6 +181,49 @@ fi
 expect "search_code resolves a bare type name" \
   search_code '{"query":"NetworkRequesterSelector","topK":5}' 'NetworkRequesterSelector'
 
+# --- index coverage ---------------------------------------------------------
+head_ "Index coverage"
+
+# The docs make claims about these crates, so search_code has to be able to cite
+# them. Each check asserts a hit whose path is inside the expected root, not just
+# a mention of the term, because prose elsewhere in the corpus discusses all of
+# these by name.
+#
+# A failure here usually means the index is stale rather than the tool is broken:
+# ROOTS in generate-code-index.mjs was widened after the deployment under test was
+# built. Rebuild with VOYAGE_API_KEY set and redeploy.
+covers() {
+  local label="$1" query="$2" pathfrag="$3"
+  local out
+  out="$(call search_code "$(jq -nc --arg q "$query" '{query:$q,topK:8}')")"
+  if grep -qE "blob/[^ ]*$pathfrag" <<<"$out"; then
+    ok "$label"
+  else
+    bad "$label (no hit under $pathfrag)"
+    printf '        paths returned: %s\n' \
+      "$(grep -oE 'blob/develop/[^ ]+' <<<"$out" | sed 's|blob/develop/||' | head -4 | tr '\n' ' ')"
+  fi
+}
+
+covers "sdk/rust: nym-swizzle range chunking" \
+  "overlapping shuffled chunk plan for an index range" 'sdk/rust/nym-swizzle'
+covers "common/nymsphinx: packet construction" \
+  "sphinx packet header construction and layer encryption" 'common/nymsphinx'
+covers "common/client-core: the client internals" \
+  "client topology refresh and gateway selection" 'common/client-core'
+covers "service-providers: the IP packet router" \
+  "ip packet router exit policy and tunnel address allocation" 'service-providers/ip-packet-router'
+covers "service-providers: the network requester" \
+  "network requester socks5 connect request handling" 'service-providers/network-requester'
+covers "clients: the native and socks5 clients" \
+  "socks5 client listener accepting a connection" 'clients/'
+covers "common/gateway-requests: the gateway protocol" \
+  "gateway client authentication and registration handshake" 'common/gateway-requests'
+covers "common/credentials: bandwidth credentials" \
+  "bandwidth credential issuance and verification" 'common/credentials'
+covers "nym-node: the node implementation" \
+  "nym-node configuration and mode selection on startup" 'nym-node/'
+
 # --- config validation ------------------------------------------------------
 head_ "Config validation"
 

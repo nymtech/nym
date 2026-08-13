@@ -16,7 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkCodeFile, langOf } from '../../docs/lib/retrieval/code-chunker.mjs';
-import { voyageProvider, embedChunks } from '../../docs/lib/retrieval/embed.mjs';
+import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/lib/retrieval/embed.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, '../../..'); // repo root
@@ -92,7 +92,7 @@ const index = {
   chunks,
 };
 
-const apiKey = process.env.VOYAGE_API_KEY;
+const apiKey = resolveEmbedKey('the code index');
 if (apiKey) {
   const provider = voyageProvider({ apiKey, model: CODE_MODEL });
   const cache = fs.existsSync(CACHE_FILE)
@@ -117,8 +117,6 @@ if (apiKey) {
   index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
   index.chunks = embedded;
   console.log(`Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`);
-} else {
-  console.warn('VOYAGE_API_KEY not set: writing a vectorless code index. search_code needs vectors.');
 }
 
 fs.writeFileSync(OUTPUT_FILE, JSON.stringify(index));

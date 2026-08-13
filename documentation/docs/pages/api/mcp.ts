@@ -39,6 +39,23 @@ try {
   // lambda on Vercel (next.config.js outputFileTracingIncludes for /api/mcp).
   throw new Error(`MCP route: cannot load ${INDEX_PATH}: ${(e as Error).message}. Build the docs so generate-index.mjs writes it, and ensure it is traced into this function.`);
 }
+// Same reasoning as the index check above: fail at cold start with a message
+// naming the variable, rather than serving tools/list happily and then returning
+// a Voyage 401 from inside the first search_docs call.
+if (!process.env.VOYAGE_API_KEY) {
+  throw new Error(
+    'MCP route: VOYAGE_API_KEY is not set, so search_docs and search_code cannot ' +
+      'embed a query. Set it in the Vercel project environment (it is needed at ' +
+      'runtime as well as at build).',
+  );
+}
+if (!index.embedding?.dim) {
+  throw new Error(
+    'MCP route: public/docs-index.json has no vectors, so it was built without ' +
+      'VOYAGE_API_KEY. Every search would return nothing. Rebuild the docs with the key set.',
+  );
+}
+
 const provider = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
 // Optional code index (built with voyage-code-3). If present, wire up search_code

@@ -29,6 +29,40 @@ import { voyageProvider, embedQuery } from '../../lib/retrieval/embed.mjs';
 const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public/docs-index.json'), 'utf-8'));
 const embedder = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
+/**
+ * Configuration problems that make this route unable to answer, checked once at
+ * cold start rather than discovered per request.
+ *
+ * Without this a missing key surfaces as a Voyage 401 or a provider throw deep in
+ * the stream, which names neither the variable nor where to set it. ANTHROPIC_API_KEY
+ * is the easy one to miss: the provider reads it from the environment itself, so it
+ * appears nowhere in this file. A vectorless index is the quiet one: it loads and
+ * serves happily while every search returns nothing.
+ */
+function configProblems(): string[] {
+  const problems: string[] = [];
+  if (!process.env.VOYAGE_API_KEY) {
+    problems.push('VOYAGE_API_KEY is not set: queries cannot be embedded, so retrieval always returns nothing.');
+  }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    problems.push('ANTHROPIC_API_KEY is not set: retrieval works but no answer can be generated.');
+  }
+  if (!index.embedding?.dim) {
+    problems.push('public/docs-index.json has no vectors: it was built without VOYAGE_API_KEY. Rebuild the docs with the key set.');
+  }
+  return problems;
+}
+
+const CONFIG_PROBLEMS = configProblems();
+if (CONFIG_PROBLEMS.length > 0) {
+  // Lands in the Vercel function log on every cold start, so a misconfigured
+  // deployment says so rather than waiting to be reported as bad answers.
+  console.error(
+    `[chat] disabled, ${CONFIG_PROBLEMS.length} configuration problem(s):\n` +
+      CONFIG_PROBLEMS.map((p) => `  - ${p}`).join('\n'),
+  );
+}
+
 // Sonnet 5 rather than Haiku: the job is synthesising an answer from retrieved
 // sections and citing them accurately, and Haiku 4.5 was visibly weaker at it.
 // Override per-deployment with CHAT_MODEL; no redeploy of this file needed.
@@ -72,12 +106,25 @@ function textOf(message: UIMessage | undefined): string {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    // The widget reads this to show which model is answering.
-    res.status(200).json({ model: CHAT_MODEL, name: modelName(CHAT_MODEL) });
+    // Doubles as the health check: one curl against a deployment says whether it
+    // is wired up, instead of having to ask it a question and read the tea leaves.
+    res.status(CONFIG_PROBLEMS.length > 0 ? 503 : 200).json({
+      model: CHAT_MODEL,
+      name: modelName(CHAT_MODEL),
+      ok: CONFIG_PROBLEMS.length === 0,
+      chunks: index.chunks.length,
+      ...(CONFIG_PROBLEMS.length > 0 ? { problems: CONFIG_PROBLEMS } : {}),
+    });
     return;
   }
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  if (CONFIG_PROBLEMS.length > 0) {
+    // Refuse rather than burn a paid embedding call on a request that cannot be
+    // answered, and say why in the response instead of only in the logs.
+    res.status(503).json({ error: 'Chat is not configured', problems: CONFIG_PROBLEMS });
     return;
   }
 

@@ -136,15 +136,26 @@ unrelated to the key, so check both before debugging anything else.
 
 `ANTHROPIC_API_KEY` never appears in our source: the `@ai-sdk/anthropic` provider
 reads it from the environment itself, so grepping for it finds nothing and it is
-easy to forget when provisioning. Symptoms of each being missing:
+easy to forget when provisioning.
 
-- **No `VOYAGE_API_KEY` at build**: `generate-index.mjs` fails and the deploy stops.
-- **No `VOYAGE_API_KEY` at runtime**: the build succeeds, then every chat and every
-  MCP `search_docs` call fails when it tries to embed the query.
-- **No `ANTHROPIC_API_KEY`**: retrieval works and the MCP server is fully
-  functional, but the chat widget returns an error on every question. The MCP
-  server does not need this key at all: it hands retrieved sections back to the
-  calling agent and lets that agent's own model do the generating.
+Each missing key is made to announce itself rather than degrade quietly:
+
+| Missing | What happens |
+|---------|--------------|
+| `VOYAGE_API_KEY` at build | The index generators **exit non-zero and fail the build**, whenever `CI` or `VERCEL` is set. Locally they warn and write a vectorless index instead, which is a legitimate way to work on chunking without a key. |
+| `VOYAGE_API_KEY` at runtime | `/api/chat` refuses with `503` and names the variable; `/api/mcp` throws at cold start with the same message. |
+| `ANTHROPIC_API_KEY` | `/api/chat` refuses with `503`. The MCP server is unaffected and stays fully functional: it hands retrieved sections to the calling agent and lets that agent's own model generate. |
+| A vectorless index reaching production | Both routes detect it (`embedding.dim` is null) and refuse, rather than serving `200` while every search returns nothing. |
+
+**Health check.** `GET /docs/api/chat` reports whether a deployment is wired up,
+so verifying staging is one request rather than asking a question and reading the
+tea leaves. It returns `200` with `ok: true` when healthy, `503` with a `problems`
+array when not:
+
+```bash
+curl -s https://<deployment>/docs/api/chat | jq
+# { "model": "claude-sonnet-5", "name": "Claude Sonnet 5", "ok": true, "chunks": 1406 }
+```
 
 Keys live in GitHub Actions and Vercel secrets, never in the repo. `VOYAGE_API_KEY`
 is already wired into `.github/workflows/cd-docs.yml`.

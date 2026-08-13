@@ -58,6 +58,44 @@ export function voyageProvider({ apiKey, model = 'voyage-3-large', dim = 1024 })
 }
 
 /**
+ * Resolve the embedding key for an index build, and refuse to ship without one.
+ *
+ * A vectorless index is not a degraded index, it is an inert one: it writes,
+ * deploys, and serves HTTP 200 while every search returns nothing. The symptom
+ * ("the assistant answers nothing useful") shows up long after, and points at
+ * the model rather than at the deploy that dropped the key. So in CI or on
+ * Vercel a missing key is fatal.
+ *
+ * Locally it stays a warning: building a vectorless index is a legitimate way to
+ * work on chunking or page structure without holding a key.
+ *
+ * @param {string} artifact  what ends up vectorless, named in the message
+ * @returns {string | undefined} the key, or undefined when building locally without one
+ */
+export function resolveEmbedKey(artifact) {
+  const apiKey = process.env.VOYAGE_API_KEY;
+  if (apiKey) return apiKey;
+
+  // GitHub Actions sets CI; Vercel sets VERCEL. Either means this build ships.
+  if (process.env.CI || process.env.VERCEL) {
+    console.error(
+      `\nVOYAGE_API_KEY is not set.\n` +
+        `  Refusing to build ${artifact} without vectors: it would deploy cleanly ` +
+        `and then return no results for every query.\n` +
+        `  Set VOYAGE_API_KEY in GitHub Actions secrets and in the Vercel project ` +
+        `environment (it is needed at build AND at runtime).\n`,
+    );
+    process.exit(1);
+  }
+
+  console.warn(
+    `VOYAGE_API_KEY not set: writing ${artifact} without vectors. ` +
+      `Retrieval will return nothing until you rebuild with a key.`,
+  );
+  return undefined;
+}
+
+/**
  * Deterministic mock provider for tests (no network). Derives a pseudo-vector
  * from the text hash so the same text always yields the same vector.
  *

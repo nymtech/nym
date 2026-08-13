@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/lib/retrieval/chunker.mjs';
-import { voyageProvider, embedChunks } from '../../docs/lib/retrieval/embed.mjs';
+import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/lib/retrieval/embed.mjs';
 import { PAGES_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -90,7 +90,7 @@ const index = {
   chunks, // each carries its own `source` tag (nym-docs | confluence | ...)
 };
 
-const apiKey = process.env.VOYAGE_API_KEY;
+const apiKey = resolveEmbedKey('the docs index');
 if (apiKey) {
   const provider = voyageProvider({ apiKey });
   const cache = loadCache();
@@ -99,8 +99,6 @@ if (apiKey) {
   index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
   index.chunks = embedded;
   console.log(`Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`);
-} else {
-  console.warn('VOYAGE_API_KEY not set: writing a vectorless (structure-only) index. Retrieval needs vectors.');
 }
 
 fs.writeFileSync(OUTPUT_FILE, JSON.stringify(index));

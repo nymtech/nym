@@ -429,8 +429,8 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
-nym-bridges = { git = "https://github.com/nymtech/nym-bridges", branch = "v0.2.1-rc.1" }
-nym-bridges-types = { git = "https://github.com/nymtech/nym-bridges", branch = "v0.2.1-rc.1" }
+nym-bridges = { git = "https://github.com/nymtech/nym-bridges", branch = "v0.2.1-rc.2" }
+nym-bridges-types = { git = "https://github.com/nymtech/nym-bridges", branch = "v0.2.1-rc.2" }
 
 
 prometheus = { version = "0.14.0" }

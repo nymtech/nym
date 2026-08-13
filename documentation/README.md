@@ -125,6 +125,20 @@ Two build-time indexes, no vector database: a docs index (`voyage-3-large`) and 
 code index (`voyage-code-3`), built during `pnpm run build` and gitignored.
 Embeddings use Voyage; generation uses Anthropic Claude.
 
+**Embedding cost and caching.** Vectors are cached by chunk content hash
+(`lib/retrieval/embed.mjs`), so a rebuild only embeds chunks whose text actually
+changed. The cache key includes the model and dimension, so switching embedding
+models invalidates it rather than silently mixing two vector spaces.
+
+The cache lives at `node_modules/.cache/nym-docs/`. Vercel restores that path
+between builds automatically; GitHub runners start clean, so `cd-docs.yml` restores
+it with `actions/cache`. Either way a full cold rebuild is cheap in money (the docs
+index is roughly 300k tokens) and the thing worth avoiding is the build time.
+
+Anything that changes chunk *boundaries* rather than page content, such as
+`MAX_CHARS` or the chunker's splitting logic, invalidates effectively every entry.
+Expect a slow first build after chunker work.
+
 **Where each key must be set.** The two are needed at different stages, so they do
 not go in the same place. Setting only one of them fails in a way that looks
 unrelated to the key, so check both before debugging anything else.

@@ -50,6 +50,19 @@ jobs:
         working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
+      # Embedding vectors are keyed by chunk content hash, so a restored cache
+      # means only changed chunks are re-embedded. Vercel gets this for free by
+      # restoring node_modules/.cache between builds; a GitHub runner starts
+      # clean, so without this the whole corpus is re-embedded on every deploy.
+      # restore-keys matters more than an exact hit: any recent cache still
+      # covers the chunks that did not change.
+      - name: Restore embedding cache
+        uses: actions/cache@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-embed-${{ hashFiles('documentation/docs/pages/**', 'documentation/docs/lib/retrieval/chunker.mjs', 'documentation/docs/lib/retrieval/code-chunker.mjs') }}
+          restore-keys: |
+            nym-embed-
       - name: Generate llms-full.txt
         run: pnpm run generate:llms
       - name: Build project

@@ -8,8 +8,9 @@ jobs:
     runs-on: arc-ubuntu-22.04
     env:
       NEXT_PUBLIC_SITE_URL: https://nym.com/docs
-      # Build-time index embedding (generate-index.mjs). If unset, the index is
-      # written vectorless and search_docs returns nothing (build still passes).
+      # Build-time index embedding (generate-index.mjs and generate-code-index.mjs).
+      # Required: without it the generators exit non-zero and fail this job, rather
+      # than shipping an index with no vectors that returns nothing for every query.
       # Runtime keys (query embedding + Claude generation) come from the Vercel
       # project env via `vercel pull`, not from here.
       VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}

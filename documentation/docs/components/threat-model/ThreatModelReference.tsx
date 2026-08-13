@@ -8,8 +8,8 @@ import {
   PROFILE_NOTE,
   PROPERTIES,
   VECTORS,
-} from "../../lib/privacy-model/threat-model";
-import { actorHref } from "../../lib/privacy-model/links";
+} from "lib/privacy-model/threat-model";
+import { actorHref } from "lib/privacy-model/links";
 
 // Reference views over the generic threat-model spine. These render only from
 // the spine data (../../lib/privacy-model/threat-model) and use classes already

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { GEO_BANDS, type LatencyParams } from "../../lib/privacy-model/latency";
+import { GEO_BANDS, type LatencyParams } from "lib/privacy-model/latency";
 
 export function LatencyControls({
   params,

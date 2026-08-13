@@ -1,0 +1,421 @@
+---
+title: NymVPN CLI: Run NymVPN from the Command Line
+description: Install and run NymVPN from the terminal on Linux, macOS, and Windows. Includes ARM64 .deb packages, account setup, tunnel configuration, and gateway selection.
+url: https://nym.com/docs/developers/nymvpncli
+---
+
+# Nym VPN CLI
+
+This is a short guide to setting up and using the `nym-vpnc` tool, which is used in conjunction with the `nym-vpnd` daemon.
+
+Download and run instructions for the GUIs can be found [here](https://nymvpn.com/en/download/linux).
+
+## Download & Extract Binary
+Check the [release page](https://github.com/nymtech/nym-vpn-client/releases/) page for the latest release version and modify the instructions accordingly. These instructions use the latest as of the time of writing.
+```sh
+wget -q https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v1.29.0/nym-vpn-core-v1.29.0_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+tar -xzf nym-vpn-core-v1.29.0_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+cd nym-vpn-core-v1.29.0_<YOUR_OPERATING_SYSTEM>/ &&
+chmod u+x *
+```
+
+### Linux ARM64 (.deb)
+
+ARM64 `.deb` packages are available for Linux distributions that support them (e.g. Ubuntu/Debian on Raspberry Pi or ARM servers). Install both the daemon and the client:
+
+```sh
+sudo dpkg -i nym-vpnd_<VERSION>_arm64.deb
+sudo dpkg -i nym-vpnc_<VERSION>_arm64.deb
+```
+
+The `.deb` package installs a systemd service that starts `nym-vpnd` automatically. Verify the service is running:
+
+```sh
+service nym-vpnd status
+```
+
+You should see output similar to:
+
+```sh
+● nym-vpnd.service - nym-vpnd daemon
+     Loaded: loaded (/usr/lib/systemd/system/nym-vpnd.service; enabled; preset: enabled)
+     Active: active (running)
+```
+
+Verify the installed version with `nym-vpnc info`:
+
+```sh
+nym-vpnc info
+```
+```sh
+nym-vpnd:
+  version: 1.25.0
+  build_timestamp (utc): 2026-03-02 16:25:31.229479864 +00:00:00
+  triple: aarch64-unknown-linux-gnu
+  platform: Ubuntu; Linux (Ubuntu 24.04); aarch64
+  git_commit: fce7a84e612b8d2cb48b66695cdaf023d7f9a42b
+```
+
+## Build from Source
+### Prerequisites
+All operating systems require both [Rust](https://www.rust-lang.org/tools/install) and [Go](https://go.dev/doc/install).
+
+**Arch specific packages:**
+```sh
+yay -S gcc make protobuf base-devel clang
+```
+
+**Ubuntu24 specific packages:**
+```sh
+apt install gcc make protobuf-compiler pkconfig libdbus-1-dev build-essential clang
+```
+
+  Older Debian/Ubuntu versions need to manually install `protobuf-compiler` >= v3.21.12
+
+### Clone & `make`
+```sh
+git clone https://github.com/nymtech/nym-vpn-client.git
+cd nym-vpn-client/
+make
+```
+
+## Start the Daemon
+
+If you installed via `.deb` packages, the daemon is already running as a systemd service. You can check its status with:
+
+```sh
+service nym-vpnd status
+```
+
+If you are running from pre-built binaries or a source build, start the daemon manually:
+
+```sh
+sudo ./PATH/TO/nym-vpnd
+```
+
+  Leave the daemon running and run `nym-vpnc` commands in a separate terminal window.
+
+## Account Setup
+
+### Create an Account
+
+Head to [https://nym.com/account/create](https://nym.com/account/create) and obtain a passphrase (mnemonic).
+
+### Log In
+
+Store your account passphrase on this device:
+
+```sh
+nym-vpnc account set "<YOUR_PASSPHRASE>"
+```
+
+### Check Account Status
+
+Verify that the device is logged in and view account details:
+
+```sh
+nym-vpnc account get
+```
+
+Example output:
+
+```sh
+Account identity: n1wlmrpa7ts7znz7nxvmxevaw65796cr6q6pht69
+Canonical Account identity: n1wlmrpa7ts7znz7nxvmxevaw65796cr6q6pht69
+Account mode: Some(Api)
+Account state: Error(BandwidthExceeded { context: "SYNCING_STATE" })
+```
+
+### Account Summary & Balance
+
+```sh
+nym-vpnc account summary
+nym-vpnc account balance
+```
+
+### Account Links
+
+Get URLs for managing your NymVPN account:
+
+```sh
+nym-vpnc account links
+```
+
+### Forget Account
+
+Remove the stored passphrase, device keys, and local credentials from this device:
+
+```sh
+nym-vpnc account forget
+```
+
+### Device Information
+
+View the current device identity:
+
+```sh
+nym-vpnc device get
+```
+
+## Pay as You Go: Decentralized Access to Nym
+
+You can fund your VPN usage directly from your own wallet instead of going through the NymVPN account system. You deposit `$NYM` into the ticketbook smart contract and receive zk-nym ticketbooks that authenticate you on the network.
+
+  If you already have an account stored in `nym-vpnc`, you must remove it first with `nym-vpnc account forget` before setting a new mnemonic.
+
+### Set Your Mnemonic
+
+Store the recovery phrase for your on-chain wallet address (`n1...`) that holds your `$NYM` tokens:
+
+```sh
+nym-vpnc account set "<MNEMONIC>" --location blockchain
+```
+
+You must fund this address yourself, for example by transferring `$NYM` from an exchange or another wallet. The `--location blockchain` flag tells `nym-vpnc` to use the on-chain wallet directly rather than the NymVPN account system.
+
+### Obtain Ticketbooks
+
+Deposit `$NYM` into the ticketbook smart contract and receive zk-nym credentials:
+
+```sh
+nym-vpnc account obtain-ticketbooks --amount 1 --source smartcontract
+```
+
+You can omit `--source` to use the default:
+
+```sh
+nym-vpnc account obtain-ticketbooks --amount 1
+```
+
+The `--amount` flag specifies how many ticketbooks to obtain **per ticket type**. Each request issues one ticketbook for each of the three types listed below, so `--amount 1` produces 3 ticketbooks total and `--amount 2` produces 6.
+
+Each ticketbook contains **50 tickets** and is valid for **7 days**. Each ticketbook costs **75 NYM**, so `--amount 1` deposits **225 NYM** (75 × 3 types) and `--amount 2` deposits **450 NYM**.
+
+| Kind | Ticket size | Ticketbook capacity | Used for |
+|------|-------------|---------------------|----------|
+| Mixnet Entry | 200 MB | 10 GB (200 MB × 50) | 5-hop mixnet mode |
+| WireGuard Entry | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (entry side) |
+| WireGuard Exit | 500 MB | 25 GB (500 MB × 50) | 2-hop WireGuard mode (exit side) |
+
+  If you only use two-hop (WireGuard) mode, the Mixnet Entry ticketbooks will go unused. There is currently no way to obtain ticketbooks for a single type.
+
+This command:
+
+- Deposits `$NYM` into the ticketbook smart contract (plus a small fee buffer per deposit)
+- Requests credential issuance from the decentralised Nym API validators
+- Stores the resulting zk-nym ticketbooks locally on the device
+
+### Connect
+
+Connect using the locally stored ticketbooks:
+
+```sh
+nym-vpnc connect-v2
+```
+
+The CLI uses the ticketbooks to authenticate with entry nodes (gateways) and connect to the Nym network. You will see the connection happening in the `nym-vpnd` logs.
+
+## Tunnel Configuration
+
+Print current tunnel configuration:
+
+```sh
+nym-vpnc tunnel get
+```
+
+Enable two-hop mode (WireGuard): traffic jumps directly from entry gateway to exit gateway:
+
+```sh
+nym-vpnc tunnel set --two-hop on
+```
+
+Enable Mixnet (5-hop): disable two-hop to route traffic through the full mixnet for maximum privacy:
+
+```sh
+nym-vpnc tunnel set --two-hop off
+```
+
+Enable or disable IPv6:
+
+```sh
+nym-vpnc tunnel set --ipv6 on
+```
+
+Enable censorship circumvention transports (currently QUIC):
+
+```sh
+nym-vpnc tunnel set --circumvention-transports on
+```
+
+  Run `nym-vpnc tunnel set --help` for all available tunnel options including mixnet timing parameters.
+
+## Gateway Configuration
+
+Set entry and exit gateways bound to specific countries using [ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country codes:
+
+```sh
+nym-vpnc gateway set --entry-country US --exit-country JP
+```
+
+Print current gateway configuration:
+
+```sh
+nym-vpnc gateway get
+```
+
+Example output:
+
+```sh
+Entry point: Country { two_letter_iso_country_code: "US" }
+Exit point: Country { two_letter_iso_country_code: "JP" }
+Residential exit: off
+```
+
+Only use residential exit nodes:
+
+```sh
+nym-vpnc gateway set --residential-exit on
+```
+
+### List Available Gateways
+
+List available WireGuard gateways (use a wide terminal window for the table output):
+
+```sh
+nym-vpnc gateway list wg
+```
+
+You can also list mixnet entry and exit gateways:
+
+```sh
+nym-vpnc gateway list mixnet-entry
+nym-vpnc gateway list mixnet-exit
+```
+
+## Connect & Disconnect
+
+Connect using the settings stored in `nym-vpnd`:
+
+```sh
+nym-vpnc connect
+```
+
+Disconnect:
+
+```sh
+nym-vpnc disconnect
+```
+
+Reconnect:
+
+```sh
+nym-vpnc reconnect
+```
+
+Print the current tunnel status:
+
+```sh
+nym-vpnc status
+```
+
+Continuously stream tunnel status in real time:
+
+```sh
+nym-vpnc status --listen
+```
+
+## Ad-Block
+
+NymVPN includes a built-in ad-blocker (Brave ad-engine). Ad-blocking is only active while the tunnel is connected.
+
+Enable ad-block:
+
+```sh
+nym-vpnc ad-block set enabled
+```
+
+Disable ad-block:
+
+```sh
+nym-vpnc ad-block set disabled
+```
+
+  You can test ad-blocking with [adblock.turtlecute.org](https://adblock.turtlecute.org/). Some browsers cache DNS internally, so toggling ad-block on/off at runtime may not have an immediate effect; a browser restart may be needed. Use `nslookup` or `dig` to verify that domains are being blocked.
+
+## DNS
+
+View current DNS configuration:
+
+```sh
+nym-vpnc dns get
+nym-vpnc dns get-default
+```
+
+Set custom DNS servers:
+
+```sh
+nym-vpnc dns set 1.1.1.1 9.9.9.9
+nym-vpnc dns enable
+```
+
+Disable custom DNS and revert to defaults:
+
+```sh
+nym-vpnc dns disable
+```
+
+Clear custom DNS servers:
+
+```sh
+nym-vpnc dns clear
+```
+
+## Local Network Access
+
+Control whether local network (LAN) traffic is allowed while the tunnel is active:
+
+```sh
+nym-vpnc lan get
+nym-vpnc lan set allow
+nym-vpnc lan set block
+```
+
+## SOCKS5 Proxy
+
+NymVPN can expose a local SOCKS5 proxy:
+
+```sh
+nym-vpnc socks5 enable
+nym-vpnc socks5 disable
+nym-vpnc socks5 status
+```
+
+## Network
+
+View or change the Nym network (requires a daemon restart):
+
+```sh
+nym-vpnc network get
+nym-vpnc network set mainnet
+```
+
+## Diagnostic
+
+Run connectivity diagnostics:
+
+```sh
+nym-vpnc diagnostic run
+```
+
+## Getting Help
+
+Any `nym-vpnc` command has built-in help. Add `--help` to the end of any command to view available options:
+
+```sh
+nym-vpnc --help
+nym-vpnc connect --help
+nym-vpnc tunnel set --help
+```
+
+## Default Config Directories
+Configurations are stored in `/etc/nym`. State stored between runs (keys, mnemonic, etc) are stored in `/var/lib/nym-vpnd`.

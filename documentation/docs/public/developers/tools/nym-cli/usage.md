@@ -1,0 +1,31 @@
+---
+title: usage
+url: https://nym.com/docs/developers/tools/nym-cli/usage
+---
+
+# Usage
+
+## Building
+The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory.
+
+## Usage
+See the [commands](/developers/tools/nym-cli/commands) page for an overview of all command options.
+
+## Staking on someone's behalf (for custodians)
+
+The staking address can only perform the following actions (visible via the Nym Wallet):
+
+- Bond on the gateway's or Mix Node's behalf.
+- Delegate or Un-delegate (to a Mix Node in order to begin receiving rewards)
+- Claiming the rewards on the account
+
+```admonish note title=""
+The staking address has no ability to withdraw any coins from the parent's account.
+```
+
+The staking address must maintain the same level of security as the parent mnemonic; while the parent mnemonic's delegations and bonding events will be visible to the parent owner, the staking address will be the only account capable of undoing the bonding and delegating from the Mix Nodes or gateway.
+
+Query for staking on behalf of someone else
+```
+./nym-cli --mnemonic <staking address mnemonic>  mixnet delegators delegate --mix-id <input> --identity-key <input> --amount <input>
+```

@@ -8,7 +8,7 @@ lastUpdated: "2026-06-09"
 
 import { Callout } from 'nextra/components'
 import dynamic from 'next/dynamic'
-import { requireGenericScenario } from '../../lib/privacy-model/examples/generic'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
 
 export const NetworkDiagram = dynamic(
   () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
@@ -25,7 +25,7 @@ export const archProxy = {
       { id: 'm1', kind: 'mix', col: 2 },
       { id: 'm2', kind: 'mix', col: 3 },
       { id: 'm3', kind: 'mix', col: 4 },
-      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW', components: ['Network Requester (NR)', 'IP Packet Router (IPR)'] },
+      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW' },
       { id: 'd', kind: 'destination', col: 6 },
     ],
     routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
@@ -69,7 +69,7 @@ The table below maps those two answers to a package.
 
 The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.
 
-**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
+**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way, so there is no Exit Gateway, no clearnet hop, and no third-party server that learns your IP ([threat-model assessment](/network/threat-model/configurations/end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
 
 <NetworkDiagram item={archE2E} />
 
@@ -81,17 +81,17 @@ The runtime axis is about where your code runs: a native process has raw sockets
 
 <NetworkDiagram item={archDvpn} />
 
+<Callout type="info">
+**Native only.** [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build, so the dVPN row of the matrix above has no browser equivalent. Its WireGuard datapath (`boringtun`) and userspace IP stack are built on tokio's networking and multi-threaded runtime, which pull in `mio` and do not compile for `wasm32-unknown-unknown`. In a browser or WebView, the mixnet-based mix-* packages are the only option.
+</Callout>
+
 <Callout type="warning">
-Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
+Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe, and [Exit security](/developers/concepts/exit-security) for which exit your package uses.
 </Callout>
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
 
 <NetworkDiagram item={archBrowser} />
-
-<Callout type="info">
-The dVPN path is native-only: [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build. Its WireGuard datapath (`boringtun`) and userspace IP stack run on the tokio runtime and compile for native targets only, so a browser or WebView cannot load it. In those runtimes, use the mixnet-based mix-* packages instead.
-</Callout>
 
 ## Packages
 
@@ -119,6 +119,6 @@ The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)
 
 | Resource | Use it for |
 |---|---|
-| [SOCKS5 / WebSocket clients](/developers/clients) | Language-agnostic binaries for piping traffic through the mixnet without an SDK. |
+| [Standalone clients](/developers/clients) | SOCKS5, WebSocket, and WebAssembly clients: pipe traffic through the mixnet without embedding an SDK. |
 | [Chain interaction](/developers/chain) | Query Nyx state, submit transactions, call Nym smart contracts. |
 | [APIs](/apis/introduction) | Auto-generated reference for Nym infrastructure HTTP endpoints. |

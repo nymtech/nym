@@ -1,0 +1,55 @@
+---
+title: socks5
+url: https://nym.com/docs/developers/clients/socks5
+---
+
+# Socks5 Client (Standalone)
+
+> This proxy is also available embedded in a Rust application via the [nym-sdk SOCKS5 module](/developers/rust/socks5).
+
+Many existing applications are able to use either the SOCKS4, SOCKS4a, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
+
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+flowchart TB
+    subgraph Local Machine[Local Machine]
+        A[Application Logic]
+        B[Nym Socks5 Client]
+    end
+    A <-->|Bytes| B
+    B <-->|Sphinx Packets| EG
+
+    subgraph Mixnet Nodes[Mixnet Nodes]
+        EG[/Entry Gateway/]
+        M{Mix Nodes 1..3}
+        ExG[\Exit Gateway\]
+    end
+    EG <-->|Sphinx Packets| M
+    M <-->|Sphinx Packets| ExG
+
+    subgraph External Systems
+        C[Blockchain RPC]
+        D[Mail Server]
+        E[Message Server]
+        F[etc]
+    end
+    C <-->|Bytes| ExG
+    D <-->|Bytes| ExG
+    E <-->|Bytes| ExG
+    F <-->|Bytes| ExG
+```
+
+There are 2 pieces of software that work together to send SOCKS traffic through the mixnet: the `nym-socks5-client`, and a `nym-node` running as an Exit Gateway.
+
+> The functionality performed by the Exit Gateway was previously performed by the `nym-network-requester`: this functionality has been migrated into the Exit Gateway mode of the `nym-node`.
+
+The `nym-socks5-client` allows you to do the following from your local machine:
+* Take a TCP data stream from a application that can send traffic via SOCKS5.
+* Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
+* Send the Sphinx packets through the Nym Network. Packets are shuffled and mixed as they transit the mixnet.
+
+The `nym-node` then reassembles the original TCP stream using the packets' sequence numbers, and makes the intended request. It chops up the response into Sphinx packets and sends them back through the mixnet to your `nym-socks5-client`. The application receives its data without noticing that it wasn't talking to a "normal" SOCKS5 proxy.

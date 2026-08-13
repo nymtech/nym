@@ -27,6 +27,8 @@ public/docs-index.json
 public/code-index.json
 .cache/
 
-# Per-page markdown export (built at deploy from pages/; see generate-page-markdown.mjs)
+# Per-page markdown export (built at deploy from pages/; see generate-page-markdown.mjs).
+# Covers the operator pages too, which the operator team maintains and which had
+# their own narrower rule before this pattern subsumed it.
 public/*.md
 public/**/*.md

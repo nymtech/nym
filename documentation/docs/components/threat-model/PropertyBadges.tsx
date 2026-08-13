@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import type { ActorId, Scenario, Tri } from "../../lib/privacy-model/types";
-import { triClass, triGlyph } from "../../lib/privacy-model/tri";
-import { actorHref } from "../../lib/privacy-model/links";
+import type { ActorId, Scenario, Tri } from "lib/privacy-model/types";
+import { triClass, triGlyph } from "lib/privacy-model/tri";
+import { actorHref } from "lib/privacy-model/links";
 
 /** Compact per-actor verdict row for a scenario, plus the performance badge. */
 export function PropertyBadges({ scenario }: { scenario: Scenario }) {

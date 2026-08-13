@@ -1,0 +1,38 @@
+---
+title: nym nodes
+url: https://nym.com/docs/network/infrastructure/nym-nodes
+---
+
+# Nym Nodes
+
+All traffic-routing infrastructure runs on the `nym-node` binary. This unified binary operates in different modes (Entry Gateway, Mix Node, or Exit Gateway), simplifying deployment and enabling future dynamic role assignment.
+
+To run a node, see the [Operator Documentation](/operators/introduction).
+
+## Node modes
+
+**Entry Gateways** are the user's first point of contact with the network. They accept WebSocket connections from clients, verify zk-nym credentials to confirm payment, and store messages for clients that go offline. Entry Gateways know the client's IP address but cannot see message contents or final destinations.
+
+**Mix Nodes** form the three mixing layers that provide core privacy. They receive Sphinx packets, remove one encryption layer, verify integrity, apply a random delay, and forward to the next hop. Mix Nodes cannot determine their position in the route and cannot link incoming packets to outgoing packets.
+
+**Exit Gateways** handle traffic leaving the mixnet. They run two proxy services: the [Network Requester](/network/infrastructure/exit-services#network-requester) (a SOCKS proxy for application-layer requests) and the [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) (a raw IP tunnel used by NymVPN and smolmix). Exit Gateways can see destination addresses but cannot identify the original sender. See [Exit Gateway Services](/network/infrastructure/exit-services) for details.
+
+## Unified binary
+
+These components were originally separate binaries but have been consolidated into a single `nym-node` binary where the role is specified at runtime. This simplifies operation and makes configuration consistent across roles.
+
+In the future, nodes will automatically switch modes based on network conditions. Operators won't need to manually set whether a node is a Gateway or Mix Node; the network will assign modes dynamically each epoch.
+
+## Nym clients
+
+For client setup, see the [Developer Documentation](/developers/clients/socks5).
+
+Clients are the user-side software that connects to the network. They discover network topology from the blockchain, register with an Entry Gateway, construct Sphinx packets with layered encryption, generate cover traffic, and handle acknowledgements and retransmission.
+
+Client types include native Rust clients, WASM clients for browsers, the SOCKS5 proxy client, and the NymVPN client. The NymVPN client supports both dVPN and mixnet modes.
+
+## Running infrastructure
+
+The current deployment includes {stats.nodes} active nodes across {stats.locations} countries, operated by independent parties worldwide. This includes {stats.mixnodes} Mix Nodes and {stats.exit_gateways} Exit Gateways. Running a node requires meeting minimum hardware specifications, bonding NYM tokens as collateral, and maintaining high uptime for rewards.
+
+For the hardware requirements, bonding, and setup steps, see the [node setup guides](/operators/nodes) in the operator documentation.

@@ -1,0 +1,45 @@
+---
+title: Nym TcpProxy: Route TCP via the Mixnet (Deprecated)
+description: Route TCP traffic through the Nym mixnet using the TcpProxy Rust module. Deprecated in favour of the Stream module.
+url: https://nym.com/docs/developers/rust/tcpproxy
+---
+
+# TcpProxy Module
+
+This module is unmaintained. The TcpProxy is no longer actively developed in favour of the [Stream module](/developers/rust/stream), which provides `AsyncRead + AsyncWrite` channels directly over the Mixnet without the localhost TCP socket layer. Existing users should plan to migrate. The module will continue to work but will not receive new features or bug fixes.
+
+`NymProxyClient` and `NymProxyServer` proxy TCP traffic through the Mixnet. Both run in a background thread and expose a configurable `localhost` socket that callers read and write to like any other TCP connection. The Stream module replaces this pattern with multiplexed channels on a single client and no localhost socket layer.
+
+> Non-Rust/Go developers can use the [standalone binaries](/developers/tools/standalone-tcpproxy) instead.
+
+## Examples
+
+| Example | Source |
+|---|---|
+| Single connection | [`tcp_proxy_single_connection.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/tcp_proxy_single_connection.rs) |
+| Multiple connections | [`tcp_proxy_multistream.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/tcp_proxy_multistream.rs) |
+
+```bash
+cargo run --example tcp_proxy_single_connection
+cargo run --example tcp_proxy_multistream
+```
+
+## API reference
+
+[`docs.rs/nym-sdk/tcp_proxy`](https://docs.rs/nym-sdk/latest/nym_sdk/tcp_proxy/) covers types, methods, and the full client/server walkthrough.
+
+## Architecture
+
+`NymProxyClient` uses a [Client Pool](/developers/rust/client-pool) with one client per incoming TCP connection; if the pool runs dry it falls back to creating clients on demand. `NymProxyServer` runs a single Nym client with a persistent identity.
+
+Each TCP connection is wrapped in a session ID; messages within a session carry an incrementing message ID, and a final `Close` message signals that no more outbound bytes are coming. Session and message IDs are necessary because the Mixnet guarantees delivery but not ordering, and ordering matters whenever a parser cares about frame boundaries (gRPC over protobuf, HTTP, TLS).
+
+```rust
+pub struct ProxiedMessage {
+    message: Payload,
+    session_id: Uuid,
+    message_id: u16,
+}
+```
+
+For the full request/response sequence diagram, see the [module source](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/src/tcp_proxy) or the [docs.rs](https://docs.rs/nym-sdk/latest/nym_sdk/tcp_proxy/) entry.

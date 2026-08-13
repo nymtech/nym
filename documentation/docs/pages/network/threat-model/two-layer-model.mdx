@@ -8,8 +8,8 @@ lastUpdated: "2026-07-29"
 
 import dynamic from 'next/dynamic'
 import { Callout } from 'nextra/components'
-import { requireGenericScenario } from '../../../lib/privacy-model/examples/generic'
-import { MetadataPanel } from '../../../components/threat-model/MetadataPanel'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+import { MetadataPanel } from 'components/threat-model/MetadataPanel'
 
 export const NetworkDiagram = dynamic(
   () => import('../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
@@ -38,10 +38,13 @@ of what you send.
 
 ## The category error
 
-The destination is the server on the other end of your session. It is the
-primary adversary, because you must talk to it directly and it is cheap to run
-or compromise. It sees your source IP, the arrival time of every request, and
-the full content of each request.
+The destination is the server on the other end of your session. For most
+applications it is the [primary
+adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications),
+because you must talk to it directly and it is cheap to run or compromise. It
+sees the source IP of whatever connects to it, the arrival time of every request,
+and the full content of each request. Transport can change that source IP. It
+cannot change the other two.
 
 Mixing does not change this.
 
@@ -108,7 +111,9 @@ not exist.**
 This is the strongest position the network offers, and it is a different shape
 from everything above. Not "hide better from the destination", but "have no
 untrusted destination at all". See
-[exit security](/developers/concepts/exit-security) for the two modes.
+[end to end](/network/threat-model/configurations/end-to-end) for the assessment,
+and [Exit Gateway Services](/network/infrastructure/exit-services) for the
+clearnet-exit path it replaces.
 
 <NetworkDiagram item={endToEnd} />
 

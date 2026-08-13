@@ -1,10 +1,10 @@
 import React from "react";
 import Link from "next/link";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-// import { Footer } from "./components/footer";
-import { Matrix } from "./components/matrix-link";
-import { Explorer } from "./components/explorer-link";
-// import PageActions from "./components/PageActions"; // re-add via client-side mount (main-wrapper caused hydration mismatch)
+// import { Footer } from "components/footer";
+import { Matrix } from "components/matrix-link";
+import { Explorer } from "components/explorer-link";
+// import PageActions from "components/PageActions"; // re-add via client-side mount (main-wrapper caused hydration mismatch)
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {

@@ -2,17 +2,17 @@
 
 import { useId, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { NodeGlyph } from "./NodeGlyph";
-import { PacketAnatomy } from "./PacketAnatomy";
-import { LatencyControls } from "./LatencyControls";
+import { NodeGlyph } from "components/threat-model/NodeGlyph";
+import { PacketAnatomy } from "components/threat-model/PacketAnatomy";
+import { LatencyControls } from "components/threat-model/LatencyControls";
 import {
   computePathLatency,
   DEFAULT_LATENCY_PARAMS,
   formatLatency,
   type LatencyParams,
-} from "../../lib/privacy-model/latency";
-import type { NodeKind } from "../../lib/privacy-model/types";
-import { useReducedMotion } from "../../lib/privacy-model/useReducedMotion";
+} from "lib/privacy-model/latency";
+import type { NodeKind } from "lib/privacy-model/types";
+import { useReducedMotion } from "lib/privacy-model/useReducedMotion";
 
 type Mode = "mixnet" | "dvpn";
 interface XY {

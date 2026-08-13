@@ -1,0 +1,51 @@
+---
+title: Nyx Validator REST API - Cosmos SDK Endpoints
+description: Reference for the Nyx Validator REST API, providing Cosmos SDK endpoints for account balances, staking, governance, and CosmWasm smart contract queries.
+url: https://nym.com/docs/apis/cosmos-sdk-nyx
+---
+
+# Validator REST API
+
+Nyx Validators are built with the [Cosmos SDK](https://docs.cosmos.network/) and expose a standard [REST API](https://docs.cosmos.network/api) for querying chain state directly.
+
+**Key endpoint categories:**
+- **Accounts**: balances, transaction history
+- **Staking**: validators, delegations, rewards
+- **Governance**: proposals, votes
+- **CosmWasm**: smart contract queries
+
+For validator setup instructions, see the [Nyx Validator Setup Guide](/operators/nodes/validator-setup).
+
+Other validator endpoints are listed at [cosmos.directory/nyx](https://cosmos.directory/nyx).
+
+## Quick examples
+
+**Query an account balance:**
+```bash
+curl https://api.nymtech.net/cosmos/bank/v1beta1/balances/n1...
+```
+
+**List active validators:**
+```bash
+curl https://api.nymtech.net/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED
+```
+
+## Mainnet endpoints
+
+- **OpenAPI spec:** [api.nymtech.net/swagger/swagger.yaml](https://api.nymtech.net/swagger/swagger.yaml)
+- **Swagger UI:** [api.nymtech.net/swagger/](https://api.nymtech.net/swagger/)
+
+## Full API reference
+
+<RedocStandalone
+  specUrl="https://api.nymtech.net/swagger/swagger.yaml"
+  options={{
+    nativeScrollbars: true,
+    theme: {
+      sidebar: {
+        backgroundColor: '#273239',
+        textColor: '#FCFDFE'
+      }
+    }
+  }}
+/>

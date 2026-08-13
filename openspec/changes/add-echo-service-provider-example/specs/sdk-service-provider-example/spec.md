@@ -43,7 +43,7 @@ Both examples SHALL explicitly construct the client `DebugConfig` with the loop 
 - **THEN** the passed `DebugConfig` has `cover_traffic.disable_loop_cover_traffic_stream = false` and `traffic.disable_main_poisson_packet_distribution = false`, set visibly in the example source
 
 ### Requirement: Examples compile as workspace members
-The examples SHALL be declared via explicit `[[example]]` entries in `sdk/rust/nym-sdk/Cargo.toml` (cargo auto-discovery does not reach nested example directories) and SHALL compile with the workspace using existing workspace dependency pins for `uuid`, `chrono`, and `serde_json`.
+The examples SHALL be declared via explicit `[[example]]` entries in `sdk/rust/nym-sdk/Cargo.toml` (cargo auto-discovery does not reach nested example directories) and SHALL compile with the workspace using existing workspace dependency pins for `uuid`, `time`, and `serde_json` (`time` rather than `chrono`, per review — chrono is unmaintained).
 
 #### Scenario: Examples build
 - **WHEN** `cargo check --package nym-sdk --examples` is run

@@ -33,11 +33,18 @@
 use nym_sdk::mixnet::{MixnetClientBuilder, MixnetStream};
 use nym_sdk::DebugConfig;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::Semaphore;
 
 /// How long a connected client gets to send its request.
 const READ_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Cap on concurrently served streams, so a flood of opens cannot pile up
+/// tasks that each wait up to [`READ_TIMEOUT`]. Sized to the capacity story
+/// in the README: the packet budget supports a few dozen requests in flight.
+const MAX_CONCURRENT_STREAMS: usize = 64;
 
 /// The reply sent back for every request. The echo-client example parses
 /// exactly this structure, so keep the two definitions in sync.
@@ -105,7 +112,9 @@ async fn handle_stream(mut stream: MixnetStream) {
 
     let response = EchoResponse {
         message: "hello".to_string(),
-        timestamp_utc: chrono::Utc::now().to_rfc3339(),
+        timestamp_utc: time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap(),
         request_id: uuid::Uuid::new_v4().to_string(),
     };
     let json = serde_json::to_string(&response).unwrap();
@@ -145,10 +154,20 @@ async fn main() {
     // the listener, exactly like accepting connections on a TCP socket.
     let mut listener = client.listener().unwrap();
 
+    let stream_permits = Arc::new(Semaphore::new(MAX_CONCURRENT_STREAMS));
     while let Some(stream) = listener.accept().await {
+        // Bound the number of in-flight handlers; drop excess streams
+        // instead of letting an open-flood pile up waiting tasks.
+        let Ok(permit) = stream_permits.clone().try_acquire_owned() else {
+            println!("stream limit reached; dropping stream {}", stream.id());
+            continue;
+        };
         println!("accepted stream: {}", stream.id());
         // One task per client, like a classic socket server. The accept
         // loop keeps running while requests are served concurrently.
-        tokio::spawn(handle_stream(stream));
+        tokio::spawn(async move {
+            let _permit = permit;
+            handle_stream(stream).await;
+        });
     }
 }

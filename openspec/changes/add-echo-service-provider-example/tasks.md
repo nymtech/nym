@@ -2,7 +2,7 @@
 
 ## 1. Cargo wiring
 
-- [x] 1.1 Add `uuid` (with `v4` feature), `chrono`, and `serde_json` to `nym-sdk` dev-dependencies using workspace pins; verify `serde` derive availability for the examples
+- [x] 1.1 Add `uuid` (with `v4` feature), `time` (with `formatting`/`parsing` features; chrono was swapped out per review — unmaintained), and `serde_json` to `nym-sdk` dev-dependencies using workspace pins; verify `serde` derive availability for the examples
 - [x] 1.2 Add `[[example]]` entries for `echo-service` and `echo-client` pointing at `examples/service-providers/echo-service/main.rs` and `examples/service-providers/echo-client/main.rs`
 
 ## 2. Echo service example

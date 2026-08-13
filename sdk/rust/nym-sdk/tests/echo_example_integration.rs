@@ -152,7 +152,8 @@ fn echo_examples_round_trip_on_mainnet() {
     let timestamp = reply["timestamp_utc"]
         .as_str()
         .expect("timestamp_utc is not a string");
-    chrono::DateTime::parse_from_rfc3339(timestamp).expect("timestamp_utc is not RFC 3339");
+    time::OffsetDateTime::parse(timestamp, &time::format_description::well_known::Rfc3339)
+        .expect("timestamp_utc is not RFC 3339");
 
     let request_id = reply["request_id"]
         .as_str()

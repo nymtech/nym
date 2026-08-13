@@ -99,13 +99,12 @@ dirs.workspace = true
 
 [dev-dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
 dotenvy = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
-time = { workspace = true }
+time = { workspace = true, features = ["formatting", "parsing"] }
 nym-bin-common = {workspace = true, features = ["basic_tracing"] }
 
 # extra dependencies for libp2p examples

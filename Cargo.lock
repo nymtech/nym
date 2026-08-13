@@ -8227,7 +8227,6 @@ dependencies = [
  "bytecodec",
  "bytes",
  "celes",
- "chrono",
  "clap",
  "dashmap",
  "dirs",

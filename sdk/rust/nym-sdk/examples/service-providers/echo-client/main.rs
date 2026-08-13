@@ -43,13 +43,20 @@ struct EchoResponse {
 /// The same explicit privacy configuration as the echo service: keep the
 /// Poisson packet stream (timing obfuscation) and the loop cover traffic
 /// stream (unobservability) enabled. These are the defaults — see the
-/// echo-service example for a field-by-field explanation.
+/// echo-service example for the full discussion.
 fn privacy_config() -> DebugConfig {
     let mut debug_config = DebugConfig::default();
+    // Real messages leave at randomized Poisson intervals (on average every
+    // `traffic.message_sending_average_delay`), cover packets fill the gaps.
     debug_config
         .traffic
         .disable_main_poisson_packet_distribution = false;
+    // Dummy self-addressed packets flow continuously (on average every
+    // `cover_traffic.loop_cover_traffic_average_delay`), hiding whether we
+    // are communicating at all.
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = false;
+    // Each packet is also delayed at every mix hop by a randomized amount
+    // averaging `traffic.average_packet_delay`, defeating timing correlation.
     debug_config
 }
 

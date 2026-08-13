@@ -37,7 +37,7 @@ Two examples demonstrate the pattern end to end:
   ```json
   {
     "message": "hello",
-    "timestamp_utc": "2026-08-13T12:34:56.789012+00:00",
+    "timestamp_utc": "2026-08-13T12:34:56.789012Z",
     "request_id": "3f2b6d9c-5a1e-4c7b-9e0d-8f4a2b6c1d5e"
   }
   ```
@@ -186,9 +186,11 @@ makes traffic analysis fail. But it has real operational consequences:
   total, not per client — plan capacity (or shard across multiple service
   provider instances) accordingly.
 - **Cover traffic is expensive.** When the service has nothing to send, it
-  sends anyway — cover packets fill every gap in the Poisson schedule. You
-  pay the full ~110 kB/s of Sphinx traffic (packets in both directions)
-  around the clock, whether you have one user or none.
+  sends anyway — cover packets fill every gap in the Poisson schedule. Your
+  egress runs at the full ~55 Sphinx packets/s (~110 kB/s on the wire)
+  around the clock, whether you have one user or none — and incoming
+  traffic (requests, acknowledgements, your own returning loop packets)
+  arrives on top of that.
 - **The client never stops.** Packet generation, Sphinx encryption, and the
   gateway connection run continuously, so your CPU keeps spinning and your
   gateway keeps forwarding 24/7 — idle looks exactly like busy, on your

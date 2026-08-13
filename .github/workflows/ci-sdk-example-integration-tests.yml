@@ -6,6 +6,9 @@ on:
     - cron: "30 2 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   echo-example-integration-tests:
     runs-on: arc-linux-latest
@@ -13,12 +16,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        id: rust-toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
-          override: true
+
+      - name: Pin the installed toolchain
+        run: rustup override set ${{ steps.rust-toolchain.outputs.name }}
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev

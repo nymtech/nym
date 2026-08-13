@@ -14,7 +14,7 @@ Relevant facts established during exploration:
 - Cover traffic and Poisson timing obfuscation are **on by default** in `nym-client-core` (`common/client-core/config-types/src/lib.rs`: `disable_loop_cover_traffic_stream: false`, `disable_main_poisson_packet_distribution: false`).
 - `MixnetClientBuilder::debug_config()` accepts a `DebugConfig` (re-exported as `nym_sdk::DebugConfig`).
 - Cargo auto-discovers `examples/*.rs` and `examples/*/main.rs` only — one directory level. Anything deeper needs explicit `[[example]]` entries.
-- Workspace root already pins `uuid = "1.19.0"`, `chrono = "0.4.41"`, `serde_json`.
+- Workspace root already pins `uuid = "1.19.0"`, `time = "0.3.41"`, `serde_json`. (Initially `chrono` was used for timestamps; review feedback switched it to `time` since chrono is unmaintained.)
 - `service-providers/network-requester/README.md` is license boilerplate only; `ip-packet-router` has no README; `/service-providers` has no top-level README.
 
 All user-facing design decisions were settled interactively before this proposal (see Decisions).

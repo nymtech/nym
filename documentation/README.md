@@ -279,6 +279,33 @@ answers but `search_docs` fails, that is the Voyage key or a vectorless index
 rather than the transport; `GET /docs/api/chat` on the same deployment reports
 which.
 
+**All of the above at once, against a deployment.**
+`scripts/check-mcp-server.sh` runs 27 checks over HTTP: the tool list, transport
+negotiation, retrieval and a `get_section` round-trip, code search, config
+validation, every live network tool, argument-schema rejection, error shapes, and
+the chat health endpoint. It covers what unit tests cannot, namely that the index
+was traced into the lambda, that the keys exist in *that* environment, and that
+the Nym API still returns the field names the tools read.
+
+```bash
+# from documentation/
+./scripts/check-mcp-server.sh https://nym.com
+./scripts/check-mcp-server.sh https://docs-nextra-git-my-branch.vercel.app "$BYPASS"
+```
+
+It exits non-zero on any failure, so it can gate a deploy step. Run it after
+anything that touches retrieval, the tool registry or the build pipeline.
+
+`$BYPASS` is only needed for Vercel **preview** deployments, which sit behind
+Deployment Protection; without it every request is answered with an HTML login
+page and every check fails. Production needs no token. Take the value from
+Project Settings, Deployment Protection, Protection Bypass for Automation, and
+keep it out of shell history:
+
+```bash
+read -rs BYPASS && export BYPASS
+```
+
 ### Keeping docs honest against the code
 The docs assert facts the source can settle: constant values, sizes, types, API
 signatures, endpoint paths. The goal is that those never drift from the code. The

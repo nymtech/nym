@@ -70,14 +70,14 @@ if (!index.embedding?.dim) {
 const provider = voyageProvider({ apiKey });
 const custom = process.argv.slice(2);
 
-/** Best and tenth-best score for one query, matching the route's topK of 10. */
+/** Top-10 scores for one query, matching the route's topK. */
 async function scoreOf(query) {
   const vec = await embedQuery(query, provider);
   const scores = index.chunks
     .map((c) => cosine(vec, c.vector))
     .sort((a, b) => b - a)
     .slice(0, 10);
-  return { query, top: scores[0] ?? 0, tenth: scores[9] ?? 0 };
+  return { query, scores, top: scores[0] ?? 0, tenth: scores[9] ?? 0 };
 }
 
 const groups = custom.length
@@ -92,27 +92,43 @@ const seen = { off: [], on: [] };
 for (const [label, queries] of groups) {
   console.log(`\n${label}`);
   for (const q of queries) {
-    const { top, tenth } = await scoreOf(q);
-    console.log(`  top=${top.toFixed(3)}  10th=${tenth.toFixed(3)}  ${q}`);
-    if (label.startsWith('off')) seen.off.push(top);
-    if (label.startsWith('on')) seen.on.push(tenth);
+    const result = await scoreOf(q);
+    console.log(`  top=${result.top.toFixed(3)}  10th=${result.tenth.toFixed(3)}  ${q}`);
+    if (label.startsWith('off')) seen.off.push(result);
+    if (label.startsWith('on')) seen.on.push(result);
   }
 }
 
 if (seen.off.length && seen.on.length) {
-  const highestOffTopic = Math.max(...seen.off);
-  const lowestOnTopic = Math.min(...seen.on);
-  console.log(
-    `\nHighest off-topic score: ${highestOffTopic.toFixed(3)}` +
-      `\nLowest on-topic score:  ${lowestOnTopic.toFixed(3)}`,
-  );
-  if (lowestOnTopic > highestOffTopic) {
-    const suggested = (highestOffTopic + lowestOnTopic) / 2;
-    console.log(`\nSet CHAT_MIN_SCORE around ${suggested.toFixed(2)} (midpoint of the gap).`);
-  } else {
+  // A floor works if it silences every off-topic query while leaving each
+  // on-topic one at least a couple of sources. It does NOT have to preserve all
+  // ten: the tail of a top-10 is usually weak, and dropping it is the point.
+  // Comparing against the on-topic 10th would reject thresholds that are fine.
+  const floor = Math.max(...seen.off.map((r) => r.top));
+  const survivors = (r, t) => r.scores.filter((s) => s >= t).length;
+
+  console.log(`\nHighest off-topic score: ${floor.toFixed(3)} (the floor must clear this)`);
+
+  const candidates = [];
+  for (let t = Math.ceil(floor * 100) / 100; t <= 0.9; t += 0.01) {
+    const counts = seen.on.map((r) => survivors(r, t));
+    if (Math.min(...counts) < 2) break;
+    candidates.push({ t, counts });
+  }
+
+  if (candidates.length === 0) {
     console.log(
-      '\nThe two groups overlap, so no threshold separates them cleanly. Favour the' +
-        ' on-topic side and accept some irrelevant sources, or improve retrieval.',
+      '\nNo threshold clears the off-topic queries while leaving every on-topic one at' +
+        ' least 2 sources. Either the off-topic set is unfairly adjacent to the corpus' +
+        ' (try different examples), or retrieval needs work.',
     );
+  } else {
+    const pick = candidates[Math.min(1, candidates.length - 1)];
+    console.log('\nSources kept per on-topic query, by threshold:');
+    for (const c of candidates.slice(0, 6)) {
+      console.log(`  ${c.t.toFixed(2)}  ->  ${c.counts.join(', ')}`);
+    }
+    console.log(`\nSet CHAT_MIN_SCORE to ${pick.t.toFixed(2)}.`);
+    console.log('Off-topic queries return nothing; on-topic keep the counts shown above.');
   }
 }

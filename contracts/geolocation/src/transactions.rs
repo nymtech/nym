@@ -646,17 +646,11 @@ mod tests {
             // disagreement is meant to be visible rather than collapsed: whoever wrote last
             // must not have overwritten the other's answer
             assert_eq!(
-                test.measurement_by(1, &first)
-                    .unwrap()
-                    .payload
-                    .content,
+                test.measurement_by(1, &first).unwrap().payload.content,
                 b"from-first".to_vec()
             );
             assert_eq!(
-                test.measurement_by(1, &second)
-                    .unwrap()
-                    .payload
-                    .content,
+                test.measurement_by(1, &second).unwrap().payload.content,
                 b"from-second".to_vec()
             );
             assert_eq!(test.node_measurements(1).len(), 2);
@@ -676,10 +670,7 @@ mod tests {
             .unwrap();
 
             assert_eq!(
-                test.measurement_by(1, &agent)
-                    .unwrap()
-                    .payload
-                    .content,
+                test.measurement_by(1, &agent).unwrap().payload.content,
                 b"fresh".to_vec()
             );
             // the superseded leaf was retired inside the batch rather than left summed in
@@ -744,10 +735,7 @@ mod tests {
             // and the already-written entry survives: de-whitelisting neutralises it for
             // readers rather than deleting it
             assert_eq!(
-                test.measurement_by(1, &agent)
-                    .unwrap()
-                    .payload
-                    .content,
+                test.measurement_by(1, &agent).unwrap().payload.content,
                 b"before".to_vec()
             );
         }
@@ -1912,9 +1900,7 @@ mod tests {
             remove(&mut test, &admin, stale).unwrap();
 
             for node_id in [1, 2] {
-                assert!(test
-                    .measurement_by(node_id, &compromised)
-                    .is_none());
+                assert!(test.measurement_by(node_id, &compromised).is_none());
                 assert!(test.measurement_by(node_id, &honest).is_some());
             }
             test.assert_digest_is_refold();

@@ -8,9 +8,8 @@ use crate::queries::{
 use crate::storage::GEOLOCATION_CONTRACT_STORAGE;
 use crate::transactions::{
     try_handle_node_unbonding, try_relay_self_declarations, try_remove_entries,
-    try_remove_override, try_remove_whitelisted_agent, try_set_override,
-    try_set_whitelisted_agent, try_submit_measurements, try_update_config,
-    try_update_contract_admin,
+    try_remove_override, try_remove_whitelisted_agent, try_set_override, try_set_whitelisted_agent,
+    try_submit_measurements, try_update_config, try_update_contract_admin,
 };
 use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
@@ -86,9 +85,9 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, GeolocationCon
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
         QueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
-        QueryMsg::Entry { subject, source } => Ok(to_json_binary(&query_entry(
-            deps, subject, source,
-        )?)?),
+        QueryMsg::Entry { subject, source } => {
+            Ok(to_json_binary(&query_entry(deps, subject, source)?)?)
+        }
         QueryMsg::SubjectEntries { subject } => {
             Ok(to_json_binary(&query_subject_entries(deps, subject)?)?)
         }

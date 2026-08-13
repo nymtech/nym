@@ -99,6 +99,8 @@ The code index is optional. If `public/code-index.json` is absent the route stil
 
 Because generation is constrained to retrieved context, the assistant reports that something is not covered instead of filling the gap from model priors. That is a deliberate trade: it will decline questions the docs genuinely do not answer.
 
+Those `[n]` markers carry a second job. The widget builds its source list from them, so the model decides which retrieved sections are worth showing. See [which sources an answer lists](#which-sources-an-answer-lists).
+
 ## Keys
 
 | Variable | Needed at | Read by | Used for |
@@ -106,19 +108,35 @@ Because generation is constrained to retrieved context, the assistant reports th
 | `VOYAGE_API_KEY` | build **and** runtime | our code, explicitly | Embedding chunks during the build, and embedding each query at call time |
 | `ANTHROPIC_API_KEY` | runtime only | the Anthropic provider, implicitly | Generation for the chat assistant |
 | `CHAT_MODEL` | runtime, optional | our code | Which model answers in the chat widget |
-| `CHAT_MIN_SCORE` | runtime, optional | our code | Similarity floor below which a chunk is not treated as a source |
+| `CHAT_MIN_SCORE` | runtime, optional | our code | Similarity floor that keeps distant chunks out of the prompt (default `0.2`) |
 
 `VOYAGE_API_KEY` is needed in **both** places for a reason worth stating: the build embeds the corpus, and every query must be embedded at request time with the same model, or the vectors are not comparable. `ANTHROPIC_API_KEY` never appears in our source because the provider reads it from the environment itself, so it is easy to forget when provisioning.
 
 The MCP server needs only the Voyage key. It returns retrieved sections to the calling agent and leaves generation to that agent's own model, which is why it costs nothing per call beyond one query embedding.
 
-## Retrieval threshold
+## Which sources an answer lists
 
-Retrieval fetches a fixed number of nearest chunks, then discards anything below a similarity floor (`CHAT_MIN_SCORE`). The floor is what makes "this is not covered in the documentation" possible as an answer.
+Retrieval returns a fixed number of nearest chunks and passes all of them to the model. The model reads them, answers, and cites the ones it used as `[n]`. The chat widget builds its source list from those markers. A section that is retrieved but not cited is not listed.
 
-Without it the floor is effectively zero, and since cosine similarity over normalised embeddings is essentially never negative, *every* question returns a full set of chunks no matter how unrelated. The assistant would then be handed ten irrelevant sections for an off-topic question and asked to answer only from them, and the interface would list ten sources beneath a reply saying the topic is not covered.
+This puts the relevance decision with the model. An earlier design put it in a similarity floor (`CHAT_MIN_SCORE`), which discarded chunks below a fixed score. That does not work, and the measurement is worth recording.
 
-The trade-off runs both ways: set it too high and genuine questions lose citations they should have had. It is tuned by asking something deliberately outside the corpus and confirming that comes back with nothing, while real questions keep their sources.
+Cosine similarity measures the distance between two vectors. It was being read as a measure of whether a question is about Nym. The two come apart when the query is short, because a short query carries little for the embedding to place. Scored against this corpus:
+
+| Query | Best score |
+|---|---|
+| "Who is L2 and why does it matter?" (five best hits all correct) | 0.504 |
+| "What is the capital of France?" | 0.523 |
+| "What is a SURB?" | 0.593 |
+
+The off-topic question outscores the correct one. No floor admits the first and rejects the second, so every value tried refused real questions or admitted nonsense. Raising the floor also trimmed sources from answers that worked.
+
+`CHAT_MIN_SCORE` remains, as a cost guard. It keeps clearly distant chunks out of the prompt. It does not decide whether a question can be answered.
+
+Two consequences follow. The model must cite reliably, so the system prompt requires a marker on every factual claim; a weaker instruction empties the source list on good answers. And a question the docs do not cover still reaches the model with context attached, which the model declines to use. The refusal comes from the prompt, not from empty retrieval.
+
+To watch retrieval quality over time, `scripts/next-scripts/check-retrieval-scores.mjs` prints the scores for on-topic and off-topic queries. Read the gap between the groups, not the absolute numbers.
+
+Exact-term recall is the known weakness. Embeddings handle rare tokens poorly, so crate names, CLI flags and error strings rank worse than prose. A lexical index (BM25) alongside the vector search would address that.
 
 ## Machine-readable surfaces
 

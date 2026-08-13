@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * Print retrieval scores for a set of queries, to choose CHAT_MIN_SCORE.
+ * Print retrieval scores for a set of queries.
  *
- * The floor decides when the assistant is handed no context and has to say a
- * topic is not covered. Too low and every question returns a full set of
- * "sources" however unrelated, so a refusal appears with ten citations beneath
- * it. Too high and real questions lose citations they should have had.
+ * Originally written to choose CHAT_MIN_SCORE, and it answered that question by
+ * showing no such value exists. Short queries built from jargon score below
+ * off-topic questions even when their top hits are exactly right, so the two
+ * groups interleave rather than separate. The floor is now a cost guard and the
+ * source list is built from what the model cited; see the retrieval section of
+ * developers/mcp/architecture.
+ *
+ * What it is still good for: watching the gap between on-topic and off-topic
+ * scores when the corpus, the chunking or the embedding text changes. A gap that
+ * narrows means retrieval got worse, whatever the absolute numbers do.
  *
  * Usage, from documentation/docs:
  *   VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs
@@ -45,10 +51,19 @@ const OFF_TOPIC = [
   'Give me a recipe for carbonara',
   'Who won the 1998 world cup?',
 ];
+// Two kinds of on-topic query, and the difference is the whole finding. The
+// well-formed ones score high and made an earlier threshold look workable. The
+// short jargon ones are what developers actually type, and they score at or below
+// the off-topic queries, which is why no threshold survived contact with them.
+// Keep both: dropping the second group hides the failure the first group cannot
+// see.
 const ON_TOPIC = [
   'What is a SURB?',
   'How do I run a nym-node?',
   'How do I use mix-fetch in a browser extension?',
+  'Who is L2 and why does it matter?',
+  'What does --use-anonymous-replies do?',
+  'V1 vs V3',
 ];
 
 const apiKey = process.env.VOYAGE_API_KEY;
@@ -119,16 +134,20 @@ if (seen.off.length && seen.on.length) {
   if (candidates.length === 0) {
     console.log(
       '\nNo threshold clears the off-topic queries while leaving every on-topic one at' +
-        ' least 2 sources. Either the off-topic set is unfairly adjacent to the corpus' +
-        ' (try different examples), or retrieval needs work.',
+        ' least 2 sources. This is the expected result, and it is why CHAT_MIN_SCORE is' +
+        ' a cost guard rather than a relevance test: the source list is built from the' +
+        ' citations the model used. Read the two groups above as a gap to watch, not a' +
+        ' number to set.',
     );
   } else {
-    const pick = candidates[Math.min(1, candidates.length - 1)];
     console.log('\nSources kept per on-topic query, by threshold:');
     for (const c of candidates.slice(0, 6)) {
       console.log(`  ${c.t.toFixed(2)}  ->  ${c.counts.join(', ')}`);
     }
-    console.log(`\nSet CHAT_MIN_SCORE to ${pick.t.toFixed(2)}.`);
-    console.log('Off-topic queries return nothing; on-topic keep the counts shown above.');
+    console.log(
+      '\nA threshold separates these particular queries, which earlier ones did not.' +
+        ' Treat that as a sign retrieval improved, not as a value to set: the queries' +
+        ' here are a sample, and the next short one is under no obligation to comply.',
+    );
   }
 }

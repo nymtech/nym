@@ -181,25 +181,32 @@ values can be changed in Vercel without a redeploy of the code.
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `CHAT_MODEL` | `claude-sonnet-5` | Which model answers in the widget. The tier matters here: the job is synthesising an answer from retrieved sections and citing them, and Haiku was visibly weaker at it. |
-| `CHAT_MIN_SCORE` | `0.3` | Cosine-similarity floor for retrieval; below it a chunk is not treated as a source. **The default is known to be too low** and wants raising once measured, see below. Set too low and every question returns a full set of "sources" however unrelated; set too high and real questions lose citations they should have had. |
+| `CHAT_MIN_SCORE` | `0.2` | Cosine-similarity floor for retrieval. A cost guard that keeps distant chunks out of the prompt. It does **not** decide whether a question is answerable, and raising it to try is a known dead end, see below. |
 
-**Tuning `CHAT_MIN_SCORE`.** Unrelated text does not score near zero against
-these embeddings, so the floor has to sit above whatever an off-topic question
-scores. At `0.3` it does not: asking "What is the capital of France?" returns ten
-hits, so the assistant declines (the prompt tells it to) while the widget lists
-ten sources beneath the refusal.
+**Do not raise `CHAT_MIN_SCORE` to filter out irrelevant questions.** It was
+built for that and cannot do it. Cosine similarity measures distance between
+vectors, not whether a question is about Nym, and the two come apart on short
+queries. Measured against this corpus, "Who is L2 and why does it matter?" tops
+out at `0.504` with its five best hits all correct, while "What is the capital of
+France?" reaches `0.523`. The off-topic question scores higher, so no floor
+separates them.
 
-Print the real distribution and pick from the gap between the two groups:
+Which sections an answer lists is decided by the model instead. It cites what it
+used as `[n]`, and the widget lists only those. A question the docs do not cover
+gets a refusal that cites nothing, so no sources appear under it.
+
+The scoring script still earns its place, for watching retrieval quality when the
+corpus, the chunking or the embedded text changes:
 
 ```bash
 # from documentation/docs, needs a built index
 VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs
 ```
 
-It scores a set of deliberately off-topic and on-topic questions, reports the
-highest off-topic and lowest on-topic score, and suggests the midpoint. Pass your
-own questions as arguments to check a specific case. Set the result as
-`CHAT_MIN_SCORE` in Vercel; no redeploy is needed.
+It scores a set of on-topic and off-topic questions and prints both groups. Read
+the gap between them, not the absolute numbers: a gap that narrows means
+retrieval got worse. Pass your own questions as arguments to check a specific
+case.
 
 Compile-time constants, changed in source rather than the environment:
 
@@ -207,7 +214,7 @@ Compile-time constants, changed in source rather than the environment:
 |----------|-------|---------|--------|
 | `MAX_MESSAGES` | `pages/api/chat.ts` | `40` | Longest accepted conversation. A bound on what one caller can push through the paid calls. |
 | `MAX_TOTAL_CHARS` | `pages/api/chat.ts` | `32_000` | Largest accepted request body, counted over text parts. |
-| `topK` | `pages/api/chat.ts` (`buildContext` call) | `10` | How many chunks are retrieved per question, before `CHAT_MIN_SCORE` filters them. |
+| `topK` | `pages/api/chat.ts` (`buildContext` call) | `10` | How many chunks are retrieved per question. All of them reach the model; it cites the ones it uses, and only those are listed as sources. |
 | `MAX_CHARS` | `lib/retrieval/chunker.mjs` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
 | `INPUT_MAX_HEIGHT` | `components/ChatWidget.tsx` | `140` | How far the chat textarea grows before it scrolls internally. |
 

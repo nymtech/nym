@@ -72,18 +72,23 @@ const MAX_TOTAL_CHARS = 32_000;
 // runaway answer costs money and blocks the stream.
 const MAX_ANSWER_TOKENS = 8192;
 
-// Retrieval floor. `search()` defaults this to 0, and cosine similarity over
-// normalised embeddings is effectively never negative, so without a floor every
-// question returns a full topK of "sources" no matter how unrelated. That made
-// the empty-context branch of systemPrompt() unreachable: the model would say a
-// topic was not covered while the widget listed ten sources underneath it.
+// Retrieval floor: a cost guard, and deliberately nothing more.
 //
-// 0.3 is known to be too low: "What is the capital of France?" still returns a
-// full ten hits, so the model declines on the prompt's instruction while the
-// widget lists ten sources under the refusal. Raising it needs the real score
-// distribution, which check-retrieval-scores.mjs prints. Override with
-// CHAT_MIN_SCORE once measured; no redeploy needed.
-const MIN_SCORE = Number(process.env.CHAT_MIN_SCORE ?? 0.3);
+// It once decided whether a question counted as answerable. It cannot. Cosine
+// similarity measures distance between vectors, and we were reading it as topical
+// relevance; the two come apart when a query is short. Measured on this corpus,
+// "Who is L2 and why does it matter?" tops out at 0.504 with its five best hits
+// all correct, while "What is the capital of France?" reaches 0.523. The
+// distributions are inverted, so no threshold admits the first and rejects the
+// second, and every value tried either refused real questions or let nonsense
+// through. See developers/mcp/architecture for the full measurement.
+//
+// The judgement now sits with the model, which reads the sections and cites what
+// it used, and with the widget, which lists only what was cited. So a floor is
+// free to be conservative: it exists to keep obvious noise out of the prompt, not
+// to gate an answer. Raising it far enough to matter starves real questions of
+// context. CHAT_MIN_SCORE overrides it without a redeploy.
+const MIN_SCORE = Number(process.env.CHAT_MIN_SCORE ?? 0.2);
 
 /** Human-friendly name for the model id, for display in the widget. */
 function modelName(id: string): string {

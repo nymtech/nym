@@ -16,51 +16,7 @@ import remarkGfm from 'remark-gfm';
 // The citation list the route attaches as message metadata. Imported as a type
 // so the retrieval module never reaches the client bundle.
 import type { Citation } from '../lib/chat/context';
-
-/**
- * Chunk URLs are absolute (`https://nym.com/docs/...`), baked in at index time.
- * Strip the origin so a citation keeps the reader inside whatever deployment
- * they are on: localhost and Vercel previews would otherwise jump to production.
- *
- * The `/docs` basePath comes off too, because these are handed to next/link,
- * which re-adds it. Leaving it on yields `/docs/docs/...`.
- */
-function docsHref(url: string): string {
-  const path = url.replace(/^https?:\/\/[^/]+/, '');
-  // The lookahead keeps a docs-root chunk (`/docs`, `/docs#anchor`) from being
-  // mangled, and stops `/docsomething` matching.
-  return path.replace(/^\/docs(?=[/#?]|$)/, '') || '/';
-}
-
-/**
- * Turn the model's inline `[n]` markers into markdown links to the cited
- * section, so react-markdown renders them as anchors.
- *
- * Split on fenced and inline code first, so an example containing `arr[0]` is
- * not rewritten into a link. The negative lookahead leaves real markdown links
- * (`[1](url)`) alone.
- *
- * Limits, all cosmetic. Only ``` fences and single-backtick spans are recognised,
- * so `[1]` inside a 4-space indented block, a ~~~ fence, or a ``double-backtick``
- * span still gets linked. A fence mid-stream has no closing ```, so its contents
- * read as prose until the closing chunk arrives, or permanently if the answer is
- * truncated first. A rehype plugin skipping nodes under code/pre would avoid all
- * of this by working on the parsed tree.
- */
-function linkifyCitations(text: string, citations: Citation[]): string {
-  if (citations.length === 0) return text;
-  return text
-    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
-    .map((segment, i) =>
-      i % 2 === 1
-        ? segment
-        : segment.replace(/\[(\d+)\](?!\()/g, (whole, n: string) => {
-            const c = citations[Number(n) - 1];
-            return c ? `[${n}](${docsHref(c.url)})` : whole;
-          }),
-    )
-    .join('');
-}
+import { docsHref, linkifyCitations, citedSources } from '../lib/chat/citations';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -207,7 +163,10 @@ export default function ChatWidget() {
             const isLast = m.id === messages[messages.length - 1]?.id;
             // Only the answer currently being written gets a caret.
             const streamingHere = status === 'streaming' && isLast && m.role !== 'user';
+            // Every retrieved section is a legitimate link target, whether or not
+            // it earned a place in the source list, so this stays unfiltered.
             const citeHrefs = new Set(citations.map((c) => docsHref(c.url)));
+            const cited = citedSources(text, citations);
             return (
               <div key={m.id} style={m.role === 'user' ? userRowStyle : assistantRowStyle}>
                 {m.role === 'user' ? (
@@ -221,14 +180,17 @@ export default function ChatWidget() {
                       {linkifyCitations(text, citations)}
                     </ReactMarkdown>
                     {streamingHere && <span className="nym-chat-caret" aria-hidden="true" />}
-                    {citations.length > 0 && (
+                    {cited.length > 0 && (
                       <details style={sourcesStyle}>
                         <summary style={{ cursor: 'pointer' }}>
-                          Sources ({citations.length})
+                          Sources ({cited.length})
                         </summary>
+                        {/* `value` keeps each entry on the number the answer
+                            cites. Without it the list renumbers from 1 and the
+                            inline markers point at the wrong rows. */}
                         <ol style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem' }}>
-                          {citations.map((c) => (
-                            <li key={c.n} style={{ margin: '0.2rem 0' }}>
+                          {cited.map((c) => (
+                            <li key={c.n} value={c.n} style={{ margin: '0.2rem 0' }}>
                               <Link href={docsHref(c.url)} style={linkStyle}>
                                 {c.title}
                                 {c.heading ? ` - ${c.heading}` : ''}

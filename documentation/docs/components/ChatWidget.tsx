@@ -437,7 +437,10 @@ const drawerStyle: React.CSSProperties = {
   position: 'fixed',
   top: 0,
   right: 0,
-  height: '100vh',
+  // dvh, not vh: on mobile Safari 100vh is the viewport with the URL bar hidden,
+  // so the input row and Send button sit behind it until the user scrolls. The
+  // drawer goes full-width below 420px, so this is a live path, not a corner case.
+  height: '100dvh',
   width: 'min(420px, 100vw)',
   display: 'flex',
   flexDirection: 'column',

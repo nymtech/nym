@@ -134,6 +134,8 @@ The off-topic question outscores the correct one. No floor admits the first and 
 
 Two consequences follow. The model must cite reliably, so the system prompt requires a marker on every factual claim; a weaker instruction empties the source list on good answers. And a question the docs do not cover still reaches the model with context attached, which the model declines to use. The refusal comes from the prompt, not from empty retrieval.
 
+One failure mode comes with the design. An answer cut short by the output-token limit loses the sources it had not yet cited, because the markers never arrive. The list stays accurate for what was written, and a truncated answer is the larger problem to fix.
+
 To watch retrieval quality over time, `scripts/next-scripts/check-retrieval-scores.mjs` prints the scores for on-topic and off-topic queries. Read the gap between the groups, not the absolute numbers.
 
 Exact-term recall is the known weakness. Embeddings handle rare tokens poorly, so crate names, CLI flags and error strings rank worse than prose. A lexical index (BM25) alongside the vector search would address that.

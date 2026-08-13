@@ -185,19 +185,21 @@ export default function ChatWidget() {
                         <summary style={{ cursor: 'pointer' }}>
                           Sources ({cited.length})
                         </summary>
-                        {/* `value` keeps each entry on the number the answer
-                            cites. Without it the list renumbers from 1 and the
-                            inline markers point at the wrong rows. */}
-                        <ol style={{ margin: '0.4rem 0 0', paddingLeft: '1.2rem' }}>
+                        {/* Numbers are written out rather than left to an <ol>
+                            marker. The list holds only the cited sections, so an
+                            ordered list would renumber them from 1 and stop
+                            matching the [n] markers in the answer above. */}
+                        <ul style={{ margin: '0.4rem 0 0', padding: 0, listStyle: 'none' }}>
                           {cited.map((c) => (
-                            <li key={c.n} value={c.n} style={{ margin: '0.2rem 0' }}>
+                            <li key={c.n} style={{ margin: '0.2rem 0' }}>
+                              <span style={sourceNumberStyle}>{c.n}</span>
                               <Link href={docsHref(c.url)} style={linkStyle}>
                                 {c.title}
                                 {c.heading ? ` - ${c.heading}` : ''}
                               </Link>
                             </li>
                           ))}
-                        </ol>
+                        </ul>
                       </details>
                     )}
                   </div>
@@ -318,6 +320,16 @@ const sourcesStyle: React.CSSProperties = {
   background: 'var(--chat-surface)',
   borderRadius: '0 6px 6px 0',
   fontSize: '0.8rem',
+};
+// Echoes the inline `.nym-chat-cite` pill, so a number in the source list reads
+// as the same object as the marker it matches in the answer.
+const sourceNumberStyle: React.CSSProperties = {
+  display: 'inline-block',
+  minWidth: '1.1rem',
+  marginRight: '0.4rem',
+  textAlign: 'center',
+  color: 'var(--chat-accent)',
+  fontVariantNumeric: 'tabular-nums',
 };
 const preStyle: React.CSSProperties = {
   background: 'var(--chat-surface)',

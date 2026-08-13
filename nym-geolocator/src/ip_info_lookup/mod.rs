@@ -45,8 +45,6 @@ struct IpInfoLookupInner {
 }
 
 impl IpInfoLookupInner {
-    // SAFETY: we provided a valid ip to the request
-    #[allow(clippy::unwrap_used)]
     async fn batch_lookup(&mut self, ips: &[IpAddr]) -> anyhow::Result<HashMap<IpAddr, IpDetails>> {
         let mut cached_responses = HashMap::new();
         let mut ip_strings = Vec::new();
@@ -75,7 +73,10 @@ impl IpInfoLookupInner {
         let mut results = cached_responses;
 
         for (ip, res) in response {
-            let ip = ip.parse().unwrap();
+            let Ok(ip) = ip.parse() else {
+                error!("received malformed ip back from ipinfo ({ip} could not be parsed)");
+                continue;
+            };
             self.lookup_cache.insert(
                 ip,
                 CachedResponse {

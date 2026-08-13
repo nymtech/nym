@@ -168,9 +168,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       system: systemPrompt(context),
       messages: await convertToModelMessages(messages),
       // Without a cap the provider default applies, and answers that quote a
-      // config block or a code sample were being cut off mid-sentence. Thinking
-      // shares this budget with the visible text, so leave room for both.
+      // config block or a code sample were being cut off mid-sentence.
       maxOutputTokens: MAX_ANSWER_TOKENS,
+      providerOptions: {
+        anthropic: {
+          // Thinking is on by default on this model, and it draws from the same
+          // budget as the visible answer. On a retrieval-augmented route the
+          // reasoning is already done: the sections are supplied, and the job is
+          // to summarise them and cite. Thinking bought latency and an empty
+          // reply rather than a better one.
+          thinking: { type: 'disabled' },
+        },
+      },
     });
 
     // Emitted on `start` rather than `finish` so the widget can turn `[n]`

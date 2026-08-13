@@ -1,17 +1,18 @@
 //! Client for the echo service provider example.
 //!
-//! Sends a single request to a running `echo-service` (see the sibling
-//! example) identified by its nym address, waits for the JSON reply, prints
-//! it, and exits. The request travels through the mixnet with SURBs bundled
-//! automatically, so the service can reply without ever learning this
-//! client's address.
+//! Opens a stream to a running `echo-service` (see the sibling example)
+//! identified by its nym address, sends a single request, waits for the
+//! JSON reply, prints it, and exits. SURBs for the anonymous reply path are
+//! attached when the stream is opened, so the service can answer without
+//! ever learning this client's address.
 //!
 //! ## What this demonstrates
 //!
 //! - Addressing a service provider by its nym address
 //!   (`Recipient::try_from_base58_string`)
-//! - `send_plain_message()` bundles reply SURBs by default — anonymous
-//!   replies require no extra work on the client side
+//! - `client.open_stream(recipient, surbs)` opens an outbound stream;
+//!   [`MixnetStream`] implements `AsyncRead + AsyncWrite`, so standard
+//!   tokio I/O (`write_all`, `read`) works unchanged
 //! - The same explicit privacy configuration as the service: cover traffic
 //!   and Poisson timing obfuscation on, free mode (no zk-nym credentials)
 //!
@@ -21,9 +22,14 @@
 //! cargo run --example echo-client -- <service-nym-address>
 //! ```
 
-use nym_sdk::mixnet::{MixnetClientBuilder, MixnetMessageSender, Recipient};
+use nym_sdk::mixnet::{MixnetClientBuilder, Recipient};
 use nym_sdk::DebugConfig;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// How long to wait for the reply to make it back through the mixnet.
+const REPLY_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// The reply the echo service sends. Mirrors the definition in the
 /// echo-service example — keep the two in sync.
@@ -40,7 +46,9 @@ struct EchoResponse {
 /// echo-service example for a field-by-field explanation.
 fn privacy_config() -> DebugConfig {
     let mut debug_config = DebugConfig::default();
-    debug_config.traffic.disable_main_poisson_packet_distribution = false;
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = false;
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = false;
     debug_config
 }
@@ -71,35 +79,48 @@ async fn main() {
     let mut client = client.connect_to_mixnet().await.unwrap();
     println!("connected as {}", client.nym_address());
 
-    // SURBs for the anonymous reply are bundled automatically.
-    println!("sending echo request to {service_address}");
-    client
-        .send_plain_message(service_address, "echo request")
-        .await
-        .unwrap();
+    // Open a stream to the service. `None` attaches the default number of
+    // reply SURBs, which is what lets the service answer anonymously.
+    println!("opening stream to {service_address}");
+    let mut stream = client.open_stream(service_address, None).await.unwrap();
+    println!("stream opened: {}", stream.id());
+
+    stream.write_all(b"echo request").await.unwrap();
+    stream.flush().await.unwrap();
 
     println!("waiting for reply");
-    'outer: while let Some(messages) = client.wait_for_messages().await {
-        for message in messages {
-            // Skip empty messages: SURB replenishment handled by the SDK.
-            if message.message.is_empty() {
-                continue;
-            }
-            let raw = String::from_utf8_lossy(&message.message);
-            let response: EchoResponse = match serde_json::from_str(&raw) {
-                Ok(response) => response,
-                Err(err) => {
-                    eprintln!("could not parse reply as JSON ({err}): {raw}");
-                    std::process::exit(1);
-                }
-            };
-            println!("received reply: {raw}");
-            println!("  message:       {}", response.message);
-            println!("  timestamp_utc: {}", response.timestamp_utc);
-            println!("  request_id:    {}", response.request_id);
-            break 'outer;
+    let mut buf = vec![0u8; 1024];
+    let n = match tokio::time::timeout(REPLY_TIMEOUT, stream.read(&mut buf)).await {
+        Ok(Ok(n)) if n > 0 => n,
+        Ok(Ok(_)) => {
+            eprintln!("service closed the stream without replying");
+            std::process::exit(1);
         }
-    }
+        Ok(Err(err)) => {
+            eprintln!("failed to read reply: {err}");
+            std::process::exit(1);
+        }
+        Err(_) => {
+            eprintln!("timed out waiting for a reply after {REPLY_TIMEOUT:?}");
+            std::process::exit(1);
+        }
+    };
 
+    let raw = String::from_utf8_lossy(&buf[..n]);
+    let response: EchoResponse = match serde_json::from_str(&raw) {
+        Ok(response) => response,
+        Err(err) => {
+            eprintln!("could not parse reply as JSON ({err}): {raw}");
+            std::process::exit(1);
+        }
+    };
+    // This exact prefix is parsed by tests/echo_example_integration.rs.
+    println!("received reply: {raw}");
+    println!("  message:       {}", response.message);
+    println!("  timestamp_utc: {}", response.timestamp_utc);
+    println!("  request_id:    {}", response.request_id);
+
+    // Streams deregister on drop; no close handshake is needed.
+    drop(stream);
     client.disconnect().await;
 }

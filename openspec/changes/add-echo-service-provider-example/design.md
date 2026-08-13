@@ -69,9 +69,9 @@ Although cover traffic and Poisson timing are defaults, both examples explicitly
 
 Rationale: the example must *teach* the config surface, not silently inherit it. The README also names `set_no_cover_traffic()` / `set_no_poisson_process()` as debug-only escape hatches and warns against them in production. Alternative considered: rely on defaults with a comment — rejected as invisible to readers skimming code.
 
-### D6: Reply exclusively via SURBs
+### D6: Stream-based API, replies via SURBs
 
-The service never learns and never asks for the client's address: it extracts `sender_tag` from `ReconstructedMessage` and uses `send_reply()`. Empty messages (SURB replenishment) are skipped, matching `surb_reply.rs`. This is the core teaching point (whitepaper §4.5).
+The examples use the SDK stream module: the service calls `client.listener()` and serves each `listener.accept()`-ed `MixnetStream` in its own task; the client calls `open_stream(recipient, None)`. `MixnetStream` implements `AsyncRead + AsyncWrite`, giving developers the socket-like API they expect (review feedback: this is what integrators such as Zcash will reach for). The anonymity property is unchanged — inbound streams are `Destination::Anonymous { sender_tag }` and every service write is routed through the client's SURBs (`InputMessage::new_reply` under the hood) — so the service still never learns the client's address (whitepaper §4.5). The lower-level message API (`wait_for_messages` + `send_reply()`) remains documented via a pointer to `surb_reply.rs`. Supersedes the original raw-message design after review.
 
 ### D7: Documentation structure
 
@@ -96,6 +96,12 @@ CI gating: a new dedicated workflow (`ci-sdk-example-integration-tests.yml`) mod
 ### D9: Free mode — no zk-nym credentials
 
 Both examples (and therefore the integration test) run in free mode, without zk-nym/ecash credentials. The mixnet does not currently enforce presenting a zk-nym for mixnet mode, so this keeps the example simple and lets anyone run it on mainnet without holding NYM tokens. Mechanically this means *not* calling `MixnetClientBuilder::enable_credentials_mode()` — credentials mode is opt-in in the SDK (`enabled_credentials_mode` defaults to `false`, see `sdk/rust/nym-sdk/src/mixnet/client.rs:280`). The README states this explicitly and points to the existing `bandwidth.rs` example for the credentials/ticketbook flow. *(User decision.)*
+
+### D10: Fix the stream router's early-Data drop (found by the integration test)
+
+The first mainnet runs of the stream-based example failed intermittently (~1 in 3). Root cause, confirmed in code: `open_stream()` sends `Open` and the first `write()` sends `Data(seq=0)` as independent sphinx messages; the mixnet routes each independently, so `Data` can arrive first — and `send_to_stream` silently dropped frames for unregistered stream ids (`stream/mod.rs`), hanging both peers until their timeouts. `stream_simple_read_write.rs` never hit this because it synchronizes accept-before-write within one process; any real client-server pair is exposed.
+
+Fix (user-approved scope extension into library code): a bounded orphan buffer inside `StreamMap` — frames for unregistered streams are held (≤64 streams, ≤32 frames each, swept after a 30s TTL by the existing cleanup task) and drained into the stream's reorder buffer on registration. This closes both race windows (Data before `Open` arrives, and Data between `Open` dispatch and `accept()`'s registration) for every stream-module user. Alternatives considered: exposing initial data on `open_stream` (only fixes single-write clients; complementary, not chosen now) and example-level retry (papers over a silent-drop SDK bug). Verified by five new `StreamMap` unit tests (TDD: the race test was written first and failed on the old code) plus repeated mainnet integration runs.
 
 ## Risks / Trade-offs
 

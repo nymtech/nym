@@ -48,13 +48,13 @@ Two examples demonstrate the pattern end to end:
 ```
  echo-client                mixnet                  echo-service
    │                          │                          │
-   │──request + SURBs────────▶│  Sphinx packets,         │
-   │   (bundled by default)   │  3 mix hops              │
-   │                          │─────────────────────────▶│
-   │                          │           sees only an opaque sender tag
+   │──open_stream + SURBs────▶│  Sphinx packets,         │
+   │   write("echo request")  │  3 mix hops              │
+   │                          │─────────────────────────▶│ listener.accept()
+   │                          │        sees only an anonymous stream
    │                          │                          │
-   │                          │◀──send_reply(tag, json)──│
-   │◀─────────────────────────│                          │
+   │                          │◀──stream.write(json)─────│ reply rides the
+   │◀─────────────────────────│                          │ client's SURBs
    │                          │                          │
    │   cover traffic loops run continuously on both sides│
 ```
@@ -83,10 +83,10 @@ gets a fresh address each run.
 
 ## How to implement your own service provider
 
-The whole pattern is ~30 lines. Follow along in
+The shape is the same as a classic socket server. Follow along in
 [`echo-service/main.rs`](echo-service/main.rs):
 
-1. **Build and connect a client.**
+1. **Build and connect a client, then activate stream mode.**
 
    ```rust
    let client = MixnetClientBuilder::new_ephemeral()
@@ -94,25 +94,37 @@ The whole pattern is ~30 lines. Follow along in
        .build()?;
    let mut client = client.connect_to_mixnet().await?;
    println!("listening on: {}", client.nym_address());
+
+   let mut listener = client.listener()?;
    ```
 
-2. **Loop over incoming messages.** Skip empty ones — they are SURB
-   replenishment requests the SDK handles for you.
-
-3. **Reply with `send_reply()`.** Every incoming message carries an optional
-   `sender_tag: AnonymousSenderTag` — an opaque token pointing at the SURBs
-   the requester bundled. It is the only thing you ever learn about them,
-   and it is all you need to answer:
+2. **Accept incoming streams, one task per client.** `MixnetStream`
+   implements `AsyncRead + AsyncWrite` — the same traits as a TCP socket —
+   so standard tokio I/O works unchanged:
 
    ```rust
-   client.send_reply(sender_tag, response_bytes).await?;
+   while let Some(stream) = listener.accept().await {
+       tokio::spawn(handle_stream(stream));
+   }
    ```
 
-   Each SURB is single-use; the SDK requests more from the client
-   automatically when a conversation runs long.
+3. **Read the request, write the reply.** Writes on an accepted stream are
+   routed through the SURBs (Single Use Reply Blocks) the remote peer
+   attached when opening the stream — pre-built anonymous reply routes.
+   The service never learns the peer's address; the SDK replenishes SURBs
+   automatically when a conversation runs long:
 
-Your protocol is whatever you put in the message bytes — the echo example
-uses JSON.
+   ```rust
+   let n = stream.read(&mut buf).await?;
+   stream.write_all(&response_bytes).await?;
+   stream.flush().await?;
+   ```
+
+Your protocol is whatever you put in the stream bytes — the echo example
+uses JSON. If you want the lower-level message API instead of streams
+(`wait_for_messages` + `send_reply()` on a raw `sender_tag`), see
+[`surb_reply`](../surb_reply.rs) — streams use exactly that machinery under
+the hood.
 
 ### Privacy configuration
 
@@ -153,9 +165,49 @@ example.
   `nym-node`. An SDK-level service provider like this one is a standalone
   process — no node operation or registration required.
 
+## Real world performance of mixnet mode on the Nym network
+
+> **Warning:** the sending rate of a service provider using the default
+> Poisson process caps it at roughly **55 packets per second**: the main
+> packet stream releases one packet every 20 ms on average
+> (`message_sending_average_delay`) and the loop cover stream one every
+> 200 ms (`loop_cover_traffic_average_delay`) — see the defaults in
+> [`common/client-core/config-types`](../../../../../common/client-core/config-types/src/lib.rs).
+> Each Sphinx packet carries ~2 kB of payload, so real throughput tops out
+> at **~100 kB/s** — and that is the ceiling, shared across everything the
+> service sends.
+
+This is by design: a constant, data-independent packet rate is exactly what
+makes traffic analysis fail. But it has real operational consequences:
+
+- **It limits how many clients you can serve.** Every reply to every client
+  comes out of the same ~50 real packets/s budget. A service answering with
+  2 kB JSON payloads can sustain at most a few dozen requests per second in
+  total, not per client — plan capacity (or shard across multiple service
+  provider instances) accordingly.
+- **Cover traffic is expensive.** When the service has nothing to send, it
+  sends anyway — cover packets fill every gap in the Poisson schedule. You
+  pay the full ~110 kB/s of Sphinx traffic (packets in both directions)
+  around the clock, whether you have one user or none.
+- **The client never stops.** Packet generation, Sphinx encryption, and the
+  gateway connection run continuously, so your CPU keeps spinning and your
+  gateway keeps forwarding 24/7 — idle looks exactly like busy, on your
+  machine and on the wire. That's the unobservability property doing its
+  job.
+- **You can trade privacy for throughput, but understand the cost.**
+  `DebugConfig` lets you raise the sending rate, disable the Poisson
+  process (`set_no_poisson_process()`), or turn off cover traffic
+  (`set_no_cover_traffic()`). Every one of those steps makes your service's
+  traffic more correlatable — the whitepaper's §4.8 discusses this
+  latency/bandwidth/privacy trade-off. If you turn them all off you have
+  encrypted multi-hop routing, but no longer meaningful protection against
+  the global observer the mixnet is designed to defeat.
+
 ## Further reading
 
 - [The Nym whitepaper](https://nym.com/nym-whitepaper.pdf) — §3.1 (service
   providers), §4.5 (SURBs), §4.6 (cover traffic)
+- [`stream_simple_read_write`](../stream_simple_read_write.rs) — concurrent
+  streams over the mixnet in more detail
 - [`surb_reply`](../surb_reply.rs) — the minimal SURB reply mechanism in
   isolation

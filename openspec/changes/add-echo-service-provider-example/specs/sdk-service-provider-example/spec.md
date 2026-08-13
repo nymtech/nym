@@ -3,29 +3,29 @@
 ## ADDED Requirements
 
 ### Requirement: Echo service provider example
-The SDK SHALL provide a runnable example `echo-service` at `sdk/rust/nym-sdk/examples/service-providers/echo-service/main.rs`, invocable via `cargo run --example echo-service`, that runs as a long-lived mixnet service provider: it connects to the mixnet with an ephemeral identity, prints its nym address on startup, and replies to every non-empty incoming message.
+The SDK SHALL provide a runnable example `echo-service` at `sdk/rust/nym-sdk/examples/service-providers/echo-service/main.rs`, invocable via `cargo run --example echo-service`, that runs as a long-lived mixnet service provider using the SDK stream module: it connects to the mixnet with an ephemeral identity, prints its nym address on startup, activates stream mode via `client.listener()`, and serves every accepted stream.
 
 #### Scenario: Service starts and announces its address
 - **WHEN** `cargo run --example echo-service` is executed with network access
-- **THEN** the service connects to the mixnet and prints its nym address to stdout, then keeps running and listening for requests
+- **THEN** the service connects to the mixnet and prints its nym address to stdout, then keeps accepting incoming streams
 
 #### Scenario: Incoming request receives an echo reply
-- **WHEN** the service receives a non-empty message carrying a `sender_tag`
-- **THEN** it sends back a JSON reply containing exactly the fields `message` set to `"hello"`, `timestamp_utc` set to the current server time in UTC (RFC 3339), and `request_id` set to a freshly generated random UUID v4
+- **WHEN** a client opens a stream to the service and sends a request
+- **THEN** the service writes back on that stream a JSON reply containing exactly the fields `message` set to `"hello"`, `timestamp_utc` set to the current server time in UTC (RFC 3339), and `request_id` set to a freshly generated random UUID v4
 
-#### Scenario: SURB replenishment messages are ignored
-- **WHEN** the service receives an empty message (SURB replenishment)
-- **THEN** it skips the message without replying and continues listening
+#### Scenario: Streams are served concurrently
+- **WHEN** multiple clients hold open streams to the service at the same time
+- **THEN** each stream is handled in its own task and the accept loop keeps running
 
 ### Requirement: Replies use SURBs only
-The echo service SHALL reply exclusively via `send_reply()` using the `AnonymousSenderTag` extracted from the incoming message, and SHALL NOT require, parse, or learn the requesting client's nym address.
+The echo service SHALL reply exclusively by writing to the accepted `MixnetStream`, whose writes are routed through the SURBs the connecting client attached (anonymous destination), and SHALL NOT require, parse, or learn the requesting client's nym address.
 
 #### Scenario: Reply without knowing the sender
 - **WHEN** the service replies to a request
-- **THEN** the reply is addressed by `AnonymousSenderTag` (consuming SURBs) and no client nym address appears anywhere in the service code path
+- **THEN** the reply travels via the stream's anonymous SURB destination and no client nym address appears anywhere in the service code path
 
 ### Requirement: Echo client example
-The SDK SHALL provide a runnable example `echo-client` at `sdk/rust/nym-sdk/examples/service-providers/echo-client/main.rs`, invocable via `cargo run --example echo-client -- <service-nym-address>`, that sends one request to the given service address, waits for the reply, prints the parsed JSON response, and exits.
+The SDK SHALL provide a runnable example `echo-client` at `sdk/rust/nym-sdk/examples/service-providers/echo-client/main.rs`, invocable via `cargo run --example echo-client -- <service-nym-address>`, that opens a stream to the given service address via `open_stream`, sends one request, waits for the reply on the stream, prints the parsed JSON response, and exits.
 
 #### Scenario: Round trip against a running echo service
 - **WHEN** `echo-client` is run with the nym address printed by a running `echo-service`
@@ -92,6 +92,17 @@ The SDK SHALL provide an integration test at `sdk/rust/nym-sdk/tests/echo_exampl
 #### Scenario: CI runs it only on expensive builds
 - **WHEN** a pull request triggers standard CI
 - **THEN** the integration test body does not run (the variable is unset); only the dedicated workflow triggered by `workflow_dispatch` or its nightly schedule sets `NYM_SDK_MAINNET_INTEGRATION_TESTS` and executes it
+
+### Requirement: Stream router buffers early data frames
+The SDK stream router SHALL buffer `Data` frames that arrive for a stream id that is not yet registered (frames that overtook their stream's `Open` through the mixnet, or arrived before `accept()` registered the stream) and SHALL drain them, in sequence order, into the stream's reorder buffer when the stream is registered. The buffer SHALL be bounded per stream, across streams, and by age.
+
+#### Scenario: Data overtakes Open
+- **WHEN** a `Data(seq=0)` frame arrives before its stream is registered and the stream is subsequently registered
+- **THEN** the frame is delivered to the stream's reader immediately on registration, in sequence order with any other buffered frames
+
+#### Scenario: Orphan frames are bounded and aged out
+- **WHEN** frames accumulate for streams that are never registered
+- **THEN** the buffer holds at most a fixed number of streams and frames per stream, and the periodic cleanup task removes orphan entries older than the TTL
 
 ### Requirement: Examples follow house documentation style
 Both example source files SHALL carry module-level doc comments in the existing house style: a summary, a `## What this demonstrates` section, and a fenced `sh` block with the run command, matching the pattern of `surb_reply.rs`.

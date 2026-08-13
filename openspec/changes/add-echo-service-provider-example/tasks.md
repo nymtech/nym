@@ -34,9 +34,15 @@
 - [x] 6.3 Add `.github/workflows/ci-sdk-example-integration-tests.yml` modeled on `nym-api-integration-tests.yml`: triggers `workflow_dispatch` + nightly `schedule`, builds examples (`cargo build --package nym-sdk --examples`), runs `cargo test --package nym-sdk --test echo_example_integration -- --nocapture` with `NYM_SDK_MAINNET_INTEGRATION_TESTS: "1"` in the job env
 - [x] 6.4 Confirm the test skips (no example spawn, no network access) under plain `cargo test --package nym-sdk` with the env var unset
 
-## 7. Verification
+## 7. Stream router race fix (review-driven scope extension)
 
-- [x] 7.1 `cargo check --package nym-sdk --examples` passes with no new workspace crates
-- [x] 7.2 Run the two-terminal walkthrough against the live network without any credential setup or NYM tokens: service prints address, client round-trips and prints the JSON reply exactly as documented in the READMEs
-- [x] 7.3 Run the integration test locally with `NYM_SDK_MAINNET_INTEGRATION_TESTS=1` and confirm it passes against mainnet
-- [x] 7.4 Verify README links resolve (relative link from `/service-providers/README.md`, whitepaper URL) and doc-comment style matches `surb_reply.rs`
+- [x] 7.1 Reproduce and root-cause the intermittent mainnet failure: `Data` overtaking `Open` is silently dropped for unregistered stream ids in `send_to_stream`
+- [x] 7.2 TDD: failing unit test for data-before-registration, then implement the bounded orphan buffer in `StreamMap` (drain on registration, caps per stream/across streams, TTL sweep in `cleanup_stale`)
+- [x] 7.3 Unit tests for sequencing, TTL sweep, and both capacity bounds; full `nym-sdk --lib` suite green
+
+## 8. Verification
+
+- [x] 8.1 `cargo check --package nym-sdk --examples` passes with no new workspace crates
+- [x] 8.2 Run the two-terminal walkthrough against the live network without any credential setup or NYM tokens: service prints address, client round-trips and prints the JSON reply exactly as documented in the READMEs
+- [x] 8.3 Run the integration test locally with `NYM_SDK_MAINNET_INTEGRATION_TESTS=1` and confirm it passes against mainnet (three consecutive passes post-race-fix)
+- [x] 8.4 Verify README links resolve (relative link from `/service-providers/README.md`, whitepaper URL) and doc-comment style matches `surb_reply.rs`

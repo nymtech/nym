@@ -14,7 +14,7 @@
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -25,6 +25,8 @@ const SERVICE_STARTUP_TIMEOUT: Duration = Duration::from_secs(180);
 /// How long the client gets for the full mainnet round trip.
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(300);
 
+// These prefixes are printed by the examples; both sides carry a comment
+// pointing back at this test.
 const ADDRESS_LINE_PREFIX: &str = "echo-service listening on: ";
 const REPLY_LINE_PREFIX: &str = "received reply: ";
 
@@ -57,6 +59,23 @@ fn example_binary(name: &str) -> PathBuf {
     path
 }
 
+/// Echo every stdout line with a tag as it arrives — so failures still show
+/// what both processes said — and forward it for inspection. The channel
+/// closes when the process's stdout reaches EOF.
+fn stream_stdout(tag: &'static str, stdout: ChildStdout) -> mpsc::Receiver<String> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(stdout).lines() {
+            let Ok(line) = line else { break };
+            println!("[{tag}] {line}");
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    rx
+}
+
 #[test]
 fn echo_examples_round_trip_on_mainnet() {
     if std::env::var(GATE_VAR).is_err() {
@@ -71,19 +90,10 @@ fn echo_examples_round_trip_on_mainnet() {
             .spawn()
             .expect("failed to spawn echo-service"),
     );
-    let service_stdout = service.0.stdout.take().expect("stdout was piped");
-
-    // Read the service's stdout on a thread so the address wait can time out.
-    let (line_tx, line_rx) = mpsc::channel::<String>();
-    std::thread::spawn(move || {
-        for line in BufReader::new(service_stdout).lines() {
-            let Ok(line) = line else { break };
-            println!("[echo-service] {line}");
-            if line_tx.send(line).is_err() {
-                break;
-            }
-        }
-    });
+    let service_lines = stream_stdout(
+        "echo-service",
+        service.0.stdout.take().expect("stdout was piped"),
+    );
 
     // Wait for the printed nym address.
     let deadline = Instant::now() + SERVICE_STARTUP_TIMEOUT;
@@ -91,7 +101,7 @@ fn echo_examples_round_trip_on_mainnet() {
         let remaining = deadline
             .checked_duration_since(Instant::now())
             .expect("echo-service did not print its address within the startup timeout");
-        let line = line_rx
+        let line = service_lines
             .recv_timeout(remaining)
             .expect("echo-service exited or timed out before printing its address");
         if let Some(address) = line.strip_prefix(ADDRESS_LINE_PREFIX) {
@@ -106,7 +116,10 @@ fn echo_examples_round_trip_on_mainnet() {
         .stdout(Stdio::piped())
         .spawn()
         .expect("failed to spawn echo-client");
-    let client_stdout = client.stdout.take().expect("stdout was piped");
+    let client_lines = stream_stdout(
+        "echo-client",
+        client.stdout.take().expect("stdout was piped"),
+    );
 
     let deadline = Instant::now() + CLIENT_TIMEOUT;
     let client_status = loop {
@@ -120,13 +133,15 @@ fn echo_examples_round_trip_on_mainnet() {
             None => std::thread::sleep(Duration::from_millis(250)),
         }
     };
-    assert!(client_status.success(), "echo-client failed: {client_status}");
+    assert!(
+        client_status.success(),
+        "echo-client failed: {client_status}"
+    );
 
-    // Validate the reply the client printed.
-    let reply_json = BufReader::new(client_stdout)
-        .lines()
-        .map_while(Result::ok)
-        .inspect(|line| println!("[echo-client] {line}"))
+    // Validate the reply the client printed. The client has exited, so its
+    // stdout is at EOF and the channel drains completely.
+    let reply_json = client_lines
+        .into_iter()
         .find_map(|line| line.strip_prefix(REPLY_LINE_PREFIX).map(str::to_string))
         .expect("echo-client never printed a reply");
 

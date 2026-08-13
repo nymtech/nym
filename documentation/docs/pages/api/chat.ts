@@ -73,9 +73,11 @@ const MAX_TOTAL_CHARS = 32_000;
 // the empty-context branch of systemPrompt() unreachable: the model would say a
 // topic was not covered while the widget listed ten sources underneath it.
 //
-// Starting value, not a measured one. Tune it against a few deliberately
-// off-topic questions ("what is the capital of France") and check they come back
-// with zero hits while real questions keep theirs.
+// 0.3 is known to be too low: "What is the capital of France?" still returns a
+// full ten hits, so the model declines on the prompt's instruction while the
+// widget lists ten sources under the refusal. Raising it needs the real score
+// distribution, which check-retrieval-scores.mjs prints. Override with
+// CHAT_MIN_SCORE once measured; no redeploy needed.
 const MIN_SCORE = Number(process.env.CHAT_MIN_SCORE ?? 0.3);
 
 /** Human-friendly name for the model id, for display in the widget. */

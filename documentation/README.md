@@ -167,7 +167,25 @@ values can be changed in Vercel without a redeploy of the code.
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `CHAT_MODEL` | `claude-sonnet-5` | Which model answers in the widget. The tier matters here: the job is synthesising an answer from retrieved sections and citing them, and Haiku was visibly weaker at it. |
-| `CHAT_MIN_SCORE` | `0.3` | Cosine-similarity floor for retrieval. **Starting value, not a measured one.** Below this a chunk is not treated as a source. Set too low, every question returns a full set of "sources" however unrelated, and the "not covered in the docs" answer can never fire; set too high, real questions lose their citations. Tune it by asking something deliberately off-topic and confirming it comes back with no sources. |
+| `CHAT_MIN_SCORE` | `0.3` | Cosine-similarity floor for retrieval; below it a chunk is not treated as a source. **The default is known to be too low** and wants raising once measured, see below. Set too low and every question returns a full set of "sources" however unrelated; set too high and real questions lose citations they should have had. |
+
+**Tuning `CHAT_MIN_SCORE`.** Unrelated text does not score near zero against
+these embeddings, so the floor has to sit above whatever an off-topic question
+scores. At `0.3` it does not: asking "What is the capital of France?" returns ten
+hits, so the assistant declines (the prompt tells it to) while the widget lists
+ten sources beneath the refusal.
+
+Print the real distribution and pick from the gap between the two groups:
+
+```bash
+# from documentation/docs, needs a built index
+VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs
+```
+
+It scores a set of deliberately off-topic and on-topic questions, reports the
+highest off-topic and lowest on-topic score, and suggests the midpoint. Pass your
+own questions as arguments to check a specific case. Set the result as
+`CHAT_MIN_SCORE` in Vercel; no redeploy is needed.
 
 Compile-time constants, changed in source rather than the environment:
 

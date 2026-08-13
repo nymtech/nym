@@ -66,7 +66,7 @@ export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [model, setModel] = useState('');
-  const { messages, status, sendMessage } = useChat({
+  const { messages, status, sendMessage, setMessages, stop } = useChat({
     transport: new DefaultChatTransport({ api: '/docs/api/chat' }), // basePath is /docs
   });
 
@@ -97,6 +97,15 @@ export default function ChatWidget() {
   // guard, so the second press starts another billed request and the two answers
   // interleave. 'error' stays sendable, to allow a retry.
   const busy = status === 'submitted' || status === 'streaming';
+
+  // Closing the drawer deliberately keeps the conversation, so without this there
+  // is no way to start a fresh one short of reloading the page. Stop first: an
+  // in-flight stream would otherwise keep appending to the cleared list.
+  const newChat = () => {
+    stop();
+    setMessages([]);
+    setInput('');
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,6 +172,11 @@ export default function ChatWidget() {
             Ask the docs
             {model && <span style={modelStyle}> · {model}</span>}
           </span>
+          {messages.length > 0 && (
+            <button onClick={newChat} style={newChatStyle}>
+              New chat
+            </button>
+          )}
           <button aria-label="Close" onClick={() => setOpen(false)} style={closeStyle}>
             ×
           </button>
@@ -386,6 +400,18 @@ const mdCellStyle: React.CSSProperties = {
   border: '1px solid var(--chat-border)',
   padding: '0.3rem 0.45rem',
   textAlign: 'left',
+};
+
+const newChatStyle: React.CSSProperties = {
+  marginLeft: 'auto',
+  marginRight: 8,
+  padding: '3px 9px',
+  borderRadius: 999,
+  border: '1px solid var(--chat-border)',
+  background: 'transparent',
+  color: 'var(--chat-text-dim)',
+  fontSize: '0.75rem',
+  cursor: 'pointer',
 };
 
 // The ring is the accent at low opacity, which avoids defining a second colour

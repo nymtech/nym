@@ -1,12 +1,10 @@
-// In-docs chat widget: a right-hand drawer, mounted once globally from
-// pages/_app.tsx with ssr: false, so it never participates in SSR or hydration.
+// In-docs chat widget: right-hand drawer, mounted once from pages/_app.tsx with
+// ssr: false.
 //
-// The conversation lives in component state and is never persisted, which drives
-// two decisions here. The drawer hides by sliding via transform rather than
-// unmounting, so closing it does not discard the conversation. And every internal
-// link uses next/link, because a full page load would remount this component from
-// _app and lose it. That includes the citation links, which are the thing a reader
-// is most likely to click mid-conversation.
+// The conversation is component state and is never persisted. So the drawer
+// hides by sliding via transform instead of unmounting, and every internal link
+// here uses next/link, citations included. A full page load remounts this
+// component and the conversation is gone.
 
 import { useState, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
@@ -42,13 +40,12 @@ function docsHref(url: string): string {
  * not rewritten into a link. The negative lookahead leaves real markdown links
  * (`[1](url)`) alone.
  *
- * Known limits, all cosmetic: this only recognises ``` fences and single-backtick
- * spans, so `[1]` inside a 4-space indented block, a ~~~ fence, or a
- * ``double-backtick`` span still gets linked. A fence that is still streaming has
- * no closing ```, so its contents are briefly treated as prose until the closing
- * chunk arrives, and permanently if the answer is truncated before it. Doing this
- * on the parsed AST (a rehype plugin skipping nodes under code/pre) would be
- * correct by construction.
+ * Limits, all cosmetic. Only ``` fences and single-backtick spans are recognised,
+ * so `[1]` inside a 4-space indented block, a ~~~ fence, or a ``double-backtick``
+ * span still gets linked. A fence mid-stream has no closing ```, so its contents
+ * read as prose until the closing chunk arrives, or permanently if the answer is
+ * truncated first. A rehype plugin skipping nodes under code/pre would avoid all
+ * of this by working on the parsed tree.
  */
 function linkifyCitations(text: string, citations: Citation[]): string {
   if (citations.length === 0) return text;
@@ -94,12 +91,11 @@ export default function ChatWidget() {
     return () => document.body.classList.remove('nym-chat-open');
   }, [open]);
 
-  // 'submitted' covers the gap between sending and the first token, which on this
-  // route means a Voyage embedding plus retrieval plus Claude's first byte. That
-  // window is seconds long, so guarding only 'streaming' leaves it wide open to a
-  // second Enter press, and useChat has no in-flight guard of its own: it would
-  // start a second billed request and interleave two answers. 'error' stays
-  // sendable so a failed question can be retried.
+  // 'submitted' is the gap between sending and the first token: an embedding
+  // call, retrieval, then Claude's first byte. That takes seconds. Guarding only
+  // 'streaming' leaves it accepting a second Enter, and useChat has no in-flight
+  // guard, so the second press starts another billed request and the two answers
+  // interleave. 'error' stays sendable, to allow a retry.
   const busy = status === 'submitted' || status === 'streaming';
 
   const submit = (e: React.FormEvent) => {
@@ -110,14 +106,14 @@ export default function ChatWidget() {
     setInput('');
   };
 
-  // Grow the textarea to fit its content, up to a cap. Reset to `auto` first so
-  // it can shrink again when text is deleted; scrollHeight only ever grows
-  // against a fixed height.
+  // Grow the textarea to fit its content, up to a cap. Reset to `auto` first:
+  // scrollHeight never reports less than the current fixed height, so without the
+  // reset the box grows but never shrinks.
   //
-  // Do not wrap this in useCallback. It is passed as the ref callback, so a new
-  // identity each render is what makes React reattach and re-measure, which is
-  // what shrinks the box after submit clears the value. A stable identity would
-  // silently break that, because setInput('') fires no change event.
+  // Do not wrap this in useCallback. It doubles as the ref callback, and the new
+  // identity each render is what makes React reattach and re-measure. That is the
+  // only thing that shrinks the box after submit, since setInput('') fires no
+  // change event. A stable identity breaks it with no error.
   const resize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = 'auto';
@@ -195,7 +191,7 @@ export default function ChatWidget() {
             const citations =
               (m.metadata as { citations?: Citation[] } | undefined)?.citations ?? [];
             const isLast = m.id === messages[messages.length - 1]?.id;
-            // The caret belongs on the answer being written, not on a finished one.
+            // Only the answer currently being written gets a caret.
             const streamingHere = status === 'streaming' && isLast && m.role !== 'user';
             const citeHrefs = new Set(citations.map((c) => docsHref(c.url)));
             return (
@@ -278,10 +274,10 @@ export default function ChatWidget() {
 // selector or a keyframe lives in that stylesheet instead, since inline styles
 // can express neither.
 
-// Asymmetric turns: the user's words sit in a tinted bubble on the right, the
-// answer runs flush-left with no bubble. Answers carry tables, headings and code
-// blocks, and a bubble fights that content rather than framing it. The asymmetry
-// alone distinguishes the speakers, so no role labels are needed.
+// Asymmetric turns: the question sits in a tinted bubble on the right, the answer
+// runs flush-left with no bubble. Answers contain tables, headings and code
+// blocks, which do not fit inside a bubble at this width. The asymmetry is enough
+// to tell the two apart, so there are no role labels.
 const userRowStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'flex-end',
@@ -296,7 +292,7 @@ const userBubbleStyle: React.CSSProperties = {
   maxWidth: '85%',
   background: 'var(--chat-surface)',
   border: '1px solid var(--chat-border)',
-  // Square the bottom-right corner so the bubble points at its author.
+  // Bottom-right corner squared, the usual convention for an outgoing message.
   borderRadius: '12px 12px 3px 12px',
   fontSize: '0.9rem',
   lineHeight: 1.45,
@@ -329,8 +325,8 @@ const preStyle: React.CSSProperties = {
 };
 const tableWrapStyle: React.CSSProperties = { overflowX: 'auto' };
 
-// Headings are demoted: an answer's `##` must not outrank the drawer's own
-// title, and the drawer is too narrow for full-size heading type.
+// Headings render as paragraphs. The drawer is too narrow for heading type, and
+// an answer's `##` would compete with the drawer's own title.
 // Built per message so the link override can check an href against that answer's
 // own citations. `node` is destructured off every override below: react-markdown
 // passes the hast node down, and spreading it would put an object on a real DOM
@@ -345,10 +341,10 @@ const makeMdComponents = (citeHrefs: Set<string>) => ({
   ol: ({ node, ...p }: any) => <ol style={{ margin: '0 0 0.6rem', paddingLeft: '1.2rem' }} {...p} />,
   li: ({ node, ...p }: any) => <li style={{ margin: '0.15rem 0' }} {...p} />,
   a: ({ children, node, href, ...p }: any) => {
-    // The pill asserts "this came from the docs index", so it must be earned by
-    // the href, not by the link text. Checking the text alone let a model-authored
-    // `[2](https://elsewhere)` wear the same badge: linkifyCitations skips links
-    // that are already in link form, so such a link reaches here untouched.
+    // Check the href, not the link text. The pill tells the reader a link came
+    // from the docs index, and text alone does not establish that: the model can
+    // emit `[2](https://elsewhere)` itself, linkifyCitations skips links that are
+    // already in link form, and it arrives here looking identical to a citation.
     const isCitation = /^\d+$/.test(String(children)) && citeHrefs.has(href);
     if (isCitation) {
       return (
@@ -392,9 +388,8 @@ const mdCellStyle: React.CSSProperties = {
   textAlign: 'left',
 };
 
-// Filled accent pill: reads as an invitation rather than a stray bordered box.
-// The ring is a translucent halo of the accent, so it works on either theme
-// without a second colour token.
+// The ring is the accent at low opacity, which avoids defining a second colour
+// token per theme.
 const launcherStyle: React.CSSProperties = {
   position: 'fixed',
   bottom: 20,

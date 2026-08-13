@@ -1,15 +1,12 @@
-// Backend for the in-docs chat widget. Retrieval-augmented: embed the question,
-// pull the nearest documentation sections, and stream an answer constrained to
-// them. The model is told to answer only from those sections and to cite them,
-// which is what lets the assistant say a topic is not covered instead of
-// inventing an answer.
+// Backend for the in-docs chat widget. Embeds the question, retrieves the
+// nearest documentation sections, streams an answer restricted to them. The
+// prompt permits "not covered in the docs" as an answer.
 //
-// Citations ride as message metadata rather than a response header, because the
-// client transport does not expose response headers to the widget. That is why
-// they are attached to the stream's `start` event below rather than simply set
-// on the response.
+// Citations travel as message metadata, not a response header: the client
+// transport hides response headers from the widget. They go on the stream's
+// `start` event so markers can be linkified mid-stream.
 //
-// GET doubles as a health check; see configProblems().
+// GET doubles as a health check. See configProblems().
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -27,14 +24,13 @@ const index: DocIndex = JSON.parse(readFileSync(path.join(process.cwd(), 'public
 const embedder = voyageProvider({ apiKey: process.env.VOYAGE_API_KEY });
 
 /**
- * Configuration problems that make this route unable to answer, checked once at
- * cold start rather than discovered per request.
+ * Configuration problems that stop this route answering. Checked once at cold
+ * start; otherwise a missing key shows up as a Voyage 401 or a provider throw
+ * mid-stream, neither of which names the variable or where to set it.
  *
- * Without this a missing key surfaces as a Voyage 401 or a provider throw deep in
- * the stream, which names neither the variable nor where to set it. ANTHROPIC_API_KEY
- * is the easy one to miss: the provider reads it from the environment itself, so it
- * appears nowhere in this file. A vectorless index is the quiet one: it loads and
- * serves happily while every search returns nothing.
+ * ANTHROPIC_API_KEY is easy to miss when provisioning because the provider reads
+ * it from the environment, so it appears nowhere in this file. A vectorless index
+ * is easy to miss because nothing errors: it loads, and searches return nothing.
  */
 function configProblems(): string[] {
   const problems: string[] = [];
@@ -52,19 +48,18 @@ function configProblems(): string[] {
 
 const CONFIG_PROBLEMS = configProblems();
 if (CONFIG_PROBLEMS.length > 0) {
-  // Lands in the Vercel function log on every cold start, so a misconfigured
-  // deployment says so rather than waiting to be reported as bad answers.
+  // Logged on every cold start, so the problem is visible in Vercel's function
+  // log without waiting for someone to report bad answers.
   console.error(
     `[chat] disabled, ${CONFIG_PROBLEMS.length} configuration problem(s):\n` +
       CONFIG_PROBLEMS.map((p) => `  - ${p}`).join('\n'),
   );
 }
 
-// Model tier matters more here than raw speed. The task is synthesising a
-// grounded answer from several retrieved sections and attributing each claim to
-// the right one, and a model that is merely fast tends to blur the attribution
-// or drift outside the supplied context. CHAT_MODEL overrides this per
-// deployment, so a change needs no redeploy of this file.
+// The task is combining several retrieved sections into one answer and getting
+// each citation onto the right claim. Weaker models mis-attribute and wander
+// outside the supplied sections, so tier matters more here than latency.
+// CHAT_MODEL overrides this per deployment, without a redeploy.
 const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-5';
 
 // Bounds on an incoming request. A docs chat is a short conversation; these cap

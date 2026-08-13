@@ -604,9 +604,9 @@ html.dark {
   --chat-shadow: rgba(0, 0, 0, 0.25);
 }
 
-/* Waiting state: three packets hopping left to right, echoing the Sphinx packet
-   motion in the network diagrams rather than a generic chat spinner. Each dot
-   brightens and lifts in turn, so the run reads as one packet crossing hops. */
+/* Waiting state: three dots lifting in sequence, left to right, matching the
+   packet motion used in the network diagrams. Each dot brightens and lifts in
+   turn, so the run reads as one packet crossing hops. */
 @keyframes nym-chat-hop {
   0%,
   60%,
@@ -673,8 +673,8 @@ html.dark {
   font-size: inherit;
 }
 
-/* Citation markers: the widget's trust surface, so make them scannable and
-   obviously clickable rather than ordinary inline links. */
+/* Citation markers. Styled as pills so they are scannable in a wall of text and
+   read as clickable, which a bare `[1]` does not. */
 .nym-chat-cite {
   display: inline-block;
   min-width: 1.15em;

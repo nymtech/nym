@@ -58,16 +58,15 @@ export function voyageProvider({ apiKey, model = 'voyage-3-large', dim = 1024 })
 }
 
 /**
- * Resolve the embedding key for an index build, and refuse to ship without one.
+ * Resolve the embedding key for an index build.
  *
- * A vectorless index is not a degraded index, it is an inert one: it writes,
- * deploys, and serves HTTP 200 while every search returns nothing. The symptom
- * ("the assistant answers nothing useful") shows up long after, and points at
- * the model rather than at the deploy that dropped the key. So in CI or on
- * Vercel a missing key is fatal.
+ * Without a key the index still builds, deploys, and returns HTTP 200, but every
+ * search returns nothing. That surfaces much later as bad answers, which points
+ * at the model rather than at the deploy that dropped the key. So a missing key
+ * is fatal in CI and on Vercel.
  *
- * Locally it stays a warning: building a vectorless index is a legitimate way to
- * work on chunking or page structure without holding a key.
+ * Locally it is only a warning. Building without vectors is a reasonable way to
+ * work on chunking or page structure when you do not have a key to hand.
  *
  * @param {string} artifact  what ends up vectorless, named in the message
  * @returns {string | undefined} the key, or undefined when building locally without one

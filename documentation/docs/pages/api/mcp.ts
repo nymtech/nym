@@ -1,22 +1,17 @@
-// MCP server for AI coding agents, served at https://nym.com/docs/api/mcp (the
-// /docs basePath applies). It is a pages-router API route rather than a separate
-// service so there is one deployment to operate, and so it can read the retrieval
-// index the docs build already produces.
+// MCP server for AI coding agents, at https://nym.com/docs/api/mcp (the /docs
+// basePath applies). A pages-router API route rather than a separate service:
+// one deployment to operate, and it can read the index the docs build writes.
 //
-// Two constraints shape the code below.
+// Stateless. Streamable HTTP has sessions, but serverless invocations share no
+// memory, so each request builds its own Server and transport and discards them.
 //
-// Stateless. Streamable HTTP supports sessions, but a serverless invocation
-// shares nothing with the next one, so there is nowhere to keep a session. Each
-// request builds its own Server and transport and throws them away.
+// The SDK transport is Web-Standard; the pages router is Node-shaped. The SDK
+// bridges them and takes Next's wrapped `res`. A Next or SDK upgrade breaks here
+// first. Fallback is a standalone Node process, where the transport gets a real
+// http.ServerResponse from createServer.
 //
-// The transport is Web-Standard and Next's pages router is Node-shaped, so the
-// SDK bridges the two and is handed Next's wrapped `res`. That works, but it is
-// the seam most likely to break on a Next or SDK upgrade. If it does, the fallback
-// is hosting the transport on a pristine http.ServerResponse from createServer,
-// as a standalone Node process.
-//
-// The endpoint is public and unauthenticated, and every search costs a paid
-// embedding call, so it wants a rate limiter before it carries real traffic.
+// Public, unauthenticated, and every search costs an embedding call. Needs a
+// rate limiter before real traffic.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { readFileSync } from 'node:fs';
@@ -39,10 +34,8 @@ try {
   // lambda on Vercel (next.config.js outputFileTracingIncludes for /api/mcp).
   throw new Error(`MCP route: cannot load ${INDEX_PATH}: ${(e as Error).message}. Build the docs so generate-index.mjs writes it, and ensure it is traced into this function.`);
 }
-// A misconfigured server that still answers tools/list is worse than one that
-// refuses to start: an agent connects, lists nine tools, and only discovers the
-// problem as an opaque 401 inside its first search. Fail at cold start instead,
-// naming the variable.
+// Fail at cold start, naming the variable. Otherwise an agent connects, gets a
+// full tool list, and hits an opaque 401 inside its first search.
 if (!process.env.VOYAGE_API_KEY) {
   throw new Error(
     'MCP route: VOYAGE_API_KEY is not set, so search_docs and search_code cannot ' +

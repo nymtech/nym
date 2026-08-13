@@ -67,6 +67,11 @@ const CHAT_MODEL = process.env.CHAT_MODEL ?? 'claude-sonnet-5';
 const MAX_MESSAGES = 40;
 const MAX_TOTAL_CHARS = 32_000;
 
+// Ceiling on one answer, covering thinking tokens as well as the visible reply.
+// Generous enough for a long answer with code samples; still bounded, because a
+// runaway answer costs money and blocks the stream.
+const MAX_ANSWER_TOKENS = 8192;
+
 // Retrieval floor. `search()` defaults this to 0, and cosine similarity over
 // normalised embeddings is effectively never negative, so without a floor every
 // question returns a full topK of "sources" no matter how unrelated. That made
@@ -162,6 +167,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       model: anthropic(CHAT_MODEL),
       system: systemPrompt(context),
       messages: await convertToModelMessages(messages),
+      // Without a cap the provider default applies, and answers that quote a
+      // config block or a code sample were being cut off mid-sentence. Thinking
+      // shares this budget with the visible text, so leave room for both.
+      maxOutputTokens: MAX_ANSWER_TOKENS,
     });
 
     // Emitted on `start` rather than `finish` so the widget can turn `[n]`

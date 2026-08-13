@@ -1,6 +1,29 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { embedChunks, contentHash, mockProvider } from './embed.mjs';
+import { embedChunks, contentHash, mockProvider, embedText } from './embed.mjs';
+
+describe('embedText', () => {
+  it('prepends the page title and section heading to the body', () => {
+    expect(embedText({ title: 'Threat actors', heading: 'L2 is the primary adversary', text: 'The destination...' }))
+      .toBe('Threat actors\nL2 is the primary adversary\nThe destination...');
+  });
+
+  it('does not repeat the title when a chunk sits before the first subheading', () => {
+    expect(embedText({ title: 'Overview', heading: 'Overview', text: 'body' })).toBe('Overview\nbody');
+  });
+
+  it('leaves the stored body untouched', () => {
+    const chunk = { title: 'A', heading: 'B', text: 'body' };
+    embedText(chunk);
+    expect(chunk.text).toBe('body');
+  });
+
+  it('changes the cache key, so a title edit re-embeds that page', () => {
+    const before = contentHash(embedText({ title: 'Old', heading: 'H', text: 'body' }));
+    const after = contentHash(embedText({ title: 'New', heading: 'H', text: 'body' }));
+    expect(before).not.toBe(after);
+  });
+});
 
 function countingProvider(dim = 4) {
   const base = mockProvider({ dim });

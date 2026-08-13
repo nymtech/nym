@@ -99,6 +99,28 @@ export function resolveEmbedKey(artifact) {
 }
 
 /**
+ * The string a chunk is embedded and cached under.
+ *
+ * Body prose usually assumes its own topic: a section under "Threat actors" that
+ * discusses L2 rarely repeats the page title, so a search for the topic misses a
+ * chunk that is entirely about it. Prepending the page title and section heading
+ * puts that topic in the vector.
+ *
+ * `chunk.text` stays the body alone, because that is what is displayed and
+ * returned to callers. Only the embedded representation carries the headers.
+ *
+ * @param {{ title?: string, heading?: string, text: string }} chunk
+ * @returns {string}
+ */
+export function embedText(chunk) {
+  const header = [chunk.title, chunk.heading].filter(Boolean);
+  // A chunk before the first subheading carries the title as its heading; do not
+  // repeat it.
+  const unique = header.filter((h, i) => header.indexOf(h) === i);
+  return [...unique, chunk.text].join('\n');
+}
+
+/**
  * Deterministic mock provider for tests (no network). Derives a pseudo-vector
  * from the text hash so the same text always yields the same vector.
  *
@@ -133,7 +155,7 @@ export async function embedChunks(chunks, provider, cache = new Map(), { batchSi
   // different spaces, so a model change must invalidate the cache rather than
   // silently reuse the old model's vectors for unchanged chunks.
   const keyPrefix = `${provider.model}:${provider.dim}:`;
-  const hashes = chunks.map((c) => keyPrefix + contentHash(c.text));
+  const hashes = chunks.map((c) => keyPrefix + contentHash(embedText(c)));
 
   const missIdx = [];
   hashes.forEach((h, i) => {
@@ -170,13 +192,13 @@ export async function embedChunks(chunks, provider, cache = new Map(), { batchSi
     while (
       b < missIdx.length &&
       batch.length < batchSize &&
-      (batch.length === 0 || tokens + estTokens(chunks[missIdx[b]].text) <= TOKEN_BUDGET)
+      (batch.length === 0 || tokens + estTokens(embedText(chunks[missIdx[b]])) <= TOKEN_BUDGET)
     ) {
-      tokens += estTokens(chunks[missIdx[b]].text);
+      tokens += estTokens(embedText(chunks[missIdx[b]]));
       batch.push(missIdx[b]);
       b++;
     }
-    const vectors = await embedBatch(batch.map((i) => chunks[i].text));
+    const vectors = await embedBatch(batch.map((i) => embedText(chunks[i])));
     batch.forEach((i, j) => cache.set(hashes[i], vectors[j]));
     if (onProgress) onProgress({ done: b, total: missIdx.length, cache });
   }

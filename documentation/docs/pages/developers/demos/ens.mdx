@@ -32,31 +32,22 @@ This page is the integration pattern for an Ethereum dApp, a web3 app, or a
 browser extension wallet. Two questions on the [developers overview](/developers)
 decide the package. Answer them before you write code.
 
-**Which runtime?** A browser has no raw sockets and no filesystem. It runs a WASM
-client in a Web Worker, not the native Rust client. That is the Browser / WebView
-row.
-
-**End to end, or proxy?** An Ethereum RPC provider is a destination that does not
-run Nym. This is therefore proxy mode. Your client runs Nym, traffic leaves the
-mixnet at an exit gateway, and the request continues over the public internet.
-[End to end](/network/threat-model/configurations/end-to-end) is the stronger
-position, because no untrusted destination exists. Choose proxy mode deliberately.
+A browser runs a WASM client, and an Ethereum RPC provider is a destination that
+does not run Nym. Those two answers put you in the Browser / WebView row in proxy
+mode, which selects [`mix-fetch`](/developers/mix-fetch). The
+[developers overview](/developers) explains both axes, and
 [Choose a Defence](/network/threat-model/choose-config) starts from the adversary
 rather than from the tool.
 
-Those answers select [`mix-fetch`](/developers/mix-fetch). The adapter below
-connects it to `ethers`. ENS resolution is only the example. The mechanism applies
-to every request `ethers` makes: a balance read, a name resolution, or a signed
-transaction.
-
-Proxy mode hides your IP address from the destination. It does not hide the
-content of your requests. The destination
-([L2](/network/threat-model/actors#actor-L2)) still observes each request. An
-account that the destination can already link to you stays linked. The adapter
-does not change signing or key handling, so your wallet keeps its existing
-mechanism. See [Exit Gateway Services](/network/infrastructure/exit-services) for
-what the exit gateway observes. See [baseline hygiene](/developers/swizzle) for the
+Proxy mode is the weaker of the two positions, so choose it deliberately.
+[Exit Gateway Services](/network/infrastructure/exit-services) sets out what the
+exit gateway observes. [Baseline hygiene](/developers/swizzle) covers the
 request-shape discipline that the transport layer does not provide.
+
+The adapter below connects `mix-fetch` to `ethers`. ENS resolution is only the
+example. The mechanism applies to every request `ethers` makes: a balance read, a
+name resolution, or a signed transaction. It does not change signing or key
+handling, so a wallet keeps its existing mechanism.
 
 For a wallet connecting to the Nyx chain rather than to Ethereum, that is a
 different job: see [Cosmos Kit](/developers/typescript/cosmos-kit).

@@ -66,7 +66,7 @@ export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [model, setModel] = useState('');
-  const { messages, status, sendMessage, setMessages, stop } = useChat({
+  const { messages, status, sendMessage, setMessages, stop, error, clearError, regenerate } = useChat({
     transport: new DefaultChatTransport({ api: '/docs/api/chat' }), // basePath is /docs
   });
 
@@ -252,6 +252,25 @@ export default function ChatWidget() {
               </span>
             </div>
           )}
+          {/* Without this a failed request leaves the question sitting there with
+              no answer and no explanation. A missing key on a fresh deployment
+              looks identical to the model having nothing to say. */}
+          {error && (
+            <div style={assistantRowStyle} role="alert">
+              <p style={errorStyle}>
+                {error.message || 'Something went wrong answering that.'}
+              </p>
+              <button
+                onClick={() => {
+                  clearError();
+                  regenerate();
+                }}
+                style={retryStyle}
+              >
+                Try again
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={submit} style={formStyle}>
@@ -268,9 +287,17 @@ export default function ChatWidget() {
             aria-label="Your question"
             style={inputStyle}
           />
-          <button type="submit" disabled={busy} style={sendStyle}>
-            Send
-          </button>
+          {/* Swap rather than disable: a long answer is the case where you most
+              want out, and a greyed-out button offers no way to take it. */}
+          {busy ? (
+            <button type="button" onClick={stop} style={sendStyle}>
+              Stop
+            </button>
+          ) : (
+            <button type="submit" style={sendStyle}>
+              Send
+            </button>
+          )}
         </form>
 
         <div style={footerStyle}>
@@ -400,6 +427,25 @@ const mdCellStyle: React.CSSProperties = {
   border: '1px solid var(--chat-border)',
   padding: '0.3rem 0.45rem',
   textAlign: 'left',
+};
+
+const errorStyle: React.CSSProperties = {
+  margin: '0 0 0.5rem',
+  padding: '0.5rem 0.7rem',
+  borderLeft: '2px solid var(--chat-accent)',
+  background: 'var(--chat-surface)',
+  borderRadius: '0 6px 6px 0',
+  fontSize: '0.85rem',
+  overflowWrap: 'anywhere',
+};
+const retryStyle: React.CSSProperties = {
+  padding: '4px 10px',
+  borderRadius: 999,
+  border: '1px solid var(--chat-border)',
+  background: 'transparent',
+  color: 'var(--chat-text)',
+  fontSize: '0.78rem',
+  cursor: 'pointer',
 };
 
 const newChatStyle: React.CSSProperties = {

@@ -10,6 +10,7 @@
       "current_nym_node_version",
       "epoch_duration",
       "epochs_in_interval",
+      "geolocation_contract_address",
       "initial_rewarding_params",
       "node_families_contract_address",
       "rewarding_denom",
@@ -27,6 +28,9 @@
         "type": "integer",
         "format": "uint32",
         "minimum": 0.0
+      },
+      "geolocation_contract_address": {
+        "type": "string"
       },
       "initial_rewarding_params": {
         "$ref": "#/definitions/InitialRewardingParams"
@@ -3607,11 +3611,17 @@
     "title": "MigrateMsg",
     "type": "object",
     "required": [
-      "node_families_contract_address"
+      "geolocation_contract_address"
     ],
     "properties": {
-      "node_families_contract_address": {
+      "geolocation_contract_address": {
         "type": "string"
+      },
+      "node_families_contract_address": {
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "unsafe_skip_state_updates": {
         "type": [
@@ -10877,18 +10887,31 @@
       "description": "The current state of the mixnet contract.",
       "type": "object",
       "required": [
-        "node_families_contract_address",
         "params",
         "rewarding_denom",
         "rewarding_validator_address",
         "vesting_contract_address"
       ],
       "properties": {
-        "node_families_contract_address": {
-          "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
-          "allOf": [
+        "geolocation_contract_address": {
+          "description": "Address of the geolocation contract. It is called whenever nym-node unbonds, so that it geolocation data could be removed from the underlying storage.",
+          "anyOf": [
             {
               "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "node_families_contract_address": {
+          "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
             }
           ]
         },

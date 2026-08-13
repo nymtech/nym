@@ -32,3 +32,8 @@ public/code-index.json
 # their own narrower rule before this pattern subsumed it.
 public/*.md
 public/**/*.md
+
+# Full-corpus dump (built at deploy; see generate-llms-txt.mjs). It carries a
+# @generated date stamp, so tracking it means churn on every build.
+# public/llms.txt is NOT here: that one is hand-written.
+public/llms-full.txt

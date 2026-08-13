@@ -26,8 +26,17 @@ const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/code-index.json')
 const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/code-embed-cache.json');
 const CODE_MODEL = 'voyage-code-3';
 
-// Curated scope (repo-relative). SDK + wasm + examples + select Sphinx/smolmix crates.
+// Curated scope (repo-relative): the crates the documentation makes claims
+// about. A path outside this list cannot be cited by `search_code` and cannot be
+// checked against the prose, so the list is the boundary of what the docs can be
+// held to.
+//
+// Widening is cheap to write and not cheap to run. Both index files are traced
+// into the /api/mcp lambda (see outputFileTracingIncludes in next.config.js) and
+// parsed at every cold start, and a cold build re-embeds every new file. Add a
+// root because the docs describe it, not because it exists.
 const ROOTS = [
+  // SDKs and the wasm packages built from them
   'sdk/rust',
   'sdk/typescript/packages',
   'sdk/typescript/examples',
@@ -35,8 +44,27 @@ const ROOTS = [
   'wasm/smolmix',
   'wasm/client',
   'wasm/zknym-lib',
+
+  // Packet format and the userspace stack the tunnel is built on
   'common/nymsphinx',
   'common/smol-core',
+
+  // Core client internals, behind every "what does the client do" claim
+  'common/client-core',
+  'common/client-libs',
+  'clients/native',
+  'clients/socks5',
+
+  // Exit services: what each one sees is a load-bearing claim in the threat model
+  'service-providers/ip-packet-router',
+  'service-providers/network-requester',
+
+  // Gateway protocol and bandwidth credentials
+  'common/gateway-requests',
+  'common/credentials',
+
+  // Node implementation, for the operator docs
+  'nym-node',
 ];
 
 const EXCLUDE = /(^|\/)(node_modules|target|dist|build|out|\.next|pkg|coverage|__pycache__)(\/|$)|\.d\.ts$/;

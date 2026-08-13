@@ -67,14 +67,18 @@ Both indexes are small enough to ship with the app and load into memory on cold 
 
 | Index | Chunks | Dimensions | Model | On disk |
 |---|---|---|---|---|
-| `docs-index.json` | 1,406 | 1024 | `voyage-3-large` | 18.5 MB |
-| `code-index.json` | 2,339 | 1024 | `voyage-code-3` | 30.9 MB |
+| `docs-index.json` | 1,427 | 1024 | `voyage-3-large` | 19.7 MB |
+| `code-index.json` | 6,861 | 1024 | `voyage-code-3` | 94.6 MB |
 
-Most of that is serialisation overhead, not information: a float stored as JSON text costs roughly 13 bytes where the raw vector costs 4. The vectors themselves are about a third of the file size. That matters because it points at the cheap lever, which is int8 quantisation or a binary sidecar, well before anything as heavy as a database.
+Almost all of that is the vectors, and most of the vector bytes are serialisation overhead rather than information. Per chunk, the 1,024 numbers occupy 12,697 bytes written as JSON text, against 688 bytes for the id, URL, headings and the chunk text together. So the vectors are 95% of the file, and the text they were derived from is 5%.
+
+A float32 is 4 bytes. Written into JSON it becomes a string such as `-0.017815014`, which costs about 12. That is a 3.1x penalty for holding binary data in a text format. It is paid again at load: the parser converts a decimal string to a double 1,024 times per chunk.
+
+Two cheap levers follow, both well before anything as heavy as a database. Base64-encoding the raw float32 bytes is lossless and cuts the vectors to 5,464 bytes per chunk. Quantising each number to a single signed byte cuts them to 1,024. Measured against this corpus, that returns an identical top ten, with scores shifted by about 0.002.
 
 Re-embedding the whole corpus costs well under a cent, so the real price of a rebuild is build latency rather than money.
 
-A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 49 MB of the platform's limit is spent before any code, and cold start pays to parse them.
+A vector database would add a service to operate, a network hop per query, and a consistency problem between the deployed docs and the indexed docs. At this corpus size it buys none of that back. The constraint to watch is the serverless bundle: both files are traced into the MCP function, so roughly 114 MB of the platform's limit is spent before any code, and every cold start pays to parse them.
 
 ## Serving
 

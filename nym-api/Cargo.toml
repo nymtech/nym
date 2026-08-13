@@ -141,5 +141,13 @@ nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
 nym-directory-contract-common = { workspace = true }
 
+# the real contract code, driven under cw_multi_test. `nym-coconut-dkg` belongs to
+# the separate contracts workspace; see this workspace's [patch.crates-io].
+nym-coconut-dkg = { path = "../contracts/coconut-dkg", features = [
+    "testable-dkg-contract",
+] }
+nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
+cw-multi-test = { workspace = true }
+
 [lints]
 workspace = true

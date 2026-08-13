@@ -2336,6 +2336,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw3-fixed-multisig"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a8233125653e61e898eaade6c6fdb3bd9c48aceb2ad97e84eada2c9bf5bff46"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw3-flex-multisig"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw20",
+ "cw3",
+ "cw3-fixed-multisig",
+ "cw4",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "nym-multisig-contract-common",
+]
+
+[[package]]
 name = "cw4"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2346,6 +2381,25 @@ dependencies = [
  "cw-storage-plus",
  "schemars 0.8.22",
  "serde",
+]
+
+[[package]]
+name = "cw4-group"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw4",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "schemars 0.8.22",
+ "serde",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -5907,6 +5961,7 @@ dependencies = [
  "clap",
  "console-subscriber",
  "cosmwasm-std",
+ "cw-multi-test",
  "cw-utils",
  "cw2",
  "cw3",
@@ -5921,10 +5976,12 @@ dependencies = [
  "nym-bandwidth-fetcher",
  "nym-bin-common",
  "nym-cache",
+ "nym-coconut-dkg",
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
+ "nym-contracts-common-testing",
  "nym-credential-storage",
  "nym-credentials",
  "nym-credentials-interface",
@@ -6482,6 +6539,24 @@ dependencies = [
  "nym-sphinx",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "nym-coconut-dkg"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "cw3-flex-multisig",
+ "cw4",
+ "cw4-group",
+ "nym-coconut-dkg-common",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-group-contract-common",
+ "thiserror 2.0.19",
 ]
 
 [[package]]

@@ -661,3 +661,15 @@ exit = "deny"
 panic = "deny"
 unimplemented = "deny"
 unreachable = "deny"
+
+# The contracts workspace declares its nym-* dependencies against crates.io and
+# redirects them to local paths via its own [patch.crates-io]. That patch does not
+# apply when a contract is built as a path dependency from this workspace, so
+# without mirroring it here cargo resolves a second, published copy of each shared
+# crate and the two sets of types no longer unify.
+[patch.crates-io]
+nym-coconut-dkg-common = { path = "common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { path = "common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common-testing = { path = "common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-group-contract-common = { path = "common/cosmwasm-smart-contracts/group-contract" }
+nym-multisig-contract-common = { path = "common/cosmwasm-smart-contracts/multisig-contract" }

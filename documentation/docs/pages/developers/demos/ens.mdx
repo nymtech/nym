@@ -29,17 +29,34 @@ slower than a direct route.
 ## Using this in your own app
 
 If you are building an Ethereum dApp, a web3 app, or a browser extension wallet
-and want its traffic to go through the mixnet, this page is the integration
-pattern. ENS resolution is only the example: the adapter below is the whole
-mechanism, and it applies to any RPC call `ethers` makes, whether that is reading
-a balance, resolving a name, or broadcasting a signed transaction.
+and want its traffic to go through the mixnet, start with the two questions on the
+[developers overview](/developers), because they decide the package before any code
+is written.
 
-Two things it does not do. It does not touch signing or key handling, so your
-wallet keeps whatever it already uses. And it hides your IP from the RPC provider
-rather than hiding what you ask for: the node still sees the calls themselves, so
-an account it can already link to you stays linked. See
+**Which runtime?** A browser or extension has no raw sockets and no filesystem, so
+it runs a WASM client in a Web Worker rather than the native Rust client. That puts
+you on the Browser / WebView row.
+
+**End to end, or proxy?** An Ethereum RPC endpoint is a third party that will never
+run Nym, so this is proxy mode: your side runs Nym, traffic leaves the mixnet at an
+exit gateway, and continues to the RPC provider over the public internet. That is a
+weaker position than [end to end](/network/threat-model/configurations/end-to-end),
+and it is worth being deliberate about rather than defaulting into. If you have not
+picked a configuration yet, [Choose a Defence](/network/threat-model/choose-config)
+starts from the adversary instead of the tool.
+
+Those two answers land you on [`mix-fetch`](/developers/mix-fetch), and the adapter
+below is how you wire it to `ethers`. ENS resolution is only the example: the
+mechanism applies to any RPC call `ethers` makes, whether that is reading a balance,
+resolving a name, or broadcasting a signed transaction.
+
+What proxy mode does and does not buy you here. It hides your IP from the RPC
+provider; it does not hide what you ask for, since the provider still sees the calls
+and an account it can already link to you stays linked. It also does not touch
+signing or key handling, so your wallet keeps whatever it already uses. See
 [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit
-observes.
+observes, and [baseline hygiene](/developers/swizzle) for the request-shape
+discipline that transport alone never provides.
 
 For a wallet connecting to the Nyx chain rather than to Ethereum, that is a
 different job: see [Cosmos Kit](/developers/typescript/cosmos-kit).

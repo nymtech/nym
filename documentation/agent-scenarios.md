@@ -247,9 +247,18 @@ gap, and it is the piece to write on the threat-model branch. Until it exists,
 these checks fail for a reason no prompt change can repair: the assistant is
 constrained to the corpus, and the corpus does not take a position.
 
-Note for whoever tightens these checks: an early version of the regex accepted
-bare "delay" and "latency", which an evasive answer satisfies by describing
-per-hop delays as a *feature*. Match the stance, not the vocabulary.
+Two notes for whoever tightens these checks.
+
+An early version of the regex accepted bare "delay" and "latency", which an
+evasive answer satisfies by describing per-hop delays as a *feature*. Match the
+stance, not the vocabulary.
+
+And keep the patterns aligned with `developers/limitations.mdx`. Adding that page
+immediately failed the best answer the assistant had produced: the page is
+organised around "Is my workload a fit?", so the answer said "not a fit" and
+"neither mode fits", and the checker listed every synonym for unsuitable except
+the one the docs had just started teaching. The model tracked the docs and the
+checker did not. When a page changes the word, this changes with it.
 
 ## Known open findings
 

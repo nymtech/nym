@@ -156,7 +156,14 @@ printf '\n\033[1mUnsuitable workloads\033[0m\n'
 # Match the stance, not the vocabulary. An early version accepted bare "delay"
 # and "latency", which a perfectly evasive answer satisfies by describing per-hop
 # delays as a feature. These require the answer to actually take a position.
-TURNS_AWAY='not (a )?(good|suitable|the right|well.suited)|poorly suited|not designed for|unsuitable|not the right tool|wrong tool|would not work|will not work|is not viable|not practical|impractical|too slow for|weakest for bulk|not suited to bulk|use (dvpn|smoldvpn)|dvpn mode instead|smoldvpn'
+#
+# Keep this aligned with the language of developers/limitations.mdx. That page is
+# organised around "Is my workload a fit?", so answers grounded in it say "not a
+# fit" and "neither mode fits". An earlier version of this pattern predated the
+# page and failed the best answer the assistant had yet produced, purely because
+# it listed every synonym for unsuitable except the one the docs teach. When the
+# docs change the word, this changes with them.
+TURNS_AWAY='not (a |an )?(good |the right |well.suited |suitable )?fit|does not fit|doesn.t fit|neither ([a-z ]+ )?(mode|option)s? fits?|not (a )?(good|suitable|the right|well.suited)|poorly suited|not designed for|unsuitable|not the right tool|wrong tool|would not work|will not work|is not viable|not practical|impractical|too slow for|weakest for bulk|not suited to bulk|use (dvpn|smoldvpn)|dvpn mode instead|smoldvpn'
 
 # "This is not in the context" is abstention, not honesty. It leaves the reader
 # to conclude the mixnet might be fine, which is the outcome being guarded

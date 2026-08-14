@@ -141,9 +141,17 @@ export async function loadProjections() {
 
   return (tagName, _attrs, ctx = {}) => {
     if (statics[tagName]) return statics[tagName]();
-    if (tagName === 'GenericScenarioView' || tagName === 'MetadataPanel' || tagName === 'PropertyBadges') {
-      // These three render facets of one scenario. Projecting the whole scenario
+    if (
+      tagName === 'GenericScenarioView' ||
+      tagName === 'MetadataPanel' ||
+      tagName === 'PropertyBadges' ||
+      tagName === 'NetworkDiagram'
+    ) {
+      // These render facets of one scenario. Projecting the whole scenario
       // once per page and letting the first one win avoids repeating it.
+      // NetworkDiagram counts: its topology caption is prose that only exists
+      // in the data, so a page whose only scenario component is the diagram
+      // contributed nothing about the route it draws.
       if (!ctx.scenarioId || ctx.scenarioProjected) return null;
       ctx.scenarioProjected = true;
       return projectScenario(scenarioById.get(ctx.scenarioId));

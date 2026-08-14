@@ -8,6 +8,16 @@ lastUpdated: "2026-08-14"
 
 # Building a Nym Service Provider
 
+import dynamic from 'next/dynamic'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const spScenario = requireGenericScenario('end-to-end')
+
 A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that client directly over the mixnet, your code answers, and it never learns who asked.
 
 The embedding is the whole distinction, and it decides which of the [two approaches](/developers#end-to-end-or-proxy) you are in:
@@ -36,15 +46,11 @@ It is also distinct from the [exit gateway services](/network/infrastructure/exi
 
 ## It never accepts an inbound connection
 
-A service provider is an ordinary mixnet client. It dials **out** to its gateway and pulls messages from it.
+A service provider is an ordinary mixnet client. It dials **out** to its gateway and pulls messages from it. The route below is the [end-to-end](/network/threat-model/configurations/end-to-end) one: the request crosses the mixnet to the provider's own gateway, and the reply returns over a SURB. There is no exit gateway anywhere in it.
 
-```
-       your service provider
-                │
-                │  outbound only, client-initiated
-                ▼
-           its gateway  ◀────── mix layers ◀────── client
-```
+<NetworkDiagram item={spScenario} />
+
+Read the rightmost node as your service provider. Nothing in that path ever connects *to* it: the provider's gateway holds its messages, and the provider collects them over a connection it opened itself.
 
 Two consequences worth designing around:
 

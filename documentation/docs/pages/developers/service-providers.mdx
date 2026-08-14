@@ -87,13 +87,13 @@ There is no single shape for this. A provider is a mixnet client that reads inco
 
 | Example | Side | Shape |
 |---|---|---|
-| [`service-providers/echo-service`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-service) | provider | Rust, a long-running provider that replies to every request over SURBs |
-| [`service-providers/echo-client`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-client) | client | Rust, the other half of the same pair |
-| [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | the smallest possible receive-and-reply, in one file |
-| [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | both | Stream module: `listener()` / `accept()` and `AsyncRead`/`AsyncWrite` |
-| [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | browser TypeScript, raw messaging with `@nymproject/sdk` |
+| [`service-providers/echo-service`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-service) | provider | **Stream**: `listener()` / `accept()`, one task per client |
+| [`service-providers/echo-client`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-client) | client | **Stream**: `open_stream()`, the other half of the pair |
+| [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | both | **Stream**: the same API with no application logic around it |
+| [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | **messaging**: `sender_tag` and `send_reply` in one file |
+| [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | **messaging**, browser TypeScript with `@nymproject/sdk` |
 
-Start with `echo-service` if you want something to run, or `surb_reply.rs` if you want to read the mechanism in one screen.
+The echo pair is the only complete provider you can run, and it is Stream-shaped. There is no equivalent messaging provider yet: `surb_reply.rs` sends a message to its own address, so it shows the receive-and-reply mechanism without being a server. Read the next section before you pick one, because the choice is not free.
 
 ### What your clients speak decides the provider
 
@@ -111,20 +111,22 @@ The Stream module is a different protocol layered on those messages: sequence nu
 
 Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers that trade in more detail. A browser client has no Stream option today, so if any of your clients are web-based, messaging is the choice that serves all of them.
 
-### One thing the examples will not warn you about
+### Every example is ephemeral, and yours must not be
 
-Most examples build an ephemeral client, because they are throwaway. `MixnetClient::connect_new()` and `MixnetClientBuilder::new_ephemeral()` both generate a fresh identity on every run. That means a **new Nym address every restart**. Every client config holding the old address stops working.
+`MixnetClient::connect_new()` and `MixnetClientBuilder::new_ephemeral()` generate a fresh identity on every run. That means a **new Nym address every restart**, and every client config holding the old address stops working.
 
-A provider has to keep its keys:
+The examples say so themselves, because they are throwaway. `echo-service` notes that its keys live in memory and its address changes each run. A real provider is the case they are telling you they are not, so swap the constructor:
 
 ```rust
 let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
-let client = MixnetClientBuilder::new_with_default_storage(paths)
+let mut client = MixnetClientBuilder::new_with_default_storage(paths)
     .await?
     .build()?
     .connect_to_mixnet()
     .await?;
 ```
+
+`client` must be mutable: `listener()` and `wait_for_messages()` both take `&mut self`.
 
 ## Your address is only as stable as its gateway
 
@@ -142,6 +144,17 @@ To guarantee a stable address, run your own mainnet gateway and register your pr
 
 - The gateway must **not** be in the DMZ. It needs a static, stable, publicly routable IP. The provider behind it is the part that hides.
 - A gateway you run is still a public gateway. Every gateway in the network is available to every user, so you cannot operate one exclusively for your own clients.
+
+Pin the provider to that gateway when you build the client:
+
+```rust
+let client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .request_gateway(gateway_identity_key.to_string())
+    .build()?
+    .connect_to_mixnet()
+    .await?;
+```
 
 There is deliberately no discovery system for Nym addresses, because clients should not be enumerable. Distribute the address out of band: ship it in your client's configuration rather than looking it up.
 

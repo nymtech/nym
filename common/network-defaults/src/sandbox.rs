@@ -39,22 +39,19 @@ pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
-// \/ TODO: this has to be updated once the contract is deployed
 pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
     "n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z";
-// /\ TODO: this has to be updated once the contract is deployed
 
-pub const NYXD_URL: &str = "https://rpc.nymtech.net";
-pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
+pub const NYXD_URL: &str = "https://validator-sandbox-1.nymtech.net";
+pub const NYXD_WS: &str = "wss://validator-sandbox-1.nymtech.net/websocket";
 
-// cluster of lite rpc nodes (not part of consensus, aggressive pruning, no archival state)
-pub const NYXD_QUERY_LITE: &str = "https://blockstream.nymtech.net";
-pub const NYXD_WS_LITE: &str = "wss://blockstream.nymtech.net/websocket";
+pub const NYXD_QUERY_LITE: &str = "https://validator-sandbox-1.nymtech.net";
+pub const NYXD_WS_LITE: &str = "wss://validator-sandbox-1.nymtech.net/websocket";
 
 pub const UPGRADE_MODE_ATTESTATION_URL: &str =
-    "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
+    "http://upgrade-mode.performance.nymte.ch/.wellknown/sandbox/attestation.json";
 pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
-    "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+    "EGwzKXPrqStv8cHF68VT2LbQuEBGDPzhCAixScvybfem";
 
 pub const NYM_VPN_API: &str =
     "https://nym-vpn-api-git-deploy-sandbox-nyx-network-staging.vercel.app/api/";
@@ -63,11 +60,11 @@ pub const NYM_VPN_API: &str =
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_VPN_API,
-        front_hosts: None,
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
     ApiUrlConst {
         url: "https://nym-frontdoor.vercel.app/sandbox/nym-vpn-api/",
-        front_hosts: Some(&["vercel.com", "vercel.app"]),
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
 ];
 
@@ -75,11 +72,11 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
 pub const NYM_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: "https://sandbox-nym-api1.nymtech.net/api/",
-        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        front_hosts: None,
     },
     ApiUrlConst {
         url: "https://nym-frontdoor.vercel.app/sandbox/nym-api/",
-        front_hosts: Some(&["vercel.com", "vercel.app"]),
+        front_hosts: Some(&["vercel.app", "vercel.com"]),
     },
 ];
 

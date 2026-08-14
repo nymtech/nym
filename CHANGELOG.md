@@ -4,6 +4,34 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.15-bydgoszcz] (2026-08-05)
+
+- Cherry pick new domain ([#7018])
+- Update new domain ([#7017])
+- chore(openspec): archive smoldvpn-rename change ([#6989])
+- feat: add openspec for network monitors V1 and V3 ([#6977])
+- bandwidth controller: allow scoping ticketbook acquisition to specific types ([#6976])
+- NYM-1408: Use `SkewManager` with registration clients. ([#6973])
+- 2 clippy 2 furious ([#6970])
+- clippy mc clipface ([#6967])
+- Fix/ipr selection and mtu ([#6962])
+- service provider ephemeral credential storage ([#6961])
+- SDK: add smol-dvpn to provide per app user space tunnels ([#6953])
+- Leverage cfg_attr to avoid code duplication ([#6950])
+
+[#7018]: https://github.com/nymtech/nym/pull/7018
+[#7017]: https://github.com/nymtech/nym/pull/7017
+[#6989]: https://github.com/nymtech/nym/pull/6989
+[#6977]: https://github.com/nymtech/nym/pull/6977
+[#6976]: https://github.com/nymtech/nym/pull/6976
+[#6973]: https://github.com/nymtech/nym/pull/6973
+[#6970]: https://github.com/nymtech/nym/pull/6970
+[#6967]: https://github.com/nymtech/nym/pull/6967
+[#6962]: https://github.com/nymtech/nym/pull/6962
+[#6961]: https://github.com/nymtech/nym/pull/6961
+[#6953]: https://github.com/nymtech/nym/pull/6953
+[#6950]: https://github.com/nymtech/nym/pull/6950
+
 ## [2026.14-amsterdam] (2026-07-21)
 
 - bugfix: don't use hickory DNS for resolving gateway hostname within the NM ([#6955])

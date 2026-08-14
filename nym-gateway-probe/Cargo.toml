@@ -23,7 +23,7 @@ hex = { workspace = true }
 tracing = { workspace = true }
 pnet_packet = { workspace = true }
 rand = { workspace = true }
-rand09 = { workspace = true }
+rand010 = { workspace = true }
 reqwest = { workspace = true, features = ["socks"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -54,7 +54,7 @@ nym-connection-monitor = { path = "../common/nym-connection-monitor" }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-crypto = { workspace = true }
-nym-http-api-client = { path = "../common/http-api-client" }
+nym-http-api-client = { path = "../common/http-api-client", features = ["network-defaults"] }
 nym-http-api-client-macro = { path = "../common/http-api-client-macro" }
 nym-ip-packet-client = { workspace = true }
 nym-ip-packet-requests = { workspace = true, default-features = true }

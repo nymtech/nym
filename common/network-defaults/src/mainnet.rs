@@ -53,7 +53,11 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
     },
     ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        front_hosts: Some(&[
+            "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            "pypi.global.ssl.fastly.net",
+        ]),
     },
     ApiUrlConst {
         url: "https://cdn1.media-platform.net/api/",
@@ -76,7 +80,15 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
     ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        front_hosts: Some(&[
+            "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            "pypi.global.ssl.fastly.net",
+        ]),
+    },
+    ApiUrlConst {
+        url: "https://edge1.streaming-gateway.com/api/",
+        front_hosts: None,
     },
 ];
 

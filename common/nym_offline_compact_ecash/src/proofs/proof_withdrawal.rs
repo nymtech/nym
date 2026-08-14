@@ -1,9 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash_group_parameters;
+use crate::error::Result;
 use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::PublicKeyUser;
+use crate::{ecash_group_parameters, CompactEcashError};
 use group::GroupEncoding;
 use itertools::izip;
 use nym_bls12_381_fork::{G1Projective, Scalar};
@@ -44,12 +45,16 @@ impl WithdrawalReqProof {
     pub(crate) fn construct(
         instance: &WithdrawalReqInstance,
         witness: &WithdrawalReqWitness,
-    ) -> Self {
+    ) -> Result<Self> {
         let params = ecash_group_parameters();
         // generate random values to replace the witnesses
         let r_com_opening = params.random_scalar();
         let r_pedcom_openings = params.n_random_scalars(witness.private_attributes_openings.len());
         let r_attributes = params.n_random_scalars(witness.private_attributes.len());
+
+        if witness.private_attributes.is_empty() {
+            return Err(CompactEcashError::IncompatibleConstruction);
+        }
 
         // compute zkp commitments for each instance
         let zkcm_com = params.gen1() * r_com_opening
@@ -65,6 +70,8 @@ impl WithdrawalReqProof {
             .map(|(o_j, m_j)| params.gen1() * o_j + instance.joined_commitment_hash * m_j)
             .collect::<Vec<_>>();
 
+        // SAFETY: we generated at least a single witness response
+        #[allow(clippy::indexing_slicing)]
         let zkcm_user_sk = params.gen1() * r_attributes[0];
 
         // covert to bytes
@@ -106,12 +113,12 @@ impl WithdrawalReqProof {
         let response_attributes =
             produce_responses(&r_attributes, &challenge, &witness.private_attributes);
 
-        WithdrawalReqProof {
+        Ok(WithdrawalReqProof {
             challenge,
             response_opening,
             response_openings,
             response_attributes,
-        }
+        })
     }
 
     pub(crate) fn verify(&self, instance: &WithdrawalReqInstance) -> bool {
@@ -138,8 +145,12 @@ impl WithdrawalReqProof {
         })
         .collect::<Vec<_>>();
 
-        let zk_commitment_user_sk =
-            instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
+        #[allow(clippy::get_first)]
+        let Some(ra_0) = self.response_attributes.get(0) else {
+            return false;
+        };
+
+        let zk_commitment_user_sk = instance.pk_user.pk * self.challenge + params.gen1() * ra_0;
 
         // covert to bytes
         let gammas_bytes = params
@@ -239,7 +250,7 @@ mod tests {
             joined_commitment_opening: &joined_commitment_opening,
             private_attributes_openings: &private_attributes_openings,
         };
-        let zk_proof = WithdrawalReqProof::construct(&instance, &witness);
+        let zk_proof = WithdrawalReqProof::construct(&instance, &witness).unwrap();
         assert!(zk_proof.verify(&instance))
     }
 }

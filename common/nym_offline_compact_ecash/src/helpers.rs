@@ -26,8 +26,10 @@ pub(crate) fn recover_g1_tuple<T: Any>(
     }
     //SAFETY : [0..48] into 48 sized array and [48..96] into 48 sized array
     #[allow(clippy::unwrap_used)]
+    #[allow(clippy::indexing_slicing)]
     let first_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
     #[allow(clippy::unwrap_used)]
+    #[allow(clippy::indexing_slicing)]
     let second_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
     let first = try_deserialize_g1_projective(first_bytes)?;

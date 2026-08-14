@@ -14,10 +14,8 @@ publish = true
 
 [dependencies]
 sphinx-packet = { workspace = true, optional = true }
-nym-outfox = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [features]
 default = ["sphinx"]
 sphinx = ["sphinx-packet"]
-outfox = ["nym-outfox"]

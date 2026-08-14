@@ -28,6 +28,7 @@ pub enum PacketType {
     Mix = 0,
 
     /// Abusing this to add Outfox support
+    #[deprecated]
     #[serde(rename = "outfox")]
     Outfox = 2,
 }

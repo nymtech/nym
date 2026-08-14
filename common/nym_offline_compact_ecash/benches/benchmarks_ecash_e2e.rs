@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::unwrap_used)]
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use itertools::izip;
 use nym_compact_ecash::identify::{identify, IdentifyResult};

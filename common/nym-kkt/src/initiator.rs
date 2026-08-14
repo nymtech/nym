@@ -3,7 +3,7 @@
 
 use libcrux_psq::handshake::types::DHPublicKey;
 use nym_kkt_ciphersuite::Ciphersuite;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::EncapsulationKey;
@@ -38,7 +38,7 @@ impl<'a> KKTInitiator<'a> {
         payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequest), KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         Self::generate_encrypted_request(
             rng,
@@ -63,7 +63,7 @@ impl<'a> KKTInitiator<'a> {
         payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequest), KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         Self::generate_encrypted_request(
             rng,
@@ -89,7 +89,7 @@ impl<'a> KKTInitiator<'a> {
         payload: Option<Vec<u8>>,
     ) -> Result<(Self, KKTRequest), KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         let frame = initiator_process(mode, ciphersuite, local_encapsulation_key, payload)?;
         let context = *frame.context();

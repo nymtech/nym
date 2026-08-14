@@ -59,9 +59,11 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 
         //SAFETY : slice to array conversion after a length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let x_bytes: [u8; 32] = bytes[..32].try_into().unwrap();
 
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let ys_len = u64::from_le_bytes(bytes[32..40].try_into().unwrap());
         let actual_ys_len = (bytes.len() - 40) / 32;
 
@@ -74,6 +76,7 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
         }
 
         let x = try_deserialize_scalar(&x_bytes)?;
+        #[allow(clippy::indexing_slicing)]
         let ys = try_deserialize_scalar_vec(ys_len, &bytes[40..])?;
 
         Ok(SecretKeyAuth { x, ys })
@@ -164,8 +167,10 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
 
         //SAFETY : slice to array conversion after a length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let alpha_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let betas_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
 
         let actual_betas_len = (bytes.len() - 104) / (96 + 48);
@@ -187,6 +192,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
             let end = start + 48;
             //SAFETY : slice to array conversion after a length check
             #[allow(clippy::unwrap_used)]
+            #[allow(clippy::indexing_slicing)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g1_projective(&beta_i_bytes)?;
 
@@ -200,6 +206,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
             let end = start + 96;
             //SAFETY : slice to array conversion after a length check
             #[allow(clippy::unwrap_used)]
+            #[allow(clippy::indexing_slicing)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(&beta_i_bytes)?;
 
@@ -430,6 +437,7 @@ impl PublicKeyUser {
         }
         //SAFETY : slice to array conversion after a length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let pk_bytes: &[u8; 48] = bytes[..48].try_into().unwrap();
         let pk = try_deserialize_g1_projective(pk_bytes)?;
         Ok(PublicKeyUser { pk })
@@ -569,7 +577,9 @@ impl KeyPairUser {
                 actual: bytes.len(),
             });
         }
+        #[allow(clippy::indexing_slicing)]
         let sk = SecretKeyUser::from_bytes(&bytes[..32])?;
+        #[allow(clippy::indexing_slicing)]
         let pk = PublicKeyUser::from_bytes(&bytes[32..32 + 48])?;
         Ok(KeyPairUser {
             secret_key: sk,

@@ -63,10 +63,10 @@ impl Localnet {
 
         if let Some(nym_api) = self.nym_api_endpoint.as_ref() {
             validator_details.api_url = Some(nym_api.to_string());
-            details.nym_api_urls = Some(vec![ApiUrl {
+            details.set_nym_api_urls(vec![ApiUrl {
                 url: nym_api.to_string(),
                 front_hosts: None,
-            }])
+            }]);
         }
 
         details.endpoints = vec![validator_details];

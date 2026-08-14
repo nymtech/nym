@@ -117,6 +117,9 @@ pub enum LpError {
 
     #[error("the current session is not in transport state")]
     NotInTransport,
+
+    #[error("failed to generate randomness: {0}")]
+    RngFailure(#[from] getrandom04::Error),
 }
 
 impl LpError {

@@ -59,7 +59,7 @@
     "framer-motion": "^12.34.5",
     "lucide-react": "^0.438.0",
     "memory-level": "^1.0.0",
-    "next": "15.5.10",
+    "next": "15.5.21",
     "nextra": "2",
     "nextra-theme-docs": "2",
     "react": "^18.2.0",

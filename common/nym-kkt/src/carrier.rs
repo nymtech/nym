@@ -1,7 +1,7 @@
 use libcrux_chacha20poly1305::TAG_LEN;
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_crypto::hkdf::blake3::derive_key_blake3;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::error::KKTError;
@@ -61,7 +61,7 @@ impl Carrier {
         is_initiator: bool,
     ) -> Result<(Self, DHPublicKey), KKTError>
     where
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         let ephemeral_keypair = DHKeyPair::new(rng);
         let shared_secret = ephemeral_keypair
@@ -140,11 +140,11 @@ impl Carrier {
 #[cfg(test)]
 mod tests {
     use crate::{carrier::Carrier, key_utils::generate_lp_keypair_x25519};
-    use rand09::RngCore;
+    use rand010::Rng;
 
     #[test]
     fn test_e2e() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
 
         // generate responder x25519 keys
         let r_x25519 = generate_lp_keypair_x25519(&mut rng);

@@ -40,7 +40,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use time::{Duration as TimeDuration, OffsetDateTime};
@@ -349,7 +349,7 @@ impl NestedLpSession {
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
@@ -463,7 +463,7 @@ impl NestedLpSession {
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         // Step 1: Perform handshake with exit gateway via forwarding
         self.perform_handshake(outer_client).await?;
@@ -522,7 +522,7 @@ impl NestedLpSession {
     ) -> Result<WireguardConfiguration>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         tracing::debug!(
             "Starting resilient exit registration (max_retries={})",

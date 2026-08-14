@@ -75,6 +75,8 @@ pub fn sign_expiration_date(
     let m0: Scalar = date_scalar(expiration_unix_timestamp);
     let m2: Scalar = constants::TYPE_EXP;
 
+    // SAFETY: we checked for the key length
+    #[allow(clippy::indexing_slicing)]
     let partial_s_exponent = sk_auth.x + sk_auth.ys[0] * m0 + sk_auth.ys[2] * m2;
 
     let sign_expiration = |offset: u32| {
@@ -89,6 +91,7 @@ pub fn sign_expiration_date(
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
         // Sign the attributes by performing scalar-point multiplications and accumulating the result
+        #[allow(clippy::indexing_slicing)]
         let s_exponent = partial_s_exponent + sk_auth.ys[1] * m1;
 
         // Create the signature struct on the expiration date
@@ -142,9 +145,20 @@ pub fn verify_valid_dates_signatures<B>(
 where
     B: Borrow<ExpirationDateSignature>,
 {
+    if vk.beta_g2.len() < 3 {
+        return Err(CompactEcashError::VerificationKeyTooShort);
+    }
+
+    // otherwise the `CRED_VALIDITY_PERIOD_DAYS - l - 1` below would underflow
+    if signatures.len() > constants::CRED_VALIDITY_PERIOD_DAYS as usize {
+        return Err(CompactEcashError::ExpirationDateSignatureVerification);
+    }
+
     let m0: Scalar = date_scalar(expiration_date);
     let m2: Scalar = constants::TYPE_EXP;
 
+    // SAFETY: we checked for the key length
+    #[allow(clippy::indexing_slicing)]
     let partially_signed = vk.alpha + vk.beta_g2[0] * m0 + vk.beta_g2[2] * m2;
     let mut pairing_terms = Vec::with_capacity(signatures.len());
 
@@ -164,6 +178,7 @@ where
         }
 
         // let partially_signed_attributes = partially_signed + vk.beta_g2[1] * m1;
+        #[allow(clippy::indexing_slicing)]
         pairing_terms.push((sig, partially_signed + vk.beta_g2[1] * m1));
     }
 

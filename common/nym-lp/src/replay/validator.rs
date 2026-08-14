@@ -285,6 +285,8 @@ impl ReceivingKeyCounterValidator {
             let current_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
 
             // Check if we need to clear this word
+            // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
+            #[allow(clippy::indexing_slicing)]
             if self.bitmap[current_word] != 0 {
                 // Safely handle potential overflow by checking before each increment
                 while !i.is_multiple_of(WORD_SIZE as u64) && i < counter {
@@ -332,6 +334,8 @@ impl ReceivingKeyCounterValidator {
                 i += words_to_skip;
             } else {
                 // Process single word
+                // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
+                #[allow(clippy::indexing_slicing)]
                 if self.bitmap[current_word] != 0 {
                     self.bitmap[current_word] = 0;
                 }
@@ -348,6 +352,8 @@ impl ReceivingKeyCounterValidator {
         // Post-alignment clearing (bit by bit for remaining bits)
         if i < counter {
             let final_word = (i % (N_BITS as u64) / (WORD_SIZE as u64)) as usize;
+            // SAFETY: (i % N_BITS) / WORD_SIZE is in 0..N_WORDS for any u64, always a valid index into bitmap: [u64; N_WORDS]
+            #[allow(clippy::indexing_slicing)]
             let is_final_word_empty = self.bitmap[final_word] == 0;
 
             // Skip clearing if word is already empty

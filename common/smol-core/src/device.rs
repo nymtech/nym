@@ -39,6 +39,8 @@ pub struct ChannelDevice {
     rx: mpsc::UnboundedReceiver<Vec<u8>>,
     tx: mpsc::UnboundedSender<Vec<u8>>,
     capabilities: DeviceCapabilities,
+    /// Latched once the inbound channel terminates; see [`Stream::poll_next`].
+    rx_terminated: bool,
 }
 
 impl ChannelDevice {
@@ -64,6 +66,7 @@ impl ChannelDevice {
             rx,
             tx,
             capabilities,
+            rx_terminated: false,
         }
     }
 }
@@ -91,8 +94,26 @@ pub(crate) fn client_mtu(negotiated: Option<usize>) -> usize {
 impl Stream for ChannelDevice {
     type Item = io::Result<Vec<u8>>;
 
+    /// Yields inbound packets, and **never terminates**: once the transport's sender is gone this
+    /// parks forever rather than reporting end-of-stream.
+    ///
+    /// The reactor awaits this stream as one arm of a `select!` and discards the arm's result. A
+    /// `Ready(None)` there is permanently ready, so the reactor would complete that arm on every
+    /// iteration and spin without ever returning `Poll::Pending` - pegging a core and, because a
+    /// tokio worker can only be reclaimed between polls, wedging runtime shutdown forever. Parking
+    /// is safe: the reactor's other arms (poll-delay timer, socket notify, stopper) still drive it,
+    /// and a dead transport has no further packets to deliver.
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(&mut self.rx).poll_next(cx).map(|opt| opt.map(Ok))
+        if self.rx_terminated {
+            return Poll::Pending;
+        }
+        match Pin::new(&mut self.rx).poll_next(cx) {
+            Poll::Ready(None) => {
+                self.rx_terminated = true;
+                Poll::Pending
+            }
+            other => other.map(|opt| opt.map(Ok)),
+        }
     }
 }
 

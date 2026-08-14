@@ -134,6 +134,7 @@ where
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
     // once merged, that's an easy rng injection point for sphinx packets : )
+    #[allow(deprecated)]
     let packet = match packet_type {
         PacketType::Mix => NymPacket::sphinx_build(
             use_legacy_sphinx_format,
@@ -143,12 +144,11 @@ where
             &destination,
             &delays,
         )?,
-        PacketType::Outfox => NymPacket::outfox_build(
-            packet_payload,
-            &route,
-            &destination,
-            Some(packet_size.plaintext_size()),
-        )?,
+        PacketType::Outfox => {
+            return Err(CoverMessageError::InvalidTopologyError(
+                NymTopologyError::PacketTypeNotSupported,
+            ));
+        }
     };
 
     Ok(MixPacket::new(

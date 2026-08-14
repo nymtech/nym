@@ -18,6 +18,7 @@ serde = { workspace = true, features = ["derive"], optional = true }
 generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
+tracing = { workspace = true }
 
 nym-crypto = { workspace = true, features = ["stream_cipher", "rand"] }
 nym-pemstore = { workspace = true }
@@ -26,6 +27,7 @@ nym-sphinx-params = { workspace = true }
 nym-sphinx-routing = { workspace = true }
 nym-sphinx-types = { workspace = true, features = ["sphinx"] }
 nym-topology = { workspace = true }
+
 
 [features]
 serde = ["dep:serde", "generic-array"]

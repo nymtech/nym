@@ -1,0 +1,37 @@
+# Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-swizzle"
+description = "Traffic-shape obfuscation utilities: randomized delay scheduling and overlapping range chunking for privacy-preserving applications"
+version.workspace = true
+authors.workspace = true
+edition = "2021"
+license.workspace = true
+repository = "https://github.com/nymtech/nym/sdk/rust/nym-swizzle/"
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+publish = true
+
+[dependencies]
+futures = { workspace = true }
+tracing = { workspace = true }
+# `sys_rng` provides `SysRng`, the OS entropy source (rand 0.10 no longer
+# ships an `OsRng` of its own)
+getrandom04 = { workspace = true, features = ["sys_rng"] }
+rand010 = { workspace = true }
+rand_chacha010 = { workspace = true }
+rand_distr06 = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["time"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasmtimer = { workspace = true, features = ["tokio"] }
+getrandom04 = { workspace = true, features = ["sys_rng", "wasm_js"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "sync", "test-util"] }
+plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }

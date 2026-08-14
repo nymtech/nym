@@ -18,6 +18,12 @@ pub struct NymNetworkDetailsResponse {
     pub network: nym_config::defaults::NymNetworkDetails,
 }
 
+// The response type we fetch from the v2 network details endpoint.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NymNetworkDetailsV2Response {
+    pub network: nym_config::defaults::v2::NymNetworkDetails,
+}
+
 pub trait Deprecatable {
     fn deprecate(self) -> Deprecated<Self>
     where

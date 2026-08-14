@@ -112,28 +112,34 @@ impl PartialWallet {
 
         let mut j = 0;
 
+        // we have performed length check
+        #[allow(clippy::indexing_slicing)]
         let sig = Signature::try_from(&bytes[j..j + SIGNATURE_BYTES])?;
         j += SIGNATURE_BYTES;
 
         //SAFETY: slice to array after length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let v_bytes = bytes[j..j + V_BYTES].try_into().unwrap();
         let v = try_deserialize_scalar(v_bytes)?;
         j += V_BYTES;
 
         //SAFETY: slice to array after length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let expiration_date_bytes = bytes[j..j + EXPIRATION_DATE_BYTES].try_into().unwrap();
         let expiration_date = try_deserialize_scalar(expiration_date_bytes)?;
         j += EXPIRATION_DATE_BYTES;
         //SAFETY: slice to array after length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let t_type_bytes = bytes[j..j + T_TYPE_BYTES].try_into().unwrap();
         let t_type = try_deserialize_scalar(t_type_bytes)?;
         j += T_TYPE_BYTES;
 
         //SAFETY: slice to array after length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let idx_bytes = bytes[j..].try_into().unwrap();
         let idx = u64::from_le_bytes(idx_bytes);
 
@@ -187,10 +193,12 @@ impl Wallet {
 
         //SAFETY : slice to array conversions after a length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let tickets_bytes = bytes[WalletSignatures::SERIALISED_SIZE..]
             .try_into()
             .unwrap();
 
+        #[allow(clippy::indexing_slicing)]
         let signatures = WalletSignatures::from_bytes(&bytes[..WalletSignatures::SERIALISED_SIZE])?;
         let tickets_spent = u64::from_be_bytes(tickets_bytes);
 
@@ -351,17 +359,21 @@ impl WalletSignatures {
         }
         //SAFETY : slice to array conversions after a length check
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let sig_bytes: &[u8; 96] = &bytes[..96].try_into().unwrap();
 
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let v_bytes: &[u8; 32] = &bytes[96..128].try_into().unwrap();
 
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let expiration_date_bytes = bytes[128..132].try_into().unwrap();
 
         let sig = Signature::try_from(sig_bytes.as_slice())?;
         let v = Scalar::from_bytes(v_bytes).unwrap();
         let expiration_date_timestamp = EncodedDate::from_be_bytes(expiration_date_bytes);
+        #[allow(clippy::indexing_slicing)]
         let t_type = bytes[132];
 
         Ok(WalletSignatures {
@@ -552,7 +564,7 @@ impl WalletSignatures {
             &rr,
             pay_info,
             spend_value,
-        );
+        )?;
 
         // output pay
         let pay = Payment {
@@ -723,6 +735,14 @@ impl Payment {
             return Err(CompactEcashError::VerificationKeyTooShort);
         }
 
+        for o in &self.omega {
+            if bool::from(o.is_at_infinity()) {
+                return Err(CompactEcashError::SpendSignaturesValidity);
+            }
+        }
+
+        // SAFETY: we have ensured we have at least 4 elements
+        #[allow(clippy::indexing_slicing)]
         let kappa_type = self.kappa + verification_key.beta_g2[3] * type_scalar(self.t_type);
         if !check_bilinear_pairing(
             &self.sig.h.to_affine(),
@@ -778,6 +798,7 @@ impl Payment {
 
         // Perform a bilinear pairing check for kappa_e
         //SAFETY: we checked the size of beta_G2 earlier
+        #[allow(clippy::indexing_slicing)]
         let combined_kappa_e =
             self.kappa_e + verification_key.beta_g2[1] * m1 + verification_key.beta_g2[2] * m2;
 
@@ -885,6 +906,8 @@ impl Payment {
             return Err(CompactEcashError::SpendSignaturesVerification);
         }
 
+        // SAFETY: we checked the size of beta_G2 earlier
+        #[allow(clippy::indexing_slicing)]
         let partially_signed = verification_key.beta_g2[1] * constants::TYPE_IDX
             + verification_key.beta_g2[2] * constants::TYPE_IDX;
 

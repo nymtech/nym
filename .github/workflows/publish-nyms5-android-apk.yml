@@ -96,7 +96,7 @@ jobs:
           name: nyms5-apk-arch64
           path: apk
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             apk/nyms5-arch64-debug.apk

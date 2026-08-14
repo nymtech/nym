@@ -33,6 +33,8 @@ where
     let mut bytes = [0u8; 64];
     let pad_size = 64usize.saturating_sub(D::OutputSize::to_usize());
 
+    // SAFETY: pad_size is never greater than length of bytes
+    #[allow(clippy::indexing_slicing)]
     bytes[pad_size..].copy_from_slice(&digest);
 
     Scalar::from_bytes_wide(&bytes)

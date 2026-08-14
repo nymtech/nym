@@ -16,7 +16,7 @@ use nym_api_requests::ecash::{
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_time::{cred_exp_date, EcashTime};
 use nym_http_api_common::{FormattedResponse, Output, OutputParams};
-use nym_validator_client::nym_api::rfc_3339_date;
+use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
 use serde::Deserialize;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -148,7 +148,7 @@ async fn partial_expiration_date_signatures(
 
     let expiration_date = match expiration_date {
         None => cred_exp_date().ecash_date(),
-        Some(raw) => Date::parse(&raw, &rfc_3339_date())
+        Some(raw) => Date::parse(&raw, RFC_3339_DATE_FORMAT)
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 

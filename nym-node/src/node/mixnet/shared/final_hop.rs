@@ -8,6 +8,24 @@ use nym_sphinx_types::DestinationAddressBytes;
 use tokio::time::Instant;
 use tracing::{debug, warn};
 
+/// What happened to a final-hop payload.
+pub(crate) enum FinalHopResult {
+    /// Pushed straight into the recipient's live session.
+    Delivered,
+
+    /// No live session, so it went to the recipient's on-disk inbox. The inbox holds no reference
+    /// to `shared_keys`, so this accepts a recipient that never registered here too, whose row is
+    /// then never collected.
+    // NOTE: this will be eventually removed
+    Stored,
+
+    /// No live session, and the store rejected it.
+    StoreFailed(GatewayStorageError),
+
+    /// Came from a network monitor with no live session, so it was neither delivered nor persisted.
+    DroppedNoSession,
+}
+
 #[derive(Clone)]
 pub(crate) struct SharedFinalHopData {
     active_clients: ActiveClientsStore,
@@ -19,6 +37,42 @@ impl SharedFinalHopData {
         Self {
             active_clients,
             storage,
+        }
+    }
+
+    /// Push a final-hop payload into the recipient's live session, falling back to their on-disk
+    /// inbox - except for a network monitor's packet, which is dropped instead of persisted.
+    ///
+    /// The monitor's agent scores a probe on what arrived on its socket, so a packet that missed
+    /// the session must be definitively undelivered rather than waiting in an inbox nobody reads,
+    /// and monitor traffic must not accrue undeliverable rows on every gateway in the network.
+    pub(crate) async fn deliver_final_hop(
+        &self,
+        client_address: DestinationAddressBytes,
+        message: Vec<u8>,
+        network_monitor_packet: bool,
+    ) -> FinalHopResult {
+        let unsent = match self.try_push_message_to_client(client_address, message) {
+            Ok(()) => return FinalHopResult::Delivered,
+            Err(unsent) => unsent,
+        };
+
+        if network_monitor_packet {
+            return FinalHopResult::DroppedNoSession;
+        }
+
+        match self
+            .store_processed_packet_payload(client_address, unsent)
+            .await
+        {
+            Ok(stored) => {
+                if stored {
+                    FinalHopResult::Stored
+                } else {
+                    FinalHopResult::DroppedNoSession
+                }
+            }
+            Err(err) => FinalHopResult::StoreFailed(err),
         }
     }
 

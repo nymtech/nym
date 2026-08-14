@@ -16,6 +16,9 @@ Automated coverage lives in `scripts/check-mcp-server.sh` (retrieval) and
 `scripts/check-chat-honesty.sh` (generation). The scenarios below are the wider
 suite, including the ones a human still has to read.
 
+How to run an agent against these, and why the sandbox is built the way it is:
+[`scripts/agent-trial/README.md`](scripts/agent-trial/README.md).
+
 ## How to run a scenario
 
 Give an agent the MCP client and the rule that it is the only permitted source:

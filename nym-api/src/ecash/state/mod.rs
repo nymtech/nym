@@ -170,19 +170,28 @@ impl EcashState {
         self.aux.current_epoch().await
     }
 
+    async fn check_dkg_signer(&self, epoch_id: EpochId) -> Result<bool> {
+        let Ok(address) = self.aux.client.address().await else {
+            return Ok(false);
+        };
+        let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
+
+        // check if any ecash signers for this epoch has the same cosmos address as this api
+        Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
+    }
+
     pub(crate) async fn is_dkg_signer(&self, epoch_id: EpochId) -> Result<bool> {
+        // our own membership is only settled once the ceremony has concluded. this cache
+        // never expires, so answering "not a signer" mid-ceremony and remembering it
+        // would have us refuse to sign for the rest of the epoch.
+        if !self.aux.comm_channel.epoch_concluded(epoch_id).await? {
+            return self.check_dkg_signer(epoch_id).await;
+        }
+
         let is_epoch_signer = self
             .local
             .active_signer
-            .get_or_init(epoch_id, || async {
-                let Ok(address) = self.aux.client.address().await else {
-                    return Ok::<_, EcashError>(false);
-                };
-                let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
-
-                // check if any ecash signers for this epoch has the same cosmos address as this api
-                Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
-            })
+            .get_or_init(epoch_id, || async { self.check_dkg_signer(epoch_id).await })
             .await?;
         Ok(*is_epoch_signer)
     }
@@ -1062,5 +1071,123 @@ impl EcashState {
             total: issued.iter().map(|count| count.count as usize).sum(),
             issued: issued.into_iter().map(Into::into).collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness::{cheap, contract_backed_ecash_state, initiate_dkg};
+
+    /// B10, at the layer that actually refuses service: `ensure_signer` is the first
+    /// thing every ticket verification does, and gateways poll continuously, so a query
+    /// landing mid-ceremony is a certainty rather than a risk.
+    ///
+    /// Currently RED. Note `active_signer` is a *separate* cache from the communication
+    /// channel's `epoch_clients`, so fixing that one alone would not fix this.
+    #[tokio::test]
+    async fn a_signer_still_recognises_itself_after_a_ceremony() -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(3);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        // this api is one of the group members, so it will be a signer for this epoch
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // something asks whether we are a signer while the ceremony is still running
+        cheap::register_dealers(&chain, false);
+        let _ = state.is_dkg_signer(epoch_id).await;
+
+        cheap::advance(&chain);
+        cheap::submit_dealings(&chain, false);
+        let _ = state.is_dkg_signer(epoch_id).await;
+
+        cheap::advance(&chain);
+        cheap::submit_vk_shares(&chain, false);
+        let _ = state.is_dkg_signer(epoch_id).await;
+
+        cheap::advance(&chain);
+        cheap::advance(&chain);
+        cheap::verify_vk_shares(&chain, false);
+        cheap::advance(&chain);
+        cheap::install_real_verification_keys(&chain);
+
+        // the ceremony concluded and we are one of its signers, so we must serve again
+        // without being restarted
+        assert!(state.is_dkg_signer(epoch_id).await?);
+        state.ensure_signer().await?;
+
+        Ok(())
+    }
+
+    /// The layer above: aggregating the epoch's master verification key depends on
+    /// signer discovery, so a poisoned signer set leaves it permanently unavailable.
+    ///
+    /// It is guarded by a threshold check and `get_or_init` never caches errors, so it
+    /// is *designed* to recover on the next request. Currently RED because the layer
+    /// beneath it cannot.
+    #[tokio::test]
+    async fn the_master_verification_key_becomes_available_after_a_ceremony() -> anyhow::Result<()>
+    {
+        let chain = SharedContractChain::new(3);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // asked for too early, this must fail - there is nothing to aggregate yet
+        cheap::register_dealers(&chain, false);
+        assert!(state.master_verification_key(Some(epoch_id)).await.is_err());
+
+        cheap::advance(&chain);
+        cheap::submit_dealings(&chain, false);
+        cheap::advance(&chain);
+        cheap::submit_vk_shares(&chain, false);
+        cheap::advance(&chain);
+        cheap::advance(&chain);
+        cheap::verify_vk_shares(&chain, false);
+        cheap::advance(&chain);
+        let expected = cheap::install_real_verification_keys(&chain);
+
+        // ... but once the ceremony concludes it must resolve, and to the right key
+        let recovered = state.master_verification_key(Some(epoch_id)).await?;
+        assert_eq!(*recovered, expected);
+
+        Ok(())
+    }
+
+    /// The threshold cache sits alongside the poisoned ones but is not poisonable: the
+    /// contract has no threshold until dealing exchange begins, and an absent threshold
+    /// is an *error*, which `get_or_init` never caches. Pinned so that a future change
+    /// returning a placeholder instead of an error does not quietly introduce the bug.
+    #[tokio::test]
+    async fn the_epoch_threshold_is_not_poisoned_by_an_early_query() -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(3);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // before dealing exchange the contract has not computed a threshold yet
+        cheap::register_dealers(&chain, false);
+        assert!(state
+            .aux
+            .comm_channel
+            .ecash_threshold(epoch_id)
+            .await
+            .is_err());
+
+        cheap::advance(&chain);
+
+        // it is frozen on entry to dealing exchange, and the earlier failure did not stick
+        assert_eq!(
+            state.aux.comm_channel.ecash_threshold(epoch_id).await?,
+            2 // ceil(2 * 3 / 3)
+        );
+
+        Ok(())
     }
 }

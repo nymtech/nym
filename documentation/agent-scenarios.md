@@ -160,6 +160,33 @@ configuration pages and inherited their confidence.
 
 Live video passed. Block syncing abstained, as below.
 
+**After adding the workload clause to the system prompt**, the same question got a
+markedly better answer that still fails, and the way it fails is the finding:
+
+> The trade-off that matters most for a *real-time* game: this is described as a
+> slow configuration, due to the 5-hop mixnet routing plus mixing delays. Real-time
+> position updates typically demand low latency [...] So functionally, **yes**, a
+> peer-to-peer end-to-end design over Nym is supported [...] But you should test
+> actual latency for your game's real-time requirements yourself, since the
+> documentation only characterises this configuration as "slow" without giving
+> concrete numbers.
+
+It raised the trade-off unprompted, correctly, and then handed the verdict back to
+the reader. That is the honest move available to it: the docs say "slow" and give
+no numbers, by design, because inventing latency figures is forbidden. "Slow" is a
+property. It supports "this will be slower". It does not support "this is unusable
+for a position-update loop".
+
+**So the prompt has gone as far as a prompt can.** A model held to the corpus
+cannot refuse on evidence the corpus does not contain, and making it refuse anyway
+would be the confabulation every other guard here exists to prevent. The remaining
+fix is a documented verdict, which needs no numbers: *interactive and real-time
+workloads are not a fit; bulk transfer is the weakest case; where throughput
+matters and in-transit timing protection does not, dVPN mode is the alternative.*
+
+That sentence is the smallest thing that would turn these two checks green, and it
+belongs on the threat-model branch.
+
 ### Measured baseline, before any fix
 
 Asked "I am building a cryptocurrency wallet that syncs the whole chain. Can I do

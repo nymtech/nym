@@ -20,6 +20,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from '../../docs/lib/retrieval/mdx.mjs';
+import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 // PAGES_DIR / SITE_URL / SKIP_DIRS are shared with the ordered generators. Only
 // the walk differs: this generator uses a flat file collector (below) so it also
 // emits .md for pages not listed in any _meta.json.
@@ -51,6 +52,8 @@ function collectFiles(dir) {
 }
 
 console.log(`Scanning ${PAGES_DIR} ...`);
+const expand = await loadProjections();
+const values = await loadDocValues();
 const files = collectFiles(PAGES_DIR);
 
 let written = 0;
@@ -58,7 +61,7 @@ const seen = new Map(); // outPath -> source file, to catch silent overwrites
 for (const file of files) {
   const raw = fs.readFileSync(file, 'utf-8');
   const { data, content } = parseFrontmatter(raw);
-  const body = stripMdx(content);
+  const body = stripMdx(content, { expand, values });
   if (!body) continue; // skip pages that are pure JSX/redirects with no prose
 
   const slug = pageSlug(file);

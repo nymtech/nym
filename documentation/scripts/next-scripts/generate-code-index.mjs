@@ -6,68 +6,48 @@
  * apart from the docs index because vectors from different models are not
  * comparable, and exposed to agents via the MCP `search_code` tool.
  *
- * Scope is the ROOTS list below (repo-relative). Widen it as needed.
+ * Scope is `documentation/indexed-sources.mjs`, the canonical list of source
+ * trees the docs are indexed against.
  *
  * Run from documentation/docs/:
  *   VOYAGE_API_KEY=xxx node ../scripts/next-scripts/generate-code-index.mjs
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { chunkCodeFile, langOf } from '../../docs/lib/retrieval/code-chunker.mjs';
-import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/lib/retrieval/embed.mjs';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import {
+  chunkCodeFile,
+  langOf,
+} from "../../docs/lib/retrieval/code-chunker.mjs";
+import {
+  voyageProvider,
+  embedChunks,
+  resolveEmbedKey,
+} from "../../docs/lib/retrieval/embed.mjs";
+import { ROOTS } from "../../indexed-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(__dirname, '../../..'); // repo root
-const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/code-index.json');
+const REPO = path.resolve(__dirname, "../../.."); // repo root
+const OUTPUT_FILE = path.resolve(
+  __dirname,
+  "../../docs/public/code-index.json",
+);
 // Under node_modules/.cache so Vercel (and CI via actions/cache) persist it
 // between deploys; otherwise every deploy re-embeds the whole code corpus.
-const CACHE_FILE = path.resolve(__dirname, '../../docs/node_modules/.cache/nym-docs/code-embed-cache.json');
-const CODE_MODEL = 'voyage-code-3';
+const CACHE_FILE = path.resolve(
+  __dirname,
+  "../../docs/node_modules/.cache/nym-docs/code-embed-cache.json",
+);
+const CODE_MODEL = "voyage-code-3";
 
-// Curated scope (repo-relative): the crates the documentation makes claims
-// about. A path outside this list cannot be cited by `search_code` and cannot be
-// checked against the prose, so the list is the boundary of what the docs can be
-// held to.
-//
-// Widening is cheap to write and not cheap to run. Both index files are traced
-// into the /api/mcp lambda (see outputFileTracingIncludes in next.config.js) and
-// parsed at every cold start, and a cold build re-embeds every new file. Add a
-// root because the docs describe it, not because it exists.
-const ROOTS = [
-  // SDKs and the wasm packages built from them
-  'sdk/rust',
-  'sdk/typescript/packages',
-  'sdk/typescript/examples',
-  'sdk/ffi',
-  'wasm/smolmix',
-  'wasm/client',
-  'wasm/zknym-lib',
+// The canonical scope lives at the root of documentation/ rather than here, so
+// the list that decides what the docs can be held to is not buried in a build
+// script. See that file for what adding a root costs.
 
-  // Packet format and the userspace stack the tunnel is built on
-  'common/nymsphinx',
-  'common/smol-core',
 
-  // Core client internals, behind every "what does the client do" claim
-  'common/client-core',
-  'common/client-libs',
-  'clients/native',
-  'clients/socks5',
-
-  // Exit services: what each one sees is a load-bearing claim in the threat model
-  'service-providers/ip-packet-router',
-  'service-providers/network-requester',
-
-  // Gateway protocol and bandwidth credentials
-  'common/gateway-requests',
-  'common/credentials',
-
-  // Node implementation, for the operator docs
-  'nym-node',
-];
-
-const EXCLUDE = /(^|\/)(node_modules|target|dist|build|out|\.next|pkg|coverage|__pycache__)(\/|$)|\.d\.ts$/;
+const EXCLUDE =
+  /(^|\/)(node_modules|target|dist|build|out|\.next|pkg|coverage|__pycache__)(\/|$)|\.d\.ts$/;
 
 // No hand-written source approaches this (the largest is ~76KB), but gitignored
 // build bundles that live under src/ (e.g. a 30MB rollup `src/worker/worker.js`)
@@ -100,15 +80,19 @@ function walk(dir, acc) {
 }
 
 const files = ROOTS.flatMap((r) => walk(path.join(REPO, r), []));
-console.log(`Scanning ${ROOTS.length} roots -> ${files.length} source files ...`);
+console.log(
+  `Scanning ${ROOTS.length} roots (documentation/indexed-sources.mjs) -> ${files.length} source files ...`,
+);
 if (oversized.length) {
-  console.log(`Skipped ${oversized.length} oversized file(s) (>${MAX_FILE_BYTES / 1024}KB, likely generated bundles): ${oversized.join(', ')}`);
+  console.log(
+    `Skipped ${oversized.length} oversized file(s) (>${MAX_FILE_BYTES / 1024}KB, likely generated bundles): ${oversized.join(", ")}`,
+  );
 }
 
 const chunks = [];
 for (const file of files) {
-  const rel = path.relative(REPO, file).split(path.sep).join('/');
-  const content = fs.readFileSync(file, 'utf-8');
+  const rel = path.relative(REPO, file).split(path.sep).join("/");
+  const content = fs.readFileSync(file, "utf-8");
   chunks.push(...chunkCodeFile(content, rel));
 }
 console.log(`Chunked into ${chunks.length} code chunks.`);
@@ -120,11 +104,11 @@ const index = {
   chunks,
 };
 
-const apiKey = resolveEmbedKey('the code index');
+const apiKey = resolveEmbedKey("the code index");
 if (apiKey) {
   const provider = voyageProvider({ apiKey, model: CODE_MODEL });
   const cache = fs.existsSync(CACHE_FILE)
-    ? new Map(Object.entries(JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'))))
+    ? new Map(Object.entries(JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"))))
     : new Map();
   const saveCache = (c) => {
     fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
@@ -132,7 +116,11 @@ if (apiKey) {
   };
   // Log progress and persist the cache as we go, so a kill/re-run resumes.
   let logged = 0;
-  const { embedded, cache: updated, stats } = await embedChunks(chunks, provider, cache, {
+  const {
+    embedded,
+    cache: updated,
+    stats,
+  } = await embedChunks(chunks, provider, cache, {
     onProgress: ({ done, total, cache: c }) => {
       if (done - logged >= 200 || done === total) {
         console.log(`  embedded ${done}/${total} chunks ...`);
@@ -142,11 +130,23 @@ if (apiKey) {
     },
   });
   saveCache(updated);
-  index.embedding = { provider: provider.name, model: provider.model, dim: provider.dim };
+  index.embedding = {
+    provider: provider.name,
+    model: provider.model,
+    dim: provider.dim,
+  };
   index.chunks = embedded;
-  console.log(`Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`);
+  console.log(
+    `Embedded ${stats.embedded} new chunk(s), reused ${stats.cached} from cache.`,
+  );
 }
 
 fs.writeFileSync(OUTPUT_FILE, JSON.stringify(index));
-const sizeMb = (Buffer.byteLength(JSON.stringify(index), 'utf-8') / 1024 / 1024).toFixed(2);
-console.log(`Wrote ${index.chunks.length} chunks to ${OUTPUT_FILE} (${sizeMb} MB)`);
+const sizeMb = (
+  Buffer.byteLength(JSON.stringify(index), "utf-8") /
+  1024 /
+  1024
+).toFixed(2);
+console.log(
+  `Wrote ${index.chunks.length} chunks to ${OUTPUT_FILE} (${sizeMb} MB)`,
+);

@@ -26,6 +26,7 @@ import { fileURLToPath } from 'url';
 import { chunkPages } from '../../docs/lib/retrieval/chunker.mjs';
 import { voyageProvider, embedChunks, resolveEmbedKey } from '../../docs/lib/retrieval/embed.mjs';
 import { PAGES_DIR, SITE_URL, collectPages } from '../../docs/lib/retrieval/pages-source.mjs';
+import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/projections.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/docs-index.json');
@@ -75,7 +76,9 @@ function report(chunks) {
 // ---------------------------------------------------------------------------
 
 console.log(`Scanning ${PAGES_DIR} ...`);
-const pages = collectPages(PAGES_DIR);
+const expand = await loadProjections();
+const values = await loadDocValues();
+const pages = collectPages(PAGES_DIR, { expand, values });
 console.log(`Collected ${pages.length} pages.`);
 
 const chunks = chunkPages(pages, { siteUrl: SITE_URL });

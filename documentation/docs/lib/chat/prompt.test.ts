@@ -29,3 +29,28 @@ describe('systemPrompt', () => {
     expect(p).not.toContain('Context:');
   });
 });
+
+describe('scope honesty', () => {
+  // Retrieval is agreement-biased: "I want total anonymity" retrieves the
+  // "Protected:" sections and not the "Unprotected:" ones sitting beside them.
+  // The correction has to live in the prompt, because no amount of rewriting the
+  // disclaimers moves them closer to a query that presumes the opposite.
+  it('states the application-layer limit as a standing fact, not a retrieved one', () => {
+    const p = systemPrompt('[1] Page - anything\nbody');
+    expect(p).toMatch(/does not make an application private/i);
+    expect(p).toMatch(/logins, cookies, API tokens/i);
+  });
+
+  it('requires an over-claim to be challenged before the answer', () => {
+    const p = systemPrompt('[1] Page - anything\nbody');
+    expect(p).toMatch(/assumes more protection than Nym provides/i);
+    expect(p).toMatch(/Never let an over-claim stand unchallenged/i);
+  });
+
+  it('carries the limit even when nothing was retrieved', () => {
+    // The no-context branch is exactly where an over-claim is most likely: the
+    // question was vague enough to retrieve nothing, and a bare refusal reads as
+    // "no comment" on the premise.
+    expect(systemPrompt('   ')).toMatch(/does not make an application private/i);
+  });
+});

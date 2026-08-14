@@ -89,18 +89,24 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 | HowTo | Step-by-step install/setup guides |
 | FAQPage | Question-answer pages |
 
-## AI assistant, MCP server & machine-readability
+## MCP server & machine-readability
 The docs are built to be consumed by AI agents and LLMs, not just read. There is
-an in-docs **Ask AI** chat, an **MCP server** at `/docs/api/mcp` for coding
-agents, per-page Markdown (append `.md` to any docs URL), and generated
-`llms.txt` / `llms-full.txt`.
+an **MCP server** at `/docs/api/mcp` for coding agents, per-page Markdown (append
+`.md` to any docs URL), and generated `llms.txt` / `llms-full.txt`. The per-page
+**Use with AI** button shows how to connect an agent to the server.
 
-All of it is documented in **[AI-ASSISTANT.md](AI-ASSISTANT.md)**: the retrieval
-pipeline, chunking and the embedding cache, how the routes serve from a static
-index with no vector database, where both API keys must be set, every tunable,
-and how to test a deployment. Read it before changing anything under
+All of it is documented in **[MCP-SERVER.md](MCP-SERVER.md)**: the retrieval
+pipeline, chunking and the embedding cache, how the route serves from a static
+index with no vector database, where the API key must be set, every tunable, and
+how to test a deployment. Read it before changing anything under
 `docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/` or
 `scripts/next-scripts/generate-*`.
+
+There was an in-docs chat widget answering from the same index. It was removed in
+favour of shipping one surface well: its scope honesty depended on a system
+prompt that only the chat route could see, so an agent on MCP got the raw
+sections and none of the scaffolding. It is preserved on the branch
+`max/docs-ai-chat-widget`.
 
 For readers rather than contributors: `/docs/developers/mcp` is the tool
 catalogue and client setup, and `/docs/use-with-ai` is the consumer-facing guide.

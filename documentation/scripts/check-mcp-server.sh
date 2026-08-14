@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# End-to-end check of a deployed docs MCP server and the chat route's health
-# endpoint. Everything here runs over HTTP against a real deployment, so it
-# covers what the unit tests cannot: that the index was traced into the lambda,
-# that the keys are present in that environment, that the transport negotiates,
-# and that the live Nym API still returns the field names the tools read.
+# End-to-end check of a deployed docs MCP server. Everything here runs over HTTP
+# against a real deployment, so it covers what the unit tests cannot: that the
+# index was traced into the lambda, that the key is present in that environment,
+# that the transport negotiates, and that the live Nym API still returns the
+# field names the tools read.
 #
 # Run it after any deploy that touches retrieval, the tool registry or the build
 # pipeline. It is the fastest way to tell a broken deployment from a broken
@@ -54,7 +54,6 @@ fi
 BASE="${BASE%/}"
 BASE="${BASE%/docs}"
 MCP_URL="$BASE/docs/api/mcp"
-CHAT_URL="$BASE/docs/api/chat"
 
 HDRS=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
 [[ -n "$BYPASS" ]] && HDRS+=(-H "x-vercel-protection-bypass: $BYPASS")
@@ -307,16 +306,6 @@ expect "wrong argument type is rejected at the schema" \
 expect "missing required argument is rejected" \
   search_docs '{}' 'Invalid arguments'
 
-# --- chat health ------------------------------------------------------------
-head_ "Chat route health"
-
-HEALTH="$(curl -sS ${BYPASS:+-H "x-vercel-protection-bypass: $BYPASS"} "$CHAT_URL")"
-if jq -e '.ok == true' >/dev/null 2>&1 <<<"$HEALTH"; then
-  ok "chat health: $(jq -r '"\(.name), \(.chunks) chunks"' <<<"$HEALTH")"
-else
-  bad "chat health"
-  printf '        %.300s\n' "${HEALTH//$'\n'/ }"
-fi
 
 # --- summary ----------------------------------------------------------------
 # Skips do not fail the run: they mean a check could not apply to this checkout,

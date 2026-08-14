@@ -1,10 +1,10 @@
 // Per-page action row: "Copy page" (grabs the generated Markdown for this page)
-// and "Ask AI" (opens the docs chat widget). Rendered at the top of every page
+// and "Use with AI" (opens the MCP connection panel). Rendered at the top of every page
 // via theme.config.tsx `main`. See the AI-ready docs surface in the plan (3.5).
 //
 // "Copy page" fetches <path>.md, which generate-page-markdown.mjs emits at build.
 // Pages without prose (e.g. the component landing) have no .md; the copy just
-// no-ops there. "Ask AI" dispatches a window event ChatWidget listens for.
+// no-ops there. "Use with AI" dispatches a window event McpPanel listens for.
 
 import { useRouter } from 'next/router';
 import { useState } from 'react';
@@ -36,8 +36,8 @@ export default function PageActions() {
       <button type="button" onClick={copyPage} style={btnStyle} title="Copy this page as Markdown">
         {copied ? 'Copied' : 'Copy page'}
       </button>
-      <button type="button" onClick={askAI} style={btnStyle} title="Ask the docs assistant about this page">
-        Ask AI
+      <button type="button" onClick={askAI} style={btnStyle} title="Connect these docs to your AI coding agent">
+        Use with AI
       </button>
     </div>
   );

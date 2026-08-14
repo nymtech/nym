@@ -5,8 +5,8 @@ import './styles.css';
 import './threat-model-viz.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
-// Client-only: the widget uses useChat and streams from /docs/api/chat.
-const ChatWidget = dynamic(() => import('components/ChatWidget'), { ssr: false });
+// Client-only: reads the clipboard API and renders only once opened.
+const McpPanel = dynamic(() => import('components/McpPanel'), { ssr: false });
 // Client-only (ssr:false): portals the per-page Copy/Ask AI buttons into the
 // content top. Kept out of SSR/hydration; the theme.config `main` wrapper route
 // caused a hydration crash and fixed positioning hid behind the navbar.
@@ -45,7 +45,7 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
     <ThemeProvider theme={muiTheme}>
       <AnyComponent {...pageProps} />
       <PageActionsMount />
-      <ChatWidget />
+      <McpPanel />
     </ThemeProvider>
   );
 };

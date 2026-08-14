@@ -1,9 +1,16 @@
-# AI assistant, MCP server and machine-readability
+# MCP server and machine-readability
 
 The docs are built to be consumed by AI agents and LLMs, not only read. This file
 is the contributor reference for that machinery: the retrieval pipeline, how the
-MCP route and chat backend serve from it, where the keys go, what is tunable, and
-how to test a deployment.
+MCP route serves from it, where the key goes, what is tunable, and how to test a
+deployment.
+
+There was also an in-docs chat widget, answering from the same index through a
+model we prompted. It was removed. Its scope honesty depended on that system
+prompt, which only the chat route could see, so an agent on MCP got the raw
+retrieved sections and none of the scaffolding; the fix was to put the honesty in
+the documentation instead, where every consumer reaches it. The widget and its
+route are preserved on the branch `max/docs-ai-chat-widget`.
 
 Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
@@ -15,8 +22,6 @@ tool catalogue and client setup, and
 
 ## What ships
 
-- **Ask AI**, an in-docs chat in the right-hand sidebar that answers from the
-  documentation with citations, powered by retrieval plus Claude.
 - **An MCP server** at `/docs/api/mcp` (Streamable HTTP). Point a coding agent at
   it for docs search (`search_docs`, `get_section`), source-code search
   (`search_code`), live network tools (`network_summary`, `list_gateways`,
@@ -25,7 +30,7 @@ tool catalogue and client setup, and
   button, to fetch it as clean Markdown.
 - **`llms.txt` and `llms-full.txt`**, generated during the build.
 
-The [MCP server](docs/pages/developers/mcp.mdx) and the in-docs **Ask AI** assistant are two consumers of one thing: a semantic index built at deploy time and shipped as a static file. There is no vector database and no separate service to operate. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
+The [MCP server](docs/pages/developers/mcp.mdx) serves one thing: a semantic index built at deploy time and shipped as a static file. There is no vector database and no separate service to operate. This page explains that pipeline, for anyone extending it or judging what its answers are worth.
 
 ## The shape
 
@@ -47,8 +52,8 @@ Everything is built during the docs deploy and read from disk at runtime.
         │                     │
         ├─────────────┬───────┘
         │             │
-   /api/chat      /api/mcp                           both load the index at
-   (Ask AI)       (agents)                           cold start, search in memory
+              /api/mcp                              loads the index at cold
+              (agents)                              start, searches in memory
 ```
 
 The `build` script runs the generators before `next build`, in this order: `generate-llms-txt.mjs`, `generate-index.mjs`, `generate-code-index.mjs`, `generate-page-markdown.mjs`.
@@ -134,116 +139,54 @@ The index is loaded once per instance at module scope, not per request, so the c
 ```js
 outputFileTracingIncludes: {
   "/api/mcp": ["./public/docs-index.json", "./public/code-index.json"],
-  "/api/chat": ["./public/docs-index.json"],
 }
 ```
 
 The code index is optional. If `public/code-index.json` is absent the route still starts and simply does not expose `search_code`, which keeps a docs-only build working.
 
-### The chat backend
 
-`Ask AI` follows the same retrieval path: the question is embedded, the nearest chunks are fetched from the same index, and those sections are passed to Claude as context with instructions to answer only from them and to cite with inline `[n]` markers. The citation numbers map back to the chunks' deep links, which is why answers point at sections rather than pages.
+## The key
 
-Because generation is constrained to retrieved context, the assistant reports that something is not covered instead of filling the gap from model priors. That is a deliberate trade: it will decline questions the docs genuinely do not answer.
+One key, `VOYAGE_API_KEY`, needed at **build and runtime**. The build embeds the
+corpus; the server embeds each incoming query at call time. Both stages call
+Voyage, and a query must be embedded with the same model as the index or the
+vectors are not comparable, so it goes in both places.
 
-Those `[n]` markers carry a second job. The widget builds its source list from them, so the model decides which retrieved sections are worth showing. See [which sources an answer lists](#which-sources-an-answer-lists).
+| Where | Why |
+|---|---|
+| GitHub Actions secret | `cd-docs.yml` builds the index |
+| Vercel project env (Preview and Production) | `/api/mcp` embeds each query |
 
-## Keys
+Nothing generates text, so there is no model key. The server returns retrieved
+sections and leaves generation to the calling agent, which is why a call costs one
+embedding and nothing else.
 
-| Variable | Needed at | Read by | Used for |
-|---|---|---|---|
-| `VOYAGE_API_KEY` | build **and** runtime | our code, explicitly | Embedding chunks during the build, and embedding each query at call time |
-| `ANTHROPIC_API_KEY` | runtime only | the Anthropic provider, implicitly | Generation for the chat assistant |
-| `CHAT_MODEL` | runtime, optional | our code | Which model answers in the chat widget |
-| `CHAT_MIN_SCORE` | runtime, optional | our code | Similarity floor that keeps distant chunks out of the prompt (default `0.2`) |
-
-`VOYAGE_API_KEY` is needed in **both** places for a reason worth stating: the build embeds the corpus, and every query must be embedded at request time with the same model, or the vectors are not comparable. `ANTHROPIC_API_KEY` never appears in our source because the provider reads it from the environment itself, so it is easy to forget when provisioning.
-
-The MCP server needs only the Voyage key. It returns retrieved sections to the calling agent and leaves generation to that agent's own model, which is why it costs nothing per call beyond one query embedding.
-
-
-**Where each key must be set.** The two are needed at different stages, so they do
-not go in the same place. Setting only one of them fails in a way that looks
-unrelated to the key, so check both before debugging anything else.
-
-| Key | GitHub Actions | Vercel project env | Why |
-|-----|----------------|--------------------|-----|
-| `VOYAGE_API_KEY` | **required** | **required** | The build embeds the corpus, and `/api/chat` and `/api/mcp` embed each incoming query at request time. Both stages call Voyage, so it is needed in both places. |
-| `ANTHROPIC_API_KEY` | not needed | **required** | Generation happens only at runtime. Nothing in the build calls Claude. |
-
-`ANTHROPIC_API_KEY` never appears in our source: the `@ai-sdk/anthropic` provider
-reads it from the environment itself, so grepping for it finds nothing and it is
-easy to forget when provisioning.
-
-Each missing key is made to announce itself rather than degrade quietly:
+A missing key announces itself rather than degrading quietly:
 
 | Missing | What happens |
 |---------|--------------|
-| `VOYAGE_API_KEY` at build | The index generators **exit non-zero and fail the build** for anything that ships: Vercel (which sets `VERCEL`), and `cd-docs.yml` (which sets `REQUIRE_EMBEDDINGS`). Everywhere else they warn and write a vectorless index, which is what local work on chunking and the check-only CI builds want. `CI` alone is deliberately not a trigger: `ci-docs.yml` builds to prove the docs compile and has no reason to spend an embedding run. |
-| `VOYAGE_API_KEY` at runtime | `/api/chat` refuses with `503` and names the variable; `/api/mcp` throws at cold start with the same message. |
-| `ANTHROPIC_API_KEY` | `/api/chat` refuses with `503`. The MCP server is unaffected and stays fully functional: it hands retrieved sections to the calling agent and lets that agent's own model generate. |
-| A vectorless index reaching production | Both routes detect it (`embedding.dim` is null) and refuse, rather than serving `200` while every search returns nothing. |
+| At build | The index generators **exit non-zero and fail the build** for anything that ships: Vercel (which sets `VERCEL`), and `cd-docs.yml` (which sets `REQUIRE_EMBEDDINGS`). Everywhere else they warn and write a vectorless index, which is what local work on chunking and the check-only CI builds want. `CI` alone is deliberately not a trigger: `ci-docs.yml` builds to prove the docs compile and has no reason to spend an embedding run. |
+| At runtime | `/api/mcp` throws at cold start, naming the variable. An agent otherwise connects, gets a full tool list, and hits an opaque 401 inside its first search. |
+| A vectorless index reaching production | The route detects it (`embedding.dim` is null) and refuses, rather than serving `200` while every search returns nothing. |
 
-**Health check.** `GET /docs/api/chat` reports whether a deployment is wired up,
-so verifying staging is one request rather than asking a question and reading the
-tea leaves. It returns `200` with `ok: true` when healthy, `503` with a `problems`
-array when not:
+**Health check.** `tools/list` against a deployment is the one-request answer to
+"is this wired up", and `scripts/check-mcp-server.sh` wraps it with 37 more.
 
-```bash
-curl -s https://<deployment>/docs/api/chat | jq
-# { "model": "claude-sonnet-5", "name": "Claude Sonnet 5", "ok": true, "chunks": 1427 }
-```
-
-Keys live in GitHub Actions and Vercel secrets, never in the repo. `VOYAGE_API_KEY`
-is already wired into `.github/workflows/cd-docs.yml`.
-
-## Which sources an answer lists
-
-Retrieval returns a fixed number of nearest chunks and passes all of them to the model. The model reads them, answers, and cites the ones it used as `[n]`. The chat widget builds its source list from those markers. A section that is retrieved but not cited is not listed.
-
-This puts the relevance decision with the model. An earlier design put it in a similarity floor (`CHAT_MIN_SCORE`), which discarded chunks below a fixed score. That does not work, and the measurement is worth recording.
-
-Cosine similarity measures the distance between two vectors. It was being read as a measure of whether a question is about Nym. The two come apart when the query is short, because a short query carries little for the embedding to place. Scored against this corpus:
-
-| Query | Best score |
-|---|---|
-| "Who is L2 and why does it matter?" (five best hits all correct) | 0.504 |
-| "What is the capital of France?" | 0.523 |
-| "What is a SURB?" | 0.593 |
-
-The off-topic question outscores the correct one. No floor admits the first and rejects the second, so every value tried refused real questions or admitted nonsense. Raising the floor also trimmed sources from answers that worked.
-
-`CHAT_MIN_SCORE` remains, as a cost guard. It keeps clearly distant chunks out of the prompt. It does not decide whether a question can be answered.
-
-Two consequences follow. The model must cite reliably, so the system prompt requires a marker on every factual claim; a weaker instruction empties the source list on good answers. And a question the docs do not cover still reaches the model with context attached, which the model declines to use. The refusal comes from the prompt, not from empty retrieval.
-
-One failure mode comes with the design. An answer cut short by the output-token limit loses the sources it had not yet cited, because the markers never arrive. The list stays accurate for what was written, and a truncated answer is the larger problem to fix.
-
-To watch retrieval quality over time, `scripts/next-scripts/check-retrieval-scores.mjs` prints the scores for on-topic and off-topic queries. Read the gap between the groups, not the absolute numbers.
-
-Exact-term recall is the known weakness. Embeddings handle rare tokens poorly, so crate names, CLI flags and error strings rank worse than prose. A lexical index (BM25) alongside the vector search would address that.
-
+Keys live in GitHub Actions and Vercel secrets, never in the repo.
 
 ## Tunables
-Everything below has a working default; none of it is required to run. Runtime
-values can be changed in Vercel without a redeploy of the code.
 
-| Variable | Default | Effect |
-|----------|---------|--------|
-| `CHAT_MODEL` | `claude-sonnet-5` | Which model answers in the widget. The tier matters here: the job is synthesising an answer from retrieved sections and citing them, and Haiku was visibly weaker at it. |
-| `CHAT_MIN_SCORE` | `0.2` | Cosine-similarity floor for retrieval. A cost guard that keeps distant chunks out of the prompt. It does **not** decide whether a question is answerable, and raising it to try is a known dead end, see below. |
+The server applies **no similarity floor**: `search_docs` returns its top `topK`
+and leaves relevance to the calling agent, which knows the user's actual task and
+can query again. That is deliberate, and it is worth knowing why no floor was
+added.
 
-**Do not raise `CHAT_MIN_SCORE` to filter out irrelevant questions.** It was
-built for that and cannot do it. Cosine similarity measures distance between
-vectors, not whether a question is about Nym, and the two come apart on short
-queries. Measured against this corpus, "Who is L2 and why does it matter?" tops
-out at `0.504` with its five best hits all correct, while "What is the capital of
-France?" reaches `0.523`. The off-topic question scores higher, so no floor
-separates them.
-
-Which sections an answer lists is decided by the model instead. It cites what it
-used as `[n]`, and the widget lists only those. A question the docs do not cover
-gets a refusal that cites nothing, so no sources appear under it.
+A floor cannot do the job it looks like it can. Cosine similarity measures
+distance between vectors, not whether a question is about Nym, and the two come
+apart on short queries. Measured against this corpus, "Who is L2 and why does it
+matter?" tops out at `0.504` with its five best hits all correct, while "What is
+the capital of France?" reaches `0.523`. The off-topic question scores higher, so
+no threshold separates them.
 
 The scoring script still earns its place, for watching retrieval quality when the
 corpus, the chunking or the embedded text changes:
@@ -262,11 +205,8 @@ Compile-time constants, changed in source rather than the environment:
 
 | Constant | Where | Default | Effect |
 |----------|-------|---------|--------|
-| `MAX_MESSAGES` | `pages/api/chat.ts` | `40` | Longest accepted conversation. A bound on what one caller can push through the paid calls. |
-| `MAX_TOTAL_CHARS` | `pages/api/chat.ts` | `32_000` | Largest accepted request body, counted over text parts. |
-| `topK` | `pages/api/chat.ts` (`buildContext` call) | `10` | How many chunks are retrieved per question. All of them reach the model; it cites the ones it uses, and only those are listed as sources. |
+| `topK` | `lib/mcp/tools.ts` | `6` | Default results per `search_docs` / `search_code` call; the caller can override it per call. |
 | `MAX_CHARS` | `lib/retrieval/chunker.mjs` | `2400` | Hard cap on a chunk. Changing it changes chunk boundaries, so it needs a full re-index. |
-| `INPUT_MAX_HEIGHT` | `components/ChatWidget.tsx` | `140` | How far the chat textarea grows before it scrolls internally. |
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
@@ -339,8 +279,9 @@ What each layer needs:
 
 Against a deployment, swap the host for the deployment URL. If `tools/list`
 answers but `search_docs` fails, that is the Voyage key or a vectorless index
-rather than the transport; `GET /docs/api/chat` on the same deployment reports
-which.
+rather than the transport. The route throws at cold start when the key is
+missing, so `tools/list` failing outright points at the key while `tools/list`
+succeeding and `search_docs` failing points at the index.
 
 **All of the above at once, against a deployment.**
 `scripts/check-mcp-server.sh` runs 38 checks over HTTP: the tool list, transport

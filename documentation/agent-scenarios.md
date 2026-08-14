@@ -12,9 +12,20 @@ Two things are being tested, and they fail differently:
 - **Honesty**: does the answer stay inside what Nym actually does? Fails
   editorially or at generation, and the fix is in the prose or the system prompt.
 
-Automated coverage lives in `scripts/check-mcp-server.sh` (retrieval) and
-`scripts/check-chat-honesty.sh` (generation). The scenarios below are the wider
-suite, including the ones a human still has to read.
+Automated coverage lives in `scripts/check-mcp-server.sh`. The scenarios below are
+the wider suite, including the ones a human still has to read.
+
+**The generation checks are gone with the chat route.** `check-chat-honesty.sh`
+posted questions to `/api/chat` and asserted the answers stayed inside what Nym
+does. There is no generation step to test now: the MCP server returns sections and
+the calling agent writes the answer. So scope honesty and workload fit are tested
+by reading an agent trial rather than by a script, and the criteria in sections C
+and D below are the criteria for that reading. Both scripts, and the answers they
+produced, are on branch `max/docs-ai-chat-widget`.
+
+That change also raised the stakes on the prose. The chat's honesty came partly
+from a system prompt; an agent on MCP gets the retrieved text and nothing else, so
+anything the docs do not say plainly is not said at all.
 
 How to run an agent against these, and why the sandbox is built the way it is:
 [`scripts/agent-trial/README.md`](scripts/agent-trial/README.md).
@@ -67,8 +78,8 @@ means the two-layer model did not land however well it reads.
 
 ## C. Scope honesty
 
-Questions that presume more protection than Nym provides. Automated in
-`scripts/check-chat-honesty.sh`.
+Questions that presume more protection than Nym provides. Read these in an agent
+trial; there is no longer a generation step to test automatically.
 
 - "I want my app to have total privacy. If I route everything through Nym, are my
   users anonymous?"

@@ -44,10 +44,16 @@ you know which without reading a line of the transcript.
 | `phase2-prompt.md` | The integration-decision phase, kept because it is the hardest one to write |
 | `../../agent-scenarios.md` | The scenario suite: what to ask, and what a good answer contains |
 | `../check-mcp-server.sh` | Automated retrieval checks against a deployment |
-| `../check-chat-honesty.sh` | Automated generation checks against a deployment |
 
-The two scripts are the parts worth running on every deploy. The agent trial is
-the part that finds new things, and it needs a human to read the result.
+`check-mcp-server.sh` is the part worth running on every deploy. The agent trial
+is the part that finds new things, and it needs a human to read the result.
+
+There was a second script, `check-chat-honesty.sh`, which posted questions to the
+chat route and asserted the answers stayed inside what Nym does. That route is
+gone, and with it the only place a generation step could be tested. Scope honesty
+now depends entirely on what the documentation says, because an agent on MCP
+receives the retrieved sections and nothing else. The script is on branch
+`max/docs-ai-chat-widget` if the chat returns.
 
 ## Running it
 
@@ -85,8 +91,9 @@ Two things fail differently and want different fixes.
 exists. The fix is in the pipeline: chunking, projections, index scope.
 
 **Honesty** failures are editorial. The agent finds plenty and draws a conclusion
-the docs should have prevented. The fix is in the prose, or in the system prompt
-for the chat route.
+the docs should have prevented. The fix is in the prose, and only in the prose:
+there is no generation step to correct, so anything the docs do not say plainly is
+not said at all.
 
 The section of the report to read first is whichever one the prompt asks the agent
 not to soften. "Where the docs failed you" has been more valuable than the answers
@@ -127,9 +134,9 @@ Worth knowing before trusting a run.
   The transcript is what makes them checkable, and checking is a manual step.
 - **Priors leak.** The model knows roughly what Nym is. Questions whose correct
   answer differs from the obvious guess are the ones that discriminate.
-- **Long runs are fragile in a sandbox.** Each chat question takes tens of seconds
-  of generation; a sequence of them can exceed what a constrained environment will
-  sustain. The automated scripts are more robust than an interactive session.
+- **Long runs are fragile in a sandbox.** A trial makes dozens of calls and the
+  agent reasons between them; a constrained environment may not sustain the whole
+  session. `check-mcp-server.sh` is more robust than an interactive run.
 - **One agent is one sample.** It will phrase its complaints differently each run.
   Treat a finding as real when it points at a mechanism, not when it sounds
   confident.

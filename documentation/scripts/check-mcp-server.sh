@@ -266,7 +266,13 @@ expect "a clean config passes" \
 head_ "Live network data"
 
 expect "network_summary returns counts" \
-  network_summary '{}' '[0-9]+ nodes total'
+  network_summary '{}' '[0-9]+ total, [0-9]+ gateways, [0-9]+ mixnodes'
+
+# The counts do not sum (80 entry + 100 exit is not 603 gateways, and gateways +
+# mixnodes is not the total), so the output has to say so or an agent will do the
+# arithmetic and report a number that is wrong.
+expect "network_summary warns that the counts do not sum" \
+  network_summary '{}' 'do not sum'
 
 expect "circulating_supply returns NYM figures" \
   circulating_supply '{}' 'Circulating: [0-9,]+'

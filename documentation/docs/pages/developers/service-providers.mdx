@@ -16,7 +16,23 @@ export const NetworkDiagram = dynamic(
   { ssr: false },
 )
 
-export const spScenario = requireGenericScenario('end-to-end')
+export const e2e = requireGenericScenario('end-to-end')
+
+{/* The end-to-end route is exactly right for a provider, but its last node is a
+    generic Nym peer. Swap it for the service-provider kind, which the diagram
+    already draws as a diamond in its own colour. The scenario id is unchanged,
+    so the retrieval index still projects the canonical scenario text. */}
+export const spScenario = {
+  ...e2e,
+  topology: {
+    ...e2e.topology,
+    nodes: e2e.topology.nodes.map((n) =>
+      n.id === 'p' ? { ...n, kind: 'service-provider', label: 'Your service provider' } : n,
+    ),
+    caption:
+      "The request crosses the mixnet to the provider's own gateway. There is no exit gateway and no clearnet hop. The reply returns over a SURB, so the provider never learns the client address.",
+  },
+}
 
 A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that client directly over the mixnet, your code answers, and it never learns who asked.
 

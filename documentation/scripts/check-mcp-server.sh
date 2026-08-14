@@ -170,6 +170,19 @@ expect "search_docs reaches the service-provider page from a build-it question" 
   search_docs '{"query":"how do I write a backend that receives requests over the mixnet and replies","topK":5}' \
   'developers/service-providers'
 
+# The provider page links out to runnable examples rather than carrying a long
+# sketch, so the examples have to be findable through the page.
+expect "search_docs surfaces the service-provider examples" \
+  search_docs '{"query":"echo service provider example nym sdk","topK":5}' \
+  'echo-service|service-providers'
+
+# NetworkDiagram is projected into the index (lib/retrieval/projections.mjs), so a
+# page whose only scenario component is the diagram still contributes the route it
+# draws. Without the projection this query has nothing on that page to match.
+expect "diagram-only pages contribute their scenario text" \
+  search_docs '{"query":"both ends run Nym, no exit gateway, replies via SURBs","topK":6}' \
+  'developers/service-providers|threat-model/configurations/end-to-end'
+
 expect "get_section reports a miss legibly" \
   get_section '{"ref":"not-a-real-chunk-id"}' 'No section found'
 

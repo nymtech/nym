@@ -147,6 +147,8 @@ nym-coconut-dkg = { path = "../contracts/coconut-dkg", features = [
     "testable-dkg-contract",
 ] }
 nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-group-contract-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
 cw-multi-test = { workspace = true }
 
 [lints]

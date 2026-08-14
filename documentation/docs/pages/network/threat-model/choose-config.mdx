@@ -26,10 +26,24 @@ Start from your primary concern and read across.
 | Your concern | The adversary | Configuration |
 |---|---|---|
 | Hide my IP from the service I connect to | [L2](/network/threat-model/actors#actor-L2) identity (P1) | Any transport: dVPN or mixnet |
-| Stop the service linking my requests to each other | [L2](/network/threat-model/actors#actor-L2) linkability (P2) | Rotate exits: dVPN multi-exit, or mixnet rotating |
+| Stop the service linking my requests to each other | [L2](/network/threat-model/actors#actor-L2) linkability (P2) | Rotate exits: [dVPN multi-exit](/network/threat-model/configurations/dvpn-multi), or [mixnet rotating](/network/threat-model/configurations/mixnet-rotating) **(not yet shipped, see below)** |
 | Hide my traffic pattern from network observers | [L3L](/network/threat-model/actors#actor-L3L) / [L3G](/network/threat-model/actors#actor-L3G) | Mixnet only (mixing, Poisson, cover) |
 | I talk to another Nym client, not a clearnet server | No L2 exists | End to end |
-| Fast bulk transfer **and** timing-safe sensitive requests | All of the above | ★ Hybrid (recommended) |
+| Fast bulk transfer **and** timing-safe sensitive requests | All of the above | ★ [Hybrid](/network/threat-model/configurations/hybrid) (recommended; its P2 verdict depends on the same rotation) |
+
+<Callout type="warning">
+**Per-request exit rotation is not available in the Nym SDKs yet.** A client
+picks one exit and keeps it, which behaves like a single exit at the destination:
+P1 holds, P2 does not. So the row above describes the configuration that closes
+request linkability, not one you can ship today.
+
+Until it lands, the destination can still group your requests. What you can do
+now is close the other half of the problem, which the transport was never going
+to close anyway: [baseline hygiene](/developers/swizzle) disciplines the timing
+and content of the requests themselves. For a wallet, the difference is between "the
+server cannot tell which addresses I care about" and "the server can group my
+queries, but they are padded and decorrelated".
+</Callout>
 
 ## By use case
 

@@ -46,6 +46,33 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 **TcpProxy is deprecated.** Use the [Stream module](./rust/stream) for new projects.
 </Callout>
 
+## Which module do I need?
+
+Two questions settle it.
+
+**Are you reaching a third-party service, or another Nym client?** A clearnet
+destination means proxy mode, and that is [`smolmix`](/developers/smolmix) or the
+[SOCKS5 module](./rust/socks5) rather than anything below. Both ends running your
+software means end to end, and the choice is between Stream and Mixnet.
+
+**Is it a conversation, or a set of independent messages?** This is the call
+people get wrong.
+
+- **Stream** for anything interactive: a chat, a request/response protocol, or
+  code that expects `AsyncRead`/`AsyncWrite`. It reorders on a sequence number,
+  so bytes arrive in the order you wrote them, and framing comes free from the
+  async I/O traits.
+- **Mixnet** for messages that stand alone: a notification, a one-shot request, a
+  broadcast. There are **no ordering guarantees**, so two messages sent in order
+  may arrive reversed. Building a conversation on it means writing your own
+  sequencing and framing.
+
+Both are end to end, and both keep the sender anonymous through reply SURBs. The
+difference is whether the protocol you are building has a *sequence* to preserve.
+
+[When to use streams vs messages](./rust/stream#when-to-use-streams-vs-messages)
+compares them line by line, including ordering, status and what each is best for.
+
 ## Proxy-mode crates
 
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:

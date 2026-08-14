@@ -57,7 +57,7 @@
 - [x] 9.2 Reply to the `resume(self)` thread: plan is `Copy`, consumption is cost-free and signals firing-is-terminal; doc sentence added.
 - [x] 9.3 Reply to the streaming-`BlockSource` thread: deferred with the bounded-buffering rationale (`S_FLOOR` cap ≈ 1–2 MB per request); revisit with librustzcash integration.
 - [x] 9.4 Reply to the README "day-sized cells" CodeRabbit thread: rejected as conflating the two grids, pointing at the new clarifying sentence (8.3).
-- [ ] 9.5 Resolve the remaining CodeRabbit threads with fix-commit references once landed.
+- [x] 9.5 Resolve the remaining CodeRabbit threads with fix-commit references once landed.
 
 ## 10. Validation
 

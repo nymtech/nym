@@ -15,6 +15,14 @@ publish = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[example]]
+name = "echo-service"
+path = "examples/service-providers/echo-service/main.rs"
+
+[[example]]
+name = "echo-client"
+path = "examples/service-providers/echo-client/main.rs"
+
 [[bin]]
 name = "nym-proxy-server"
 path = "src/tcp_proxy/bin/proxy_server.rs"
@@ -92,10 +100,11 @@ dirs.workspace = true
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
+serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
-time = { workspace = true }
+time = { workspace = true, features = ["formatting", "parsing"] }
 nym-bin-common = {workspace = true, features = ["basic_tracing"] }
 
 # extra dependencies for libp2p examples

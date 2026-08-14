@@ -8265,6 +8265,7 @@ dependencies = [
  "reqwest 0.13.4",
  "semver 1.0.28",
  "serde",
+ "serde_json",
  "tap",
  "tempfile",
  "thiserror 2.0.19",

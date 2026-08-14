@@ -228,42 +228,44 @@ Defaults, for reference:
 | `start_jitter_default` | 10% of the total range, at least 1 |
 | `floor` | 0 |
 
-## Zcash: a ready-made policy layer
+## Chain-specific policy is yours to supply
 
-`nym-swizzle` is a general primitive, so it takes no view on what a good grid or
-a good delay is for your chain. For Zcash light clients, `nym-swizzle-zcash`
-packages the primitives into chain-specific policy, and it ships a live example
-against a public `lightwalletd`.
+This crate is a general primitive. It takes no view on what a good grid spacing
+or a good delay distribution is for your chain. The right answers depend on block
+times, on what a typical wallet's traffic looks like, and on what other traffic
+yours can hide among.
 
-It provides quantised sync ranges. The grid spacing scales with the range, and
-never falls below one day of blocks. Every wallet resuming in the same grid cell
-therefore emits identical boundaries. The reorg check rides inside the widened range,
-because a separate ten-block request just below your resume point would name
-that point exactly.
+For Zcash that work is done:
+[`nym-swizzle-zcash`](/developers/swizzle/zcash) packages the primitives into
+chain-specific policy, with quantised sync ranges and ZIP 318-aligned broadcast
+scheduling, and ships a live example against a public `lightwalletd`.
 
-It also provides decoupled broadcasts. Sends are delayed by an exponential draw
-with a mean of 144 blocks, capped at 576, the same distribution
-[ZIP 318](https://zips.z.cash/zip-0318) uses for transfer scheduling. Those
-delays run longer than a phone keeps a process alive, so the schedule is plain
-data you persist: sample once, save it, and resume the remainder after a
-restart. The transaction is built only when the delay fires.
-
-You plug in your own `lightwalletd` client. The crate holds no network stack.
+For any other chain, treat that page as a worked example of the reasoning rather
+than something to port directly. The grid and the delay distribution are design
+decisions, not configuration.
 
 ## Examples
 
-```sh
-cargo run -p nym-swizzle --example delay_broadcast
-cargo run -p nym-swizzle --example fetch_blocks_overlapping
-cargo run -p nym-swizzle --example poisson_sampling
-cargo run -p nym-swizzle --example seeded_vrf
+Runnable examples in [`sdk/rust/nym-swizzle/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle/examples). Each is self-contained; read the `//!` doc comments at the top of each file for the reasoning behind it.
 
-cargo run --release -p nym-swizzle-zcash --example wallet_sync
+```sh
+cargo run -p nym-swizzle --example <name>
 ```
 
-A development-time profiling harness checks the statistical claims, covering the
-delay distributions, the chunk geometry, and seeded determinism. It writes SVG
-plots backed by numeric assertions:
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Delay a broadcast | [`delay_broadcast.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/delay_broadcast.rs) | Scheduling a broadcast after a sampled delay. Broadcast timing is a leak the destination reads directly: a wallet that sends the moment it reaches chain tip is correlatable with its own sync activity |
+| Overlapping range fetch | [`fetch_blocks_overlapping.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/fetch_blocks_overlapping.rs) | Resuming a sync through overlapping, shuffled chunks, so the start height stops naming the resume point and stops chaining one session to the last |
+| Poisson delays | [`poisson_sampling.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/poisson_sampling.rs) | Exponential inter-arrival times, the same construction the mixnet uses for its own cover traffic |
+| Seeded determinism | [`seeded_vrf.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/seeded_vrf.rs) | A fixed 32-byte seed reproducing a byte-identical plan and delay sequence, for VRF-derived or otherwise reproducible schedules |
+
+### Profiling harness
+
+A development-time harness proves the statistical claims rather than asserting
+them: three suites pairing SVG plots with numeric checks, covering the delay
+distributions, the chunk geometry, and seeded determinism. The plots are the
+evidence and the assertions are the gate, so it fails loudly rather than
+visually.
 
 ```sh
 cargo run --release -p nym-swizzle --example profiling
@@ -278,6 +280,9 @@ and
 [`sdk/rust/nym-swizzle-zcash`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle-zcash).
 
 ## See also
+
+- [`nym-swizzle-zcash`](/developers/swizzle/zcash): the same primitives as
+  finished policy for Zcash light clients.
 
 - [The two-layer model](/network/threat-model/two-layer-model): why transport
   and hygiene are separate problems.

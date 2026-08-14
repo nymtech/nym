@@ -1,6 +1,6 @@
 {
   "contract_name": "network-monitors",
-  "contract_version": "0.1.0",
+  "contract_version": "1.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -66,6 +66,28 @@
         "additionalProperties": false
       },
       {
+        "description": "Attempt to update the announced identity key of this orchestrator",
+        "type": "object",
+        "required": [
+          "update_orchestrator_identity_key"
+        ],
+        "properties": {
+          "update_orchestrator_identity_key": {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Revoke network monitor orchestrator authorisation.",
         "type": "object",
         "required": [
@@ -97,12 +119,31 @@
           "authorise_network_monitor": {
             "type": "object",
             "required": [
-              "address"
+              "bs58_x25519_noise",
+              "mixnet_address",
+              "noise_version"
             ],
             "properties": {
-              "address": {
-                "type": "string",
-                "format": "ip"
+              "bs58_ed25519_identity": {
+                "description": "Base-58 encoded ed25519 identity key of the agent, if it announced one.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "bs58_x25519_noise": {
+                "description": "Base-58 encoded noise key of the agent.",
+                "type": "string"
+              },
+              "mixnet_address": {
+                "description": "Mixnet address of the agent. The underlying ip address is going to be used as ingress to the nodes, and the full socket address announces the egress and the association with the noise key",
+                "type": "string"
+              },
+              "noise_version": {
+                "description": "Version of the noise protocol used by the agent.",
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
               }
             },
             "additionalProperties": false
@@ -124,8 +165,7 @@
             ],
             "properties": {
               "address": {
-                "type": "string",
-                "format": "ip"
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -195,8 +235,7 @@
                 "type": [
                   "string",
                   "null"
-                ],
-                "format": "ip"
+                ]
               }
             },
             "additionalProperties": false
@@ -247,8 +286,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "format": "ip"
+          ]
         }
       },
       "additionalProperties": false,
@@ -260,16 +298,13 @@
         "AuthorisedNetworkMonitor": {
           "type": "object",
           "required": [
-            "address",
             "authorised_at",
-            "authorised_by"
+            "authorised_by",
+            "bs58_x25519_noise",
+            "mixnet_address",
+            "noise_version"
           ],
           "properties": {
-            "address": {
-              "description": "The Ip address associated with the network monitor agent.",
-              "type": "string",
-              "format": "ip"
-            },
             "authorised_at": {
               "description": "Timestamp of when the network monitor was authorised.",
               "allOf": [
@@ -285,6 +320,27 @@
                   "$ref": "#/definitions/Addr"
                 }
               ]
+            },
+            "bs58_ed25519_identity": {
+              "description": "Base-58 encoded ed25519 identity key of the agent. `None` for entries saved before the field existed; the upsert populates it on re-announcement.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bs58_x25519_noise": {
+              "description": "Base-58 encoded noise key of the agent.",
+              "type": "string"
+            },
+            "mixnet_address": {
+              "description": "Mixnet address of the agent. The underlying ip address is going to be used as ingress to the nodes, and the full socket address announces the egress and the association with the noise key",
+              "type": "string"
+            },
+            "noise_version": {
+              "description": "Version of the noise protocol used by the agent.",
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
@@ -345,6 +401,13 @@
                 {
                   "$ref": "#/definitions/Timestamp"
                 }
+              ]
+            },
+            "identity_key": {
+              "description": "Base-58 encoded identity key of the orchestrator, announced by the orchestrator itself on startup.",
+              "type": [
+                "string",
+                "null"
               ]
             }
           },

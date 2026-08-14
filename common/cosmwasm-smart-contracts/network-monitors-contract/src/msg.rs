@@ -42,6 +42,9 @@ pub enum ExecuteMsg {
 
         /// Version of the noise protocol used by the agent.
         noise_version: u8,
+
+        /// Base-58 encoded ed25519 identity key of the agent, if it announced one.
+        bs58_ed25519_identity: Option<String>,
     },
 
     /// Revoke network monitor authorisation.
@@ -76,3 +79,48 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::{from_json, to_json_vec};
+
+    /// The `AuthoriseNetworkMonitor` payload as a consumer compiled before `bs58_ed25519_identity`
+    /// existed sees it. Nym nodes learn about agents by deserialising this message out of a
+    /// transaction, and treat a parse failure as non-fatal: they log and continue to the next
+    /// block. An un-upgraded node that could not parse the new form would therefore silently stop
+    /// applying authorisations and revocations, so this compatibility is load-bearing.
+    #[cw_serde]
+    enum LegacyExecuteMsg {
+        AuthoriseNetworkMonitor {
+            mixnet_address: SocketAddr,
+            bs58_x25519_noise: String,
+            noise_version: u8,
+        },
+    }
+
+    #[test]
+    fn authorisation_carrying_an_identity_still_parses_under_the_legacy_schema() {
+        let current = ExecuteMsg::AuthoriseNetworkMonitor {
+            mixnet_address: "1.1.1.1:1789".parse().unwrap(),
+            bs58_x25519_noise: "11111111111111111111111111111111".to_string(),
+            noise_version: 1,
+            bs58_ed25519_identity: Some("22222222222222222222222222222222".to_string()),
+        };
+
+        let legacy: LegacyExecuteMsg = from_json(to_json_vec(&current).unwrap()).unwrap();
+
+        let LegacyExecuteMsg::AuthoriseNetworkMonitor {
+            mixnet_address,
+            bs58_x25519_noise,
+            noise_version,
+        } = legacy;
+
+        assert_eq!(
+            mixnet_address,
+            "1.1.1.1:1789".parse::<SocketAddr>().unwrap()
+        );
+        assert_eq!(bs58_x25519_noise, "11111111111111111111111111111111");
+        assert_eq!(noise_version, 1);
+    }
+}

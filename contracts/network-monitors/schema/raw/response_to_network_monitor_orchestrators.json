@@ -41,6 +41,13 @@
               "$ref": "#/definitions/Timestamp"
             }
           ]
+        },
+        "identity_key": {
+          "description": "Base-58 encoded identity key of the orchestrator, announced by the orchestrator itself on startup.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

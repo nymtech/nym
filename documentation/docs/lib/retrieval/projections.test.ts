@@ -116,3 +116,15 @@ describe('stripMdx with projections', () => {
     expect(out).toContain('both ends run Nym');
   });
 });
+
+describe('projected anchors match the rendered page', () => {
+  // ThreatModelReference renders id="actor-L2", id="vector-V1", id="prop-P1",
+  // and six pages deep-link to those. A projected heading slugified from its own
+  // text would produce an anchor that exists only in the index, so every citation
+  // would land on the top of the page instead of the section.
+  it('carries the component ids as explicit heading anchors', () => {
+    expect(expand('ActorsReference', '')).toContain('{#actor-L2}');
+    expect(expand('VectorsReference', '')).toContain('{#vector-V1}');
+    expect(expand('PropertiesReference', '')).toContain('{#prop-P1}');
+  });
+});

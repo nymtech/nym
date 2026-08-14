@@ -34,7 +34,9 @@ const bullets = (xs) => list(xs).map((x) => `- ${x}`).join('\n');
 
 function projectActors(ACTORS) {
   const body = ACTORS.map((a) => {
-    const lines = [`### ${a.id}: ${a.name}${a.primary ? ' (the primary adversary)' : ''}`, '', a.vantage, ''];
+    // `{#actor-L2}` matches the id the ThreatModelReference component renders,
+    // so a citation lands on the card a reader can actually see.
+    const lines = [`### ${a.id}: ${a.name}${a.primary ? ' (the primary adversary)' : ''} {#actor-${a.id}}`, '', a.vantage, ''];
     if (a.observes?.length) lines.push('Observes:', '', bullets(a.observes), '');
     if (a.cannotObserve?.length) lines.push('Cannot observe:', '', bullets(a.cannotObserve), '');
     if (a.cost) lines.push(`Cost to become: ${a.cost}`, '');
@@ -45,7 +47,7 @@ function projectActors(ACTORS) {
 
 function projectVectors(VECTORS) {
   const body = VECTORS.map((v) => {
-    const lines = [`### ${v.id}: ${v.name}`, '', v.consistsOf, ''];
+    const lines = [`### ${v.id}: ${v.name} {#vector-${v.id}}`, '', v.consistsOf, ''];
     if (v.observableFrom?.length) lines.push(`Observable from: ${v.observableFrom.join(', ')}.`, '');
     if (v.countermeasures?.length) {
       lines.push('Countermeasures:', '');
@@ -66,7 +68,7 @@ function projectVectors(VECTORS) {
 }
 
 function projectProperties(PROPERTIES) {
-  const body = PROPERTIES.map((p) => `### ${p.id}: ${p.name}\n\n${p.definition}\n`).join('\n');
+  const body = PROPERTIES.map((p) => `### ${p.id}: ${p.name} {#prop-${p.id}}\n\n${p.definition}\n`).join('\n');
   return `## The properties\n\n${body}`;
 }
 

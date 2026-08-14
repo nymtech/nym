@@ -51,7 +51,7 @@ export function estimateTokens(text) {
 export function splitByHeadings(body, pageTitle) {
   const lines = body.split('\n');
   const sections = [];
-  let current = { heading: pageTitle, level: 1, lines: [] };
+  let current = { heading: pageTitle, anchor: null, level: 1, lines: [] };
   let fence = null; // the fence marker that opened the current code block
 
   for (const line of lines) {
@@ -67,15 +67,21 @@ export function splitByHeadings(body, pageTitle) {
     const headingMatch = fence === null && line.match(/^(#{2,4})\s+(.+?)\s*#*\s*$/);
     if (headingMatch) {
       if (current.lines.join('\n').trim().length > 0) {
-        sections.push({ heading: current.heading, level: current.level, text: current.lines.join('\n').trim() });
+        sections.push({ heading: current.heading, anchor: current.anchor ?? null, level: current.level, text: current.lines.join('\n').trim() });
       }
-      current = { heading: headingMatch[2], level: headingMatch[1].length, lines: [] };
+      const explicit = headingMatch[2].match(/^(.*?)\s*\{#([\w-]+)\}$/);
+      current = {
+        heading: explicit ? explicit[1].trim() : headingMatch[2],
+        anchor: explicit ? explicit[2] : null,
+        level: headingMatch[1].length,
+        lines: [],
+      };
     } else {
       current.lines.push(line);
     }
   }
   if (current.lines.join('\n').trim().length > 0) {
-    sections.push({ heading: current.heading, level: current.level, text: current.lines.join('\n').trim() });
+    sections.push({ heading: current.heading, anchor: current.anchor ?? null, level: current.level, text: current.lines.join('\n').trim() });
   }
   return sections;
 }
@@ -159,7 +165,10 @@ export function chunkPages(pages, { siteUrl, maxChars = MAX_CHARS, skipSlugs = D
         // Skip check uses the un-deduplicated base; skipped sections must not
         // advance the slugger (so they don't shift later suffixes).
         if (skipSlugs.has(slugify(section.heading))) continue;
-        anchor = `#${slugger.slug(section.heading)}`;
+        // An explicit `{#id}` wins. Projected content (projections.mjs) carries
+        // the id the component actually renders, so a citation lands on the
+        // section a reader can see rather than on a slug that exists only here.
+        anchor = section.anchor ? `#${section.anchor}` : `#${slugger.slug(section.heading)}`;
       }
 
       const parts = packSection(section.text, maxChars);

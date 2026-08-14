@@ -8,6 +8,8 @@
 // Frontmatter is parsed by gray-matter (real YAML, head-anchored); the strip is
 // the fence-aware line filter the good copies already used.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import matter from 'gray-matter';
 
 /**
@@ -30,6 +32,58 @@ export function pageTitle(data, content, fallback) {
 /** Description from frontmatter, or ''. */
 export function pageDescription(data) {
   return data && data.description != null ? String(data.description) : '';
+}
+
+/**
+ * Inline MDX partials before anything else looks at the page.
+ *
+ * A page's source file is not the page's content. `performance-and-testing.mdx`
+ * imports `node-perf-mixnet.mdx` and renders it as `<NodePerfMixnet />`, so every
+ * sentence in that partial is on the published page and none of it is in the file
+ * the chunker reads. Measured on this repo: 32 partials, 3,393 lines, imported by
+ * 12 pages, none of it indexed. The mixnet performance figures a developer needs
+ * to judge whether a workload fits were entirely invisible to retrieval.
+ *
+ * Partials are plain Markdown, so this needs no rendering: resolve the import,
+ * splice the text in where the tag appears, and let the normal chunking treat it
+ * as part of the page, which is what a reader sees.
+ *
+ * Specifiers are resolved the way the app resolves them: bare paths against the
+ * docs root (tsconfig `baseUrl`), and `./` or `../` against the importing file.
+ * Nesting works and cycles are broken, so a partial may include another.
+ *
+ * @param {string} content   page body, frontmatter already removed
+ * @param {{ filePath: string, root: string, seen?: Set<string> }} opts
+ */
+export function inlineMdxPartials(content, { filePath, root, seen = new Set() }) {
+  const imports = [...content.matchAll(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/gm)];
+  if (imports.length === 0) return content;
+
+  let out = content;
+  for (const [, name, spec] of imports) {
+    const resolved = spec.startsWith('.')
+      ? path.resolve(path.dirname(filePath), spec)
+      : path.resolve(root, spec);
+
+    // A cycle would otherwise recurse until the stack gives out.
+    if (seen.has(resolved) || !fs.existsSync(resolved)) continue;
+
+    const { content: partial } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
+    const nested = inlineMdxPartials(partial, {
+      filePath: resolved,
+      root,
+      seen: new Set([...seen, resolved]),
+    });
+
+    // The tag can appear anywhere, including nested inside another element as
+    // `<MyTab><NodePerfMixnet /></MyTab>`, so this is not a whole-line match.
+    // Blank lines around the splice keep the partial's own headings parseable.
+    out = out.replace(
+      new RegExp(`<${name}\\s*/>`, 'g'),
+      () => `\n\n${nested}\n\n`,
+    );
+  }
+  return out;
 }
 
 /**

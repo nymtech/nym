@@ -13,11 +13,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { parseFrontmatter, pageTitle, pageDescription, stripMdx } from './mdx.mjs';
+import { parseFrontmatter, pageTitle, pageDescription, stripMdx, inlineMdxPartials } from './mdx.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const PAGES_DIR = path.resolve(__dirname, '../../pages');
+// tsconfig baseUrl: bare specifiers like 'components/...' resolve from here.
+export const DOCS_ROOT = path.resolve(__dirname, '../..');
 export const SITE_URL = 'https://nym.com/docs';
 
 // Auto-generated / non-content trees, skipped by every generator.
@@ -72,7 +74,10 @@ export function collectPages(dir = PAGES_DIR, { source = 'nym-docs', expand, val
     if (filePath) {
       const raw = fs.readFileSync(filePath, 'utf-8');
       const { data, content } = parseFrontmatter(raw);
-      const body = stripMdx(content, { expand, values });
+      // Partials first: their text is part of the page, so it must be present
+      // before headings are split and components are expanded.
+      const whole = inlineMdxPartials(content, { filePath, root: DOCS_ROOT });
+      const body = stripMdx(whole, { expand, values });
       if (body.length > 0) {
         pages.push({
           source,

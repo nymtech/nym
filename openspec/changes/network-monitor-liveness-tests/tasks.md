@@ -52,7 +52,7 @@
 
 - [x] 6.1 Replace the unconditional drop of network-monitor final-hop packets in `handle_final_hop` with delivery to a live client session
 - [x] 6.2 Suppress the on-disk fallback for network-monitor final-hop packets: when no session is live, drop and count the packet rather than storing it
-- [ ] 6.3 Add metrics distinguishing a monitor final-hop packet delivered in-session from one dropped for want of a session
+- [x] 6.3 Add metrics distinguishing a monitor final-hop packet delivered in-session from one dropped for want of a session
 - [ ] 6.4 Unit-test both branches of 6.1 and 6.2, asserting that nothing is written to the store on the drop path
 
 ## 7. nym-node: ephemeral unmetered monitor client session

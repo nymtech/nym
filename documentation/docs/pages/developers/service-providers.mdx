@@ -65,87 +65,54 @@ Because the SURB is encrypted by the *sender*, the provider can read nothing fro
 
 See [Anonymous Replies](/network/mixnet-mode/anonymous-replies) for the mechanics, including replenishment and the single-use constraint.
 
-## The receive-and-reply loop
+## Receiving and replying
 
-The whole pattern is one loop. Working examples live in the [`nym-sdk` examples directory](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples); `surb_reply.rs` is the one to read first.
+There is no single shape for this. A provider is a mixnet client that reads incoming messages and answers them, and how you write that depends on which SDK you use and what your clients speak. The runnable examples are the source of truth; the rest of this section is the map.
 
-```rust
-use nym_sdk::mixnet::{
-    AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, StoragePaths,
-};
-use std::path::PathBuf;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Persistent storage, not `MixnetClient::connect_new()`. The convenience
-    // constructor builds an ephemeral client, which generates a fresh identity
-    // on every run: the address you handed out yesterday stops working today.
-    // A service provider has to keep its keys.
-    let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
-    let mut client = MixnetClientBuilder::new_with_default_storage(paths)
-        .await?
-        .build()?
-        .connect_to_mixnet()
-        .await?;
-
-    println!("service provider listening on {}", client.nym_address());
-
-    while let Some(messages) = client.wait_for_messages().await {
-        for msg in messages {
-            // An opaque token derived from the SURBs bundled with the request.
-            // It is what lets us reply without learning the sender's address.
-            let Some(return_to): Option<AnonymousSenderTag> = msg.sender_tag else {
-                // No SURBs attached, so there is no return route. Nothing to do.
-                continue;
-            };
-
-            let response = handle_request(&msg.message).await?;
-            client.send_reply(return_to, response).await?;
-        }
-    }
-    Ok(())
-}
-```
-
-`handle_request` is where your application lives. It runs locally, against a backend that knows nothing about Nym, and its result goes back through the mixnet.
-
-### Three ways a client reaches it
-
-The provider is one half of a conversation, and the other half can be written three ways. Two of them put the same thing on the wire, so the loop above serves both. The third does not.
-
-| Client | What it puts on the wire | Provider side |
+| Example | Side | Shape |
 |---|---|---|
-| [`nym-sdk` mixnet messaging](/developers/rust) (Rust) | discrete mixnet messages | the loop above |
-| [`@nymproject/sdk`](/developers/typescript) (browser TypeScript) | discrete mixnet messages | the loop above |
-| [`nym-sdk` Stream module](/developers/rust) (Rust) | a framed, ordered byte stream | `listener()` / `accept()`, below |
+| [`service-providers/echo-service`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-service) | provider | Rust, a long-running provider that replies to every request over SURBs |
+| [`service-providers/echo-client`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-client) | client | Rust, the other half of the same pair |
+| [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | the smallest possible receive-and-reply, in one file |
+| [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | both | Stream module: `listener()` / `accept()` and `AsyncRead`/`AsyncWrite` |
+| [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | browser TypeScript, raw messaging with `@nymproject/sdk` |
+
+Start with `echo-service` if you want something to run, or `surb_reply.rs` if you want to read the mechanism in one screen.
+
+### What your clients speak decides the provider
+
+The provider is one half of a conversation, and the other half can be written three ways. Two put the same thing on the wire; the third does not.
+
+| Client | On the wire | Provider side |
+|---|---|---|
+| [`nym-sdk` mixnet messaging](/developers/rust) (Rust) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`@nymproject/sdk`](/developers/typescript) (browser TypeScript) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`nym-sdk` Stream module](/developers/rust) (Rust) | a framed, ordered byte stream | `listener()` / `accept()` |
 
 The first two differ only in language. A browser client calls `client.send({ ... })` and subscribes to received events, a Rust client calls `send_message` and `wait_for_messages`, and the provider cannot tell them apart because both produce ordinary mixnet messages carrying SURBs.
 
-The Stream module is a different protocol on top of those messages: it adds sequence numbers, reassembly, and stream framing, so bytes arrive in the order they were written. A provider expecting messages will not understand a stream, and the reverse holds too. **Decide which one your clients use before you write the provider**, because it changes the receive loop:
+The Stream module is a different protocol layered on those messages: sequence numbers, reassembly, and framing, so bytes arrive in the order they were written. A provider expecting messages will not understand a stream, and the reverse holds. `listener()` also activates stream mode and may only be called once per client, so it replaces the message loop rather than sitting beside it. **Decide which your clients use before you write the provider.**
+
+Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers that trade in more detail. A browser client has no Stream option today, so if any of your clients are web-based, messaging is the choice that serves all of them.
+
+### One thing the examples will not warn you about
+
+Most examples build an ephemeral client, because they are throwaway. `MixnetClient::connect_new()` and `MixnetClientBuilder::new_ephemeral()` both generate a fresh identity on every run, which means a **new Nym address every restart**, and every client config holding the old one stops working.
+
+A provider has to keep its keys:
 
 ```rust
-// Stream-shaped provider. `listener()` activates stream mode and may only be
-// called once per client, so this replaces the wait_for_messages loop above
-// rather than sitting alongside it.
-let mut listener = client.listener()?;
-
-while let Some(stream) = listener.accept().await {
-    tokio::spawn(async move {
-        // MixnetStream implements AsyncRead + AsyncWrite, so ordinary tokio I/O
-        // works unchanged and framing comes free from the trait.
-        let (mut reader, mut writer) = tokio::io::split(stream);
-        // ... read a request, write a response
-    });
-}
+let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
+let client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .build()?
+    .connect_to_mixnet()
+    .await?;
 ```
-
-Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers the trade in more detail.
-
-Note that a browser client has no Stream option today, so if any of your clients are web-based, messaging is the choice that serves all three.
 
 ## Your address is only as stable as its gateway
 
-Clients reach a provider by its [Nym address](/network/reference/addressing), the value the sketch prints at startup:
+Clients reach a provider by its [Nym address](/network/reference/addressing), which the examples print on startup:
 
 ```text
 <identity-key>.<encryption-key>@<gateway-identity-key>

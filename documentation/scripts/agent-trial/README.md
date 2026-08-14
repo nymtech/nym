@@ -42,6 +42,9 @@ you know which without reading a line of the transcript.
 |---|---|
 | `mcp.mjs` | Logging MCP client. One call per invocation, appends to the transcript |
 | `phase2-prompt.md` | The integration-decision phase, kept because it is the hardest one to write |
+| `phase2-result.md` | That phase's answer, with its route audit |
+| `wallet-briefing.md` | An open-ended run: one line of context, "I have a desktop Rust wallet and want to use Nym" |
+| `wallet-route-log.md` | The call-by-call trace behind that run's route table |
 | `../../agent-scenarios.md` | The scenario suite: what to ask, and what a good answer contains |
 | `../check-mcp-server.sh` | Automated retrieval checks against a deployment |
 
@@ -130,6 +133,18 @@ a page to be right and unusable.
 - **Dead links between real pages.** `choose-config` deep-links to `#actor-L2`;
   the projected sections were slugified from their own text and resolved
   elsewhere. Citations pointed at anchors that existed only in the index.
+- **A maintenance note served as documentation.** A multi-line `{/* ... */}`
+  addressed to editors reached the index whole. Single-line comments were already
+  stripped, which is why nobody looked at the multi-line case.
+- **No route from a developer to their own worked threat model.** Given only "I
+  have a desktop Rust wallet", an agent reached every topic that mattered, but
+  found `threat-model/examples/wallet` by guessing: nothing under `/developers`
+  linked to it. Its route audit came to 19 guessed queries against 5 followed
+  links.
+- **The exit policy was linked 26 times, 25 of them on operator pages.** The one
+  developer-facing link sat in a mix-fetch migration guide. Whether a destination
+  port can leave the mixnet is the tightest constraint on an integration, and a
+  native Rust developer had no route to it.
 
 ## Limitations
 

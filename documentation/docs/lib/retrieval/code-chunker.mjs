@@ -24,6 +24,9 @@ export function langOf(file) {
   return null;
 }
 
+/** `crate::nyxd::TxResponse` names the type `TxResponse`, not the crate. */
+const lastSegment = (p) => p.split('::').filter(Boolean).pop() ?? '';
+
 /**
  * The type an `impl` block is about. The generic list has to be skipped by
  * counting angle brackets rather than matched, because it nests
@@ -35,7 +38,9 @@ function implTarget(line) {
   if (!at) return '';
   let j = at.index + 4;
   while (j < line.length && /\s/.test(line[j])) j++;
+  let generics = '';
   if (line[j] === '<') {
+    const open = j;
     let depth = 0;
     for (; j < line.length; j++) {
       if (line[j] === '<') depth++;
@@ -44,12 +49,29 @@ function implTarget(line) {
         break;
       }
     }
+    generics = line.slice(open, j);
   }
-  const rest = line.slice(j);
-  const forImpl = rest.match(/\bfor\s+(?:&\s*)?(?:'[A-Za-z0-9_]+\s+)?(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)/);
-  if (forImpl) return forImpl[1];
-  const head = rest.match(/([A-Za-z_][A-Za-z0-9_]*)/);
-  return head ? head[1] : '';
+  // Type parameters declared by this impl. Lifetimes never match, since `'` is
+  // not a leading identifier character.
+  const declared = new Set(
+    [...generics.matchAll(/(?:^|[<,])\s*(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]),
+  );
+  // Stop at the body or a trailing comment. `impl Foo { // for Bar` otherwise
+  // reads the comment's `for` and names the block after Bar.
+  let rest = line.slice(j);
+  const stop = rest.search(/\{|\/\//);
+  if (stop !== -1) rest = rest.slice(0, stop);
+
+  const forImpl = rest.match(/\bfor\s+(?:&\s*)?(?:'[A-Za-z0-9_]+\s+)?(?:mut\s+)?([A-Za-z_][A-Za-z0-9_:]*)/);
+  if (forImpl) {
+    const target = lastSegment(forImpl[1]);
+    // `impl<C> DkgQueryClient for C` is a blanket impl over a type parameter.
+    // The parameter is not a name anyone searches for, so fall through to the
+    // trait, which is what the block is actually about.
+    if (!declared.has(target)) return target;
+  }
+  const head = rest.match(/([A-Za-z_][A-Za-z0-9_:]*)/);
+  return head ? lastSegment(head[1]) : '';
 }
 
 /** Best-effort symbol name from a boundary line, for the chunk heading. */
@@ -58,6 +80,10 @@ export function symbolOf(line, lang) {
     const m = line.match(TS_ITEM);
     return m ? m[1] : '';
   }
+  // impl first: an impl line can carry an item keyword inside its generic list
+  // (`impl<const N: usize>`), and the keyword branch below would then name the
+  // block after the generic parameter.
+  if (/^\s*(?:default\s+)?(?:unsafe\s+)?impl\b/.test(line)) return implTarget(line);
   // rust: the identifier after the item keyword. The negative lookahead makes
   // `const fn foo` bind to `fn` rather than capturing `fn` as the name of a
   // const; `mut` is consumed so `static mut BUF` still yields `BUF`.

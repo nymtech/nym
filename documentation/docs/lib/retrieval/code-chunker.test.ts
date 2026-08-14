@@ -106,6 +106,12 @@ describe('symbolOf: rust', () => {
     ["impl<'de> Deserialize<'de> for Recipient {", 'Recipient', 'was de'],
     ['const fn v1_reply_surb_serialised_len() -> usize {', 'v1_reply_surb_serialised_len', 'was fn'],
     ['impl<T: Into<String>> Wrapper<T> {', 'Wrapper', 'nested generics must not end the skip early'],
+    ['impl CheckResponse for crate::nyxd::TxResponse {', 'TxResponse', 'was crate, the path root'],
+    ['impl TendermintRpcErrorMap for reqwest::Error {', 'Error', 'was reqwest, the path root'],
+    ['impl<const N: usize> Foo<N> {', 'Foo', 'was N; a const generic is not the target'],
+    ['impl Foo { // for Bar', 'Foo', 'a trailing comment must not supply the `for` target'],
+    ['unsafe impl Send for X {}', 'X', 'the unsafe prefix must not block the impl branch'],
+    ['impl<C> DkgQueryClient for C where C: CosmWasmClient {', 'DkgQueryClient', 'blanket impl: name it after the trait, not the parameter'],
   ];
 
   for (const [line, expected, why] of cases) {

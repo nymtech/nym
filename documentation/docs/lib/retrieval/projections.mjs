@@ -94,9 +94,18 @@ function matrixRows(matrix) {
     .join('\n');
 }
 
-function projectScenario(s) {
+/**
+ * `heading` controls whether the projection opens its own `## <title>` section.
+ *
+ * It must not, when the trigger is a component that sits mid-section. A synthetic
+ * H2 becomes a section boundary for the chunker, so every paragraph between it and
+ * the next real heading is re-filed under it. On `/developers` that put the text
+ * about traffic past the Exit Gateway under a heading reading "no exit gateway",
+ * which is worse than not indexing the diagram at all.
+ */
+function projectScenario(s, { heading = true } = {}) {
   if (!s) return '';
-  const lines = [`## ${s.title}`, '', s.summary, ''];
+  const lines = heading ? [`## ${s.title}`, '', s.summary, ''] : [s.summary, ''];
   if (s.topology?.caption) lines.push(s.topology.caption, '');
   if (s.matrix) lines.push('Verdicts by property and actor:', '', matrixRows(s.matrix), '');
   for (const a of list(s.actorAssessment)) {
@@ -151,10 +160,13 @@ export async function loadProjections() {
       // once per page and letting the first one win avoids repeating it.
       // NetworkDiagram counts: its topology caption is prose that only exists
       // in the data, so a page whose only scenario component is the diagram
-      // contributed nothing about the route it draws.
+      // contributed nothing about the route it draws. It projects without a
+      // heading, because unlike the other three it appears mid-section.
       if (!ctx.scenarioId || ctx.scenarioProjected) return null;
       ctx.scenarioProjected = true;
-      return projectScenario(scenarioById.get(ctx.scenarioId));
+      return projectScenario(scenarioById.get(ctx.scenarioId), {
+        heading: tagName !== 'NetworkDiagram',
+      });
     }
     return null;
   };

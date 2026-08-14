@@ -53,7 +53,7 @@
 - [x] 6.1 Replace the unconditional drop of network-monitor final-hop packets in `handle_final_hop` with delivery to a live client session
 - [x] 6.2 Suppress the on-disk fallback for network-monitor final-hop packets: when no session is live, drop and count the packet rather than storing it
 - [x] 6.3 Add metrics distinguishing a monitor final-hop packet delivered in-session from one dropped for want of a session
-- [ ] 6.4 Unit-test both branches of 6.1 and 6.2, asserting that nothing is written to the store on the drop path
+- [x] 6.4 Unit-test the fallback decision at the `SharedFinalHopData` level, over an in-memory gateway store with an empty active-clients store: a monitor packet with no live session is dropped and the store is left untouched, and an ordinary packet with no live session is still stored. The delivered branch is deliberately NOT covered, because registering a client in `ActiveClientsStore` from nym-node would need `insert_remote` and the `message_receiver` channel types made public in the gateway crate, which is disproportionate for a one-line early return whose behaviour belongs entirely to `try_push_message_to_client`
 
 ## 7. nym-node: ephemeral unmetered monitor client session
 

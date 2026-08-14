@@ -103,6 +103,40 @@ async fn main() -> anyhow::Result<()> {
 
 `handle_request` is where your application lives. It runs locally, against a backend that knows nothing about Nym, and its result goes back through the mixnet.
 
+### Three ways a client reaches it
+
+The provider is one half of a conversation, and the other half can be written three ways. Two of them put the same thing on the wire, so the loop above serves both. The third does not.
+
+| Client | What it puts on the wire | Provider side |
+|---|---|---|
+| [`nym-sdk` mixnet messaging](/developers/rust) (Rust) | discrete mixnet messages | the loop above |
+| [`@nymproject/sdk`](/developers/typescript) (browser TypeScript) | discrete mixnet messages | the loop above |
+| [`nym-sdk` Stream module](/developers/rust) (Rust) | a framed, ordered byte stream | `listener()` / `accept()`, below |
+
+The first two differ only in language. A browser client calls `client.send({ ... })` and subscribes to received events, a Rust client calls `send_message` and `wait_for_messages`, and the provider cannot tell them apart because both produce ordinary mixnet messages carrying SURBs.
+
+The Stream module is a different protocol on top of those messages: it adds sequence numbers, reassembly, and stream framing, so bytes arrive in the order they were written. A provider expecting messages will not understand a stream, and the reverse holds too. **Decide which one your clients use before you write the provider**, because it changes the receive loop:
+
+```rust
+// Stream-shaped provider. `listener()` activates stream mode and may only be
+// called once per client, so this replaces the wait_for_messages loop above
+// rather than sitting alongside it.
+let mut listener = client.listener()?;
+
+while let Some(stream) = listener.accept().await {
+    tokio::spawn(async move {
+        // MixnetStream implements AsyncRead + AsyncWrite, so ordinary tokio I/O
+        // works unchanged and framing comes free from the trait.
+        let (mut reader, mut writer) = tokio::io::split(stream);
+        // ... read a request, write a response
+    });
+}
+```
+
+Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers the trade in more detail.
+
+Note that a browser client has no Stream option today, so if any of your clients are web-based, messaging is the choice that serves all three.
+
 ## Your address is only as stable as its gateway
 
 Clients reach a provider by its [Nym address](/network/reference/addressing), the value the sketch prints at startup:

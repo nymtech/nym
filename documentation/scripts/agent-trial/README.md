@@ -60,13 +60,18 @@ receives the retrieved sections and nothing else. The script is on branch
 `curl` cannot do TLS in the sandboxed environment (no CA bundle under `/etc`), so
 the client uses node's `fetch`, which carries its own root certificates.
 
-```bash
-cd documentation/scripts/agent-trial
+**Invoke it by absolute path.** The script resolves its own token and transcript
+paths correctly wherever it runs, but `node mcp.mjs` from the wrong directory
+fails with `MODULE_NOT_FOUND` before any of that, and a calling agent reads the
+empty output as a documentation gap rather than a shell mistake. One trial
+transcript carries two blank search results for exactly this reason. Tell the
+agent the full path.
 
-node mcp.mjs --list
-node mcp.mjs search_docs '{"query":"how do I send a message","topK":6}'
-node mcp.mjs search_code '{"query":"MixnetClient connect_new","topK":6}'
-node mcp.mjs get_section '{"ref":"<a URL returned by search_docs>"}'
+```bash
+node /home/m/dev/work/nym/documentation/scripts/agent-trial/mcp.mjs --list
+node .../mcp.mjs search_docs '{"query":"how do I send a message","topK":6}'
+node .../mcp.mjs search_code '{"query":"MixnetClient connect_new","topK":6}'
+node .../mcp.mjs get_section '{"ref":"<a URL returned by search_docs>"}'
 ```
 
 Against a protected Vercel preview it reads a bypass token from `.bypass` at the

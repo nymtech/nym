@@ -44,6 +44,7 @@ if (!tool) {
   process.exit(2);
 }
 
+
 const body =
   tool === '--list'
     ? { jsonrpc: '2.0', id: 1, method: 'tools/list' }

@@ -71,11 +71,35 @@ describe('retrieval tools', () => {
   it('get_section reports a miss cleanly', async () => {
     expect(await runText('get_section', { ref: 'nope' })).toContain('No section');
   });
+
+  it('search_docs rejects an oversized query instead of embedding it', async () => {
+    const res = await tool('search_docs').handler({ query: 'x'.repeat(4001) });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('4000');
+  });
+
+  it('search_docs rejects an empty query', async () => {
+    const res = await tool('search_docs').handler({ query: '   ' });
+    expect(res.isError).toBe(true);
+  });
+
+  it('search_docs accepts a query at the limit', async () => {
+    const res = await tool('search_docs').handler({ query: 'x'.repeat(4000), topK: 1 });
+    expect(res.isError).toBeUndefined();
+  });
 });
 
 describe('live tools', () => {
-  it('network_summary formats the gateway split', async () => {
-    expect(await runText('network_summary')).toBe('802 nodes total. Gateways: 558 bonded (80 entry, 100 exit). Mixnodes: 59 bonded.');
+  it('network_summary reports the counts flat, and says they do not sum', async () => {
+    const out = await runText('network_summary');
+    for (const n of ['802 total', '558 gateways', '59 mixnodes', '80 entry', '100 exit']) {
+      expect(out).toContain(n);
+    }
+    expect(out).toMatch(/do not sum/);
+    // The old phrasing nested entry/exit inside the gateway count, which reads as
+    // a breakdown. 80 + 100 is not 558 and 558 + 59 is not 802, so any nesting
+    // invites an agent to compute a figure that is wrong.
+    expect(out).not.toContain('558 bonded (');
   });
 
   it('circulating_supply converts unym to NYM', async () => {

@@ -62,7 +62,7 @@ After connecting, ask the agent to list the server's tools to confirm the connec
 | `search_docs` | `query` (string, required); `topK` (number, default 6) | Ranked documentation excerpts, each with its section heading and a deep-link URL. Use first for any "how do I / what is" question. |
 | `get_section` | `ref` (string, required) - a chunk id or deep-link URL from `search_docs` | The full text of one section, for when a search excerpt is truncated. |
 | `search_code` | `query` (string, required); `topK` (number, default 6) | Ranked excerpts from selected Nym source (SDK, wasm, Sphinx, smolmix crates and examples), each with a GitHub deep link. Use when the question is about implementation rather than documented behaviour. |
-| `network_summary` | none | Live counts of bonded nym-nodes: total, mixnodes, and gateways (entry/exit split). |
+| `network_summary` | none | Live counts of bonded nym-nodes: total, gateways, mixnodes, entry and exit. These are independent counts reported by the Node Status API, not a breakdown, so they overlap and do not sum to the total. |
 | `circulating_supply` | none | Live circulating and total NYM token supply. |
 | `chain_status` | none | Live Nyx chain connection status as seen by the Nym API. |
 | `list_gateways` | `page` (number, default 0); `size` (number, default 20) | A page of bonded gateways with performance and routing scores. |

@@ -8,14 +8,6 @@ jobs:
     runs-on: arc-ubuntu-22.04
     env:
       NEXT_PUBLIC_SITE_URL: https://nym.com/docs
-      # Build-time index embedding (generate-index.mjs and generate-code-index.mjs).
-      # Runtime keys (query embedding + Claude generation) come from the Vercel
-      # project env via `vercel pull`, not from here.
-      VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
-      # This job publishes, so a missing key must fail it rather than ship an index
-      # with no vectors that returns nothing for every query. Check-only workflows
-      # build without the key on purpose and are unaffected.
-      REQUIRE_EMBEDDINGS: "1"
     defaults:
       run:
         working-directory: documentation/docs
@@ -65,8 +57,20 @@ jobs:
             nym-embed-
       - name: Generate llms-full.txt
         run: pnpm run generate:llms
+      # The embedding key is set per build step rather than on the job, so it is not
+      # in the environment for `cargo build`, `pnpm i`, `npm install -g vercel` or the
+      # third-party actions, all of which execute code from outside this repo.
+      # Both this step and the `vercel build` steps below can run the index
+      # generators, so all three need it. Runtime query embedding is separate and
+      # comes from the Vercel project env via `vercel pull`.
       - name: Build project
         run: pnpm run build
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          # This job publishes, so a missing key must fail it rather than ship an index
+          # with no vectors that returns nothing for every query. Check-only workflows
+          # build without the key on purpose and are unaffected.
+          REQUIRE_EMBEDDINGS: "1"
       - name: Generate sitemap
         run: npx next-sitemap
       - name: Move files to /dist/
@@ -99,11 +103,17 @@ jobs:
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
         continue-on-error: false
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
       - name: Build Project Artifacts (production)
         if: github.ref == 'refs/heads/master'
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
         continue-on-error: false
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
 
       - name: Deploy Project Artifacts to Vercel (preview)
         if: github.ref != 'refs/heads/master'

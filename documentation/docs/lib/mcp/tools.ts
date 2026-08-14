@@ -60,6 +60,26 @@ function safe(fn: (args: any) => Promise<McpToolResult>) {
   };
 }
 
+// The endpoint is public and every search spends an embedding call, so an
+// unbounded query is a way to run up someone else's bill. Generous enough that a
+// pasted stack trace or error block still works. Rejected rather than truncated:
+// a silently shortened query embeds to a different vector and returns confidently
+// wrong neighbours, which is worse than an error the agent can read and act on.
+const MAX_QUERY_CHARS = 4000;
+
+function checkedQuery(query: string): string {
+  if (typeof query !== 'string' || !query.trim()) {
+    throw new Error('query must be a non-empty string.');
+  }
+  if (query.length > MAX_QUERY_CHARS) {
+    throw new Error(
+      `query is ${query.length} characters; the limit is ${MAX_QUERY_CHARS}. ` +
+        'Search with the specific phrase or symbol you are looking for rather than a whole file.',
+    );
+  }
+  return query;
+}
+
 export function createTools(deps: ToolDeps): McpTool[] {
   const nym = deps.nym ?? nymApi;
 
@@ -77,7 +97,7 @@ export function createTools(deps: ToolDeps): McpTool[] {
         required: ['query'],
       },
       handler: safe(async ({ query, topK = 6 }) => {
-        const vec = await deps.embedQuery(query);
+        const vec = await deps.embedQuery(checkedQuery(query));
         const hits = search(vec, deps.index, { topK }); // MCP sees all sources
         if (!hits.length) return text(`No documentation matched "${query}".`);
         return text(
@@ -103,13 +123,22 @@ export function createTools(deps: ToolDeps): McpTool[] {
     },
     {
       name: 'network_summary',
-      description: 'Live counts of bonded nym-nodes: total nodes, mixnodes, and gateways (entry/exit split).',
+      description:
+        'Live counts of bonded nym-nodes from the Node Status API: total, gateways, mixnodes, entry and exit. The counts are independent and do not sum to the total.',
       inputSchema: { type: 'object', properties: {} },
       handler: safe(async () => {
         const s = await nym.getNetworkSummary();
         const g = s.gateways.bonded;
+        // Reported flat, with no figure nested inside another. The previous
+        // phrasing read `603 bonded (80 entry, 100 exit)`, which asserts a
+        // breakdown the upstream numbers do not support: they are independent
+        // counts and do not sum to the total.
         return text(
-          `${s.total_nodes} nodes total. Gateways: ${g.count} bonded (${g.entry} entry, ${g.exit} exit). Mixnodes: ${s.mixnodes.bonded.count} bonded.`,
+          `Bonded nym-nodes, as reported by the Node Status API: ` +
+            `${s.total_nodes} total, ${g.count} gateways, ${s.mixnodes.bonded.count} mixnodes, ` +
+            `${g.entry} entry, ${g.exit} exit. ` +
+            `These are independent counts rather than a breakdown of the total: they overlap ` +
+            `and do not sum. Do not derive figures from them by arithmetic.`,
         );
       }),
     },
@@ -200,12 +229,12 @@ export function createTools(deps: ToolDeps): McpTool[] {
               required: ['query'],
             },
             handler: safe(async ({ query, topK = 6 }) => {
-              const vec = await deps.embedCode!(query);
+              const vec = await deps.embedCode!(checkedQuery(query));
               const hits = search(vec, deps.codeIndex!, { topK });
               if (!hits.length) return text(`No source code matched "${query}".`);
               return text(
                 hits
-                  .map((h) => `## ${h.chunk.title}${h.chunk.heading ? ` — ${h.chunk.heading}` : ''}\n${h.chunk.url}\n\n\`\`\`\n${h.chunk.text}\n\`\`\``)
+                  .map((h) => `## ${h.chunk.title}${h.chunk.heading ? `: ${h.chunk.heading}` : ''}\n${h.chunk.url}\n\n\`\`\`\n${h.chunk.text}\n\`\`\``)
                   .join('\n\n---\n\n'),
               );
             }),

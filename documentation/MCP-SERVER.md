@@ -116,7 +116,7 @@ Both indexes are small enough to ship with the app and load into memory on cold 
 | Index | Chunks | Dimensions | Model | On disk |
 |---|---|---|---|---|
 | `docs-index.json` | 1,427 | 1024 | `voyage-3-large` | 19.7 MB |
-| `code-index.json` | 6,861 | 1024 | `voyage-code-3` | 94.6 MB |
+| `code-index.json` | 7,108 | 1024 | `voyage-code-3` | 94 MB |
 
 Almost all of that is the vectors, and most of the vector bytes are serialisation overhead rather than information. Per chunk, the 1,024 numbers occupy 12,697 bytes written as JSON text, against 688 bytes for the id, URL, headings and the chunk text together. So the vectors are 95% of the file, and the text they were derived from is 5%.
 

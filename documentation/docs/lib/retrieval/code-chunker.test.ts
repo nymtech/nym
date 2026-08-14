@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain ESM JS module, no type declarations
-import { chunkCode, chunkCodeFile, langOf } from './code-chunker.mjs';
+import { chunkCode, chunkCodeFile, langOf, symbolOf } from './code-chunker.mjs';
 
 describe('langOf', () => {
   it('detects rust and typescript, skips the rest', () => {
@@ -95,5 +95,45 @@ describe('chunkCodeFile', () => {
 
   it('returns nothing for non-code files', () => {
     expect(chunkCodeFile('# readme', 'a/b.md')).toEqual([]);
+  });
+});
+
+describe('symbolOf: rust', () => {
+  const cases: [string, string, string][] = [
+    ['impl<C> TlsWrap<C> {', 'TlsWrap', 'was C, the generic parameter'],
+    ['impl<C, S> Service<Uri> for TlsWrap<C>', 'TlsWrap', 'was C; takes the type after `for`'],
+    ["impl<'a, St> BandwidthImporter<'a, St>", 'BandwidthImporter', "was a, from the lifetime 'a"],
+    ["impl<'de> Deserialize<'de> for Recipient {", 'Recipient', 'was de'],
+    ['const fn v1_reply_surb_serialised_len() -> usize {', 'v1_reply_surb_serialised_len', 'was fn'],
+    ['impl<T: Into<String>> Wrapper<T> {', 'Wrapper', 'nested generics must not end the skip early'],
+  ];
+
+  for (const [line, expected, why] of cases) {
+    it(`${line.slice(0, 46)} -> ${expected} (${why})`, () => {
+      expect(symbolOf(line, 'rust')).toBe(expected);
+    });
+  }
+
+  // Lines the old regex already handled. The fix must not regress them.
+  const unchanged: [string, string][] = [
+    ['pub mod v2;', 'v2'],
+    ['pub fn new(config: Config) -> Self {', 'new'],
+    ['pub struct MixnetClient {', 'MixnetClient'],
+    ['static mut BUFFER: [u8; 32] = [0; 32];', 'BUFFER'],
+    ['const MAX_HOPS: usize = 5;', 'MAX_HOPS'],
+    ['impl Default for Config {', 'Config'],
+    ['pub trait Transport {', 'Transport'],
+  ];
+
+  for (const [line, expected] of unchanged) {
+    it(`unchanged: ${line.slice(0, 40)} -> ${expected}`, () => {
+      expect(symbolOf(line, 'rust')).toBe(expected);
+    });
+  }
+});
+
+describe('symbolOf: typescript', () => {
+  it('keeps $ as a name, since it is one', () => {
+    expect(symbolOf('const $ = <T extends HTMLElement>(id: string): T => {', 'typescript')).toBe('$');
   });
 });

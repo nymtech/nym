@@ -24,15 +24,47 @@ export function langOf(file) {
   return null;
 }
 
+/**
+ * The type an `impl` block is about. The generic list has to be skipped by
+ * counting angle brackets rather than matched, because it nests
+ * (`impl<T: Into<String>> ...`). What remains is either `Type` or
+ * `Trait for Type`, and the concrete type is the useful name in both.
+ */
+function implTarget(line) {
+  const at = line.match(/\bimpl\b/);
+  if (!at) return '';
+  let j = at.index + 4;
+  while (j < line.length && /\s/.test(line[j])) j++;
+  if (line[j] === '<') {
+    let depth = 0;
+    for (; j < line.length; j++) {
+      if (line[j] === '<') depth++;
+      else if (line[j] === '>' && --depth === 0) {
+        j++;
+        break;
+      }
+    }
+  }
+  const rest = line.slice(j);
+  const forImpl = rest.match(/\bfor\s+(?:&\s*)?(?:'[A-Za-z0-9_]+\s+)?(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)/);
+  if (forImpl) return forImpl[1];
+  const head = rest.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+  return head ? head[1] : '';
+}
+
 /** Best-effort symbol name from a boundary line, for the chunk heading. */
-function symbolOf(line, lang) {
+export function symbolOf(line, lang) {
   if (lang === 'typescript') {
     const m = line.match(TS_ITEM);
     return m ? m[1] : '';
   }
-  // rust: grab the identifier after the keyword
-  const m = line.match(/\b(?:fn|struct|enum|trait|mod|type|static|const)\s+([A-Za-z0-9_]+)/) || line.match(/\bimpl\b[^{]*?\b([A-Za-z0-9_]+)/);
-  return m ? m[1] : '';
+  // rust: the identifier after the item keyword. The negative lookahead makes
+  // `const fn foo` bind to `fn` rather than capturing `fn` as the name of a
+  // const; `mut` is consumed so `static mut BUF` still yields `BUF`.
+  const m = line.match(
+    /\b(?:fn|struct|enum|trait|mod|type|static|const)\s+(?:mut\s+)?(?!fn\b|unsafe\b|extern\b|async\b)([A-Za-z_][A-Za-z0-9_]*)/,
+  );
+  return m ? m[1] : implTarget(line);
 }
 
 function isBoundary(line, lang) {

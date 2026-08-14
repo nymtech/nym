@@ -1,0 +1,132 @@
+---
+title: "What Nym Cannot Do: Limits and Unsuitable Workloads"
+description: "The workloads the mixnet cannot serve, the throughput and latency it costs by default, and what stays the application's responsibility. Read this before choosing Nym for a project."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-14"
+---
+
+# What Nym cannot do
+
+import { Callout } from 'nextra/components'
+
+This page exists so you can rule Nym out quickly. Deciding in the first hour is a
+better outcome than deciding after three weeks of integration.
+
+Everything below is a default or a property of the design, not a benchmark. No
+latency figures are quoted because none are measured; where a number appears it
+comes from a configuration constant, and the source is named.
+
+## Is my workload a fit?
+
+| You want to | Mixnet | dVPN | Why |
+|---|---|---|---|
+| Fetch a page, call an API, submit a transaction | Yes | Yes | Small independent requests are the strong case |
+| Send messages between two parties | Yes | No | End to end, no exit gateway, and dVPN has no notion of a peer |
+| Light-client sync: compact blocks, small repeated requests | Yes | Yes | Small and independent, even though there are many |
+| Download a large file, sync a whole chain | No | Yes | Bulk transfer is the weakest case, see below |
+| Stream video, run a voice or video call | No | Yes | Sustained throughput above what the default rate allows |
+| Real-time gameplay, live position updates between players | No | No | Delay is the mechanism, and dVPN is not a peer transport |
+| Anything needing a round-trip budget of well under a second | No | Maybe | Per-hop mixing delay is not tunable without removing the protection |
+
+"dVPN" means [dVPN mode](/network/dvpn-mode), reached from Rust through
+[`nym-smoldvpn`](/developers/smoldvpn). It hides your IP at line rate and splits
+trust across two operators. It provides **no in-transit timing protection**, so
+it is a different product rather than a faster mixnet.
+
+<Callout type="warning">
+dVPN is a tunnel to a destination. It does not connect two peers to each other,
+so it does not rescue real-time traffic between two clients. If that is your
+workload, neither mode fits and you should know that now.
+</Callout>
+
+## The default sending rate
+
+A client paces its own sending. By default it emits, per second:
+
+- **50 real packets**, one every 20 ms on average
+- **5 loop cover packets**, one every 200 ms on average
+
+That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload,
+so the ceiling is on the order of **100 KB/s**. It is sent *constantly*, whether
+or not you have anything to say. The constants are
+`DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and
+`DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in
+[`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
+
+**These are configuration, not physics.** A client built through the SDK can
+change every one of them. What follows from them, though, is not negotiable.
+
+### It costs the same when idle
+
+When there is nothing real to send, the client sends cover packets instead: same
+size, same rate, same Sphinx processing. An idle service pays nearly the full
+bandwidth and compute bill of a busy one, continuously, for as long as it is up.
+
+### Capacity is a budget, not a limit you discover
+
+Every reply to every client comes out of the same real-packet budget. One client
+can only serve so many peers. Measure your reply sizes and provision more mixnet
+clients when the budget runs out, rather than assuming it scales.
+
+### Turning the pacing off has a cost
+
+`disable_main_poisson_packet_distribution` and
+`disable_loop_cover_traffic_stream` exist and will reduce the burden on your
+machine. Without them the shape of your traffic starts to reflect your real
+activity, which is the property you came for. Changing mode is an honest response
+to a throughput problem; detuning the mixnet is not.
+
+## Why bulk transfer is the weak case
+
+Two separate reasons, and the second is the one that matters.
+
+The **throughput ceiling** above makes a large download slow. That is an
+inconvenience.
+
+The **anonymity** is weaker too. The mixnet is strongest for small, independent
+messages. A long sustained flow gives a network observer a great deal of
+correlated material to work with. How far such flows can be correlated over time
+is an open question rather than a settled one. So bulk transfer is both the
+slowest thing you can do and the thing the protection covers least well.
+
+## Latency is the mechanism
+
+Each mix node holds a packet for an average of 15 ms
+(`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops.
+Reordering is what breaks the link between a packet entering the network and a
+packet leaving it. Remove the delay and you remove the protection: there is
+nothing to tune, because the delay *is* the product.
+
+This is why interactive workloads do not fit. It is not an implementation that
+will improve.
+
+## What the transport never does
+
+Nym protects network-level metadata. It does not make an application private.
+
+- **Application-layer identity.** Logins, session cookies, API tokens, account
+  identifiers and the contents of a request reach the destination exactly as you
+  sent them. See [the two-layer model](/network/threat-model/two-layer-model).
+- **Request patterns.** What you ask for and when you ask for it is visible to
+  the destination whatever the transport. Closing that is
+  [baseline hygiene](/developers/swizzle), and it is your responsibility.
+- **A fixed exit is a linking key.** Requests through one exit gateway stay
+  linkable to each other at the destination. Rotate the exit per request to
+  restore [request unlinkability](/network/threat-model/properties).
+
+## There is no address discovery
+
+Deliberately. Clients should not be enumerable, so there is no directory, no DHT
+and no lookup service for Nym addresses. Addresses are exchanged out of band: an
+application ships its service provider's address in its configuration rather than
+resolving it at runtime.
+
+If your design assumes clients can find each other by name, that mechanism is
+yours to build.
+
+## If none of this rules you out
+
+Start at [choose a defence](/network/threat-model/choose-config) to pick a
+configuration from your threat model, then [the developer front
+door](/developers) to map that configuration to a package.

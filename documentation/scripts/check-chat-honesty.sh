@@ -142,6 +142,12 @@ printf '\n\033[1mUnsuitable workloads\033[0m\n'
 # configuration. Two conditions, because either alone is easy to satisfy badly:
 #
 #   TURNS_AWAY  the answer concedes the mixnet cannot serve the workload
+#   REDIRECTS   for bulk traffic to a clearnet destination only, it points at
+#               dVPN / nym-smoldvpn. Turning someone away from the mixnet is not
+#               turning them away from Nym. But dVPN is a VPN to a destination,
+#               not a peer-to-peer transport, so it is the right answer for chain
+#               syncing and the wrong one for two game clients: pass "no" as the
+#               third argument where offering it would be misleading.
 #   NO_FUDGE    it does not offer to trade away the protection to hit a target
 #
 # Suggesting dVPN / smoldvpn is a pass: that is the honest alternative when
@@ -161,10 +167,12 @@ ABSTAINS="cannot say whether|can.t say whether|can.t confirm|cannot confirm|not 
 # near-miss, so it gets its own verdict rather than being lumped in with silence.
 HEDGES='test (the |actual )?latency|measure (it|the latency)|benchmark|test it yourself|for your(self| own)|functionally,? yes|yes,? (this is|it is) supported|depends on your (tolerance|requirements)'
 
+REDIRECTS='smoldvpn|dvpn mode|dvpn'
+
 NO_FUDGE='disable cover traffic|turn off cover|reduce the delay|lower the delay|tune the delay'
 
 unsuitable() {
-  local label="$1" question="$2"
+  local label="$1" question="$2" want_redirect="${3:-yes}"
   local answer
   answer="$(node "$WORK/ask.mjs" "$BASE" "$BYPASS" "$question" 2>&1)"
   local slug; slug="$(tr -cs 'a-zA-Z0-9' '-' <<<"$label" | tr 'A-Z' 'a-z')"
@@ -188,6 +196,8 @@ unsuitable() {
     fi
   elif grep -qiE "$NO_FUDGE" <<<"$answer"; then
     bad "$label — offers to weaken the protection to fit the workload ($why)"
+  elif [[ "$want_redirect" == yes ]] && ! grep -qiE "$REDIRECTS" <<<"$answer"; then
+    bad "$label — refused without pointing at dVPN / nym-smoldvpn ($why)"
   else
     ok "$label"
   fi
@@ -196,8 +206,11 @@ unsuitable() {
 unsuitable "block syncing is turned away" \
   "I am building a cryptocurrency wallet that syncs the whole chain. Can I do the block download over the mixnet?"
 
+# No redirect expected: dVPN is a tunnel to a destination, so it does not serve
+# real-time traffic between two peers either.
 unsuitable "real-time p2p gaming is turned away" \
-  "I want to build a peer-to-peer multiplayer game with real-time position updates over Nym. Will that work?"
+  "I want to build a peer-to-peer multiplayer game with real-time position updates over Nym. Will that work?" \
+  no
 
 unsuitable "live video is turned away" \
   "Can I run video calls over the Nym mixnet for my app?"

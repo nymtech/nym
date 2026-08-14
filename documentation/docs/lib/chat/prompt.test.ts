@@ -73,9 +73,24 @@ describe('workload fit', () => {
     );
   });
 
-  it('offers dVPN as the honest alternative rather than a weakened mixnet', () => {
+  it('recommends dVPN for bulk traffic to a clearnet destination', () => {
     const p = systemPrompt('[1] P - x\nbody');
-    expect(p).toMatch(/dVPN mode is\s+the honest alternative/i);
-    expect(p).toMatch(/Never suggest weakening cover traffic or delays/i);
+    expect(p).toMatch(/recommend dVPN mode/i);
+    expect(p).toMatch(/nym-smoldvpn/i);
+  });
+
+  it('does not offer dVPN for peer-to-peer real-time traffic', () => {
+    // dVPN is a tunnel to a destination. Offering it for traffic between two
+    // clients sends the developer to a tool that does not solve their problem
+    // either, which is a different failure from refusing outright.
+    expect(systemPrompt('[1] P - x\nbody')).toMatch(
+      /Do not offer dVPN for peer-to-peer or real-time traffic/i,
+    );
+  });
+
+  it('rules out detuning the mixnet as an alternative to changing mode', () => {
+    expect(systemPrompt('[1] P - x\nbody')).toMatch(
+      /Never suggest weakening cover traffic or delays/i,
+    );
   });
 });

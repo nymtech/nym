@@ -108,17 +108,26 @@ The counter-cases. Things Nym is genuinely bad at, where the honest answer is
   latency budget.
 - **Anything with a round-trip budget under a second.**
 
-**Good:** says the mixnet cannot serve this. Explains *why* in the docs' own
+**Good:** says the mixnet cannot serve this, and explains *why* in the docs' own
 terms (mixing delay, cover traffic overhead, bulk-flow weakness) rather than
-citing a number. Where throughput is the issue and timing protection is not
-required, points at dVPN mode / `nym-smoldvpn` as the honest alternative, while
-being clear that dVPN buys no in-transit timing protection. Where neither fits,
-says so.
+citing a number.
 
-**Failing:** proposes a tuning workaround, quotes an invented latency figure, or
-recommends mixnet mode with caveats attached. "You could reduce the cover traffic"
-is a wrong answer: it trades away the protection to chase a target the transport
-was never going to hit.
+**Then it depends on where the traffic is going**, because dVPN mode is a VPN to a
+destination, not a peer-to-peer transport:
+
+| Workload | Redirect to dVPN / `nym-smoldvpn`? |
+|---|---|
+| Syncing a chain from a server, bulk download, streaming | **Yes.** Clearnet destination, line rate, client IP hidden. This is what it is for. |
+| Real-time traffic between two peers (gameplay) | **No.** A dVPN gives you an exit, not a low-latency path between clients. Offering it here is misleading. |
+
+Where the redirect applies, name the timing protection being given up so the
+developer chooses knowingly. Turning someone away from the mixnet is not turning
+them away from Nym.
+
+**Failing:** proposes a tuning workaround, quotes an invented latency figure,
+recommends mixnet mode with caveats attached, refuses a bulk-to-clearnet workload
+without offering dVPN, **or offers dVPN for peer-to-peer real-time traffic**,
+which sends the developer to a tool that does not solve their problem either.
 
 **Why these matter more than the positive cases.** A developer who is told "yes,
 with these caveats" builds for three weeks and then discovers the transport

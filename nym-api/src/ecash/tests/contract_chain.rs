@@ -54,6 +54,7 @@ use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, ContractTe
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
+use nym_validator_client::coconut::usable_ecash_api_clients;
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Fee};
@@ -626,12 +627,11 @@ impl Client for ContractChainClient {
     }
 
     async fn get_registered_ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
-        Ok(self
-            .get_verification_key_shares(epoch_id)
-            .await?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<std::result::Result<Vec<_>, _>>()?)
+        // deliberately the same shared helper the production client uses, so this double
+        // cannot drift from the behaviour under test
+        Ok(usable_ecash_api_clients(
+            self.get_verification_key_shares(epoch_id).await?,
+        ))
     }
 
     async fn vote_proposal(

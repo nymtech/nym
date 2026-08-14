@@ -34,7 +34,7 @@ use nym_mixnet_contract_common::{
     NymNodeDetails, RewardedSet, RoleAssignment,
 };
 use nym_node_families_contract_common::msg::QueryMsg as NodeFamiliesQueryMsg;
-use nym_validator_client::coconut::EcashApiError;
+use nym_validator_client::coconut::usable_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::performance_query_client::{
     LastSubmission, NodePerformance,
@@ -663,12 +663,9 @@ impl crate::ecash::client::Client for Client {
         &self,
         epoch_id: nym_coconut_dkg_common::types::EpochId,
     ) -> Result<Vec<EcashApiClient>, EcashError> {
-        Ok(self
-            .get_verification_key_shares(epoch_id)
-            .await?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<Vec<_>, EcashApiError>>()?)
+        Ok(usable_ecash_api_clients(
+            self.get_verification_key_shares(epoch_id).await?,
+        ))
     }
 
     async fn vote_proposal(

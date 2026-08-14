@@ -152,8 +152,10 @@ mod tests {
     use super::*;
     use crate::ecash::tests::contract_chain::{ContractChainClient, SharedContractChain};
     use crate::ecash::tests::contract_harness::{
-        initialise_controllers, initiate_dkg, run_full_ceremony,
+        derive_keypairs, exchange_dealings, finalize_except, initialise_controllers, initiate_dkg,
+        run_full_ceremony, submit_public_keys, validate_keys,
     };
+    use nym_compact_ecash::aggregate_verification_keys;
 
     #[tokio::test]
     #[ignore] // expensive test
@@ -179,6 +181,76 @@ mod tests {
 
         // and the threshold is the contract's own ceil(2n/3)
         assert_eq!(channel.ecash_threshold(epoch_id).await?, 2);
+
+        Ok(())
+    }
+
+    /// B7: one signer dropping out during the finalization window leaves its share
+    /// unverified on chain. The epoch still concluded and the remaining shares still
+    /// meet the threshold, so signer discovery must keep working for everyone else.
+    ///
+    /// Currently RED: the conversion rejects the whole epoch on the first unverified
+    /// share, before any threshold is considered, so every gateway and client loses
+    /// signer discovery for that epoch entirely.
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn one_unverified_share_does_not_brick_the_epoch() -> anyhow::Result<()> {
+        let validators = 3;
+
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+        derive_keypairs(&mut controllers, false).await;
+        validate_keys(&mut controllers, false).await;
+
+        // the first dealer never executes its own verification proposal
+        finalize_except(&mut controllers, 0).await;
+
+        // precondition: the contract really is in the state we are testing against -
+        // the epoch concluded, with exactly one share left unverified
+        let dropped = controllers[0].address().await;
+        assert!(!chain.vk_share_verified(epoch_id, &dropped));
+        for controller in controllers.iter().skip(1) {
+            assert!(chain.vk_share_verified(epoch_id, &controller.address().await));
+        }
+
+        // ... and the survivors still meet the threshold
+        let threshold = chain
+            .epoch_threshold(epoch_id)
+            .expect("no threshold was set");
+        assert_eq!(threshold, 2);
+
+        let channel =
+            QueryCommunicationChannel::new(ContractChainClient::new(chain.admin(), chain.clone()));
+
+        let clients = channel.ecash_clients(epoch_id).await?;
+        assert_eq!(clients.len() as u64, threshold);
+
+        // the surviving shares must still reconstruct the epoch's master key, otherwise
+        // "discovery works" would be hollow
+        let mut expected = Vec::new();
+        let mut expected_indices = Vec::new();
+        for controller in controllers.iter() {
+            expected.push(controller.unchecked_coconut_vk().await);
+            expected_indices.push(controller.state.assigned_index(epoch_id)?);
+        }
+        let expected_master = aggregate_verification_keys(&expected, Some(&expected_indices))?;
+
+        let recovered = clients
+            .iter()
+            .map(|client| client.verification_key.clone())
+            .collect::<Vec<_>>();
+        let recovered_indices = clients
+            .iter()
+            .map(|client| client.node_id)
+            .collect::<Vec<_>>();
+        let recovered_master = aggregate_verification_keys(&recovered, Some(&recovered_indices))?;
+
+        assert_eq!(expected_master, recovered_master);
 
         Ok(())
     }

@@ -187,6 +187,33 @@ matters and in-transit timing protection does not, dVPN mode is the alternative.
 That sentence is the smallest thing that would turn these two checks green, and it
 belongs on the threat-model branch.
 
+### Resolved: 7/7, and the prediction above was wrong
+
+After the workload clause was deployed (and 118 chunks of previously invisible
+partial content reached the index), all three workload checks pass. The gaming
+answer now ends:
+
+> For live position updates at game tick rates, neither mixnet mode nor dVPN mode
+> is really an answer within Nym's model. dVPN gets you throughput but explicitly
+> abandons the privacy property you'd presumably want from Nym in the first place.
+
+It turns the developer away and declines to offer dVPN as a consolation. The claim
+above, that only a documented verdict could achieve this, was wrong: the prompt
+supplied the general principle (small independent messages are the strong case;
+latency budgets and bulk transfer are the weak ones) and the model applied it to a
+workload the docs never mention, grounding it in documented mechanism rather than
+invented numbers.
+
+**The page is still worth writing, for a different reason.** The chat route has a
+system prompt; the MCP server has none. `pages/api/mcp.ts` returns ranked sections
+and stops, so there is no generation step to attach a standing caveat to. An agent
+on `search_docs` gets the reassuring sections measured above with none of the
+scaffolding that produced that answer.
+
+So honesty currently lives in the chat path only. The two consumers that cannot be
+prompted are coding agents on MCP and humans reading the page, and both need the
+verdict written down.
+
 ### Measured baseline, before any fix
 
 Asked "I am building a cryptocurrency wallet that syncs the whole chain. Can I do

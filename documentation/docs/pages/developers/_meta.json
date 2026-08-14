@@ -14,6 +14,7 @@
   "smoldvpn": "nym-smoldvpn (WireGuard dVPN)",
   "swizzle": "nym-swizzle (traffic hygiene)",
   "rust": "nym-sdk",
+  "service-providers": "Service Providers (receiving)",
 
   "-": {
     "type": "separator",

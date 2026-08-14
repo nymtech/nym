@@ -70,6 +70,12 @@ people get wrong.
 Both are end to end, and both keep the sender anonymous through reply SURBs. The
 difference is whether the protocol you are building has a *sequence* to preserve.
 
+If the thing you are writing is the side that **receives** requests and answers
+them, rather than the side that sends, see
+[Building a Nym Service Provider](/developers/service-providers). It covers the
+receive-and-reply loop, why the client needs persistent storage to keep a stable
+address, and the sending budget a provider shares across all of its clients.
+
 [When to use streams vs messages](./rust/stream#when-to-use-streams-vs-messages)
 compares them line by line, including ordering, status and what each is best for.
 

@@ -164,6 +164,12 @@ else
   bad "no anchored URL in search_docs output to round-trip"
 fi
 
+# Phrased the way a developer would ask it, with none of the page's own words in
+# the query: this checks the page is reachable from the intent, not from its title.
+expect "search_docs reaches the service-provider page from a build-it question" \
+  search_docs '{"query":"how do I write a backend that receives requests over the mixnet and replies","topK":5}' \
+  'developers/service-providers'
+
 expect "get_section reports a miss legibly" \
   get_section '{"ref":"not-a-real-chunk-id"}' 'No section found'
 

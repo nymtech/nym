@@ -1,0 +1,129 @@
+---
+title: "Building a Nym Service Provider"
+description: "How to build a service that receives requests over the Nym mixnet and replies anonymously with SURBs: the receive-and-reply loop in Rust, Nym addressing and gateway stability, and the default sending budget."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-14"
+---
+
+# Building a Nym Service Provider
+
+Most of the developer documentation covers sending: [smolmix](/developers/smolmix) for TCP and UDP, [nym-smoldvpn](/developers/smoldvpn) for a WireGuard tunnel, [mix-fetch](/developers/mix-fetch) for HTTPS from a browser. This page covers the other end. A **service provider** is a program that receives requests over the mixnet and answers them without ever learning who asked.
+
+If you are building a backend that anonymous clients need to reach, this is the shape.
+
+## The fourth participant
+
+Nym's infrastructure is three kinds of node: validators, gateways, and mix nodes. A service provider is a fourth kind of participant and is not infrastructure at all. It is a third party that makes itself reachable *through* the mixnet, acting as an interface between Nym and an external system that needs no modification, or even awareness, of Nym.
+
+The whitepaper's own example is a provider that relays Bitcoin transactions to the Bitcoin peer-to-peer network on a client's behalf. The external system sees a connection from the provider, never from the client.
+
+This is different from the [exit gateway services](/network/infrastructure/exit-services) that Nym itself operates. The Network Requester and IP Packet Router are general-purpose exits, run by gateway operators, that forward to arbitrary clearnet destinations subject to an exit policy. A service provider is yours: it serves one application, you run it, and there is no exit policy to negotiate because the traffic never leaves the mixnet.
+
+## It never accepts an inbound connection
+
+A service provider is an ordinary mixnet client. It dials **out** to its gateway and pulls messages from it.
+
+```
+       your service provider
+                │
+                │  outbound only, client-initiated
+                ▼
+           its gateway  ◀────── mix layers ◀────── client
+```
+
+Two consequences worth designing around:
+
+- It can run behind a deny-all firewall, in a DMZ, or on a machine with no public IP. Its Nym address is the only way to reach it.
+- The gateway is the part that needs to be publicly reachable and stable. That is the reverse of the usual arrangement, and it drives the addressing section below.
+
+## Replying without knowing who asked
+
+Requests arrive as ordinary Sphinx packets, but each carries something extra: a bundle of single-use reply blocks (SURBs) that the client pre-computed before sending. A SURB is an encrypted Sphinx header describing a return route ending at the client. The provider attaches its reply to one and hands it back to the mixnet.
+
+Because the SURB is encrypted by the *sender*, the provider can read nothing from it: not the route, not the per-hop delays, not the client's address. Reply packets are indistinguishable from forward packets, so requests and replies share one anonymity set.
+
+See [Anonymous Replies](/network/mixnet-mode/anonymous-replies) for the mechanics, including replenishment and the single-use constraint.
+
+## The receive-and-reply loop
+
+The whole pattern is one loop. Working examples live in the [`nym-sdk` examples directory](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples); `surb_reply.rs` is the one to read first.
+
+```rust
+use nym_sdk::mixnet::{
+    AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, StoragePaths,
+};
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Persistent storage, not `MixnetClient::connect_new()`. The convenience
+    // constructor builds an ephemeral client, which generates a fresh identity
+    // on every run: the address you handed out yesterday stops working today.
+    // A service provider has to keep its keys.
+    let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
+    let mut client = MixnetClientBuilder::new_with_default_storage(paths)
+        .await?
+        .build()?
+        .connect_to_mixnet()
+        .await?;
+
+    println!("service provider listening on {}", client.nym_address());
+
+    while let Some(messages) = client.wait_for_messages().await {
+        for msg in messages {
+            // An opaque token derived from the SURBs bundled with the request.
+            // It is what lets us reply without learning the sender's address.
+            let Some(return_to): Option<AnonymousSenderTag> = msg.sender_tag else {
+                // No SURBs attached, so there is no return route. Nothing to do.
+                continue;
+            };
+
+            let response = handle_request(&msg.message).await?;
+            client.send_reply(return_to, response).await?;
+        }
+    }
+    Ok(())
+}
+```
+
+`handle_request` is where your application lives. It runs locally, against a backend that knows nothing about Nym, and its result goes back through the mixnet.
+
+## Your address is only as stable as its gateway
+
+Clients reach a provider by its [Nym address](/network/reference/addressing), the value the sketch prints at startup:
+
+```text
+<identity-key>.<encryption-key>@<gateway-identity-key>
+```
+
+Three parts: a base58 Ed25519 identity key that routes to the client, the public key that encrypts the final Sphinx layer, and the identity of the gateway holding the client's messages.
+
+That last component has an operational consequence. The gateway identity is baked into the address, so **if the gateway disappears, every copy of your address stops working**. Persistent storage keeps your keys, but it cannot keep someone else's gateway online.
+
+To guarantee a stable address, run your own mainnet gateway and register your provider with it. Two things to be clear about:
+
+- The gateway must **not** be in the DMZ. It needs a static, stable, publicly routable IP. The provider behind it is the part that hides.
+- A gateway you run is still a public gateway. Every gateway in the network is available to every user, so you cannot operate one exclusively for your own clients.
+
+There is deliberately no discovery system for Nym addresses, because clients should not be enumerable. Distribute the address out of band: ship it in your client's configuration rather than looking it up.
+
+## The default sending budget
+
+A mixnet client sends on a Poisson schedule, and that schedule is a fixed budget whether or not you have anything to say. The defaults in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs) are one real packet every 20 ms on average (50 per second) plus one loop cover packet every 200 ms (5 per second), so roughly 55 packets per second in total. A regular Sphinx packet carries a 2 KB payload.
+
+Three things follow:
+
+| | |
+|---|---|
+| **Capacity is shared** | Every reply to every client comes out of the same ~50 packets per second. One provider client serves only so many users. Measure your reply sizes and provision more clients when the budget runs out. |
+| **Idle is not free** | With nothing real to send, the client sends cover packets instead: same size, same rate, same Sphinx processing. An idle provider pays nearly the full bandwidth and CPU bill. |
+| **It never stops** | The client sends constantly, for as long as the provider is up, and its gateway forwards that stream constantly too. |
+
+These are configuration, not physics. A client built through the SDK can override every one of them, including turning off Poisson pacing (`disable_main_poisson_packet_distribution`) and the cover stream (`disable_loop_cover_traffic_stream`), both of which default to on. The cost is privacy: without them, the shape of your traffic starts to reflect your real activity.
+
+## What this is not for
+
+Every reply packet consumes one SURB, and the client has to pre-compute and send those SURBs up front. That suits request-response traffic with small answers: a transaction broadcast, a balance query, a status check.
+
+It does not suit bulk transfer. Syncing a chain, streaming media, or anything else measured in megabytes will exhaust the SURB budget and the sending rate long before it finishes. See [What Nym Cannot Do](/developers/limitations) for where the limits actually bite, and [nym-smoldvpn](/developers/smoldvpn) for the tunnel-shaped alternative when the workload is bulk rather than request-response.

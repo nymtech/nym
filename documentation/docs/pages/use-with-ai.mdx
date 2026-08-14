@@ -9,15 +9,10 @@ lastUpdated: "2026-08-14"
 # Use these docs with AI
 
 These docs are machine-readable end to end. There are three ways to work with them
-from an AI tool, from lightest to most capable.
+from an AI tool, in increasing order of what they can do.
 
-## Use with AI (connect your agent)
-
-Every page has a **Use with AI** button (top-right) that shows how to point a coding
-agent at the docs MCP server, with the configuration for Claude Code, Cursor and any
-other client that speaks Streamable HTTP.
-
-That server is the capable option, and it is described in full below.
+Every page also has a **Use with AI** button, top-right, which shows the
+configuration for connecting a coding agent to the MCP server described below.
 
 ## Copy any page as Markdown
 
@@ -46,8 +41,9 @@ Point an agent at `llms.txt` to discover pages, then dereference each entry to i
 
 ## MCP server (for coding agents)
 
-Point your agent (Claude Code, Cursor, and others) at a single endpoint to search
-the docs and read **live Nym network state** as structured tools:
+This is the capable option. Point your agent at a single endpoint, and it can search
+the docs and the Nym source, and read **live network state**, as structured tools.
+Claude Code, Cursor and others are supported:
 
 ```text
 https://nym.com/docs/api/mcp
@@ -60,7 +56,10 @@ ask "is gateway X in the active set right now?" and get a current answer.
 
 ## How all of this works
 
-The assistant and the MCP server read the same semantic index, built when the docs
-deploy and served as a static file rather than from a vector database. Answers
-cite the section they came from, so you can check any claim against the page it
-was drawn from.
+All three surfaces come from the same build. The MCP server reads a semantic index
+constructed when the docs deploy, served as a static file rather than from a vector
+database. The Markdown files and `llms.txt` are written by the same pass over the
+same pages.
+
+Every search result carries a deep link to the section it came from. Any claim an
+agent makes can be checked against the page behind it.

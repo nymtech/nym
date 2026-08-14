@@ -3,7 +3,7 @@ title: "Nym Docs MCP Server"
 description: "Remote MCP server exposing Nym documentation search and live network data as tools for AI coding agents such as Claude Code and Cursor."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-04"
+lastUpdated: "2026-08-14"
 ---
 
 # MCP Server
@@ -91,9 +91,44 @@ curl -sS -X POST https://nym.com/docs/api/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_docs","arguments":{"query":"how do I set up mixFetch"}}}'
 ```
 
+## How search works
+
+`search_docs` and `search_code` are semantic rather than keyword. Both sides of a comparison have to become vectors before similarity means anything, so the embedding happens in two places.
+
+At deploy, every documentation section and every indexed source file is embedded once and written into a static index. At call time, your query is embedded with the same model, and the server ranks the index against that vector by cosine similarity.
+
+```text
+your agent ──JSON-RPC──▶ /docs/api/mcp ──▶ embed the query
+     ▲                         │                  │
+     │                         │◀── query vector ─┘
+     │                         │
+     │                         ├─ rank the prebuilt index by similarity
+     │                         │
+     └───── ranked sections ───┘
+```
+
+| Index | Model | Covers |
+|---|---|---|
+| Documentation | `voyage-3-large` | every published docs page, chunked by section |
+| Source code | `voyage-code-3` | selected Nym crates: SDK, wasm, Sphinx, smolmix, and their examples |
+
+The code index uses a model trained on source rather than prose. That is why `search_code` surfaces implementation details a prose model ranks poorly, and why the two indexes are kept separate instead of merged.
+
+Query and index must come from the same model. A query embedded with one model and scored against an index built with another returns neighbours that are not meaningfully related.
+
+There is no vector database. The index is a static file loaded once per server instance, so a search costs one embedding call and an in-memory scan.
+
+### What it costs you
+
+Nothing beyond your own agent's tokens. The endpoint is open: no API key, no account, no request signing. Point a client at the URL and call it.
+
+The server embeds your query using its own credentials, so the retrieval side is paid for by Nym. Your agent spends what it would spend anyway, reading the returned sections and writing an answer from them.
+
+That split is deliberate. The server returns raw documentation sections and performs no generation of its own: it retrieves and cites, your agent reasons. It also keeps results checkable, because every one carries a deep link to the section it came from.
+
 ## Notes
 
 - **Docs coverage.** `search_docs` indexes the public Nym developer and network documentation. Answers cite the exact section, so you (or the agent) can open the source page and read it in full.
 - **Live-data freshness.** The network tools query the Nym APIs on each call, so results are as current as those APIs. A tool that cannot reach its upstream returns an error result the agent can read and retry on, rather than failing the whole request.
 - **Not a write interface.** Every tool is read-only. The server cannot change network or chain state.
-- **How the retrieval works.** The docs and code indexes are built at deploy time and served from static files, with no vector database. Retrieval ranks whole sections by similarity, so an answer is only as good as the section that backs it, and every result carries the deep link to check it.
+- **Retrieval granularity.** Ranking operates on whole sections, so an answer is only as good as the section backing it. See [How search works](#how-search-works).

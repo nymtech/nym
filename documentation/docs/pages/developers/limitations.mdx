@@ -115,6 +115,19 @@ Nym protects network-level metadata. It does not make an application private.
   linkable to each other at the destination. Rotate the exit per request to
   restore [request unlinkability](/network/threat-model/properties).
 
+## Your destination port may not be permitted
+
+Every exit gateway applies the same
+[Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt),
+a deny list agreed by operator governance. It decides which destination ports may
+leave the mixnet, it is identical across operators, and an individual operator
+cannot vary it.
+
+Check it against the port your service listens on before anything else. This is
+the tightest constraint on an integration, and the only one that no code on your
+side can work around. See [exit security](/developers/concepts/exit-security) for
+which exit your package uses.
+
 ## There is no address discovery
 
 Deliberately. Clients should not be enumerable, so there is no directory, no DHT

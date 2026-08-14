@@ -30,6 +30,19 @@ The first is DNS. The IPR works at the network layer and never learns the hostna
 
 The second is identity. The default SOCKS5 configuration sends replies to a return address. The NR therefore receives your Nym address, which is stable across sessions and names your Entry Gateway. Turn on anonymous replies (`--use-anonymous-replies` on the standalone client) to withhold it. See [the exit trust model](/network/infrastructure/exit-services#trust-model) for why that matters.
 
+## Check your destination is reachable
+
+Every exit applies the same [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt),
+a deny list agreed by operator governance and identical across nodes. It decides
+which destination ports may leave the mixnet at all, so it constrains an
+integration before anything else does: if the port your service listens on is not
+permitted, no amount of configuration on your side helps.
+
+The list is maintained outside these docs and changes through
+[off-chain governance](/operators/community-counsel/exit-gateway). Check the
+current version against your destination port rather than any copy of it. An
+individual operator cannot vary it.
+
 ## Protect the payload
 
 The Exit Gateway strips the Sphinx layers, so whatever is inside is visible to it unless your application encrypted it. This is your job, not the mixnet's.

@@ -284,10 +284,10 @@ missing, so `tools/list` failing outright points at the key while `tools/list`
 succeeding and `search_docs` failing points at the index.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 38 checks over HTTP: the tool list, transport
+`scripts/check-mcp-server.sh` runs 37 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
-error shapes, and the chat health endpoint. It covers what unit tests cannot,
+and error shapes. It covers what unit tests cannot,
 namely that the index was traced into the lambda, that the keys exist in *that*
 environment, and that the Nym API still returns the field names the tools read.
 

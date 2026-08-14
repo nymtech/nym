@@ -61,10 +61,15 @@ HDRS=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/eve
 
 PASS=0
 FAIL=0
+SKIP=0
 
 ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$1"; PASS=$((PASS + 1)); }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAIL=$((FAIL + 1)); }
+skip() { printf '  \033[33mSKIP\033[0m  %s\n' "$1"; SKIP=$((SKIP + 1)); }
 head_() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+# Repo root, for checks that compare the deployment against the source tree.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # POST a JSON-RPC call and print the decoded `data:` line from the SSE frame.
 rpc() {
@@ -192,9 +197,20 @@ head_ "Index coverage"
 # A failure here usually means the index is stale rather than the tool is broken:
 # ROOTS in generate-code-index.mjs was widened after the deployment under test was
 # built. Rebuild with VOYAGE_API_KEY set and redeploy.
+#
+# A root missing from the source tree is skipped rather than failed. The index is
+# built from whichever branch the deployment was built from, so a crate that has
+# not reached that branch yet cannot be in it, and asserting otherwise tests the
+# branch's merge state rather than the retrieval pipeline. The local checkout is a
+# proxy for the deployed branch, which is close enough to be useful and worth
+# remembering when the two diverge.
 covers() {
   local label="$1" query="$2" pathfrag="$3"
   local out
+  if [[ ! -d "$REPO_ROOT/${pathfrag%/}" ]]; then
+    skip "$label (${pathfrag%/} is not in this checkout)"
+    return
+  fi
   out="$(call search_code "$(jq -nc --arg q "$query" '{query:$q,topK:8}')")"
   if grep -qE "blob/[^ ]*$pathfrag" <<<"$out"; then
     ok "$label"
@@ -205,8 +221,10 @@ covers() {
   fi
 }
 
-covers "sdk/rust: nym-swizzle range chunking" \
-  "overlapping shuffled chunk plan for an index range" 'sdk/rust/nym-swizzle'
+# Deliberately avoids the word "chunk": common/nymsphinx/chunking is a real crate
+# about message fragmentation, and it outranks swizzle on that term every time.
+covers "sdk/rust: nym-swizzle start obfuscation" \
+  "checkpoint snapping and start jitter to obfuscate a resume height" 'sdk/rust/nym-swizzle'
 covers "common/nymsphinx: packet construction" \
   "sphinx packet header construction and layer encryption" 'common/nymsphinx'
 covers "common/client-core: the client internals" \
@@ -297,5 +315,11 @@ else
 fi
 
 # --- summary ----------------------------------------------------------------
-printf '\n\033[1m%d passed, %d failed\033[0m\n' "$PASS" "$FAIL"
+# Skips do not fail the run: they mean a check could not apply to this checkout,
+# not that the deployment is wrong.
+if [[ "$SKIP" -gt 0 ]]; then
+  printf '\n\033[1m%d passed, %d failed, %d skipped\033[0m\n' "$PASS" "$FAIL" "$SKIP"
+else
+  printf '\n\033[1m%d passed, %d failed\033[0m\n' "$PASS" "$FAIL"
+fi
 [[ "$FAIL" -eq 0 ]]

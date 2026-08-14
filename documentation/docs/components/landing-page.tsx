@@ -299,6 +299,12 @@ const sdks = [
     href: "/developers/smolmix",
   },
   {
+    name: "nym-smoldvpn",
+    description:
+      "Userspace WireGuard dVPN for throughput-bound work. Line rate and a client IP hidden across two operators, without the Mixnet's timing protection.",
+    href: "/developers/smoldvpn",
+  },
+  {
     name: "TypeScript SDK",
     description:
       "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",

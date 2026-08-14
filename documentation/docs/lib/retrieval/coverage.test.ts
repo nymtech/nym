@@ -124,7 +124,15 @@ describe('pages are not empty once stripped', () => {
     for (const page of pages) {
       const { content } = parseFrontmatter(fs.readFileSync(page, 'utf-8'));
       const raw = content.trim();
-      if (raw.length < MIN_CHARS) continue; // genuinely short source, not a loss
+
+      // A short source is usually a short page, but not when the shortness is
+      // caused by the content living in a component. pages/index.mdx is 77
+      // characters, all of it `<LandingPage />`, and the earlier version of this
+      // check exempted it for being short: the exemption fired on exactly the
+      // case the check exists to catch. So a page only counts as genuinely short
+      // if it renders no component either.
+      const rendersComponent = /<[A-Z][\w.]*[\s/>]/.test(raw);
+      if (raw.length < MIN_CHARS && !rendersComponent) continue;
 
       const body = indexedBody(page);
       if (body.length < MIN_CHARS) {
@@ -134,7 +142,15 @@ describe('pages are not empty once stripped', () => {
     // Known and accepted: pages whose entire body is an interactive component
     // with no prose. Listed explicitly so a new one has to be justified rather
     // than quietly joining them.
-    const ALLOWED = ['developers/playground.mdx'];
+    const ALLOWED = [
+      // Entirely interactive, no prose to lose.
+      'developers/playground.mdx',
+      // The docs root: a navigation page rendered wholly by <LandingPage />. Its
+      // content is a link grid duplicated in better form on /developers, so it
+      // is deliberately not projected. Listed rather than exempted by length, so
+      // the decision is visible.
+      'index.mdx',
+    ];
     expect(thin.filter((t) => !ALLOWED.some((a) => t.startsWith(a)))).toEqual([]);
   });
 });

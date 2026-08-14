@@ -225,6 +225,10 @@ covers() {
 # about message fragmentation, and it outranks swizzle on that term every time.
 covers "sdk/rust: nym-swizzle start obfuscation" \
   "checkpoint snapping and start jitter to obfuscate a resume height" 'sdk/rust/nym-swizzle'
+covers "smolmix: the userspace TCP/UDP tunnel" \
+  "userspace TCP stack tunnel device polling loop" 'smolmix/'
+covers "smoldvpn: the WireGuard datapath" \
+  "wireguard peer configuration and tunnel engine setup" 'smoldvpn/'
 covers "common/nymsphinx: packet construction" \
   "sphinx packet header construction and layer encryption" 'common/nymsphinx'
 covers "common/client-core: the client internals" \

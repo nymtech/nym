@@ -33,7 +33,8 @@ Everything is built during the docs deploy and read from disk at runtime.
 
 ```text
   pages/**/*.mdx                curated source files
-        │                       (sdk/, wasm/, examples, nymsphinx, smol-core)
+        │                       (sdk/, wasm/, examples, crates,
+        |                         nymsphinx, smol-core, etc)
         │                             │
    chunkPages()                 chunkCode()          heading- and boundary-scoped
         │                             │              chunks, each with a deep link
@@ -342,7 +343,7 @@ rather than the transport; `GET /docs/api/chat` on the same deployment reports
 which.
 
 **All of the above at once, against a deployment.**
-`scripts/check-mcp-server.sh` runs 36 checks over HTTP: the tool list, transport
+`scripts/check-mcp-server.sh` runs 38 checks over HTTP: the tool list, transport
 negotiation, retrieval and a `get_section` round-trip, code search, index
 coverage, config validation, every live network tool, argument-schema rejection,
 error shapes, and the chat health endpoint. It covers what unit tests cannot,
@@ -416,4 +417,3 @@ For hand-written prose that states a fact (e.g. "a Sphinx packet is 2413 bytes")
 there is no generator, prose cannot be projected. We rely on careful authoring, which
 a survey of the docs found holds up well: the drift concentrated in hand-typed
 constants and stale generated docs, not in careful prose.
-

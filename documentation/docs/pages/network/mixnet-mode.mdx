@@ -19,7 +19,14 @@ export const NetworkDiagram = dynamic(
 
 export const mixScenario = requireGenericScenario('mixnet')
 
-Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops: an Entry Gateway, three layers of Mix Nodes, and an Exit Gateway. Each mixing layer adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+Mixnet mode is a [transport](/network/threat-model/two-layer-model) choice. It routes traffic through 5 hops. The first four are always the same: an Entry Gateway and three layers of Mix Nodes, each of which adds random delays, reorders packets, and injects cover traffic. Available through [NymVPN](https://nymvpn.com) and the [Nym SDKs](/developers).
+
+The fifth hop depends on where the traffic is going, and the difference decides which adversary you face.
+
+- **Reaching a clearnet destination**, the fifth hop is an **Exit Gateway**, which leaves the mixnet and connects to the destination on your behalf. This is proxy mode, and the destination is [L2](/network/threat-model/actors#actor-L2).
+- **Reaching another Nym client**, there is **no Exit Gateway**. The fifth hop is the recipient's own Entry Gateway, acting as its inbox, and traffic stays Sphinx-encrypted the whole way. This is [end to end](/network/threat-model/configurations/end-to-end), and L2 does not exist.
+
+The rest of this page describes the clearnet case, because that is where the destination is a party you do not control. See [choose a defence](/network/threat-model/choose-config) to pick between them.
 
 Its distinctive strength is against network observers. Mixing delays, Poisson sending, and cover traffic hide the traffic pattern in transit, which a plain [dVPN](/network/dvpn-mode) cannot do. Against the destination it is equivalent to dVPN: both hide the client IP, and neither closes the timing or content vectors that the destination sees on its own.
 

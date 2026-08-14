@@ -3,6 +3,7 @@
 
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
+use crate::node::mixnet::shared::final_hop::InboxOutcome;
 use futures::StreamExt;
 use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
@@ -293,7 +294,7 @@ impl ConnectionHandler {
                     .await
                 {
                     Err(err) => error!("Failed to store client data - {err}"),
-                    Ok(_) => {
+                    Ok(InboxOutcome::Stored) => {
                         Span::current().record("disk_fallback", true);
                         self.shared
                             .metrics
@@ -301,6 +302,24 @@ impl ConnectionHandler {
                             .egress
                             .add_disk_persisted_packet();
                         trace!("Stored packet for {client}")
+                    }
+                    Ok(InboxOutcome::UnknownRecipient) => {
+                        debug!(
+                            event = "packet.dropped.unknown_recipient",
+                            remote_addr = %self.remote_address,
+                            "dropping packet: {client} has never registered with this gateway, so nothing could ever retrieve it"
+                        );
+                        self.shared
+                            .metrics
+                            .mixnet
+                            .egress
+                            .add_unknown_recipient_dropped_packet();
+                        self.shared
+                            .dropped_final_hop_packet(self.remote_address.ip());
+
+                        // no ack: unlike the disk fallback, this payload is gone for good, so the
+                        // sender must not be told it landed
+                        return;
                     }
                 }
             }

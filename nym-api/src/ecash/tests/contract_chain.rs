@@ -76,7 +76,7 @@ pub(crate) struct SharedContractChain {
 }
 
 pub(crate) struct ContractChain {
-    tester: ContractTester<DkgContract>,
+    pub(crate) tester: ContractTester<DkgContract>,
     tx_counter: u64,
 }
 
@@ -252,14 +252,22 @@ impl SharedContractChain {
 
     /// Whether the contract considers this dealer's share verified.
     pub(crate) fn vk_share_verified(&self, epoch_id: EpochId, owner: &AccountId) -> bool {
+        self.vk_share(epoch_id, owner).verified
+    }
+
+    pub(crate) fn vk_share(&self, epoch_id: EpochId, owner: &AccountId) -> ContractVKShare {
         let owner = Addr::unchecked(owner.as_ref());
         self.with(move |chain| {
             chain
                 .tester
                 .vk_share(epoch_id, &owner)
                 .expect("the dealer submitted no verification key share")
-                .verified
         })
+    }
+
+    /// The cw3 multisig the DKG contract defers share verification to.
+    pub(crate) fn multisig_address(&self) -> AccountId {
+        self.with(|chain| unchecked_account_id(&chain.tester.multisig_contract()))
     }
 
     pub(crate) fn set_vk_share_value(

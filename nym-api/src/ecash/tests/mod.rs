@@ -1148,6 +1148,11 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
         Ok(false)
     }
 
+    async fn epoch_concluded(&self, _epoch_id: EpochId) -> Result<bool> {
+        // this chain never runs a ceremony, so its epochs are always settled
+        Ok(true)
+    }
+
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
         Ok(self
             .ecash_clients

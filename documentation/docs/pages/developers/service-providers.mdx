@@ -1,6 +1,6 @@
 ---
 title: "Building a Nym Service Provider"
-description: "How to build a service that receives requests over the Nym mixnet and replies anonymously with SURBs: the receive-and-reply loop in Rust, Nym addressing and gateway stability, and the default sending budget."
+description: "Embedding a Nym client in your own server-side application so clients reach it end-to-end over the mixnet rather than through an exit gateway: the receive-and-reply loop in Rust, SURBs, Nym addressing and gateway stability, and the default sending budget."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-08-14"
@@ -8,17 +8,31 @@ lastUpdated: "2026-08-14"
 
 # Building a Nym Service Provider
 
-Most of the developer documentation covers sending: [smolmix](/developers/smolmix) for TCP and UDP, [nym-smoldvpn](/developers/smoldvpn) for a WireGuard tunnel, [mix-fetch](/developers/mix-fetch) for HTTPS from a browser. This page covers the other end. A **service provider** is a program that receives requests over the mixnet and answers them without ever learning who asked.
+A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that client directly over the mixnet, your code answers, and it never learns who asked.
 
-If you are building a backend that anonymous clients need to reach, this is the shape.
+The embedding is the whole distinction, and it decides which of the [two approaches](/developers#end-to-end-or-proxy) you are in:
+
+- **You cannot change the service.** That is proxy mode. An Exit Gateway leaves the mixnet on your behalf and connects to it over ordinary clearnet, subject to that gateway's [exit policy](/network/infrastructure/exit-services#the-exit-policy-applies).
+- **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Traffic stays Sphinx-encrypted the whole way.
+
+This page is the second case. It assumes you own the server code and are willing to modify it, which in practice means adding a mixnet client alongside whatever transport it already speaks and routing requests in from there.
+
+Everything downstream follows from that choice: the process can sit in a DMZ with no inbound access at all, its Nym address becomes the only way to reach it, and replies go back over [SURBs](/network/mixnet-mode/anonymous-replies) rather than an open connection.
 
 ## The fourth participant
 
-Nym's infrastructure is three kinds of node: validators, gateways, and mix nodes. A service provider is a fourth kind of participant and is not infrastructure at all. It is a third party that makes itself reachable *through* the mixnet, acting as an interface between Nym and an external system that needs no modification, or even awareness, of Nym.
+Nym's infrastructure is three kinds of node: validators, gateways, and mix nodes. A service provider is a fourth kind of participant, and it is not infrastructure at all. It is a third party that makes itself reachable *through* the mixnet.
 
-The whitepaper's own example is a provider that relays Bitcoin transactions to the Bitcoin peer-to-peer network on a client's behalf. The external system sees a connection from the provider, never from the client.
+Two systems are in play, and only one of them changes:
 
-This is different from the [exit gateway services](/network/infrastructure/exit-services) that Nym itself operates. The Network Requester and IP Packet Router are general-purpose exits, run by gateway operators, that forward to arbitrary clearnet destinations subject to an exit policy. A service provider is yours: it serves one application, you run it, and there is no exit policy to negotiate because the traffic never leaves the mixnet.
+```
+mixnet ──▶ your app + embedded Nym client ──▶ backend it already talks to
+              (this is what you modify)         (unchanged, no Nym awareness)
+```
+
+Your application gains a Nym client. Whatever it calls downstream, a database, an RPC node, a payment network, needs no awareness of Nym whatsoever: it sees ordinary local calls from your process, exactly as before. The whitepaper's example is a provider relaying Bitcoin transactions to the Bitcoin peer-to-peer network, which knows nothing about any of it.
+
+It is also distinct from the [exit gateway services](/network/infrastructure/exit-services) Nym itself operates. The Network Requester and IP Packet Router are general-purpose exits, run by gateway operators, forwarding to arbitrary clearnet destinations. A service provider serves one application, and you are the one running it.
 
 ## It never accepts an inbound connection
 

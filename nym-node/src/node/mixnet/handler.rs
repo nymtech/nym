@@ -281,6 +281,13 @@ impl ConnectionHandler {
         {
             FinalHopResult::Delivered => {
                 Span::current().record("client_online", true);
+                if network_monitor_packet {
+                    self.shared
+                        .metrics
+                        .mixnet
+                        .egress
+                        .add_monitor_final_hop_packet_delivered();
+                }
                 trace!("Pushed received packet to {client}");
             }
             FinalHopResult::Stored => {
@@ -311,6 +318,11 @@ impl ConnectionHandler {
                         .egress
                         .add_unknown_recipient_dropped_packet()
                 }
+                self.shared
+                    .metrics
+                    .mixnet
+                    .egress
+                    .add_monitor_final_hop_packet_dropped();
                 self.shared
                     .dropped_final_hop_packet(self.remote_address.ip());
             }

@@ -7,7 +7,7 @@
  * off-topic questions even when their top hits are exactly right, so the two
  * groups interleave rather than separate. The floor is now a cost guard and the
  * source list is built from what the model cited; see the retrieval section of
- * developers/mcp/architecture.
+ * documentation/AI-ASSISTANT.md.
  *
  * What it is still good for: watching the gap between on-topic and off-topic
  * scores when the corpus, the chunking or the embedding text changes. A gap that

@@ -81,7 +81,7 @@ const MAX_ANSWER_TOKENS = 8192;
 // all correct, while "What is the capital of France?" reaches 0.523. The
 // distributions are inverted, so no threshold admits the first and rejects the
 // second, and every value tried either refused real questions or let nonsense
-// through. See developers/mcp/architecture for the full measurement.
+// through. See documentation/AI-ASSISTANT.md for the full measurement.
 //
 // The judgement now sits with the model, which reads the sections and cites what
 // it used, and with the widget, which lists only what was cited. So a floor is

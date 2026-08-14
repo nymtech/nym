@@ -96,4 +96,4 @@ curl -sS -X POST https://nym.com/docs/api/mcp \
 - **Docs coverage.** `search_docs` indexes the public Nym developer and network documentation. Answers cite the exact section, so you (or the agent) can open the source page and read it in full.
 - **Live-data freshness.** The network tools query the Nym APIs on each call, so results are as current as those APIs. A tool that cannot reach its upstream returns an error result the agent can read and retry on, rather than failing the whole request.
 - **Not a write interface.** Every tool is read-only. The server cannot change network or chain state.
-- **How the retrieval works.** The docs and code indexes are built at deploy time and served from static files, with no vector database. See [How it works](/developers/mcp/architecture) for the pipeline and its trade-offs.
+- **How the retrieval works.** The docs and code indexes are built at deploy time and served from static files, with no vector database. Retrieval ranks whole sections by similarity, so an answer is only as good as the section that backs it, and every result carries the deep link to check it.

@@ -103,6 +103,7 @@ export function stripMdx(content, { expand, values } = {}) {
   const out = [];
   let fence = null;
   let jsDepth = 0;
+  let inComment = false;
   const ctx = { scenarioId: scenarioIdOf(content) };
 
   for (const line of content.split('\n')) {
@@ -118,6 +119,19 @@ export function stripMdx(content, { expand, values } = {}) {
       out.push(line); // inside a code fence: keep verbatim
       continue;
     }
+    // An MDX comment, `{/* ... */}`. The single-line form is caught by the bare
+    // expression rule below, but a multi-line one used to pass through whole: a
+    // maintenance note addressed to editors was served to readers as if it were
+    // part of the page, and an agent quoted it back as a defect.
+    if (inComment) {
+      if (line.includes('*/}')) inComment = false;
+      continue;
+    }
+    if (/^\s*\{\s*\/\*/.test(line) && !line.includes('*/}')) {
+      inComment = true;
+      continue;
+    }
+
     // A multi-line statement opened on an earlier line: keep skipping until its
     // brackets balance. Without this only the first line of a statement is
     // dropped and the rest reaches the index as prose.

@@ -49,6 +49,8 @@ The table below maps those two answers to a package.
 <Callout type="info">
 **Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
 
+**If you are building one of these, the threat model has already been worked through for it:** a [cryptocurrency wallet](/network/threat-model/examples/wallet), a [messaging app](/network/threat-model/examples/messaging), or [web browsing](/network/threat-model/examples/browsing). Each names the adversary that matters for that application, the invariants it owes its users, and what remains open after the transport has done its part. Start there rather than at the general model.
+
 **Check the workload first, though.** The mixnet suits small, independent requests and cannot serve bulk transfer or anything interactive. [What Nym cannot do](/developers/limitations) lists the workloads that do not fit, what the default sending rate costs, and where dVPN mode is the answer instead. Ruling Nym out in the first hour is a better outcome than discovering it in week three.
 </Callout>
 

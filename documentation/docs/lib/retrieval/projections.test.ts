@@ -128,3 +128,29 @@ describe('projected anchors match the rendered page', () => {
     expect(expand('PropertiesReference', '')).toContain('{#prop-P1}');
   });
 });
+
+describe('MDX comments', () => {
+  // A multi-line `{/* ... */}` used to reach the index intact. The swizzle page
+  // carried a note addressed to editors ("MAINTENANCE NOTE, delete when it no
+  // longer applies") and served it to readers as documentation; a trial agent
+  // reported it as a page shipped unfinished. Single-line comments were already
+  // handled, which is exactly why this went unnoticed.
+  it('drops a multi-line comment entirely', () => {
+    const src = ['Before.', '', '{/*', '  A note to editors.', '  Step 1: do a thing.', '*/}', '', 'After.'].join('\n');
+    const out = stripMdx(src, { expand });
+    expect(out).not.toMatch(/note to editors|Step 1/);
+    expect(out).toContain('Before.');
+    expect(out).toContain('After.');
+  });
+
+  it('still drops a single-line comment', () => {
+    expect(stripMdx('A\n\n{/* hidden */}\n\nB', { expand })).not.toContain('hidden');
+  });
+
+  it('does not swallow the rest of the page after a closing comment', () => {
+    const src = ['{/*', 'note', '*/}', '', '## Real heading', '', 'Real text.'].join('\n');
+    const out = stripMdx(src, { expand });
+    expect(out).toContain('Real heading');
+    expect(out).toContain('Real text.');
+  });
+});

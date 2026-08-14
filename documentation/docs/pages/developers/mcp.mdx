@@ -8,7 +8,7 @@ lastUpdated: "2026-08-14"
 
 # MCP Server
 
-The Nym docs [MCP](https://modelcontextprotocol.io) server lets an AI coding agent search the Nym documentation and read live network state as structured tool calls, rather than you pasting doc links or the agent guessing at API shapes. Point the agent at one URL:
+The Nym docs [MCP](https://modelcontextprotocol.io) server lets an AI coding agent search the Nym documentation and read live network state as structured tool calls. You do not paste doc links, and the agent does not guess at API shapes. Point it at one URL:
 
 ```text
 https://nym.com/docs/api/mcp
@@ -19,7 +19,7 @@ It exposes two kinds of tool:
 - **Documentation retrieval:** semantic search over the docs corpus, returning ranked excerpts with deep-link URLs back into these pages.
 - **Live network data:** bonded node counts, gateway health, token supply and chain status, read from the Nym APIs at call time.
 
-The live tools are the reason to use this over a static `llms.txt`: an agent can ask "is gateway X in the active set right now?" and get a current answer, not a snapshot baked in at build time.
+The live tools are the reason to use this over a static `llms.txt`. An agent can ask "is gateway X in the active set right now?" and get a current answer. A static file can only give a snapshot baked in at build time.
 
 ## Transport
 

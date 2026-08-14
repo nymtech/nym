@@ -54,3 +54,28 @@ describe('scope honesty', () => {
     expect(systemPrompt('   ')).toMatch(/does not make an application private/i);
   });
 });
+
+describe('workload fit', () => {
+  // Measured failure this guards: asked about a real-time p2p game, the
+  // assistant answered "Yes, this is a supported end-to-end setup". It answered
+  // the topology question (can two Nym clients talk) and never the workload one
+  // (can a mixnet carry real-time updates). The corpus affirms the first loudly
+  // and says nothing about the second, so retrieval alone cannot correct it.
+  it('names latency and bandwidth as the mechanism, not overhead', () => {
+    const p = systemPrompt('[1] Page - anything\nbody');
+    expect(p).toMatch(/buys its privacy with latency and bandwidth/i);
+    expect(p).toMatch(/not overhead to be tuned away/i);
+  });
+
+  it('requires the fit question to be answered before the topology question', () => {
+    expect(systemPrompt('[1] P - x\nbody')).toMatch(
+      /answer that question before answering any question about\s+topology/i,
+    );
+  });
+
+  it('offers dVPN as the honest alternative rather than a weakened mixnet', () => {
+    const p = systemPrompt('[1] P - x\nbody');
+    expect(p).toMatch(/dVPN mode is\s+the honest alternative/i);
+    expect(p).toMatch(/Never suggest weakening cover traffic or delays/i);
+  });
+});

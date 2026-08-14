@@ -143,7 +143,7 @@ TURNS_AWAY='not (a )?(good|suitable|the right|well.suited)|poorly suited|not des
 # "This is not in the context" is abstention, not honesty. It leaves the reader
 # to conclude the mixnet might be fine, which is the outcome being guarded
 # against. A workload question deserves a position.
-ABSTAINS='cannot say whether|not addressed in the (given |provided )?context|does(n.t| not) cover|no information (about|on)'
+ABSTAINS="cannot say whether|can.t say whether|can.t confirm|cannot confirm|not addressed in the (given |provided )?context|does(n.t| not) cover|no information (about|on)|do(n.t| not) have information"
 
 NO_FUDGE='disable cover traffic|turn off cover|reduce the delay|lower the delay|tune the delay'
 

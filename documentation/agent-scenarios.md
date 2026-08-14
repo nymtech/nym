@@ -138,6 +138,28 @@ Cheap, mechanical, already automated in `scripts/check-mcp-server.sh`:
 - No MDX wiring (`requireGenericScenario`, `dynamic(() => import(...))`) in the
   returned text.
 
+### Measured results, 2026-08-14
+
+Scope honesty passed 4/4 against the deployment, on the prompt *before* the
+standing caveat was added. The docs already carry that part. Workload fit failed
+2 of 3, and one failure is worth quoting in full, because it is the shape of the
+problem:
+
+> **Q.** I want to build a peer-to-peer multiplayer game with real-time position
+> updates over Nym. Will that work?
+>
+> **A.** *Yes, this is a supported end-to-end setup*, but be aware of the
+> trade-offs. **How it works**: If both players run Nym clients, traffic stays
+> entirely within the mixnet, there's no exit gateway or clearnet hop, and SURBs
+> enable anonymous bidirectional communication [...]
+
+It answered whether two Nym clients can talk. It never answered whether a mixnet
+can carry real-time position updates. Those are different questions, and only the
+first is covered by the corpus, so "peer-to-peer" matched the end-to-end
+configuration pages and inherited their confidence.
+
+Live video passed. Block syncing abstained, as below.
+
 ### Measured baseline, before any fix
 
 Asked "I am building a cryptocurrency wallet that syncs the whole chain. Can I do

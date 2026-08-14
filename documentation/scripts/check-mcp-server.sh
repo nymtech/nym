@@ -220,12 +220,17 @@ covers() {
   fi
 }
 
-# Deliberately avoids the word "chunk": common/nymsphinx/chunking is a real crate
-# about message fragmentation, and it outranks swizzle on that term every time.
+# Prefer symbols over prose for these. A description of what a crate does competes
+# with every other crate that does something similar, and the field keeps growing:
+# an earlier query using "chunk" lost to common/nymsphinx/chunking, and its
+# replacement, "checkpoint snapping and start jitter to obfuscate a resume
+# height", later lost to smoldvpn/examples/zcash-sync.rs once that arrived. Both
+# times the crate was fully indexed and the query had simply stopped
+# discriminating. A symbol only one crate defines does not decay that way.
 covers "sdk/rust: nym-swizzle start obfuscation" \
-  "checkpoint snapping and start jitter to obfuscate a resume height" 'sdk/rust/nym-swizzle'
+  "obfuscated_start snap grid floor jitter" 'sdk/rust/nym-swizzle'
 covers "smolmix: the userspace TCP/UDP tunnel" \
-  "userspace TCP stack tunnel device polling loop" 'smolmix/'
+  "Tunnel new_with_ipr get_best_ipr from_stream" 'smolmix/'
 covers "smoldvpn: the WireGuard datapath" \
   "wireguard peer configuration and tunnel engine setup" 'smoldvpn/'
 covers "common/nymsphinx: packet construction" \

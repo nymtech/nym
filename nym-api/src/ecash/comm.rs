@@ -4,7 +4,6 @@
 use crate::ecash::client::Client;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::helpers::CachedImmutableEpochItem;
-use crate::{ecash, nyxd};
 use async_trait::async_trait;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_dkg::Threshold;
@@ -66,7 +65,7 @@ impl CachedEpoch {
 }
 
 pub(crate) struct QueryCommunicationChannel {
-    nyxd_client: nyxd::Client,
+    client: Box<dyn Client + Send + Sync>,
 
     epoch_clients: CachedImmutableEpochItem<Vec<EcashApiClient>>,
     cached_epoch: RwLock<CachedEpoch>,
@@ -74,9 +73,12 @@ pub(crate) struct QueryCommunicationChannel {
 }
 
 impl QueryCommunicationChannel {
-    pub fn new(nyxd_client: nyxd::Client) -> Self {
+    pub fn new<C>(client: C) -> Self
+    where
+        C: Client + Send + Sync + 'static,
+    {
         QueryCommunicationChannel {
-            nyxd_client,
+            client: Box::new(client),
             epoch_clients: Default::default(),
             cached_epoch: Default::default(),
             threshold_values: Default::default(),
@@ -86,7 +88,7 @@ impl QueryCommunicationChannel {
     async fn update_epoch_cache(&self) -> Result<RwLockWriteGuard<'_, CachedEpoch>> {
         let mut guard = self.cached_epoch.write().await;
 
-        let epoch = ecash::client::Client::get_current_epoch(&self.nyxd_client).await?;
+        let epoch = self.client.get_current_epoch().await?;
 
         guard.update(epoch)?;
         Ok(guard)
@@ -112,9 +114,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
         self.epoch_clients
             .get_or_init(epoch_id, || async {
-                self.nyxd_client
-                    .get_registered_ecash_clients(epoch_id)
-                    .await
+                self.client.get_registered_ecash_clients(epoch_id).await
             })
             .await
             .map(|guard| guard.clone())
@@ -123,9 +123,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
     async fn ecash_threshold(&self, epoch_id: EpochId) -> Result<Threshold> {
         self.threshold_values
             .get_or_init(epoch_id, || async {
-                if let Some(threshold) =
-                    ecash::client::Client::get_epoch_threshold(&self.nyxd_client, epoch_id).await?
-                {
+                if let Some(threshold) = self.client.get_epoch_threshold(epoch_id).await? {
                     Ok(threshold)
                 } else {
                     Err(EcashError::UnavailableThreshold { epoch_id })
@@ -146,5 +144,42 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         let guard = self.update_epoch_cache().await?;
 
         return Ok(!guard.current_epoch.state.is_in_progress());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ecash::tests::contract_chain::{ContractChainClient, SharedContractChain};
+    use crate::ecash::tests::contract_harness::{
+        initialise_controllers, initiate_dkg, run_full_ceremony,
+    };
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn serves_signer_discovery_from_a_concluded_ceremony() -> anyhow::Result<()> {
+        let validators = 3;
+
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        run_full_ceremony(&mut controllers, false).await;
+
+        let channel =
+            QueryCommunicationChannel::new(ContractChainClient::new(chain.admin(), chain.clone()));
+
+        assert_eq!(channel.current_epoch().await?, epoch_id);
+        assert!(!channel.dkg_in_progress().await?);
+
+        // every dealer that finished the ceremony is discoverable as a signer
+        let clients = channel.ecash_clients(epoch_id).await?;
+        assert_eq!(clients.len(), validators);
+
+        // and the threshold is the contract's own ceil(2n/3)
+        assert_eq!(channel.ecash_threshold(epoch_id).await?, 2);
+
+        Ok(())
     }
 }

@@ -150,6 +150,8 @@ cargo_metadata = { workspace = true }
 nym-lp = { workspace = true, default-features = true, features = ["mock"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 nym-test-utils = { workspace = true }
+# for standing up an in-memory gateway storage in final-hop tests
+sqlx = { workspace = true, features = ["runtime-tokio", "sqlite"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 

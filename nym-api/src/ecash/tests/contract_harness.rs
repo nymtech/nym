@@ -230,6 +230,29 @@ pub(crate) async fn finalize(controllers: &mut [ContractDkgController]) {
     assert_eq!(chain.epoch().state, EpochState::InProgress);
 }
 
+/// Finalize for every controller except `skipped`.
+///
+/// Each dealer executes its own verification proposal, so the skipped dealer's share is
+/// left unverified on chain even though the epoch concludes normally - the state an
+/// epoch ends up in when a signer drops out during the (60 second) finalization window.
+pub(crate) async fn finalize_except(controllers: &mut [ContractDkgController], skipped: usize) {
+    let chain = controllers[0].chain.clone();
+    let epoch_id = chain.epoch().epoch_id;
+
+    for (i, controller) in controllers.iter_mut().enumerate() {
+        if i == skipped {
+            continue;
+        }
+        controller
+            .verification_key_finalization(epoch_id)
+            .await
+            .unwrap();
+    }
+
+    advance_state(&chain);
+    assert_eq!(chain.epoch().state, EpochState::InProgress);
+}
+
 /// Drive a complete ceremony through every phase of the real contract.
 pub(crate) async fn run_full_ceremony(controllers: &mut [ContractDkgController], resharing: bool) {
     submit_public_keys(controllers, resharing).await;

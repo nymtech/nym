@@ -54,6 +54,7 @@ use nym_contracts_common_testing::{AdminExt, ChainOpts, ContractOpts, ContractTe
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
+use nym_validator_client::coconut::usable_hickory_ecash_api_clients;
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Fee};
@@ -333,7 +334,7 @@ impl ContractChain {
     /// Repackage a `cw_multi_test` response as the `ExecuteResult` the DKG code expects.
     /// The attributes go into `logs` because the lookup helper prefers logs when present,
     /// and `logs` carries cosmwasm events directly - no abci conversion needed.
-    fn into_execute_result(&mut self, response: AppResponse) -> ExecuteResult {
+    fn make_into_execute_result(&mut self, response: AppResponse) -> ExecuteResult {
         let events = response
             .events
             .into_iter()
@@ -626,12 +627,11 @@ impl Client for ContractChainClient {
     }
 
     async fn get_registered_ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
-        Ok(self
-            .get_verification_key_shares(epoch_id)
-            .await?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<std::result::Result<Vec<_>, _>>()?)
+        // deliberately the same shared helper the production client uses, so this double
+        // cannot drift from the behaviour under test
+        Ok(usable_hickory_ecash_api_clients(
+            self.get_verification_key_shares(epoch_id).await?,
+        ))
     }
 
     async fn vote_proposal(
@@ -697,7 +697,7 @@ impl Client for ContractChainClient {
                     resharing,
                 },
             )?;
-            Ok(chain.into_execute_result(response))
+            Ok(chain.make_into_execute_result(response))
         })
     }
 
@@ -717,7 +717,7 @@ impl Client for ContractChainClient {
                     resharing,
                 },
             )?;
-            Ok(chain.into_execute_result(response))
+            Ok(chain.make_into_execute_result(response))
         })
     }
 
@@ -726,7 +726,7 @@ impl Client for ContractChainClient {
         self.chain.with(move |chain| {
             let response =
                 chain.execute_dkg(&sender, &DkgExecuteMsg::CommitDealingsChunk { chunk })?;
-            Ok(chain.into_execute_result(response))
+            Ok(chain.make_into_execute_result(response))
         })
     }
 
@@ -741,7 +741,7 @@ impl Client for ContractChainClient {
                 &sender,
                 &DkgExecuteMsg::CommitVerificationKeyShare { share, resharing },
             )?;
-            Ok(chain.into_execute_result(response))
+            Ok(chain.make_into_execute_result(response))
         })
     }
 }

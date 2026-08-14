@@ -250,6 +250,7 @@ impl NetworkMonitorsStorage {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn authorise_monitor(
         &self,
         deps: DepsMut,

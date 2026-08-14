@@ -22,7 +22,7 @@ pub(crate) enum FinalHopResult {
     /// No live session, and the store rejected it.
     StoreFailed(GatewayStorageError),
 
-    /// Came from a network monitor with no live session, so it was neither delivered nor persisted.
+    /// Came from a client with no live session, so it was neither delivered nor persisted.
     DroppedNoSession,
 }
 
@@ -146,5 +146,65 @@ impl SharedFinalHopData {
         }
 
         result
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use nym_sphinx_types::DESTINATION_ADDRESS_LENGTH;
+
+    fn recipient() -> DestinationAddressBytes {
+        DestinationAddressBytes::from_bytes([42u8; DESTINATION_ADDRESS_LENGTH])
+    }
+
+    /// Final hop data over an in-memory store whose active-clients store is empty, so every push
+    /// fails and the fallback decision is the thing under test.
+    async fn no_live_sessions() -> SharedFinalHopData {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let storage = GatewayStorage::from_connection_pool(pool, 100)
+            .await
+            .expect("failed to initialise gateway storage");
+
+        SharedFinalHopData::new(ActiveClientsStore::new(), storage)
+    }
+
+    async fn inbox_of(final_hop: &SharedFinalHopData) -> Vec<Vec<u8>> {
+        final_hop
+            .storage
+            .retrieve_messages(recipient(), None)
+            .await
+            .unwrap()
+            .0
+            .into_iter()
+            .map(|stored| stored.content)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn monitor_packet_with_no_session_is_dropped_without_touching_the_store() {
+        let final_hop = no_live_sessions().await;
+
+        let result = final_hop
+            .deliver_final_hop(recipient(), b"probe".to_vec(), true)
+            .await;
+
+        assert!(matches!(result, FinalHopResult::DroppedNoSession));
+        assert!(inbox_of(&final_hop).await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn ordinary_packet_with_no_session_still_falls_back_to_the_store() {
+        let final_hop = no_live_sessions().await;
+
+        let result = final_hop
+            .deliver_final_hop(recipient(), b"payload".to_vec(), false)
+            .await;
+
+        assert!(matches!(result, FinalHopResult::Stored));
+        assert_eq!(vec![b"payload".to_vec()], inbox_of(&final_hop).await);
     }
 }

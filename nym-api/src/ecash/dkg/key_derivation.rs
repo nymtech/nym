@@ -679,11 +679,16 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 // NOTE: the following tests currently do NOT cover all cases
 // I've (@JS) only updated old, existing, tests. nothing more
+//
+// These run against the real coconut-dkg contract under `cw_multi_test`: phases advance
+// by passing the contract's own deadlines, and the corrupted dealings are written into
+// real contract storage via the fault-injection helpers on `DkgContractTesterExt`.
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::ecash::dkg::state::key_derivation::DealerRejectionReason;
-    use crate::ecash::tests::helpers::{
-        exchange_dealings, initialise_controllers, initialise_dkg, submit_public_keys,
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness::{
+        exchange_dealings, initialise_controllers, initiate_dkg, submit_public_keys,
     };
 
     #[tokio::test]
@@ -691,15 +696,15 @@ pub(crate) mod tests {
     async fn check_dealers_filter_all_good() -> anyhow::Result<()> {
         let validators = 3;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
-        let key_size = chain.lock().unwrap().dkg_contract.contract_state.key_size;
+        let key_size = chain.key_size();
         for controller in controllers.iter_mut() {
             let epoch_receivers = controller.state.valid_epoch_receivers_keys(epoch)?;
 
@@ -726,32 +731,21 @@ pub(crate) mod tests {
     async fn check_dealers_filter_one_bad_dealing() -> anyhow::Result<()> {
         let validators = 3;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let address = controllers[0].cw_address().await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+        let address = controllers[0].address().await;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
-        let key_size = chain.lock().unwrap().dkg_contract.contract_state.key_size;
+        let key_size = chain.key_size();
 
         // corrupt just one dealing
-        chain
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .dealings
-            .entry(epoch)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let mut first = validator_dealings.remove(&0).unwrap();
-                let first_chunk = first.chunks.get_mut(&0).unwrap();
-                first_chunk.0.pop().unwrap();
-                validator_dealings.insert(0, first);
-            });
+        chain.truncate_dealing_chunk(epoch, &address, 0, 0);
 
+        let cw_address = controllers[0].cw_address().await;
         for controller in controllers.iter_mut() {
             let epoch_receivers = controller.state.valid_epoch_receivers_keys(epoch)?;
 
@@ -764,7 +758,7 @@ pub(crate) mod tests {
                 .state
                 .key_derivation_state(epoch)?
                 .rejected_dealers
-                .get(&address)
+                .get(&cw_address)
                 .unwrap();
             assert!(matches!(
                 corrupted_status,
@@ -780,16 +774,16 @@ pub(crate) mod tests {
     async fn check_dealers_resharing_filter_one_missing_dealing() -> anyhow::Result<()> {
         let validators = 4;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let address = controllers[0].cw_address().await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
-        let key_size = chain.lock().unwrap().dkg_contract.contract_state.key_size;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+        let cw_address = controllers[0].cw_address().await;
+        let key_size = chain.key_size();
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
 
-        // add all but the first dealing
+        // add all but the first dealing, staying in the dealing exchange phase
         for controller in controllers.iter_mut().skip(1) {
             controller.dealing_exchange(epoch, false).await?;
         }
@@ -806,7 +800,7 @@ pub(crate) mod tests {
                 .state
                 .key_derivation_state(epoch)?
                 .rejected_dealers
-                .get(&address)
+                .get(&cw_address)
                 .unwrap();
             assert_eq!(corrupted_status, &DealerRejectionReason::NoDealingsProvided);
         }
@@ -819,33 +813,21 @@ pub(crate) mod tests {
     async fn check_dealers_filter_all_bad_dealings() -> anyhow::Result<()> {
         let validators = 3;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let address = controllers[0].cw_address().await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+        let address = controllers[0].address().await;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
-        let key_size = chain.lock().unwrap().dkg_contract.contract_state.key_size;
+        let key_size = chain.key_size();
 
-        // // corrupt all dealings of one address
-        chain
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .dealings
-            .entry(epoch)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                validator_dealings.values_mut().for_each(|dealing| {
-                    dealing.chunks.values_mut().for_each(|chunk| {
-                        chunk.0.pop();
-                    })
-                });
-            });
+        // corrupt all dealings of one address
+        chain.truncate_all_dealings(epoch, &address);
 
+        let cw_address = controllers[0].cw_address().await;
         for controller in controllers.iter_mut() {
             let epoch_receivers = controller.state.valid_epoch_receivers_keys(epoch)?;
 
@@ -862,7 +844,7 @@ pub(crate) mod tests {
                 .state
                 .key_derivation_state(epoch)?
                 .rejected_dealers
-                .get(&address)
+                .get(&cw_address)
                 .unwrap();
             assert!(matches!(
                 corrupted_status,
@@ -878,37 +860,21 @@ pub(crate) mod tests {
     async fn check_dealers_filter_dealing_verification_error() -> anyhow::Result<()> {
         let validators = 3;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let address = controllers[0].cw_address().await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+        let address = controllers[0].address().await;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
-        let key_size = chain.lock().unwrap().dkg_contract.contract_state.key_size;
+        let key_size = chain.key_size();
 
-        // corrupt just one dealing
-        chain
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .dealings
-            .entry(epoch)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let chunks = &mut validator_dealings.get_mut(&0).unwrap().chunks;
-                let mut last_entry = chunks.last_entry().unwrap();
-                let last = last_entry.get_mut();
-                let value = last.0.pop().unwrap();
-                if value == 42 {
-                    last.0.push(43);
-                } else {
-                    last.0.push(42);
-                }
-            });
+        // corrupt one dealing without changing its length, so it still decodes
+        chain.corrupt_dealing_payload(epoch, &address, 0);
 
+        let cw_address = controllers[0].cw_address().await;
         for controller in controllers.iter_mut() {
             let epoch_receivers = controller.state.valid_epoch_receivers_keys(epoch)?;
 
@@ -921,7 +887,7 @@ pub(crate) mod tests {
                 .state
                 .key_derivation_state(epoch)?
                 .rejected_dealers
-                .get(&address)
+                .get(&cw_address)
                 .unwrap();
             assert!(matches!(
                 corrupted_status,
@@ -937,11 +903,11 @@ pub(crate) mod tests {
     async fn partial_keypair_derivation() -> anyhow::Result<()> {
         let validators = 3;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
@@ -966,29 +932,17 @@ pub(crate) mod tests {
     async fn partial_keypair_derivation_with_threshold() -> anyhow::Result<()> {
         let validators = 4;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let address = controllers[0].cw_address().await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+        let address = controllers[0].address().await;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
         // corrupt just one dealing
-        chain
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .dealings
-            .entry(epoch)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let mut first = validator_dealings.remove(&0).unwrap();
-                let first_chunk = first.chunks.get_mut(&0).unwrap();
-                first_chunk.0.pop().unwrap();
-                validator_dealings.insert(0, first);
-            });
+        chain.truncate_dealing_chunk(epoch, &address, 0, 0);
 
         for controller in controllers.iter_mut().skip(1) {
             let epoch_receivers = controller.state.valid_epoch_receivers_keys(epoch)?;
@@ -1009,11 +963,12 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn submit_verification_key() -> anyhow::Result<()> {
         let validators = 4;
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
+
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 

@@ -5,6 +5,7 @@ use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
 use crate::config::{Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, Wireguard};
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
+use crate::node::authorised_agents::monitor_identities::AuthorisedMonitorIdentities;
 use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
@@ -1150,11 +1151,13 @@ impl NymNode {
         // build routing filter
         let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet);
         let noise_view = NoiseNetworkView::new_empty();
+        let monitor_identities = AuthorisedMonitorIdentities::default();
 
         // fold the initial list of known network monitors into the structures derived from it
         let authorised_agents = AuthorisedAgentsView::new(
             routing_filter.known_network_monitors_handle(),
             noise_view.clone(),
+            monitor_identities,
         );
         for agent in self.known_network_monitors().await? {
             if let Some(agent) = AuthorisedAgent::parse_contract_entry(agent) {

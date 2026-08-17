@@ -98,6 +98,10 @@ pub enum GeolocationContractError {
     #[error("unknown subject class tag {tag}")]
     UnknownSubjectClass { tag: u8 },
 
+    /// A measured source's method byte matched no known method.
+    #[error("unknown method tag {tag}")]
+    UnknownMethod { tag: u8 },
+
     /// A storage key's trailing source component could not be decoded.
     #[error("malformed source encoding: {0}")]
     InvalidSourceEncoding(String),

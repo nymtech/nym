@@ -163,9 +163,7 @@ impl Method {
     pub fn try_from_tag(tag: u8) -> Result<Self, GeolocationContractError> {
         match tag {
             n if n == Method::IpInfo as u8 => Ok(Method::IpInfo),
-            other => Err(GeolocationContractError::InvalidSourceEncoding(format!(
-                "unknown method tag {other}"
-            ))),
+            other => Err(GeolocationContractError::UnknownMethod { tag: other }),
         }
     }
 }

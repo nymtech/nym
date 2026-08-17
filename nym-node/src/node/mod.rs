@@ -5,6 +5,7 @@ use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
 use crate::config::{Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, Wireguard};
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
+use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
     DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_mceliece_keypair,
@@ -59,8 +60,7 @@ use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
-use nym_noise::config::{NetworkMonitorAgentNode, NoiseConfig, NoiseNetworkView};
-use nym_noise_keys::VersionedNoiseKeyV1;
+use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
 use nym_validator_client::UserAgent;
 use nym_validator_client::nyxd::AccountId;
@@ -72,13 +72,12 @@ use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::rngs::OsRng;
 use rand010::SeedableRng;
-use std::collections::{HashMap, HashSet};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 use zeroize::Zeroizing;
 
 use crate::node::directory_publisher::{
@@ -88,6 +87,7 @@ use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKe
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
 
+mod authorised_agents;
 pub mod bonding_information;
 pub mod description;
 pub(crate) mod directory_publisher;
@@ -1047,8 +1047,7 @@ impl NymNode {
 
     async fn setup_nyx_chain_watcher(
         &self,
-        network_monitors_handle: RoutableNetworkMonitors,
-        noise_network_view: NoiseNetworkView,
+        authorised_agents: AuthorisedAgentsView,
     ) -> Result<(), NymNodeError> {
         info!("setting up nyx chain watcher");
 
@@ -1064,11 +1063,7 @@ impl NymNode {
             // queried this very contract before
             return Err(NymNodeError::MissingNetworkMonitorsContractAddress);
         };
-        let nm_agents = NetworkMonitorAgentsModule::new(
-            contract_address,
-            network_monitors_handle,
-            noise_network_view,
-        );
+        let nm_agents = NetworkMonitorAgentsModule::new(contract_address, authorised_agents);
 
         // END: module creation
         let cancellation = self.shutdown_manager.clone_shutdown_token();
@@ -1152,41 +1147,21 @@ impl NymNode {
         // start verloc
         self.start_verloc_measurements();
 
-        // obtain the initial list of known network monitors
-        let known_network_monitors = self.known_network_monitors().await?;
+        // build routing filter
+        let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet);
+        let noise_view = NoiseNetworkView::new_empty();
 
-        let mut known_network_monitor_ips = HashSet::new();
-        let mut known_network_monitor_nodes: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>> =
-            HashMap::new();
-        for agent in known_network_monitors {
-            let Ok(x25519_pubkey) = x25519::PublicKey::from_base58_string(&agent.bs58_x25519_noise)
-            else {
-                error!(
-                    "network monitor agent {} has announced an invalid noise key - ignoring",
-                    agent.mixnet_address
-                );
-                continue;
-            };
-
-            let ip = agent.mixnet_address.ip();
-            known_network_monitor_ips.insert(ip);
-
-            let entry = known_network_monitor_nodes.entry(ip).or_default();
-            entry.push(NetworkMonitorAgentNode {
-                port: agent.mixnet_address.port(),
-                key: VersionedNoiseKeyV1 {
-                    supported_version: agent.noise_version.into(),
-                    x25519_pubkey,
-                },
-            })
+        // fold the initial list of known network monitors into the structures derived from it
+        let authorised_agents = AuthorisedAgentsView::new(
+            routing_filter.known_network_monitors_handle(),
+            noise_view.clone(),
+        );
+        for agent in self.known_network_monitors().await? {
+            if let Some(agent) = AuthorisedAgent::parse_contract_entry(agent) {
+                authorised_agents.add_agent(agent).await;
+            }
         }
 
-        // build routing filter
-        let routing_filter = NetworkRoutingFilter::new_empty(self.config.debug.testnet)
-            .with_known_network_monitors(known_network_monitor_ips);
-        let network_monitors_ref = routing_filter.known_network_monitors_handle();
-
-        let noise_view = NoiseNetworkView::new_with_agents(known_network_monitor_nodes);
         // retrieve the initial view of the network and update the known set of nym nodes in the routing filter
         let network_refresher = self
             .build_network_refresher(
@@ -1197,8 +1172,7 @@ impl NymNode {
             .await?;
 
         // setup nyx chain watcher (currently only used for updating the network monitors view)
-        self.setup_nyx_chain_watcher(network_monitors_ref, noise_view.clone())
-            .await?;
+        self.setup_nyx_chain_watcher(authorised_agents).await?;
 
         let active_clients_store = ActiveClientsStore::new();
         let lp_nodes = network_refresher.lp_nodes();

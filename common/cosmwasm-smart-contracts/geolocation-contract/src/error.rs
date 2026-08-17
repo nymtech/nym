@@ -23,15 +23,6 @@ pub enum GeolocationContractError {
     #[error("payload content is {len} bytes, exceeding the {max} byte limit")]
     PayloadTooLarge { len: usize, max: u32 },
 
-    /// A payload was decoded against a version it was not written under. The contract never
-    /// raises this, since it stores payloads opaquely; it is for producers and consumers.
-    #[error("expected a version {expected} payload, got version {got}")]
-    UnexpectedPayloadVersion { expected: u8, got: u8 },
-
-    /// A payload's `content` did not decode under its own version's format.
-    #[error("malformed payload content: {0}")]
-    MalformedPayload(String),
-
     /// The sender is not on the agent whitelist at all.
     #[error("address {agent} is not a whitelisted agent")]
     NotWhitelisted { agent: Addr },

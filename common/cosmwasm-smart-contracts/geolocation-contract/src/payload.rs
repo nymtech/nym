@@ -12,9 +12,26 @@
 //! producers, not something the contract enforces: a measurement, a relayed
 //! self-declaration and an admin override all carry a [`Location`].
 
+use crate::LocationPayload;
 use crate::constants::PAYLOAD_VERSION_1;
-use crate::{GeolocationContractError, LocationPayload};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// Why a payload could not be encoded or decoded.
+///
+/// Separate from `GeolocationContractError` because the contract stores payloads opaquely and
+/// never parses one: these are the producer's and the consumer's errors, raised only by the code
+/// behind the `payload` feature that the contract itself must not enable.
+#[derive(Debug, Error, PartialEq)]
+pub enum PayloadError {
+    /// A payload was decoded against a version it was not written under.
+    #[error("expected a version {expected} payload, got version {got}")]
+    UnexpectedVersion { expected: u8, got: u8 },
+
+    /// A payload's `content` did not decode under its own version's format.
+    #[error("malformed payload content: {0}")]
+    Malformed(String),
+}
 
 impl LocationPayload {
     /// Encode a location as a version 1 payload: UTF-8 JSON, so a web consumer can
@@ -24,9 +41,9 @@ impl LocationPayload {
     /// may parse and re-emit them. JSON key ordering, whitespace and float formatting all
     /// vary between implementations, and a re-serialised payload silently fails signature
     /// verification.
-    pub fn new_v1(location: &Location) -> Result<Self, GeolocationContractError> {
-        let content = serde_json::to_vec(location)
-            .map_err(|err| GeolocationContractError::MalformedPayload(err.to_string()))?;
+    pub fn new_v1(location: &Location) -> Result<Self, PayloadError> {
+        let content =
+            serde_json::to_vec(location).map_err(|err| PayloadError::Malformed(err.to_string()))?;
 
         Ok(LocationPayload {
             version: PAYLOAD_VERSION_1,
@@ -36,16 +53,16 @@ impl LocationPayload {
 
     /// Decode a version 1 payload, rejecting any other version rather than guessing at the
     /// format.
-    pub fn try_decode_v1(&self) -> Result<Location, GeolocationContractError> {
+    pub fn try_decode_v1(&self) -> Result<Location, PayloadError> {
         if self.version != PAYLOAD_VERSION_1 {
-            return Err(GeolocationContractError::UnexpectedPayloadVersion {
+            return Err(PayloadError::UnexpectedVersion {
                 expected: PAYLOAD_VERSION_1,
                 got: self.version,
             });
         }
 
         serde_json::from_slice(self.content.as_slice())
-            .map_err(|err| GeolocationContractError::MalformedPayload(err.to_string()))
+            .map_err(|err| PayloadError::Malformed(err.to_string()))
     }
 }
 
@@ -228,7 +245,7 @@ mod tests {
 
         assert_eq!(
             payload.try_decode_v1(),
-            Err(GeolocationContractError::UnexpectedPayloadVersion {
+            Err(PayloadError::UnexpectedVersion {
                 expected: PAYLOAD_VERSION_1,
                 got: 2
             })
@@ -243,7 +260,7 @@ mod tests {
         };
         assert!(matches!(
             payload.try_decode_v1(),
-            Err(GeolocationContractError::MalformedPayload(_))
+            Err(PayloadError::Malformed(_))
         ));
     }
 

@@ -140,7 +140,7 @@ pub(crate) fn trigger_resharing(chain: &SharedContractChain) {
 /// Move past the current phase's deadline and advance through the real transition
 /// logic. The jump is longer than any phase duration but kept small enough that
 /// pending multisig proposals (max voting period 3600 s) never expire mid-ceremony.
-fn advance_state(chain: &SharedContractChain) {
+pub(crate) fn advance_state(chain: &SharedContractChain) {
     chain.advance_time_by(601);
     chain
         .execute_dkg(chain.admin(), DkgExecuteMsg::AdvanceEpochState {})

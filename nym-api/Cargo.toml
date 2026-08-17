@@ -141,6 +141,10 @@ nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
 nym-directory-contract-common = { workspace = true }
 
+# `test-util` for `#[tokio::test(start_paused = true)]`: the dkg controller sleeps
+# between polls, and a test driving it should not wait in real time
+tokio = { workspace = true, features = ["test-util"] }
+
 # the real contract code, driven under cw_multi_test. `nym-coconut-dkg` belongs to
 # the separate contracts workspace; see this workspace's [patch.crates-io].
 nym-coconut-dkg = { path = "../contracts/coconut-dkg", features = [

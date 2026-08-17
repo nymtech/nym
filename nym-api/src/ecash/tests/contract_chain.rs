@@ -296,6 +296,30 @@ impl SharedContractChain {
     pub(crate) fn execute_dkg(&self, sender: AccountId, msg: DkgExecuteMsg) -> Result<AppResponse> {
         self.with(move |chain| chain.execute_dkg(&sender, &msg))
     }
+
+    /// Execute a passed multisig proposal as `sender`. The cw3 only checks that the
+    /// sender is authorised, not that it proposed the thing, so any group member can
+    /// execute any dealer's proposal - which is how a share can end up verified on
+    /// chain without its own dealer having done anything.
+    pub(crate) fn execute_multisig_proposal(
+        &self,
+        sender: AccountId,
+        proposal_id: u64,
+    ) -> Result<AppResponse> {
+        self.with(move |chain| {
+            let multisig = chain
+                .tester
+                .unchecked_contract_address::<MultisigContract>();
+            chain
+                .tester
+                .execute_arbitrary_contract(
+                    multisig,
+                    message_info(&Addr::unchecked(sender.as_ref()), &[]),
+                    &nym_multisig_contract_common::msg::ExecuteMsg::Execute { proposal_id },
+                )
+                .map_err(|err| contract_failure(format!("{err:#}")))
+        })
+    }
 }
 
 impl ContractChain {

@@ -44,6 +44,24 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     // checks whether the given phase has either completed or reached its deadline
     ensure_can_advance_state(deps.as_ref(), &env, &current_epoch)?;
 
+    // a ceremony can't start without dealers. the threshold would be `ceil(2 * 0 / 3)`, i.e.
+    // zero, and every subsequent phase would be trivially complete (no dealings to wait for,
+    // no shares to verify), so the epoch would run itself to the end and settle in progress
+    // with no signers at all - and stay there, since that same vacuous comparison gates every
+    // later advance too.
+    //
+    // so hold here instead, with a fresh window rather than an expired one: registration stays
+    // open the whole time, and whoever comes back first still gets the full submission period
+    // for the others to join rather than being able to advance alone the moment it registers
+    if matches!(current_epoch.state, EpochState::PublicKeySubmission { .. })
+        && current_epoch.state_progress.registered_dealers == 0
+    {
+        let current_state = current_epoch.state;
+        let extended = current_epoch.update(current_state, env.block.time);
+        save_epoch(deps.storage, env.block.height, &extended)?;
+        return Ok(Response::new());
+    }
+
     let next_state = match current_epoch.state.next() {
         Some(next_state) => next_state,
         None => {
@@ -585,6 +603,114 @@ mod tests {
         );
         assert_eq!(curr_epoch, expected_epoch);
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+    }
+
+    /// A ceremony nobody took part in must not start, let alone conclude.
+    ///
+    /// Nothing here is set by hand: with no dealers every phase after this one would be
+    /// trivially "complete" (zero of zero dealings submitted, zero of zero shares verified),
+    /// so left to itself the ceremony would run all the way to the end and settle in progress
+    /// with no signers at all.
+    #[test]
+    fn a_ceremony_nobody_joined_never_leaves_public_key_submission() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
+        let initial_epoch_id = load_current_epoch(&deps.storage).unwrap().epoch_id;
+
+        // every api is down, say, so not a single dealer registers. one jump per phase the
+        // ceremony would otherwise have walked through, each longer than the longest of them
+        for _ in 0..5 {
+            env.block.time = env.block.time.plus_seconds(601);
+            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+            let epoch = load_current_epoch(&deps.storage).unwrap();
+            assert_eq!(
+                epoch.state,
+                EpochState::PublicKeySubmission { resharing: false },
+                "a ceremony with no dealers at all started anyway"
+            );
+            // no epoch id is burned while waiting
+            assert_eq!(epoch.epoch_id, initial_epoch_id);
+            // and the wait is spent with an open registration window rather than an expired one
+            assert_eq!(
+                epoch.deadline.unwrap(),
+                env.block
+                    .time
+                    .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs)
+            );
+        }
+    }
+
+    /// The hold is on having *nobody*, not on having too few: a single dealer is enough to
+    /// start, and the resulting one-of-one threshold is deliberate (a testnet with one api
+    /// should still be able to issue).
+    #[test]
+    fn a_single_dealer_is_enough_to_start_a_ceremony() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
+
+        // nobody yet, so the window just rolls
+        env.block.time = env.block.time.plus_seconds(601);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::PublicKeySubmission { resharing: false },
+        )
+        .unwrap();
+
+        // then one dealer registers
+        update_epoch(deps.as_mut().storage, &env, |mut e| {
+            e.state_progress.registered_dealers = 1;
+            e
+        });
+
+        env.block.time = env.block.time.plus_seconds(601);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::DealingExchange { resharing: false },
+        )
+        .unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 1);
+    }
+
+    /// The same hold applies to resharing, and must not quietly drop the resharing flag.
+    #[test]
+    fn a_resharing_ceremony_nobody_joined_also_waits() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        let epoch = Epoch::new(
+            EpochState::PublicKeySubmission { resharing: true },
+            7,
+            TimeConfiguration::default(),
+            env.block.time,
+        );
+        save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
+
+        env.block.time = env.block.time.plus_seconds(601);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        let current = load_current_epoch(&deps.storage).unwrap();
+        assert_eq!(
+            current.state,
+            EpochState::PublicKeySubmission { resharing: true }
+        );
+        assert_eq!(current.epoch_id, 7);
     }
 
     #[test]

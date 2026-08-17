@@ -369,8 +369,18 @@ pub(crate) mod cheap {
 
     /// Mark every share verified, as the multisig would once its proposals pass.
     pub(crate) fn verify_vk_shares(chain: &SharedContractChain, resharing: bool) {
+        verify_first_vk_shares(chain, resharing, usize::MAX)
+    }
+
+    /// Mark only the first `count` shares verified. The rest stay unverified, as they
+    /// would if their multisig proposals never passed.
+    pub(crate) fn verify_first_vk_shares(
+        chain: &SharedContractChain,
+        resharing: bool,
+        count: usize,
+    ) {
         let multisig = chain.multisig_address();
-        for member in chain.group_member_addresses() {
+        for member in chain.group_member_addresses().into_iter().take(count) {
             chain
                 .execute_dkg(
                     multisig.clone(),

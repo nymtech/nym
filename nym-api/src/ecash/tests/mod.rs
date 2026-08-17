@@ -70,6 +70,7 @@ use tokio::sync::RwLock;
 
 pub(crate) mod contract_chain;
 pub(crate) mod contract_harness;
+mod dkg_ceremony;
 pub(crate) mod fixtures;
 pub(crate) mod helpers;
 mod issued_ticketbooks;

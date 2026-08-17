@@ -68,7 +68,7 @@ impl LocationPusher {
                 match self.encode(*node_id, location) {
                     Ok(measurement) => {
                         measurements.push(measurement);
-                        submitted.push((*node_id, location.clone()));
+                        submitted.push(*node_id);
                     }
                     Err(err) => {
                         warn!("dropping the measurement of node {node_id}: {err}");

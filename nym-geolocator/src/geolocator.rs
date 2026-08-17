@@ -8,7 +8,7 @@ use crate::node_scraper::nodes::NodeUpdate;
 use crate::nyx::client::NyxClient;
 use crate::nyx::location_pusher::LocationPusher;
 use crate::nyx::nodes::{BondedNymNodes, get_bonded_nodes};
-use crate::nyx::state::OnChainNodes;
+use crate::nyx::state::{OnChainNodes, has_expired};
 use nym_task::ShutdownToken;
 use time::OffsetDateTime;
 use tracing::{debug, error, trace};
@@ -123,7 +123,7 @@ impl Geolocator {
                     // absent means never submitted, which is due exactly like a stale one
                     on_chain
                         .get(node_id)
-                        .is_none_or(|submitted| submitted.has_expired(now, ttl))
+                        .is_none_or(|checked_at| has_expired(*checked_at, now, ttl))
                 })
                 .take(self.config.max_nodes_measured_per_sweep)
                 .collect::<Vec<_>>()

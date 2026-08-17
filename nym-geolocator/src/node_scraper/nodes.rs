@@ -9,11 +9,9 @@ use nym_validator_client::client::NodeId;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;
-use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 pub(crate) struct KnownNode {
-    pub(crate) last_refreshed_at: OffsetDateTime,
     pub(crate) last_known_data: NodeAddresses,
 }
 
@@ -22,22 +20,9 @@ pub(crate) enum NodeUpdate {
     NewNode(NodeAddresses),
 }
 
-impl NodeUpdate {
-    pub(crate) fn ip_changed(node: NodeAddresses) -> Self {
-        NodeUpdate::IpChanged(node)
-    }
-
-    pub(crate) fn new_node(node: NodeAddresses) -> Self {
-        NodeUpdate::NewNode(node)
-    }
-}
-
 impl KnownNode {
     pub(crate) fn new(last_known_data: NodeAddresses) -> KnownNode {
-        KnownNode {
-            last_refreshed_at: OffsetDateTime::now_utc(),
-            last_known_data,
-        }
+        KnownNode { last_known_data }
     }
 
     pub(crate) fn ip_changed(&self, new: &NodeAddresses) -> bool {
@@ -117,13 +102,12 @@ impl KnownNodes {
             if let Some(existing) = guard.get_mut(&new.node_id) {
                 if existing.ip_changed(&new) {
                     // ip address(es) of the node changed -> we have to refresh its data
-                    node_changes.push(NodeUpdate::ip_changed(new.clone()));
+                    node_changes.push(NodeUpdate::IpChanged(new.clone()));
                 }
-                existing.last_refreshed_at = OffsetDateTime::now_utc();
                 existing.last_known_data = new;
             } else {
                 // brand new node -> we **might** have to refresh its data
-                node_changes.push(NodeUpdate::new_node(new.clone()));
+                node_changes.push(NodeUpdate::NewNode(new.clone()));
                 guard.insert(new.node_id, KnownNode::new(new));
             }
         }

@@ -76,7 +76,12 @@ impl LocationPusher {
                 }
             }
 
+            // a chunk is never empty to begin with, so nothing left here means every entry was
+            // rejected above - a batch that failed as surely as one the chain refused. Reporting
+            // success would tell a caller submitting a single measurement that it is on chain
+            // when nothing was written, and the http path credits the node for it
             if measurements.is_empty() {
+                failed_batches += 1;
                 continue;
             }
 

@@ -129,7 +129,7 @@ pub struct Asn {
 
 impl Asn {
     /// Derive node status API's two-value classification from the stored raw type, by the
-    /// same test that API applies (`http/models/mod.rs:79`).
+    /// same test that API applies in its `Gateway::location` conversion.
     pub fn classify(&self) -> AsnKind {
         if self.kind.eq_ignore_ascii_case("isp") {
             AsnKind::Residential

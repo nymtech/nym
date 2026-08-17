@@ -656,7 +656,7 @@ pub fn migrate(
         introduce_geolocation_contract(deps.branch(), addr)?;
     }
 
-    // due to circular dependency on contract addresses (e.g.. mixnet contract requiring vesting contract address
+    // due to circular dependency on contract addresses (e.g. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration
     if let Some(vesting_contract_address) = msg.vesting_contract_address {

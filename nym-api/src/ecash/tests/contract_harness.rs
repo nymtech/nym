@@ -380,6 +380,7 @@ pub(crate) mod cheap {
         count: usize,
     ) {
         let multisig = chain.multisig_address();
+        let epoch_id = chain.epoch().epoch_id;
         for member in chain.group_member_addresses().into_iter().take(count) {
             chain
                 .execute_dkg(
@@ -387,6 +388,7 @@ pub(crate) mod cheap {
                     DkgExecuteMsg::VerifyVerificationKeyShare {
                         owner: member.to_string(),
                         resharing,
+                        epoch_id,
                     },
                 )
                 .unwrap();

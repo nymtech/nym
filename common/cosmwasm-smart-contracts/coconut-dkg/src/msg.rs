@@ -66,6 +66,10 @@ pub enum ExecuteMsg {
     VerifyVerificationKeyShare {
         owner: String,
         resharing: bool,
+        /// The epoch whose share this order is about. Multisig proposals outlive the round
+        /// that created them, so without it an order that never got voted on could still be
+        /// executed against whatever share its owner has in a later epoch.
+        epoch_id: EpochId,
     },
 
     AdvanceEpochState {},

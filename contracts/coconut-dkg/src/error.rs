@@ -131,6 +131,13 @@ pub enum ContractError {
     #[error("No verification key committed for owner {owner}")]
     NoCommitForOwner { owner: String },
 
+    #[error("this order is to verify the key share of {owner} for epoch {order_epoch_id}, but the current epoch is {current_epoch_id}")]
+    StaleVerificationOrder {
+        owner: String,
+        order_epoch_id: EpochId,
+        current_epoch_id: EpochId,
+    },
+
     #[error("cannot perform DKG reset during an ongoing exchange")]
     CantResetDuringExchange,
 

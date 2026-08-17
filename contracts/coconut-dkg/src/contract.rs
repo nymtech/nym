@@ -122,9 +122,11 @@ pub fn execute(
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
         }
-        ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
-            try_verify_verification_key_share(deps, env, info, owner, resharing)
-        }
+        ExecuteMsg::VerifyVerificationKeyShare {
+            owner,
+            resharing,
+            epoch_id,
+        } => try_verify_verification_key_share(deps, env, info, owner, resharing, epoch_id),
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),

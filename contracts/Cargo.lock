@@ -1166,6 +1166,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-group-contract-common",
+ "nym-multisig-contract-common",
  "thiserror 2.0.18",
 ]
 

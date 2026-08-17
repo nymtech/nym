@@ -442,6 +442,7 @@ pub trait DkgContractTesterExt:
                 &ExecuteMsg::VerifyVerificationKeyShare {
                     owner: group_member.to_string(),
                     resharing,
+                    epoch_id: self.epoch().epoch_id,
                 },
             )
             .unwrap();

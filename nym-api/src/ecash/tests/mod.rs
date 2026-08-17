@@ -393,6 +393,7 @@ impl FakeChainState {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
                 resharing,
+                ..
             } => {
                 if sender.sender != self.multisig_contract.address {
                     panic!("not multisig")
@@ -1054,6 +1055,7 @@ impl super::client::Client for DummyClient {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner: address,
                 resharing,
+                epoch_id,
             };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: chain.dkg_contract.address.to_string(),

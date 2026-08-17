@@ -15,7 +15,7 @@ use nym_geolocator_requests::routes::api::v1::geolocation::{
     RECHECK_NODE, RELAY_SELF_DECLARATION, REQUEST_CHECK,
 };
 use nym_http_api_common::middleware::bearer_auth::AuthLayer;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use nym_validator_client::client::NodeId;
 
 pub(crate) fn routes(recheck_node_auth: AuthLayer) -> Router<AppState> {
     Router::new()

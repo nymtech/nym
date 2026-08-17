@@ -6,7 +6,7 @@ use crate::helpers::ip_info_to_location;
 use anyhow::bail;
 use ipinfo::{BatchReqOpts, IpDetails, IpError, IpErrorKind, IpInfoConfig};
 use nym_geolocation_contract_common::payload::Location;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use nym_validator_client::client::NodeId;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;

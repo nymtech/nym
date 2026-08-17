@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::error::RequestError;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use nym_validator_client::client::NodeId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

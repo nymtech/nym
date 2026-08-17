@@ -8,8 +8,8 @@ use nym_geolocation_contract_common::payload::Location;
 use nym_geolocation_contract_common::{
     ContractConfig, LocationPayload, Measurement, Method, Subject,
 };
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::contract_traits::GeolocationSigningClient;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 use tracing::{error, info, warn};
 
 #[derive(Clone)]

@@ -10,7 +10,7 @@ use crate::nyx::location_pusher::LocationPusher;
 use crate::nyx::nodes::{BondedNymNodes, get_bonded_nodes};
 use crate::nyx::state::{OnChainNodes, has_expired};
 use nym_task::ShutdownToken;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use nym_validator_client::client::NodeId;
 use std::collections::HashSet;
 use std::net::IpAddr;
 use time::OffsetDateTime;

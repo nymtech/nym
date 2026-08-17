@@ -11,11 +11,11 @@ use crate::nyx::location_pusher::LocationPusher;
 use nym_crypto::asymmetric::ed25519;
 use nym_geolocation_contract_common::payload::Location;
 use nym_geolocation_contract_common::{ContractConfig, Method, NymNodeLocation, Source, Subject};
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::contract_traits::{
     GeolocationQueryClient, GeolocationSigningClient,
 };
 use nym_validator_client::nyxd::nym_mixnet_contract_common::Addr;
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
 use time::OffsetDateTime;
 use tracing::warn;
 

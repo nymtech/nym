@@ -5,7 +5,7 @@ use crate::node_scraper::address_source::{AddressSource, NodeAddresses};
 use crate::node_scraper::nodes::NodeUpdate;
 use crate::node_scraper::tracker::AddressTracker;
 use crate::nyx::nodes::{BondedNymNodes, MinimalNymNode};
-use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use nym_validator_client::client::NodeId;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use tracing::warn;

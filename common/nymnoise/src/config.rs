@@ -138,15 +138,6 @@ impl NoiseNetworkView {
         Self::new(Default::default())
     }
 
-    /// Build a noise view pre-populated with network monitor agents (used at startup).
-    pub fn new_with_agents(agents: HashMap<IpAddr, Vec<NetworkMonitorAgentNode>>) -> Self {
-        let mut nodes = HashMap::new();
-        for (ip, agent_nodes) in agents {
-            nodes.insert(ip, NoiseNode::NetworkMonitorAgent { nodes: agent_nodes });
-        }
-        Self::new(nodes)
-    }
-
     pub async fn get_update_permit(&self) -> MutexGuard<'_, ()> {
         self.inner.update_lock.lock().await
     }
@@ -434,43 +425,10 @@ mod tests {
             assert!(config.supports_noise(v6_mapped));
         }
 
-        // -- new_with_agents test --
-
-        #[test]
-        fn new_with_agents_builds_correct_view() {
-            let ip = IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1));
-            let key_a = dummy_key(1);
-            let key_b = dummy_key(2);
-
-            let agents = HashMap::from([(
-                ip,
-                vec![
-                    NetworkMonitorAgentNode {
-                        port: 1000,
-                        key: key_a,
-                    },
-                    NetworkMonitorAgentNode {
-                        port: 2000,
-                        key: key_b,
-                    },
-                ],
-            )]);
-
-            let config = NoiseConfig::new(
-                Arc::new(x25519::KeyPair::new(&mut deterministic_rng())),
-                NoiseNetworkView::new_with_agents(agents),
-                Duration::from_secs(5),
-            );
-
-            assert_eq!(config.get_noise_key(SocketAddr::new(ip, 1000)), Some(key_a));
-            assert_eq!(config.get_noise_key(SocketAddr::new(ip, 2000)), Some(key_b));
-            assert!(config.supports_noise(ip));
-        }
-
         // -- swap_view canonicalisation test --
 
         // Regression: an agent registered via blockchain events flows through `swap_view` (called
-        // from `NetworkMonitorAgentsModule::new_agent` and from the periodic network refresher).
+        // from `AuthorisedAgentsView::add_agent` and from the periodic network refresher).
         // If a non-canonical (IPv4-mapped IPv6) key reaches `swap_view`, lookups via
         // `supports_noise` (which canonicalises) used to miss, producing the
         // "can't speak Noise yet, falling back to TCP" warning despite the agent being correctly

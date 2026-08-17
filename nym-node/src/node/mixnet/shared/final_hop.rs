@@ -197,14 +197,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ordinary_packet_with_no_session_still_falls_back_to_the_store() {
+    async fn ordinary_packet_with_no_session_is_dropped_without_touching_the_store() {
         let final_hop = no_live_sessions().await;
 
         let result = final_hop
             .deliver_final_hop(recipient(), b"payload".to_vec(), false)
             .await;
 
-        assert!(matches!(result, FinalHopResult::Stored));
-        assert_eq!(vec![b"payload".to_vec()], inbox_of(&final_hop).await);
+        assert!(matches!(result, FinalHopResult::DroppedNoSession));
+        assert!(inbox_of(&final_hop).await.is_empty());
     }
 }

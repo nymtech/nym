@@ -107,28 +107,6 @@ impl IpInfoLookupInner {
         }
         Ok(results)
     }
-
-    async fn lookup_address(&mut self, ip: IpAddr) -> anyhow::Result<IpDetails> {
-        if let Some(cached) = self.lookup_cache.get(&ip) {
-            if cached.at + self.cache_ttl > OffsetDateTime::now_utc() {
-                return Ok(cached.response.clone());
-            }
-        }
-
-        let response = self
-            .client
-            .lookup(&ip.to_string())
-            .await
-            .inspect_err(report_quota_exhaustion)?;
-        self.lookup_cache.insert(
-            ip,
-            CachedResponse {
-                at: OffsetDateTime::now_utc(),
-                response: response.clone(),
-            },
-        );
-        Ok(response)
-    }
 }
 
 /// Shared access to the lookup provider.
@@ -184,16 +162,6 @@ impl IpInfoLookup {
         let mut guard = timeout(HTTP_LOOKUP_LOCK_TIMEOUT, self.inner.lock())
             .await
             .map_err(|_| LookupError::Busy)?;
-
-        if ips.len() == 1 {
-            let location = guard
-                .lookup_address(ips[0])
-                .await
-                .map_err(LookupError::Failed)?;
-            return Ok(Some(
-                ip_info_to_location(location).map_err(LookupError::Failed)?,
-            ));
-        }
 
         let results = guard
             .batch_lookup(&ips)

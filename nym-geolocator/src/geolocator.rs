@@ -10,6 +10,9 @@ use crate::nyx::location_pusher::LocationPusher;
 use crate::nyx::nodes::{BondedNymNodes, get_bonded_nodes};
 use crate::nyx::state::{OnChainNodes, has_expired};
 use nym_task::ShutdownToken;
+use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
+use std::collections::HashSet;
+use std::net::IpAddr;
 use time::OffsetDateTime;
 use tracing::{debug, error, trace};
 
@@ -82,10 +85,42 @@ impl Geolocator {
             to_measure.push((details.node_id, details.addresses));
         }
 
-        // one provider round trip for the whole tick, rather than one per node
-        let chain_updates = self.ip_info_lookup.lookup_node_locations(to_measure).await;
+        self.measure_and_submit(to_measure).await
+    }
 
-        self.location_pusher.push_updates(chain_updates).await
+    /// Look up every given node, submit what resolved, and record what was measured.
+    ///
+    /// Nothing is recorded unless the whole submission went through. A partial failure therefore
+    /// costs this set another round of lookups on the next tick, which is the deliberate trade:
+    /// the alternative is marking a node measured on the strength of a batch that never reached
+    /// the chain, and that node would then wait out its full ttl before anything looked at it
+    /// again.
+    async fn measure_and_submit(
+        &self,
+        to_measure: Vec<(NodeId, Vec<IpAddr>)>,
+    ) -> anyhow::Result<()> {
+        // what each node was measured against, kept so the mark records those addresses rather
+        // than whatever the node happens to announce by the time the submission returns
+        let measured_against = to_measure.clone();
+
+        // one provider round trip per chunk, rather than one per node
+        let chain_updates = self.ip_info_lookup.lookup_node_locations(to_measure).await;
+        let submitted = chain_updates
+            .iter()
+            .map(|(node_id, _)| *node_id)
+            .collect::<HashSet<_>>();
+
+        self.location_pusher.push_updates(chain_updates).await?;
+
+        self.scraper
+            .mark_measured(
+                measured_against
+                    .into_iter()
+                    .filter(|(node_id, _)| submitted.contains(node_id))
+                    .collect(),
+            )
+            .await;
+        Ok(())
     }
 
     async fn handle_expiration_tick(&mut self) -> anyhow::Result<()> {
@@ -148,10 +183,7 @@ impl Geolocator {
             to_measure.push((node_id, ips));
         }
 
-        // one provider round trip for the whole sweep, rather than one per node
-        let chain_updates = self.ip_info_lookup.lookup_node_locations(to_measure).await;
-
-        self.location_pusher.push_updates(chain_updates).await
+        self.measure_and_submit(to_measure).await
     }
 
     pub(crate) async fn run(&mut self) {

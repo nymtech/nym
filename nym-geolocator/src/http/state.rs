@@ -224,10 +224,11 @@ impl AppState {
                 "could not discover the addresses of node {node_id}"
             )));
         };
+        let addresses = discovered.addresses;
 
         let location = match self
             .ip_info_lookup
-            .lookup_node_location(discovered.addresses)
+            .lookup_node_location(addresses.clone())
             .await
         {
             Ok(Some(location)) => location,
@@ -262,6 +263,11 @@ impl AppState {
                     "could not submit the location of node {node_id}"
                 ))
             })?;
+
+        // the sweep tracks what was measured rather than what was discovered, so a re-test that
+        // reached the chain has to say so - otherwise the next pass measures this node again for
+        // a change it has already accounted for
+        self.scraper.mark_measured(vec![(node_id, addresses)]).await;
 
         Ok(location)
     }

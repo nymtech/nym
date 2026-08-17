@@ -77,6 +77,10 @@ impl AddressTracker {
         self.known_nodes.node_ips(node_id).await
     }
 
+    pub(crate) async fn mark_measured(&self, measured: Vec<(NodeId, Vec<IpAddr>)>) {
+        self.known_nodes.mark_measured(measured).await
+    }
+
     pub(crate) async fn retain(&self, bonded: &HashSet<NodeId>) {
         self.known_nodes.retain(bonded).await
     }

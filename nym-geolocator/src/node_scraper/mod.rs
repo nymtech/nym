@@ -70,6 +70,13 @@ impl NodeScraper {
         self.address_tracker.node_ips(node_id).await
     }
 
+    /// Record that these nodes were measured against exactly these addresses and submitted, so
+    /// that they stop being reported as due. Nothing else advances that state: a measurement that
+    /// failed anywhere between the lookup and the chain leaves the node outstanding.
+    pub(crate) async fn mark_measured(&self, measured: Vec<(NodeId, Vec<IpAddr>)>) {
+        self.address_tracker.mark_measured(measured).await
+    }
+
     /// The ids currently bonded, as of the last chain refresh.
     pub(crate) async fn bonded_ids(&self) -> HashSet<NodeId> {
         self.bonded_nym_nodes.known_ids().await

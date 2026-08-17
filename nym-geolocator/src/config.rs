@@ -28,6 +28,15 @@ pub(crate) struct Config {
     /// Short-lived lookup cache for repeated ip-info requests
     pub(crate) ip_info_lookup_cache_ttl: Duration,
 
+    /// Maximum number of addresses handed to the lookup provider in a single request.
+    ///
+    /// The provider applies one flat timeout to a batch however large it is, so an entire sweep
+    /// sent as one request either fits inside that budget or fails whole and submits nothing.
+    /// Splitting it gives each part its own budget, and confines a part that fails to the nodes
+    /// in it. It also bounds how long a sweep can hold the provider client, which the http
+    /// handlers share.
+    pub(crate) max_addresses_per_lookup: usize,
+
     /// How often bonded nodes should be refreshed
     pub(crate) bonded_nodes_refresh_interval: Duration,
 

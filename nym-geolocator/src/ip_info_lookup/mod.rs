@@ -7,12 +7,13 @@ use anyhow::bail;
 use ipinfo::{BatchReqOpts, IpDetails, IpError, IpErrorKind, IpInfoConfig};
 use nym_geolocation_contract_common::payload::Location;
 use nym_validator_client::nyxd::nym_performance_contract_common::NodeId;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
+use tokio::time::timeout;
 use tracing::{debug, error, warn};
 
 /// Report the one provider failure that is neither transient nor confined to a single address.
@@ -27,6 +28,24 @@ fn report_quota_exhaustion(err: &IpError) {
             "the ipinfo lookup quota is exhausted - no node locations will refresh until it resets: {err}"
         );
     }
+}
+
+/// How long an http handler waits for the provider client before giving up on it.
+///
+/// The client is shared with the sweep and can only be used by one caller at a time (see
+/// [`IpInfoLookup`]), so a request arriving mid-sweep waits for the chunk in flight. Short on
+/// purpose: a caller is better told to come back than left holding a connection open, and the
+/// sweep releases the client between chunks so an ordinary wait is far below this.
+const HTTP_LOOKUP_LOCK_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Why a single-node lookup could not be served.
+pub(crate) enum LookupError {
+    /// The provider client was busy with another lookup for longer than the caller could wait.
+    /// Nothing was asked of the provider, so retrying is free.
+    Busy,
+
+    /// The lookup itself failed.
+    Failed(anyhow::Error),
 }
 
 struct CachedResponse {
@@ -112,14 +131,23 @@ impl IpInfoLookupInner {
     }
 }
 
+/// Shared access to the lookup provider.
+///
+/// Every entry point of `ipinfo::IpInfo` takes `&mut self`, since the client owns an internal
+/// cache, so provider access is serialised by construction rather than by choice of lock. The
+/// sweep therefore splits its work into chunks and releases the client between them, and the http
+/// handlers - which share this client with the sweep - wait only [`HTTP_LOOKUP_LOCK_TIMEOUT`] for
+/// it before shedding the request.
 #[derive(Clone)]
 pub(crate) struct IpInfoLookup {
+    max_addresses_per_lookup: usize,
     inner: Arc<Mutex<IpInfoLookupInner>>,
 }
 
 impl IpInfoLookup {
     pub(crate) fn new(config: Config, token: String) -> anyhow::Result<Self> {
         Ok(IpInfoLookup {
+            max_addresses_per_lookup: config.max_addresses_per_lookup.max(1),
             inner: Arc::new(Mutex::new(IpInfoLookupInner {
                 client: ipinfo::IpInfo::new(IpInfoConfig {
                     token: Some(token),
@@ -138,35 +166,54 @@ impl IpInfoLookup {
         self.inner.lock().await.batch_lookup(ips).await
     }
 
-    pub(crate) async fn lookup_address(&self, ip: IpAddr) -> anyhow::Result<IpDetails> {
-        self.inner.lock().await.lookup_address(ip).await
-    }
-
     /// Locate a single node. The counterpart of [`Self::lookup_node_locations`] for the http
     /// handlers, which act on one node at a time.
+    ///
+    /// Unlike the sweep this refuses to queue: the caller is an http request, so waiting out a
+    /// chunk of somebody else's sweep is worse for it than being told to ask again.
     pub(crate) async fn lookup_node_location(
         &self,
         ips: Vec<IpAddr>,
-    ) -> anyhow::Result<Option<Location>> {
+    ) -> Result<Option<Location>, LookupError> {
         if ips.is_empty() {
             return Ok(None);
         }
 
+        // only the wait for the client is bounded here, not the lookup itself - that already has
+        // the provider's own timeout on it
+        let mut guard = timeout(HTTP_LOOKUP_LOCK_TIMEOUT, self.inner.lock())
+            .await
+            .map_err(|_| LookupError::Busy)?;
+
         if ips.len() == 1 {
-            let location = self.lookup_address(ips[0]).await?;
-            return Ok(Some(ip_info_to_location(location)?));
+            let location = guard
+                .lookup_address(ips[0])
+                .await
+                .map_err(LookupError::Failed)?;
+            return Ok(Some(
+                ip_info_to_location(location).map_err(LookupError::Failed)?,
+            ));
         }
 
-        let results = self.batch_lookup(&ips).await?;
-        Ok(Some(reconcile_node_responses(results)?))
+        let results = guard
+            .batch_lookup(&ips)
+            .await
+            .map_err(LookupError::Failed)?;
+        Ok(Some(
+            reconcile_node_responses(results).map_err(LookupError::Failed)?,
+        ))
     }
 
-    /// Locate every node in one pass over the provider.
+    /// Locate every node, over as few provider requests as the chunk size allows.
     ///
-    /// A single batch request for the whole tick rather than one per node: the provider takes
-    /// every address at once, so measuring a sweep's worth of nodes individually turns one round
-    /// trip into hundreds, each with its own latency and its own chance of being rate limited
-    /// partway through the cycle.
+    /// Batched rather than one request per node: the provider takes many addresses at once, so
+    /// measuring a sweep's worth of nodes individually turns a handful of round trips into
+    /// hundreds, each with its own latency and its own chance of being rate limited partway
+    /// through the cycle. Chunked rather than sent as one request because the provider applies one
+    /// flat timeout however large a batch is, so a whole sweep in a single request is one request
+    /// that must fit a budget sized for a much smaller one - and if it does not, the sweep submits
+    /// nothing at all. Chunking also bounds how long the sweep holds the provider client, which
+    /// the http handlers share.
     ///
     /// A node that could not be located is absent from the result rather than reported: there is
     /// no assertion to make for it, and it stays due so the next sweep retries it.
@@ -187,18 +234,33 @@ impl IpInfoLookup {
             return Vec::new();
         }
 
-        let located = match self.batch_lookup(&addresses).await {
-            Ok(located) => located,
-            Err(err) => {
-                // the whole request failed, so nothing is known about any of these nodes and
-                // none of them may be submitted for
-                warn!("failed to look up {} address(es): {err}", addresses.len());
-                return Vec::new();
+        let mut located = HashMap::new();
+        let mut unresolved: HashSet<IpAddr> = HashSet::new();
+        for chunk in addresses.chunks(self.max_addresses_per_lookup) {
+            match self.batch_lookup(chunk).await {
+                Ok(responses) => located.extend(responses),
+                Err(err) => {
+                    // the chunks around this one are separate requests and are still worth making,
+                    // so a failure costs the nodes in it a cycle rather than all of them
+                    warn!("failed to look up {} address(es): {err}", chunk.len());
+                    unresolved.extend(chunk);
+                }
             }
-        };
+        }
 
         let mut locations = Vec::with_capacity(nodes.len());
         for (node_id, ips) in nodes {
+            // a node is measured against every address it announced or not at all: `reconcile`
+            // picks the first address it can place, so submitting for a node whose other addresses
+            // were never asked about would report a location chosen by which chunk happened to
+            // work. It stays due and the next sweep asks again
+            if ips.iter().any(|ip| unresolved.contains(ip)) {
+                debug!(
+                    "node {node_id} had addresses in a failed lookup - leaving it for the next sweep"
+                );
+                continue;
+            }
+
             // addresses the provider could not place are simply missing from the response
             let responses = ips
                 .into_iter()

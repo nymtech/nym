@@ -4,7 +4,7 @@
 use crate::http::burst::BurstLimiter;
 use crate::http::error::RequestError;
 use crate::http::replay::ReplayGuard;
-use crate::ip_info_lookup::IpInfoLookup;
+use crate::ip_info_lookup::{IpInfoLookup, LookupError};
 use crate::node_scraper::NodeScraper;
 use crate::nyx::client::NyxClient;
 use crate::nyx::location_pusher::LocationPusher;
@@ -238,7 +238,14 @@ impl AppState {
                     "node {node_id} announced no addresses to geolocate"
                 )));
             }
-            Err(err) => {
+            // the lookup provider is shared with the regular sweep and serves one caller at a
+            // time, so a request arriving mid-sweep is turned away rather than held
+            Err(LookupError::Busy) => {
+                return Err(RequestError::busy(
+                    "the lookup provider is busy - please try again",
+                ));
+            }
+            Err(LookupError::Failed(err)) => {
                 warn!("failed to look up the location of node {node_id}: {err}");
                 return Err(RequestError::upstream_failure(format!(
                     "could not determine the location of node {node_id}"

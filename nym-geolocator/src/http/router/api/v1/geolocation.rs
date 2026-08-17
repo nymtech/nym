@@ -42,6 +42,7 @@ pub(crate) fn routes(recheck_node_auth: AuthLayer) -> Router<AppState> {
         (status = 404, body = ErrorResponse, description = "the node is not bonded"),
         (status = 429, body = ErrorResponse, description = "the node has spent its re-test allowance and is in cooldown"),
         (status = 502, body = ErrorResponse, description = "the node could not be reached, located or submitted for"),
+        (status = 503, body = ErrorResponse, description = "the lookup provider was busy with other work - nothing was attempted, retry"),
     ),
 )]
 async fn request_geolocation_check(
@@ -130,6 +131,7 @@ async fn measure_claimed(
         (status = 401, description = "the bearer token was missing or invalid"),
         (status = 404, body = ErrorResponse, description = "the node is not bonded"),
         (status = 502, body = ErrorResponse, description = "the node could not be reached, located or submitted for"),
+        (status = 503, body = ErrorResponse, description = "the lookup provider was busy with other work - nothing was attempted, retry"),
     ),
     security(
         ("admin_token" = [])

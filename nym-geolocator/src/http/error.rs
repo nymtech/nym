@@ -55,6 +55,12 @@ impl RequestError {
     pub(crate) fn upstream_failure<S: Into<String>>(message: S) -> Self {
         RequestError::new(message, StatusCode::BAD_GATEWAY)
     }
+
+    /// This service was busy with other work and did nothing for the caller. Distinct from a
+    /// failure, since nothing was attempted and an immediate retry is free.
+    pub(crate) fn busy<S: Into<String>>(message: S) -> Self {
+        RequestError::new(message, StatusCode::SERVICE_UNAVAILABLE)
+    }
 }
 
 impl IntoResponse for RequestError {

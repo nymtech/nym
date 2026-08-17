@@ -9,6 +9,7 @@
 //! sole writer to the structures derived from the set, so that key validation and keying
 //! discipline each live in exactly one place.
 
+use crate::node::authorised_agents::monitor_identities::AuthorisedMonitorIdentities;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_noise::config::{NetworkMonitorAgentNode, NoiseNetworkView, NoiseNode};
@@ -16,6 +17,8 @@ use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::net::SocketAddr;
 use tracing::{debug, error, info, warn};
+
+pub(crate) mod monitor_identities;
 
 /// An authorised network monitor agent with its announced keys parsed.
 pub(crate) struct AuthorisedAgent {
@@ -26,8 +29,6 @@ pub(crate) struct AuthorisedAgent {
     /// The agent's announced ed25519 client identity, if it has a usable one. Absent for an agent
     /// authorised before the field existed; neither absence nor a malformed value costs the agent
     /// its mixnet-path authorisation, it merely cannot be recognised on the client-session path.
-    // consumed by the client-session gate, which is added separately
-    #[allow(dead_code)]
     pub(crate) ed25519_identity: Option<ed25519::PublicKey>,
 }
 
@@ -95,13 +96,22 @@ pub(crate) struct AuthorisedAgentsView {
     /// Canonical-IP-keyed noise key map. Shared with the nym-api topology refresher, which owns
     /// its nym-node entries, so agent updates must never disturb those.
     noise_view: NoiseNetworkView,
+
+    /// Announced client identities, keyed by identity rather than by address: the one structure
+    /// here that the source IP plays no part in.
+    identities: AuthorisedMonitorIdentities,
 }
 
 impl AuthorisedAgentsView {
-    pub(crate) fn new(routing: RoutableNetworkMonitors, noise_view: NoiseNetworkView) -> Self {
+    pub(crate) fn new(
+        routing: RoutableNetworkMonitors,
+        noise_view: NoiseNetworkView,
+        identities: AuthorisedMonitorIdentities,
+    ) -> Self {
         AuthorisedAgentsView {
             routing,
             noise_view,
+            identities,
         }
     }
 
@@ -116,6 +126,11 @@ impl AuthorisedAgentsView {
 
         // add ip to the routing filter (it's a no-op if it already exists)
         self.routing.add_known(ip);
+
+        // record what this entry announces, which for an agent re-announcing a changed identity
+        // also retires the superseded one
+        self.identities
+            .set_announced(address, agent.ed25519_identity);
 
         // add noise key to the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
@@ -157,6 +172,10 @@ impl AuthorisedAgentsView {
         // canonicalise to match the stored representation
         let ip = address.ip().to_canonical();
 
+        // the identity itself only goes once its last announcing entry has been revoked, since an
+        // agent authorises one entry per address family and both carry it
+        self.identities.remove(address);
+
         let update_permit = self.noise_view.get_update_permit().await;
         let mut nodes = self.noise_view.all_nodes();
 
@@ -194,6 +213,7 @@ impl AuthorisedAgentsView {
         info!("revoking all NM agents");
 
         self.routing.reset();
+        self.identities.reset();
 
         // remove all noise keys from the known nodes
         let update_permit = self.noise_view.get_update_permit().await;
@@ -210,35 +230,49 @@ impl AuthorisedAgentsView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_test_utils::helpers::deterministic_rng;
+    use nym_test_utils::helpers::u64_seeded_rng;
     use std::net::{IpAddr, Ipv4Addr};
 
     fn view() -> AuthorisedAgentsView {
         AuthorisedAgentsView::new(
             RoutableNetworkMonitors::default(),
             NoiseNetworkView::new_empty(),
+            AuthorisedMonitorIdentities::default(),
         )
     }
 
-    fn bs58_noise_key() -> String {
-        x25519::PublicKey::from(&x25519::PrivateKey::new(&mut deterministic_rng()))
+    // every key helper is seeded per call: the shared `deterministic_rng` uses one fixed seed, so
+    // it would hand every call the same key and quietly pass any test meant to tell two apart
+    fn bs58_noise_key(seed: u64) -> String {
+        x25519::PublicKey::from(&x25519::PrivateKey::new(&mut u64_seeded_rng(seed)))
             .to_base58_string()
     }
 
-    fn noise_key() -> VersionedNoiseKeyV1 {
+    fn noise_key(seed: u64) -> VersionedNoiseKeyV1 {
         VersionedNoiseKeyV1 {
             supported_version: NoiseVersion::from(1),
-            x25519_pubkey: x25519::PublicKey::from(&x25519::PrivateKey::new(
-                &mut deterministic_rng(),
-            )),
+            x25519_pubkey: x25519::PublicKey::from(&x25519::PrivateKey::new(&mut u64_seeded_rng(
+                seed,
+            ))),
         }
     }
 
+    fn identity(seed: u64) -> ed25519::PublicKey {
+        *ed25519::KeyPair::new(&mut u64_seeded_rng(seed)).public_key()
+    }
+
     fn agent(address: SocketAddr) -> AuthorisedAgent {
+        agent_announcing(address, None)
+    }
+
+    fn agent_announcing(
+        address: SocketAddr,
+        ed25519_identity: Option<ed25519::PublicKey>,
+    ) -> AuthorisedAgent {
         AuthorisedAgent {
             mixnet_address: address,
-            noise_key: noise_key(),
-            ed25519_identity: None,
+            noise_key: noise_key(address.port() as u64),
+            ed25519_identity,
         }
     }
 
@@ -268,7 +302,7 @@ mod tests {
     // A missing identity is a validly authorised agent: one authorised before the field existed.
     #[test]
     fn parsing_accepts_an_agent_without_an_identity() {
-        let agent = AuthorisedAgent::parse_announced(address(39322), &bs58_noise_key(), 1, None)
+        let agent = AuthorisedAgent::parse_announced(address(39322), &bs58_noise_key(1), 1, None)
             .expect("an agent without an identity must still parse");
 
         assert!(agent.ed25519_identity.is_none());
@@ -280,7 +314,7 @@ mod tests {
     fn parsing_drops_a_malformed_identity_but_keeps_the_agent() {
         let agent = AuthorisedAgent::parse_announced(
             address(39322),
-            &bs58_noise_key(),
+            &bs58_noise_key(1),
             1,
             Some("not-an-identity"),
         )
@@ -291,17 +325,17 @@ mod tests {
 
     #[test]
     fn parsing_keeps_a_valid_identity() {
-        let identity = ed25519::KeyPair::new(&mut deterministic_rng());
+        let identity = identity(1);
 
         let agent = AuthorisedAgent::parse_announced(
             address(39322),
-            &bs58_noise_key(),
+            &bs58_noise_key(2),
             1,
-            Some(&identity.public_key().to_base58_string()),
+            Some(&identity.to_base58_string()),
         )
         .expect("a well-formed agent must parse");
 
-        assert_eq!(Some(*identity.public_key()), agent.ed25519_identity);
+        assert_eq!(Some(identity), agent.ed25519_identity);
     }
 
     // Regression: an agent must end up keyed in the noise map under the **canonical** IP form, so
@@ -387,20 +421,108 @@ mod tests {
         assert!(!view.routing.is_known(&v4));
     }
 
+    // An agent authorises one entry per address family and both carry its identity, so the identity
+    // must survive until the last of them is revoked. The two entries reach the node as independent
+    // authorisations; nothing tells it they belong to one agent.
+    #[tokio::test]
+    async fn an_agents_identity_survives_until_both_of_its_entries_are_revoked() {
+        let view = view();
+        let identity = identity(1);
+
+        let v4 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 39322);
+        let v6 = SocketAddr::new(
+            IpAddr::V6(Ipv4Addr::new(5, 6, 7, 8).to_ipv6_mapped()),
+            39322,
+        );
+
+        view.add_agent(agent_announcing(v4, Some(identity))).await;
+        view.add_agent(agent_announcing(v6, Some(identity))).await;
+
+        assert!(view.identities.is_announced(&identity));
+
+        view.remove_agent(v4).await;
+        assert!(
+            view.identities.is_announced(&identity),
+            "the agent's other entry still announces this identity"
+        );
+
+        view.remove_agent(v6).await;
+        assert!(!view.identities.is_announced(&identity));
+    }
+
+    // An agent with no usable identity is validly authorised - it simply cannot be recognised on
+    // the client-session path - so it must still reach the mixnet-path structures.
+    #[tokio::test]
+    async fn an_agent_without_an_identity_is_still_registered() {
+        let view = view();
+
+        let announced =
+            AuthorisedAgent::parse_announced(address(39322), &bs58_noise_key(1), 1, None)
+                .expect("an agent without an identity must parse");
+
+        view.add_agent(announced).await;
+
+        let v4 = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+        assert!(view.routing.is_known(&v4));
+        assert_eq!(vec![39322], agent_ports(&view, v4));
+    }
+
+    // A malformed identity is dropped at the parse boundary, so the same must hold for an agent
+    // whose announced identity was unusable: authorised on the mixnet path, unknown on the session
+    // path. Otherwise a typo'd key would silently cost an agent its probes.
+    #[tokio::test]
+    async fn an_agent_with_a_malformed_identity_is_still_registered() {
+        let view = view();
+
+        let announced = AuthorisedAgent::parse_announced(
+            address(39322),
+            &bs58_noise_key(1),
+            1,
+            Some("not-an-identity"),
+        )
+        .expect("a malformed identity must not reject the agent");
+
+        view.add_agent(announced).await;
+
+        assert!(
+            view.routing
+                .is_known(&IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)))
+        );
+    }
+
+    // The contract's agent save is an upsert, so an agent that re-announces a changed identity must
+    // not leave the superseded one holding an unmetered-session exemption.
+    #[tokio::test]
+    async fn a_re_announced_identity_retires_the_previous_one() {
+        let view = view();
+        let old = identity(1);
+        let new = identity(2);
+
+        view.add_agent(agent_announcing(address(39322), Some(old)))
+            .await;
+        view.add_agent(agent_announcing(address(39322), Some(new)))
+            .await;
+
+        assert!(!view.identities.is_announced(&old));
+        assert!(view.identities.is_announced(&new));
+    }
+
     // Revoking everything must leave nym-node entries alone: they come from the topology refresher
     // and would not be restored until its next full refresh cycle.
     #[tokio::test]
     async fn remove_all_preserves_nym_node_entries() {
         let view = view();
+        let identity = identity(1);
 
         let agent_ip = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
         let node_ip = IpAddr::V4(Ipv4Addr::new(5, 6, 7, 8));
 
-        view.add_agent(agent(address(39322))).await;
+        view.add_agent(agent_announcing(address(39322), Some(identity)))
+            .await;
 
         let permit = view.noise_view.get_update_permit().await;
         let mut nodes = view.noise_view.all_nodes();
-        nodes.insert(node_ip, NoiseNode::new_nym_node(noise_key()));
+        nodes.insert(node_ip, NoiseNode::new_nym_node(noise_key(2)));
         view.noise_view.swap_view(permit, nodes);
 
         view.remove_all().await;
@@ -409,5 +531,6 @@ mod tests {
         assert_eq!(1, stored.len());
         assert!(stored[&node_ip].is_nym_node());
         assert!(!view.routing.is_known(&agent_ip));
+        assert!(!view.identities.is_announced(&identity));
     }
 }

@@ -38,6 +38,8 @@ cw4-group = { workspace = true, features = ["testable-cw4-contract"], optional =
 anyhow = { workspace = true }
 easy-addr = { workspace = true }
 nym-group-contract-common = { workspace = true }
+# to read back the verification orders this contract mints for the multisig
+nym-multisig-contract-common = { workspace = true }
 cw-multi-test = { workspace = true }
 cw4-group = { workspace = true }
 

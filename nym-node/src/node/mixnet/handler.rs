@@ -317,9 +317,8 @@ impl ConnectionHandler {
                         self.shared
                             .dropped_final_hop_packet(self.remote_address.ip());
 
-                        // no ack: unlike the disk fallback, this payload is gone for good, so the
-                        // sender must not be told it landed
-                        return;
+                        // the ack is still forwarded below: withholding it would tell the sender
+                        // whether the recipient is registered with this gateway
                     }
                 }
             }
@@ -329,8 +328,8 @@ impl ConnectionHandler {
             }
         }
 
-        // if we managed to either push message directly to the [online] client or store it at
-        // disk, forward the ack
+        // forward the ack regardless of what happened to the payload (pushed, stored, or dropped);
+        // making it conditional would leak the recipient's state to the sender
         self.shared
             .forward_ack_packet(final_hop_data.forward_ack, trace);
         if has_ack {

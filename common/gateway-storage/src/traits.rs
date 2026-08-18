@@ -47,9 +47,6 @@ pub trait SharedKeyGatewayStorage {
 #[async_trait]
 pub trait InboxGatewayStorage {
     /// Store a message for the given recipient, returning whether it was stored.
-    ///
-    /// A recipient that has never registered with this gateway could never retrieve the message,
-    /// so nothing is stored for one and `false` is returned.
     async fn store_message(
         &self,
         client_address: DestinationAddressBytes,

@@ -12872,7 +12872,7 @@ nym-exit.mysquad.org
 
 #### Delegation Program
 
-**If you are interested to sign up to delegation program que, message Merve on Element for the time being as we are working on CRM upgrade. We review nodes dynamically and delegate to new ones once a month.** New operators interested to join DP must follow the rules specified [here](https://forms.nym.com/form/#/3/form/view/be343e6f18ed32f07dbb58ec79694e93//), run one of two latest binary version and have [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted.
+**If you are interested to sign up to delegation program que, message Merve on Element for the time being as we are working on CRM upgrade. We review nodes dynamically and delegate to new ones once a month.** New operators interested to join DP must follow the rules specified [here](https://forms.nym.com/form/#/3/form/view/be343e6f18ed32f07dbb58ec79694e93/), run one of two latest binary version and have [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted.
 
 Note: Due to the token price we allow operators to have Operators cost 1000 NYM, the profit margin maximum remains 20%.
 

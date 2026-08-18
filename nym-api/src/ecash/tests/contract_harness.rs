@@ -127,6 +127,19 @@ pub(crate) fn initiate_dkg(chain: &SharedContractChain) {
     );
 }
 
+/// Start a fresh ceremony from scratch, as the admin would after a failed one. Unlike
+/// resharing, the new epoch keeps nothing from the old, so the keys it ends up with are
+/// unrelated to the previous epoch's.
+pub(crate) fn trigger_reset(chain: &SharedContractChain) {
+    chain
+        .execute_dkg(chain.admin(), DkgExecuteMsg::TriggerReset {})
+        .unwrap();
+    assert_eq!(
+        chain.epoch().state,
+        EpochState::PublicKeySubmission { resharing: false }
+    );
+}
+
 pub(crate) fn trigger_resharing(chain: &SharedContractChain) {
     chain
         .execute_dkg(chain.admin(), DkgExecuteMsg::TriggerResharing {})
@@ -307,7 +320,9 @@ pub(crate) mod cheap {
     use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
     use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
     use nym_coconut_dkg_common::types::EpochState;
-    use nym_compact_ecash::{aggregate_verification_keys, ttp_keygen, Base58, VerificationKeyAuth};
+    use nym_compact_ecash::{
+        aggregate_verification_keys, ttp_keygen, Base58, KeyPairAuth, VerificationKeyAuth,
+    };
     use nym_contracts_common::dealings::ContractSafeBytes;
 
     pub(crate) fn register_dealers(chain: &SharedContractChain, resharing: bool) {
@@ -399,33 +414,53 @@ pub(crate) mod cheap {
         advance_state(chain)
     }
 
-    /// Replace the placeholder shares with a consistent set of real verification keys,
-    /// returning the master key they aggregate to.
-    pub(crate) fn install_real_verification_keys(
-        chain: &SharedContractChain,
-    ) -> VerificationKeyAuth {
+    /// The keys [`install_real_verification_keys`] put on chain.
+    pub(crate) struct InstalledKeys {
+        /// What the individual shares aggregate to.
+        pub(crate) master: VerificationKeyAuth,
+
+        /// Each member's keypair, in group-member order. The secret halves are what a test
+        /// needs to produce the partial signatures that member would have issued.
+        pub(crate) keypairs: Vec<KeyPairAuth>,
+    }
+
+    /// Replace the placeholder shares with a consistent set of real verification keys.
+    pub(crate) fn install_real_verification_keys(chain: &SharedContractChain) -> InstalledKeys {
         let epoch_id = chain.epoch().epoch_id;
         let members = chain.group_member_addresses();
         let threshold = chain
             .epoch_threshold(epoch_id)
             .expect("the contract set no threshold for this epoch");
 
-        let keys = ttp_keygen(threshold, members.len() as u64).unwrap();
+        // `KeyPairAuth` is not `Clone` (it zeroizes on drop), so they are moved out one by one
+        let mut keys = ttp_keygen(threshold, members.len() as u64)
+            .unwrap()
+            .into_iter()
+            .map(Some)
+            .collect::<Vec<_>>();
 
         let mut verification_keys = Vec::with_capacity(members.len());
         let mut indices = Vec::with_capacity(members.len());
+        let mut keypairs = Vec::with_capacity(members.len());
         for member in &members {
             // the contract assigns dealer indices, and they are the x-coordinates the
             // shares must be aggregated against, so match them rather than assume order
             let node_index = chain.vk_share(epoch_id, member).node_index;
-            let key = keys[(node_index - 1) as usize].verification_key().clone();
+            let keypair = keys[(node_index - 1) as usize]
+                .take()
+                .expect("two members were assigned the same node index");
+            let key = keypair.verification_key();
 
             chain.set_vk_share_value(epoch_id, member, key.to_bs58());
             verification_keys.push(key);
             indices.push(node_index);
+            keypairs.push(keypair);
         }
 
-        aggregate_verification_keys(&verification_keys, Some(&indices)).unwrap()
+        InstalledKeys {
+            master: aggregate_verification_keys(&verification_keys, Some(&indices)).unwrap(),
+            keypairs,
+        }
     }
 
     /// Drive a whole ceremony from `PublicKeySubmission` to a concluded epoch.

@@ -3,19 +3,19 @@ title: "What Nym Cannot Do: Limits and Unsuitable Workloads"
 description: "The workloads the mixnet cannot serve, the throughput and latency it costs by default, and what stays the application's responsibility. Read this before choosing Nym for a project."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-14"
+lastUpdated: "2026-08-18"
 ---
 
 # What Nym cannot do
 
 import { Callout } from 'nextra/components'
 
-This page exists so you can rule Nym out quickly. Deciding in the first hour is a
-better outcome than deciding after three weeks of integration.
+This page collects the reasons Nym might not fit your workload. Read it before
+you commit to an integration, while ruling Nym out is still cheap.
 
-Everything below is a default or a property of the design, not a benchmark. No
-latency figures are quoted because none are measured; where a number appears it
-comes from a configuration constant, and the source is named.
+Everything below is either a default setting or a property of the design. No
+latency figures are quoted because none have been measured; where a number
+appears it comes from a configuration constant, and the source is named.
 
 ## Is my workload a fit?
 
@@ -32,30 +32,32 @@ comes from a configuration constant, and the source is named.
 "dVPN" means [dVPN mode](/network/dvpn-mode), reached from Rust through
 [`nym-smoldvpn`](/developers/smoldvpn). It hides your IP at line rate and splits
 trust across two operators. It provides **no in-transit timing protection**, so
-it is a different product rather than a faster mixnet.
+it is a different product, not a faster mixnet.
 
 <Callout type="warning">
 dVPN is a tunnel to a destination. It does not connect two peers to each other,
 so it does not rescue real-time traffic between two clients. If that is your
-workload, neither mode fits and you should know that now.
+workload, neither mode fits.
 </Callout>
 
 ## The default sending rate
 
-A client paces its own sending. By default it emits, per second:
+A client paces its own sending on a Poisson schedule; the
+[message queue page](/developers/concepts/message-queue) walks through how the
+two packet streams work. By default a client emits, per second:
 
 - **50 real packets**, one every 20 ms on average
 - **5 loop cover packets**, one every 200 ms on average
 
 That is roughly **55 packets per second**. A Sphinx packet carries a 2 KB payload,
-so the ceiling is on the order of **100 KB/s**. It is sent *constantly*, whether
-or not you have anything to say. The constants are
+so the ceiling is on the order of **100 KB/s**. The stream runs constantly,
+whether or not you have anything to say. The constants are
 `DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY` and
 `DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY` in
 [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs).
 
-**These are configuration, not physics.** A client built through the SDK can
-change every one of them. What follows from them, though, is not negotiable.
+All of these are configuration. A client built through the SDK can change every
+one of them. The consequences below hold whatever values you choose.
 
 ### It costs the same when idle
 
@@ -63,43 +65,42 @@ When there is nothing real to send, the client sends cover packets instead: same
 size, same rate, same Sphinx processing. An idle service pays nearly the full
 bandwidth and compute bill of a busy one, continuously, for as long as it is up.
 
-### Capacity is a budget, not a limit you discover
+### Capacity is a budget
 
 Every reply to every client comes out of the same real-packet budget. One client
 can only serve so many peers. Measure your reply sizes and provision more mixnet
-clients when the budget runs out, rather than assuming it scales.
+clients when the budget runs out; it does not scale on its own.
 
 ### Turning the pacing off has a cost
 
 `disable_main_poisson_packet_distribution` and
 `disable_loop_cover_traffic_stream` exist and will reduce the burden on your
 machine. Without them the shape of your traffic starts to reflect your real
-activity, which is the property you came for. Changing mode is an honest response
-to a throughput problem; detuning the mixnet is not.
+activity, which is the leak the pacing exists to close. If the default rate is
+too slow for your workload, switch to dVPN mode instead of weakening the pacing.
 
 ## Why bulk transfer is the weak case
 
-Two separate reasons, and the second is the one that matters.
+There are two separate reasons, and the second one matters more.
 
-The **throughput ceiling** above makes a large download slow. That is an
-inconvenience.
+The **throughput ceiling** above makes a large download slow.
 
-The **anonymity** is weaker too. The mixnet is strongest for small, independent
+The **anonymity** is also weaker. The mixnet is strongest for small, independent
 messages. A long sustained flow gives a network observer a great deal of
-correlated material to work with. How far such flows can be correlated over time
-is an open question rather than a settled one. So bulk transfer is both the
-slowest thing you can do and the thing the protection covers least well.
+correlated material to work with, and how far such flows can be correlated over
+time is an open question. Bulk transfer is therefore both the slowest workload
+and the one the protection covers least well.
 
 ## Latency is the mechanism
 
 Each mix node holds a packet for an average of 15 ms
 (`DEFAULT_AVERAGE_PACKET_DELAY`) before forwarding it, and the path is five hops.
 Reordering is what breaks the link between a packet entering the network and a
-packet leaving it. Remove the delay and you remove the protection: there is
-nothing to tune, because the delay *is* the product.
+packet leaving it. Removing the delay removes the protection, so there is
+nothing to tune.
 
-This is why interactive workloads do not fit. It is not an implementation that
-will improve.
+This is why interactive workloads do not fit. The latency comes from the design,
+not from code that will get faster.
 
 ## What the transport never does
 
@@ -123,21 +124,21 @@ a deny list agreed by operator governance. It decides which destination ports ma
 leave the mixnet, it is identical across operators, and an individual operator
 cannot vary it.
 
-Check it against the port your service listens on before anything else. This is
-the tightest constraint on an integration, and the only one that no code on your
-side can work around. See [exit security](/developers/concepts/exit-security) for
-which exit your package uses.
+Check it against the port your service listens on before anything else. It is
+the one constraint that no code on your side can work around. See
+[exit security](/developers/concepts/exit-security) for which exit your package
+uses.
 
-A refused port is not necessarily the end of it. Changing the policy goes through
-a governance proposal and an operator vote, described in the
+A refused port is not final: the policy can be changed through a governance
+proposal and an operator vote, described in the
 [exit gateway community counsel](/operators/community-counsel/exit-gateway).
 
 ## There is no address discovery
 
-Deliberately. Clients should not be enumerable, so there is no directory, no DHT
-and no lookup service for Nym addresses. Addresses are exchanged out of band: an
-application ships its service provider's address in its configuration rather than
-resolving it at runtime.
+This is deliberate: clients should not be enumerable, so there is no directory,
+no DHT and no lookup service for Nym addresses. Addresses are exchanged out of
+band. An application ships its service provider's address in its configuration
+instead of resolving it at runtime.
 
 If your design assumes clients can find each other by name, that mechanism is
 yours to build.

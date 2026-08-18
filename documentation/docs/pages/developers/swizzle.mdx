@@ -3,7 +3,7 @@ title: "nym-swizzle: Traffic-Shape Hygiene"
 description: "A Rust library that shapes the timing and content of an application's requests, so the destination learns less from the pattern of what it sends. Randomised delay scheduling and overlapping range chunking."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-13"
+lastUpdated: "2026-08-18"
 ---
 
 # Traffic-shape hygiene
@@ -118,8 +118,7 @@ edges.
 | `Delay::normal(mean, std_dev)` | Normal | Negative samples always rejected; restrict further with `bounds` |
 
 Adjust bounds with `min`, `max` or `bounds`. Call `sample` to draw a duration
-without running anything, which is what you want when the schedule must outlive
-the process.
+without running anything, for schedules that must outlive the process.
 
 ## Range: hide the edges of a sequential fetch
 
@@ -141,7 +140,7 @@ Range::new(resume_height, tip)
 ### Two ways to hide the start
 
 The start index is the linking key, so the library offers two mechanisms to
-break it. They compose, and they work differently.
+break it. They work differently, and you can combine them.
 
 | | `start_jitter` | `snap_start` |
 |---|---|---|
@@ -204,11 +203,12 @@ the library cannot do it for you.
 **Range widening.** The library never extends the *end* of a range, because it
 cannot know which indexes exist. It has no view of the chain tip or the array
 bounds. If you want to hide *which* sub-range you care about, widen the range
-before you pass it in. The one sanctioned outward extension is the downward
-start overlap, where earlier indexes always exist.
+before you pass it in. The only outward extension the library performs is the
+downward start overlap, because earlier indexes always exist.
 
 **Deduplication.** Overlapping chunks re-fetch data deliberately. Index-addressed
-data is idempotent, so dedup is yours.
+data is idempotent, so re-fetching is safe, and deduplicating the results is your
+application's job.
 
 ## Tuning
 
@@ -216,7 +216,7 @@ data is idempotent, so dedup is yours.
 **There are no settled numbers.** Wider overlaps and wider checkpoint spacing
 buy a larger anonymity set, and cost re-downloaded data. The defaults are
 conservative percentage-of-range derivations, exposed as knobs. Treat them as
-starting points, not as validated anonymity parameters.
+starting points; nobody has validated them as anonymity parameters.
 </Callout>
 
 Defaults, for reference:
@@ -240,9 +240,9 @@ For Zcash that work is done:
 chain-specific policy, with quantised sync ranges and ZIP 318-aligned broadcast
 scheduling, and ships a live example against a public `lightwalletd`.
 
-For any other chain, treat that page as a worked example of the reasoning rather
-than something to port directly. The grid and the delay distribution are design
-decisions, not configuration.
+For any other chain, use that page as a worked example of the reasoning. Do not
+port the Zcash numbers directly: the grid and the delay distribution are design
+decisions you make for your chain.
 
 ## Examples
 
@@ -261,11 +261,10 @@ cargo run -p nym-swizzle --example <name>
 
 ### Profiling harness
 
-A development-time harness proves the statistical claims rather than asserting
-them: three suites pairing SVG plots with numeric checks, covering the delay
-distributions, the chunk geometry, and seeded determinism. The plots are the
-evidence and the assertions are the gate, so it fails loudly rather than
-visually.
+A development-time harness checks the statistical claims: three suites pairing
+SVG plots with numeric assertions, covering the delay distributions, the chunk
+geometry, and seeded determinism. The plots are there to inspect; the assertions
+gate the run, so a regression fails the harness instead of only changing a plot.
 
 ```sh
 cargo run --release -p nym-swizzle --example profiling

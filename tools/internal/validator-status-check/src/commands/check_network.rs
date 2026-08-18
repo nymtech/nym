@@ -16,20 +16,31 @@ pub(crate) struct Args {
 
 #[derive(Serialize, Deserialize)]
 struct NetworkStatus {
-    available_api_nodes: f64,
-    available_rpc_nodes: f64,
+    available_api_nodes: usize,
+    available_rpc_nodes: usize,
     detailed: Vec<SignerStatus>,
 }
 
+impl NetworkStatus {
+    fn api_nodes_percentage(&self) -> f64 {
+        self.available_api_nodes as f64 / self.detailed.len() as f64
+    }
+
+    fn available_rpc_nodes_percentage(&self) -> f64 {
+        self.available_rpc_nodes as f64 / self.detailed.len() as f64
+    }
+}
+
 impl From<Vec<SignerStatus>> for NetworkStatus {
-    fn from(value: Vec<SignerStatus>) -> Self {
-        let nodes = value.len() as f64;
-        let api = value.iter().filter(|s| s.api_up()).count() as f64;
-        let rpc = value.iter().filter(|s| s.rpc_up()).count() as f64;
+    fn from(mut value: Vec<SignerStatus>) -> Self {
+        let api = value.iter().filter(|s| s.api_up() && s.can_sign()).count();
+        let rpc = value.iter().filter(|s| s.rpc_up()).count();
+
+        value.sort_by_key(|s| s.api_up() && s.can_sign());
 
         NetworkStatus {
-            available_api_nodes: api / nodes,
-            available_rpc_nodes: rpc / nodes,
+            available_api_nodes: api,
+            available_rpc_nodes: rpc,
             detailed: value,
         }
     }
@@ -39,8 +50,13 @@ impl Display for NetworkStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "available signers: {:.2}%, available rpc nodes: {:.2}%",
-            self.available_api_nodes, self.available_rpc_nodes
+            "available signers: {:.2}% ({}/{}), available rpc nodes: {:.2}% ({}/{})",
+            self.api_nodes_percentage(),
+            self.available_api_nodes,
+            self.detailed.len(),
+            self.available_rpc_nodes_percentage(),
+            self.available_rpc_nodes,
+            self.detailed.len(),
         )?;
 
         let mut table = Table::new();
@@ -50,6 +66,7 @@ impl Display for NetworkStatus {
             "rpc status",
             "rpc endpoint",
             "abci version",
+            "can issue credentials",
         ]);
         for signer in &self.detailed {
             table.add_row(signer.to_table_row());

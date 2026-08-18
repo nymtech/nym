@@ -434,7 +434,11 @@ impl EcashState {
                 }
 
                 // 3. go around APIs and attempt to aggregate the data
-                let epoch_id = self.aux.comm_channel.current_epoch().await?;
+                //
+                // everything below has to stay on the epoch that was *asked for*: credentials
+                // outlive the epoch that issued them, so answering with the current epoch's
+                // material produces signatures the caller cannot verify - and the answer would
+                // then be cached and persisted under the epoch it does not belong to
                 let master_vk = self.master_verification_key(Some(epoch_id)).await?;
                 let all_apis = self.aux.comm_channel.ecash_clients(epoch_id).await?;
                 let threshold = self.aux.comm_channel.ecash_threshold(epoch_id).await?;
@@ -518,6 +522,16 @@ impl EcashState {
 
                 // 3. perform actual issuance
                 let signing_keys = self.local.ecash_keypair.keys().await?;
+                if signing_keys.issued_for_epoch != epoch_id {
+                    // TODO: this should get handled at some point,
+                    // because if it was a past epoch we **do** have those keys.
+                    // they're just archived
+                    error!("received partial expiration date signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
+                    return Err(EcashError::InvalidSigningKeyEpoch {
+                        requested: epoch_id,
+                        available: signing_keys.issued_for_epoch,
+                    });
+                }
 
                 let signatures = sign_expiration_date(
                     signing_keys.keys.secret_key(),
@@ -525,7 +539,7 @@ impl EcashState {
                 )?;
 
                 let issued = IssuedExpirationDateSignatures {
-                    epoch_id: signing_keys.issued_for_epoch,
+                    epoch_id,
                     signatures,
                 };
 
@@ -1076,8 +1090,12 @@ impl EcashState {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::ecash::keys::KeyPairWithEpoch;
     use crate::ecash::tests::contract_chain::SharedContractChain;
-    use crate::ecash::tests::contract_harness::{cheap, contract_backed_ecash_state, initiate_dkg};
+    use crate::ecash::tests::contract_harness::{
+        cheap, contract_backed_ecash_state, initiate_dkg, trigger_reset,
+    };
 
     /// B10, at the layer that actually refuses service: `ensure_signer` is the first
     /// thing every ticket verification does, and gateways poll continuously, so a query
@@ -1153,7 +1171,7 @@ mod tests {
 
         // ... but once the ceremony concludes it must resolve, and to the right key
         let recovered = state.master_verification_key(Some(epoch_id)).await?;
-        assert_eq!(*recovered, expected);
+        assert_eq!(*recovered, expected.master);
 
         Ok(())
     }
@@ -1187,6 +1205,128 @@ mod tests {
             state.aux.comm_channel.ecash_threshold(epoch_id).await?,
             2 // ceil(2 * 3 / 3)
         );
+
+        Ok(())
+    }
+
+    /// Credentials outlive the epoch that issued them, so an api is asked for the expiration
+    /// date signatures of epochs that are no longer current, and what comes back has to verify
+    /// against *that* epoch's master key. Aggregating from whatever epoch happens to be
+    /// current instead produces material the caller cannot use, and the answer is then cached
+    /// under the epoch that was asked for, so every later caller gets it too.
+    ///
+    /// A single signer keeps this local: it is the only api in the group, so aggregation reads
+    /// its own partial signatures out of storage rather than going over the network.
+    #[tokio::test]
+    async fn expiration_date_signatures_are_aggregated_for_the_epoch_that_was_asked_for(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        // a second ceremony, so the api now holds a key unrelated to the one credentials from
+        // the first epoch were issued under
+        trigger_reset(&chain);
+        cheap::run_ceremony(&chain, false);
+        let current_epoch = chain.epoch().epoch_id;
+        let current_keys = cheap::install_real_verification_keys(&chain);
+        assert_ne!(past_epoch, current_epoch);
+        assert_ne!(past_keys.master, current_keys.master);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // the partial signatures this api issued in each epoch, as it would have stored them
+        let expiration_date = ecash_today_date();
+        for (epoch_id, keys) in [(past_epoch, &past_keys), (current_epoch, &current_keys)] {
+            let signatures = sign_expiration_date(
+                keys.keypairs[0].secret_key(),
+                expiration_date.ecash_unix_timestamp(),
+            )?;
+            state
+                .aux
+                .storage
+                .insert_partial_expiration_date_signatures(
+                    expiration_date,
+                    &IssuedExpirationDateSignatures {
+                        epoch_id,
+                        signatures,
+                    },
+                )
+                .await?;
+        }
+
+        let served = state
+            .master_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+
+        assert_eq!(
+            served.epoch_id, past_epoch,
+            "a request for a past epoch was answered with the current epoch's signatures"
+        );
+
+        Ok(())
+    }
+
+    /// The layer beneath: once the aggregation above stops silently switching epochs, it asks
+    /// this api for its *own* partial signatures for a past epoch. It cannot produce them - the
+    /// key it holds belongs to the current epoch and the old one is archived - so it has to say
+    /// so rather than sign with the wrong key and label the result with the wrong epoch.
+    ///
+    /// The coin index sibling has guarded this all along; only this path was missing it.
+    #[tokio::test]
+    async fn partial_expiration_date_signatures_are_refused_for_an_epoch_we_have_no_key_for(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+
+        trigger_reset(&chain);
+        cheap::run_ceremony(&chain, false);
+        let current_epoch = chain.epoch().epoch_id;
+        let current_keys = cheap::install_real_verification_keys(&chain);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // this api holds only the key it derived in the current ceremony
+        state
+            .local
+            .ecash_keypair
+            .set(KeyPairWithEpoch::new(
+                current_keys.keypairs.into_iter().next().unwrap(),
+                current_epoch,
+            ))
+            .await;
+        state.local.ecash_keypair.validate();
+
+        let expiration_date = ecash_today_date();
+
+        // nothing stored for the past epoch, and no key to sign it with
+        let refused = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await;
+        assert!(
+            matches!(
+                refused,
+                Err(EcashError::InvalidSigningKeyEpoch {
+                    requested,
+                    available
+                }) if requested == past_epoch && available == current_epoch
+            ),
+            "signed for an epoch whose key this api does not hold"
+        );
+
+        // the current epoch is of course still served
+        let issued = state
+            .partial_expiration_date_signatures(expiration_date, current_epoch)
+            .await?;
+        assert_eq!(issued.epoch_id, current_epoch);
 
         Ok(())
     }

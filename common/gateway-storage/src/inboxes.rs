@@ -38,19 +38,34 @@ impl InboxManager {
     ///
     /// * `client_address_bs58`: base58-encoded address of the client
     /// * `content`: raw content of the message to store.
+    ///
+    /// Store a message for a client that has registered with this gateway at some point.
+    ///
+    /// Returns `false`, having inserted nothing, when no `shared_keys` entry exists for the
+    /// address. Retrieval requires the shared key established at registration, so a message for
+    /// an address that never registered here can never be collected; and since the recipient is
+    /// chosen freely by whoever sent the packet, inserting it anyway lets an unauthenticated
+    /// sender grow this table without bound (up to the stale-message cutoff).
     pub(crate) async fn insert_message(
         &self,
         client_address_bs58: &str,
         content: Vec<u8>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "INSERT INTO message_store(client_address_bs58, content) VALUES (?, ?)",
+    ) -> Result<bool, sqlx::Error> {
+        let inserted = sqlx::query!(
+            r#"
+                INSERT INTO message_store(client_address_bs58, content)
+                SELECT ?, ?
+                WHERE EXISTS(SELECT 1 FROM shared_keys WHERE client_address_bs58 = ?)
+            "#,
             client_address_bs58,
             content,
+            client_address_bs58,
         )
         .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        .await?
+        .rows_affected();
+
+        Ok(inserted > 0)
     }
 
     /// Retrieves messages stored for the particular client specified by the provided address.
@@ -127,6 +142,17 @@ impl InboxManager {
         Ok(())
     }
 
+    #[cfg(test)]
+    async fn message_count(&self, client_address_bs58: &str) -> i64 {
+        sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM message_store WHERE client_address_bs58 = ?",
+            client_address_bs58
+        )
+        .fetch_one(&self.connection_pool)
+        .await
+        .unwrap()
+    }
+
     pub async fn remove_stale(&self, cutoff: OffsetDateTime) -> Result<(), sqlx::Error> {
         let affected = sqlx::query!("DELETE FROM message_store WHERE timestamp < ?", cutoff)
             .execute(&self.connection_pool)
@@ -134,5 +160,89 @@ impl InboxManager {
             .rows_affected();
         debug!("Removed {affected} stale messages");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    const REGISTERED: &str = "registered-client-address";
+    const NEVER_REGISTERED: &str = "never-registered-client-address";
+
+    async fn setup() -> InboxManager {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let migrations_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        sqlx::migrate::Migrator::new(migrations_path.as_path())
+            .await
+            .expect("failed to find migrations")
+            .run(&pool)
+            .await
+            .expect("failed to run migrations");
+
+        // stand in for a completed registration handshake
+        sqlx::query!("INSERT INTO clients(id, client_type) VALUES (1, 'entry_mixnet')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query!(
+            "INSERT INTO shared_keys(client_id, client_address_bs58, derived_aes256_gcm_siv_key) VALUES (1, ?, x'00')",
+            REGISTERED
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        InboxManager::new(pool, 100)
+    }
+
+    #[tokio::test]
+    async fn message_for_a_registered_client_is_stored() {
+        let manager = setup().await;
+
+        assert!(
+            manager
+                .insert_message(REGISTERED, vec![1, 2, 3])
+                .await
+                .unwrap()
+        );
+        assert_eq!(1, manager.message_count(REGISTERED).await);
+    }
+
+    #[tokio::test]
+    async fn message_for_a_client_that_never_registered_is_not_stored() {
+        let manager = setup().await;
+
+        assert!(
+            !manager
+                .insert_message(NEVER_REGISTERED, vec![1, 2, 3])
+                .await
+                .unwrap()
+        );
+        assert_eq!(0, manager.message_count(NEVER_REGISTERED).await);
+    }
+
+    #[tokio::test]
+    async fn a_flood_for_unregistered_recipients_stores_nothing() {
+        let manager = setup().await;
+
+        for i in 0..64 {
+            let recipient = format!("{NEVER_REGISTERED}-{i}");
+            assert!(
+                !manager
+                    .insert_message(&recipient, vec![0; 64])
+                    .await
+                    .unwrap()
+            );
+        }
+
+        let total = sqlx::query_scalar!("SELECT COUNT(*) FROM message_store")
+            .fetch_one(&manager.connection_pool)
+            .await
+            .unwrap();
+        assert_eq!(0, total);
     }
 }

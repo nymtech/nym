@@ -43,7 +43,12 @@ impl<S> SocketStream<S> {
 
 pub(crate) struct ClientDetails {
     pub(crate) address: DestinationAddressBytes,
-    pub(crate) id: i64,
+
+    /// Storage-assigned id of the client's rows, absent for an ephemeral session, which persists
+    /// nothing and therefore has no rows for an id to name. Since the id is handed out by
+    /// `insert_shared_keys`, its absence is exactly what "this session was never registered" means.
+    pub(crate) id: Option<i64>,
+
     pub(crate) shared_keys: SharedSymmetricKey,
     // note, this does **NOT ALWAYS** indicate timestamp of when client connected
     // it is (for v2 auth) timestamp the client **signed** when it created the request
@@ -51,7 +56,7 @@ pub(crate) struct ClientDetails {
 }
 
 impl ClientDetails {
-    pub(crate) fn new(
+    pub(crate) fn new_persisted(
         id: i64,
         address: DestinationAddressBytes,
         shared_keys: SharedSymmetricKey,
@@ -59,7 +64,24 @@ impl ClientDetails {
     ) -> Self {
         ClientDetails {
             address,
-            id,
+            id: Some(id),
+            shared_keys,
+            session_request_timestamp,
+        }
+    }
+
+    /// Details of a session that persists nothing: no shared-key row, so no id, and no bandwidth
+    /// entry to meter against.
+    // constructed by the client-session gate, which is added separately
+    #[allow(dead_code)]
+    pub(crate) fn new_ephemeral(
+        address: DestinationAddressBytes,
+        shared_keys: SharedSymmetricKey,
+        session_request_timestamp: OffsetDateTime,
+    ) -> Self {
+        ClientDetails {
+            address,
+            id: None,
             shared_keys,
             session_request_timestamp,
         }

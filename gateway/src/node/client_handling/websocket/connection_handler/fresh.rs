@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::RequestHandlingError;
 use crate::node::client_handling::active_clients::RemoteClientData;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::helpers::KeyWithAuthTimestamp;
@@ -13,6 +14,8 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
+use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
+use nym_credential_verification::ClientBandwidth;
 use nym_credentials_interface::{AvailableBandwidth, DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD};
 use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::ed25519;
@@ -471,6 +474,35 @@ impl<R, S> FreshHandler<R, S> {
         Ok(available_bandwidth)
     }
 
+    pub(crate) async fn create_bandwidth_storage_manager(
+        &self,
+        client: &ClientDetails,
+    ) -> Result<BandwidthStorageManager, RequestHandlingError> {
+        let Some(client_id) = client.id else {
+            return Ok(BandwidthStorageManager::new_ephemeral());
+        };
+
+        // note: for a registered client the storage manager is only created during an ` upgrade ` function call
+        // which can only be done after registering or authenticating it, meaning the appropriate database rows must have
+        // been created.
+        let bandwidth = self
+            .shared_state
+            .storage
+            .get_available_bandwidth(client_id)
+            .await?
+            .ok_or(RequestHandlingError::MissingClientBandwidthEntry {
+                client_address: client.address.as_base58_string(),
+            })?;
+
+        Ok(BandwidthStorageManager::new(
+            Box::new(self.shared_state.storage.clone()),
+            ClientBandwidth::new(bandwidth.into()),
+            client_id,
+            self.shared_state.cfg.bandwidth,
+            self.shared_state.cfg.enforce_zk_nym,
+        ))
+    }
+
     fn negotiate_proposed_protocol(
         &self,
         client_protocol_version: GatewayProtocolVersion,
@@ -595,7 +627,7 @@ impl<R, S> FreshHandler<R, S> {
         let bandwidth_remaining = self.authenticated_bandwidth_bytes(client_id).await?;
 
         Ok(InitialAuthResult::new(
-            Some(ClientDetails::new(
+            Some(ClientDetails::new_persisted(
                 client_id,
                 address,
                 shared_key.key,
@@ -699,7 +731,7 @@ impl<R, S> FreshHandler<R, S> {
 
         let upgrade_mode = self.upgrade_mode_enabled();
 
-        let client_details = ClientDetails::new(
+        let client_details = ClientDetails::new_persisted(
             client_id,
             remote_address,
             shared_keys,

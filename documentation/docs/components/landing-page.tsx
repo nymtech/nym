@@ -285,54 +285,79 @@ const AnimationBlock = ({ type }: { type: string }) => {
   }
 };
 
-const sdks = [
+const libraryGroups = [
   {
-    name: "Rust SDK",
-    description:
-      "Async Mixnet client with AsyncRead/AsyncWrite streams over the Mixnet.",
-    href: "/developers/rust",
+    label: "Transport · Rust",
+    items: [
+      {
+        name: "nym-sdk",
+        description:
+          "Async Mixnet client with AsyncRead/AsyncWrite streams.",
+        href: "/developers/rust",
+      },
+      {
+        name: "nym-smolmix",
+        description:
+          "TCP/UDP tunnel over the Mixnet on a userspace smoltcp stack.",
+        href: "/developers/smolmix",
+      },
+      {
+        name: "nym-smoldvpn",
+        description:
+          "WireGuard dVPN for throughput-bound work. No Mixnet timing protection.",
+        href: "/developers/smoldvpn",
+      },
+    ],
   },
   {
-    name: "smolmix",
-    description:
-      "TCP/UDP tunnel over the Mixnet. Userspace smoltcp stack exposing AsyncRead/AsyncWrite TcpStream and UdpSocket types.",
-    href: "/developers/smolmix",
+    label: "Transport · TypeScript",
+    items: [
+      {
+        name: "mix-fetch",
+        description:
+          "fetch()-compatible HTTP(S) requests through the Mixnet.",
+        href: "/developers/mix-fetch",
+      },
+      {
+        name: "mix-tunnel",
+        description:
+          "The shared tunnel that mix-fetch, mix-dns and mix-websocket ride on.",
+        href: "/developers/mix-tunnel",
+      },
+      {
+        name: "mix-dns",
+        description: "UDP DNS resolution through the Mixnet.",
+        href: "/developers/mix-dns",
+      },
+      {
+        name: "mix-websocket",
+        description: "ws and wss connections through the Mixnet.",
+        href: "/developers/mix-websocket",
+      },
+      {
+        name: "TypeScript SDK",
+        description:
+          "Raw Mixnet messaging via WebSocket, plus Nyx smart contract bindings.",
+        href: "/developers/typescript",
+      },
+    ],
   },
   {
-    name: "nym-smoldvpn",
-    description:
-      "Userspace WireGuard dVPN for throughput-bound work. Line rate and a client IP hidden across two operators, without the Mixnet's timing protection.",
-    href: "/developers/smoldvpn",
-  },
-  {
-    name: "TypeScript SDK",
-    description:
-      "Browser-side Mixnet Client for raw messaging via WebSocket, plus Nyx smart contract bindings.",
-    href: "/developers/typescript",
-  },
-  {
-    name: "mix-fetch",
-    description:
-      "fetch()-compatible API that routes HTTP(S) requests through the Mixnet. Browsers and Node.js.",
-    href: "/developers/mix-fetch",
-  },
-  {
-    name: "mix-tunnel",
-    description:
-      "Owns the shared Mixnet tunnel that mix-fetch, mix-dns, and mix-websocket ride on. One IPR connection and userspace TCP/IP stack for all three.",
-    href: "/developers/mix-tunnel",
-  },
-  {
-    name: "mix-dns",
-    description:
-      "Resolves hostnames to IPs through the Mixnet. UDP DNS via an IPR exit, no TCP or TLS.",
-    href: "/developers/mix-dns",
-  },
-  {
-    name: "mix-websocket",
-    description:
-      "WebSocket-compatible class for ws and wss traffic routed through the Mixnet via an IPR exit.",
-    href: "/developers/mix-websocket",
+    label: "Hygiene · Rust",
+    items: [
+      {
+        name: "nym-swizzle",
+        description:
+          "Shapes request timing and content so the destination learns less.",
+        href: "/developers/swizzle",
+      },
+      {
+        name: "nym-swizzle-zcash",
+        description:
+          "The same primitives as finished Zcash light-client policy.",
+        href: "/developers/swizzle/zcash",
+      },
+    ],
   },
 ];
 
@@ -416,81 +441,84 @@ export const LandingPage = () => {
         ))}
       </div>
 
-      <div
-        className="landing-sdk-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "0",
-          marginBottom: "3.5rem",
-        }}
-      >
-        <div style={{ paddingRight: "2rem" }}>
-          <h2
-            className="landing-heading"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "1.35rem",
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-              border: "none",
-              padding: 0,
-            }}
-          >
-            Libraries
-          </h2>
-          <p
-            style={{
-              fontSize: "0.88rem",
-              color: "var(--textMuted)",
-              lineHeight: 1.6,
-            }}
-          >
-            Rust and TypeScript libraries for Mixnet integration.
-          </p>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-          {sdks.map((sdk, i) => (
-            <Link key={i} href={sdk.href} style={{ textDecoration: "none" }}>
+      <div style={{ marginBottom: "3.5rem" }}>
+        <h2
+          className="landing-heading"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "1.35rem",
+            fontWeight: 600,
+            marginBottom: "1.25rem",
+            border: "none",
+            padding: 0,
+          }}
+        >
+          Libraries
+        </h2>
+        <div
+          className="landing-sdk-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "2rem",
+          }}
+        >
+          {libraryGroups.map((group) => (
+            <div key={group.label}>
               <div
-                className="landing-card"
                 style={{
-                  padding: "1rem 1.2rem",
-                  border: "1px solid var(--border)",
-                  marginTop: i > 0 ? "-1px" : undefined,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  transition: "background-color 0.15s",
-                  cursor: "pointer",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.78rem",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--textMuted)",
+                  marginBottom: "0.75rem",
                 }}
               >
-                <div>
-                  <span
-                    className="landing-heading"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {sdk.name}
-                  </span>
-                  <p
-                    style={{
-                      fontSize: "0.8rem",
-                      color: "var(--textMuted)",
-                      margin: "0.25rem 0 0 0",
-                    }}
-                  >
-                    {sdk.description}
-                  </p>
-                </div>
-                <span style={{ color: "var(--textMuted)", fontSize: "1rem" }}>
-                  &rsaquo;
-                </span>
+                {group.label}
               </div>
-            </Link>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {group.items.map((item, i) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <div
+                      className="landing-card"
+                      style={{
+                        padding: "0.75rem 0.9rem",
+                        border: "1px solid var(--border)",
+                        marginTop: i > 0 ? "-1px" : undefined,
+                        transition: "background-color 0.15s",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span
+                        className="landing-heading"
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.9rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item.name}
+                      </span>
+                      <p
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--textMuted)",
+                          lineHeight: 1.5,
+                          margin: "0.2rem 0 0 0",
+                        }}
+                      >
+                        {item.description}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

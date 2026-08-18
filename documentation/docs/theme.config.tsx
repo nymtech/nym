@@ -17,7 +17,7 @@ const config: DocsThemeConfig = {
   //   </>
   // ),
   banner: {
-    key: "threat-model-2026-07",
+    key: "threat-model-2026-08",
     dismissible: true,
     text: (
       <span>
@@ -29,7 +29,11 @@ const config: DocsThemeConfig = {
         <Link href="/developers/smoldvpn" style={{ textDecoration: "underline" }}>
           nym-smoldvpn
         </Link>{" "}
-        dVPN package.
+        dVPN package and{" "}
+        <Link href="/developers/swizzle" style={{ textDecoration: "underline" }}>
+          nym-swizzle
+        </Link>{" "}
+        sender hygiene.
       </span>
     ),
   },

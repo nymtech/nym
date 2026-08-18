@@ -539,11 +539,6 @@ html:not(.dark) .landing-card {
   .landing-sdk-grid {
     grid-template-columns: 1fr !important;
   }
-
-  .landing-sdk-grid > div:first-child {
-    padding-right: 0 !important;
-    margin-bottom: 1.5rem;
-  }
 }
 
 

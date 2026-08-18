@@ -1,12 +1,10 @@
 // Shared MDX helpers for the build generators (generate-index, generate-llms-txt,
-// generate-page-markdown). Replaces three hand-rolled, subtly divergent copies:
-// two parsed frontmatter with a non-head-anchored regex (a body `---`, e.g. a
-// mermaid config block, could be mistaken for frontmatter and eat content), and
-// one stripped `import`/JSX lines without fence-awareness (corrupting code
-// examples inside fenced blocks in llms-full.txt).
+// generate-page-markdown): one implementation for all three.
 //
-// Frontmatter is parsed by gray-matter (real YAML, head-anchored); the strip is
-// the fence-aware line filter the good copies already used.
+// Frontmatter is parsed by gray-matter (real YAML, head-anchored), so a body
+// `---`, such as a mermaid config block, is never mistaken for frontmatter and
+// never eats content. The strip is fence-aware, so code examples inside fenced
+// blocks survive intact.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,9 +38,9 @@ export function pageDescription(data) {
  * A page's source file is not the page's content. `performance-and-testing.mdx`
  * imports `node-perf-mixnet.mdx` and renders it as `<NodePerfMixnet />`, so every
  * sentence in that partial is on the published page and none of it is in the file
- * the chunker reads. Measured on this repo: 32 partials, 3,393 lines, imported by
- * 12 pages, none of it indexed. The mixnet performance figures a developer needs
- * to judge whether a workload fits were entirely invisible to retrieval.
+ * the chunker reads. A partial that a page imports and renders is invisible to
+ * retrieval unless it is inlined, so the mixnet performance figures a developer
+ * needs to judge whether a workload fits never reach the index.
  *
  * Partials are plain Markdown, so this needs no rendering: resolve the import,
  * splice the text in where the tag appears, and let the normal chunking treat it
@@ -94,7 +92,7 @@ export function inlineMdxPartials(content, { filePath, root, seen = new Set() })
  * `expand` is optional: `(tagName, attrs, ctx) => string | null`. When it returns
  * text, that text replaces the tag. This is how a component that renders content
  * from typed data gets into the index at all; see projections.mjs. Returning null
- * drops the tag as before, which is right for anything purely visual.
+ * drops the tag, which is right for anything purely visual.
  *
  * `ctx` is one object per call, so an expander can carry page-level state such as
  * which scenario the page declared.
@@ -120,9 +118,8 @@ export function stripMdx(content, { expand, values } = {}) {
       continue;
     }
     // An MDX comment, `{/* ... */}`. The single-line form is caught by the bare
-    // expression rule below, but a multi-line one used to pass through whole: a
-    // maintenance note addressed to editors was served to readers as if it were
-    // part of the page, and an agent quoted it back as a defect.
+    // expression rule below; a multi-line one must be skipped to its closing
+    // `*/}`, or editor-facing notes reach readers as page content.
     if (inComment) {
       if (line.includes('*/}')) inComment = false;
       continue;
@@ -141,8 +138,8 @@ export function stripMdx(content, { expand, values } = {}) {
     }
     if (/^import\s+.*$/.test(line)) continue;
     // Page wiring, not prose. `export const scenario = requireGenericScenario('mixnet')`
-    // and the `dynamic(() => import(...))` blocks beside it were reaching the
-    // index verbatim and being served to readers as if they were documentation.
+    // and the `dynamic(() => import(...))` blocks beside it must not reach the
+    // index; they would be served to readers as if they were documentation.
     if (JS_STATEMENT.test(line)) {
       jsDepth = bracketDelta(line);
       continue;

@@ -4,10 +4,9 @@ import { loadProjections, loadDocValues } from './projections.mjs';
 // @ts-expect-error - plain ESM JS module
 import { stripMdx } from './mdx.mjs';
 
-// These guard the defect the MCP trial surfaced: the threat-model pages are two
-// sentences of prose plus a component, and the component held every definition.
-// The chunker dropped the tag, so the canonical actors and vectors were absent
-// from the index while every other page referred to them by name.
+// The threat-model pages are two sentences of prose plus a component that holds
+// every definition, so dropping the tag drops the canonical actors and vectors
+// from the index while every other page refers to them by name.
 
 let expand: (t: string, a: string, c?: Record<string, unknown>) => string | null;
 
@@ -80,8 +79,9 @@ describe('stripMdx with projections', () => {
   });
 
   it('substitutes an interpolated constant instead of emitting its source', async () => {
-    // `{RUST_MSRV}` reached readers verbatim, so the docs stated a version
-    // requirement that could not be read. It is inline, not on its own line.
+    // Without substitution, `{RUST_MSRV}` reaches readers verbatim and the docs
+    // state a version requirement that cannot be read. It is inline, not on its
+    // own line.
     const values = await loadDocValues();
     const out = stripMdx('**Minimum Rust version:** {RUST_MSRV}+', { expand, values });
     expect(out).not.toContain('RUST_MSRV');
@@ -130,11 +130,10 @@ describe('projected anchors match the rendered page', () => {
 });
 
 describe('MDX comments', () => {
-  // A multi-line `{/* ... */}` used to reach the index intact. The swizzle page
-  // carried a note addressed to editors ("MAINTENANCE NOTE, delete when it no
-  // longer applies") and served it to readers as documentation; a trial agent
-  // reported it as a page shipped unfinished. Single-line comments were already
-  // handled, which is exactly why this went unnoticed.
+  // A multi-line `{/* ... */}` must not reach the index: editor-facing notes
+  // ("MAINTENANCE NOTE, delete when it no longer applies") would be served to
+  // readers as documentation. The single-line form is caught by the
+  // bare-expression rule.
   it('drops a multi-line comment entirely', () => {
     const src = ['Before.', '', '{/*', '  A note to editors.', '  Step 1: do a thing.', '*/}', '', 'After.'].join('\n');
     const out = stripMdx(src, { expand });

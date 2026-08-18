@@ -6,19 +6,16 @@ import { parseFrontmatter, stripMdx, inlineMdxPartials } from './mdx.mjs';
 // @ts-expect-error - plain ESM JS module
 import { loadProjections, loadDocValues } from './projections.mjs';
 
-// A page's source file is not a page's content. Three times now, content that
-// renders for a reader has been invisible to retrieval, each by a different
-// route:
+// A page's source file is not a page's content. Content that renders for a
+// reader can be invisible to retrieval by several routes:
 //
 //   <ActorsReference />      React rendering typed data
 //   {RUST_MSRV}              a TypeScript constant
 //   <NodePerfMixnet />       another .mdx file
 //
-// Each was found by an agent failing to answer a question the docs do answer,
-// which is an expensive way to find out. These tests fail at build time instead,
-// and they are written to catch the *next* variant rather than the three known
-// ones: anything a page pulls in that the chunker cannot see is a failure here,
-// whatever mechanism it arrives by.
+// These tests fail at build time, and they are written to catch the *next*
+// variant rather than the three known ones: anything a page pulls in that the
+// chunker cannot see is a failure here, whatever mechanism it arrives by.
 
 const DOCS_ROOT = path.resolve(__dirname, '../..');
 const PAGES = path.join(DOCS_ROOT, 'pages');
@@ -34,9 +31,9 @@ function walk(dir: string, acc: string[] = []): string[] {
 
 const pages = walk(PAGES);
 
-// The guard has to run the pipeline the build runs. An earlier version called
-// stripMdx bare and re-reported every page whose content comes from a projected
-// component, which is the bug this suite exists to prove is fixed.
+// The guard must run the same pipeline the build runs, projections included;
+// calling stripMdx bare re-reports every page whose content comes from a
+// projected component.
 let expand: unknown;
 let values: unknown;
 beforeAll(async () => {
@@ -113,10 +110,10 @@ describe('MDX partials reach the index', () => {
 });
 
 describe('pages are not empty once stripped', () => {
-  // The end-to-end configuration page had twelve characters of indexable text:
-  // a heading, and a component holding everything else. A page that renders a
-  // screenful and indexes almost nothing is the signature of content the
-  // chunker cannot see, whatever the mechanism.
+  // A page can carry a dozen characters of indexable text: a heading, and a
+  // component holding everything else. A page that renders a screenful and
+  // indexes almost nothing is the signature of content the chunker cannot see,
+  // whatever the mechanism.
   const MIN_CHARS = 200;
 
   it('no page collapses to almost nothing after stripping', () => {
@@ -127,10 +124,9 @@ describe('pages are not empty once stripped', () => {
 
       // A short source is usually a short page, but not when the shortness is
       // caused by the content living in a component. pages/index.mdx is 77
-      // characters, all of it `<LandingPage />`, and the earlier version of this
-      // check exempted it for being short: the exemption fired on exactly the
-      // case the check exists to catch. So a page only counts as genuinely short
-      // if it renders no component either.
+      // characters, all of it `<LandingPage />`, so a page only counts as
+      // genuinely short if it also renders no component; a length-only exemption
+      // would fire on exactly the case this check exists to catch.
       const rendersComponent = /<[A-Z][\w.]*[\s/>]/.test(raw);
       if (raw.length < MIN_CHARS && !rendersComponent) continue;
 

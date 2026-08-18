@@ -96,9 +96,9 @@ describe('live tools', () => {
       expect(out).toContain(n);
     }
     expect(out).toMatch(/do not sum/);
-    // The old phrasing nested entry/exit inside the gateway count, which reads as
-    // a breakdown. 80 + 100 is not 558 and 558 + 59 is not 802, so any nesting
-    // invites an agent to compute a figure that is wrong.
+    // Nesting entry/exit inside the gateway count reads as a breakdown. 80 + 100
+    // is not 558 and 558 + 59 is not 802, so any nesting invites an agent to
+    // compute a figure that is wrong.
     expect(out).not.toContain('558 bonded (');
   });
 

@@ -129,10 +129,9 @@ export function createTools(deps: ToolDeps): McpTool[] {
       handler: safe(async () => {
         const s = await nym.getNetworkSummary();
         const g = s.gateways.bonded;
-        // Reported flat, with no figure nested inside another. The previous
-        // phrasing read `603 bonded (80 entry, 100 exit)`, which asserts a
-        // breakdown the upstream numbers do not support: they are independent
-        // counts and do not sum to the total.
+        // Reported flat, with no figure nested inside another: the counts are
+        // independent and do not sum, so any nesting asserts a breakdown the
+        // upstream numbers do not support.
         return text(
           `Bonded nym-nodes, as reported by the Node Status API: ` +
             `${s.total_nodes} total, ${g.count} gateways, ${s.mixnodes.bonded.count} mixnodes, ` +

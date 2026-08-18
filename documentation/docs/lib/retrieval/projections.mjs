@@ -5,10 +5,10 @@
 // is the entire definition of L2, L3L and L3G; the page around it is two
 // sentences of preamble.
 //
-// The chunker reads MDX source, so it saw the tag and nothing else. The canonical
-// definitions of the actors, vectors and properties, which every other page
-// refers to by name, were absent from the index entirely. Retrieval answered
-// questions about them from commentary elsewhere, or not at all.
+// The chunker reads MDX source, so without a projection it sees the tag and
+// nothing else, and the canonical definitions of the actors, vectors and
+// properties, which every other page refers to by name, are absent from the
+// index entirely.
 //
 // Rather than render React in the build, each component that carries content is
 // paired with a projection of the same data into markdown. The data is read from
@@ -99,9 +99,8 @@ function matrixRows(matrix) {
  *
  * It must not, when the trigger is a component that sits mid-section. A synthetic
  * H2 becomes a section boundary for the chunker, so every paragraph between it and
- * the next real heading is re-filed under it. On `/developers` that put the text
- * about traffic past the Exit Gateway under a heading reading "no exit gateway",
- * which is worse than not indexing the diagram at all.
+ * the next real heading is re-filed under it, which can put surrounding prose under
+ * a heading that contradicts it. That is worse than not indexing the diagram at all.
  */
 function projectScenario(s, { heading = true } = {}) {
   if (!s) return '';
@@ -129,8 +128,8 @@ function projectScenario(s, { heading = true } = {}) {
  * Build the expander used by stripMdx.
  *
  * Returns `(tagName, attrs, ctx) => string | null`. Null means "no projection
- * for this component", and the tag is dropped as before, which is correct for
- * anything whose content is purely visual.
+ * for this component", and the tag is dropped, which is correct for anything
+ * whose content is purely visual.
  *
  * `ctx.scenarioId` comes from the page's own
  * `export const scenario = requireGenericScenario('id')` line.
@@ -160,8 +159,9 @@ export async function loadProjections() {
       // once per page and letting the first one win avoids repeating it.
       // NetworkDiagram counts: its topology caption is prose that only exists
       // in the data, so a page whose only scenario component is the diagram
-      // contributed nothing about the route it draws. It projects without a
-      // heading, because unlike the other three it appears mid-section.
+      // would otherwise contribute nothing about the route it draws. It
+      // projects without a heading, because unlike the other three it appears
+      // mid-section.
       if (!ctx.scenarioId || ctx.scenarioProjected) return null;
       ctx.scenarioProjected = true;
       return projectScenario(scenarioById.get(ctx.scenarioId), {
@@ -175,11 +175,11 @@ export async function loadProjections() {
 /**
  * Constants pages interpolate, such as `{RUST_MSRV}`.
  *
- * MDX evaluates these at render time; the chunker cannot, so the index carried
- * the literal `{RUST_MSRV}` instead of a version. That is worse than carrying
- * nothing, because the page then states a requirement that cannot be read, and
- * the reader has no way to tell a placeholder from a value. The real values are
- * one import away, so substitute them.
+ * MDX evaluates these at render time; the chunker cannot, so without substitution
+ * the index carries the literal `{RUST_MSRV}` instead of a version. That is worse
+ * than carrying nothing, because the page then states a requirement that cannot
+ * be read, and the reader has no way to tell a placeholder from a value. The real
+ * values are one import away, so substitute them.
  */
 export async function loadDocValues() {
   const mod = await loadTsModule(path.join(HERE, '..', '..', 'components', 'versions.ts'));

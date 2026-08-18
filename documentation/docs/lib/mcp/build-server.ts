@@ -8,8 +8,7 @@
 // verbatim. That is why this needs NO zod (zod is only pulled by the high-level
 // McpServer.registerTool convenience, which we do not use).
 //
-// Verified working against SDK 1.30.0: tools/list and tools/call both round-trip
-// through the pages-router route over Streamable HTTP (SSE reply path).
+// Transport is Streamable HTTP with an SSE reply path.
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';

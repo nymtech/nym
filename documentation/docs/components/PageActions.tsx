@@ -1,6 +1,6 @@
 // Per-page action row: "Copy page" (grabs the generated Markdown for this page)
-// and "Use with AI" (opens the MCP connection panel). Rendered at the top of every page
-// via theme.config.tsx `main`. See the AI-ready docs surface in the plan (3.5).
+// and "Use with AI" (opens the MCP connection panel). Mounted at the top of the
+// page content by PageActionsMount, which injects it through a client-side portal.
 //
 // "Copy page" fetches <path>.md, which generate-page-markdown.mjs emits at build.
 // Pages without prose (e.g. the component landing) have no .md; the copy just

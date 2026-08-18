@@ -8,9 +8,8 @@
  *   pages/developers/index.mdx    -> public/developers.md       (/docs/developers.md)
  *   pages/index.mdx               -> public/index.md            (/docs/index.md)
  *
- * This is the keystone of the AI-ready docs surface (see ai-assistant-mcp-plan.md
- * 3.5): once each page has a dereferenceable .md, "copy as markdown" / "open in
- * Claude" buttons and the llms.txt index all just point at these files.
+ * Once each page has a dereferenceable .md, the "copy as markdown" / "open in
+ * Claude" buttons and the llms.txt index all point at these files.
  *
  * Run from repo root or documentation/docs/:
  *   node documentation/scripts/next-scripts/generate-page-markdown.mjs

@@ -20,8 +20,7 @@ export const MAX_CHARS = 2400;
 export const MIN_CHARS = 120;
 
 // Heading slugs whose sections are auto-generated, prose-free noise (CLI shell
-// completion specs). Skipped entirely: near-zero retrieval value, and they are
-// the pages that produced the 6k-token chunks in the Phase 0 spike.
+// completion specs). Skipped entirely: near-zero retrieval value.
 export const DEFAULT_SKIP_SLUGS = new Set(['generate-fig-spec']);
 
 // Heading slug for deep-link anchors. Delegates to github-slugger, the same
@@ -90,7 +89,7 @@ export function splitByHeadings(body, pageTitle) {
  * Split oversized text so no part exceeds maxChars. Greedily packs paragraphs;
  * any single paragraph still over the cap (e.g. one long code block) is
  * hard-split on line then raw character boundaries. Guarantees every part is
- * <= maxChars, which the paragraph-only splitter in the spike did not.
+ * <= maxChars.
  *
  * @param {string} text
  * @param {number} maxChars

@@ -120,7 +120,7 @@ describe('symbolOf: rust', () => {
     });
   }
 
-  // Lines the old regex already handled. The fix must not regress them.
+  // Baseline cases that must keep working.
   const unchanged: [string, string][] = [
     ['pub mod v2;', 'v2'],
     ['pub fn new(config: Config) -> Self {', 'new'],

@@ -18,7 +18,7 @@ import { loadProjections, loadDocValues } from '../../docs/lib/retrieval/project
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_FILE = path.resolve(__dirname, '../../docs/public/llms-full.txt');
 // Project the docs version from its single source (docs/package.json) rather than
-// hardcoding it here, where it silently went stale.
+// hardcoding it here, where it would silently go stale.
 const DOCS_VERSION = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '../../docs/package.json'), 'utf-8'),
 ).version;

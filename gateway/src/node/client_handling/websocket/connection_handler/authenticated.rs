@@ -185,27 +185,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         mix_receiver: MixMessageReceiver,
         is_active_request_receiver: IsActiveRequestReceiver,
     ) -> Result<Self, RequestHandlingError> {
-        // note: the `upgrade` function can only be called after registering or authenticating the client,
-        // meaning the appropriate database rows must have been created
-        // so in theory we could just unwrap the value here, but since we're returning a Result anyway,
-        // we might as well return a failure response instead
-        let bandwidth = fresh
-            .shared_state
-            .storage
-            .get_available_bandwidth(client.id)
-            .await?
-            .ok_or(RequestHandlingError::MissingClientBandwidthEntry {
-                client_address: client.address.as_base58_string(),
-            })?;
+        let bandwidth_storage_manager = fresh.create_bandwidth_storage_manager(&client).await?;
 
         let handler = AuthenticatedHandler {
-            bandwidth_storage_manager: BandwidthStorageManager::new(
-                Box::new(fresh.shared_state.storage.clone()),
-                ClientBandwidth::new(bandwidth.into()),
-                client.id,
-                fresh.shared_state.cfg.bandwidth,
-                fresh.shared_state.cfg.enforce_zk_nym,
-            ),
+            bandwidth_storage_manager,
             inner: fresh,
             client,
             mix_receiver,

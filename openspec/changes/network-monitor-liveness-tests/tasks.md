@@ -59,7 +59,7 @@
 
 - [x] 7.1 Derive a third structure from the authorised-agent set: the announced monitor ed25519 identities, keyed by identity rather than by address, populated from the same startup load and the same nyxd websocket events, tolerating entries with no identity and the same identity arriving from both of an agent's entries
 - [x] 7.2 Add an `ephemeral` mode to `BandwidthStorageManager` that seeds a synthetic allowance and performs no read or write against `BandwidthGatewayStorage`
-- [ ] 7.3 Make the client identity threaded into `ClientDetails` / `BandwidthStorageManager` optional (or a `Persisted` / `Ephemeral` discriminator) so a session with no storage row is representable
+- [x] 7.3 Make the client identity threaded into `ClientDetails` / `BandwidthStorageManager` optional (or a `Persisted` / `Ephemeral` discriminator) so a session with no storage row is representable
 - [ ] 7.4 Route a client websocket session into an ephemeral monitor session when the registration handshake's verified ed25519 identity is in the set from 7.1, skipping `insert_shared_keys`, `create_bandwidth_entry`, and the stored-message push. The source IP MUST play no part in this decision
 - [ ] 7.5 Ensure an out-of-bandwidth outcome is reported to the client as a distinguishable error rather than a generic failure, so a proxied gateway or a gateway that has not ingested the identity is diagnosable
 - [ ] 7.6 Unit-test that a monitor session forwards packets without a credential and leaves the gateway storage untouched, that a session presenting an unannounced identity from an authorised agent IP is metered exactly as before, and that a session presenting an announced identity from an unrelated IP is exempt

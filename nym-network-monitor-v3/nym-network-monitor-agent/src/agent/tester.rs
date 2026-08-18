@@ -88,7 +88,10 @@ impl NodeStressTester {
             // Route: tested node → this agent (so packets come back to us).
             let route = [
                 tested_node.as_sphinx_node(),
-                as_sphinx_node(config.external_mixnet_address, sphinx_key.public_key()),
+                as_sphinx_node(
+                    config.return_address_for(tested_node.address),
+                    sphinx_key.public_key(),
+                ),
             ];
             let delay = config.packet_delay;
             Some(create_test_sphinx_packet_header(route, delay)?)
@@ -138,7 +141,7 @@ impl NodeStressTester {
     ) -> anyhow::Result<MixnetListener> {
         MixnetListener::new(
             self.config.mixnet_bind_address,
-            self.tested_node.address,
+            self.tested_node.clone(),
             self.noise_config(),
             received_sender,
             shutdown_token.clone(),
@@ -149,11 +152,15 @@ impl NodeStressTester {
     /// Builds a [`NoiseConfig`] that contains the default configuration for the protocol
     /// and the key associated with the tested node to accept its connection.
     fn noise_config(&self) -> NoiseConfig {
-        let mut nodes = HashMap::new();
-        nodes.insert(
-            self.tested_node.address.ip(),
-            self.tested_node.as_noise_node(),
-        );
+        // the node's key has to be reachable under every address it's known by: the responder
+        // handshake looks the initiator up by its source ip and silently falls back to plain TCP
+        // when it misses, which would then fail the connection as "not speaking noise"
+        let nodes = self
+            .tested_node
+            .known_ips
+            .iter()
+            .map(|ip| (*ip, self.tested_node.as_noise_node()))
+            .collect::<HashMap<_, _>>();
         let network = NoiseNetworkView::new(nodes);
 
         NoiseConfig::new(
@@ -167,7 +174,7 @@ impl NodeStressTester {
     /// used as the final hop in the packet route so packets are delivered back here.
     fn as_sphinx_node(&self) -> nym_sphinx_types::Node {
         as_sphinx_node(
-            self.config.external_mixnet_address,
+            self.config.return_address_for(self.tested_node.address),
             *self.sphinx_key.public_key(),
         )
     }

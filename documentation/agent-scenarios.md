@@ -10,25 +10,18 @@ Two things are being tested, and they fail differently:
 - **Retrieval**: can the agent find the answer? Fails mechanically, and the fix
   is in the pipeline (chunking, projections, scope).
 - **Honesty**: does the answer stay inside what Nym actually does? Fails
-  editorially or at generation, and the fix is in the prose or the system prompt.
+  editorially or at generation, and the fix is in the prose and in what the index
+  surfaces.
 
 Automated coverage lives in `scripts/check-mcp-server.sh`. The scenarios below are
 the wider suite, including the ones a human still has to read.
 
-**The generation checks are gone with the chat route.** `check-chat-honesty.sh`
-posted questions to `/api/chat` and asserted the answers stayed inside what Nym
-does. There is no generation step to test now: the MCP server returns sections and
-the calling agent writes the answer. So scope honesty and workload fit are tested
-by reading an agent trial rather than by a script, and the criteria in sections C
-and D below are the criteria for that reading. Both scripts, and the answers they
-produced, are on branch `max/docs-ai-chat-widget`.
+The MCP server returns sections and the calling agent writes the answer, so scope
+honesty and workload fit (sections C and D) are assessed by reading an agent
+trial, not by a script.
 
-That change also raised the stakes on the prose. The chat's honesty came partly
-from a system prompt; an agent on MCP gets the retrieved text and nothing else, so
-anything the docs do not say plainly is not said at all.
-
-How to run an agent against these, and why the sandbox is built the way it is:
-[`scripts/agent-trial/README.md`](scripts/agent-trial/README.md).
+An agent on MCP gets the retrieved text and nothing else, so anything the docs do
+not say plainly is not said at all.
 
 ## How to run a scenario
 
@@ -52,13 +45,14 @@ runtime × approach matrix used; signatures read via `search_code` rather than
 guessed; a concrete Cargo.toml with versions and MSRV.
 
 **Regressions this catches:** the canonical definitions falling out of the index
-(they did, when a component rendered them and the chunker read source), version
-placeholders reaching readers unsubstituted, MDX wiring leaking as prose.
+(a component rendering them while the chunker reads source removes them from the
+index), version placeholders reaching readers unsubstituted, MDX wiring leaking
+as prose.
 
 ## B. The integration decision
 
 **This is the crux.** Threat model first, then the platform matrix, then
-end-to-end or proxy. Prompt in `mcp-trial/phase2-prompt.md`.
+end-to-end or proxy.
 
 Two products given together, because the contrast is the decision:
 
@@ -96,15 +90,14 @@ the developer's problem; only then answers what was asked.
 **Failing:** confirms the premise, or buries the limit under a paragraph of what
 *is* protected.
 
-**Why this needs a generation-layer fix rather than better prose.** Retrieval is
+**Why better prose cannot fix this.** Retrieval is
 agreement-biased. Measured against the live index, "I want my app to be
 completely anonymous" returns `Protected: the mixnet hides the client IP` and
 `Protected: the mixnet hides the conversation`, while `Unprotected: identity and
 contents arrive together`, which sits directly above one of them on the same
 page, does not appear at all. Ask for the limits directly and they rank first.
 The honest content is written; it loses to the reassuring content whenever the
-question leans the other way. No rewrite fixes that, so the standing caveat lives
-in `lib/chat/prompt.ts`.
+question leans the other way. No rewrite fixes that.
 
 ## D. Unsuitable workloads
 
@@ -161,115 +154,13 @@ Cheap, mechanical, already automated in `scripts/check-mcp-server.sh`:
 - No MDX wiring (`requireGenericScenario`, `dynamic(() => import(...))`) in the
   returned text.
 
-### Measured results, 2026-08-14
+Two notes for whoever tightens the scope-honesty and workload-fit checks.
 
-Scope honesty passed 4/4 against the deployment, on the prompt *before* the
-standing caveat was added. The docs already carry that part. Workload fit failed
-2 of 3, and one failure is worth quoting in full, because it is the shape of the
-problem:
+Match the stance, not the vocabulary: bare "delay" or "latency" is satisfied by
+an answer describing per-hop delay as a *feature*.
 
-> **Q.** I want to build a peer-to-peer multiplayer game with real-time position
-> updates over Nym. Will that work?
->
-> **A.** *Yes, this is a supported end-to-end setup*, but be aware of the
-> trade-offs. **How it works**: If both players run Nym clients, traffic stays
-> entirely within the mixnet, there's no exit gateway or clearnet hop, and SURBs
-> enable anonymous bidirectional communication [...]
-
-It answered whether two Nym clients can talk. It never answered whether a mixnet
-can carry real-time position updates. Those are different questions, and only the
-first is covered by the corpus, so "peer-to-peer" matched the end-to-end
-configuration pages and inherited their confidence.
-
-Live video passed. Block syncing abstained, as below.
-
-**After adding the workload clause to the system prompt**, the same question got a
-markedly better answer that still fails, and the way it fails is the finding:
-
-> The trade-off that matters most for a *real-time* game: this is described as a
-> slow configuration, due to the 5-hop mixnet routing plus mixing delays. Real-time
-> position updates typically demand low latency [...] So functionally, **yes**, a
-> peer-to-peer end-to-end design over Nym is supported [...] But you should test
-> actual latency for your game's real-time requirements yourself, since the
-> documentation only characterises this configuration as "slow" without giving
-> concrete numbers.
-
-It raised the trade-off unprompted, correctly, and then handed the verdict back to
-the reader. That is the honest move available to it: the docs say "slow" and give
-no numbers, by design, because inventing latency figures is forbidden. "Slow" is a
-property. It supports "this will be slower". It does not support "this is unusable
-for a position-update loop".
-
-**So the prompt has gone as far as a prompt can.** A model held to the corpus
-cannot refuse on evidence the corpus does not contain, and making it refuse anyway
-would be the confabulation every other guard here exists to prevent. The remaining
-fix is a documented verdict, which needs no numbers: *interactive and real-time
-workloads are not a fit; bulk transfer is the weakest case; where throughput
-matters and in-transit timing protection does not, dVPN mode is the alternative.*
-
-That sentence is the smallest thing that would turn these two checks green, and it
-belongs on the threat-model branch.
-
-### Resolved: 7/7, and the prediction above was wrong
-
-After the workload clause was deployed (and 118 chunks of previously invisible
-partial content reached the index), all three workload checks pass. The gaming
-answer now ends:
-
-> For live position updates at game tick rates, neither mixnet mode nor dVPN mode
-> is really an answer within Nym's model. dVPN gets you throughput but explicitly
-> abandons the privacy property you'd presumably want from Nym in the first place.
-
-It turns the developer away and declines to offer dVPN as a consolation. The claim
-above, that only a documented verdict could achieve this, was wrong: the prompt
-supplied the general principle (small independent messages are the strong case;
-latency budgets and bulk transfer are the weak ones) and the model applied it to a
-workload the docs never mention, grounding it in documented mechanism rather than
-invented numbers.
-
-**The page is still worth writing, for a different reason.** The chat route has a
-system prompt; the MCP server has none. `pages/api/mcp.ts` returns ranked sections
-and stops, so there is no generation step to attach a standing caveat to. An agent
-on `search_docs` gets the reassuring sections measured above with none of the
-scaffolding that produced that answer.
-
-So honesty currently lives in the chat path only. The two consumers that cannot be
-prompted are coding agents on MCP and humans reading the page, and both need the
-verdict written down.
-
-### Measured baseline, before any fix
-
-Asked "I am building a cryptocurrency wallet that syncs the whole chain. Can I do
-the block download over the mixnet?", the deployed assistant answered:
-
-> The context provided doesn't cover full-chain block download for a wallet, it
-> only addresses *light* wallet sync scenarios. [...] I cannot say whether or how
-> a full chain (non-light) block download would work over the mixnet, as this
-> isn't addressed in the given context.
-
-That is honest by abstention, and it is still the wrong outcome. A developer
-reads it and concludes the mixnet might be fine for their case. The material to
-answer properly exists in the corpus, "strongest for small, independent messages
-and weakest for bulk transfers", but it did not retrieve for a question phrased
-around wallets.
-
-**So there is no page answering "what is Nym unsuitable for".** That is a content
-gap, and it is the piece to write on the threat-model branch. Until it exists,
-these checks fail for a reason no prompt change can repair: the assistant is
-constrained to the corpus, and the corpus does not take a position.
-
-Two notes for whoever tightens these checks.
-
-An early version of the regex accepted bare "delay" and "latency", which an
-evasive answer satisfies by describing per-hop delays as a *feature*. Match the
-stance, not the vocabulary.
-
-And keep the patterns aligned with `developers/limitations.mdx`. Adding that page
-immediately failed the best answer the assistant had produced: the page is
-organised around "Is my workload a fit?", so the answer said "not a fit" and
-"neither mode fits", and the checker listed every synonym for unsuitable except
-the one the docs had just started teaching. The model tracked the docs and the
-checker did not. When a page changes the word, this changes with it.
+Keep the patterns aligned with the wording used in `developers/limitations.mdx`.
+When a page changes the word, this changes with it.
 
 ## Known open findings
 
@@ -290,6 +181,6 @@ as new.
   never deployed on mainnet.
 - **`network_summary` counts do not reconcile.** Entry plus exit does not equal
   bonded gateways, and gateways plus mixnodes does not equal total nodes.
-- **Duplicate chunks in results.** The same section can occupy two of ten slots,
-  visible in chat citations, which wastes context on the model's only view of the
-  corpus.
+- **Duplicate chunks in results.** The same section can occupy two slots in a
+  single `search_docs` result, which wastes context in the agent's only view of
+  the corpus.

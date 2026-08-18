@@ -63,6 +63,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
 use std::panic::AssertUnwindSafe;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use tendermint::Hash;
 
@@ -77,7 +78,7 @@ pub(crate) struct SharedContractChain {
 
 pub(crate) struct ContractChain {
     pub(crate) tester: ContractTester<DkgContract>,
-    tx_counter: u64,
+    tx_counter: AtomicU64,
 }
 
 impl SharedContractChain {
@@ -94,7 +95,7 @@ impl SharedContractChain {
             .spawn(move || {
                 let mut chain = ContractChain {
                     tester: init_contract_tester_with_group_members(group_members),
-                    tx_counter: 0,
+                    tx_counter: AtomicU64::new(0),
                 };
                 while let Ok(job) = incoming.recv() {
                     job(&mut chain);
@@ -357,16 +358,16 @@ impl ContractChain {
             .map_err(|err| contract_failure(format!("{err:#}")))
     }
 
-    fn next_tx_hash(&mut self) -> Hash {
+    fn next_tx_hash(&self) -> Hash {
         use sha2::Digest;
-        self.tx_counter += 1;
-        Hash::Sha256(sha2::Sha256::digest(self.tx_counter.to_be_bytes()).into())
+        let cnt = self.tx_counter.fetch_add(1, Ordering::Relaxed);
+        Hash::Sha256(sha2::Sha256::digest((cnt + 1).to_be_bytes()).into())
     }
 
     /// Repackage a `cw_multi_test` response as the `ExecuteResult` the DKG code expects.
     /// The attributes go into `logs` because the lookup helper prefers logs when present,
     /// and `logs` carries cosmwasm events directly - no abci conversion needed.
-    fn make_into_execute_result(&mut self, response: AppResponse) -> ExecuteResult {
+    fn to_execute_result(&self, response: AppResponse) -> ExecuteResult {
         let events = response
             .events
             .into_iter()
@@ -729,7 +730,7 @@ impl Client for ContractChainClient {
                     resharing,
                 },
             )?;
-            Ok(chain.make_into_execute_result(response))
+            Ok(chain.to_execute_result(response))
         })
     }
 
@@ -749,7 +750,7 @@ impl Client for ContractChainClient {
                     resharing,
                 },
             )?;
-            Ok(chain.make_into_execute_result(response))
+            Ok(chain.to_execute_result(response))
         })
     }
 
@@ -758,7 +759,7 @@ impl Client for ContractChainClient {
         self.chain.with(move |chain| {
             let response =
                 chain.execute_dkg(&sender, &DkgExecuteMsg::CommitDealingsChunk { chunk })?;
-            Ok(chain.make_into_execute_result(response))
+            Ok(chain.to_execute_result(response))
         })
     }
 
@@ -773,7 +774,7 @@ impl Client for ContractChainClient {
                 &sender,
                 &DkgExecuteMsg::CommitVerificationKeyShare { share, resharing },
             )?;
-            Ok(chain.make_into_execute_result(response))
+            Ok(chain.to_execute_result(response))
         })
     }
 }

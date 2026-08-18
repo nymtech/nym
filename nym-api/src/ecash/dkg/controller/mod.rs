@@ -369,6 +369,38 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 }
 
 #[cfg(test)]
+impl DkgController {
+    #[allow(dead_code)]
+    pub(crate) fn default_test_mock(
+        dkg_client: DkgClient,
+        state: State,
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
+        DkgController {
+            dkg_client,
+            coconut_key_path: Default::default(),
+            state,
+            rng: crate::ecash::tests::fixtures::test_rng([1u8; 32]),
+            polling_rate: Default::default(),
+        }
+    }
+
+    pub(crate) fn test_mock(
+        rng: rand_chacha::ChaCha20Rng,
+        dkg_client: DkgClient,
+        state: State,
+        coconut_key_path: PathBuf,
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
+        DkgController {
+            dkg_client,
+            coconut_key_path,
+            state,
+            rng,
+            polling_rate: Default::default(),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use crate::ecash::tests::contract_chain::SharedContractChain;
     use crate::ecash::tests::contract_harness::{
@@ -426,37 +458,5 @@ mod tests {
         );
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-impl DkgController {
-    #[allow(dead_code)]
-    pub(crate) fn default_test_mock(
-        dkg_client: DkgClient,
-        state: State,
-    ) -> DkgController<rand_chacha::ChaCha20Rng> {
-        DkgController {
-            dkg_client,
-            coconut_key_path: Default::default(),
-            state,
-            rng: crate::ecash::tests::fixtures::test_rng([1u8; 32]),
-            polling_rate: Default::default(),
-        }
-    }
-
-    pub(crate) fn test_mock(
-        rng: rand_chacha::ChaCha20Rng,
-        dkg_client: DkgClient,
-        state: State,
-        coconut_key_path: PathBuf,
-    ) -> DkgController<rand_chacha::ChaCha20Rng> {
-        DkgController {
-            dkg_client,
-            coconut_key_path,
-            state,
-            rng,
-            polling_rate: Default::default(),
-        }
     }
 }

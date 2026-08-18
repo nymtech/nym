@@ -29,6 +29,7 @@ use nym_task::ShutdownManager;
 use nym_validator_client::nyxd::AccountId;
 use rand_chacha::ChaCha20Rng;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use tempfile::{tempdir, TempDir};
 
 pub(crate) struct ContractDkgController {
@@ -281,7 +282,7 @@ pub(crate) async fn contract_backed_ecash_state(
     signer_address: AccountId,
 ) -> EcashState {
     let mut rng = test_rng([1u8; 32]);
-    let identity = ed25519::KeyPair::new(&mut rng);
+    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
 
     let mut config = crate::support::config::Config::new("test");
     config.ecash_signer.enabled = true;

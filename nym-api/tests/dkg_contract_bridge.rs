@@ -1,5 +1,5 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Spike: proves nym-api tests can drive the real coconut-dkg contract under
 //! cw_multi_test, and that contract types unify with the `nym-coconut-dkg-common`

@@ -5,7 +5,6 @@ use crate::config::Config;
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::handler::ConnectionHandler;
-use crate::node::mixnet::shared::final_hop::InboxOutcome;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
 use nym_gateway::node::GatewayStorageError;
@@ -270,7 +269,7 @@ impl SharedData {
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<InboxOutcome, GatewayStorageError> {
+    ) -> Result<bool, GatewayStorageError> {
         self.final_hop
             .store_processed_packet_payload(client_address, message)
             .await

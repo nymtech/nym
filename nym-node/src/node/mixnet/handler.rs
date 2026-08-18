@@ -3,7 +3,6 @@
 
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
-use crate::node::mixnet::shared::final_hop::InboxOutcome;
 use futures::StreamExt;
 use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
@@ -294,7 +293,7 @@ impl ConnectionHandler {
                     .await
                 {
                     Err(err) => error!("Failed to store client data - {err}"),
-                    Ok(InboxOutcome::Stored) => {
+                    Ok(true) => {
                         Span::current().record("disk_fallback", true);
                         self.shared
                             .metrics
@@ -303,7 +302,8 @@ impl ConnectionHandler {
                             .add_disk_persisted_packet();
                         trace!("Stored packet for {client}")
                     }
-                    Ok(InboxOutcome::UnknownRecipient) => {
+                    // nothing was stored: the recipient has never registered with this gateway
+                    Ok(false) => {
                         debug!(
                             event = "packet.dropped.unknown_recipient",
                             remote_addr = %self.remote_address,

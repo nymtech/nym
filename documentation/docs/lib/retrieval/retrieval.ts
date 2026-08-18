@@ -1,11 +1,10 @@
 // Query-time retrieval over the docs index.
 //
-// Pure TypeScript: imported only by the TS runtime (the chat API route and the
-// MCP server), never by the bare-node build script, so it needn't be .mjs.
+// Pure TypeScript: imported only by the TS runtime (the MCP server), never by
+// the bare-node build script, so it needn't be .mjs.
 //
-// The source filter is the mechanism behind the "chat sees docs only, MCP sees
-// everything" decision: pass sources: ["nym-docs"] for the public chat widget,
-// omit it for the MCP.
+// `sources` restricts results to a subset of the index; the MCP omits it and
+// sees everything.
 
 import type { DocIndex, EmbeddedChunk, SearchHit } from './types';
 
@@ -25,7 +24,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 
 export interface SearchOptions {
   topK?: number;
-  /** Restrict to these sources; omit for all. e.g. ["nym-docs"] for the chat. */
+  /** Restrict to these sources; omit for all. */
   sources?: string[];
   /** Drop hits below this cosine score. */
   minScore?: number;

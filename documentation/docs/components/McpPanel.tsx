@@ -1,13 +1,5 @@
 // The "Ask AI" button opens this: instructions for pointing a coding agent at
 // the docs MCP server, rather than an in-page chat.
-//
-// The chat widget it replaces answered from the same index, but through a model
-// we prompted. Its scope honesty depended on that prompt, which only the chat
-// route could see: an agent on MCP got the raw sections and none of the
-// scaffolding. Serving one surface well beat serving two, and the one that
-// survives is the one whose answers come from the written text.
-//
-// The widget lives on in git history, on branch max/docs-ai-chat-widget.
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';

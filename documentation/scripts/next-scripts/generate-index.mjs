@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Build the docs retrieval index consumed by the AI chat and the MCP server.
+ * Build the docs retrieval index consumed by the MCP server.
  *
  * Walks pages/, normalises each page to a PageRecord, chunks it (shared
  * chunker in docs/lib/retrieval), and, when an embeddings key is present,
  * attaches vectors with a content-hash cache so only changed chunks re-embed.
  * Output: docs/public/docs-index.json.
  *
- * The chunker and embed step are shared with the runtime (chat route, MCP) and
+ * The chunker and embed step are shared with the runtime (MCP) and
  * unit-tested under docs/lib/retrieval/*.test.ts.
  *
  * Run:

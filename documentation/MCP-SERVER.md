@@ -5,18 +5,11 @@ is the contributor reference for that machinery: the retrieval pipeline, how the
 MCP route serves from it, where the key goes, what is tunable, and how to test a
 deployment.
 
-There was also an in-docs chat widget, answering from the same index through a
-model we prompted. It was removed. Its scope honesty depended on that system
-prompt, which only the chat route could see, so an agent on MCP got the raw
-retrieved sections and none of the scaffolding; the fix was to put the honesty in
-the documentation instead, where every consumer reaches it. The widget and its
-route are preserved on the branch `max/docs-ai-chat-widget`.
-
 Read this before changing anything under `docs/lib/retrieval/`, `docs/lib/mcp/`,
 `docs/pages/api/`, or `scripts/next-scripts/generate-*`.
 
-Two pages cover the same ground for readers rather than contributors, and they
-stay published: [`/docs/developers/mcp`](docs/pages/developers/mcp.mdx) is the
+Two pages cover the same ground for readers rather than contributors:
+[`/docs/developers/mcp`](docs/pages/developers/mcp.mdx) is the
 tool catalogue and client setup, and
 [`/docs/use-with-ai`](docs/pages/use-with-ai.mdx) is the consumer-facing guide.
 
@@ -232,8 +225,7 @@ Locally at `http://localhost:3000/docs/llms.txt` and `.../llms-full.txt`; in pro
 All commands run from `documentation/docs/`.
 
 **Unit tests** cover the chunkers, retrieval, the embed cache, the Nym API client,
-the MCP tool layer including `validate_sdk_config`, and the chat context and
-prompt. No network, no keys:
+and the MCP tool layer including `validate_sdk_config`. No network, no keys:
 
 ```bash
 pnpm test
@@ -348,13 +340,11 @@ type TunnelState =
   | { state: "failed"; reason: FailureReason };
 ```
 
-That removes the drift at the source (it also corrected `reason`, which the SDK type
-had as `string` where the runtime emits a `FailureReason` object). The SDK keeps its
+That removes the drift at the source. The SDK keeps its
 copy of the type inline for now (to avoid a dependency on the unpublished
 `smolmix-wasm`); a later step can bridge the generated `.d.ts` to the SDK directly so
 even that copy is a projection.
 
 For hand-written prose that states a fact (e.g. "a Sphinx packet is 2413 bytes"),
-there is no generator, prose cannot be projected. We rely on careful authoring, which
-a survey of the docs found holds up well: the drift concentrated in hand-typed
-constants and stale generated docs, not in careful prose.
+there is no generator, prose cannot be projected. We rely on careful authoring; drift
+concentrates in hand-typed constants and stale generated docs rather than in prose.

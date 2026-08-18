@@ -1,9 +1,8 @@
-// Shared types for the docs retrieval index (chat + MCP).
+// Shared types for the docs retrieval index.
 //
 // The index is built once per docs deploy (see scripts/next-scripts/
-// generate-index.mjs) and loaded at runtime by the chat API route and the
-// MCP server. Chunks carry a `source` tag so consumers can filter: the public
-// chat widget restricts to source === "nym-docs", the MCP sees everything.
+// generate-index.mjs) and loaded at runtime by the MCP server. Chunks carry a
+// `source` tag so a consumer can restrict to a subset; the MCP does not.
 
 /** A normalised page from any source, before chunking. */
 export interface PageRecord {

@@ -2,16 +2,9 @@
 /**
  * Print retrieval scores for a set of queries.
  *
- * Originally written to choose CHAT_MIN_SCORE, and it answered that question by
- * showing no such value exists. Short queries built from jargon score below
- * off-topic questions even when their top hits are exactly right, so the two
- * groups interleave rather than separate. The floor is now a cost guard and the
- * source list is built from what the model cited; see the retrieval section of
- * documentation/AI-ASSISTANT.md.
- *
- * What it is still good for: watching the gap between on-topic and off-topic
- * scores when the corpus, the chunking or the embedding text changes. A gap that
- * narrows means retrieval got worse, whatever the absolute numbers do.
+ * Use it to watch the gap between on-topic and off-topic scores when the corpus,
+ * the chunking or the embedding text changes. A gap that narrows means retrieval
+ * got worse, whatever the absolute numbers do.
  *
  * Usage, from documentation/docs:
  *   VOYAGE_API_KEY=xxx node ../scripts/next-scripts/check-retrieval-scores.mjs
@@ -44,19 +37,18 @@ function cosine(a, b) {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INDEX = path.resolve(__dirname, '../../docs/public/docs-index.json');
 
-// Off-topic queries should score below the floor, on-topic ones above it. The
-// gap between the two groups is what a good threshold sits in.
+// Queries with no answer in the corpus. They set the level the on-topic ones
+// have to clear, and the distance between the two groups is the signal.
 const OFF_TOPIC = [
   'What is the capital of France?',
   'Give me a recipe for carbonara',
   'Who won the 1998 world cup?',
 ];
-// Two kinds of on-topic query, and the difference is the whole finding. The
-// well-formed ones score high and made an earlier threshold look workable. The
-// short jargon ones are what developers actually type, and they score at or below
-// the off-topic queries, which is why no threshold survived contact with them.
-// Keep both: dropping the second group hides the failure the first group cannot
-// see.
+// Two kinds of on-topic query, and the difference between them is the point. The
+// well-formed ones score high. The short jargon ones are what developers actually
+// type, and they score at or below the off-topic queries. The gap matters more
+// than either absolute number. Keep both groups: dropping the second hides a
+// failure the first cannot show.
 const ON_TOPIC = [
   'What is a SURB?',
   'How do I run a nym-node?',
@@ -85,7 +77,8 @@ if (!index.embedding?.dim) {
 const provider = voyageProvider({ apiKey });
 const custom = process.argv.slice(2);
 
-/** Top-10 scores for one query, matching the route's topK. */
+/** The ten best scores for one query. Wider than the MCP default topK of 6, so
+ *  the weak tail stays visible. */
 async function scoreOf(query) {
   const vec = await embedQuery(query, provider);
   const scores = index.chunks
@@ -134,10 +127,10 @@ if (seen.off.length && seen.on.length) {
   if (candidates.length === 0) {
     console.log(
       '\nNo threshold clears the off-topic queries while leaving every on-topic one at' +
-        ' least 2 sources. This is the expected result, and it is why CHAT_MIN_SCORE is' +
-        ' a cost guard rather than a relevance test: the source list is built from the' +
-        ' citations the model used. Read the two groups above as a gap to watch, not a' +
-        ' number to set.',
+        ' least 2 sources. That is the expected result. Nothing in the retrieval path' +
+        ' applies a floor: search() accepts minScore but the MCP tools omit it, so the' +
+        ' caller judges relevance from the top-K it gets back. Read the two groups above' +
+        ' as a gap to watch, not a number to set.',
     );
   } else {
     console.log('\nSources kept per on-topic query, by threshold:');

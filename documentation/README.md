@@ -1,7 +1,5 @@
 # Nym Docs v2
 
-This is v2 of the nym docs, condensed from various mdbooks projects that we had previously.
-
 These docs are hosted at [nym.com/docs](https://nym.com/docs).
 
 ## Doc projects
@@ -101,12 +99,6 @@ index with no vector database, where the API key must be set, every tunable, and
 how to test a deployment. Read it before changing anything under
 `docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/` or
 `scripts/next-scripts/generate-*`.
-
-There was an in-docs chat widget answering from the same index. It was removed in
-favour of shipping one surface well: its scope honesty depended on a system
-prompt that only the chat route could see, so an agent on MCP got the raw
-sections and none of the scaffolding. It is preserved on the branch
-`max/docs-ai-chat-widget`.
 
 For readers rather than contributors: `/docs/developers/mcp` is the tool
 catalogue and client setup, and `/docs/use-with-ai` is the consumer-facing guide.

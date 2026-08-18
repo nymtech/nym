@@ -15,7 +15,6 @@ use nym_contracts_common_testing::{
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
     PermissionedFn, QueryFn, RandExt, TestableNymContract, TEST_DENOM,
 };
-use nym_mixnet_contract_common::ContractState;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_families_contract_common::constants::storage_keys;
 use nym_node_families_contract_common::{
@@ -76,29 +75,17 @@ impl TestableNymContract for NodeFamiliesContract {
     }
 }
 
-/// Storage key the mixnet contract uses for its `ContractState` `Item`
-/// (mirrors `mixnet/src/constants.rs::CONTRACT_STATE_KEY`).
-const MIXNET_CONTRACT_STATE_STORAGE_KEY: &str = "state";
-
 pub fn init_contract_tester() -> ContractTester<NodeFamiliesContract> {
     let mut tester = NodeFamiliesContract::init()
         .with_common_storage_key(CommonStorageKeys::Admin, storage_keys::CONTRACT_ADMIN);
 
-    // Chicken-and-egg: the mixnet contract is instantiated first and is given
-    // a placeholder `node_families_contract_address` because the families
-    // contract doesn't exist yet. Once the families contract has been
-    // instantiated we patch the mixnet's stored `ContractState` so that the
-    // unbond callback (`OnNymNodeUnbond`) actually dispatches to the right
-    // contract. In production this fixup happens via a contract migration;
-    // here we go straight to storage to avoid jumping through cw2 version
-    // checks that don't apply on a fresh tester.
+    // mixnet contract requires node families and directory contracts;
+    // node families and directory contract require mixnet contract;
+    // we just overwrite the storage to fix the inconsistency
     let families_address = tester.contract_address.clone();
-    let mut mixnet_state: ContractState = tester
-        .read_from_mixnet_contract_storage(MIXNET_CONTRACT_STATE_STORAGE_KEY)
-        .expect("mixnet contract state should be loadable");
-    mixnet_state.node_families_contract_address = families_address;
+
     tester
-        .write_to_mixnet_contract_storage_value(MIXNET_CONTRACT_STATE_STORAGE_KEY, &mixnet_state)
+        .set_mixnet_sibling_contracts(Some(families_address).into(), None.into())
         .expect("should be able to patch mixnet contract state");
 
     tester

@@ -1,4 +1,4 @@
-schema: coconut-dkg-schema mixnet-schema vesting-schema multisig-schema group-schema ecash-schema
+schema: coconut-dkg-schema mixnet-schema vesting-schema multisig-schema group-schema ecash-schema geolocation-schema
 
 coconut-dkg-schema:
 	$(MAKE) -C coconut-dkg generate-schema
@@ -17,3 +17,6 @@ multisig-schema:
 
 group-schema:
 	$(MAKE) -C multisig/cw4-group generate-schema
+
+geolocation-schema:
+	$(MAKE) -C geolocation generate-schema

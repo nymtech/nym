@@ -20,7 +20,7 @@ pub struct GenerateMessage {
 pub enum GenerateMessageCommands {
     EcashBandwidth(ecash_bandwidth::Args),
     CoconutDKG(coconut_dkg::Args),
-    Mixnet(mixnet::Args),
+    Mixnet(Box<mixnet::Args>),
     Multisig(multisig::Args),
     Vesting(vesting::Args),
 }

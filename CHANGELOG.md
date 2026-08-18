@@ -13,6 +13,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - chore: upgrade rand 0.9 uses to rand 0.10 ([#7014])
 - Bump brace-expansion from 5.0.2 to 5.0.9 in /documentation/scripts/post-process ([#7011])
 - Bugfix: don't report end-of-stream from ChannelDevice ([#7009])
+- bugfix: allow NMv3 to correctly test nodes with multiple ip addresses ([#7008])
 - Add several more API options ([#7007])
 - HTTP Error handling  ([#7006])
 - Bump qs and express in /wasm/client/internal-dev ([#7001])
@@ -53,6 +54,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#7014]: https://github.com/nymtech/nym/pull/7014
 [#7011]: https://github.com/nymtech/nym/pull/7011
 [#7009]: https://github.com/nymtech/nym/pull/7009
+[#7008]: https://github.com/nymtech/nym/pull/7008
 [#7007]: https://github.com/nymtech/nym/pull/7007
 [#7006]: https://github.com/nymtech/nym/pull/7006
 [#7001]: https://github.com/nymtech/nym/pull/7001

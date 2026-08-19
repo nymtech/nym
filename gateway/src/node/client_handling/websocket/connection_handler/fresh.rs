@@ -474,6 +474,23 @@ impl<R, S> FreshHandler<R, S> {
         Ok(available_bandwidth)
     }
 
+    /// Whether a client that has authenticated as `client_identity` is granted an ephemeral
+    /// unmetered session instead of a persisted metered one.
+    ///
+    /// The caller MUST have completed the registration handshake first, so that the identity is
+    /// possession-proven rather than merely claimed.
+    ///
+    /// Today the sole ground is an identity announced on-chain by an authorised network monitor
+    /// agent. The connection's source IP is deliberately not consulted, and must not become a ground
+    /// here: agents share host ports and run on recycled address pools, while the exemption this
+    /// grants is not confined by the routing filter, so a co-tenant inheriting it by address would
+    /// gain unmetered transit to anywhere.
+    fn grants_ephemeral_session(&self, client_identity: &ed25519::PublicKey) -> bool {
+        self.shared_state
+            .monitor_identities
+            .is_announced(client_identity)
+    }
+
     pub(crate) async fn create_bandwidth_storage_manager(
         &self,
         client: &ClientDetails,
@@ -725,18 +742,32 @@ impl<R, S> FreshHandler<R, S> {
         // populate the negotiated protocol for future uses
         self.negotiated_protocol = Some(handshake_result.negotiated_protocol);
 
-        let client_id = self.register_client(remote_address, &shared_keys).await?;
+        // only now that the handshake has completed is `remote_identity` possession-proven, which is
+        // what makes it safe to grant anything on the strength of it
+        let client_details = if self.grants_ephemeral_session(&remote_identity) {
+            debug!(
+                client = %remote_identity,
+                "granting an ephemeral unmetered session"
+            );
 
-        debug!(client_id = %client_id, "managed to finalize client registration");
+            // deliberately NOT calling `register_client`: an ephemeral session persists nothing, and
+            // that function is the whole of registration's persistence (shared keys, bandwidth entry
+            // and the stored-message push)
+            ClientDetails::new_ephemeral(remote_address, shared_keys, OffsetDateTime::now_utc())
+        } else {
+            let client_id = self.register_client(remote_address, &shared_keys).await?;
+
+            debug!(client_id = %client_id, "managed to finalize client registration");
+
+            ClientDetails::new_persisted(
+                client_id,
+                remote_address,
+                shared_keys,
+                OffsetDateTime::now_utc(),
+            )
+        };
 
         let upgrade_mode = self.upgrade_mode_enabled();
-
-        let client_details = ClientDetails::new_persisted(
-            client_id,
-            remote_address,
-            shared_keys,
-            OffsetDateTime::now_utc(),
-        );
 
         Ok(InitialAuthResult::new(
             Some(client_details),

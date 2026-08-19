@@ -117,6 +117,7 @@ impl AuthorisedMonitorIdentitiesInner {
             return false;
         };
 
+        #[allow(clippy::expect_used)]
         let addresses = self
             .announced
             .get_mut(&identity)

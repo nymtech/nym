@@ -552,10 +552,16 @@ pub struct PerformanceProviderDebug {
 
 impl PerformanceProviderDebug {
     pub fn validate(&self) -> anyhow::Result<()> {
-        if self.stress_testing_score_weight < 0.0 || self.stress_testing_score_weight > 1.0 {
+        if self.stress_testing_score_weight < 0.0
+            || self.stress_testing_score_weight > 1.0
+            || !self.stress_testing_score_weight.is_finite()
+        {
             bail!("the .stress_testing_score_weight field is set to a value outside of the range [0.0, 1.0]");
         }
-        if self.chain_interactions_penalty < 0.0 || self.chain_interactions_penalty > 1.0 {
+        if self.chain_interactions_penalty < 0.0
+            || self.chain_interactions_penalty > 1.0
+            || !self.chain_interactions_penalty.is_finite()
+        {
             bail!("the .chain_interactions_penalty field is set to a value outside of the range [0.0, 1.0]");
         }
         Ok(())

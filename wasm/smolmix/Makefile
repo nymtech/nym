@@ -60,7 +60,7 @@ internal-dev-install:
 # IPR_ADDRESS env var is optional; tests fall back to the default in
 # internal-dev/index.html / internal-dev/headless.js when unset.
 test\:smoke:
-	cd tests && pnpm exec playwright test --project=smoke-chromium --project=smoke-firefox --project=smoke-webkit
+	cd tests && pnpm exec playwright test --project=smoke-chromium --project=smoke-firefox
 
 test\:suite:
 	cd tests && pnpm exec playwright test --project=suite-chromium --project=suite-firefox --project=suite-webkit

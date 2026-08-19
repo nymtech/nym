@@ -1,0 +1,292 @@
+---
+title: "nym-swizzle: Traffic-Shape Hygiene"
+description: "A Rust library that shapes the timing and content of an application's requests, so the destination learns less from the pattern of what it sends. Randomised delay scheduling and overlapping range chunking."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-18"
+---
+
+# Traffic-shape hygiene
+
+import { Callout } from 'nextra/components'
+import { RUST_MSRV } from '../../components/versions'
+
+{/* Canonical source: sdk/rust/nym-swizzle/README.md and the crate rustdoc. */}
+
+{/*
+  MAINTENANCE NOTE, delete when it no longer applies.
+
+  nym-swizzle and nym-swizzle-zcash are merged to develop but are NOT yet
+  published to crates.io. Both carry publish = true and version.workspace =
+  true, so the next platform release publishes them automatically.
+
+  At that release, update this page:
+    1. Replace the git dependency under "Installation" with a versioned
+       crates.io one, keeping the git form in a "From Git" subsection as the
+       smolmix page does.
+    2. Delete the "Not yet released" callout below.
+    3. Add the docs.rs links under "API reference".
+    4. Bump lastUpdated.
+
+  Version literals in mdx are rewritten by ci-crates-version-bump.yml, so match
+  the form the smolmix page uses once a version exists.
+*/}
+
+Baseline hygiene is the second layer of the
+[two-layer model](/network/threat-model/two-layer-model): transport-independent
+client discipline that shapes the **timing** and **content** of your requests,
+so the destination (L2) learns less from the pattern of what you send. It closes
+the [V2 timing and V3 content vectors](/network/threat-model/vectors) that
+transport alone cannot.
+
+`nym-swizzle` is the Rust library that provides those primitives. It changes
+what your application puts on the wire, and when. That makes it
+transport-independent: it works the same over the mixnet, a VPN, Tor, or a
+direct connection.
+
+<Callout type="warning">
+**Not yet released.** The crate is merged to `develop` but is not yet published
+to crates.io. Install it from Git until the next platform release.
+</Callout>
+
+## What your request pattern leaks
+
+A mixnet hides *who* is talking. It does not hide what an application's request
+pattern says about it. Two leaks survive any transport, because both live in the
+application layer.
+
+**Index correlation.** A light client that requests exactly blocks
+`4_120_000..4_120_010` reveals its resume point. The start index also acts as a
+linking key across sessions, because today's start is yesterday's end. The
+destination can chain separate sessions into one history from the indexes alone.
+
+**Timing correlation.** The destination observes wall-clock arrival. A wallet
+that broadcasts a transaction immediately after it reaches the chain tip is
+linkable to its own sync activity. The destination attributes the broadcast to
+the session seconds earlier, and through index chaining, to that client's whole
+history.
+
+The library provides one primitive for each.
+
+| Primitive | Closes | What it does |
+|---|---|---|
+| [`Delay`](#delay-decorrelate-an-action-from-its-trigger) | V2, timing | Runs an async action after a randomly sampled delay |
+| [`Range`](#range-hide-the-edges-of-a-sequential-fetch) | V3, content | Fetches an index range as overlapping, shuffled chunks |
+
+## Installation
+
+`nym-swizzle` is not on crates.io yet, so import it from the repository:
+
+```toml
+[dependencies]
+nym-swizzle = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
+
+**Minimum Rust version:** {RUST_MSRV}+
+
+The crate has no network stack and no build script. Every non-development
+dependency compiles for `wasm32-unknown-unknown`, so a `wasm-pack` wrapper can
+wrap it unmodified. On wasm targets, timing uses
+[`wasmtimer`](https://docs.rs/wasmtimer) and randomness reaches the browser
+through `getrandom`'s `js` feature. Verify the guarantee with:
+
+```sh
+cargo check -p nym-swizzle --target wasm32-unknown-unknown
+```
+
+## Delay: decorrelate an action from its trigger
+
+`Delay` samples a wait, waits it out, then runs the future. The future is not
+polled before its scheduled time, so nothing observable happens early.
+
+```rust
+use std::time::Duration;
+use nym_swizzle::Delay;
+
+let mut delay = Delay::uniform(Duration::ZERO, Duration::from_secs(10));
+let result = delay.run(async move { broadcast_tx(tx).await }).await;
+```
+
+Three distributions are available. Samples outside the configured bounds are
+rejection-resampled rather than clamped, so no probability mass piles up at the
+edges.
+
+| Constructor | Distribution | Bounds |
+|---|---|---|
+| `Delay::uniform(min, max)` | Uniform over `[min, max]` | Bounded on construction |
+| `Delay::poisson(mean)` | Exponential inter-arrival times, the family the mixnet uses for cover traffic | Unbounded above until you set `max` |
+| `Delay::normal(mean, std_dev)` | Normal | Negative samples always rejected; restrict further with `bounds` |
+
+Adjust bounds with `min`, `max` or `bounds`. Call `sample` to draw a duration
+without running anything, for schedules that must outlive the process.
+
+## Range: hide the edges of a sequential fetch
+
+`Range` decomposes an index range into randomly sized, deliberately overlapping,
+shuffled chunks. Coverage is total: the union of the chunks is exactly the
+obfuscated range, with no gap.
+
+```rust
+use nym_swizzle::{Range, Snap};
+
+Range::new(resume_height, tip)
+    .snap_start(Snap::Spacing(1000))
+    .start_jitter(2500)
+    .plan()
+    .for_each_concurrent(4, |start, end| get_blocks(start, end))
+    .await;
+```
+
+### Two ways to hide the start
+
+The start index is the linking key, so the library offers two mechanisms to
+break it. They work differently, and you can combine them.
+
+| | `start_jitter` | `snap_start` |
+|---|---|---|
+| **Principle** | Anonymity by noise | Anonymity by collision |
+| **Mechanism** | Moves the start down by a sampled amount | Rounds the start down to a checkpoint grid |
+| **Randomness used** | Yes | None; the result is deterministic |
+| **Effect** | Your start is no longer an exact pointer | Every client in the same interval emits an identical start |
+
+`Snap::Spacing(n)` puts checkpoints at every multiple of `n`. `Snap::Checkpoints(vec)`
+takes an explicit list, such as a chain's canonical checkpoints. When both
+mechanisms are configured, jitter applies first and snapping last, so the
+emitted start is always on-grid.
+
+Set `floor` to the lowest index the start may reach. A wallet birthday would
+leak, so prefer an activation height, or 0.
+
+**Align the floor with the grid when you use both.** Snapping rounds down, and
+it never crosses below the floor. A start in the first partial interval above an
+off-grid floor therefore has no grid point available. The plan emits the true
+start unchanged. Choose a floor that is a multiple of the spacing, or a member
+of the checkpoint list.
+
+### Executing the plan
+
+`plan()` materialises the chunks and fixes a random execution order. Drive it in
+whichever style suits the application.
+
+| Method | Style |
+|---|---|
+| `Iterator<Item = (u64, u64)>` | Pull, in random order |
+| `for_each` | Push, sequential |
+| `for_each_concurrent(limit, f)` | Push, bounded concurrency, fire and forget |
+| `stream_concurrent(limit, f)` | Push, bounded concurrency, returns a `Stream` of results |
+
+`stream_concurrent` yields exactly one output per chunk, in completion order
+rather than plan order. Use it when you need to collect, fold or short-circuit
+on the results, instead of threading them through shared state.
+
+Attach a `Delay` with `ChunkPlan::delay` to space the chunks out in time as well
+as reorder them. Under concurrency each chunk's delay is pre-sampled and elapses
+in its own task, so the schedule stays randomised.
+
+### Reproducible plans
+
+Sampling uses OS entropy by default. Call `seed` with 32 bytes for a
+deterministic ChaCha20 generator: the same seed and configuration produce a
+byte-identical plan, including the execution order. Seeds derived externally,
+for example from a VRF output, are treated as opaque seed material. `with_rng`
+accepts your own crypto-grade generator.
+
+## What stays your responsibility
+
+The library shapes a request pattern. It does not manage your transport, and
+three things remain yours.
+
+**Destination splitting.** Sync from one server and broadcast through another.
+Never broadcast over the sync session. This is application-level routing, and
+the library cannot do it for you.
+
+**Range widening.** The library never extends the *end* of a range, because it
+cannot know which indexes exist. It has no view of the chain tip or the array
+bounds. If you want to hide *which* sub-range you care about, widen the range
+before you pass it in. The only outward extension the library performs is the
+downward start overlap, because earlier indexes always exist.
+
+**Deduplication.** Overlapping chunks re-fetch data deliberately. Index-addressed
+data is idempotent, so re-fetching is safe, and deduplicating the results is your
+application's job.
+
+## Tuning
+
+<Callout type="warning">
+**There are no settled numbers.** Wider overlaps and wider checkpoint spacing
+buy a larger anonymity set, and cost re-downloaded data. The defaults are
+conservative percentage-of-range derivations, exposed as knobs. Treat them as
+starting points; nobody has validated them as anonymity parameters.
+</Callout>
+
+Defaults, for reference:
+
+| Knob | Default |
+|---|---|
+| `chunk_size` | `[total/50, total/10]`, at least 1 |
+| `overlap` | `[1, clamp(total/20, 1, max_chunk/2)]` |
+| `start_jitter_default` | 10% of the total range, at least 1 |
+| `floor` | 0 |
+
+## Chain-specific policy is yours to supply
+
+This crate is a general primitive. It takes no view on what a good grid spacing
+or a good delay distribution is for your chain. The right answers depend on block
+times, on what a typical wallet's traffic looks like, and on what other traffic
+yours can hide among.
+
+For Zcash that work is done:
+[`nym-swizzle-zcash`](/developers/swizzle/zcash) packages the primitives into
+chain-specific policy, with quantised sync ranges and ZIP 318-aligned broadcast
+scheduling, and ships a live example against a public `lightwalletd`.
+
+For any other chain, use that page as a worked example of the reasoning. Do not
+port the Zcash numbers directly: the grid and the delay distribution are design
+decisions you make for your chain.
+
+## Examples
+
+Runnable examples in [`sdk/rust/nym-swizzle/examples/`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle/examples). Each is self-contained; read the `//!` doc comments at the top of each file for the reasoning behind it.
+
+```sh
+cargo run -p nym-swizzle --example <name>
+```
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Delay a broadcast | [`delay_broadcast.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/delay_broadcast.rs) | Scheduling a broadcast after a sampled delay. Broadcast timing is a leak the destination reads directly: a wallet that sends the moment it reaches chain tip is correlatable with its own sync activity |
+| Overlapping range fetch | [`fetch_blocks_overlapping.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/fetch_blocks_overlapping.rs) | Resuming a sync through overlapping, shuffled chunks, so the start height stops naming the resume point and stops chaining one session to the last |
+| Poisson delays | [`poisson_sampling.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/poisson_sampling.rs) | Exponential inter-arrival times, the same construction the mixnet uses for its own cover traffic |
+| Seeded determinism | [`seeded_vrf.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-swizzle/examples/seeded_vrf.rs) | A fixed 32-byte seed reproducing a byte-identical plan and delay sequence, for VRF-derived or otherwise reproducible schedules |
+
+### Profiling harness
+
+A development-time harness checks the statistical claims: three suites pairing
+SVG plots with numeric assertions, covering the delay distributions, the chunk
+geometry, and seeded determinism. The plots are there to inspect; the assertions
+gate the run, so a regression fails the harness instead of only changing a plot.
+
+```sh
+cargo run --release -p nym-swizzle --example profiling
+# plots land in <workspace>/target/swizzle-profiling/
+```
+
+## API reference
+
+Source and rustdoc comments:
+[`sdk/rust/nym-swizzle`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle)
+and
+[`sdk/rust/nym-swizzle-zcash`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle-zcash).
+
+## See also
+
+- [`nym-swizzle-zcash`](/developers/swizzle/zcash): the same primitives as
+  finished policy for Zcash light clients.
+
+- [The two-layer model](/network/threat-model/two-layer-model): why transport
+  and hygiene are separate problems.
+- [Linkage vectors](/network/threat-model/vectors): what V2 and V3 consist of,
+  and which actors observe them.
+- [Choose a defence](/network/threat-model/choose-config): pick a transport
+  configuration for your threat. Hygiene is owed on top of whichever row you
+  pick.

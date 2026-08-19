@@ -23,4 +23,4 @@ and can be used to stop listening for particular events
 
 ## Source
 
-[mixnet/wasm/types.ts:318](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L318)
+[mixnet/wasm/types.ts:318](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L318)

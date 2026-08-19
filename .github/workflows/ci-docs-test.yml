@@ -1,0 +1,35 @@
+name: ci-docs-test
+
+# Runs the documentation/docs unit suite (vitest) on every docs change. The tests
+# are hermetic (mocked fetch, injected fakes, no network or built index), so this
+# job needs only node + pnpm, no Rust or wasm build. It exists because the build
+# workflows (ci-docs, cd-docs) only build/deploy and never ran the tests, leaving
+# the retrieval / chat / MCP / validator suites ungated.
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [master]
+    paths:
+      - "documentation/docs/**"
+      - "documentation/scripts/next-scripts/**"
+      - ".github/workflows/ci-docs-test.yml"
+
+jobs:
+  test:
+    runs-on: arc-linux-latest
+    defaults:
+      run:
+        working-directory: documentation/docs
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install project dependencies
+        run: pnpm i
+      - name: Run unit tests
+        run: pnpm test

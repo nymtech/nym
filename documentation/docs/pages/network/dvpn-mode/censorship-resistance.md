@@ -36,6 +36,8 @@ QUIC transport applies to the Entry Gateway connection only (the first hop). Not
 
 Even if a user can establish a VPN tunnel, censors can also block access to the API that the NymVPN app needs to discover Gateways and fetch network state in the first place. Stealth API Connect addresses this by routing the app's API requests through a mechanism that is harder to identify and block, so the app can bootstrap its connection to the Nym network even in environments where the Nym API endpoints are actively censored.
 
+**Note:** Stealth API Connect currently applies to the NymVPN application only. The [`nym-smoldvpn`](/developers/smoldvpn) SDK package does not have it yet.
+
 ## Limitations
 
 These techniques are layered: AmneziaWG obfuscates the handshake, QUIC disguises the tunnel as regular web traffic, and Stealth API Connect protects the initial API discovery. Together they cover several common censorship methods, but none of them are guarantees. Censorship resistance is an ongoing arms race, and new techniques will be documented here as they ship.

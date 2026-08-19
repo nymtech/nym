@@ -1,0 +1,90 @@
+---
+title: "Web Browsing"
+description: "A worked example: browsing a website or API. The site is the primary adversary, and the dominant vector is content, the URLs and queries you request."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+import { Callout } from 'nextra/components'
+import { requireBrowsingScenario } from 'lib/privacy-model/examples/browsing'
+import { MetadataPanel } from 'components/threat-model/MetadataPanel'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const unprotected = requireBrowsingScenario('unprotected')
+export const dvpnMulti = requireBrowsingScenario('dvpn-multi')
+
+# Web Browsing
+
+Browsing a website means fetching pages by name. Each request carries a URL and
+often a query string. The site on the other end is the party you talk to directly,
+so it is the primary adversary.
+
+## What must not leak
+
+The secret here is not your identity alone. It is your browsing history: the set of
+pages and queries, tied to a person. That history must not be attributable, and the
+requests must not group into one profile.
+
+## The threat model
+
+The primary adversary is **L2, the website or API**. The dominant vector is **V3
+content**: the URL and the query are the request, so the site reads which pages you
+fetch. Hiding your IP does not change that.
+
+Browsing also faces an application-specific public observer.
+
+| L1 | Public-record observer |
+|---|---|
+| Vantage | Reads public DNS and Certificate Transparency logs. |
+| Sees | Which domains and subdomains exist, and the certificates issued for them. |
+| Cannot see | Which user visits a site, which pages they request, or request content. |
+
+The invariants a browser must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. History not attributable** | The set of URLs and queries must not link to a person. | P1, plus P2, plus V3 content discipline: the URLs name the content. |
+| **B. Requests not groupable** | The site must not group requests into one profile. | P2 exit rotation, plus V3 request-shape discipline. |
+
+## Unprotected: the site reads everything
+
+The browser talks to the website directly. The site sees the client IP, every URL
+and query, and the full request pattern. The history is attributed with no effort.
+
+<NetworkDiagram item={unprotected} />
+
+<MetadataPanel scenario={unprotected} />
+
+## Protected: rotate exits, and the site still reads the URLs
+
+Distinct WireGuard peers at several exits split requests across exit IPs.
+Per-request rotation unlinks requests at the transport layer, and browsing stays
+fast.
+
+<NetworkDiagram item={dvpnMulti} />
+
+<MetadataPanel scenario={dvpnMulti} />
+
+<Callout type="warning">
+The verdicts show **P1 yes** and **P2 yes** at the site, and that is only half the
+story. IP-hiding and exit rotation do not touch the dominant vector. The site still
+reads the exact URL and query of every request, because the content is the request.
+A login cookie or a personalised query re-links the session regardless of exit.
+</Callout>
+
+Transport hides who you are from the site. It does not hide what you fetch. Protecting
+the browsing history itself is a hygiene-layer job: discipline the request shape and
+strip the identifiers, work that no configuration does for you.
+
+## Where to go next
+
+- [Choose a Defence](/network/threat-model/choose-config) picks a configuration for your case.
+- [Build it](/developers) maps the configuration you picked to a package, for Rust and for the browser.
+- [The two-layer model](/network/threat-model/two-layer-model) explains why transport alone is never the whole answer.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy) shows what a Sphinx packet exposes and hides.

@@ -80,10 +80,10 @@ impl WasmDevice {
 
     /// Push an incoming IP packet (from the mixnet) into the receive queue.
     pub fn push_rx(&mut self, packet: Vec<u8>) {
-        // Aggregate diagnostic (replaces the former per-packet log). Only folds
-        // when runtime debug logging is on, so the production path stays a bare
-        // enqueue: one atomic load, no parsing. The window is flushed on a
-        // connection lifecycle flag or when it fills; see `RxStats`.
+        // Aggregate diagnostic. Only folds when runtime debug logging is on,
+        // so the production path stays a bare enqueue: one atomic load, no
+        // parsing. The window is flushed on a connection lifecycle flag or
+        // when it fills; see `RxStats`.
         if nym_wasm_utils::debug_logging_enabled() {
             if let Some(pkt) = parse_inbound_tcp(&packet) {
                 let lifecycle = pkt.syn || pkt.rst || pkt.fin;

@@ -1,7 +1,16 @@
 import React, { useMemo, useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import dynamic from 'next/dynamic';
 import './styles.css';
+import './threat-model-viz.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+
+// Client-only: reads the clipboard API and renders only once opened.
+const McpPanel = dynamic(() => import('components/McpPanel'), { ssr: false });
+// Client-only (ssr:false): portals the per-page Copy/Ask AI buttons into the
+// content top. Kept out of SSR/hydration; the theme.config `main` wrapper route
+// caused a hydration crash and fixed positioning hid behind the navbar.
+const PageActionsMount = dynamic(() => import('components/PageActionsMount'), { ssr: false });
 
 const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   const muiTheme = useMemo(
@@ -35,6 +44,8 @@ const MyApp: React.FC<AppProps> = ({ Component, pageProps }) => {
   return (
     <ThemeProvider theme={muiTheme}>
       <AnyComponent {...pageProps} />
+      <PageActionsMount />
+      <McpPanel />
     </ThemeProvider>
   );
 };

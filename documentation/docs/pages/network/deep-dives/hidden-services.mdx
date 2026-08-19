@@ -1,0 +1,103 @@
+---
+title: "SURBs vs Tor hidden services"
+description: "Why Nym has no Tor-style onion services yet: single-use SURBs cannot stand in for reusable onion-service descriptors without risking the hidden service's location."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import { Callout } from 'nextra/components'
+import dynamic from 'next/dynamic'
+
+export const SurbDirectory = dynamic(
+  () => import('../../../components/threat-model/SurbDirectory').then((m) => m.SurbDirectory),
+  { ssr: false },
+)
+
+# SURBs vs Tor hidden services
+
+Tor offers onion services: servers that accept connections without revealing their network location. Nym has no equivalent yet. This page explains why. The short answer is an asymmetry between Tor's reusable descriptors and Nym's single-use reply blocks. It is a set of open research problems, not a claim that Nym is weaker than Tor. The mixnet's stronger unlinkability model is exactly what makes the naive port hard.
+
+<Callout type="warning">
+A hidden service must hide its location from everyone, including the directory infrastructure that helps clients reach it. In Nym, the natural way to build that directory would force the service into a traffic pattern. That pattern can leak the very location it must protect.
+</Callout>
+
+## How Tor onion services work
+
+A Tor onion service reaches clients through a small, reusable descriptor.
+
+1. The service has a long-term onion address.
+2. A client that knows the address can locate the directory entry (the [HSDir](https://spec.torproject.org/rend-spec-v3)) that holds the service's descriptor.
+3. The descriptor lists introduction points and key material. The client uses these to open a connection to the service.
+4. The service republishes its descriptor whenever it rotates introduction points, typically every few hours.
+
+The key property is reusability. One descriptor serves an arbitrary number of clients, an arbitrary number of times, until the service publishes a new one. The directory holds a single small object, and every client reads the same copy.
+
+## The Nym analogy: SURBs
+
+The closest Nym primitive to a descriptor is the [SURB](/network/mixnet-mode/anonymous-replies), the single-use reply block. A SURB is a pre-computed, layered return path. It lets a sender route a payload back to a party without learning that party's route, its gateway, or its location. In that sense a SURB plays the role of Tor's "introduction points plus key material". It is the token that lets a client reach a hidden party blind.
+
+Only the hidden service can build these SURBs. Constructing a return path requires knowledge of the service's location and its gateway. So the service itself must generate every SURB and supply them to whatever directory hands them out.
+
+## Where the analogy breaks: single-use vs reusable
+
+This is the crux. Tor descriptors are reusable. SURBs are single-use, as the name says.
+
+In Tor, every client downloads the same descriptor. In Nym, every client needs its own fresh SURB, because each SURB is consumed by exactly one reply. A directory cannot serve one static object to everyone. It must dispense distinct, non-reusable tokens, one per client request.
+
+That difference drives everything below.
+
+Raise the client demand and watch the two upload tracks diverge. Tor's stays flat, because one descriptor serves every reader however many there are. Nym's thickens, because every client consumes a SURB and the service has to keep the directory stocked. Then press the attacker button: draining the stock forces an immediate refill, which is the fingerprint the service most needs to avoid emitting.
+
+<SurbDirectory />
+
+## Why the naive port leaks location
+
+### Volume and burstiness
+
+A reusable descriptor is small and published rarely. A SURB directory must instead hold a stock of single-use SURBs, and the service must keep topping it up as clients consume them. A popular service replenishes often. This produces frequent, bursty uploads from the service to the directory.
+
+That traffic pattern is a fingerprint. Frequent batch uploads with a characteristic shape can be end-to-end correlatable, which can reveal the service's network location. The pressure is consumption-driven. It exists whenever the service is busy, independent of how long any individual SURB stays valid.
+
+For background on what an observer can and cannot correlate, see the [threat actors](/network/threat-model/actors) reference and the [two-layer model](/network/threat-model/two-layer-model).
+
+### Time-bounded validity and the refresh window
+
+SURBs are also time-bounded. They are built against the network's current key-rotation cycle and expire when that cycle turns over. So the service must refresh its provisioned SURBs periodically, regardless of consumption. See [epochs](/network/reference/epochs) for how the network schedules these cycles and how SURB validity is tied to them.
+
+Each refresh has a narrow window. The NymAPI announces the next topology before it comes into force. The service must generate and push its new SURBs inside the gap between announcement and activation. A narrow, recurring, high-volume upload is easier to spot than a steady trickle, which sharpens the fingerprinting concern above.
+
+### No directory infrastructure today
+
+Even setting the above aside, Nym has no HSDir analogue. There is no DHT or directory layer for clients to look up and fetch a hidden service's contact tokens. Building one is a prerequisite, not a detail.
+
+## Two problems specific to anonymous directories
+
+A SURB directory serving anonymous clients raises problems that Tor never has to solve, precisely because Tor's descriptors are reusable.
+
+### Rate-limiting anonymous clients
+
+A malicious client can drain a service by requesting its SURBs over and over. In Tor this cannot happen: one descriptor serves everyone, so there is nothing to exhaust. In Nym the directory dispenses a finite, single-use stock. It also must not learn who is asking, because clients are anonymous. So it cannot tell whether one client is burning through the whole stock. How to rate-limit anonymous requesters here is an open question.
+
+### SURB-depletion denial of service
+
+Suppose no one is malicious. The stock still runs out as legitimate clients consume it. When it is empty, no new client can connect. The service needs some way to learn that the directory is low and to send more. That feedback loop is itself an attack surface. An attacker can deliberately deplete the stock to force the service to push a fresh batch. It then watches for the resulting upload pattern to locate the service. The refill mechanism that keeps the service reachable is the same mechanism that can be provoked to expose it.
+
+## Why the obvious shortcut does not apply
+
+One might hope to sidestep SURB generation by letting a set of authorities learn which gateway serves each client. Systems like [Pudding](https://arxiv.org/abs/2311.10825) do exactly this, but for a different problem: contact discovery, not server-location privacy. Knowing the client-to-gateway mapping lets authorities generate the needed SURBs on a client's behalf.
+
+This is a non-starter for hidden services. The whole point of a hidden service is to stay hidden from everyone, including any such authorities. A design that requires some party to know the service's gateway defeats the goal before it starts.
+
+## Summary
+
+Adding Tor-style hidden services to Nym is not trivial. The difficulty is not a weakness in Nym. It follows from the mixnet's design.
+
+- Tor descriptors are reusable. One small object serves every client for hours.
+- Nym SURBs are single-use. Each client needs its own, and only the service can make them.
+- Serving them from a directory forces frequent, bursty uploads, which are fingerprintable and can leak the service's location.
+- Time-bounded validity adds a narrow, recurring refresh window that sharpens that risk.
+- Anonymous directories also face unsolved rate-limiting and SURB-depletion denial-of-service problems.
+- The authority-assisted shortcut used for contact discovery cannot apply, because it would hand the service's location to a third party.
+
+Solving these problems is possible in principle. It requires real R&D, not a straight port of Tor's design.

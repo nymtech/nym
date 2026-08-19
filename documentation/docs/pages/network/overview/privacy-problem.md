@@ -26,4 +26,4 @@ The assumption is worst-case: the adversary monitors all entry and exit points, 
 
 **dVPN mode** does not defend against timing analysis, but it splits trust across two independent operators and removes payment linkability, which already addresses the biggest weaknesses of traditional VPNs.
 
-For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/overview/comparisons). For help picking a mode, see [Choosing a Mode](/network/overview/choosing-a-mode).
+For a comparison with VPNs, Tor, and I2P, see [Nym vs Other Systems](/network/threat-model/comparisons). For help picking a configuration, see [Choose a Defence](/network/threat-model/choose-config).

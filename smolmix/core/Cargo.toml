@@ -1,5 +1,5 @@
 [package]
-name = "smolmix"
+name = "nym-smolmix"
 description = "Tunnel for TCP and UDP traffic to be sent over Nym mixnet to clearnet remote hosts"
 version.workspace = true
 authors.workspace = true
@@ -13,7 +13,7 @@ readme = "src/ARCHITECTURE.md"
 publish = true
 
 [dependencies]
-smol-core = { workspace = true }
+nym-smol-core = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }

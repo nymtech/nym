@@ -7,7 +7,7 @@ use libcrux_psq::handshake::types::Authenticator;
 use nym_crypto::hkdf::blake3::derive_key_blake3_multi_input;
 use nym_kkt::keys::EncapsulationKey;
 use nym_lp_data::packet::header::LpReceiverIndex;
-use rand09::{self, CryptoRng, Rng};
+use rand010::{self, CryptoRng, Rng, RngExt};
 use tls_codec::Serialize;
 use zeroize::Zeroize;
 
@@ -215,13 +215,17 @@ impl LpPeerConfig {
                 LP_PEER_CONFIG_SIZE
             )));
         }
+
+        #[allow(clippy::indexing_slicing)]
         let (hop_id, is_exit, node_initiator, censorship_resistance) =
             Self::unpack_first_byte(bytes[0]);
 
         let mut filler = [0u8; FILLER_LEN];
+        #[allow(clippy::indexing_slicing)]
         filler.copy_from_slice(&bytes[CONFIG_LEN..CONFIG_LEN + FILLER_LEN]);
 
         let mut seed = [0u8; SEED_LEN];
+        #[allow(clippy::indexing_slicing)]
         seed.copy_from_slice(&bytes[CONFIG_LEN + FILLER_LEN..LP_PEER_CONFIG_SIZE]);
 
         Self::build_checked(
@@ -324,7 +328,7 @@ mod test {
 
     #[test]
     fn test_pack_config() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
 
         // Node to node, no censorship resistance
         {
@@ -450,7 +454,7 @@ mod test {
 
     #[test]
     fn test_failures() {
-        let mut rng = rand09::rng();
+        let mut rng = rand010::rng();
         // Hop with id 15 must be an exit node
         assert!(LpPeerConfig::new(&mut rng, 15, false, false, false).is_err());
 

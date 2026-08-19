@@ -611,7 +611,7 @@ mod tests {
         use nym_crypto::asymmetric::ed25519;
 
         let mut rng = deterministic_rng();
-        let mut rng09 = deterministic_rng_09();
+        let mut rng010 = deterministic_rng_09();
 
         let lp_config = LpConfig {
             debug: LpDebug {
@@ -627,8 +627,8 @@ mod tests {
         let x_keys = Arc::new(id_keys.to_x25519().try_into().unwrap());
 
         let kem_keys = KEMKeys::new(
-            generate_keypair_mceliece(&mut rng09),
-            generate_keypair_mlkem(&mut rng09),
+            generate_keypair_mceliece(&mut rng010),
+            generate_keypair_mlkem(&mut rng010),
         );
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), x_keys).with_kem_keys(kem_keys);
 

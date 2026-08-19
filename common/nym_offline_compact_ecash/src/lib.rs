@@ -1,10 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(clippy::expect_used)]
-#![warn(clippy::unwrap_used)]
-#![warn(clippy::todo)]
-#![warn(clippy::dbg_macro)]
+#![deny(clippy::indexing_slicing)]
+#![cfg_attr(test, allow(clippy::indexing_slicing))]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 use nym_bls12_381_fork::Scalar;
 use std::sync::OnceLock;

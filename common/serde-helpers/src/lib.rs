@@ -51,16 +51,11 @@ pub mod date {
     use serde::ser::Error;
     use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
     use time::Date;
-    use time::format_description::{BorrowedFormatItem, Component, modifier};
+    use time::format_description::BorrowedFormatItem;
+    use time::macros::format_description;
 
     // simple YYYY-MM-DD
-    pub const DATE_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::Year(modifier::Year::default())),
-        BorrowedFormatItem::Literal(b"-"),
-        BorrowedFormatItem::Component(Component::Month(modifier::Month::default())),
-        BorrowedFormatItem::Literal(b"-"),
-        BorrowedFormatItem::Component(Component::Day(modifier::Day::default())),
-    ];
+    pub const DATE_FORMAT: &[BorrowedFormatItem<'_>] = format_description!("[year]-[month]-[day]");
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Date, D::Error>
     where
@@ -81,5 +76,34 @@ pub mod date {
             .format(&DATE_FORMAT)
             .map_err(S::Error::custom)?
             .serialize(serializer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[cfg(feature = "date")]
+    #[cfg(test)]
+    mod date_tests {
+        use serde::{Deserialize, Serialize};
+        use time::Date;
+        use time::macros::date;
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct Foo {
+            #[serde(with = "crate::date")]
+            date: Date,
+        }
+
+        #[test]
+        fn date_serialisation() {
+            let date = date!(2023 - 02 - 01);
+            let foo = Foo { date };
+            let ser = serde_json::to_string(&foo).unwrap();
+            assert_eq!(ser, r#"{"date":"2023-02-01"}"#);
+
+            let de: Foo = serde_json::from_str(&ser).unwrap();
+            assert_eq!(de, foo);
+        }
     }
 }

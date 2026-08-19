@@ -8,7 +8,8 @@ use anyhow::Context;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
+    AgentAnnounceRequest, AgentMixAddresses, TestRunAssignmentRequest,
+    TestRunResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
 use std::sync::Arc;
@@ -49,12 +50,21 @@ impl NetworkMonitorAgent {
         }
     }
 
+    /// The addresses this agent announces to the orchestrator, and thus the ones the nodes it
+    /// tests will see its traffic coming from.
+    fn mix_addresses(&self) -> AgentMixAddresses {
+        AgentMixAddresses {
+            v4: self.tester_config.external_mixnet_address_v4,
+            v6: self.tester_config.external_mixnet_address_v6,
+        }
+    }
+
     /// Announces this agent's details (mixnet address, noise key, protocol version)
     /// to the orchestrator so they can be registered in the smart contract.
     pub(crate) async fn announce_agent(&self) -> anyhow::Result<()> {
         self.orchestrator_client
             .announce_agent(&AgentAnnounceRequest {
-                agent_mix_socket_address: self.tester_config.external_mixnet_address,
+                mix_addresses: self.mix_addresses(),
                 x25519_noise_key: *self.noise_key.public_key(),
                 // we're always using the latest noise version available
                 noise_version: LATEST_NOISE_VERSION.into(),
@@ -67,7 +77,7 @@ impl NetworkMonitorAgent {
     /// performs a stress test against the assigned node and submits the results.
     pub(crate) async fn run_stress_test(&self) -> anyhow::Result<()> {
         let request = TestRunAssignmentRequest {
-            agent_mix_socket_address: self.tester_config.external_mixnet_address,
+            mix_addresses: self.mix_addresses(),
             x25519_noise_key: *self.noise_key.public_key(),
         };
 
@@ -85,6 +95,7 @@ impl NetworkMonitorAgent {
 
         info!("retrieved the following work assignment: {work_assignment:?}");
         let node_id = work_assignment.node_id;
+        let tested_address = work_assignment.node_address;
 
         // 3. otherwise construct the tester and attempt to perform the measurements
         let tested_node = TestedNodeDetails::from_testrun_assignment(work_assignment);
@@ -101,6 +112,7 @@ impl NetworkMonitorAgent {
         self.orchestrator_client
             .submit_test_run_result(&TestRunResultSubmissionRequest {
                 node_id,
+                tested_address,
                 result: result.into(),
             })
             .await

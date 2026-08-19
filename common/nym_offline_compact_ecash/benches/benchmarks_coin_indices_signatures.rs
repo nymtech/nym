@@ -1,6 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::unwrap_used)]
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use nym_compact_ecash::scheme::coin_indices_signatures::{
     aggregate_indices_signatures, sign_coin_indices, verify_coin_indices_signatures,

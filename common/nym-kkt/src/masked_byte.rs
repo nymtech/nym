@@ -115,7 +115,7 @@ mod test {
     use crate::masked_byte::MASKED_BYTE_LEN;
 
     use super::MaskedByte;
-    use rand09::{Rng, RngCore, rng};
+    use rand010::{Rng, RngExt, rng};
 
     #[test]
     fn test_masking() {

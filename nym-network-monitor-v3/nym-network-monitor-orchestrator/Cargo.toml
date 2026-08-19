@@ -1,7 +1,7 @@
 [package]
 name = "nym-network-monitor-orchestrator"
 description = "Orchestrator for performing Nym network stress testing"
-version = "1.0.5"
+version = "1.1.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -46,6 +46,7 @@ nym-api-requests = { workspace = true }
 nym-network-monitor-orchestrator-requests = { path = "../nym-network-monitor-orchestrator-requests", features = ["openapi"] }
 
 [dev-dependencies]
+cosmwasm-std = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand"] }
 nym-test-utils = { workspace = true }
 

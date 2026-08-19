@@ -14,6 +14,7 @@ pub mod env_setup;
 pub mod mainnet;
 #[cfg(feature = "network")]
 pub mod network;
+pub mod sandbox;
 
 #[cfg(feature = "env")]
 pub mod var_names;
@@ -24,5 +25,7 @@ pub use ecash::*;
 pub use constants::*;
 #[cfg(all(feature = "env", feature = "network"))]
 pub use env_setup::*;
+#[cfg(feature = "network")]
+pub use network::v2;
 #[cfg(feature = "network")]
 pub use network::*;

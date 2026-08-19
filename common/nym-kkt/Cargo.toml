@@ -1,7 +1,7 @@
 [package]
 name = "nym-kkt"
 description = "Key transport protocol for the Nym network"
-version = "1.21.5-rc.1"
+version = "1.21.5"
 authors = ["Georgio Nicolas <georgio@nymtech.net>"]
 edition = { workspace = true }
 license.workspace = true
@@ -27,7 +27,7 @@ libcrux-kem = { workspace = true }
 libcrux-ecdh = { workspace = true, features = ["codec"] }
 libcrux-chacha20poly1305 = { workspace = true }
 
-rand09 = { workspace = true }
+rand010 = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 libcrux-psq = { workspace = true, features = ["classic-mceliece"] }

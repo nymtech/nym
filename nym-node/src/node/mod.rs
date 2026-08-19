@@ -45,6 +45,7 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
+use getrandom04::SysRng;
 use nym_bin_common::{bin_info, bin_info_owned};
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
@@ -85,7 +86,7 @@ use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
-use rand09::SeedableRng;
+use rand010::SeedableRng;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
@@ -436,16 +437,16 @@ impl NymNode {
     ) -> Result<(), NymNodeError> {
         info!("initialising nym-node with id: {}", config.id);
         let mut rng = OsRng;
-        let mut rng09 = rand09::rngs::StdRng::from_os_rng();
+        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // global initialisation
         info!("generating new node keys (this might take a while)");
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
 
-        let x25519_lp_keys = generate_lp_keypair_x25519(&mut rng09);
-        let mlkem = generate_keypair_mlkem(&mut rng09);
-        let mceliece = generate_keypair_mceliece(&mut rng09);
+        let x25519_lp_keys = generate_lp_keypair_x25519(&mut rng010);
+        let mlkem = generate_keypair_mlkem(&mut rng010);
+        let mceliece = generate_keypair_mceliece(&mut rng010);
 
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;

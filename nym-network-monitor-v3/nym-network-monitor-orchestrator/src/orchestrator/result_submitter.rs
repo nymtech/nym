@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::orchestrator::config::Config;
+use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use anyhow::Context;
-use nym_api_requests::models::v3::{StressTestBatchSubmissionContent, StressTestResult};
+use nym_api_requests::models::v3::{
+    StressTestBatchSubmissionContent, StressTestBatchSubmissionResponse, StressTestResult,
+};
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::Client;
 use nym_task::ShutdownToken;
@@ -14,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{Instant, MissedTickBehavior, interval_at};
-use tracing::info;
+use tracing::{info, warn};
 
 /// Background task that periodically drains freshly-completed test run results from the local
 /// storage, wraps them into a signed [`StressTestBatchSubmission`][batch], and POSTs the batch to
@@ -125,7 +128,8 @@ impl ResultSubmitter {
             };
             let signed = body.sign(self.identity_keys.private_key());
 
-            self.client
+            let response = self
+                .client
                 .submit_stress_testing_results(&signed)
                 .await
                 .context("failed to POST stress-test batch submission to nym-api")?;
@@ -134,9 +138,50 @@ impl ResultSubmitter {
             info!(
                 "submitted {batch_size} stress-test results batch to nym-api (testrun ids up to {max_id})"
             );
+            Self::report_submission_outcome(batch_size, response);
         }
 
         Ok(())
+    }
+
+    /// Records what nym-api did with a submitted batch: how many results it stored, how many it
+    /// discarded as measurements it had already seen, and how many it dropped in validation.
+    ///
+    /// A batch is accepted as a whole even when every result in it deduplicates away, so without
+    /// this the orchestrator cannot tell a stored batch from a silently discarded one. Duplicates
+    /// are expected whenever a batch is resent, since the watermark only advances after a successful
+    /// POST, but a count that stays non-zero across cycles means measurements are being lost.
+    ///
+    /// A count is absent when talking to a nym-api predating this reporting, which is distinct from
+    /// zero and so is neither logged nor counted.
+    fn report_submission_outcome(batch_size: usize, response: StressTestBatchSubmissionResponse) {
+        if let Some(accepted) = response.accepted {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::SubmittedResultsAccepted, accepted as i64);
+        }
+
+        if let Some(rejected) = response.rejected {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::SubmittedResultsRejected, rejected as i64);
+            if rejected > 0 {
+                warn!(
+                    "nym-api dropped {rejected} of {batch_size} submitted stress-test results in \
+                     per-entry validation"
+                );
+            }
+        }
+
+        if let Some(duplicates) = response.duplicates {
+            PROMETHEUS_METRICS.inc_by(
+                PrometheusMetric::SubmittedResultsDuplicate,
+                duplicates as i64,
+            );
+            if duplicates > 0 {
+                warn!(
+                    "nym-api had already stored {duplicates} of {batch_size} submitted stress-test \
+                     results and discarded them - expected if this batch was retried, but if it \
+                     persists then these measurements are being lost"
+                );
+            }
+        }
     }
 
     /// Run the submission loop until the shutdown token is cancelled.

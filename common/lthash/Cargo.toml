@@ -1,0 +1,39 @@
+[package]
+name = "nym-lthash"
+description = "LtHash incremental homomorphic multiset hash, generic over a XOF"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+# Pinned (not inherited): contracts workspace MSRV is 1.86 < the main workspace's 1.87,
+# and this crate is consumed by the directory contract. See node-families for the pattern.
+rust-version = "1.86"
+readme.workspace = true
+publish = true
+
+[dependencies]
+# Not `workspace = true`: cargo forbids overriding default-features on an inherited dep,
+# and we need default-features = false for no_std / wasm. Version mirrors the workspace
+# pin (<1.8.4 keeps blake3 on digest 0.10).
+blake3 = { version = ">=1.7, <1.8.4", default-features = false, features = ["traits-preview"] }
+digest = { workspace = true }
+# Not `workspace = true`, same reason as blake3 above (default-features = false for
+# no_std). Optional and off by default so the wasm contract build (which never
+# serializes an `LtHash`) does not pay for it; native consumers opt in via the `serde`
+# feature.
+serde = { version = "1.0.219", default-features = false, optional = true }
+serde_with = { version = "3.21.0", default-features = false, optional = true }
+
+[dev-dependencies]
+sha3 = { workspace = true }
+bincode = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+serde = ["dep:serde", "dep:serde_with", "serde_with/base64"]
+
+[lints]
+workspace = true

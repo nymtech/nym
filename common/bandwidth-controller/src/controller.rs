@@ -3,8 +3,8 @@
 
 use crate::config::BandwidthControllerConfig;
 use crate::error::BandwidthControllerError;
-use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot, ReadinessStatus};
-use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender};
+use crate::readiness::{FetchFailure, ReadinessRequest, ReadinessSnapshot};
+use crate::requests::{BandwidthControllerRequest, BandwidthControllerRequestSender, ReturnSender};
 use crate::ticketbooks::AvailableTicketbooks;
 use crate::traits::{CredentialFetcher, CredentialPublicDataFetcher};
 use crate::NymCredential;
@@ -27,7 +27,6 @@ use nym_validator_client::nym_api::EpochId;
 
 use async_trait::async_trait;
 use log::error;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -38,7 +37,10 @@ use tokio::time::{interval, MissedTickBehavior};
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{interval, MissedTickBehavior};
 
-use crate::in_flight::{FetchResult, InFlightFetches};
+use crate::in_flight::{
+    global_data::{GlobalData, GlobalDataRequest},
+    FetchJob, FetchKey, FetchResult, FetchedData, InFlightFetches,
+};
 
 /// Owns all ecash credential state and is the **single writer** to the credential [`Storage`].
 ///
@@ -78,8 +80,8 @@ pub struct BandwidthController<St> {
     // `Arc` so the native auto path can clone it into spawned fetch tasks.
     credential_fetcher: Option<Arc<dyn CredentialFetcher>>,
 
-    // ticketbook fetches currently in flight; skips duplicate requests per type, drives
-    // completions, and cancels on reset/shutdown
+    // background fetches currently in flight (both ticketbooks and global signing data); skips
+    // duplicate requests per key, drives completions, and cancels on reset/shutdown.
     in_flight: InFlightFetches,
 
     // callers parked on `wait_for_ticketbooks`, re-evaluated whenever a fetch completes
@@ -154,11 +156,10 @@ impl<St: Storage> BandwidthController<St> {
                 }
                 _ = topup_interval.tick() => {
                     let _ = self.print_info().await;
-                    self.ensure_global_data().await;
                     self.check_and_restock(self.config.managed_ticket_types.clone()).await;
                 }
-                (typ, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
-                    self.on_fetch_complete(typ, res).await;
+                (key, res) = self.in_flight.next_result(), if !self.in_flight.is_empty() => {
+                    self.on_fetch_complete(key, res).await;
                 }
                 request = self.request_channel.1.recv() => match request {
                     Some(request) => self.handle_request(request).await,
@@ -214,7 +215,7 @@ impl<St: Storage> BandwidthController<St> {
             }
 
             BandwidthControllerRequest::SetPublicDataFetcher(return_sender, fetcher) => {
-                self.public_data_fetcher = fetcher;
+                self.handle_set_public_data_fetcher(fetcher).await;
                 return_sender.send(Ok(()))
             }
             BandwidthControllerRequest::Reset(return_sender) => {
@@ -235,11 +236,8 @@ impl<St: Storage> BandwidthController<St> {
                 return_sender.send(Ok(()))
             }
             BandwidthControllerRequest::WaitForTicketbooks(return_sender, ticket_types) => {
-                self.handle_wait_for_ticketbooks(ReadinessRequest {
-                    return_sender,
-                    ticket_types,
-                })
-                .await
+                self.handle_wait_for_ticketbooks(return_sender, ticket_types)
+                    .await
             }
         }
     }
@@ -249,13 +247,26 @@ impl<St: Storage> BandwidthController<St> {
         if let Some(old_fetcher) = self.credential_fetcher.take() {
             old_fetcher.cleanup().await;
         }
-        // Explicit upcast required because of the option
-        self.public_data_fetcher = fetcher
+        // a credential fetcher is also a public-data fetcher (explicit upcast through the Option)
+        let public_data_fetcher = fetcher
             .clone()
             .map(|f| f as Arc<dyn CredentialPublicDataFetcher>);
+        self.public_data_fetcher = public_data_fetcher;
+        // No need to run a global data fetch here, check_and_restock does it
+
         self.credential_fetcher = fetcher;
         self.check_and_restock(self.config.managed_ticket_types.clone())
             .await;
+    }
+
+    async fn handle_set_public_data_fetcher(
+        &mut self,
+        fetcher: Option<Arc<dyn CredentialPublicDataFetcher>>,
+    ) {
+        self.public_data_fetcher = fetcher;
+        // the public-data fetcher is what provisions global data, so installing one lets us fetch
+        // anything the stored ticketbooks are still missing
+        self.prefetch_global_data().await;
     }
 
     // Removes fetcher, stops in flight requests, clear credentials, answer all readiness request with unavailable
@@ -292,11 +303,28 @@ impl<St: Storage> BandwidthController<St> {
         self.get_available_ticketbooks().await
     }
 
-    async fn handle_wait_for_ticketbooks(&mut self, request: ReadinessRequest) {
+    async fn handle_wait_for_ticketbooks(
+        &mut self,
+        return_sender: ReturnSender<()>,
+        ticket_types: Vec<TicketType>,
+    ) {
+        // resolve the concrete global data those types need to be spendable (epoch + date of the
+        // ticketbook that would be taken); empty for a type that isn't stocked yet - it's refreshed
+        // once a ticketbook lands (see `resolve_pending_waiters`)
+        let global_data = self
+            .required_global_data(&ticket_types)
+            .await
+            .unwrap_or_default();
+        let request = ReadinessRequest {
+            return_sender,
+            ticket_types,
+            global_data,
+        };
+
         let snapshot = match self.build_readiness_snapshot(None).await {
             Ok(snapshot) => snapshot,
             Err(err) => {
-                // transient storage failure - leave waiters parked for the next state change
+                // transient storage failure - leave the waiter parked for the next state change
                 tracing::warn!("could not assess ticketbook readiness: {err}");
                 self.pending_readiness.push(request);
                 return;
@@ -390,6 +418,7 @@ impl<St: Storage> BandwidthController<St> {
     }
 
     /// Tries to retrieve one of the stored, unused credentials for the given type that hasn't yet expired.
+    /// This is spending a ticket
     pub async fn get_next_usable_ticketbook(
         &self,
         ticketbook_type: TicketType,
@@ -434,10 +463,16 @@ impl<St: Storage> BandwidthController<St> {
             .await
             .map_err(BandwidthControllerError::fetcher_error)?;
         self.store_fetched(credentials).await;
+
+        // Ensure that data inline (fetch + persist if missing). `fetch_ticketbook` only runs on a
+        // non-running controller, so blocking is fine
+        self.ensure_global_data().await;
+
         Ok(())
     }
 
     /// Restocks the given ticket types that are running low or about to expire.
+    /// Also checks the global_data
     async fn check_and_restock(&mut self, ticketbook_types: Vec<TicketType>) {
         let available = match self.get_available_ticketbooks().await {
             Ok(available) => available,
@@ -448,38 +483,65 @@ impl<St: Storage> BandwidthController<St> {
         };
 
         for typ in ticketbook_types {
-            tracing::debug!("Checking credential stock for {typ} ticket");
-            if available.needs_restock(typ, &self.config) {
-                tracing::debug!("{typ} tickets need a restock");
-                self.ensure_stocked(typ);
+            if self.config.managed_ticket_types.contains(&typ) {
+                tracing::debug!("Checking credential stock for {typ} ticket");
+                if available.needs_restock(typ, &self.config) {
+                    tracing::debug!("{typ} tickets need a restock");
+                    self.ensure_stocked(typ);
+                }
+            } else {
+                tracing::debug!("Credential {typ} is not managed, check and restock skipped");
             }
         }
+        self.prefetch_global_data().await;
     }
 
-    /// Spawns a background fetch for `ticketbook_type` unless one is already in flight for it.
+    /// Spawns a background fetch for `ticket_type` unless one is already in flight for it.
     /// Non-blocking: the result is drained later in the `run` loop via `on_fetch_complete`.
-    fn ensure_stocked(&mut self, ticketbook_type: TicketType) {
-        if self.in_flight.contains(ticketbook_type) {
-            // already fetching this type; don't ask again while we're still waiting
-            tracing::debug!("{ticketbook_type} ticket restock already in flight");
-            return;
-        }
+    fn ensure_stocked(&mut self, ticket_type: TicketType) {
         let Some(fetcher) = &self.credential_fetcher else {
             tracing::debug!("No credential fetcher set. No restock possible");
             return;
         };
-        tracing::debug!("requesting more {ticketbook_type} ticketbooks");
-        self.in_flight.spawn(ticketbook_type, Arc::clone(fetcher));
+        if self.in_flight.is_in_flight(ticket_type) {
+            // already fetching this type; don't ask again while we're still waiting
+            tracing::debug!("{ticket_type} ticket restock already in flight");
+            return;
+        }
+        tracing::debug!("requesting more {ticket_type} ticketbooks");
+        self.in_flight.spawn(FetchJob::Ticketbook {
+            ticket_type,
+            fetcher: Arc::clone(fetcher),
+        });
     }
 
-    /// Persists the credentials returned by a completed fetch. The in-flight slot was already
-    /// freed by [`InFlightFetches::next_result`].
-    async fn on_fetch_complete(&mut self, ticket_type: TicketType, received: FetchResult) {
+    /// Routes a completed background fetch to the right handler based on what was requested.
+    async fn on_fetch_complete(&mut self, key: FetchKey, received: FetchResult) {
+        match key {
+            FetchKey::Ticketbook(ticket_type) => {
+                self.on_ticketbook_fetch_complete(ticket_type, received)
+                    .await
+            }
+            FetchKey::GlobalData(request) => {
+                self.on_global_data_fetch_complete(request, received).await
+            }
+        }
+    }
+
+    /// Persists a completed ticketbook fetch and re-evaluates readiness waiters. The in-flight slot
+    /// was already freed by [`InFlightFetches::next_result`].
+    async fn on_ticketbook_fetch_complete(
+        &mut self,
+        ticket_type: TicketType,
+        received: FetchResult,
+    ) {
         // a failed fetch is surfaced to any readiness waiter that required the failed type
         let failure = match received {
-            Ok(Some(Ok(credentials))) => {
+            Ok(Some(Ok(FetchedData::Ticketbooks(credentials)))) => {
                 self.store_fetched(credentials).await;
                 tracing::info!("fetched and stored a {ticket_type} ticketbook");
+                // provision the global data those ticketbooks need in the background, off the loop
+                self.prefetch_global_data().await;
                 None
             }
             Ok(Some(Err(err))) => {
@@ -494,9 +556,9 @@ impl<St: Storage> BandwidthController<St> {
                 tracing::debug!("fetch for {ticket_type} ticketbooks was cancelled");
                 None
             }
-            Err(_recv_err) => {
-                // the task dropped its sender without a result: it panicked.
-                // next_result already freed the slot, so a later restock can retry the type.
+            // the task panicked (or, impossibly, returned a non-ticketbook payload); the slot was
+            // already freed, so a later restock can retry the type
+            Ok(Some(Ok(_))) | Err(_) => {
                 tracing::error!("a credential fetch task for {ticket_type} terminated abnormally");
                 None
             }
@@ -516,31 +578,8 @@ impl<St: Storage> BandwidthController<St> {
         }
     }
 
-    /// Persists fetched ticketbooks together with the global materials they need to be spent.
-    ///
-    /// Best-effort: each step (storing a material that came with the credential, or ensuring a
-    /// missing one is fetched, or storing the ticketbook itself) is logged on failure and the rest
-    /// still proceed - a single failure never aborts the batch.
+    /// Persists a fetched ticketbook
     async fn store_ticketbook(&self, ticketbook: IssuedTicketBook) {
-        // This path is used when a CredentialFetcher is there, so there will be a way to get the public data as well
-        let epoch_id = ticketbook.epoch_id();
-
-        if let Err(err) = self.ensure_master_verification_key(epoch_id).await {
-            tracing::warn!("failed to ensure master verification key for epoch {epoch_id}: {err}");
-        }
-        if let Err(err) = self.ensure_coin_index_signatures(epoch_id).await {
-            tracing::warn!("failed to ensure coin index signatures for epoch {epoch_id}: {err}");
-        }
-
-        if let Err(err) = self
-            .ensure_expiration_date_signatures(epoch_id, ticketbook.expiration_date())
-            .await
-        {
-            tracing::warn!(
-                "failed to ensure expiration date signatures for epoch {epoch_id}: {err}"
-            );
-        }
-
         if let Err(err) = self.storage.insert_issued_ticketbook(&ticketbook).await {
             tracing::warn!("failed to store ticketbook: {err}");
         }
@@ -565,38 +604,56 @@ impl<St: Storage> BandwidthController<St> {
     // Ticketbook readiness
     // ---------------------------------------------------------------------
 
-    fn is_in_flight(&self, typ: TicketType) -> bool {
-        self.in_flight.contains(typ)
-    }
-
+    /// Gathers the current stock, stored global data, in-flight fetches and any fetch failure, and
+    /// hands them to [`ReadinessSnapshot::build`] to assemble - the controller just collects, the
+    /// snapshot does the bookkeeping.
     async fn build_readiness_snapshot(
         &self,
         failure: Option<FetchFailure>,
     ) -> Result<ReadinessSnapshot, BandwidthControllerError> {
         let upgrade_mode = self.get_upgrade_mode_token().await?.is_some();
+
         let available = self.get_available_ticketbooks().await?;
+        let stocked_types = AvailableTicketbooks::ticketbook_types()
+            .into_iter()
+            .filter(|typ| available.contains_minimal_tickets(*typ, &self.config))
+            .collect();
 
-        let mut tickets_readiness = HashMap::new();
-        for typ in AvailableTicketbooks::ticketbook_types() {
-            let status = if available.contains_minimal_tickets(typ, &self.config) {
-                ReadinessStatus::Ready
-            } else if self.is_in_flight(typ) {
-                ReadinessStatus::InFlight
-            } else {
-                match failure.as_ref() {
-                    Some(failure) if failure.ticket_type == typ => {
-                        ReadinessStatus::FetchFailed(failure.error.to_string())
-                    }
-                    _ => ReadinessStatus::Unavailable,
-                }
-            };
-            tickets_readiness.insert(typ, status);
-        }
+        let available_global_data = self
+            .storage
+            .get_available_global_data()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
 
-        Ok(ReadinessSnapshot {
+        Ok(ReadinessSnapshot::build(
             upgrade_mode,
-            tickets_readiness,
-        })
+            stocked_types,
+            self.in_flight.in_flight_ticketbooks(),
+            failure,
+            available_global_data,
+            self.in_flight.in_flight_global_data(),
+        ))
+    }
+
+    /// The `(epoch, date)` global data needed to spend the given types: for each stocked type, that
+    /// of the ticketbook that would be taken next. A type with no usable ticketbook contributes
+    /// nothing (its requirement is the ticketbook itself, tracked separately).
+    ///
+    /// Read-only - it peeks at the next-usable ticketbook's metadata without withdrawing (unlike
+    /// [`Self::get_next_usable_ticketbook`], which is the actual spend path).
+    async fn required_global_data(
+        &self,
+        ticket_types: &[TicketType],
+    ) -> Result<Vec<(EpochId, Date)>, BandwidthControllerError> {
+        let available = self.get_available_ticketbooks().await?;
+        Ok(ticket_types
+            .iter()
+            .filter_map(|&typ| {
+                available
+                    .next_usable(typ)
+                    .map(|ticketbook| (ticketbook.epoch_id, ticketbook.expiration))
+            })
+            .collect())
     }
 
     /// Re-evaluates parked `wait_for_ticketbooks` callers after stock/in-flight state changed,
@@ -616,12 +673,18 @@ impl<St: Storage> BandwidthController<St> {
 
         tracing::debug!("Readiness snapshot : {:#?}", snapshot);
 
-        let requests = std::mem::take(&mut self.pending_readiness);
-
-        let still_waiting = requests
-            .into_iter()
-            .filter_map(|request| request.try_resolve(&snapshot))
-            .collect();
+        let mut still_waiting = Vec::new();
+        for mut request in std::mem::take(&mut self.pending_readiness) {
+            // a newly-stored ticketbook can introduce global-data requirements a still-unstocked
+            // type didn't have when it was parked, so refresh them before evaluating
+            request.global_data = self
+                .required_global_data(&request.ticket_types)
+                .await
+                .unwrap_or_default();
+            if let Some(request) = request.try_resolve(&snapshot) {
+                still_waiting.push(request);
+            }
+        }
 
         self.pending_readiness = still_waiting;
     }
@@ -630,8 +693,8 @@ impl<St: Storage> BandwidthController<St> {
     // Global signing data (fetched & cached on demand)
     // ---------------------------------------------------------------------
 
-    /// Returns the master verification key for the epoch, fetching it via the configured public
-    /// data fetcher and persisting it if it isn't already in local storage.
+    /// Returns the master verification key for the epoch, fetching and persisting it via the
+    /// public-data fetcher if it isn't already in local storage.
     async fn ensure_master_verification_key(
         &self,
         epoch_id: EpochId,
@@ -644,22 +707,17 @@ impl<St: Storage> BandwidthController<St> {
         {
             return Ok(key);
         }
-        let Some(fetcher) = &self.public_data_fetcher else {
-            return Err(BandwidthControllerError::MissingVerificationKey { epoch_id });
-        };
-        let key = fetcher
-            .fetch_master_verification_key(epoch_id)
-            .await
-            .map_err(BandwidthControllerError::fetcher_error)?;
+        self.fetch_and_store_global_data(GlobalDataRequest::MasterVerificationKey(epoch_id))
+            .await?;
         self.storage
-            .insert_master_verification_key(&key)
+            .get_master_verification_key(epoch_id)
             .await
-            .map_err(BandwidthControllerError::credential_storage_error)?;
-        Ok(key.key)
+            .map_err(BandwidthControllerError::credential_storage_error)?
+            .ok_or(BandwidthControllerError::MissingVerificationKey { epoch_id })
     }
 
-    /// Returns the coin index signatures for the epoch, fetching them via the configured public
-    /// data fetcher and persisting them if they aren't already in local storage.
+    /// Returns the coin index signatures for the epoch, fetching and persisting them via the
+    /// public-data fetcher if they aren't already in local storage.
     async fn ensure_coin_index_signatures(
         &self,
         epoch_id: EpochId,
@@ -672,22 +730,17 @@ impl<St: Storage> BandwidthController<St> {
         {
             return Ok(signatures);
         }
-        let Some(fetcher) = &self.public_data_fetcher else {
-            return Err(BandwidthControllerError::MissingCoinIndexSignatures { epoch_id });
-        };
-        let signatures = fetcher
-            .fetch_coin_index_signatures(epoch_id)
-            .await
-            .map_err(BandwidthControllerError::fetcher_error)?;
+        self.fetch_and_store_global_data(GlobalDataRequest::CoinIndexSignatures(epoch_id))
+            .await?;
         self.storage
-            .insert_coin_index_signatures(&signatures)
+            .get_coin_index_signatures(epoch_id)
             .await
-            .map_err(BandwidthControllerError::credential_storage_error)?;
-        Ok(signatures.signatures)
+            .map_err(BandwidthControllerError::credential_storage_error)?
+            .ok_or(BandwidthControllerError::MissingCoinIndexSignatures { epoch_id })
     }
 
-    /// Returns the expiration date signatures for the epoch and expiration date, fetching them via
-    /// the configured public data fetcher and persisting them if they aren't already in local storage.
+    /// Returns the expiration date signatures for the epoch and expiration date, fetching and
+    /// persisting them via the public-data fetcher if they aren't already in local storage.
     async fn ensure_expiration_date_signatures(
         &self,
         epoch_id: EpochId,
@@ -701,73 +754,177 @@ impl<St: Storage> BandwidthController<St> {
         {
             return Ok(signatures);
         }
-        let Some(fetcher) = &self.public_data_fetcher else {
-            return Err(BandwidthControllerError::MissingExpirationDateSignatures { epoch_id });
-        };
-        let signatures = fetcher
-            .fetch_expiration_date_signatures(expiration_date, epoch_id)
-            .await
-            .map_err(BandwidthControllerError::fetcher_error)?;
+        self.fetch_and_store_global_data(GlobalDataRequest::ExpirationDateSignatures {
+            epoch_id,
+            expiration_date,
+        })
+        .await?;
         self.storage
-            .insert_expiration_date_signatures(&signatures)
+            .get_expiration_date_signatures(expiration_date, epoch_id)
             .await
-            .map_err(BandwidthControllerError::credential_storage_error)?;
-        Ok(signatures.signatures)
+            .map_err(BandwidthControllerError::credential_storage_error)?
+            .ok_or(BandwidthControllerError::MissingExpirationDateSignatures { epoch_id })
     }
 
-    /// Ensures the global signing data (master key, coin-index and expiration-date signatures) is
-    /// present locally for every epoch/expiration referenced by a stored ticketbook, fetching
-    /// whatever is missing.
-    ///
-    /// Best-effort: each missing piece is fetched independently and failures are logged, so one
-    /// failure never blocks the rest.
-    async fn ensure_global_data(&self) {
-        let ticketbooks = match self.storage.get_ticketbooks_info().await {
-            Ok(ticketbooks) => ticketbooks,
+    /// The global signing data referenced by a stored ticketbook whose fetch (master key, coin
+    /// index or expiration signatures) isn't in local storage yet.
+    async fn missing_global_data(
+        &self,
+    ) -> Result<Vec<GlobalDataRequest>, BandwidthControllerError> {
+        let available_global_data = self
+            .storage
+            .get_available_global_data()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
+
+        let ticketbooks = self
+            .storage
+            .get_ticketbooks_info()
+            .await
+            .map_err(BandwidthControllerError::credential_storage_error)?;
+
+        let required = AvailableTicketbooks::try_from(ticketbooks)?
+            .filter(|ticketbook| !ticketbook.has_expired())
+            .flat_map(|ticketbook| {
+                GlobalDataRequest::for_ticketbook(ticketbook.epoch_id, ticketbook.expiration)
+            })
+            .collect::<HashSet<_>>();
+
+        let missing = required
+            .into_iter()
+            .filter(|request| {
+                let present = match *request {
+                    GlobalDataRequest::MasterVerificationKey(epoch_id) => available_global_data
+                        .master_verification_key_epochs
+                        .contains(&epoch_id),
+                    GlobalDataRequest::CoinIndexSignatures(epoch_id) => available_global_data
+                        .coin_index_signature_epochs
+                        .contains(&epoch_id),
+                    GlobalDataRequest::ExpirationDateSignatures {
+                        epoch_id,
+                        expiration_date,
+                    } => available_global_data
+                        .expiration_date_signatures
+                        .contains(&(epoch_id, expiration_date)),
+                };
+                !present
+            })
+            .collect();
+
+        Ok(missing)
+    }
+
+    /// Kicks off background fetches for any missing global signing data. Only local storage reads
+    /// happen inline; the (slow) network fetches run off the event loop and are persisted by
+    /// `on_global_data_fetch_complete`, so the loop stays responsive instead of blocking.
+    async fn prefetch_global_data(&mut self) {
+        let missing = match self.missing_global_data().await {
+            Ok(missing) => missing,
             Err(err) => {
-                tracing::warn!("could not read ticketbooks to ensure global data: {err}");
+                tracing::warn!("could not assess global data for prefetch: {err}");
                 return;
             }
         };
+        for request in missing {
+            self.spawn_global_data_fetch(request);
+        }
+    }
 
-        // master key and coin-index signatures are per-epoch
-        let epochs = ticketbooks
-            .iter()
-            .map(|ticketbook| EpochId::from(ticketbook.epoch_id))
-            .collect::<HashSet<_>>();
-        for epoch_id in epochs {
-            if let Err(err) = self.ensure_master_verification_key(epoch_id).await {
-                tracing::warn!(
-                    "failed to ensure master verification key for epoch {epoch_id}: {err}"
-                );
+    /// Fetches and persists any missing global signing data inline. Blocking - only used on a
+    /// non-running controller, where there's no event loop to drain a background fetch.
+    async fn ensure_global_data(&self) {
+        let missing = match self.missing_global_data().await {
+            Ok(missing) => missing,
+            Err(err) => {
+                tracing::warn!("could not assess global data: {err}");
+                return;
             }
-            if let Err(err) = self.ensure_coin_index_signatures(epoch_id).await {
-                tracing::warn!(
-                    "failed to ensure coin index signatures for epoch {epoch_id}: {err}"
-                );
+        };
+        for request in missing {
+            if let Err(err) = self.fetch_and_store_global_data(request).await {
+                tracing::warn!("failed to ensure global data ({request:?}): {err}");
+            }
+        }
+    }
+
+    /// Spawns a background fetch for one piece of global data, unless it's already in flight or no
+    /// public-data fetcher is set.
+    fn spawn_global_data_fetch(&mut self, request: GlobalDataRequest) {
+        let Some(fetcher) = &self.public_data_fetcher else {
+            tracing::debug!("no public data fetcher set; cannot prefetch {request:?}");
+            return;
+        };
+        if self.in_flight.is_in_flight(request) {
+            return;
+        }
+        tracing::debug!("prefetching global data: {request:?}");
+        self.in_flight.spawn(FetchJob::GlobalData {
+            request,
+            fetcher: Arc::clone(fetcher),
+        });
+    }
+
+    /// Fetches one piece of global data and persists it, inline. Does nothing (`Ok`) when no
+    /// public-data fetcher is configured - callers that need the value surface their own "missing"
+    /// error on the subsequent read.
+    async fn fetch_and_store_global_data(
+        &self,
+        request: GlobalDataRequest,
+    ) -> Result<(), BandwidthControllerError> {
+        let Some(fetcher) = &self.public_data_fetcher else {
+            return Ok(());
+        };
+        let data = request
+            .fetch(&**fetcher)
+            .await
+            .map_err(BandwidthControllerError::fetcher_error)?;
+        self.persist_global_data(data).await
+    }
+
+    /// Persists fetched global signing data.
+    async fn persist_global_data(&self, data: GlobalData) -> Result<(), BandwidthControllerError> {
+        match data {
+            GlobalData::MasterVerificationKey(key) => {
+                self.storage.insert_master_verification_key(&key).await
+            }
+            GlobalData::CoinIndexSignatures(signatures) => {
+                self.storage.insert_coin_index_signatures(&signatures).await
+            }
+            GlobalData::ExpirationDateSignatures(signatures) => {
+                self.storage
+                    .insert_expiration_date_signatures(&signatures)
+                    .await
+            }
+        }
+        .map_err(BandwidthControllerError::credential_storage_error)
+    }
+
+    /// Persists a completed background global-data fetch. The in-flight slot was already freed by
+    /// [`InFlightFetches::next_result`].
+    async fn on_global_data_fetch_complete(
+        &mut self,
+        request: GlobalDataRequest,
+        received: FetchResult,
+    ) {
+        match received {
+            Ok(Some(Ok(FetchedData::GlobalData(data)))) => {
+                if let Err(err) = self.persist_global_data(data).await {
+                    tracing::warn!("failed to persist prefetched global data ({request:?}): {err}");
+                }
+            }
+            Ok(Some(Err(err))) => {
+                tracing::warn!("failed to prefetch global data ({request:?}): {err}")
+            }
+            Ok(None) => tracing::debug!("global data prefetch cancelled: {request:?}"),
+            // the task panicked (or, impossibly, returned a non-global-data payload)
+            Ok(Some(Ok(_))) | Err(_) => {
+                tracing::error!("a global data prefetch task ({request:?}) terminated abnormally")
             }
         }
 
-        // expiration-date signatures are keyed by (epoch, expiration date)
-        let expirations = ticketbooks
-            .iter()
-            .map(|ticketbook| {
-                (
-                    EpochId::from(ticketbook.epoch_id),
-                    ticketbook.expiration_date,
-                )
-            })
-            .collect::<HashSet<_>>();
-        for (epoch_id, expiration_date) in expirations {
-            if let Err(err) = self
-                .ensure_expiration_date_signatures(epoch_id, expiration_date)
-                .await
-            {
-                tracing::warn!(
-                    "failed to ensure expiration date signatures for epoch {epoch_id}: {err}"
-                );
-            }
-        }
+        // global data settling (landed or failed) can flip a stocked type's readiness, so waiters
+        // blocked on it need re-evaluating
+        self.resolve_pending_waiters(None).await;
     }
 
     // ---------------------------------------------------------------------

@@ -1,4 +1,4 @@
-# smol-core
+# nym-smol-core
 
 A transport-agnostic, pure-Rust userspace TCP/IP stack. It turns a
 bidirectional stream of raw IP packets (`Vec<u8>`) into tokio-native
@@ -6,7 +6,7 @@ bidirectional stream of raw IP packets (`Vec<u8>`) into tokio-native
 OS `tun` device and no elevated privileges**, and no Go / gVisor / FFI netstack.
 
 It is the shared stack beneath [`smolmix`](../../smolmix) (the 5-hop mixnet
-tunnel) and [`smoldvpn`](../../sdk/rust/smoldvpn) (the WireGuard dVPN
+tunnel) and [`nym-smoldvpn`](../../smoldvpn) (the WireGuard dVPN
 datapath).
 
 ## Concept
@@ -18,7 +18,7 @@ datapath, a test harness), build a `Stack`, and open sockets.
 
 ```rust
 use futures::channel::mpsc;
-use smol_core::{ChannelDevice, Stack, StackConfig, DEFAULT_MTU};
+use nym_smol_core::{ChannelDevice, Stack, StackConfig, DEFAULT_MTU};
 
 let (outbound_tx, outbound_rx) = mpsc::unbounded::<Vec<u8>>(); // stack -> transport
 let (inbound_tx, inbound_rx) = mpsc::unbounded::<Vec<u8>>();   // transport -> stack
@@ -41,12 +41,12 @@ let addrs = stack.resolve("example.com").await?;            // DNS over the tunn
 
 ## Tests
 
-`cargo test -p smol-core` runs the stack integration tests (two crossed stacks):
+`cargo test -p nym-smol-core` runs the stack integration tests (two crossed stacks):
 UDP round-trip, TCP round-trip, connect-failure, and DNS resolution over a stack
 socket.
 
 ## Design
 
 See the architecture docs in
-[`docs/design/sdk/smoldvpn/`](../../docs/design/sdk/smoldvpn/) and the
+[`docs/design/smoldvpn/`](../../docs/design/smoldvpn/) and the
 [`smol-core-stack`](../../openspec/specs/smol-core-stack/spec.md) OpenSpec capability.

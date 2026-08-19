@@ -12,7 +12,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 use futures::channel::mpsc;
-use smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig};
+use nym_smol_core::{ChannelDevice, DnsConfig, Stack, StackConfig};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const A_IP: &str = "10.0.0.1";
@@ -228,7 +228,7 @@ async fn dns_ignores_mismatched_id() {
         .expect("resolve should have returned")
         .expect_err("a mismatched-id response must not resolve");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsTimeout { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsTimeout { .. }),
         "expected DnsTimeout, got {err:?}"
     );
 }
@@ -262,7 +262,7 @@ async fn dns_servfail_is_distinct() {
         .expect("resolve should have returned")
         .expect_err("SERVFAIL must surface as an error");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsServerFailure { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsServerFailure { .. }),
         "expected DnsServerFailure, got {err:?}"
     );
 }
@@ -310,11 +310,53 @@ async fn dns_v4_only_stack_skips_aaaa() {
         .expect("resolve");
     assert!(addrs.contains(&IpAddr::V4(Ipv4Addr::new(5, 6, 7, 8))));
 
-    let seen = seen.lock().unwrap();
+    // Copy out and release the lock before asserting: a panic while holding it would poison the
+    // mutex and make the still-running mock server panic on its next lock, burying this message.
+    let seen = seen.lock().unwrap().clone();
     assert!(
         seen.iter().all(|t| *t == RecordType::A),
         "a v4-only stack must not send AAAA queries, saw {seen:?}"
     );
+}
+
+/// A stack whose inbound transport has gone away must not wedge runtime shutdown.
+///
+/// If the device reported end-of-stream to the smoltcp reactor, the reactor's `select!` would
+/// complete instantly on every iteration - a loop that never returns `Poll::Pending`, so the tokio
+/// worker running it can never be reclaimed and `Runtime::drop` blocks forever. Every test in this
+/// file hit this on teardown: the first stack to drop closes its peer's inbound channel.
+#[test]
+fn dead_inbound_transport_does_not_wedge_runtime_shutdown() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("build runtime");
+
+    // Kept alive past the runtime drop below: the point is a live stack whose transport is dead.
+    let _stack = rt.block_on(async {
+        let (out_tx, _out_rx) = mpsc::unbounded::<Vec<u8>>();
+        let (in_tx, in_rx) = mpsc::unbounded::<Vec<u8>>();
+        let stack = Stack::new(
+            ChannelDevice::new(in_rx, out_tx, None),
+            StackConfig::new(A_IP.parse().unwrap()),
+        );
+        // Get the reactor running, then kill the inbound transport under it.
+        let _sock = stack.udp_socket().await.expect("bind udp");
+        drop(in_tx);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        (stack, _out_rx)
+    });
+
+    // Drop the runtime off-thread so a wedged shutdown fails the test instead of hanging it.
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(rt);
+        let _ = done_tx.send(());
+    });
+    done_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("runtime shutdown wedged by a stack whose inbound transport was dropped");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -355,7 +397,7 @@ async fn dns_rejects_truncated_response() {
         .expect("resolve should have returned")
         .expect_err("a truncated response must not resolve");
     assert!(
-        matches!(err, smol_core::SmolCoreError::DnsTruncated { .. }),
+        matches!(err, nym_smol_core::SmolCoreError::DnsTruncated { .. }),
         "expected DnsTruncated, got {err:?}"
     );
 }

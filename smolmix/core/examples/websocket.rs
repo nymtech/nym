@@ -10,19 +10,19 @@
 //! tokio-tungstenite (WebSocket framing)
 //!   └─ tokio-rustls (TLS encryption)
 //!        ├─ tokio::net::TcpStream  (clearnet)
-//!        └─ smolmix::TcpStream     (mixnet)
+//!        └─ nym_smolmix::TcpStream     (mixnet)
 //! ```
 //!
 //! ```sh
-//! cargo run -p smolmix --example websocket
-//! cargo run -p smolmix --example websocket -- --ipr <IPR_ADDRESS>
+//! cargo run -p nym-smolmix --example websocket
+//! cargo run -p nym-smolmix --example websocket -- --ipr <IPR_ADDRESS>
 //! ```
 
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
+use nym_smolmix::Tunnel;
 use rustls::pki_types::ServerName;
-use smolmix::Tunnel;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 
@@ -74,7 +74,7 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Clearnet: \"{clearnet_text}\" in {clearnet_duration:?}");
 
-    // TCP source is smolmix::TcpStream; everything above is the same.
+    // TCP source is nym_smolmix::TcpStream; everything above is the same.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args
         .iter()

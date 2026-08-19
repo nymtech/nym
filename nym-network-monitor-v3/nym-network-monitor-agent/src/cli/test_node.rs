@@ -19,8 +19,11 @@ pub(crate) struct Args {
     common_args: CommonArgs,
 
     /// The socket address of the agent to use for receiving test packets back
-    #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_ARG)]
-    agent_mixnet_listener: SocketAddr,
+    #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V4_ARG)]
+    agent_mixnet_listener_v4: SocketAddr,
+
+    #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V6_ARG)]
+    agent_mixnet_listener_v6: SocketAddr,
 
     /// The socket address of the node to test
     #[arg(long, env = NYM_NETWORK_MONITOR_AGENT_NODE_ADDRESS_ARG)]
@@ -42,7 +45,8 @@ pub(crate) struct Args {
 impl Args {
     /// Builds the agent [`NodeTesterConfig`] from the flattened common args and the local mixnet listener address.
     pub(crate) fn build_tester_config(&self) -> anyhow::Result<NodeTesterConfig> {
-        self.common_args.build_config(self.agent_mixnet_listener)
+        self.common_args
+            .build_config(self.agent_mixnet_listener_v4, self.agent_mixnet_listener_v6)
     }
 
     /// Builds the [`TestedNodeDetails`] from the node address and key arguments.
@@ -50,6 +54,9 @@ impl Args {
         TestedNodeDetails {
             node_id: None,
             address: self.tested_node_address,
+            // manual runs target a single address, so that's the only one we can expect the node
+            // to reply from
+            known_ips: vec![self.tested_node_address.ip().to_canonical()],
             noise_key: self.tested_node_noise_key,
             sphinx_key: self.tested_node_sphinx_key,
             key_rotation: SphinxKeyRotation::from_key_rotation_id(

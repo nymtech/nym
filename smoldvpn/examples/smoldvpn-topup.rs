@@ -9,7 +9,7 @@
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run -p smoldvpn --example smoldvpn-topup -- \
+//!   cargo run -p nym-smoldvpn --example smoldvpn-topup -- \
 //!     --gateway-id <ed25519 base58> --metadata-url <https://gateway:port/>
 //!
 //! `--metadata-url` is the gateway's metadata HTTP endpoint; `--gateway-id` is
@@ -25,7 +25,7 @@ use tracing::{error, info};
 
 /// Install a `tracing` subscriber so example narration and the crate's
 /// datapath/handshake logs are visible. Honours `RUST_LOG`
-/// (e.g. `RUST_LOG=smoldvpn=debug`); when unset it defaults to this example
+/// (e.g. `RUST_LOG=nym_smoldvpn=debug`); when unset it defaults to this example
 /// plus `smoldvpn` and `boringtun` at `info`.
 fn init_logging() {
     let _ = tracing_subscriber::fmt()
@@ -35,7 +35,7 @@ fn init_logging() {
                 // `module_path!()` is this example's crate — its own log target.
                 let example = module_path!().split("::").next().unwrap_or("");
                 tracing_subscriber::EnvFilter::new(format!(
-                    "{example}=info,smoldvpn=info,boringtun=info"
+                    "{example}=info,nym_smoldvpn=info,boringtun=info"
                 ))
             }),
         )
@@ -98,7 +98,7 @@ async fn run() -> Result<(), String> {
             .await
             .map_err(|e| format!("ticketbook issuance failed: {e}"))?;
 
-        let before = smoldvpn::query_available_bandwidth(&metadata_url)
+        let before = nym_smoldvpn::query_available_bandwidth(&metadata_url)
             .await
             .map_err(|e| format!("available-bandwidth query failed: {e}"))?;
         info!("available bandwidth before top-up: {before} bytes");
@@ -109,7 +109,7 @@ async fn run() -> Result<(), String> {
             .await
             .map_err(|e| format!("could not obtain credential: {e}"))?;
 
-        let after = smoldvpn::topup_bandwidth(&metadata_url, credential)
+        let after = nym_smoldvpn::topup_bandwidth(&metadata_url, credential)
             .await
             .map_err(|e| format!("top-up failed: {e}"))?;
         info!("available bandwidth after top-up: {after} bytes");

@@ -1,0 +1,164 @@
+---
+title: "nym-smoldvpn: WireGuard dVPN datapath in Rust"
+description: "A pure-Rust, userspace 1-/2-hop WireGuard dVPN datapath. Tunnel tokio TCP, UDP, gRPC and HTTP traffic over the Nym network, with an optional QUIC bridge for DPI-blocked clients."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-07-28"
+---
+
+# nym-smoldvpn
+
+import { Callout } from 'nextra/components'
+import { RUST_MSRV, SMOLDVPN_VERSION } from '../../components/versions'
+
+`nym-smoldvpn` is a pure-Rust, userspace WireGuard dVPN datapath. It tunnels your application's traffic over the Nym network in 1-hop or 2-hop mode and exits to clearnet at the exit gateway. It is built on [`boringtun`](https://docs.rs/boringtun) (userspace WireGuard) and a userspace [`smoltcp`](https://docs.rs/smoltcp/latest/smoltcp/) IP stack, so there is no OS `tun` device and no root.
+
+The tunnel is scoped to the sockets your app opens through it, not the whole host. It hands you ordinary tokio socket surfaces: a `TcpStream` and `UdpSocket` that implement tokio's `AsyncRead`/`AsyncWrite` and `send_to`/`recv_from`, plus a `connector` you can hand to [`tonic`](https://docs.rs/tonic) or [`hyper`](https://docs.rs/hyper) to send gRPC, HTTP, or anything else through the tunnel.
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Your application (gRPC, HTTP, TLS, DNS, etc.)                   │
+│       └─ nym_smoldvpn::Tunnel (TcpStream / UdpSocket / connector)│
+│            └─ boringtun WireGuard + userspace smoltcp stack      │
+│                 └─ entry gateway → exit gateway → internet       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Traffic exits at the exit gateway. The exit IP is the gateway's, not yours. This is a per-socket datapath, not an OS-wide VPN: traffic your app sends over ordinary (non-tunnel) sockets, and the host's own DNS, still go out normally. Routing all of an app's traffic and preventing leaks around the tunnel is the integrator's responsibility.
+
+Access to the Nym network is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym), so there is no link between the payment and the network usage it unlocks. Each hop registers with its gateway separately and receives its own WireGuard identity, so there is no shared, centralised WireGuard key.
+
+## Data-plane modes
+
+Three modes, selected on the builder:
+
+| Mode | What it is |
+|---|---|
+| **one-hop** | A single WireGuard tunnel to one gateway (entry and exit are the same node). |
+| **two-hop** | Nested WireGuard tunnels: the exit tunnel's ciphertext is framed as an inner IP/UDP datagram and re-encrypted by the entry tunnel, so no single gateway sees both your identity and your destination. |
+| **QUIC-tunnelling two-hop** | The two-hop entry leg is fronted by an inline QUIC bridge, so on the wire the connection looks like ordinary QUIC rather than WireGuard over UDP. Use this for clients behind deep packet inspection that blocks plain WireGuard. QUIC only ever fronts the two-hop entry leg. |
+
+## Runtime and platform support
+
+`nym-smoldvpn` requires [`tokio`](https://docs.rs/tokio) and runs on native targets. The datapath, the `boringtun` timer pump, and the userspace IP stack all run on the tokio runtime, so the crate is not directly compatible with alternative async runtimes like [`smol`](https://docs.rs/smol) or [`async-std`](https://docs.rs/async-std). If you need to drive it from another runtime, the [`async-compat`](https://docs.rs/async-compat) crate can bridge the gap.
+
+There is no WebAssembly build: the crate compiles the WireGuard datapath for native platforms (desktop, server, and mobile). It provides iOS/Android MTU defaults and a `SocketProtector` hook for the egress socket on Linux and Android, but ships no mobile FFI bindings of its own. For browser and WebView targets, use the mixnet-based [mix-* packages](/developers/mix-architecture) instead.
+
+## Installation
+
+Add `nym-smoldvpn` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+nym-smoldvpn = "1.21.5"
+nym-bin-common = { version = "1.21.5", features = ["basic_tracing"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+`tokio` is a transitive dependency of `nym-smoldvpn`, but you need to enable `rt-multi-thread` (the default runtime spun up by `#[tokio::main]`) and `macros` (for the `#[tokio::main]` attribute itself).
+
+`nym-bin-common` is optional but recommended: it sets up [`tracing`](https://docs.rs/tracing) logging so you can see tunnel establishment and handshake progress. The crate logs under the `nym_smoldvpn` target, so `RUST_LOG=nym_smoldvpn=debug` gives the full datapath and handshake detail.
+
+The current published release is `{SMOLDVPN_VERSION}`.
+
+**Minimum Rust version:** {RUST_MSRV}+
+
+`nym-smoldvpn`'s API may still change between minor releases. Pin a version rather than tracking the latest, and read the changelog before bumping.
+
+### From Git
+
+For unreleased changes, import directly from the repository:
+
+```toml
+nym-smoldvpn = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
+
+## Usage
+
+The datapath is decoupled from provisioning: build a `PeerConfig` per hop (for example by mapping a [`nym-sdk-session`](https://docs.rs/nym-sdk-session) registration, the provisioning facade that issues ticketbooks, selects gateways, and registers them) and hand it to a `TunnelBuilder`:
+
+```rust
+use nym_smoldvpn::{TunnelBuilder, PeerConfig, BridgeParams};
+
+// Two-hop over direct UDP:
+let tunnel = TunnelBuilder::two_hop(entry, exit)
+    .cancellation_token(token)
+    .connect()
+    .await?;
+
+let mut tcp = tunnel.tcp_connect("1.1.1.1:443".parse()?).await?;
+// ... use `tcp` as any AsyncRead + AsyncWrite ...
+
+// gRPC through the tunnel:
+let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
+    .connect_with_connector(tunnel.connector())
+    .await?;
+
+tunnel.shutdown().await;
+
+// QUIC-bridged two-hop (front the entry leg for clients blocked from plain WireGuard/UDP):
+let tunnel = TunnelBuilder::two_hop(entry, exit)
+    .quic_bridge(BridgeParams { addresses, sni_host, id_pubkey_base64 })
+    .connect()
+    .await?;
+```
+
+Closing the tunnel cuts the traffic routed through it, so it acts as a per-socket kill-switch for the flows you opted in.
+
+## Credentials
+
+Access to the gateways is paid for with [zk-nym ticketbooks](/network/cryptography/zk-nym). Your application funds them by depositing NYM from a mnemonic, which issues the WireGuard ticketbooks it needs. Because the credentials are zero-knowledge, the payment stays unlinkable to the network usage it unlocks.
+
+Ticketbooks are issued once and cached locally, then reused on later runs, so bringing the tunnel up and down does not re-spend. New tickets are drawn only as the gateway-side bandwidth allowance is consumed.
+
+### Running it without your users holding NYM
+
+Your end-users do not have to acquire or hold NYM. Run the [`nym-credential-proxy`](https://github.com/nymtech/nym/tree/develop/nym-credential-proxy/nym-credential-proxy), an authenticated service you operate that issues zk-nyms on their behalf: your app authenticates to the proxy, the proxy issues the unlinkable credentials, and your users get Nym access without handling any tokens.
+
+## When to use nym-smoldvpn
+
+| | nym-smoldvpn | smolmix | Stream module | SOCKS client |
+|---|---|---|---|---|
+| **Substrate** | WireGuard, 1-/2-hop dVPN | 3-layer Sphinx mixnet | 3-layer Sphinx mixnet | Mixnet (via Network Requester) |
+| **Layer** | IP tunnel, tokio sockets | Transport (TCP/UDP) | Message (multiplexed streams) | TCP (SOCKS proxy) |
+| **Controls both sides?** | No (clearnet exit) | No (proxy mode) | Yes (E2E) | No (proxy mode) |
+| **API** | `TcpStream`, `UdpSocket`, `connector` | `TcpStream`, `UdpSocket` | `AsyncRead + AsyncWrite` | SOCKS4/5 protocol |
+| **Metadata protection** | Gateway-level: two-hop splits identity and destination across two operators | Mixnet-level: 3 layers plus cover traffic | Mixnet-level | Mixnet-level |
+| **Best for** | Higher-throughput, lower-latency tunnelling of tokio traffic to clearnet, with optional DPI evasion | Reaching external services from Rust with the strongest metadata protection | Peer-to-peer / E2E protocols between Nym clients | Legacy apps with SOCKS support |
+
+The honest trade-off against the mixnet options is throughput and latency versus metadata protection. WireGuard is a lighter datapath, so `nym-smoldvpn` moves bulk traffic faster than the 3-layer Sphinx mixnet, but it does not provide mixnet-grade sender anonymity. Latency scales with the number of hops: two-hop nests two WireGuard tunnels, so every packet crosses the network to the entry gateway and on to the exit, and the userspace crypto runs on each leg.
+
+## Security model
+
+<Callout type="warning">
+WireGuard encrypts your traffic to the gateway(s). Past the **exit gateway** it travels over the public internet to the destination, the same as any other server-initiated connection. Protect the payload at the application layer with TLS ([`rustls`](https://docs.rs/rustls)), Noise Protocol ([`snow`](https://docs.rs/snow)), or equivalent, as you would on a direct connection.
+</Callout>
+
+In two-hop mode no single gateway links your identity to your destination: the entry gateway sees your address but only nested ciphertext, and the exit gateway sees the destination but not your address. The exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS, the exit only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
+
+## Examples
+
+Runnable end-to-end examples live in [`smoldvpn/examples/`](https://github.com/nymtech/nym/tree/develop/smoldvpn/examples). Each is self-contained; read the `//!` doc comments at the top of each file for a walkthrough. They need a funded `MNEMONIC` and a live Nym network.
+
+```sh
+MNEMONIC="<funded mnemonic>" cargo run --release -p nym-smoldvpn --example <name>
+```
+
+Build `--release`: `boringtun`'s userspace crypto is much slower in a debug build, which dominates the through-tunnel timing. The `two-hop-ip`, `two-hop-quic`, and `zcash-sync` examples share a common option set passed after `--` (`--entry`, `--exit`, `--gateway`, `--quic`, and more) to select gateways and transport; see the example sources for the full set.
+
+| Example | Source | What it demonstrates |
+|---|---|---|
+| Config export | [`smoldvpn-config.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-config.rs) | Register a single hop and export a plain WireGuard config (`Interface` + `Peer`) to stdout. Takes `--gateway <SPEC>` |
+| Bandwidth top-up | [`smoldvpn-topup.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-topup.rs) | Spend a stored ticket via the gateway `metadata` endpoint and report updated bandwidth |
+| gRPC | [`smoldvpn-grpc.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/smoldvpn-grpc.rs) | A [`tonic`](https://docs.rs/tonic) gRPC health check through the tunnel |
+| IP relocation | [`two-hop-ip.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-ip.rs) | Query `ipinfo.io` directly, then through the tunnel, to show the public IP, org and country become the exit gateway's |
+| QUIC-bridged two-hop | [`two-hop-quic.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/two-hop-quic.rs) | Like `two-hop-ip`, but the entry leg is carried over a QUIC bridge for clients blocked from plain WireGuard over UDP |
+| Zcash sync (throughput) | [`zcash-sync.rs`](https://github.com/nymtech/nym/blob/develop/smoldvpn/examples/zcash-sync.rs) | Time syncing the last N Zcash compact blocks from a public `lightwalletd` (gRPC over TLS) directly versus through the tunnel, as a throughput comparison |
+
+## Architecture
+
+The internal design (nested WireGuard datapath, the userspace IP stack, tunnel lifecycle, DNS, MTU, and the QUIC bridge transport) is documented in [`docs/design/smoldvpn/`](https://github.com/nymtech/nym/tree/develop/docs/design/smoldvpn).
+
+## API reference
+
+Full API documentation is available on [docs.rs/nym-smoldvpn](https://docs.rs/nym-smoldvpn).

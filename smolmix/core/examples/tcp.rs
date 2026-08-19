@@ -10,14 +10,14 @@
 //! ```text
 //! hyper (HTTP/1.1 client)
 //!   └─ tokio-rustls (TLS encryption)
-//!        └─ smolmix::TcpStream (TCP over mixnet)
+//!        └─ nym_smolmix::TcpStream (TCP over mixnet)
 //!             └─ smoltcp (userspace TCP/IP)
 //!                  └─ Nym mixnet → IPR exit gateway → internet
 //! ```
 //!
 //! ```sh
-//! cargo run -p smolmix --example tcp
-//! cargo run -p smolmix --example tcp -- --ipr <IPR_ADDRESS>
+//! cargo run -p nym-smolmix --example tcp
+//! cargo run -p nym-smolmix --example tcp -- --ipr <IPR_ADDRESS>
 //! ```
 
 use std::sync::Arc;
@@ -26,8 +26,8 @@ use http_body_util::BodyExt;
 use hyper::body::Bytes;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
+use nym_smolmix::Tunnel;
 use rustls::pki_types::ServerName;
-use smolmix::Tunnel;
 use tokio_rustls::TlsConnector;
 use tracing::info;
 
@@ -60,7 +60,7 @@ async fn main() -> Result<(), BoxError> {
     let clearnet_duration = clearnet_start.elapsed();
     info!("Clearnet: {} in {:?}", clearnet_status, clearnet_duration);
 
-    // TCP source is smolmix::TcpStream; everything above is the same as the
+    // TCP source is nym_smolmix::TcpStream; everything above is the same as the
     // clearnet path.
     let args: Vec<String> = std::env::args().collect();
     let ipr_addr = args

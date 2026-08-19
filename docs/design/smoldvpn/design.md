@@ -1,4 +1,4 @@
-# `smoldvpn` — design
+# `nym-smoldvpn` — design
 
 ## 1. Goals & non-goals
 
@@ -47,28 +47,28 @@ already uses), referred to here as "the smoltcp stack".
 ```
   common/smol-core            smoltcp stack: channels<IP packet Vec<u8>> → TcpStream / UdpSocket / DNS.
                               Pure tokio + Rust. WASM-capable. No opinion on transport.
-      ├── smolmix             + IPR / mixnet bridge          (5-hop)   [exists → refactor onto smol-core]
-      └── sdk/rust/smoldvpn/  crate smoldvpn
-          (smoldvpn)     + boringtun WG datapath        (1-/2-hop) [NEW]
+      ├── smolmix             + IPR / mixnet bridge          (5-hop)   [exists → refactor onto nym-smol-core]
+      └── smoldvpn/  crate nym-smoldvpn
+          (nym-smoldvpn)     + boringtun WG datapath        (1-/2-hop) [NEW]
 
   sdk/rust/nym-sdk-session    ticketbooks (bandwidth-controller) + gateway registration
                               (registration-client). Shared by mixnet AND dvpn. [NEW]
 ```
 
-- **`smol-core`** is `smolmix` with the mixnet-specific bridge removed: the
+- **`nym-smol-core`** is `smolmix` with the mixnet-specific bridge removed: the
   transport-agnostic core that turns a bidirectional stream of IP-packet
   `Vec<u8>` into `tcp_connect() -> TcpStream`, `udp_socket() -> UdpSocket`, and a
-  DNS resolver. `smolmix` (5-hop) and `smoldvpn` (2-hop) both sit on it.
+  DNS resolver. `smolmix` (5-hop) and `nym-smoldvpn` (2-hop) both sit on it.
 - **`nym-sdk-session`** wraps `nym-registration-client` +
   `nym-bandwidth-controller` + the credential store. It answers "acquire paid
   access to these gateways" for **both** mixnet and dvpn modes, so it lives beside
-  the mixnet client rather than inside `smoldvpn`.
-- **`smoldvpn`** owns only the WireGuard datapath (boringtun) and the
+  the mixnet client rather than inside `nym-smoldvpn`.
+- **`nym-smoldvpn`** owns only the WireGuard datapath (boringtun) and the
   transport strategy.
-- **Dependency isolation (required):** every *new* dependency `smoldvpn` needs
+- **Dependency isolation (required):** every *new* dependency `nym-smoldvpn` needs
   — `boringtun`, `quinn`, `quinn-proto`, `nym_bridges` (git, pinned), and anything
   else not already used elsewhere — is declared **directly in
-  `sdk/rust/smoldvpn/Cargo.toml`**, *not* promoted to the workspace-root
+  `smoldvpn/Cargo.toml`**, *not* promoted to the workspace-root
   `[workspace.dependencies]` table. Deps already in the workspace table (e.g.
   `smoltcp`, `tokio`, `tokio-smoltcp`, the `nym-*` crates) continue to use
   `workspace = true`. This keeps the WG/QUIC dependency surface contained to this
@@ -96,7 +96,7 @@ ever fronts the **entry-gateway leg**. There is no "QUIC one-hop" mode.
         │   (connector returns AsyncRead+AsyncWrite / datagram)
         ▼
  ┌───────────────────────────────────────────────────────────┐
- │  smoltcp stack (smol-core)                                  │  pure Rust ✓  WASM ✓
+ │  smoltcp stack (nym-smol-core)                                  │  pure Rust ✓  WASM ✓
  │    tcp_connect() → TcpStream   udp_socket() → UdpSocket     │
  │    DNS resolver bound to the tunnel (default on)            │
  └───────────────────────────────────────────────────────────┘
@@ -128,7 +128,7 @@ ever fronts the **entry-gateway leg**. There is no "QUIC one-hop" mode.
 > **Engine choice — pure Rust, no Go.** The reference client
 > (`nym-vpn-client`) runs its datapath on **wireguard-go via FFI** with a
 > **gVisor netstack** — the exact Go/netstack dependency we are avoiding.
-> `smoldvpn` **must be pure Rust: `boringtun` for the WG engine + `smoltcp`
+> `nym-smoldvpn` **must be pure Rust: `boringtun` for the WG engine + `smoltcp`
 > for the stack.** We reuse the reference's *architecture and wire protocols*
 > (registration, two-hop nesting, QUIC bridge framing) but **not its engine**.
 > (`nym-vpn-client` uses `boringtun` only in a throwaway diagnostic probe, never
@@ -172,7 +172,7 @@ Key points established from the reference:
   - mobile:  `ENTRY_MTU = 1280 + 80 = 1360`, `EXIT_MTU = 1280`
 
   So the MTU the application's sockets see (the exit stack) is **~1340 on desktop /
-  1280 on mobile**. `smoldvpn` sizes the smoltcp interface accordingly. **MTU
+  1280 on mobile**. `nym-smoldvpn` sizes the smoltcp interface accordingly. **MTU
   must be configurable** via the SDK config and **changeable dynamically while the
   tunnel is up** (a config channel that re-sizes the smoltcp interface + re-derives
   the per-hop MTUs at runtime), defaulting to the values above.
@@ -251,7 +251,7 @@ The bridge protocol (see §14 for sources):
 
 - **`quinn` 0.11 + `quinn-proto` 0.11, `rustls` 0.23 (ring provider).** The ring
   default crypto provider is installed at startup. `quinn` is a **crate-local
-  dependency of `smoldvpn`**, like `boringtun`.
+  dependency of `nym-smoldvpn`**, like `boringtun`.
 - **ALPN = `hq-29`** (legacy HTTP/QUIC id — *not* `h3`; there is no real HTTP/3).
 - **WireGuard packets ride a single reliable QUIC bi-stream, length-framed with a
   2-byte big-endian prefix** (`tokio_util::LengthDelimitedCodec`,
@@ -270,7 +270,7 @@ The bridge protocol (see §14 for sources):
   the "decoy" property is about how ordinary it *looks*, not about presenting an
   arbitrary unrelated hostname.
 - **Delegate the QUIC connection to the `nym-bridges` client; add only the datapath
-  framing on top.** `smoldvpn` depends on the `nym-bridges` crate (published to
+  framing on top.** `nym-smoldvpn` depends on the `nym-bridges` crate (published to
   crates.io) and uses its `transport::quic::{transport_conn, ClientOptions}` to
   establish the cert-pinned, ALPN-`hq-29` connection, so the client can never drift
   from the bridge server. On top of that connection this crate adds the WireGuard
@@ -355,7 +355,7 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
 - **Default: DNS resolves inside the tunnel** (through the exit), so name
   resolution is not leaked to the host resolver. Configurable (opt-out, or
   point at a specific resolver).
-- Implemented by binding a resolver (e.g. `hickory-resolver`) to a `smol-core`
+- Implemented by binding a resolver (e.g. `hickory-resolver`) to a `nym-smol-core`
   `UdpSocket` — the same pattern `smolmix` uses (`mixdns`).
 - `tonic` / `hyper` / `reqwest` are given a custom connector/resolver that routes
   both the DNS query and the resulting connection through the tunnel.
@@ -377,7 +377,7 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
   up in the Connected phase. LP-over-QUIC is not available yet (§5).
 - The tunnel is **long-lived** and is **explicitly** closed / torn down via the
   cancellation token (or an explicit `shutdown()`).
-- While connected, `smoldvpn` runs background tasks: the boringtun timer pump,
+- While connected, `nym-smoldvpn` runs background tasks: the boringtun timer pump,
   the transport receive loop, the DNS resolver, and a **bandwidth top-up task**.
 - **Two distinct top-up layers.** These are separate and independently controlled:
   1. *Gateway-side top-up* (extending a live tunnel): fresh tickets are *pushed to
@@ -396,7 +396,7 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
      credential fetcher is unchanged and mixnet types are simply never in the managed
      set, so a dVPN session never deposits for mixnet bandwidth.)
 - **The metadata client dials through the tunnel.** The metadata endpoint IP is in
-  the entry peer's `allowed_ips` and is served in-tunnel; `smoldvpn` reaches it with
+  the entry peer's `allowed_ips` and is served in-tunnel; `nym-smoldvpn` reaches it with
   a hyper HTTP/1 client over the tunnel's own `TunnelConnector`, never the host
   network — so top-up traffic cannot leak the client's real IP.
 - **Top-up must fire with headroom.** Because the metadata request itself travels
@@ -422,7 +422,7 @@ let session = SessionBuilder::new(mnemonic, network)
     .credential_store(store_path)          // persistent → up/down at will
     .build()?;
 
-// ── smoldvpn ─────────────────────────────────────────────────────────────
+// ── nym-smoldvpn ─────────────────────────────────────────────────────────────
 let tunnel = DvpnTunnelBuilder::new(session)
     // two-hop: specify entry AND exit
     .mode(TunnelMode::TwoHop {
@@ -446,7 +446,7 @@ let client  = tunnel.reqwest_client()?;                            // reqwest w/
 token.cancel();  // tears the tunnel down; issued tickets remain in the store
 ```
 
-Traffic surfaces to expose (all reuse `smol-core`):
+Traffic surfaces to expose (all reuse `nym-smol-core`):
 
 - `tcp_connect(addr) -> TcpStream` — raw TCP, and the base for everything below.
 - `udp_socket() / udp_socket_on(port) -> UdpSocket` — raw UDP.
@@ -455,7 +455,7 @@ Traffic surfaces to expose (all reuse `smol-core`):
 - Thin `tonic_channel(..)` / `reqwest_client(..)` conveniences over that connector.
 - `allocated_ips()`, `available_bandwidth()`, `shutdown()`.
 
-## 12. Example CLIs (in `sdk/rust/smoldvpn/examples`)
+## 12. Example CLIs (in `smoldvpn/examples`)
 
 - **`smoldvpn-config --gateway <spec>`** — performs an LP registration against a
   **single gateway** and prints a **plain WireGuard config** (`[Interface]
@@ -484,7 +484,7 @@ Traffic surfaces to expose (all reuse `smol-core`):
 | LP transport (control-plane seam) | `nym-lp` — `common/nym-lp/src/transport/traits.rs` (`LpTransportChannel`) |
 | Gateway directory + selection | `nym-validator-client`, `nym-client-core` — `init/helpers.rs`, `init/types.rs` |
 | Country field on nodes | `nym-api-requests` — described-node `auxiliary_details.location: Option<celes::Country>` |
-| smoltcp stack pattern | `smolmix` — `smolmix/core/src/{tunnel,device}.rs` → generalise into `smol-core` |
+| smoltcp stack pattern | `smolmix` — `smolmix/core/src/{tunnel,device}.rs` → generalise into `nym-smol-core` |
 | Metadata top-up | `nym-wireguard-private-metadata` (client) — `topup_bandwidth`, `available_bandwidth` |
 | WG datapath (new) | `boringtun` (`Tunn`) + `smoltcp::wire` for the middle IP/UDP frame |
 | QUIC bridge (new) | `quinn` 0.11 via the `nym-bridges` client (git-pinned, `transport::quic`): ALPN `hq-29`, ed25519-SPKI pinning; this crate adds the 2-byte len-framed WG packets over one bi-stream |
@@ -492,7 +492,7 @@ Traffic surfaces to expose (all reuse `smol-core`):
 ## 14. Reference implementations studied
 
 Two external Nym repos were read to validate the two-hop and bridge protocols.
-`smoldvpn` reuses their **architecture and wire protocols** but **not their
+`nym-smoldvpn` reuses their **architecture and wire protocols** but **not their
 engine** (they are Go; we are pure Rust).
 
 **`nym-vpn-client`** (`nym-vpn-core` workspace) — the production VPN client:
@@ -519,7 +519,7 @@ engine** (they are Go; we are pure Rust).
   gateway.
 
 **`nym-bridges`** (`github.com/nymtech/nym-bridges`) — the bridge server, and the
-QUIC client `smoldvpn` builds on. `smoldvpn` depends on the crate
+QUIC client `nym-smoldvpn` builds on. `nym-smoldvpn` depends on the crate
 (git-pinned to a commit, since the protocol is versioned `"0"` and unstable) and
 uses its client transport rather than reimplementing the connection.
 - Modules used: `transport::quic::{ClientOptions, transport_conn}` (configured

@@ -1,6 +1,6 @@
 [package]
 name = "nymvisor"
-version = "0.1.47"
+version = "0.1.48"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -27,7 +27,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tar = { workspace = true }
-time = { workspace = true, features = [ "serde-human-readable" ] }
+time = { workspace = true, features = ["serde-human-readable", "macros"] }
 tokio = { workspace = true, features = ["rt", "macros", "signal", "process", "sync"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -36,7 +36,7 @@ url = { workspace = true, features = ["serde"] }
 nym-async-file-watcher = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "basic_tracing"] }
 nym-config = { workspace = true }
-nym-task = { workspace = true}
+nym-task = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

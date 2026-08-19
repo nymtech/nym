@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.85"
+version = "1.1.86"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -99,6 +99,7 @@ nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
 nym-node-tester-utils = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
+nym-network-defaults = {workspace = true, features = ["serde", "utoipa"]}
 nym-types = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }

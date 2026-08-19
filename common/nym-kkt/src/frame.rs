@@ -17,7 +17,7 @@ use crate::{
 };
 use libcrux_psq::handshake::types::{DHKeyPair, DHPublicKey};
 use nym_kkt_ciphersuite::KEM;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 
 pub(crate) const KKT_CARRIER_CONTEXT: &[u8] = b"CARRIER_V1_KKT_V1_KDF";
 
@@ -86,7 +86,7 @@ impl KKTFrame {
         version_byte: u8,
     ) -> Result<KKTRequestEncryptionResult, KKTError>
     where
-        R: CryptoRng + RngCore,
+        R: CryptoRng + Rng,
     {
         let ephemeral_keypair = DHKeyPair::new(rng);
 
@@ -170,6 +170,7 @@ impl KKTFrame {
 
         // SAFETY: we're using exactly KKT_CONTEXT_LEN bytes
         #[allow(clippy::unwrap_used)]
+        #[allow(clippy::indexing_slicing)]
         let context_bytes = bytes[0..KKT_CONTEXT_LEN].try_into().unwrap();
         let context = KKTContext::try_decode(context_bytes)?;
 
@@ -186,11 +187,13 @@ impl KKTFrame {
 
         // decode body
         if context.body_len() > 0 {
+            #[allow(clippy::indexing_slicing)]
             let body_bytes = &bytes[KKT_CONTEXT_LEN..KKT_CONTEXT_LEN + context.body_len()];
             body.extend_from_slice(body_bytes);
         }
 
         // decode payload. this could be empty.
+        #[allow(clippy::indexing_slicing)]
         let payload: Vec<u8> = Vec::from(&bytes[KKT_CONTEXT_LEN + context.body_len()..]);
 
         Ok(KKTFrame::new(context, &body, payload))

@@ -4,8 +4,8 @@
 use crate::backends::memory::MemoryEcachTicketbookManager;
 use crate::error::StorageError;
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    AvailableGlobalData, BasicTicketbookInformation, EmergencyCredential,
+    EmergencyCredentialContent, RetrievedTicketbook,
 };
 use crate::storage::Storage;
 use async_trait::async_trait;
@@ -136,6 +136,10 @@ impl Storage for EphemeralStorage {
             .storage_manager
             .revert_ticketbook_withdrawal(ticketbook_id, previous_total_spent, withdrawn)
             .await)
+    }
+
+    async fn get_available_global_data(&self) -> Result<AvailableGlobalData, Self::StorageError> {
+        Ok(self.storage_manager.get_available_global_data().await)
     }
 
     async fn get_master_verification_key(

@@ -10,7 +10,7 @@
 //!
 //! Usage (build `--release`: boringtun is slow in debug):
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run --release -p smoldvpn --example two-hop-ip [-- <options>]
+//!   cargo run --release -p nym-smoldvpn --example two-hop-ip [-- <options>]
 //!
 //! Options (see `common::USAGE` / README): `--one-hop`/`--two-hop`,
 //! `--entry <SPEC>`, `--exit <SPEC>`, `--gateway <SPEC>`, `--quic`. `<SPEC>` is

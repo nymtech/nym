@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT epoch_id as \"epoch_id: i64\" FROM coin_indices_signatures",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a6ead855ae065ff03e7811d5eb49629322c4761b5230886f5a9acf062484ab3a"
+}

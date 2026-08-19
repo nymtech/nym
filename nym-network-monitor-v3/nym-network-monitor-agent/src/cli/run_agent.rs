@@ -24,9 +24,13 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_TOKEN_ARG)]
     orchestrator_token: String,
 
-    /// Egress IP address of this agent, retrieved from status.hostIP via the Downward API
-    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_HOST_IP_ARG)]
-    host_ip: IpAddr,
+    /// Ipv4 Egress IP address of this agent
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_HOST_IPV4_ARG)]
+    host_ip_v4: IpAddr,
+
+    /// Ipv6 Egress IP address of this agent
+    #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_HOST_IPV6_ARG)]
+    host_ip_v6: IpAddr,
 
     /// Announced port of this agent, used alongside host_ip by nodes sending packets back to the agent
     #[clap(long, env = NYM_NETWORK_MONITOR_AGENT_HOST_PORT_ARG)]
@@ -39,11 +43,13 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     let noise_key = load_noise_key(&args.common_args.noise_key_path)?;
 
-    let external_address = SocketAddr::new(args.host_ip, args.host_port);
+    let external_address_v4 = SocketAddr::new(args.host_ip_v4, args.host_port);
+    let external_address_v6 = SocketAddr::new(args.host_ip_v6, args.host_port);
 
     // 1. build instance of the agent (loads the noise keys)
     let agent = NetworkMonitorAgent::new(
-        args.common_args.build_config(external_address)?,
+        args.common_args
+            .build_config(external_address_v4, external_address_v6)?,
         noise_key,
         orchestrator_client,
     );

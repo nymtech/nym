@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT epoch_id as \"epoch_id: i64\", expiration_date as \"expiration_date: Date\" FROM expiration_date_signatures",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "expiration_date: Date",
+        "ordinal": 1,
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "57a647a892e249fa3e4da3d97c7934de1169b8d772749dff3266da10e055b327"
+}

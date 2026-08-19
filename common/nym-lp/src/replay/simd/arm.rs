@@ -12,6 +12,8 @@ use std::arch::aarch64::{vceqq_u64, vdupq_n_u64, vgetq_lane_u64, vld1q_u64, vst1
 pub struct ArmBitmapOps;
 
 impl BitmapOps for ArmBitmapOps {
+    // SAFETY: callers guarantee start_idx + num_words <= bitmap.len() (see debug_assert); SIMD steps guarded by idx + 2 <= end_idx.
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn clear_words(bitmap: &mut [u64], start_idx: usize, num_words: usize) {
         debug_assert!(start_idx + num_words <= bitmap.len());
@@ -51,6 +53,8 @@ impl BitmapOps for ArmBitmapOps {
         }
     }
 
+    // SAFETY: callers guarantee start_idx + num_words <= bitmap.len() (see debug_assert); SIMD steps guarded by idx + 2 <= end_idx.
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn is_range_zero(bitmap: &[u64], start_idx: usize, num_words: usize) -> bool {
         debug_assert!(start_idx + num_words <= bitmap.len());
@@ -106,6 +110,8 @@ impl BitmapOps for ArmBitmapOps {
         }
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn set_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
@@ -113,6 +119,8 @@ impl BitmapOps for ArmBitmapOps {
         bitmap[word_idx] |= 1u64 << bit_pos;
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn clear_bit(bitmap: &mut [u64], bit_idx: u64) {
         let word_idx = (bit_idx / 64) as usize;
@@ -120,6 +128,8 @@ impl BitmapOps for ArmBitmapOps {
         bitmap[word_idx] &= !(1u64 << bit_pos);
     }
 
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     fn check_bit(bitmap: &[u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
@@ -139,6 +149,8 @@ pub mod atomic {
     /// Check and set bit, returning the previous state
     /// This function is not actually atomic! It's just a non-atomic optimization
     /// For actual atomic operations, the caller must provide proper synchronization
+    // SAFETY: word_idx = bit_idx / 64; callers pass bit_idx reduced mod N_BITS (= bitmap.len() * 64), so word_idx < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     pub fn check_and_set_bit(bitmap: &mut [u64], bit_idx: u64) -> bool {
         let word_idx = (bit_idx / 64) as usize;
@@ -169,6 +181,8 @@ pub mod atomic {
     /// - `bitmap` has sufficient size to hold indices up to `end_bit/64`
     /// - `start_bit` and `end_bit` are valid bit indices within the bitmap
     /// - No other thread is concurrently modifying the same memory
+    // SAFETY: per the # Safety contract, bitmap covers end_bit / 64 and start_bit <= end_bit, so all word indices stay < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     #[cfg(target_feature = "neon")]
     pub unsafe fn set_bits_range(bitmap: &mut [u64], start_bit: u64, end_bit: u64) {
@@ -236,6 +250,8 @@ pub mod atomic {
     }
 
     /// Set a range of bits efficiently (scalar fallback)
+    // SAFETY: per the # Safety contract, bitmap covers end_bit / 64 and start_bit <= end_bit, so all word indices stay < bitmap.len().
+    #[allow(clippy::indexing_slicing)]
     #[inline(always)]
     #[cfg(not(target_feature = "neon"))]
     pub fn set_bits_range(bitmap: &mut [u64], start_bit: u64, end_bit: u64) {

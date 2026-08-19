@@ -4,19 +4,19 @@
 //!
 //! Resolves `example.com` twice: once via the system path with
 //! `hickory-resolver`, and once by sending a raw DNS query to Cloudflare's
-//! 1.1.1.1 over a `smolmix::UdpSocket`. The resolved IPs and timings are
+//! 1.1.1.1 over a `nym_smolmix::UdpSocket`. The resolved IPs and timings are
 //! printed for comparison.
 //!
 //! ```text
 //! DNS query / response (application-layer UDP)
-//!   └─ smolmix::UdpSocket (UDP over mixnet)
+//!   └─ nym_smolmix::UdpSocket (UDP over mixnet)
 //!        └─ smoltcp (userspace IP stack)
 //!             └─ Nym mixnet → IPR exit gateway → internet
 //! ```
 //!
 //! ```sh
-//! cargo run -p smolmix --example udp
-//! cargo run -p smolmix --example udp -- --ipr <IPR_ADDRESS>
+//! cargo run -p nym-smolmix --example udp
+//! cargo run -p nym-smolmix --example udp -- --ipr <IPR_ADDRESS>
 //! ```
 
 use std::net::Ipv4Addr;
@@ -26,7 +26,7 @@ use hickory_proto::{
     rr::{Name, RData, RecordType},
 };
 use hickory_resolver::TokioResolver;
-use smolmix::Tunnel;
+use nym_smolmix::Tunnel;
 use tracing::info;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;

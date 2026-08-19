@@ -613,10 +613,12 @@ pub trait ApiClientCore {
     /// multiple times.
     fn maybe_rotate_hosts(&self, offending_url: Option<Url>);
 
-    /// If the fronting policy for the client is set to `OnRetry` this function will enable the
-    /// fronting if not already enabled.
+    /// If the fronting policy for the client is set to `OnRetry` or `ConfiguredRetry` this
+    /// function will enable fronting if not already enabled. `domain` should be the host of the
+    /// URL that triggered the failure, and is used by `ConfiguredRetry` to track failures per
+    /// domain.
     #[cfg(feature = "tunneling")]
-    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug);
+    fn maybe_enable_fronting(&self, domain: Option<&str>, context: impl std::fmt::Debug);
 }
 
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
@@ -1228,7 +1230,10 @@ impl ApiClientCore for Client {
                         self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        self.maybe_enable_fronting(("network", url.as_str(), &err));
+                        self.maybe_enable_fronting(
+                            url.host_str(),
+                            ("network", url.as_str(), &err),
+                        );
                     }
 
                     if attempts < self.retry_limit {
@@ -1258,11 +1263,11 @@ impl ApiClientCore for Client {
     }
 
     #[cfg(feature = "tunneling")]
-    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug) {
-        // If fronting is set to be OnRetry, enable domain fronting as we
+    fn maybe_enable_fronting(&self, domain: Option<&str>, context: impl std::fmt::Debug) {
+        // If fronting is set to be OnRetry or ConfiguredRetry, enable domain fronting as we
         // have encountered an error.
         let was_enabled = self.front.is_enabled();
-        self.front.retry_enable();
+        self.front.retry_enable(domain);
         if !was_enabled && self.front.is_enabled() {
             tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
@@ -1571,7 +1576,7 @@ pub trait ApiClient: ApiClientCore {
             ) {
                 self.maybe_rotate_hosts(Some(url.clone()));
                 #[cfg(feature = "tunneling")]
-                self.maybe_enable_fronting(("parse/read", url.as_str(), e));
+                self.maybe_enable_fronting(url.host_str(), ("parse/read", url.as_str(), e));
             }
         })
     }

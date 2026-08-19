@@ -3,8 +3,9 @@
 
 //! Utilities for and implementation of request tunneling
 
+use std::collections::HashMap;
 use std::sync::{
-    Arc, LazyLock, RwLock,
+    Arc, LazyLock, Mutex, RwLock,
     atomic::{AtomicBool, Ordering},
 };
 use tracing::warn;
@@ -19,6 +20,9 @@ static SHARED_FRONTING_POLICY: LazyLock<Arc<RwLock<FrontPolicy>>> =
 pub(crate) struct Front {
     pub(crate) policy: Arc<RwLock<FrontPolicy>>,
     enabled: AtomicBool,
+    // Per-domain failure counts, used by `FrontPolicy::ConfiguredRetry` to decide when enough
+    // domains have failed often enough to justify enabling fronting.
+    domain_failures: Mutex<HashMap<String, usize>>,
 }
 
 impl Clone for Front {
@@ -26,6 +30,7 @@ impl Clone for Front {
         Self {
             policy: self.policy.clone(),
             enabled: AtomicBool::new(false),
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -35,6 +40,7 @@ impl Front {
         Self {
             enabled: AtomicBool::new(false),
             policy: Arc::new(RwLock::new(policy)),
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 
@@ -47,30 +53,54 @@ impl Front {
         Self {
             enabled: AtomicBool::new(false),
             policy,
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 
     pub(crate) fn set_policy(&self, policy: FrontPolicy) {
         *self.policy.write().unwrap() = policy;
         self.enabled.store(false, Ordering::Relaxed);
+        self.domain_failures.lock().unwrap().clear();
     }
 
     pub(crate) fn is_enabled(&self) -> bool {
         match *self.policy.read().unwrap() {
             FrontPolicy::Off => false,
-            FrontPolicy::OnRetry => self.enabled.load(Ordering::Relaxed),
+            FrontPolicy::OnRetry | FrontPolicy::ConfiguredRetry(_) => {
+                self.enabled.load(Ordering::Relaxed)
+            }
             FrontPolicy::Always => true,
         }
     }
 
-    // Used to indicate that the client hit an error that should trigger the retry policy
-    // to enable fronting.
-    pub(crate) fn retry_enable(&self) {
+    // Used to indicate that the client hit an error for the given domain that should trigger the
+    // retry policy to enable fronting. `domain` should be the host of the URL that failed.
+    pub(crate) fn retry_enable(&self, domain: Option<&str>) {
         if self.is_enabled() {
             return;
         }
-        if matches!(*self.policy.read().unwrap(), FrontPolicy::OnRetry) {
-            self.enabled.store(true, Ordering::Relaxed);
+
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::OnRetry => self.enabled.store(true, Ordering::Relaxed),
+            FrontPolicy::ConfiguredRetry(cfg) => {
+                let Some(domain) = domain else {
+                    return;
+                };
+
+                let mut failures = self.domain_failures.lock().unwrap();
+                let count = failures.entry(domain.to_string()).or_insert(0);
+                *count += 1;
+
+                let failed_domains = failures
+                    .values()
+                    .filter(|&&count| count >= cfg.failures_per_domain)
+                    .count();
+
+                if failed_domains >= cfg.num_domains_failed {
+                    self.enabled.store(true, Ordering::Relaxed);
+                }
+            }
+            FrontPolicy::Off | FrontPolicy::Always => {}
         }
     }
 }
@@ -80,11 +110,51 @@ impl Front {
 pub enum FrontPolicy {
     /// Always use domain fronting for all requests.
     Always,
+
     /// Only use domain fronting when retrying failed requests.
     OnRetry,
-    #[default]
+
+    /// Only enable domain fronting once enough distinct domains have each failed enough times,
+    /// as configured by [`FrontingConfig`].
+    ConfiguredRetry(FrontingConfig),
+
     /// Never use domain fronting.
+    #[default]
     Off,
+}
+
+/// Configuration for [`FrontPolicy::ConfiguredRetry`]. A domain is considered "failed" once it
+/// has failed `failures_per_domain` times; fronting is enabled once `num_domains_failed` distinct
+/// domains have failed.
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct FrontingConfig {
+    /// Allow N failures per domain before fronting enables
+    failures_per_domain: usize,
+
+    /// Allow N domains to fail before fronting is enabled
+    num_domains_failed: usize,
+}
+
+impl FrontingConfig {
+    /// Create a new configuration for [`FrontPolicy::ConfiguredRetry`].
+    pub fn new(failures_per_domain: usize, num_domains_failed: usize) -> Self {
+        Self {
+            failures_per_domain,
+            num_domains_failed,
+        }
+    }
+
+    /// Set the number of failures allowed for a single domain before it is considered failed.
+    pub fn with_failures_per_domain(mut self, failures_per_domain: usize) -> Self {
+        self.failures_per_domain = failures_per_domain;
+        self
+    }
+
+    /// Set the number of distinct domains that must fail before fronting is enabled.
+    pub fn with_num_domains_failed(mut self, num_domains_failed: usize) -> Self {
+        self.num_domains_failed = num_domains_failed;
+        self
+    }
 }
 
 impl ClientBuilder {
@@ -210,6 +280,62 @@ mod tests {
         );
     }
 
+    /// `ConfiguredRetry` should only enable fronting once enough distinct domains have each
+    /// failed at least `failures_per_domain` times.
+    #[test]
+    fn configured_retry_enables_after_thresholds_met() {
+        let cfg = FrontingConfig::new(2, 2);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+        assert!(!front.is_enabled());
+
+        // one failure on domain-a is not enough to count it as "failed" (needs 2)
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // domain-a fails again, reaching its threshold, but only 1 domain has failed so far
+        // (needs 2 domains)
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // repeated failures on the SAME domain don't count as additional failed domains
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // domain-b fails once - not enough on its own
+        front.retry_enable(Some("domain-b"));
+        assert!(!front.is_enabled());
+
+        // domain-b reaches its own threshold - now 2 distinct domains have failed enough times
+        front.retry_enable(Some("domain-b"));
+        assert!(front.is_enabled());
+    }
+
+    /// `ConfiguredRetry` should ignore failures with no associated domain rather than panicking
+    /// or enabling fronting.
+    #[test]
+    fn configured_retry_ignores_failures_without_a_domain() {
+        let cfg = FrontingConfig::new(1, 1);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(None);
+        assert!(!front.is_enabled());
+    }
+
+    /// Setting a new policy resets both the enabled flag and any accumulated per-domain failure
+    /// counts.
+    #[test]
+    fn configured_retry_resets_on_policy_change() {
+        let cfg = FrontingConfig::new(1, 1);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg.clone()));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+
+        // re-applying the same policy should reset accumulated failure state
+        front.set_policy(FrontPolicy::ConfiguredRetry(cfg));
+        assert!(!front.is_enabled());
+    }
+
     /// Policy can be set for the shared client and the update is applied properly
     // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
     // AN IMPACT ON OTHER TESTS
@@ -297,7 +423,7 @@ mod tests {
         assert!(!client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
 
-        client1.front.retry_enable();
+        client1.front.retry_enable(None);
         assert!(client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
     }

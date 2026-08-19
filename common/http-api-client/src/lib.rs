@@ -160,7 +160,7 @@ use bytes::Bytes;
 use cfg_if::cfg_if;
 use http::{
     HeaderMap,
-    header::{ACCEPT, CONTENT_TYPE},
+    header::{ACCEPT, CONTENT_TYPE, RETRY_AFTER},
 };
 use itertools::Itertools;
 use mime::Mime;
@@ -1204,9 +1204,9 @@ impl ApiClientCore for Client {
 
             match response {
                 Ok(resp) => {
-                    // Check if the response includes a rate limit error from the vercel API
+                    // Check if the response indicates that we are being rate limited
                     if is_http_rate_limit_err(&resp) {
-                        warn!("encountered vercel rate limit error for {}", url.as_str());
+                        warn!("encountered rate limit error for {}", url.as_str());
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
                     }
@@ -1273,15 +1273,31 @@ impl ApiClientCore for Client {
 const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";
 const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
 
-/// Check for Rate Limit challenge response from the vercel API
+/// Check for a rate limit response: a plain HTTP 429, a 503 with a `Retry-After` header, or a
+/// rate limit challenge response from the vercel API.
 pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
-    let status = resp.status() == StatusCode::FORBIDDEN;
-    let header = resp
-        .headers()
+    is_rate_limit_response(resp.status(), resp.headers())
+}
+
+fn is_rate_limit_response(status: StatusCode, headers: &HeaderMap) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS
+        || is_throttled_service_unavailable(status, headers)
+        || is_vercel_rate_limit_challenge(status, headers)
+}
+
+/// A 503 accompanied by `Retry-After` indicates the server is asking us to back off, as opposed
+/// to a plain 503 which may just mean the service is down.
+fn is_throttled_service_unavailable(status: StatusCode, headers: &HeaderMap) -> bool {
+    status == StatusCode::SERVICE_UNAVAILABLE && headers.contains_key(RETRY_AFTER)
+}
+
+/// Check for a Rate Limit challenge response from the vercel API
+fn is_vercel_rate_limit_challenge(status: StatusCode, headers: &HeaderMap) -> bool {
+    let status = status == StatusCode::FORBIDDEN;
+    let header = headers
         .get(VERCEL_CHALLENGE_HEADER)
         .is_some_and(|v| v.as_bytes() == VERCEL_CHALLENGE_VALUE);
-    let content_type = resp
-        .headers()
+    let content_type = headers
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<Mime>().ok())

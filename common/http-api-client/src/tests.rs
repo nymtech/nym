@@ -1,4 +1,5 @@
 use super::*;
+use http::{HeaderValue, header::RETRY_AFTER};
 use std::time::{Duration, Instant};
 
 #[test]
@@ -398,4 +399,70 @@ async fn host_rotation_tempered_by_net_reconfigure() {
 
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
     assert_eq!(request_host(&client), "cdn2.test");
+}
+
+#[test]
+fn rate_limit_detection_on_plain_429() {
+    // a bare 429 with no special headers should be treated as a rate limit response
+    assert!(is_rate_limit_response(
+        StatusCode::TOO_MANY_REQUESTS,
+        &HeaderMap::new()
+    ));
+
+    // the status code alone is sufficient - unrelated headers shouldn't change that
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    assert!(is_rate_limit_response(
+        StatusCode::TOO_MANY_REQUESTS,
+        &headers
+    ));
+}
+
+#[test]
+fn rate_limit_detection_on_throttled_503() {
+    // a 503 with Retry-After is treated as throttling, not just an outage
+    let mut headers = HeaderMap::new();
+    headers.insert(RETRY_AFTER, HeaderValue::from_static("120"));
+    assert!(is_rate_limit_response(
+        StatusCode::SERVICE_UNAVAILABLE,
+        &headers
+    ));
+
+    // a plain 503 without Retry-After is NOT treated as rate limiting - it may just be down
+    assert!(!is_rate_limit_response(
+        StatusCode::SERVICE_UNAVAILABLE,
+        &HeaderMap::new()
+    ));
+}
+
+#[test]
+fn rate_limit_detection_on_vercel_challenge() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        VERCEL_CHALLENGE_HEADER,
+        HeaderValue::from_static("challenge"),
+    );
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+
+    assert!(is_rate_limit_response(StatusCode::FORBIDDEN, &headers));
+}
+
+#[test]
+fn rate_limit_detection_ignores_unrelated_responses() {
+    // plain 403 without the vercel challenge markers is not a rate limit
+    assert!(!is_rate_limit_response(
+        StatusCode::FORBIDDEN,
+        &HeaderMap::new()
+    ));
+
+    // the vercel challenge header alone, without the matching content-type, is not enough
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        VERCEL_CHALLENGE_HEADER,
+        HeaderValue::from_static("challenge"),
+    );
+    assert!(!is_rate_limit_response(StatusCode::FORBIDDEN, &headers));
+
+    // a normal successful response is never a rate limit
+    assert!(!is_rate_limit_response(StatusCode::OK, &HeaderMap::new()));
 }

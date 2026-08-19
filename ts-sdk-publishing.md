@@ -241,11 +241,10 @@ This runs the full wasm and TypeScript build and a dry-run publish against your 
 versions, without merging or uploading anything.
 
 Check the "Summary of packages to publish" block in the log and confirm each resolved tag
-is the one you expect from the table above, rather than assuming they should all match.
-For an ordinary patch release they will all read `latest`, because every package's major
-now equals its published `latest` major, including `mix-fetch`, whose 2.x line has been
-promoted. A `next` means either a stray prerelease suffix or a major that has crossed the
-published one.
+is the one you expect from the resolution table above, rather than assuming the four should
+match each other. Work it out per package from the versions you saw in step 1: same major
+as the published `latest` gives `latest`, a prerelease or a major that has crossed the
+published one gives `next`.
 
 If a tag is not what you expected, fix the version. Do not force `dist_tag = latest` to
 make the four agree: on a package whose major has crossed, that moves `latest` onto the new
@@ -278,10 +277,15 @@ remaining packages by hand from their directories with
 npm dist-tag add <pkg>@<version> latest
 ```
 
-Promoting does not clear the `next` tag, and nothing else does either. `mix-fetch` still has
-`next` pointing at `2.0.0` while `latest` is `2.0.1`, so `npm i @nymproject/mix-fetch@next`
-currently installs an older release than a bare `npm i`. Either move `next` forward with the
-same command or drop it with `npm dist-tag rm @nymproject/mix-fetch next`.
+Promoting does not clear the `next` tag, and nothing else does either. A `next` left behind
+from an earlier major can end up pointing at an older release than `latest`, so
+`npm i <pkg>@next` installs something staler than a bare `npm i`. Re-run the `npm view`
+loop from step 1; if a package's `next` now lags its `latest`, either move it forward with
+the same command or drop it:
+
+```bash
+npm dist-tag rm <pkg> next
+```
 
 ### 6. Update the docs constants
 

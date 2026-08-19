@@ -1,7 +1,7 @@
 {
   "sort": ["kind"],
   "entryPoints": ["./src/index.ts"],
-  "basePath": "..",
+  "excludeExternals": true,
   "out": "../../../../documentation/docs/pages/developers/mix-websocket/api",
   "plugin": ["typedoc-plugin-markdown"],
   "entryFileName": "globals",

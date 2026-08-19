@@ -335,12 +335,14 @@ mod tests {
         assert!(!front.is_enabled());
     }
 
-    /// Policy can be set for the shared client and the update is applied properly
-    // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
-    // AN IMPACT ON OTHER TESTS
+    /// Policy can be set for the shared client and the update is applied properly.
+    ///
+    /// This mutates the process-wide `SHARED_FRONTING_POLICY`, so it holds the shared test-state
+    /// lock to prevent interference with other tests (previously disabled for this reason).
     #[test]
-    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
     fn set_policy_shared_client() {
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -414,10 +416,18 @@ mod tests {
         client1.front.retry_enable(None);
         assert!(client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
+
+        // leave the shared policy as we found it for whichever test runs next
+        Client::set_shared_front_policy(FrontPolicy::Off);
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     async fn nym_api_works() {
+        // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
+        // marker - must not run concurrently with tests that mutate it.
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -450,7 +460,13 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     async fn fallback_on_failure() {
+        // sends real requests and relies on host rotation not being suppressed, which depends on
+        // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
+        // tests that mutate it.
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
             Some(vec![

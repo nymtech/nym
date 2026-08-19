@@ -353,7 +353,12 @@ fn from_network_configures_multiple_urls_and_retries() {
 /// fronting. Otherwise, a network error should rotate host and enable fronting (for `OnRetry`).
 #[tokio::test]
 #[cfg(feature = "tunneling")]
+#[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
 async fn host_rotation_tempered_by_net_reconfigure() {
+    // this test mutates the process-wide SHARED_NETWORK_RECONFIGURATION marker, which would
+    // otherwise leak into any other test that sends real requests if run concurrently.
+    let _guard = crate::lock_shared_test_state();
+
     let url1 = Url::new("http://nym-api.test", Some(vec!["http://cdn1.test"])).unwrap();
     let url2 = Url::new("http://nym-api2.test", Some(vec!["http://cdn2.test"])).unwrap();
     let urls = vec![url1.clone(), url2.clone()];
@@ -399,6 +404,9 @@ async fn host_rotation_tempered_by_net_reconfigure() {
 
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
     assert_eq!(request_host(&client), "cdn2.test");
+
+    // leave the shared marker as we found it for whichever test runs next
+    *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = None;
 }
 
 #[test]

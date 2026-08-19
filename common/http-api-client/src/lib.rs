@@ -139,7 +139,6 @@
 //! ```
 #![warn(missing_docs)]
 
-use http::header::{RETRY_AFTER, USER_AGENT};
 pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
@@ -160,7 +159,7 @@ use bytes::Bytes;
 use cfg_if::cfg_if;
 use http::{
     HeaderMap,
-    header::{ACCEPT, CONTENT_TYPE},
+    header::{ACCEPT, CONTENT_TYPE, RETRY_AFTER, USER_AGENT},
 };
 use itertools::Itertools;
 use mime::Mime;

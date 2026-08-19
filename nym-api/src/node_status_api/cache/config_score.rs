@@ -43,6 +43,7 @@ pub(crate) fn calculate_config_score(
     config_score_data: &ConfigScoreData,
     described_data: Option<&NymNodeDescriptionV3>,
     chain_capabilities: &Option<ChainInteractionCapabilitiesDetailed>,
+    chain_interactions_penalty: f64,
 ) -> ConfigScoreV2 {
     let Some(described) = described_data else {
         return ConfigScoreV2::unavailable();
@@ -66,7 +67,7 @@ pub(crate) fn calculate_config_score(
         .auxiliary_details
         .accepted_operator_terms_and_conditions;
 
-    let version_score = if !runs_nym_node || !accepted_terms_and_conditions {
+    let mut version_score = if !runs_nym_node || !accepted_terms_and_conditions {
         0.
     } else {
         versions_behind_factor_to_config_score(
@@ -84,6 +85,10 @@ pub(crate) fn calculate_config_score(
             .map(|c| c.is_feegrant_grantee)
             .unwrap_or_default(),
     };
+
+    if !chain_interaction.can_send_transactions() {
+        version_score *= 1. - chain_interactions_penalty;
+    }
 
     ConfigScoreV2::new(
         version_score,

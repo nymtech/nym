@@ -92,6 +92,7 @@ const DEFAULT_MIN_STRESS_TESTED_NODES: f32 = 0.5;
 const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.2;
+const DEFAULT_CHAIN_INTERACTIONS_PENALTY: f64 = 0.2;
 
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
@@ -216,6 +217,7 @@ impl Config {
         }
 
         self.ecash_signer.validate()?;
+        self.performance_provider.validate()?;
 
         Ok(())
     }
@@ -489,6 +491,12 @@ pub struct PerformanceProvider {
     pub debug: PerformanceProviderDebug,
 }
 
+impl PerformanceProvider {
+    fn validate(&self) -> anyhow::Result<()> {
+        self.debug.validate()
+    }
+}
+
 #[allow(clippy::derivable_impls)]
 impl Default for PerformanceProvider {
     fn default() -> Self {
@@ -534,9 +542,30 @@ pub struct PerformanceProviderDebug {
     /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
     pub stress_testing_score_weight: f64,
 
+    /// Config score penalty for nodes that do not have a cosmos account capable of interacting with the nyx chain
+    pub chain_interactions_penalty: f64,
+
     /// Specifies the duration of the rolling average used for stress testing score.
     #[serde(with = "humantime_serde")]
     pub stress_testing_data_period: Duration,
+}
+
+impl PerformanceProviderDebug {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.stress_testing_score_weight < 0.0
+            || self.stress_testing_score_weight > 1.0
+            || !self.stress_testing_score_weight.is_finite()
+        {
+            bail!("the .stress_testing_score_weight field is set to a value outside of the range [0.0, 1.0]");
+        }
+        if self.chain_interactions_penalty < 0.0
+            || self.chain_interactions_penalty > 1.0
+            || !self.chain_interactions_penalty.is_finite()
+        {
+            bail!("the .chain_interactions_penalty field is set to a value outside of the range [0.0, 1.0]");
+        }
+        Ok(())
+    }
 }
 
 #[allow(clippy::derivable_impls)]
@@ -551,6 +580,7 @@ impl Default for PerformanceProviderDebug {
             use_stress_testing_data: false,
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
             stress_testing_score_weight: DEFAULT_STRESS_TESTING_SCORE_WEIGHT,
+            chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
         }
     }

@@ -13,7 +13,7 @@
 - [x] 2.5 Extend the validator-client signing helper so the authorisation message carries the identity
 - [x] 2.6 Contract tests: an omitted identity is accepted, a malformed one is rejected, a re-authorisation records a changed identity, and an entry serialised without the field deserialises with `None`
 - [x] 2.7 Add a regression test asserting that a serialised new-form `AuthoriseNetworkMonitor` still deserialises into a struct shaped like the old one, so the fleet-compatibility assumption behind this change is checked in CI rather than assumed
-- [ ] 2.8 Agent side: derive the ed25519 identity from the x25519 noise private key via a labelled HKDF whose output is the ed25519 seed, and include its base58 public key in the announce request
+- [x] 2.8 Agent side: derive the ed25519 identity from the x25519 noise private key via a labelled HKDF whose output is the ed25519 seed, and include its base58 public key in the announce request
 - [ ] 2.9 Orchestrator side: carry the identity on the announce request and in both `AuthoriseNetworkMonitor` messages of the existing single transaction, reject a malformed identity with a 400 before touching state, hold it in the `KnownAgents` entry, and reset the announced flag when it diverges from the cached one
 - [ ] 2.10 Tolerate a rehydrated cache entry that has no identity, since it may come from an entry authorised before the field existed
 - [ ] 2.11 Add a counter for identity divergence alongside the existing agent-details-changed counter

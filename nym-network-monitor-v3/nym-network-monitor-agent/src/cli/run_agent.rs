@@ -46,13 +46,13 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     let external_address_v4 = SocketAddr::new(args.host_ip_v4, args.host_port);
     let external_address_v6 = SocketAddr::new(args.host_ip_v6, args.host_port);
 
-    // 1. build instance of the agent (loads the noise keys)
+    // 1. build instance of the agent (loads the noise keys and derives the client identity)
     let agent = NetworkMonitorAgent::new(
         args.common_args
             .build_config(external_address_v4, external_address_v6)?,
         noise_key,
         orchestrator_client,
-    );
+    )?;
 
     // 2. announce the agent to the orchestrator
     // so that it would be registered in the smart contract

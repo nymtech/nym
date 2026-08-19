@@ -1,0 +1,134 @@
+---
+title: "Nym Docs MCP Server"
+description: "Remote MCP server exposing Nym documentation search and live network data as tools for AI coding agents such as Claude Code and Cursor."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-14"
+---
+
+# MCP Server
+
+The Nym docs [MCP](https://modelcontextprotocol.io) server lets an AI coding agent search the Nym documentation and read live network state as structured tool calls. You do not paste doc links, and the agent does not guess at API shapes. Point it at one URL:
+
+```text
+https://nym.com/docs/api/mcp
+```
+
+It exposes two kinds of tool:
+
+- **Documentation retrieval:** semantic search over the docs corpus, returning ranked excerpts with deep-link URLs back into these pages.
+- **Live network data:** bonded node counts, gateway health, token supply and chain status, read from the Nym APIs at call time.
+
+The live tools are the reason to use this over a static `llms.txt`. An agent can ask "is gateway X in the active set right now?" and get a current answer. A static file can only give a snapshot baked in at build time.
+
+## Transport
+
+Streamable HTTP: a single endpoint that accepts [JSON-RPC 2.0](https://www.jsonrpc.org/specification) over `POST`. The server is stateless, so there is no session to establish. A request must advertise both response content types in its `Accept` header, or the server replies `406`:
+
+```text
+Accept: application/json, text/event-stream
+```
+
+The reply comes back as a Server-Sent Events frame (`event: message` / `data: {...}`) carrying the JSON-RPC result.
+
+## Connecting your agent
+
+Most clients take an MCP server as an entry in a JSON config file. The shape is the same across clients:
+
+```json
+{
+  "mcpServers": {
+    "nym-docs": {
+      "type": "http",
+      "url": "https://nym.com/docs/api/mcp"
+    }
+  }
+}
+```
+
+- **Claude Code:** add it from the CLI, or drop the entry above into `.mcp.json` at your project root.
+  ```bash
+  claude mcp add --transport http nym-docs https://nym.com/docs/api/mcp
+  ```
+- **Cursor:** add the entry above to `.cursor/mcp.json` in your project (or the global `~/.cursor/mcp.json`), then enable the server in Settings.
+- **Other clients:** consult your client's MCP setup docs; supply the URL above as a Streamable HTTP (not stdio, not SSE) server.
+
+After connecting, ask the agent to list the server's tools to confirm the connection.
+
+## Tools
+
+| Tool | Parameters | Returns |
+|---|---|---|
+| `search_docs` | `query` (string, required); `topK` (number, default 6) | Ranked documentation excerpts, each with its section heading and a deep-link URL. Use first for any "how do I / what is" question. |
+| `get_section` | `ref` (string, required) - a chunk id or deep-link URL from `search_docs` | The full text of one section, for when a search excerpt is truncated. |
+| `search_code` | `query` (string, required); `topK` (number, default 6) | Ranked excerpts from selected Nym source (SDK, wasm, Sphinx, smolmix crates and examples), each with a GitHub deep link. Use when the question is about implementation rather than documented behaviour. |
+| `network_summary` | none | Live counts of bonded nym-nodes: total, gateways, mixnodes, entry and exit. These are independent counts reported by the Node Status API, not a breakdown, so they overlap and do not sum to the total. |
+| `circulating_supply` | none | Live circulating and total NYM token supply. |
+| `chain_status` | none | Live Nyx chain connection status as seen by the Nym API. |
+| `list_gateways` | `page` (number, default 0); `size` (number, default 20) | A page of bonded gateways with performance and routing scores. |
+| `get_gateway` | `identity` (string, required) - gateway identity key | Health and scores for a single gateway. |
+| `validate_sdk_config` | `config` (object, required) - a `SetupMixTunnelOpts` object | Flags field type mismatches (errors) and unknown or typo'd keys (warnings), and notes privacy tradeoffs. Run before writing a mix-tunnel / mix-fetch config into code. |
+
+## Raw examples
+
+The endpoint speaks plain JSON-RPC, so you can exercise it with `curl` before wiring up an agent.
+
+List the tools:
+
+```bash
+curl -sS -X POST https://nym.com/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Call a tool (`search_docs`):
+
+```bash
+curl -sS -X POST https://nym.com/docs/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_docs","arguments":{"query":"how do I set up mixFetch"}}}'
+```
+
+## How search works
+
+`search_docs` and `search_code` are semantic rather than keyword. Both sides of a comparison have to become vectors before similarity means anything, so the embedding happens in two places.
+
+At deploy, every documentation section and every indexed source file is embedded once and written into a static index. At call time, your query is embedded with the same model, and the server ranks the index against that vector by cosine similarity.
+
+```text
+your agent ──JSON-RPC──▶ /docs/api/mcp ──▶ embed the query
+     ▲                         │                  │
+     │                         │◀── query vector ─┘
+     │                         │
+     │                         ├─ rank the prebuilt index by similarity
+     │                         │
+     └───── ranked sections ───┘
+```
+
+| Index | Model | Covers |
+|---|---|---|
+| Documentation | `voyage-3-large` | every published docs page, chunked by section |
+| Source code | `voyage-code-3` | selected Nym crates: SDK, wasm, Sphinx, smolmix, and their examples |
+
+The code index uses a model trained on source rather than prose. That is why `search_code` surfaces implementation details a prose model ranks poorly, and why the two indexes are kept separate instead of merged.
+
+Query and index must come from the same model. A query embedded with one model and scored against an index built with another returns neighbours that are not meaningfully related.
+
+There is no vector database. The index is a static file loaded once per server instance, so a search costs one embedding call and an in-memory scan.
+
+### What it costs you
+
+Nothing beyond your own agent's tokens. The endpoint is open: no API key, no account, no request signing. Point a client at the URL and call it.
+
+The server embeds your query using its own credentials, so the retrieval side is paid for by Nym. Your agent spends what it would spend anyway, reading the returned sections and writing an answer from them.
+
+That split is deliberate. The server returns raw documentation sections and performs no generation of its own: it retrieves and cites, your agent reasons. It also keeps results checkable, because every one carries a deep link to the section it came from.
+
+## Notes
+
+- **Docs coverage.** `search_docs` indexes the public Nym developer and network documentation. Answers cite the exact section, so you (or the agent) can open the source page and read it in full.
+- **Live-data freshness.** The network tools query the Nym APIs on each call, so results are as current as those APIs. A tool that cannot reach its upstream returns an error result the agent can read and retry on, rather than failing the whole request.
+- **Not a write interface.** Every tool is read-only. The server cannot change network or chain state.
+- **Retrieval granularity.** Ranking operates on whole sections, so an answer is only as good as the section backing it. See [How search works](#how-search-works).

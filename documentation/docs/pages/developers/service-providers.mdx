@@ -1,0 +1,177 @@
+---
+title: "Building a Nym Service Provider"
+description: "Embedding a Nym client in your own server-side application so clients reach it end-to-end over the mixnet rather than through an exit gateway: the receive-and-reply loop in Rust, SURBs, Nym addressing and gateway stability, and the default sending budget."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-18"
+---
+
+# Building a Nym Service Provider
+
+import dynamic from 'next/dynamic'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const e2e = requireGenericScenario('end-to-end')
+
+{/* The end-to-end route is exactly right for a provider, but its last node is a
+    generic Nym peer. Swap it for the service-provider kind, which the diagram
+    already draws as a diamond in its own colour. The scenario id is unchanged,
+    so the retrieval index still projects the canonical scenario text. */}
+export const spScenario = {
+  ...e2e,
+  topology: {
+    ...e2e.topology,
+    nodes: e2e.topology.nodes.map((n) =>
+      n.id === 'p' ? { ...n, kind: 'service-provider', label: 'Your service provider' } : n,
+    ),
+    caption:
+      "The request crosses the mixnet to the provider's own gateway. There is no exit gateway and no clearnet hop. The reply returns over a SURB, so the provider never learns the client address.",
+  },
+}
+
+A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that embedded client directly over the mixnet. Your code answers without learning who asked.
+
+The embedded client is what separates the [two approaches](/developers#end-to-end-or-proxy):
+
+- **You cannot change the service.** That is proxy mode. An Exit Gateway leaves the mixnet on your behalf and connects to it over ordinary clearnet, subject to that gateway's [exit policy](/network/infrastructure/exit-services#the-exit-policy-applies).
+- **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Traffic stays Sphinx-encrypted the whole way.
+
+This page is the second case. It assumes you own the server code and are willing to modify it. In practice that means adding a mixnet client alongside whatever transport the service already speaks, then routing requests in from there.
+
+Three things follow from that choice. The process can sit in a DMZ with no inbound access. Its Nym address becomes the only way to reach it. Replies go back over [SURBs](/network/mixnet-mode/anonymous-replies) rather than an open connection.
+
+## The fourth participant
+
+Nym's infrastructure is three kinds of node: validators, gateways, and mix nodes. A service provider is a fourth kind of participant, and it is not infrastructure. It is a third party that makes itself reachable *through* the mixnet.
+
+Two systems are involved, and only one of them changes:
+
+```
+mixnet ──▶ your app + embedded Nym client ──▶ backend it already talks to
+              (this is what you modify)         (unchanged, no Nym awareness)
+```
+
+Your application gains a Nym client. Whatever it calls downstream needs no awareness of Nym. A database, an RPC node or a payment network sees ordinary local calls from your process, exactly as before. The whitepaper's example is a provider that relays Bitcoin transactions to the Bitcoin peer-to-peer network. That network knows nothing about Nym.
+
+It is also distinct from the [exit gateway services](/network/infrastructure/exit-services) Nym itself operates. The Network Requester and IP Packet Router are general-purpose exits, run by gateway operators, forwarding to arbitrary clearnet destinations. A service provider serves one application, and you are the one running it.
+
+## It never accepts an inbound connection
+
+A service provider is an ordinary mixnet client. It dials **out** to its gateway, which holds incoming messages until the provider collects them over that same connection. Requests arrive over the [end-to-end](/network/threat-model/configurations/end-to-end) route:
+
+<NetworkDiagram item={spScenario} />
+
+The rightmost node is your service provider. Two consequences:
+
+- It can run behind a deny-all firewall, in a DMZ, or on a machine with no public IP.
+- The gateway is the part that must be publicly reachable and stable. That drives the addressing section below.
+
+## Replying without knowing who asked
+
+Requests arrive as ordinary Sphinx packets. Each carries a bundle of single-use reply blocks (SURBs), which the client pre-computed before sending. A SURB is an encrypted Sphinx header describing a return route ending at the client. The provider attaches its reply to one and hands it back to the mixnet.
+
+The *sender* encrypts the SURB. The provider cannot read the route, the per-hop delays, or the client's address from it. Reply packets are indistinguishable from forward packets, so requests and replies share one anonymity set.
+
+See [Anonymous Replies](/network/mixnet-mode/anonymous-replies) for the mechanics, including replenishment and the single-use constraint.
+
+## Receiving and replying
+
+There is no single shape for this. A provider is a mixnet client that reads incoming messages and answers them. How you write that depends on which SDK you use, and on what your clients speak. The runnable examples are the source of truth; this section tells you which one to start from.
+
+| Example | Side | Shape |
+|---|---|---|
+| [`service-providers/echo-service`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-service) | provider | **Stream**: `listener()` / `accept()`, one task per client |
+| [`service-providers/echo-client`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples/service-providers/echo-client) | client | **Stream**: `open_stream()`, the other half of the pair |
+| [`stream_simple_read_write.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/stream_simple_read_write.rs) | both | **Stream**: the same API with no application logic around it |
+| [`surb_reply.rs`](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/surb_reply.rs) | both | **messaging**: `sender_tag` and `send_reply` in one file |
+| [`chat-app`](https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples/chat-app) | client | **messaging**, browser TypeScript with `@nymproject/sdk` |
+
+The echo pair is the only complete provider you can run, and it is Stream-shaped. There is no equivalent messaging provider yet: `surb_reply.rs` sends a message to its own address, so it shows the receive-and-reply mechanism without being a server. Read the next section before you pick one, because the two shapes are incompatible on the wire.
+
+### What your clients speak decides the provider
+
+The provider is one half of a conversation, and the other half can be written three ways. Two put the same thing on the wire; the third does not.
+
+| Client | On the wire | Provider side |
+|---|---|---|
+| [`nym-sdk` mixnet messaging](/developers/rust) (Rust) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`@nymproject/sdk`](/developers/typescript) (browser TypeScript) | discrete mixnet messages | `wait_for_messages` / `send_reply` |
+| [`nym-sdk` Stream module](/developers/rust) (Rust) | a framed, ordered byte stream | `listener()` / `accept()` |
+
+The first two differ only in language. A browser client calls `client.send({ ... })` and subscribes to received events. A Rust client calls `send_message` and `wait_for_messages`. The provider cannot tell them apart, because both produce ordinary mixnet messages carrying SURBs.
+
+The Stream module is a different protocol layered on those messages: sequence numbers, reassembly, and framing, so bytes arrive in the order they were written. A provider expecting messages will not understand a stream, and the reverse holds. `listener()` also activates stream mode and may only be called once per client, so it replaces the message loop; the two cannot run together. **Decide which your clients use before you write the provider.**
+
+Choose messaging when requests stand alone: a broadcast, a one-shot query, a notification. Choose Stream when the exchange has a sequence to preserve, or when you want to reuse code that already expects `AsyncRead`/`AsyncWrite`. The [nym-sdk page](/developers/rust#which-module-do-i-need) covers that trade-off in more detail. A browser client has no Stream option today, so if any of your clients are web-based, messaging is the only choice that serves all of them.
+
+### Every example is ephemeral, and yours must not be
+
+`MixnetClient::connect_new()` and `MixnetClientBuilder::new_ephemeral()` generate a fresh identity on every run. That means a **new Nym address every restart**, and every client config holding the old address stops working.
+
+The examples are deliberately throwaway: `echo-service` notes that its keys live in memory and its address changes each run. A real provider needs a stable identity, so swap the constructor:
+
+```rust
+let paths = StoragePaths::new_from_dir(PathBuf::from("./sp-storage"))?;
+let mut client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .build()?
+    .connect_to_mixnet()
+    .await?;
+```
+
+`client` must be mutable: `listener()` and `wait_for_messages()` both take `&mut self`.
+
+## Your address is only as stable as its gateway
+
+Clients reach a provider by its [Nym address](/network/reference/addressing), which the examples print on startup:
+
+```text
+<identity-key>.<encryption-key>@<gateway-identity-key>
+```
+
+The address has three parts. A base58 Ed25519 identity key routes to the client. The public key encrypts the final Sphinx layer. The gateway identity names the gateway that holds the client's messages.
+
+That last component has an operational consequence. The gateway identity is baked into the address, so **if the gateway disappears, every copy of your address stops working**. Persistent storage keeps your keys, but it cannot keep someone else's gateway online.
+
+To guarantee a stable address, run your own mainnet gateway and register your provider with it. Two things to be clear about:
+
+- The gateway must **not** be in the DMZ. It needs a static, stable, publicly routable IP. The provider behind it is the part that hides.
+- A gateway you run is still a public gateway. Every gateway in the network is available to every user, so you cannot operate one exclusively for your own clients.
+
+Pin the provider to that gateway when you build the client:
+
+```rust
+let client = MixnetClientBuilder::new_with_default_storage(paths)
+    .await?
+    .request_gateway(gateway_identity_key.to_string())
+    .build()?
+    .connect_to_mixnet()
+    .await?;
+```
+
+There is deliberately no discovery system for Nym addresses, because clients should not be enumerable. Distribute the address out of band: ship it in your client's configuration rather than looking it up.
+
+## The default sending budget
+
+A mixnet client sends on a Poisson schedule, described in the [message queue page](/developers/concepts/message-queue). That schedule is a fixed budget whether or not you have anything to say. The defaults live in [`client-core`](https://github.com/nymtech/nym/blob/develop/common/client-core/config-types/src/lib.rs). One real packet goes out every 20 ms on average, so 50 per second. One loop cover packet goes out every 200 ms, so 5 per second. That is roughly 55 packets per second in total. A regular Sphinx packet carries a 2 KB payload.
+
+Three things follow:
+
+| | |
+|---|---|
+| **Capacity is shared** | Every reply to every client comes out of the same ~50 packets per second. One provider client serves only so many users. Measure your reply sizes and provision more clients when the budget runs out. |
+| **Idle is not free** | With nothing real to send, the client sends cover packets instead: same size, same rate, same Sphinx processing. An idle provider pays nearly the full bandwidth and CPU bill. |
+| **It never stops** | The client sends constantly, for as long as the provider is up, and its gateway forwards that stream constantly too. |
+
+All of these are configuration. A client built through the SDK can override every one of them. That includes Poisson pacing (`disable_main_poisson_packet_distribution`) and the cover stream (`disable_loop_cover_traffic_stream`). Both default to on. The cost is privacy: without them, the shape of your traffic starts to reflect your real activity.
+
+## What this is not for
+
+Every reply packet consumes one SURB, and the client has to pre-compute and send those SURBs up front. That suits request-response traffic with small answers: a transaction broadcast, a balance query, a status check.
+
+It does not suit bulk transfer. Syncing a chain, streaming media, or anything else measured in megabytes will exhaust the SURB budget and the sending rate long before it finishes. See [What Nym Cannot Do](/developers/limitations) for the full list of limits, and [nym-smoldvpn](/developers/smoldvpn) for the tunnel alternative when the workload is bulk rather than request-response.

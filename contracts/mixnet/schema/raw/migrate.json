@@ -3,11 +3,17 @@
   "title": "MigrateMsg",
   "type": "object",
   "required": [
-    "node_families_contract_address"
+    "geolocation_contract_address"
   ],
   "properties": {
-    "node_families_contract_address": {
+    "geolocation_contract_address": {
       "type": "string"
+    },
+    "node_families_contract_address": {
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "unsafe_skip_state_updates": {
       "type": [

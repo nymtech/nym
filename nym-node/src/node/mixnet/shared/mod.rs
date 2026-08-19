@@ -269,7 +269,7 @@ impl SharedData {
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<(), GatewayStorageError> {
+    ) -> Result<bool, GatewayStorageError> {
         self.final_hop
             .store_processed_packet_payload(client_address, message)
             .await

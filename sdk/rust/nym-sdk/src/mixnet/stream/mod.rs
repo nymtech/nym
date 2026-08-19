@@ -66,6 +66,41 @@ struct StreamEntry {
     pending: BTreeMap<u32, Vec<u8>>,
 }
 
+impl StreamEntry {
+    /// Flush the contiguous prefix of `pending` to the stream's channel.
+    /// Returns true if the receiver has been dropped.
+    fn drain_ready(&mut self) -> bool {
+        while let Some(msg) = self.pending.remove(&self.next_seq) {
+            if self.sender.send(msg).is_err() {
+                return true;
+            }
+            self.next_seq += 1;
+        }
+        false
+    }
+}
+
+/// The mixnet routes every message independently, so a stream's first `Data`
+/// frames can overtake the `Open` that creates the stream and arrive before
+/// the stream is registered. Such orphan frames are buffered briefly and
+/// drained into the stream's reorder buffer on registration, instead of
+/// being silently dropped.
+struct OrphanEntry {
+    first_seen: Instant,
+    pending: BTreeMap<u32, Vec<u8>>,
+}
+
+/// How long orphan frames are kept while waiting for their stream to be
+/// registered. The Open/Data race window is milliseconds wide; anything
+/// older belongs to a stream that will never be accepted. (The cleanup
+/// sweep runs every [`MAX_CLEANUP_INTERVAL`], so effective retention is
+/// up to `ORPHAN_TTL + MAX_CLEANUP_INTERVAL`.)
+const ORPHAN_TTL: Duration = Duration::from_secs(5);
+/// Maximum number of distinct unregistered streams to buffer frames for.
+const MAX_ORPHAN_STREAMS: usize = 64;
+/// Maximum frames buffered per orphan stream.
+const MAX_ORPHAN_MESSAGES: usize = 32;
+
 /// Maximum number of out-of-order messages buffered per stream before we
 /// skip ahead. Without this cap, a malicious sender that deliberately skips
 /// a sequence number (e.g. never sends seq 1) could cause the buffer to
@@ -74,40 +109,69 @@ struct StreamEntry {
 /// attacker would bypass it.
 const MAX_REORDER_BUFFER: usize = 256;
 
+/// The stream and orphan-frame tables, always locked together.
+struct StreamMapInner {
+    streams: HashMap<StreamId, StreamEntry>,
+    orphans: HashMap<StreamId, OrphanEntry>,
+}
+
 /// The shared stream routing table.
 ///
 /// Wraps the map of active streams behind an async mutex with focused
 /// methods so callers never touch the lock directly.
 #[derive(Clone)]
 pub(crate) struct StreamMap {
-    inner: Arc<tokio::sync::Mutex<HashMap<StreamId, StreamEntry>>>,
+    inner: Arc<tokio::sync::Mutex<StreamMapInner>>,
 }
 
 impl StreamMap {
     fn new() -> Self {
         Self {
-            inner: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            inner: Arc::new(tokio::sync::Mutex::new(StreamMapInner {
+                streams: HashMap::new(),
+                orphans: HashMap::new(),
+            })),
         }
     }
 
     /// Register a new stream, returning the receiver end of its data channel.
-    async fn register_stream(&self, stream_id: StreamId) -> mpsc::UnboundedReceiver<Vec<u8>> {
+    /// Any orphan frames that arrived before registration are drained into
+    /// the stream immediately. Returns `None` if a stream with this id is
+    /// already active (a duplicate `Open`): replacing the existing entry
+    /// would close its reader and let the old handle's `Drop` deregister
+    /// the replacement.
+    async fn register_stream(
+        &self,
+        stream_id: StreamId,
+    ) -> Option<mpsc::UnboundedReceiver<Vec<u8>>> {
         let (tx, rx) = mpsc::unbounded_channel();
-        self.inner.lock().await.insert(
-            stream_id,
-            StreamEntry {
-                sender: tx,
-                last_activity: Instant::now(),
-                next_seq: 0,
-                pending: BTreeMap::new(),
-            },
-        );
-        rx
+        let mut inner = self.inner.lock().await;
+        if inner.streams.contains_key(&stream_id) {
+            return None;
+        }
+        let pending = inner
+            .orphans
+            .remove(&stream_id)
+            .map(|orphan| orphan.pending)
+            .unwrap_or_default();
+        let mut entry = StreamEntry {
+            sender: tx,
+            last_activity: Instant::now(),
+            next_seq: 0,
+            pending,
+        };
+        // The receiver cannot have been dropped yet - we still hold it.
+        entry.drain_ready();
+        inner.streams.insert(stream_id, entry);
+        Some(rx)
     }
 
-    /// Remove a stream from the map.
+    /// Remove a stream from the map, along with any orphan frames held for
+    /// its id, so post-close stragglers cannot occupy orphan slots.
     async fn remove(&self, stream_id: &StreamId) {
-        self.inner.lock().await.remove(stream_id);
+        let mut inner = self.inner.lock().await;
+        inner.streams.remove(stream_id);
+        inner.orphans.remove(stream_id);
     }
 
     /// Remove a stream without awaiting — for use in `Drop` and `poll_shutdown`
@@ -115,69 +179,103 @@ impl StreamMap {
     fn remove_background(&self, stream_id: StreamId) {
         let inner = self.inner.clone();
         tokio::spawn(async move {
-            inner.lock().await.remove(&stream_id);
+            let mut inner = inner.lock().await;
+            inner.streams.remove(&stream_id);
+            inner.orphans.remove(&stream_id);
         });
     }
 
     /// Buffer a message and flush any contiguous sequence to the channel.
     /// Updates `last_activity` on success; removes the entry if the
-    /// receiver has been dropped.
+    /// receiver has been dropped. Messages for streams that are not (yet)
+    /// registered are held in the orphan buffer until registration.
     async fn send_to_stream(&self, stream_id: &StreamId, seq: u32, data: Vec<u8>) {
-        let mut map = self.inner.lock().await;
-        let should_remove = if let Some(entry) = map.get_mut(stream_id) {
-            if seq < entry.next_seq {
+        let mut inner = self.inner.lock().await;
+        let Some(entry) = inner.streams.get_mut(stream_id) else {
+            Self::buffer_orphan(&mut inner.orphans, *stream_id, seq, data);
+            return;
+        };
+
+        if seq < entry.next_seq {
+            warn!(
+                "Stream {stream_id}: dropping old seq {seq} (expected >= {})",
+                entry.next_seq
+            );
+        } else {
+            entry.pending.insert(seq, data);
+        }
+
+        // If the buffer has grown too large, skip ahead to the lowest
+        // buffered seq so we don't accumulate unbounded memory.
+        if entry.pending.len() > MAX_REORDER_BUFFER {
+            if let Some(&lowest) = entry.pending.keys().next() {
                 warn!(
-                    "Stream {stream_id}: dropping old seq {seq} (expected >= {})",
+                    "Stream {stream_id}: reorder buffer overflow ({} pending), \
+                     skipping seq {} -> {lowest}",
+                    entry.pending.len(),
                     entry.next_seq
                 );
-            } else {
-                entry.pending.insert(seq, data);
+                entry.next_seq = lowest;
             }
+        }
 
-            // If the buffer has grown too large, skip ahead to the lowest
-            // buffered seq so we don't accumulate unbounded memory.
-            if entry.pending.len() > MAX_REORDER_BUFFER {
-                if let Some(&lowest) = entry.pending.keys().next() {
-                    warn!(
-                        "Stream {stream_id}: reorder buffer overflow ({} pending), \
-                         skipping seq {} -> {lowest}",
-                        entry.pending.len(),
-                        entry.next_seq
-                    );
-                    entry.next_seq = lowest;
-                }
-            }
-
-            // Drain contiguous messages
-            let mut failed = false;
-            while let Some(msg) = entry.pending.remove(&entry.next_seq) {
-                if entry.sender.send(msg).is_err() {
-                    failed = true;
-                    break;
-                }
-                entry.next_seq += 1;
-            }
-
-            if !failed {
-                entry.last_activity = Instant::now();
-            }
-            failed
+        let receiver_dropped = entry.drain_ready();
+        if receiver_dropped {
+            inner.streams.remove(stream_id);
         } else {
-            false
-        };
-        if should_remove {
-            map.remove(stream_id);
+            entry.last_activity = Instant::now();
         }
     }
 
-    /// Remove streams that have been idle longer than `max_idle`.
+    /// Hold a frame for a stream that has not been registered yet. Bounded
+    /// in three dimensions: distinct streams, frames per stream, and age
+    /// (swept by [`Self::cleanup_stale`] after [`ORPHAN_TTL`]).
+    fn buffer_orphan(
+        orphans: &mut HashMap<StreamId, OrphanEntry>,
+        stream_id: StreamId,
+        seq: u32,
+        data: Vec<u8>,
+    ) {
+        if !orphans.contains_key(&stream_id) && orphans.len() >= MAX_ORPHAN_STREAMS {
+            // Evict the oldest orphan: recent frames are the ones whose
+            // Open is most likely still in flight.
+            if let Some(oldest) = orphans
+                .iter()
+                .min_by_key(|(_, orphan)| orphan.first_seen)
+                .map(|(id, _)| *id)
+            {
+                warn!("Orphan buffer full, evicting frames for stream {oldest}");
+                orphans.remove(&oldest);
+            }
+        }
+        let entry = orphans.entry(stream_id).or_insert_with(|| OrphanEntry {
+            first_seen: Instant::now(),
+            pending: BTreeMap::new(),
+        });
+        if entry.pending.len() < MAX_ORPHAN_MESSAGES {
+            trace!("Stream {stream_id}: buffering seq {seq} until registration");
+            entry.pending.insert(seq, data);
+        } else {
+            warn!("Stream {stream_id}: orphan buffer full, dropping seq {seq}");
+        }
+    }
+
+    /// Remove streams that have been idle longer than `max_idle`, and orphan
+    /// frames whose stream was never registered within [`ORPHAN_TTL`].
     async fn cleanup_stale(&self, max_idle: Duration) {
         let now = Instant::now();
-        let mut map = self.inner.lock().await;
-        map.retain(|id, entry| {
+        let mut inner = self.inner.lock().await;
+        inner.streams.retain(|id, entry| {
             let stale = now.duration_since(entry.last_activity) >= max_idle;
             if stale {
                 trace!("Cleaning up stale stream {id} (idle > {max_idle:?})");
+            }
+            !stale
+        });
+        inner.orphans.retain(|id, orphan| {
+            let stale = now.duration_since(orphan.first_seen) >= ORPHAN_TTL;
+            if stale {
+                trace!("Cleaning up orphan frames for never-registered stream {id}");
             }
             !stale
         });
@@ -246,7 +344,13 @@ impl MixnetListener {
                 }
             };
 
-            let rx = self.streams.register_stream(req.stream_id).await;
+            let Some(rx) = self.streams.register_stream(req.stream_id).await else {
+                warn!(
+                    "Listener: duplicate Open for active stream {}, ignoring",
+                    req.stream_id
+                );
+                continue;
+            };
 
             return Some(MixnetStream::new_inbound(
                 req.stream_id,
@@ -356,8 +460,14 @@ pub(crate) async fn open_stream(
 ) -> Result<MixnetStream> {
     let streams = ensure_init(client)?.streams.clone();
 
-    let stream_id = StreamId::random();
-    let rx = streams.register_stream(stream_id).await;
+    // Random ids make collisions vanishingly unlikely, but regenerate on
+    // the off chance rather than clobbering an active stream.
+    let (stream_id, rx) = loop {
+        let stream_id = StreamId::random();
+        if let Some(rx) = streams.register_stream(stream_id).await {
+            break (stream_id, rx);
+        }
+    };
 
     // Open message with seq=0. The receiver's reorder buffer starts at
     // next_seq=0 so this could later carry an initial seq to resume a
@@ -413,21 +523,27 @@ mod tests {
         let timeout = Duration::from_secs(10);
 
         // Register two streams
-        let _rx_a = map.register_stream(StreamId::random()).await;
-        let _rx_b = map.register_stream(StreamId::random()).await;
+        let _rx_a = map
+            .register_stream(StreamId::random())
+            .await
+            .expect("fresh stream id");
+        let _rx_b = map
+            .register_stream(StreamId::random())
+            .await
+            .expect("fresh stream id");
 
         // Advance time past the timeout
         tokio::time::advance(timeout + Duration::from_secs(1)).await;
 
         // Register a fresh stream (should survive cleanup)
         let id_c = StreamId::random();
-        let _rx_c = map.register_stream(id_c).await;
+        let _rx_c = map.register_stream(id_c).await.expect("fresh stream id");
 
         map.cleanup_stale(timeout).await;
 
         let inner = map.inner.lock().await;
-        assert_eq!(inner.len(), 1);
-        assert!(inner.contains_key(&id_c));
+        assert_eq!(inner.streams.len(), 1);
+        assert!(inner.streams.contains_key(&id_c));
     }
 
     #[tokio::test(start_paused = true)]
@@ -436,7 +552,7 @@ mod tests {
         let timeout = Duration::from_secs(10);
         let id = StreamId::random();
 
-        let _rx = map.register_stream(id).await;
+        let _rx = map.register_stream(id).await.expect("fresh stream id");
 
         // Advance most of the way through the timeout
         tokio::time::advance(Duration::from_secs(8)).await;
@@ -450,7 +566,7 @@ mod tests {
         map.cleanup_stale(timeout).await;
 
         // Stream should survive — last activity was 5s ago, not 13s
-        assert_eq!(map.inner.lock().await.len(), 1);
+        assert_eq!(map.inner.lock().await.streams.len(), 1);
     }
 
     #[tokio::test(start_paused = true)]
@@ -459,21 +575,101 @@ mod tests {
         let timeout = Duration::from_secs(10);
 
         let id = StreamId::random();
-        let _rx = map.register_stream(id).await;
+        let _rx = map.register_stream(id).await.expect("fresh stream id");
 
         // Advance less than the timeout
         tokio::time::advance(Duration::from_secs(5)).await;
 
         map.cleanup_stale(timeout).await;
 
-        assert_eq!(map.inner.lock().await.len(), 1);
+        assert_eq!(map.inner.lock().await.streams.len(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stale_orphans_are_swept() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        map.send_to_stream(&id, 0, vec![1]).await;
+
+        tokio::time::advance(ORPHAN_TTL + Duration::from_secs(1)).await;
+        map.cleanup_stale(Duration::from_secs(600)).await;
+
+        // The orphan was swept: registering now delivers nothing.
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        assert!(rx.try_recv().is_err());
+        assert!(map.inner.lock().await.orphans.is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn orphan_streams_are_bounded_evicting_oldest() {
+        let map = StreamMap::new();
+
+        let oldest = StreamId::random();
+        map.send_to_stream(&oldest, 0, vec![0]).await;
+        // Later arrivals get distinct, younger timestamps.
+        tokio::time::advance(Duration::from_millis(10)).await;
+
+        for _ in 1..MAX_ORPHAN_STREAMS {
+            map.send_to_stream(&StreamId::random(), 0, vec![0]).await;
+        }
+        tokio::time::advance(Duration::from_millis(10)).await;
+
+        // One over capacity: the oldest orphan makes room for the newest.
+        let newest = StreamId::random();
+        map.send_to_stream(&newest, 0, vec![7]).await;
+
+        let inner = map.inner.lock().await;
+        assert_eq!(inner.orphans.len(), MAX_ORPHAN_STREAMS);
+        assert!(!inner.orphans.contains_key(&oldest));
+        assert!(inner.orphans.contains_key(&newest));
+    }
+
+    #[tokio::test]
+    async fn duplicate_registration_is_rejected_keeping_original() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        // A duplicate Open for an active stream must not clobber the entry.
+        assert!(map.register_stream(id).await.is_none());
+
+        // The original stream still receives data.
+        map.send_to_stream(&id, 0, vec![1]).await;
+        assert_eq!(rx.try_recv().unwrap(), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn remove_clears_orphan_entry() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        // A frame arriving with no registered stream creates an orphan...
+        map.send_to_stream(&id, 0, vec![1]).await;
+        // ...which removal must clear along with the stream itself.
+        map.remove(&id).await;
+
+        assert!(map.inner.lock().await.orphans.is_empty());
+    }
+
+    #[tokio::test]
+    async fn orphan_frames_per_stream_are_bounded() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        for seq in 0..(MAX_ORPHAN_MESSAGES as u32 + 10) {
+            map.send_to_stream(&id, seq, vec![0]).await;
+        }
+
+        let buffered = map.inner.lock().await.orphans[&id].pending.len();
+        assert_eq!(buffered, MAX_ORPHAN_MESSAGES);
     }
 
     #[tokio::test]
     async fn out_of_order_messages_delivered_in_sequence() {
         let map = StreamMap::new();
         let id = StreamId::random();
-        let mut rx = map.register_stream(id).await;
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
 
         // Send seq 2, 0, 1 out of order
         map.send_to_stream(&id, 2, vec![20]).await;
@@ -489,10 +685,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn data_before_registration_is_buffered_until_open() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        // The mixnet routes every message independently, so a stream's first
+        // Data frame can overtake the Open that creates it and arrive before
+        // the stream is registered. It must be buffered, not dropped.
+        map.send_to_stream(&id, 0, vec![42]).await;
+
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        assert_eq!(
+            rx.try_recv().expect("early data delivered on registration"),
+            vec![42]
+        );
+    }
+
+    #[tokio::test]
+    async fn early_data_is_drained_in_sequence_on_registration() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+
+        // Multiple frames arrive out of order before registration.
+        map.send_to_stream(&id, 1, vec![10]).await;
+        map.send_to_stream(&id, 0, vec![0]).await;
+
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        assert_eq!(rx.try_recv().unwrap(), vec![0]);
+        assert_eq!(rx.try_recv().unwrap(), vec![10]);
+    }
+
+    #[tokio::test]
     async fn duplicate_seq_is_dropped() {
         let map = StreamMap::new();
         let id = StreamId::random();
-        let mut rx = map.register_stream(id).await;
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
 
         map.send_to_stream(&id, 0, vec![0]).await;
         map.send_to_stream(&id, 0, vec![99]).await; // duplicate, dropped

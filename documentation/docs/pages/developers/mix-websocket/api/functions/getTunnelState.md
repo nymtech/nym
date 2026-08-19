@@ -16,4 +16,4 @@ Inspect the current tunnel state. Pre-setup reads as `connecting`.
 
 ## Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/index.d.ts:18
+mix-tunnel/dist/esm/index.d.ts:18

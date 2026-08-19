@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EntryResponse",
+  "description": "Response for [`crate::QueryMsg::Entry`]; `None` if the slot is empty.",
+  "type": "object",
+  "properties": {
+    "entry": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/LocationEntry"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "LocationAttestation": {
+      "description": "The subject's own attestation over a self-declared location, present only on [`Source::SelfDeclared`] entries.",
+      "type": "object",
+      "required": [
+        "declared_at",
+        "signature"
+      ],
+      "properties": {
+        "declared_at": {
+          "description": "Unix timestamp, in seconds, at which the subject signed the artifact. Strictly monotonic per subject and bounded above by block time plus `MAX_SKEW`, so a superseded artifact cannot be replayed and a far-future one cannot freeze the slot.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "signature": {
+          "description": "The subject's ed25519 signature over the domain-separated signing payload.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "LocationEntry": {
+      "description": "A stored location entry: the opaque payload, when it reached the chain, and the subject's attestation where one exists.",
+      "type": "object",
+      "required": [
+        "checked_at",
+        "payload"
+      ],
+      "properties": {
+        "attestation": {
+          "description": "The subject's attestation. Populated on [`Source::SelfDeclared`] entries only; measured and overridden entries carry no signature from anyone.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocationAttestation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checked_at": {
+          "description": "Unix timestamp, in seconds, taken from the block that wrote this entry. Committed to the digest leaf, so re-submitting an unchanged location changes the digest and a client that verifies the digest also verifies freshness.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "payload": {
+          "$ref": "#/definitions/LocationPayload"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LocationPayload": {
+      "description": "The location payload as the contract holds it: a format version plus opaque `content` bytes the contract never parses, validates, normalises or re-serialises.\n\nUnder `version = 1` the `content` bytes are UTF-8 JSON, so a web consumer can base64-decode and `JSON.parse` without obtaining a schema. The version byte sits outside `content` so a later version can change the format itself, not merely the schema.\n\nStoring the bytes verbatim is a correctness invariant rather than an optimisation: a relayed self-declaration's signature is over exactly these bytes, and JSON key ordering, whitespace and floating-point formatting all vary between implementations.",
+      "type": "object",
+      "required": [
+        "content",
+        "version"
+      ],
+      "properties": {
+        "content": {
+          "description": "The opaque payload bytes, stored and returned exactly as submitted.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            }
+          ]
+        },
+        "version": {
+          "description": "Selects the format of `content`. A version is never reused for another format.",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

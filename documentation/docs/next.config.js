@@ -86,6 +86,11 @@ nextra.webpack = (config, options) => {
 const config = {
   ...nextra,
   basePath: "/docs",
+  // The MCP route reads public/docs-index.json at runtime. On Vercel, public/ is
+  // not in the serverless function's filesystem unless traced in explicitly.
+  outputFileTracingIncludes: {
+    "/api/mcp": ["./public/docs-index.json", "./public/code-index.json"],
+  },
   async redirects() {
     return [
       // network docs
@@ -211,7 +216,20 @@ const config = {
 
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/docs/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
+        permanent: true,
+        basePath: false,
+      },
+      // comparisons moved: network/overview → network/threat-model (2026-07-29)
+      {
+        source: "/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/comparisons",
+        destination: "/docs/network/threat-model/comparisons",
         permanent: true,
         basePath: false,
       },
@@ -1228,7 +1246,20 @@ const config = {
       // --- Network overview: deleted pages ---
       {
         source: "/docs/network/overview/two-modes",
-        destination: "/docs/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
+        permanent: true,
+        basePath: false,
+      },
+      // choosing-a-mode superseded by the decision tool (2026-07-29)
+      {
+        source: "/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/network/overview/choosing-a-mode",
+        destination: "/docs/network/threat-model/choose-config",
         permanent: true,
         basePath: false,
       },
@@ -1391,12 +1422,6 @@ const config = {
       {
         source: "/docs/developers/typescript/api",
         destination: "/docs/developers/typescript/api/sdk",
-        permanent: false,
-        basePath: false,
-      },
-      {
-        source: "/docs/developers/clients",
-        destination: "/docs/developers/clients/socks5",
         permanent: false,
         basePath: false,
       },

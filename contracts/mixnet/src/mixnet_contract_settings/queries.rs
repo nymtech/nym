@@ -83,7 +83,8 @@ pub(crate) mod tests {
             owner: Some(deps.api.addr_make("foomp")),
             rewarding_validator_address: deps.api.addr_make("monitor"),
             vesting_contract_address: deps.api.addr_make("foomp"),
-            node_families_contract_address: deps.api.addr_make("bar"),
+            node_families_contract_address: Some(deps.api.addr_make("bar")),
+            geolocation_contract_address: Some(deps.api.addr_make("geolocation")),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
                 delegations_params: DelegationsParams {

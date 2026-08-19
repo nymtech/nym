@@ -15,6 +15,6 @@ publish = true
 [dependencies]
 nym-sphinx-addressing = { workspace = true }
 nym-sphinx-params = { workspace = true }
-nym-sphinx-types = { workspace = true, features = ["sphinx", "outfox"] }
+nym-sphinx-types = { workspace = true, features = ["sphinx"] }
 nym-sphinx-anonymous-replies = { workspace = true }
 thiserror = { workspace = true }

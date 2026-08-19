@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Drop-in `fetch` replacement that routes HTTP/HTTPS requests through the Nym mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

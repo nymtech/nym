@@ -50,6 +50,11 @@ References for developers:
 * [Network Docs](https://nym.com/docs/network)
 * [Release Cycle - git flow](https://nym.com/docs/operators/release-cycle)
 
+### Releasing
+
+* [Publishing Rust crates to crates.io](./crate-publishing.md)
+* [Publishing the TypeScript SDK to npm](./ts-sdk-publishing.md)
+
 ### Developer chat
 
 You can chat to us in the #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat) or on the [Nym Forum](https://forum.nymtech.net).

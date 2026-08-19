@@ -3,5 +3,9 @@
   "LoadedEvent": "LoadedEvent",
   "MixFetchResponseInit": "MixFetchResponseInit",
   "SetupMixTunnelOpts": "SetupMixTunnelOpts",
-  "TunnelState": "TunnelState"
+  "TunnelConnecting": "TunnelConnecting",
+  "TunnelFailed": "TunnelFailed",
+  "TunnelReady": "TunnelReady",
+  "TunnelShutdown": "TunnelShutdown",
+  "TunnelShuttingDown": "TunnelShuttingDown"
 }

@@ -46,13 +46,27 @@ Call `setupMixTunnel` once. The WASM tunnel is one-shot per page: the first call
 | `ready` | Tunnel is up. Feature packages can issue requests. |
 | `shutting_down` | `disconnectMixTunnel()` in progress. |
 | `shutdown` | Cleanly torn down. The WASM is no longer usable. |
-| `failed` | Setup or runtime error. The `reason` field carries a human-readable cause. |
+| `failed` | Setup or runtime error. Carries a `reason`; the other four states have no extra fields. |
+
+`reason` is a tagged object, not a string. It is either
+`{ kind: 'task_exited', task: 'bridge' | 'reactor' }` or `{ kind: 'task_panicked' }`, so
+switch on `reason.kind` rather than printing it directly.
+
+`TunnelState` is a discriminated union, so narrow on `state` before reading `reason`:
 
 ```ts
-const { state, reason } = await getTunnelState();
-if (state === 'failed') {
-  console.error('Tunnel failed:', reason);
+const tunnel = await getTunnelState();
+if (tunnel.state === 'failed') {
+  const { reason } = tunnel;
+  console.error(
+    reason.kind === 'task_exited'
+      ? `Tunnel failed: the ${reason.task} task exited`
+      : 'Tunnel failed: a task panicked',
+  );
 }
 ```
+
+Each variant is exported under its own name (`TunnelConnecting`, `TunnelReady`,
+`TunnelShuttingDown`, `TunnelShutdown`, `TunnelFailed`) for writing type guards.
 
 `await setupMixTunnel()` resolves only once the tunnel is `ready`, so most apps never need to read the state. Poll `getTunnelState()` only to drive a separate status indicator. The transitions are coarse (no progress percentage during `connecting`); the underlying connection events are visible via `debug: true` in the console.

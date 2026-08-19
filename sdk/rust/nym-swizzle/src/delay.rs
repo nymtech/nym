@@ -18,7 +18,7 @@
 //!
 //! **Guarantee:** the wrapped future is not polled before its scheduled time.
 //! Because async blocks are lazy, any side effect inside the block (the
-//! broadcast itself) cannot happen early — the observable event *is* the
+//! broadcast itself) cannot happen early: the observable event *is* the
 //! execution, and the execution is what gets delayed.
 //!
 //! Successive [`Delay::run`] calls on the same instance draw independent
@@ -61,7 +61,7 @@ impl Delay {
     }
 
     /// Poisson-process delays: exponential inter-arrival times with the given
-    /// mean — the same distribution family the nym mixnet uses for
+    /// mean, the same distribution family the nym mixnet uses for
     /// cover-traffic delays. Unbounded above until [`max`](Delay::max) is set;
     /// out-of-bounds samples are rejection-resampled, never clamped.
     ///
@@ -213,8 +213,8 @@ mod tests {
 
     #[test]
     fn poisson_with_min_only_terminates_and_shifts() {
-        // regression: a minimum bound with no maximum previously risked the
-        // rejection path; the memoryless shift samples it exactly
+        // a min-only bound must terminate: the memoryless shift samples it
+        // exactly, no rejection loop
         let mut d = Delay::poisson(Duration::from_secs(2))
             .min(Duration::from_secs(600))
             .seed([8u8; 32]);
@@ -234,8 +234,8 @@ mod tests {
 
     #[test]
     fn bounds_rebind_below_previous_min() {
-        // regression: `bounds` used to validate the new max against the old
-        // min and panic on this perfectly valid pair
+        // the pair is validated against itself, so a max below the current min
+        // is accepted
         let mut d = Delay::uniform(Duration::from_secs(100), Duration::from_secs(200))
             .bounds(Duration::ZERO, Duration::from_secs(20))
             .seed([12u8; 32]);

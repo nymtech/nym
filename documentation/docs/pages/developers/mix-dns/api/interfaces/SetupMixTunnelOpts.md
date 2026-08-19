@@ -18,13 +18,23 @@ mix-tunnel/dist/esm/types.d.ts:2
 
 ***
 
+### preferredGateway?
+
+> `optional` **preferredGateway**: `string`
+
+#### Source
+
+mix-tunnel/dist/esm/types.d.ts:3
+
+***
+
 ### clientId?
 
 > `optional` **clientId**: `string`
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:3
+mix-tunnel/dist/esm/types.d.ts:4
 
 ***
 
@@ -34,7 +44,7 @@ mix-tunnel/dist/esm/types.d.ts:3
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:4
+mix-tunnel/dist/esm/types.d.ts:5
 
 ***
 
@@ -44,7 +54,7 @@ mix-tunnel/dist/esm/types.d.ts:4
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:5
+mix-tunnel/dist/esm/types.d.ts:6
 
 ***
 
@@ -54,7 +64,7 @@ mix-tunnel/dist/esm/types.d.ts:5
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:6
+mix-tunnel/dist/esm/types.d.ts:7
 
 ***
 
@@ -64,7 +74,7 @@ mix-tunnel/dist/esm/types.d.ts:6
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:7
+mix-tunnel/dist/esm/types.d.ts:8
 
 ***
 
@@ -74,7 +84,7 @@ mix-tunnel/dist/esm/types.d.ts:7
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:8
+mix-tunnel/dist/esm/types.d.ts:9
 
 ***
 
@@ -84,7 +94,7 @@ mix-tunnel/dist/esm/types.d.ts:8
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:9
+mix-tunnel/dist/esm/types.d.ts:10
 
 ***
 
@@ -94,7 +104,7 @@ mix-tunnel/dist/esm/types.d.ts:9
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:10
+mix-tunnel/dist/esm/types.d.ts:11
 
 ***
 
@@ -104,7 +114,7 @@ mix-tunnel/dist/esm/types.d.ts:10
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:11
+mix-tunnel/dist/esm/types.d.ts:12
 
 ***
 
@@ -114,7 +124,7 @@ mix-tunnel/dist/esm/types.d.ts:11
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:12
+mix-tunnel/dist/esm/types.d.ts:13
 
 ***
 
@@ -124,7 +134,7 @@ mix-tunnel/dist/esm/types.d.ts:12
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:13
+mix-tunnel/dist/esm/types.d.ts:14
 
 ***
 
@@ -134,7 +144,7 @@ mix-tunnel/dist/esm/types.d.ts:13
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:14
+mix-tunnel/dist/esm/types.d.ts:15
 
 ***
 
@@ -144,7 +154,7 @@ mix-tunnel/dist/esm/types.d.ts:14
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:15
+mix-tunnel/dist/esm/types.d.ts:16
 
 ***
 
@@ -154,7 +164,7 @@ mix-tunnel/dist/esm/types.d.ts:15
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:16
+mix-tunnel/dist/esm/types.d.ts:17
 
 ***
 
@@ -164,4 +174,4 @@ mix-tunnel/dist/esm/types.d.ts:16
 
 #### Source
 
-mix-tunnel/dist/esm/types.d.ts:17
+mix-tunnel/dist/esm/types.d.ts:18

@@ -82,7 +82,7 @@ Traffic is Sphinx-encrypted inside the mixnet. Past the Exit Gateway, it travels
 
 The mixnet hides your identity from the destination and your destination from the network, but the IPR exit gateway sees the destination IP and port, and sees your payload only if you didn't encrypt it. If you connect with TLS (as in the [TCP example](https://github.com/nymtech/nym/blob/develop/smolmix/core/examples/tcp.rs)), the IPR only sees ciphertext addressed to the destination, not its contents. Plaintext HTTP is fully readable at the exit.
 
-The full model (what each hop sees, trust boundaries, and a comparison with Tor and VPNs) is on [Exit security](/developers/concepts/exit-security).
+The full model (what each hop sees and the trust the exit implies) is on [Exit Gateway Services](/network/infrastructure/exit-services); the comparison with Tor and VPNs is on [Nym vs other systems](/network/threat-model/comparisons). To pin a specific IPR, see [Exit security](/developers/concepts/exit-security#pin-an-exit).
 
 ## Examples
 
@@ -108,3 +108,8 @@ The internal stack (smoltcp reactor, device adapter, bridge task, packet flow) i
 ## API reference
 
 Full API documentation is available on [docs.rs/nym-smolmix](https://docs.rs/nym-smolmix).
+
+## See also
+
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message fragments into fixed-size Sphinx packets, and the goodput cost.
+- [Packet Mixing](/network/deep-dives/mixing): per-hop delays, Poisson sending, and cover traffic in the mixnet.

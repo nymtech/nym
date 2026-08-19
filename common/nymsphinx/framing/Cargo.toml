@@ -19,8 +19,8 @@ tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
-nym-sphinx-types = { workspace = true, features = ["sphinx", "outfox"] }
-nym-sphinx-params = { workspace = true, features = ["sphinx", "outfox"] }
+nym-sphinx-types = { workspace = true, features = ["sphinx"] }
+nym-sphinx-params = { workspace = true, features = ["sphinx"] }
 nym-sphinx-forwarding = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
 nym-sphinx-acknowledgements = { workspace = true }

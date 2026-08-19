@@ -293,7 +293,7 @@ impl ConnectionHandler {
                     .await
                 {
                     Err(err) => error!("Failed to store client data - {err}"),
-                    Ok(_) => {
+                    Ok(true) => {
                         Span::current().record("disk_fallback", true);
                         self.shared
                             .metrics
@@ -301,6 +301,24 @@ impl ConnectionHandler {
                             .egress
                             .add_disk_persisted_packet();
                         trace!("Stored packet for {client}")
+                    }
+                    // nothing was stored: the recipient has never registered with this gateway
+                    Ok(false) => {
+                        debug!(
+                            event = "packet.dropped.unknown_recipient",
+                            remote_addr = %self.remote_address,
+                            "dropping packet: {client} has never registered with this gateway, so nothing could ever retrieve it"
+                        );
+                        self.shared
+                            .metrics
+                            .mixnet
+                            .egress
+                            .add_unknown_recipient_dropped_packet();
+                        self.shared
+                            .dropped_final_hop_packet(self.remote_address.ip());
+
+                        // the ack is still forwarded below: withholding it would tell the sender
+                        // whether the recipient is registered with this gateway
                     }
                 }
             }
@@ -310,8 +328,8 @@ impl ConnectionHandler {
             }
         }
 
-        // if we managed to either push message directly to the [online] client or store it at
-        // disk, forward the ack
+        // forward the ack regardless of what happened to the payload (pushed, stored, or dropped);
+        // making it conditional would leak the recipient's state to the sender
         self.shared
             .forward_ack_packet(final_hop_data.forward_ack, trace);
         if has_ack {

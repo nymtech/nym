@@ -110,7 +110,6 @@ pub(crate) struct OverrideConfig {
     medium_toggle: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
-    outfox: bool,
     stats_reporting_address: Option<Recipient>,
     forget_me: ForgetMe,
 }
@@ -137,11 +136,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 
-    let packet_type = if args.outfox {
-        PacketType::Outfox
-    } else {
-        PacketType::Mix
-    };
+    let packet_type = PacketType::Mix;
     config
         .with_base(
             BaseClientConfig::with_high_default_traffic_volume,

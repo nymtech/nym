@@ -1,0 +1,10 @@
+{
+  "unprotected": "Unprotected",
+  "vpn": "VPN",
+  "dvpn-single": "dVPN · single exit",
+  "dvpn-multi": "dVPN · multi-exit",
+  "mixnet": "Mixnet · single exit",
+  "mixnet-rotating": "Mixnet · rotating exit",
+  "hybrid": "Hybrid (recommended)",
+  "end-to-end": "End to end"
+}

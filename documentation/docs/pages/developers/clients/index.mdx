@@ -1,0 +1,29 @@
+---
+title: "Standalone Clients"
+description: "The three standalone Nym clients: the SOCKS5 proxy, the WebSocket client, and the WebAssembly client. Language-agnostic binaries for piping traffic through the mixnet without embedding an SDK."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-12"
+---
+
+# Standalone Clients
+
+A standalone client is a separate process that connects to the mixnet and exposes a local interface your application talks to. Use one when embedding an SDK is not an option. Three cases call for it. Your application is written in a language with no Nym SDK. You cannot change its source. Or you want the Nym client's lifecycle managed independently of your process.
+
+If you are writing Rust or TypeScript, prefer the [SDKs](/developers) instead. They give you the same transport without a second process to supervise.
+
+## Which client
+
+| Client | Local interface | Use it when |
+|---|---|---|
+| [SOCKS5](/developers/clients/socks5) | SOCKS4/4a/5 proxy on localhost | Your application already speaks SOCKS, so you can point it at the proxy without code changes |
+| [WebSocket](/developers/clients/websocket) | WebSocket on localhost | You are writing in a language with no Nym SDK and can open a WebSocket |
+| [WebAssembly](/developers/clients/webassembly-client) | Loaded into a wasm runtime | You are in a browser or another wasm host. Usually consumed through the [TypeScript SDK](/developers/typescript) rather than directly |
+
+The SOCKS5 and WebSocket clients are native binaries. The WebAssembly client is a module you load, not a process you run.
+
+## Exit behaviour
+
+The SOCKS5 client is a **proxy-mode** integration. Traffic leaves the mixnet at an Exit Gateway and continues to the destination over the public internet. See [Exit Gateway Services](/network/infrastructure/exit-services) for what that exit gateway observes. Note also that anonymous replies are off by default, so the Network Requester receives your Nym address unless you pass `--use-anonymous-replies`.
+
+The WebSocket and WebAssembly clients send messages to another Nym client. There is no Exit Gateway and no clearnet hop, unless you address a service provider that itself exits.

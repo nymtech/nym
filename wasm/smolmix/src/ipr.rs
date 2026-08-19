@@ -3,8 +3,12 @@
 
 //! IPR (IP Packet Router) protocol layer for the WASM tunnel.
 //!
-//! Handles the v9 connect handshake and IP packet send/recv, using the
-//! upstream `nym_lp_data::packet::frame` wire format directly (no tokio deps).
+//! Handles the connect handshake and IP packet send/recv, using the upstream
+//! `nym_lp_data::packet::frame` wire format directly (no tokio deps).
+//!
+//! The handshake connects at v10 when the node's directory version advertises
+//! it, and at v9 otherwise: for a node that is unknown or does not advertise
+//! v10, and for a v10 connect that times out. See [`open_and_connect`].
 //!
 //! Data flow:
 //! ```text
@@ -243,7 +247,7 @@ async fn connect_v9(
                 };
 
                 if attrs.stream_id != stream_id || attrs.msg_type != SphinxStreamMsgType::Data {
-                    // Late straggler from a different stream/session — expected.
+                    // Late straggler from a different stream/session, expected.
                     continue;
                 }
 
@@ -425,7 +429,7 @@ pub(crate) async fn discover_ipr(
         // an IPR, so a v9 connect to them just times out.
         //
         // TODO(ipr-perf): rewrite this selection when IPR performance monitoring
-        // lands — fetch only exit gateways and rank on measured IPR health, since
+        // lands: fetch only exit gateways and rank on measured IPR health, since
         // directory `performance` doesn't predict IPR usability.
         if !exit.supported_roles.exit_ipr {
             continue;

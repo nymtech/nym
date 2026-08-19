@@ -23,7 +23,10 @@ PACKAGES=("sdk" "mix-tunnel" "mix-fetch" "mix-dns" "mix-websocket")
 for pkg in "${PACKAGES[@]}"; do
   echo "Generating TypeDoc for @nymproject/${pkg}..."
   cd "$SDK_PACKAGES/$pkg"
-  typedoc --skipErrorChecking
+  # Pin source links to `develop` rather than the per-file last-commit SHA. This
+  # makes the output deterministic (so the regen-diff gate compares cleanly across
+  # commits) and stops links freezing at old commits (matches the code index).
+  typedoc --skipErrorChecking --gitRevision develop
 done
 
 # typedoc-plugin-markdown does not emit Nextra sidebar metadata; regenerate the

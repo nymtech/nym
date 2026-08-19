@@ -1,0 +1,300 @@
+## 1. Spikes and open questions
+
+Both done 2026-08-05; findings recorded in design.md. Outcome: no custom `PrimaryKey` is needed (a stock
+`(u8, Vec<u8>, Vec<u8>)` tuple suffices), and the digest requirement was corrected to store the full accumulator rather
+than its collapse.
+
+- [x] 1.1 Spike the `(subject_class, subject_id, source)` key as a custom `PrimaryKey`/`KeyDeserialize`, using
+  `StoredNodeEntries` in `contracts/directory/src/storage.rs` as the template; confirm prefix scans cover "all entries
+  for a subject" and "all measurements for a subject", and that `NymNode` ids order numerically
+- [x] 1.2 Confirm the checkpoint/anchor machinery in `common/nym-directory-client` is parameterisable by contract
+  address and digest key without modification, reading it on `feat/node-directory-publishing` since it is not on develop
+
+## 2. Shared types crate
+
+- [x] 2.1 Create `common/cosmwasm-smart-contracts/geolocation-contract/` with `SubjectClass`, `Method`, `Source`,
+  `LocationEntry`, `AgentPermissions`, and the per-class `subject_id` encoding
+- [x] 2.2 Define the canonical `Location` type mirroring node status API's dVPN shape (`http/models/mod.rs:204`):
+  country, coordinates, city, region, org, postal, timezone, optional ASN record with `asn`/`name`/`domain`/`route`/
+  `kind`. Put the whole payload module behind a non-default `payload` feature the contract never enables, since `f64`
+  coordinates in the wasm would fail `cosmwasm-check`, and gate the HTTP schema derive on top of that. Used uniformly by
+  every source
+- [x] 2.3 Add payload tests: absent coordinates round-trip as absent (never `0.0, 0.0`), a `hosting` provider type
+  survives verbatim, and the derived `residential | other` form matches node status API for each raw type
+- [x] 2.4 Implement the opaque versioned payload wrapper (`version: u8` + `Binary` `content`, version byte outside
+  `content`) and the size bound, which is contract state seeded from `DEFAULT_MAX_PAYLOAD_SIZE` rather than a hardcoded
+  constant, since a later payload version may need a different one; version 1 encodes `content` as UTF-8 JSON
+- [x] 2.5 Store entries as ordinary `cw-storage-plus` JSON values rather than a hand-rolled byte codec, and add a
+  round-trip test pinning that `content` bytes survive verbatim through that encoding. Measured on a realistic entry,
+  JSON costs 473 bytes against a compact codec's 304 (598 against 380 with an attestation), which at ten thousand
+  entries is roughly a megabyte of state; that was judged not worth a bespoke format with its own truncation handling
+  and its own migration story
+- [x] 2.6 Implement the canonical `digest_leaf()` with class tags per entry class and length prefixing on every variable
+  field. No contract-wide domain tag: leaves are only ever summed into this contract's own accumulator, so the class tag
+  is the separation that matters
+- [x] 2.7 Add leaf tests: distinct keys with equal values differ, length-prefix disambiguation, class tags cannot
+  collide, `checked_at` is committed
+- [x] 2.8 Define the domain-separated `NymNodeLocation` signing payload shared by node, service and contract. The
+  signing payload hangs off `LocationPayload`, so the signed bytes always come from the payload that will be served, and
+  `NymNodeLocation` carries that payload rather than a typed `Location` (it is relayed verbatim, so it is never decoded
+  on this path). Both are therefore ungated, and no `payload`-gated code is needed at all. The signed bytes are
+  `domain_tag || node_id BE || declared_at LE || version || content`, with `version` bound so a relayer cannot restate
+  v1-signed content as v2
+- [x] 2.9 **Dropped as premature.** Conformance vectors guard drift between two implementations of the leaf encoding,
+  and there is only one: the verifying client imports `digest_leaf()` from this crate. A second implementation, most
+  likely a browser verifier, is far enough off that fixtures would be speculative. Revisit when one is actually being
+  written; until then design decision 9's drift guard is "there is only one implementation" rather than shared vectors
+- [x] 2.10 Define `InstantiateMsg`, `ExecuteMsg`, `QueryMsg` and response types
+
+## 3. Contract storage and digest maintenance
+
+- [x] 3.1 Create `contracts/geolocation/` scaffolding, `Cargo.toml`, `Makefile`, schema binary
+- [x] 3.2 Implement the entries store as a stock `Map<(u8, Vec<u8>, Vec<u8>), LocationEntry>` over the key from 1.1,
+  with `Source` flattened to bytes by a local helper; `cargo check` that `KeyDeserialize` is implemented for that tuple
+  before building on it. With JSON values (2.5) a plain `Map` suffices, so the directory's manual `Path`/`Prefix`
+  handling is not needed here. Task 1.1's compile-gated assumption is confirmed: cw-storage-plus 2.0 does implement
+  `KeyDeserialize` for the tuple, so the paged enumeration in 5.2 can decode a full key
+- [x] 3.3 Implement the whitelist store as a second digest-committed entry class
+- [x] 3.4 Implement accumulator load/save as raw `DIGEST_LEN` bytes at the fixed digest key (not a `cw-storage-plus`
+  `Item`); expose the 32-byte collapse via smart query only, never persisted
+- [x] 3.5 Implement the single digest-maintaining wrapper (insert adds, delete subtracts the stored leaf, update
+  subtracts then adds); no handler touches a store directly. Enforced structurally rather than by convention: the two
+  digest-committed `Map`s are private to `storage.rs`, so a handler cannot reach them even by mistake. `set_entries`
+  folds a whole batch under one accumulator load/save, which is what 4.1 needs
+- [x] 3.6 Add a test asserting a from-scratch re-fold matches the incrementally maintained digest across insert, update,
+  delete and repeated-key sequences. Also covers batch-order independence (so nobody later "fixes" it by imposing a
+  sort), delete-everything returning the accumulator to the identity, no-op removals, and that the key decodes back to
+  the typed `(Subject, Source)` it was written under. Mutation-tested: dropping the replacement subtract, the delete
+  subtract, the whitelist from the enumeration, or the whitelist add each fail it
+- [x] 3.7 Implement `instantiate`: mixnet contract address, admin, initial whitelist, `MAX_SKEW`, `MAX_BATCH_SIZE`, max
+  payload size (defaulting to `DEFAULT_MAX_PAYLOAD_SIZE`). Initial agents go in through the digest wrapper, so the
+  whitelist is committed from block one rather than only from the first admin transaction. Added
+  `ContractConfig::validate`, rejecting a zero `max_batch_size` or `max_payload_size`: both leave the contract
+  instantiating and querying normally while rejecting every agent submission, and 4.10's `UpdateConfig` needs the same
+  check
+
+## 4. Contract transactions
+
+- [x] 4.1 Implement batched measurement submission with one accumulator load/save per transaction and per-entry
+  read-modify-write. Every check runs before any write, so all-or-nothing is structural rather than resting on the
+  transaction rolling back. Carries the measurement half of 4.2 and 4.3 with it, since a handler that writes
+  unauthorised or unbounded entries should not exist even briefly
+- [x] 4.2 Enforce `MAX_BATCH_SIZE`, the configured max payload size and all-or-nothing batch semantics; store payload
+  bytes verbatim without parsing. Both batch paths validate everything before writing anything, so all-or-nothing is
+  structural rather than resting on the transaction rolling back
+- [x] 4.3 Enforce whitelist membership and the `can_measure` permission on measurement writes. Membership is read on
+  every write rather than trusted from when an entry was accepted, so de-whitelisting takes effect with nothing to
+  invalidate and nothing to enumerate
+- [x] 4.4 Implement self-declaration relay: verify the ed25519 signature against the identity key resolved from the
+  mixnet contract, enforce the `can_relay_self_declared` permission. The relaying agent appears nowhere in the key, so a
+  subject keeps one self-declared slot however many agents relay for it. A relay batch rejects a repeated subject, where
+  a measurement batch allows one: monotonicity is checked against stored state, so two declarations for one node would
+  both pass and whichever was written last would win regardless of `declared_at`. Resolving the duplicate instead would
+  make a batch's validity depend on its ordering, which the spec forbids. Spec amended: the repeated-key scenario is now
+  measurement-only, and the relay path gains duplicate-rejection and must-be-bonded requirements with scenarios
+- [x] 4.5 Enforce strict `declared_at` monotonicity and the `MAX_SKEW` future bound, with distinguishable errors for
+  stale, skewed and bad-signature rejections. Checks are ordered cheapest first, so a replayed or skewed artifact is
+  rejected without paying for the cross-contract bond lookup or the ed25519 verify. Strictly greater rather than
+  greater-or-equal, so re-relaying an unchanged artifact is a replay rather than a heartbeat: unlike a measurement, a
+  self-declaration can only be refreshed by the node signing a new one
+- [x] 4.6 Implement admin override set/remove under the `Override` source. Set and remove are separate operations, so an
+  override can be retracted without waiting for a re-measurement, and removal touches only the `Override` slot. The
+  subject is deliberately not checked against the mixnet contract: the override is the admin's escape hatch, and a
+  bonding check would only apply to one of the subject classes the enum is meant to grow. Removing an absent override is
+  a no-op rather than an error
+- [x] 4.7 Implement admin whitelist add/modify/remove, folding each into the digest. Add and modify are one operation,
+  since they differ only in whether a leaf has to be retired first. Removal is non-destructive by design, leaving the
+  agent's entries in storage and in the digest for 4.8 to reclaim. The grant's flags go into the event attributes:
+  current state is queryable, but who was granted what and when is only in the log
+- [x] 4.8 Implement the paginated purge of a de-whitelisted agent's entries. **Reshaped to `RemoveEntries { keys }`**,
+  an admin-only batch of explicit `EntryKey`s, after working through how a scoped purge would actually be driven: the
+  agent is the trailing key component, so nothing indexes by it and a scoped purge would scan the whole store per page,
+  one admin transaction at a time. Naming keys puts the pagination in the client that already pages the enumeration, and
+  makes the on-chain cost proportional to what is deleted. It also reaches entries no scoped sweep could, in particular
+  a measurement naming a subject that was never bonded, which nothing else can ever delete. Spec requirement and
+  scenarios rewritten to match
+- [x] 4.9 Implement the mixnet unbond callback deleting every entry for that `NymNode` subject across all sources, with
+  sender verification. Every source goes, the admin's override included: the subject has ceased to exist, so nothing
+  anyone asserted about where it was remains meaningful. The whitelist is untouched, being a different entry class. The
+  sender check is what stops any address clearing a live node's entries as a denial of service. **Also covers 6.4**:
+  the App-level test unbonds through the mixnet contract, which is the only shape that proves the dispatch reaches this
+  handler, since deps-level tests do not dispatch a `Response`'s sub-messages
+- [x] 4.10 Implement `UpdateAdmin` and config updates. `UpdateConfig` applies each provided field and then validates the
+  result as a whole, reusing 3.7's `ContractConfig::validate`, so a partial update cannot arrive field by field at a
+  configuration instantiation would have refused. Lowering a bound is not retroactive: entries stored under a larger
+  `max_payload_size` stay readable and stay in the digest, and shrinking the stored set is `RemoveEntries`' job. The
+  resulting tunables go into the event attributes, since current state is queryable but a change is not
+
+## 5. Contract queries
+
+- [x] 5.1 Single entry, all entries for a subject, and all measurements for a subject. Four handlers over storage reads
+  that already existed, plus `NymNodeEntries` as the `SubjectEntries` shorthand for the one subject class there is. An
+  empty slot and an unknown subject are `None` and an empty set rather than errors: asking whether a source wrote
+  anything is a question, not a claim that it did. `SubjectMeasurements` filters in memory, since `source` is one opaque
+  key component and a prefix cannot reach inside it. The dispatcher is tested through `query()` rather than only by
+  calling the handlers, because all four return one of two shapes and a transposed match arm would otherwise pass
+- [x] 5.2 Paginated enumeration of every digest-committed entry across both classes, with a cursor. `AllRecords` walks
+  the location entries first and continues into the whitelist with whatever slots remain, so a page may straddle the two
+  and a client never has to know there are two stores. The cursor is a `RecordKey` naming which class it is in, which is
+  what lets a resumed scan skip straight to the whitelist rather than re-deriving where the boundary fell. Limits live
+  in `retrieval_limits` alongside the other contracts' conventions (`ALL_RECORDS_DEFAULT_LIMIT` 50,
+  `ALL_RECORDS_MAX_LIMIT` 100)
+- [x] 5.3 Digest smart query, plus documentation of the fixed raw key for ICS23 proofs. The query serves
+  `LtHash16::out()`, never the accumulator: a client needing a proof reads the raw key and collapses it itself, and a
+  test pins that the two agree by doing exactly that. An untouched contract answers with the identity's collapse rather
+  than erroring, since nothing has written the key yet. The `DIGEST_STATE` doc now states the three things a verifier
+  depends on - verbatim key bytes with no `cw-storage-plus` namespacing, `DIGEST_LEN` bytes of accumulator rather than a
+  32-byte collapse, and stability across migrations - because renaming it would break every verifier silently
+- [x] 5.4 Whitelist query, **and the config query alongside it**, which had no task of its own. Both are unpaginated:
+  the whitelist is small and NYM-controlled, and a client needs all of it before it can decide which measured entries to
+  honour, so paging would move the reassembly into every caller rather than saving anyone work. The config reports the
+  mixnet contract address next to the tunables rather than giving it a query of its own, since a reader has to know
+  which deployment a self-declaration's identity key was resolved against before it can judge what that entry proves.
+  The whitelist query is what makes read-time authorisation usable, so its test asserts that de-whitelisting is visible
+  immediately while the agent's entries stay in storage
+- [x] 5.5 Generate contract schema
+
+## 6. Contract testing
+
+- [x] 6.1 Unit tests per handler covering the authorisation matrix (non-whitelisted, wrong permission, non-admin
+  override, wrong unbond sender). **Written with the handlers in section 4 rather than as a later pass**, on the
+  grounds that a handler which writes unauthorised entries should not exist even briefly. Each named case has a test:
+  `{measurement_submission,self_declaration_relay}::a_non_whitelisted_sender_is_rejected`,
+  `an_agent_without_{can_measure,can_relay_self_declared}_is_rejected`,
+  `admin_overrides::a_non_admin_cannot_{set,remove}_an_override`, and
+  `unbond_callback::only_the_configured_mixnet_contract_may_invoke_it`. Five handlers the checklist does not name are
+  covered too (whitelist set and remove, `RemoveEntries`, `UpdateConfig`, `UpdateAdmin`), and
+  `a_non_admin_cannot_change_the_whitelist` runs the check from a *whitelisted agent*, so being trusted to measure
+  cannot be parlayed into granting that trust or revoking a rival
+- [x] 6.2 Batch tests: ordering independence, repeated key within a batch, oversized rejection, one-bad-entry rollback.
+  All four covered by 3.6 and 4.1/4.2/4.4: `storage::batch_order_does_not_affect_the_digest`,
+  `a_key_repeated_within_one_batch_is_not_double_counted` plus the two handler-level repeat tests (which deliberately
+  differ: a measurement batch resolves a repeat to the last write, a relay batch rejects it), four oversized tests
+  including the exactly-at-the-limit boundary, and `one_{oversized_payload,bad_artifact}_fails_the_whole_batch_without_
+  writing_anything`. Ordering independence is asserted at the storage layer only: the handler folds through the same
+  `set_entries`, so a handler-level variant would re-exercise one code path from two places
+- [x] 6.3 Replay tests: superseded artifact, equal timestamp, far-future timestamp, slow node clock. All four covered by
+  4.5, one test each: `replaying_a_superseded_artifact_is_rejected`,
+  `re_relaying_the_current_artifact_is_rejected_rather_than_treated_as_a_heartbeat` (the equal-timestamp case, named for
+  the property rather than the input), `a_declaration_beyond_the_skew_window_is_rejected_but_the_window_itself_is_
+  inclusive`, and `a_node_whose_clock_lags_is_not_locked_out`
+- [x] 6.4 App-level test of the mixnet unbond callback dispatching to this contract (deps-level tests do not dispatch
+  sub-messages). Done in 4.9 as `unbonding_through_the_mixnet_contract_reaches_this_handler`, alongside the deps-level
+  handler tests it complements
+- [x] 6.5 End-to-end recompute test, as `a_client_recomputes_the_digest_from_the_query_surface_alone`. Pages the full
+  enumeration at a limit small enough to force several pages and to cross from the location entries into the whitelist
+  mid-page, folds every leaf, and compares against both the raw-key accumulator (what an ICS23 proof actually covers)
+  and the `Digest` smart query's collapse. The fixture holds a payload under a version the contract has never been
+  taught to read, pinning that nothing in enumeration or folding depends on the version byte, which is what lets a
+  version 2 payload ship without a migration. It also asserts the record count, so a truncated pull is legible as that
+  rather than only as a digest mismatch
+- [x] 6.6 **Dropped as not worth the harness.** The measurement was to set `MAX_BATCH_SIZE` from a gas profile, but
+  `cw-multi-test` executes contracts as native Rust rather than in a wasm VM and meters no gas at all, and no contract
+  in this repo has a harness to borrow; obtaining the number needs a built wasm plus a deployed transaction, or a
+  `cosmwasm-vm` metered instance written from scratch. What makes that cost unjustified is 3.7's decision to hold the
+  bound in admin-adjustable state: the instantiated value only has to be safe, and the figure that matters belongs to
+  whichever chain the contract runs on, set later with `UpdateConfig`. The default of 50 now rests on a size argument
+  needing no harness - at the payload ceiling, 50 entries are ~50 KB of content, and `Binary` is base64 in JSON, so a
+  batch is bounded by transaction size well before per-entry gas binds. Recorded in design.md; the constant's doc no
+  longer calls itself a hypothesis awaiting measurement
+
+## 7. Client integration
+
+- [x] 7.1 Add query and signing traits for the contract in `nym-validator-client`. `GeolocationQueryClient` /
+  `PagedGeolocationQueryClient` and `GeolocationSigningClient`, following the network-monitors pair as the template,
+  including its exhaustive `match` tests: every `QueryMsg` and `ExecuteMsg` variant must map to a helper or the test
+  stops compiling, so a variant added later cannot be silently missed. Resolving a contract address needed the usual
+  plumbing first (`NymContracts`, `TypedNymContracts`, `NymContractsProvider`, the env var, and a mainnet placeholder of
+  `""` matching the performance contract's, since this one is not deployed). `OnNymNodeUnbond` is exposed for
+  completeness and documented as unusable: the contract accepts it only from its configured mixnet address, and in
+  production it arrives as a sub-message rather than as a signed transaction. `get_all_geolocation_records` documents
+  that `collect_paged!` pulls one query at a time and so does *not* pin a height, which anything comparing the result
+  against a proven digest has to do for itself
+- [x] 7.2 **Deferred to the directory merge, ships without it.** `common/nym-directory-client` is not on develop, so end-to-end client
+  verification (anchor, ICS23-prove the digest key, recompute against the pulled set) cannot be built until
+  `feat/node-directory-publishing` lands. Per task 1.2, `proof.rs`, `contract_storage_key` and `anchor/checkpoint/*`
+  reuse unchanged, but the digest-fetch helper hardcodes the directory's `DIGEST_STATE` and needs the storage key
+  threaded through as a parameter, and the top-level client is directory-shaped so this is a sibling rather than reuse.
+  The contract and service do not depend on it and ship without it
+
+## 8. Node-side commands
+
+Scope reduced 2026-08-12. Producing and serving the signed `NymNodeLocation` artifact moves to a later change: the
+relay path that consumes it is complete and verified on the service side (9.9), but nothing on a node emits one yet,
+and building the producer without the operator tooling around it would leave a surface nobody exercises. What remains
+here is the piece an operator needs now.
+
+Deferred with it, to be picked up alongside the producer: serving the artifact over the node's HTTP API, the
+node -> service -> contract -> reader byte-for-byte round trip test, and the regression test that a
+parsed-and-reserialised payload with `f64` coordinates fails verification (see the `float_roundtrip` pin at
+`Cargo.toml:359`). No requirement changes, since no spec obliges a node to serve one; the service spec only obliges the
+service to accept what it is given.
+
+- [x] 8.1 Add a nym-node CLI command that signs a re-test request with the node's identity key and sends it to a
+  geolocator agent
+
+## 9. Geolocator service
+
+- [x] 9.1 Create the service crate with config, CLI and logging
+- [x] 9.2 Implement subject discovery from the mixnet contract (bonded nym-nodes are the only subject class the contract
+  defines)
+- [x] 9.3 Implement address discovery from node HTTP endpoints, behind a trait so the directory-contract source can
+  replace it later
+- [x] 9.4 Implement the geolocation lookup client, with a per-sweep measurement ceiling and an error logged when the
+  provider reports its quota exhausted
+- [x] 9.5 Ensure resolved addresses are never persisted, logged durably or exposed
+- [x] 9.6 Implement the regular sweep, submitting unchanged results so `checked_at` advances
+- [x] 9.7 Implement the local address baseline and the change-triggered measurement, with cold start recording a
+  baseline rather than re-measuring everything
+- [x] 9.8 Implement batching and submission, with self-declaration relays never sharing a transaction with measurements
+- [x] 9.9 Implement the self-declaration relay endpoint: verify the received artifact as the contract would, then
+  forward its bytes verbatim without parsing and re-emitting them, reporting a stale rejection as a conflict
+- [x] 9.10 Ensure a failed lookup submits nothing and leaves the previous entry untouched
+
+## 10. Re-test endpoint
+
+- [x] 10.1 Implement the HTTP endpoint with bearer-token authentication (unlimited)
+- [x] 10.2 Implement node-identity-signed authentication, restricted to the signing node as subject
+- [x] 10.3 Implement replay protection: signed timestamp, validity window, seen-set
+- [x] 10.4 Implement the burst limit: per-node counter of unchanged node-requested measurements, configurable threshold
+  and cooldown, reset on a changed result, read against the contract's current value
+- [x] 10.5 Ensure sweep and bearer-token measurements never increment the burst counter
+
+## 11. Verification and documentation
+
+- [x] 11.1 `cargo build` and `cargo test` across the workspace and the contracts workspace. Both green. Two call sites
+  this change had missed surfaced only here, both of them a field added to a struct that other crates construct:
+  `geolocation_contract_address` was absent from the sandbox `NymContracts` literal
+  (`nym-wallet-types/src/network/sandbox.rs`) and from the mixnet `InstantiateMsg` built by the localnet generator
+  (`common/commands/src/validator/cosmwasm/generators/mixnet.rs`). Both fixed following their sibling fields exactly:
+  sandbox takes the empty-string-means-undeployed convention `PERFORMANCE_CONTRACT_ADDRESS` already uses, and the
+  generator gained a `--geolocation-contract-address` argument falling back to the `GEOLOCATION_CONTRACT_ADDRESS` env
+  var. `nym-data-observatory` is excluded from both commands: its `sqlx::query!` macros verify SQL at compile time
+  against a live database, so it cannot build here at all, and this change does not touch it
+- [x] 11.2 Build the contract wasm and check its size. **409.5 KiB**, between `nym_performance_contract` at 394.1 and
+  `cw3_flex_multisig` at 463.7, against `mixnet_contract` at 1232.4; unremarkable, and no size work is called for.
+  Two build caveats, neither specific to this contract. The per-contract `Makefile` omits `--lib`, so it also builds
+  `src/bin/schema.rs`, and a binary must link the CosmWasm host functions that only exist inside the VM; the root
+  `Makefile:97` passes `--lib` and is the build that matters. Even then the link fails on the local toolchain, because
+  rustc 1.97.1's `wasm-ld` rejects the undefined host imports that older versions emitted as wasm imports, and there is
+  no `rust-toolchain.toml` pinning anything against the declared MSRV of 1.86. `nym-performance-contract`, untouched by
+  this change, fails identically, and `-C link-arg=--allow-undefined` builds all eleven contracts. Worth settling
+  separately, since today nobody on a current rustc can build any contract wasm locally
+- [x] 11.3 Document the trust model and the client verification flow, mirroring `docs/directory/README.md`. Written to
+  `docs/geolocation/README.md`, with a mermaid flow using the reference doc's legend (solid arrows are trusted writes or
+  trust inputs, dotted arrows are untrusted data verified after the fact) and validated by rendering it rather than by
+  eye. Covers the three sources and what authenticates each, why authorisation is read-time and therefore why the
+  whitelist is data a client must verify rather than configuration it may assume, the accumulator and why the raw key
+  holds the whole thing, what is deliberately absent and why a hash of an IP is an IP, and the six-step recompute route
+- [x] 11.4 Document the deferred node status API migration, including the payload-width constraint and the cold-start
+  cliff at `http/state.rs:431`. Written to `docs/geolocation/node-status-api-migration.md`. Reframed against what the
+  code now actually holds rather than against the plan: the `Location`, `Asn` and `AsnKind` adapters are already
+  implemented and tested in `http/models/mod.rs`, so the migration is a sourcing and policy problem rather than a
+  data-shape one. What it must decide is which of several entries to serve, whether to verify the digest, and above all
+  what a node with *no* entry means. That last one is where the cliff moves: today a failed lookup yields
+  `Location::empty()` and the `len() != 2` filter silently drops the gateway, so failure and absence are
+  indistinguishable, whereas the geolocator never writes an empty country and a failed lookup submits nothing, making
+  absence explicit and telling the two cases apart for the first time. Also records the `geoip.ip_address` field that
+  cannot be reproduced, the two deliberate parity deviations, and the rule that no contracts-workspace member may take
+  `payload` as a normal dependency
+- [x] 11.5 Run `openspec validate verifiable-node-geolocation --strict`. Passes

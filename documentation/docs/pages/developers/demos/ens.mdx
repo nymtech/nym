@@ -1,6 +1,6 @@
 ---
-title: "Demo: ENS resolution over the Nym mixnet"
-description: "Resolve an ENS name to its address and IPFS contenthash, then fetch the site, with every JSON-RPC and gateway request routed through the mixnet via mix-fetch. Shows the ethers-to-mixFetch adapter."
+title: "Demo: routing Ethereum JSON-RPC through the mixnet (ENS)"
+description: "How an Ethereum dApp, web3 app or browser wallet routes its JSON-RPC requests through the Nym mixnet. An ethers v6 adapter replaces the HTTP transport with mix-fetch. The example resolves an ENS name and fetches its IPFS site."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-06-09"
@@ -25,6 +25,32 @@ Ethereum RPC node and the IPFS gateway see the [IPR](/network/infrastructure/exi
 exit's IP, not yours, and your ISP cannot see which names or sites you reach.
 The trade-off is latency: every packet takes a multi-relay path, so requests are
 slower than a direct route.
+
+## Using this in your own app
+
+This page is the integration pattern for an Ethereum dApp, a web3 app, or a
+browser extension wallet. Two questions on the [developers overview](/developers)
+decide the package. Answer them before you write code.
+
+A browser runs a WASM client, and an Ethereum RPC provider is a destination that
+does not run Nym. Those two answers put you in the Browser / WebView row in proxy
+mode, which selects [`mix-fetch`](/developers/mix-fetch). The
+[developers overview](/developers) explains both axes, and
+[Choose a Defence](/network/threat-model/choose-config) starts from the adversary
+rather than from the tool.
+
+Proxy mode is the weaker of the two positions, so choose it deliberately.
+[Exit Gateway Services](/network/infrastructure/exit-services) sets out what the
+exit gateway observes. [Baseline hygiene](/developers/swizzle) covers the
+request-shape discipline that the transport layer does not provide.
+
+The adapter below connects `mix-fetch` to `ethers`. ENS resolution is only the
+example. The mechanism applies to every request `ethers` makes: a balance read, a
+name resolution, or a signed transaction. It does not change signing or key
+handling, so a wallet keeps its existing mechanism.
+
+For a wallet connecting to the Nyx chain rather than to Ethereum, that is a
+different job: see [Cosmos Kit](/developers/typescript/cosmos-kit).
 
 ## How it works
 

@@ -21,6 +21,7 @@
     "dev:on": "node sdk/typescript/scripts/dev-mode-add.mjs",
     "docs:prod:build": "run-s docs:prod:build:ws",
     "docs:prod:build:ws": "lerna run docs:prod:build --stream",
+    "docs:typedoc": "pnpm dev:on && pnpm install --frozen-lockfile false && pnpm run build:types && pnpm run build:ci:sdk && bash documentation/scripts/next-scripts/generate-typedoc.sh && pnpm dev:off",
     "lint": "echo 'linting disabled in preparation of switch to biome'",
     "eslint:lint": "lerna run lint --stream",
     "lint:fix": "lerna run lint:fix --stream",

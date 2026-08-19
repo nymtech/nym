@@ -1,6 +1,6 @@
 use super::*;
-use serial_test::serial;
 use http::{HeaderValue, header::RETRY_AFTER};
+use serial_test::serial;
 use std::time::{Duration, Instant};
 
 #[test]
@@ -404,6 +404,9 @@ async fn host_rotation_tempered_by_net_reconfigure() {
 
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
     assert_eq!(request_host(&client), "cdn2.test");
+
+    // leave the shared marker as we found it for whichever test runs next
+    *crate::SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = None;
 }
 
 #[test]

@@ -492,6 +492,7 @@ impl NymNode {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn start_gateway_tasks(
         &mut self,
         node_address: AccountId,

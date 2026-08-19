@@ -7559,6 +7559,7 @@ dependencies = [
  "nym-wireguard-types",
  "rand 0.10.2",
  "serde",
+ "sqlx",
  "thiserror 2.0.19",
  "time",
  "tokio",

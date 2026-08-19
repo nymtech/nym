@@ -105,14 +105,15 @@ you are checking whether a change to the published packages is covered by CI, lo
 | --- | --- | --- |
 | `dry_run` | `true` | runs `pnpm publish --dry-run`; nothing is uploaded |
 | `dist_tag` | `auto` | `auto` derives a tag per package; `next` or `latest` forces one on all four |
-| `skip_smoke` | `false` | publishes even if the browser smoke test fails |
+| `skip_smoke` | `false` | skips the browser smoke test and publishes without that gate |
 
 Before publishing, the workflow brings the tunnel up in chromium and firefox using the
 release wasm that `pnpm sdk:build` just produced. It is the only check that executes the
 wasm rather than compiling it, and it runs on dry runs too.
 
 It talks to a real gateway and IPR, so it can fail for reasons unrelated to the release.
-`skip_smoke` is for that case only.
+`skip_smoke` does not run it at all, so the publish proceeds ungated rather than on a known
+result. For that reason it is for a network outage blocking an urgent release, nothing else.
 
 Under `auto`, `publish.sh` resolves each package's tag from what is already on npm:
 

@@ -15,7 +15,7 @@ on:
           - latest
         default: auto
       skip_smoke:
-        description: "Publish even if the browser smoke test fails. Only for a mixnet outage blocking an urgent release."
+        description: "Skip the browser smoke test and publish without that gate. Only for a mixnet outage blocking an urgent release."
         type: boolean
         default: false
 

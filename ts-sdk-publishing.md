@@ -75,6 +75,7 @@ trap restores `pnpm-workspace.yaml` on exit.
 | `ci-sdk-wasm` | PR touching `wasm/**`, `common/**`, `clients/client-core/**` | wasm only | `sdk-wasm-build`, `-test`, `-lint` |
 | `ci-docs-typedoc-fresh` | push touching the four packages' `src/**` or the committed `api/**` | builds them, to resolve re-exports | fails if the committed API reference is stale |
 | `ci-sdk-example-integration-tests` | schedule and dispatch | no | Rust SDK examples |
+| `publish-sdk-npm` smoke step | part of the dispatch below | uses the built release wasm | the only check that runs the wasm in a browser |
 | `publish-sdk-npm` | dispatch only | yes, via `pnpm sdk:build` | builds and publishes |
 
 `ci-docs-typedoc-fresh` is a gate rather than a generator. It regenerates the API
@@ -83,6 +84,12 @@ so any change to the four packages' `src/**` has to be accompanied by a regenera
 `documentation/docs/pages/developers/*/api` tree in the same push. It builds the wasm and
 the four packages before running typedoc, so cross-package re-exports resolve against fresh
 `dist`, and `generate-typedoc.sh` pins `--gitRevision develop` to keep source links stable.
+
+`make sdk-wasm-test`, which `ci-sdk-wasm` runs as its "Test" step, has an entirely
+commented-out body and does nothing. `sdk-wasm-lint` does compile for
+`wasm32-unknown-unknown`, so it catches type and lint errors, but a host-only API such as
+`std::time::Instant::now()` compiles fine there and panics only when called. Nothing
+except the smoke test catches that class of bug.
 
 The naming is misleading. `ci-build-ts` runs `pnpm build`, which resolves to
 `build:types build:packages` and covers only `@nymproject/types`, `mui-theme` and `react`.
@@ -98,6 +105,14 @@ you are checking whether a change to the published packages is covered by CI, lo
 | --- | --- | --- |
 | `dry_run` | `true` | runs `pnpm publish --dry-run`; nothing is uploaded |
 | `dist_tag` | `auto` | `auto` derives a tag per package; `next` or `latest` forces one on all four |
+| `skip_smoke` | `false` | publishes even if the browser smoke test fails |
+
+Before publishing, the workflow brings the tunnel up in chromium and firefox using the
+release wasm that `pnpm sdk:build` just produced. It is the only check that executes the
+wasm rather than compiling it, and it runs on dry runs too.
+
+It talks to a real gateway and IPR, so it can fail for reasons unrelated to the release.
+`skip_smoke` is for that case only.
 
 Under `auto`, `publish.sh` resolves each package's tag from what is already on npm:
 

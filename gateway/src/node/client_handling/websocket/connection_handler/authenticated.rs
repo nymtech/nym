@@ -670,3 +670,49 @@ impl<R, S> AuthenticatedHandler<R, S> {
         trace!("The stream was closed!");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn into_response(err: RequestHandlingError) -> ServerResponse {
+        let Message::Text(text) = err.into_error_message() else {
+            panic!("the error was not reported as a text frame")
+        };
+
+        ServerResponse::try_from(text.to_string()).expect("the error frame did not parse back")
+    }
+
+    // An out-of-bandwidth outcome MUST stay a typed error carrying both figures, never collapse into
+    // the generic string error. It is the only signal that tells a client its session was metered,
+    // which for a network monitor agent means the gateway has not ingested its announced identity -
+    // otherwise a run scoring zero is indistinguishable from a dead gateway.
+    #[test]
+    fn running_out_of_bandwidth_is_reported_as_a_typed_error() {
+        let response = into_response(RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::OutOfBandwidth {
+                required: 2048,
+                available: 0,
+            },
+        ));
+
+        assert!(matches!(
+            response,
+            ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::OutOfBandwidth {
+                    required: 2048,
+                    available: 0
+                }
+            }
+        ));
+    }
+
+    // The boundary of the above: everything else is a generic error, so the typed variant keeps
+    // meaning exactly one thing to whoever matches on it.
+    #[test]
+    fn other_failures_are_reported_generically() {
+        let response = into_response(RequestHandlingError::InternalError);
+
+        assert!(response.is_error());
+    }
+}

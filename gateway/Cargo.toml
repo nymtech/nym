@@ -94,6 +94,10 @@ nym-wireguard = { workspace = true, features = ["mock"] }
 mock_instant = { workspace = true }
 time = { workspace = true }
 nym-lp = { path = "../common/nym-lp", features = ["mock"] }
+# for standing up an in-memory gateway storage in registration tests
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+# `duplex` for standing up in-memory client sockets
+tokio = { workspace = true, features = ["io-util", "macros"] }
 
 [lints]
 workspace = true

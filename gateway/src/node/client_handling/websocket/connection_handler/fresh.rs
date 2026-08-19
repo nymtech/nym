@@ -706,6 +706,51 @@ impl<R, S> FreshHandler<R, S> {
         Ok(client_id)
     }
 
+    /// Turns a completed registration handshake into the details of the session it established,
+    /// choosing between an ephemeral unmetered session and an ordinary persisted one.
+    ///
+    /// # Arguments
+    ///
+    /// * `remote_identity`: the client's ed25519 identity, possession-proven by the handshake.
+    /// * `remote_address`: the destination address derived from that identity.
+    /// * `shared_keys`: the key the handshake derived.
+    async fn finalise_registration(
+        &mut self,
+        remote_identity: ed25519::PublicKey,
+        remote_address: DestinationAddressBytes,
+        shared_keys: SharedSymmetricKey,
+    ) -> Result<ClientDetails, InitialAuthenticationError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        if self.grants_ephemeral_session(&remote_identity) {
+            debug!(
+                client = %remote_identity,
+                "granting an ephemeral unmetered session"
+            );
+
+            // deliberately NOT calling `register_client`: an ephemeral session persists nothing, and
+            // that function is the whole of registration's persistence (shared keys, bandwidth entry
+            // and the stored-message push)
+            return Ok(ClientDetails::new_ephemeral(
+                remote_address,
+                shared_keys,
+                OffsetDateTime::now_utc(),
+            ));
+        }
+
+        let client_id = self.register_client(remote_address, &shared_keys).await?;
+
+        debug!(client_id = %client_id, "managed to finalize client registration");
+
+        Ok(ClientDetails::new_persisted(
+            client_id,
+            remote_address,
+            shared_keys,
+            OffsetDateTime::now_utc(),
+        ))
+    }
+
     /// Tries to handle the received register request by checking attempting to complete registration
     /// handshake using the received data.
     ///
@@ -744,28 +789,9 @@ impl<R, S> FreshHandler<R, S> {
 
         // only now that the handshake has completed is `remote_identity` possession-proven, which is
         // what makes it safe to grant anything on the strength of it
-        let client_details = if self.grants_ephemeral_session(&remote_identity) {
-            debug!(
-                client = %remote_identity,
-                "granting an ephemeral unmetered session"
-            );
-
-            // deliberately NOT calling `register_client`: an ephemeral session persists nothing, and
-            // that function is the whole of registration's persistence (shared keys, bandwidth entry
-            // and the stored-message push)
-            ClientDetails::new_ephemeral(remote_address, shared_keys, OffsetDateTime::now_utc())
-        } else {
-            let client_id = self.register_client(remote_address, &shared_keys).await?;
-
-            debug!(client_id = %client_id, "managed to finalize client registration");
-
-            ClientDetails::new_persisted(
-                client_id,
-                remote_address,
-                shared_keys,
-                OffsetDateTime::now_utc(),
-            )
-        };
+        let client_details = self
+            .finalise_registration(remote_identity, remote_address, shared_keys)
+            .await?;
 
         let upgrade_mode = self.upgrade_mode_enabled();
 
@@ -980,5 +1006,226 @@ impl<R, S> FreshHandler<R, S> {
                 debug!("finished connection handler for {remote}")
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use crate::node::client_handling::websocket::common_state::Config;
+    use crate::node::ActiveClientsStore;
+    use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
+    use nym_credential_verification::ecash::MockEcashManager;
+    use nym_credential_verification::upgrade_mode::testing::mock_dummy_upgrade_mode_details;
+    use nym_gateway_storage::GatewayStorage;
+    use nym_mixnet_client::forwarder::mix_forwarding_channels;
+    use nym_node_metrics::events::events_channels;
+    use nym_test_utils::helpers::{u64_seeded_rng, DeterministicRng};
+    use std::net::{IpAddr, Ipv4Addr};
+    use std::sync::Arc;
+    use tokio_tungstenite::tungstenite::protocol::Role;
+    use tokio_tungstenite::WebSocketStream;
+
+    // the ip an authorised agent is known by on-chain. it earns nothing on this path: the exemption
+    // is keyed on the handshake-verified identity alone (see `grants_ephemeral_session`)
+    fn agent_ip() -> SocketAddr {
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)), 39322)
+    }
+
+    fn unrelated_ip() -> SocketAddr {
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)), 51820)
+    }
+
+    fn identity(seed: u64) -> ed25519::PublicKey {
+        *ed25519::KeyPair::new(&mut u64_seeded_rng(seed)).public_key()
+    }
+
+    fn shared_keys() -> SharedSymmetricKey {
+        SharedSymmetricKey::try_from_bytes(&[42u8; 32]).unwrap()
+    }
+
+    fn announcing(identity: ed25519::PublicKey) -> AuthorisedMonitorIdentities {
+        let identities = AuthorisedMonitorIdentities::default();
+        identities.set_announced(agent_ip(), Some(identity));
+        identities
+    }
+
+    /// A fresh handler over a real (in-memory) gateway storage, so the tests can assert on what
+    /// registration did or did not write.
+    ///
+    /// The client end of the socket is returned alongside it and must be kept alive, or writes to
+    /// the handler's end fail with a broken pipe.
+    async fn handler(
+        monitor_identities: AuthorisedMonitorIdentities,
+        peer_address: SocketAddr,
+    ) -> (
+        FreshHandler<DeterministicRng, tokio::io::DuplexStream>,
+        tokio::io::DuplexStream,
+    ) {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let storage = GatewayStorage::from_connection_pool(pool, 100)
+            .await
+            .expect("failed to initialise gateway storage");
+
+        let (metrics_sender, _metrics_receiver) = events_channels();
+        let (outbound_mix_sender, _mix_receiver) = mix_forwarding_channels();
+        let (upgrade_mode, _upgrade_mode_receiver) = mock_dummy_upgrade_mode_details();
+
+        let shared_state = CommonHandlerState {
+            cfg: Config {
+                enforce_zk_nym: false,
+                max_request_timestamp_skew: Duration::from_secs(60),
+                bandwidth: Default::default(),
+            },
+            ecash_verifier: Arc::new(MockEcashManager::new(Box::new(storage.clone()))),
+            storage,
+            local_identity: Arc::new(ed25519::KeyPair::new(&mut u64_seeded_rng(0))),
+            metrics: Default::default(),
+            metrics_sender,
+            outbound_mix_sender,
+            active_clients_store: ActiveClientsStore::new(),
+            upgrade_mode,
+            monitor_identities,
+        };
+
+        let (handler_side, client_side) = tokio::io::duplex(4096);
+
+        let mut handler = FreshHandler::new(
+            u64_seeded_rng(1),
+            handler_side,
+            shared_state,
+            peer_address,
+            ShutdownToken::default(),
+        );
+
+        // the persisted path pushes stored messages, which panics on a socket that is not an upgraded
+        // websocket even when the inbox is empty. upgrade it in place rather than performing a
+        // websocket handshake: these tests are about what registration persists, not the transport
+        let SocketStream::RawTcp(raw) =
+            std::mem::replace(&mut handler.socket_connection, SocketStream::Invalid)
+        else {
+            panic!("a fresh handler always starts from a raw socket")
+        };
+        handler.socket_connection = SocketStream::UpgradedWebSocket(Box::new(
+            WebSocketStream::from_raw_socket(raw, Role::Server, None).await,
+        ));
+
+        (handler, client_side)
+    }
+
+    async fn is_registered(
+        handler: &FreshHandler<DeterministicRng, tokio::io::DuplexStream>,
+        client: DestinationAddressBytes,
+    ) -> bool {
+        handler
+            .shared_state
+            .storage
+            .get_shared_keys(client)
+            .await
+            .unwrap()
+            .is_some()
+    }
+
+    async fn finalise(
+        handler: &mut FreshHandler<DeterministicRng, tokio::io::DuplexStream>,
+        client_identity: ed25519::PublicKey,
+    ) -> ClientDetails {
+        handler
+            .finalise_registration(
+                client_identity,
+                client_identity.derive_destination_address(),
+                shared_keys(),
+            )
+            .await
+            .expect("registration failed")
+    }
+
+    // The hygiene requirement behind the ephemeral session: a monitor re-registers before every run
+    // against every gateway it tests, so if registration persisted anything, monitor traffic would
+    // accrue rows on every gateway in the network at liveness cadence.
+    #[tokio::test]
+    async fn an_announced_identity_persists_nothing() {
+        let monitor = identity(1);
+        let (mut handler, _client) = handler(announcing(monitor), unrelated_ip()).await;
+
+        let details = finalise(&mut handler, monitor).await;
+
+        assert!(
+            details.id.is_none(),
+            "an ephemeral session must have no storage-assigned id"
+        );
+        assert!(
+            !is_registered(&handler, details.address).await,
+            "an ephemeral session must not leave a shared-key row behind"
+        );
+    }
+
+    // The exemption is granted on the identity alone, so it holds from an address that has nothing to
+    // do with the agent's announced ones - which is the point, since an agent's egress address can
+    // differ from the addresses authorised on-chain.
+    #[tokio::test]
+    async fn an_announced_identity_is_exempt_from_an_unrelated_address() {
+        let monitor = identity(1);
+        let (mut handler, _client) = handler(announcing(monitor), unrelated_ip()).await;
+
+        assert!(finalise(&mut handler, monitor).await.id.is_none());
+    }
+
+    // The converse, and the one that matters for the exemption's safety: arriving from an authorised
+    // agent's own address earns nothing without an announced identity. Otherwise a co-tenant behind a
+    // shared host port or a recycled address would inherit unmetered transit.
+    #[tokio::test]
+    async fn an_unannounced_identity_is_metered_even_from_an_agents_address() {
+        let monitor = identity(1);
+        let stranger = identity(2);
+
+        let (mut handler, _client) = handler(announcing(monitor), agent_ip()).await;
+
+        let details = finalise(&mut handler, stranger).await;
+
+        assert!(
+            details.id.is_some(),
+            "an unannounced client must be registered as usual"
+        );
+        assert!(
+            is_registered(&handler, details.address).await,
+            "an unannounced client must leave its shared-key row"
+        );
+    }
+
+    // Ties the decision to what the session then gets: the ephemeral branch yields a manager with a
+    // synthetic allowance and no bandwidth row to read, so packets forward with no credential.
+    #[tokio::test]
+    async fn an_ephemeral_session_starts_with_an_allowance_and_no_bandwidth_row() {
+        let monitor = identity(1);
+        let (mut handler, _client) = handler(announcing(monitor), agent_ip()).await;
+
+        let details = finalise(&mut handler, monitor).await;
+        let manager = handler
+            .create_bandwidth_storage_manager(&details)
+            .await
+            .expect("an ephemeral session must not need a bandwidth row");
+
+        assert!(manager.available_bandwidth().await > 0);
+    }
+
+    // Its counterpart: a registered client is metered exactly as before, starting from the zero-value
+    // bandwidth entry its registration created.
+    #[tokio::test]
+    async fn a_registered_session_starts_metered_at_zero() {
+        let client = identity(2);
+        let (mut handler, _client) =
+            handler(AuthorisedMonitorIdentities::default(), agent_ip()).await;
+
+        let details = finalise(&mut handler, client).await;
+        let manager = handler
+            .create_bandwidth_storage_manager(&details)
+            .await
+            .expect("a registered client must have a bandwidth row");
+
+        assert_eq!(0, manager.available_bandwidth().await);
     }
 }

@@ -14,11 +14,9 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_credential_verification::CredentialVerifier;
-use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
-};
 use nym_credentials_interface::DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
@@ -26,7 +24,6 @@ use nym_gateway_requests::{
     SensitiveServerResponse, SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
-use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};

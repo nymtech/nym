@@ -9,16 +9,14 @@
 //! sole writer to the structures derived from the set, so that key validation and keying
 //! discipline each live in exactly one place.
 
-use crate::node::authorised_agents::monitor_identities::AuthorisedMonitorIdentities;
 use crate::node::routing_filter::network_filter::RoutableNetworkMonitors;
+use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_noise::config::{NetworkMonitorAgentNode, NoiseNetworkView, NoiseNode};
 use nym_noise_keys::{NoiseVersion, VersionedNoiseKeyV1};
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
 use std::net::SocketAddr;
 use tracing::{debug, error, info, warn};
-
-pub(crate) mod monitor_identities;
 
 /// An authorised network monitor agent with its announced keys parsed.
 pub(crate) struct AuthorisedAgent {

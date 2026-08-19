@@ -29,7 +29,7 @@ Both ends run a Nym client. Sphinx encryption protects every hop end-to-end; nei
 If you need HTTP, DNS, or WebSocket connections through the mixnet to third-party services, this isn't the right SDK. Use [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), or [`mix-websocket`](/developers/mix-websocket), all built on [`mix-tunnel`](/developers/mix-tunnel) for IPR exit routing.
 </Callout>
 
-For background on Sphinx, the mixnet exit model, and what the exit gateway can see, see [Exit security](/developers/concepts/exit-security).
+For background on Sphinx, the mixnet exit model, and what the exit gateway can see, see [Exit Gateway Services](/network/infrastructure/exit-services).
 
 ## Packages
 
@@ -85,3 +85,8 @@ See [Smart Contracts](/developers/typescript/smart-contracts) for query and exec
 | [Cosmos Kit](/developers/typescript/cosmos-kit) | Wallet connection (Keplr, Ledger, Wallet Connect) for Nyx. |
 | [Bundling](/developers/typescript/bundling/bundling) | Webpack and esbuild configurations for WASM + Web Workers. |
 | [TypeDoc Reference](/developers/typescript/api/sdk/globals) | Generated API reference for `@nymproject/sdk`. |
+
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): per-hop delays, Poisson sending, and cover traffic in the mixnet.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message fragments into fixed-size Sphinx packets.

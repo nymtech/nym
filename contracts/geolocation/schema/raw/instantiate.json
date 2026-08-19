@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "description": "Instantiate the geolocation contract. The instantiator becomes the admin.",
+  "type": "object",
+  "required": [
+    "initial_whitelist",
+    "mixnet_contract_address"
+  ],
+  "properties": {
+    "initial_whitelist": {
+      "description": "Agents authorised to write from the outset. May be empty, in which case the admin whitelists them afterwards.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/InitialAgent"
+      }
+    },
+    "max_batch_size": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "max_payload_size": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "max_skew_secs": {
+      "description": "Overrides for the contract's tunables; each falls back to its `DEFAULT_` constant.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "mixnet_contract_address": {
+      "description": "Mixnet contract address, used to resolve node identity keys and to authorise the unbond callback.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AgentPermissions": {
+      "description": "What a whitelisted agent is permitted to write. The flags are independent: an agent may be trusted to measure without being trusted to relay self-declarations, or the reverse.",
+      "type": "object",
+      "required": [
+        "can_measure",
+        "can_relay_self_declared"
+      ],
+      "properties": {
+        "can_measure": {
+          "description": "May write [`Source::Measured`] entries.",
+          "type": "boolean"
+        },
+        "can_relay_self_declared": {
+          "description": "May write [`Source::SelfDeclared`] entries on a subject's behalf.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InitialAgent": {
+      "description": "An agent whitelisted at instantiation, with the permissions it starts with.",
+      "type": "object",
+      "required": [
+        "agent",
+        "permissions"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string"
+        },
+        "permissions": {
+          "$ref": "#/definitions/AgentPermissions"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

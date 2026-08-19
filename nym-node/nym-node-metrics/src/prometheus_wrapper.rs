@@ -97,6 +97,11 @@ pub enum PrometheusMetric {
     ))]
     MixnetEgressStoredOnDiskFinalHopPackets,
 
+    #[strum(props(
+        help = "The number of unwrapped final hop packets dropped because their recipient has never registered with this gateway"
+    ))]
+    MixnetEgressUnknownRecipientDroppedFinalHopPackets,
+
     #[strum(props(help = "The number of egress forward hop sphinx packets sent/forwarded"))]
     MixnetEgressForwardPacketsSent,
 
@@ -321,6 +326,9 @@ impl PrometheusMetric {
             PrometheusMetric::MixnetEgressStoredOnDiskFinalHopPackets => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::MixnetEgressUnknownRecipientDroppedFinalHopPackets => {
+                Metric::new_int_gauge(&name, help)
+            }
             PrometheusMetric::MixnetEgressForwardPacketsSent => Metric::new_int_gauge(&name, help),
             PrometheusMetric::MixnetEgressAckSent => Metric::new_int_gauge(&name, help),
             PrometheusMetric::MixnetEgressForwardPacketsDropped => {
@@ -491,7 +499,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(53, PrometheusMetric::COUNT)
+        assert_eq!(54, PrometheusMetric::COUNT)
     }
 
     #[test]

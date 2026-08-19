@@ -1,0 +1,476 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Submit a batch of measurements. Sender must be whitelisted with `can_measure`.\n\nAll or nothing: one rejected entry fails the whole transaction. Ordering does not matter, since the accumulator is commutative, and the same key may appear more than once, in which case the last write stands.",
+      "type": "object",
+      "required": [
+        "submit_measurements"
+      ],
+      "properties": {
+        "submit_measurements": {
+          "type": "object",
+          "required": [
+            "measurements"
+          ],
+          "properties": {
+            "measurements": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Measurement"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Relay a batch of node-signed self-declarations. Sender must be whitelisted with `can_relay_self_declared`.\n\nKept separate from [`Self::SubmitMeasurements`] rather than merged into one batch: a relay carries data the agent did not produce and whose signature it cannot fully pre-validate against contract state, so one bad artifact must not be able to fail an agent's whole measurement sweep.",
+      "type": "object",
+      "required": [
+        "relay_self_declarations"
+      ],
+      "properties": {
+        "relay_self_declarations": {
+          "type": "object",
+          "required": [
+            "declarations"
+          ],
+          "properties": {
+            "declarations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/NymNodeLocation"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Create or replace an override entry. Admin only.",
+      "type": "object",
+      "required": [
+        "set_override"
+      ],
+      "properties": {
+        "set_override": {
+          "type": "object",
+          "required": [
+            "payload",
+            "subject"
+          ],
+          "properties": {
+            "payload": {
+              "$ref": "#/definitions/LocationPayload"
+            },
+            "subject": {
+              "$ref": "#/definitions/Subject"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Delete an override entry. Admin only. Every other source for that subject is left untouched, so retracting an override does not wait on a re-measurement.",
+      "type": "object",
+      "required": [
+        "remove_override"
+      ],
+      "properties": {
+        "remove_override": {
+          "type": "object",
+          "required": [
+            "subject"
+          ],
+          "properties": {
+            "subject": {
+              "$ref": "#/definitions/Subject"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Add an agent to the whitelist, or change an existing agent's permissions. Admin only.",
+      "type": "object",
+      "required": [
+        "set_whitelisted_agent"
+      ],
+      "properties": {
+        "set_whitelisted_agent": {
+          "type": "object",
+          "required": [
+            "agent",
+            "permissions"
+          ],
+          "properties": {
+            "agent": {
+              "type": "string"
+            },
+            "permissions": {
+              "$ref": "#/definitions/AgentPermissions"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Remove an agent from the whitelist. Admin only.\n\nNon-destructive: the agent's entries stay in storage and in the digest, and a conforming client stops honouring them immediately, because authorisation is evaluated against the current whitelist at read time. [`Self::RemoveEntries`] cleans up afterwards, as hygiene rather than as the security control.",
+      "type": "object",
+      "required": [
+        "remove_whitelisted_agent"
+      ],
+      "properties": {
+        "remove_whitelisted_agent": {
+          "type": "object",
+          "required": [
+            "agent"
+          ],
+          "properties": {
+            "agent": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Delete the named entries, folding each removal into the digest. Admin only.\n\nExplicit keys rather than a purge scoped to one agent. The agent sits inside the trailing `source` key component, so there is no index by agent and a scoped purge would have to scan the whole store on every page, one admin transaction at a time. The admin instead pages [`QueryMsg::AllRecords`] off-chain, decides exactly what should go and names it, so the cost is proportional to what is deleted rather than to what is stored.",
+      "type": "object",
+      "required": [
+        "remove_entries"
+      ],
+      "properties": {
+        "remove_entries": {
+          "type": "object",
+          "required": [
+            "keys"
+          ],
+          "properties": {
+            "keys": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/EntryKey"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Transfer the admin role. Admin only. There is always exactly one admin.",
+      "type": "object",
+      "required": [
+        "update_admin"
+      ],
+      "properties": {
+        "update_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Change the contract's tunables. Admin only; omitted fields keep their current value.",
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "max_batch_size": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "max_payload_size": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "max_skew_secs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; deletes every entry for that node across all sources. Sender must be the configured mixnet contract.",
+      "type": "object",
+      "required": [
+        "on_nym_node_unbond"
+      ],
+      "properties": {
+        "on_nym_node_unbond": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "AgentPermissions": {
+      "description": "What a whitelisted agent is permitted to write. The flags are independent: an agent may be trusted to measure without being trusted to relay self-declarations, or the reverse.",
+      "type": "object",
+      "required": [
+        "can_measure",
+        "can_relay_self_declared"
+      ],
+      "properties": {
+        "can_measure": {
+          "description": "May write [`Source::Measured`] entries.",
+          "type": "boolean"
+        },
+        "can_relay_self_declared": {
+          "description": "May write [`Source::SelfDeclared`] entries on a subject's behalf.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "EntryKey": {
+      "description": "Names one location entry: which subject, and which source asserted it. What a reader queries by and what [`crate::ExecuteMsg::RemoveEntries`] deletes by.\n\nA named pair rather than a tuple, because the two components are not interchangeable and the storage key's ordering depends on which is which.",
+      "type": "object",
+      "required": [
+        "source",
+        "subject"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/Source"
+        },
+        "subject": {
+          "$ref": "#/definitions/Subject"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LocationPayload": {
+      "description": "The location payload as the contract holds it: a format version plus opaque `content` bytes the contract never parses, validates, normalises or re-serialises.\n\nUnder `version = 1` the `content` bytes are UTF-8 JSON, so a web consumer can base64-decode and `JSON.parse` without obtaining a schema. The version byte sits outside `content` so a later version can change the format itself, not merely the schema.\n\nStoring the bytes verbatim is a correctness invariant rather than an optimisation: a relayed self-declaration's signature is over exactly these bytes, and JSON key ordering, whitespace and floating-point formatting all vary between implementations.",
+      "type": "object",
+      "required": [
+        "content",
+        "version"
+      ],
+      "properties": {
+        "content": {
+          "description": "The opaque payload bytes, stored and returned exactly as submitted.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            }
+          ]
+        },
+        "version": {
+          "description": "Selects the format of `content`. A version is never reused for another format.",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Measurement": {
+      "description": "One measurement in a batch. The measuring agent is the message sender rather than a field, so an agent cannot write under another agent's key.",
+      "type": "object",
+      "required": [
+        "method",
+        "payload",
+        "subject"
+      ],
+      "properties": {
+        "method": {
+          "$ref": "#/definitions/Method"
+        },
+        "payload": {
+          "$ref": "#/definitions/LocationPayload"
+        },
+        "subject": {
+          "$ref": "#/definitions/Subject"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Method": {
+      "description": "How a measurement was obtained. Closed enum for the same reason [`SubjectClass`] is: it lives in the key, so adding a vendor or a technique is one variant with no leaf-encoding change and no state migration.\n\nRetiring a variant is a migration that must subtract every affected leaf from the accumulator before deleting the entries, and its discriminant must be tombstoned rather than reused.",
+      "oneOf": [
+        {
+          "description": "An ipinfo.io lookup of the subject's resolved addresses.",
+          "type": "string",
+          "enum": [
+            "ip_info"
+          ]
+        }
+      ]
+    },
+    "NymNodeLocation": {
+      "description": "A node's signed self-declaration of its own location: the artifact the node serves over HTTP, an agent relays verbatim, and the contract verifies.\n\nIt carries the encoded [`LocationPayload`] rather than a typed location, which is the whole point: the signature is over these bytes, and any component that parsed and re-emitted them could change field ordering or float formatting and silently break verification. Nothing on this path decodes the payload, so this type needs no `Location` and stays free of the `payload` feature, which is also what lets the contract use it.",
+      "type": "object",
+      "required": [
+        "declared_at",
+        "node_id",
+        "payload",
+        "signature"
+      ],
+      "properties": {
+        "declared_at": {
+          "description": "Unix timestamp, in seconds, at which the node signed. Strictly monotonic per node and bounded above by block time plus `MAX_SKEW`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "node_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "payload": {
+          "$ref": "#/definitions/LocationPayload"
+        },
+        "signature": {
+          "description": "The node's ed25519 signature over [`Self::signing_payload`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Source": {
+      "description": "Who asserted an entry, as the final component of its key. A single discriminant rather than separate `kind` and `writer` components, so combinations that would be meaningless are not representable.",
+      "oneOf": [
+        {
+          "description": "A third-party measurement. Carries the measuring agent, so each authorised agent occupies its own slot and concurrent agents never overwrite one another.",
+          "type": "object",
+          "required": [
+            "measured"
+          ],
+          "properties": {
+            "measured": {
+              "type": "object",
+              "required": [
+                "agent",
+                "method"
+              ],
+              "properties": {
+                "agent": {
+                  "$ref": "#/definitions/Addr"
+                },
+                "method": {
+                  "$ref": "#/definitions/Method"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The subject's own signed declaration, relayed by some agent. Carries no writer component, so a subject has exactly one self-declared slot no matter which agent relayed it; conflicting relays are resolved by `declared_at` monotonicity.",
+          "type": "string",
+          "enum": [
+            "self_declared"
+          ]
+        },
+        {
+          "description": "An admin-set value. Names the admin role rather than an address, so transferring the role does not orphan existing overrides.",
+          "type": "string",
+          "enum": [
+            "override"
+          ]
+        }
+      ]
+    },
+    "Subject": {
+      "description": "The subject an entry describes: its class plus the id whose encoding that class fixes. This typed form is what messages and query responses carry; [`Subject::id_bytes`] is the opaque per-class encoding used in the storage key and the digest leaf.",
+      "oneOf": [
+        {
+          "description": "A bonded nym-node. The id encodes as a big-endian `u32`, so ids order numerically under the store's key ordering and decode back to a [`NodeId`] for the mixnet unbond callback.",
+          "type": "object",
+          "required": [
+            "nym_node"
+          ],
+          "properties": {
+            "nym_node": {
+              "type": "object",
+              "required": [
+                "node_id"
+              ],
+              "properties": {
+                "node_id": {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

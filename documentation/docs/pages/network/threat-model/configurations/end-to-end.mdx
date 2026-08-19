@@ -1,0 +1,16 @@
+---
+title: "End to end"
+description: "Both ends run Nym: no exit gateway, no clearnet destination, and no L2 adversary."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const scenario = requireGenericScenario('end-to-end')
+
+# End to end
+
+<GenericScenarioView scenario={scenario} />

@@ -27,12 +27,22 @@ export interface SetupMixTunnelOpts {
   debug?: boolean;
 }
 
-export type TunnelStateName = 'connecting' | 'ready' | 'disconnecting' | 'disconnected' | 'failed';
+export type TaskName = 'bridge' | 'reactor';
 
-export interface TunnelState {
-  state: TunnelStateName;
-  reason?: string;
-}
+export type FailureReason = { kind: 'task_exited'; task: TaskName } | { kind: 'task_panicked' };
+
+// The names and shape below are the serde output of `TunnelState` in
+// wasm/smolmix/src/state.rs, where tsify generates the authoritative type into the
+// wasm `.d.ts`. Kept inline here to avoid a dependency on the unpublished
+// @nymproject/smolmix-wasm; keep it in step with that generated type.
+export type TunnelStateName = 'connecting' | 'ready' | 'shutting_down' | 'shutdown' | 'failed';
+
+export type TunnelState =
+  | { state: 'connecting' }
+  | { state: 'ready' }
+  | { state: 'shutting_down' }
+  | { state: 'shutdown' }
+  | { state: 'failed'; reason: FailureReason };
 
 /**
  * Pre-serialised response shape produced by `smolmix-wasm::mixFetch`. Designed

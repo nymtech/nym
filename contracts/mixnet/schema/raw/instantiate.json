@@ -6,6 +6,7 @@
     "current_nym_node_version",
     "epoch_duration",
     "epochs_in_interval",
+    "geolocation_contract_address",
     "initial_rewarding_params",
     "node_families_contract_address",
     "rewarding_denom",
@@ -23,6 +24,9 @@
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
+    },
+    "geolocation_contract_address": {
+      "type": "string"
     },
     "initial_rewarding_params": {
       "$ref": "#/definitions/InitialRewardingParams"

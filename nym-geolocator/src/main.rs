@@ -1,0 +1,134 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+use crate::cli::Args;
+use crate::geolocator::Geolocator;
+use crate::http::burst::BurstLimiter;
+use crate::http::replay::ReplayGuard;
+use crate::http::router::build_router;
+use crate::http::run_http_server;
+use crate::http::state::AppState;
+use crate::ip_info_lookup::IpInfoLookup;
+use crate::node_scraper::NodeScraper;
+use crate::node_scraper::address_source::AddressSource;
+use crate::node_scraper::address_source::http::HttpAddressSource;
+use crate::node_scraper::nodes::KnownNodes;
+use crate::node_scraper::tracker::AddressTracker;
+use crate::nyx::client::NyxClient;
+use crate::nyx::location_pusher::LocationPusher;
+use crate::nyx::nodes::BondedNymNodes;
+use crate::nyx::state::OnChainNodes;
+use clap::Parser;
+use nym_bin_common::bin_info_owned;
+use nym_bin_common::logging::setup_tracing_logger;
+use nym_network_defaults::{NymNetworkDetails, setup_env};
+use nym_task::ShutdownManager;
+use std::ops::Deref;
+use std::sync::Arc;
+use tracing::info;
+
+pub(crate) mod cli;
+pub(crate) mod config;
+pub(crate) mod geolocator;
+mod helpers;
+pub(crate) mod http;
+pub(crate) mod ip_info_lookup;
+pub(crate) mod node_scraper;
+pub(crate) mod nyx;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    setup_tracing_logger();
+    let args = Args::parse();
+    setup_env(args.config_env_file.as_ref());
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
+
+    let config = args.to_config();
+
+    // retrieve initial state from the network
+    let network_details = NymNetworkDetails::new_from_env();
+    let client = NyxClient::new(args.chain.nyxd_addr, network_details, args.chain.mnemonic)?;
+
+    // all nym-nodes that are currently bonded
+    info!("building initial state of bonded nym nodes...");
+    let bonded_nodes = BondedNymNodes::build_new(&client).await?;
+    info!(
+        "retrieved {} bonded nym nodes",
+        bonded_nodes.read().await.len()
+    );
+
+    // all geolocation data submitted on chain by this agent
+    info!("building initial state of submitted geolocation data...");
+    let on_chain_nodes = OnChainNodes::build_new(&client).await?;
+    info!(
+        "retrieved {} geolocation data entries",
+        on_chain_nodes.read().await.len()
+    );
+
+    // all ips of bonded nodes
+    info!("building initial state of self-described node ips... - this could take a while");
+    let address_source: Arc<dyn AddressSource> = Arc::new(HttpAddressSource::new(config));
+    let known_nodes = KnownNodes::build_new(
+        config,
+        address_source.as_ref(),
+        bonded_nodes.read().await.deref(),
+    )
+    .await;
+    info!(
+        "retrieved self-described data of {} nym nodes",
+        known_nodes.len().await
+    );
+    let address_tracker = AddressTracker::new(config, address_source, known_nodes);
+
+    // build the tasks
+    let mut shutdown_manager = ShutdownManager::build_new_default()?;
+
+    let described_scraper = NodeScraper::new(bonded_nodes.clone(), address_tracker);
+    let ip_info_lookup = IpInfoLookup::new(config, args.geolocation.ipinfo_api_token)?;
+    let contract_config = helpers::retrieve_contract_config(&client).await?;
+    let location_pusher =
+        LocationPusher::new(client.clone(), on_chain_nodes.clone(), &contract_config);
+
+    let mut geolocator = Geolocator::new(
+        config,
+        client.clone(),
+        location_pusher.clone(),
+        bonded_nodes.clone(),
+        on_chain_nodes,
+        described_scraper.clone(),
+        ip_info_lookup.clone(),
+        shutdown_manager.clone_shutdown_token(),
+    );
+
+    let http_app_state = AppState {
+        client,
+        contract_config,
+        scraper: described_scraper,
+        location_pusher,
+        ip_info_lookup,
+        replay_guard: ReplayGuard::new(config.retest_request_validity_window),
+        burst_limiter: BurstLimiter::new(
+            config.retest_burst_threshold,
+            config.retest_burst_cooldown,
+        ),
+    };
+    let http_router = build_router(http_app_state, args.http.http_auth_token)?;
+    let http_server_fut = run_http_server(
+        http_router,
+        args.http.bind_address,
+        shutdown_manager.clone_shutdown_token(),
+    );
+
+    // 1. start the geolocator
+    shutdown_manager.try_spawn_named(async move { geolocator.run().await }, "geolocator");
+
+    // 2. start the http api server
+    shutdown_manager.try_spawn_named(http_server_fut, "http-server");
+
+    shutdown_manager.close_tracker();
+    shutdown_manager.run_until_shutdown().await;
+
+    Ok(())
+}

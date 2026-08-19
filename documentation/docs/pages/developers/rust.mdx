@@ -46,6 +46,39 @@ For an overview of what the SDK can do, see the **[Tour](./rust/tour)**. For set
 **TcpProxy is deprecated.** Use the [Stream module](./rust/stream) for new projects.
 </Callout>
 
+## Which module do I need?
+
+Two questions settle it.
+
+**Are you reaching a third-party service, or another Nym client?** A clearnet
+destination means proxy mode, and that is [`smolmix`](/developers/smolmix) or the
+[SOCKS5 module](./rust/socks5) rather than anything below. Both ends running your
+software means end to end, and the choice is between Stream and Mixnet.
+
+**Is it a conversation, or a set of independent messages?** This is the call
+people get wrong.
+
+- **Stream** for anything interactive: a chat, a request/response protocol, or
+  code that expects `AsyncRead`/`AsyncWrite`. It reorders on a sequence number,
+  so bytes arrive in the order you wrote them, and framing comes free from the
+  async I/O traits.
+- **Mixnet** for messages that stand alone: a notification, a one-shot request, a
+  broadcast. There are **no ordering guarantees**, so two messages sent in order
+  may arrive reversed. Building a conversation on it means writing your own
+  sequencing and framing.
+
+Both are end to end, and both keep the sender anonymous through reply SURBs. The
+difference is whether the protocol you are building has a *sequence* to preserve.
+
+If the thing you are writing is the side that **receives** requests and answers
+them, rather than the side that sends, see
+[Building a Nym Service Provider](/developers/service-providers). It covers the
+receive-and-reply loop, why the client needs persistent storage to keep a stable
+address, and the sending budget a provider shares across all of its clients.
+
+[When to use streams vs messages](./rust/stream#when-to-use-streams-vs-messages)
+compares them line by line, including ordering, status and what each is best for.
+
 ## Proxy-mode crates
 
 For proxy-mode integrations (reaching third-party services through an Exit Gateway), see also:
@@ -53,3 +86,8 @@ For proxy-mode integrations (reaching third-party services through an Exit Gatew
 - [**`smolmix`**](/developers/smolmix): `TcpStream` and `UdpSocket` over the Mixnet via a userspace IP stack. Compatible with `tokio-rustls`, `hyper`, `tokio-tungstenite`, and the rest of the async Rust ecosystem.
 - [**`nym-smoldvpn`**](/developers/smoldvpn): a userspace 1-/2-hop WireGuard dVPN datapath. Tunnels tokio `TcpStream`, `UdpSocket` and gRPC/HTTP traffic to clearnet via the exit gateway, with an optional QUIC bridge for DPI-blocked clients.
 - [**SOCKS5 module**](./rust/socks5): SOCKS4/4a/5 proxy via the Exit Gateway's Network Requester. Works with any SOCKS-capable application without code changes.
+
+## See also
+
+- [Packet Mixing](/network/deep-dives/mixing): what the mixnet does to your packets in transit (delays, Poisson sending, cover traffic).
+- [Packet Anatomy](/network/deep-dives/packet-anatomy): how a message is framed into fixed-size Sphinx packets.

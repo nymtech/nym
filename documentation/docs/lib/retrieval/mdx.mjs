@@ -1,0 +1,198 @@
+// Shared MDX helpers for the build generators (generate-index, generate-llms-txt,
+// generate-page-markdown): one implementation for all three.
+//
+// Frontmatter is parsed by gray-matter (real YAML, head-anchored), so a body
+// `---`, such as a mermaid config block, is never mistaken for frontmatter and
+// never eats content. The strip is fence-aware, so code examples inside fenced
+// blocks survive intact.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import matter from 'gray-matter';
+
+/**
+ * Parse frontmatter and body. Returns { data, content }. gray-matter only treats
+ * a leading `---` block as frontmatter, so a `---` in the body is never eaten.
+ */
+export function parseFrontmatter(raw) {
+  const { data, content } = matter(raw);
+  return { data, content };
+}
+
+/** Title: frontmatter `title`, else the first H1 in the body, else humanised slug. */
+export function pageTitle(data, content, fallback) {
+  if (data && data.title != null) return String(data.title);
+  const h1 = content.match(/^#\s+(.+)$/m);
+  if (h1) return h1[1].trim();
+  return fallback.replace(/[-_]/g, ' ');
+}
+
+/** Description from frontmatter, or ''. */
+export function pageDescription(data) {
+  return data && data.description != null ? String(data.description) : '';
+}
+
+/**
+ * Inline MDX partials before anything else looks at the page.
+ *
+ * A page's source file is not the page's content. `performance-and-testing.mdx`
+ * imports `node-perf-mixnet.mdx` and renders it as `<NodePerfMixnet />`, so every
+ * sentence in that partial is on the published page and none of it is in the file
+ * the chunker reads. A partial that a page imports and renders is invisible to
+ * retrieval unless it is inlined, so the mixnet performance figures a developer
+ * needs to judge whether a workload fits never reach the index.
+ *
+ * Partials are plain Markdown, so this needs no rendering: resolve the import,
+ * splice the text in where the tag appears, and let the normal chunking treat it
+ * as part of the page, which is what a reader sees.
+ *
+ * Specifiers are resolved the way the app resolves them: bare paths against the
+ * docs root (tsconfig `baseUrl`), and `./` or `../` against the importing file.
+ * Nesting works and cycles are broken, so a partial may include another.
+ *
+ * @param {string} content   page body, frontmatter already removed
+ * @param {{ filePath: string, root: string, seen?: Set<string> }} opts
+ */
+export function inlineMdxPartials(content, { filePath, root, seen = new Set() }) {
+  const imports = [...content.matchAll(/^import\s+(\w+)\s+from\s+['"]([^'"]+\.mdx)['"]\s*;?\s*$/gm)];
+  if (imports.length === 0) return content;
+
+  let out = content;
+  for (const [, name, spec] of imports) {
+    const resolved = spec.startsWith('.')
+      ? path.resolve(path.dirname(filePath), spec)
+      : path.resolve(root, spec);
+
+    // A cycle would otherwise recurse until the stack gives out.
+    if (seen.has(resolved) || !fs.existsSync(resolved)) continue;
+
+    const { content: partial } = parseFrontmatter(fs.readFileSync(resolved, 'utf-8'));
+    const nested = inlineMdxPartials(partial, {
+      filePath: resolved,
+      root,
+      seen: new Set([...seen, resolved]),
+    });
+
+    // The tag can appear anywhere, including nested inside another element as
+    // `<MyTab><NodePerfMixnet /></MyTab>`, so this is not a whole-line match.
+    // Blank lines around the splice keep the partial's own headings parseable.
+    out = out.replace(
+      new RegExp(`<${name}\\s*/>`, 'g'),
+      () => `\n\n${nested}\n\n`,
+    );
+  }
+  return out;
+}
+
+/**
+ * Strip `import` statements, `export` statements and whole-line JSX tags from an
+ * MDX body, leaving fenced code blocks untouched. Expects frontmatter already
+ * removed (parseFrontmatter).
+ *
+ * `expand` is optional: `(tagName, attrs, ctx) => string | null`. When it returns
+ * text, that text replaces the tag. This is how a component that renders content
+ * from typed data gets into the index at all; see projections.mjs. Returning null
+ * drops the tag, which is right for anything purely visual.
+ *
+ * `ctx` is one object per call, so an expander can carry page-level state such as
+ * which scenario the page declared.
+ */
+export function stripMdx(content, { expand, values } = {}) {
+  const out = [];
+  let fence = null;
+  let jsDepth = 0;
+  let inComment = false;
+  const ctx = { scenarioId: scenarioIdOf(content) };
+
+  for (const line of content.split('\n')) {
+    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[2][0];
+      if (fence === null) fence = marker;
+      else if (marker === fence) fence = null;
+      out.push(line);
+      continue;
+    }
+    if (fence !== null) {
+      out.push(line); // inside a code fence: keep verbatim
+      continue;
+    }
+    // An MDX comment, `{/* ... */}`. The single-line form is caught by the bare
+    // expression rule below; a multi-line one must be skipped to its closing
+    // `*/}`, or editor-facing notes reach readers as page content.
+    if (inComment) {
+      if (line.includes('*/}')) inComment = false;
+      continue;
+    }
+    if (/^\s*\{\s*\/\*/.test(line) && !line.includes('*/}')) {
+      inComment = true;
+      continue;
+    }
+
+    // A multi-line statement opened on an earlier line: keep skipping until its
+    // brackets balance. Without this only the first line of a statement is
+    // dropped and the rest reaches the index as prose.
+    if (jsDepth > 0) {
+      jsDepth += bracketDelta(line);
+      continue;
+    }
+    if (/^import\s+.*$/.test(line)) continue;
+    // Page wiring, not prose. `export const scenario = requireGenericScenario('mixnet')`
+    // and the `dynamic(() => import(...))` blocks beside it must not reach the
+    // index; they would be served to readers as if they were documentation.
+    if (JS_STATEMENT.test(line)) {
+      jsDepth = bracketDelta(line);
+      continue;
+    }
+    // `{RUST_MSRV}` and friends are values the page interpolates at render time.
+    // Substitute the ones we know: emitting the source text states a fact the
+    // reader cannot read, and a version requirement is exactly the kind of thing
+    // someone comes to the docs for.
+    let text = values ? substitute(line, values) : line;
+    // A bare expression line we could not resolve renders as nothing on the page,
+    // so it should contribute nothing here either.
+    if (/^\s*\{[^{}]*\}\s*$/.test(text)) continue;
+
+    const jsx = text.match(/^\s*<([A-Za-z][\w.-]*)((?:\s[^>]*)?)\s*\/?>\s*$/);
+    if (jsx) {
+      const projected = expand ? expand(jsx[1], jsx[2] ?? '', ctx) : null;
+      if (projected) out.push(projected);
+      continue;
+    }
+    if (/^\s*<\/[\w.-]+\s*>\s*$/.test(text)) continue; // closing tag line
+    out.push(text);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Top-level JS in an MDX page. Anchored at column 0 and requiring the shape of a
+// declaration, so prose beginning with a word like "export" is not mistaken for
+// code.
+const JS_STATEMENT = /^(?:export\s|(?:const|let|var)\s+[\w$]+\s*=|(?:async\s+)?function\s|class\s)/;
+
+/** Net bracket depth a line opens, used to span multi-line statements. */
+function bracketDelta(line) {
+  let d = 0;
+  for (const ch of line) {
+    if (ch === '{' || ch === '(' || ch === '[') d++;
+    else if (ch === '}' || ch === ')' || ch === ']') d--;
+  }
+  return d;
+}
+
+/** Replace `{IDENT}` with its value where the identifier is one we loaded. */
+function substitute(line, values) {
+  return line.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (whole, name) =>
+    Object.prototype.hasOwnProperty.call(values, name) ? values[name] : whole,
+  );
+}
+
+/**
+ * The scenario a page declares, from `requireGenericScenario('id')`. Threat-model
+ * configuration pages name their scenario once at the top and then render it
+ * through several components.
+ */
+function scenarioIdOf(content) {
+  const m = content.match(/requireGenericScenario\(\s*["']([^"']+)["']\s*\)/);
+  return m ? m[1] : null;
+}

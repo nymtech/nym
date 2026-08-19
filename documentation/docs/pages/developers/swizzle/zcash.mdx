@@ -1,0 +1,171 @@
+---
+title: "nym-swizzle-zcash: Hygiene Policy for Zcash Light Clients"
+description: "Quantised sync ranges and decoupled, restart-safe broadcast scheduling for Zcash light wallets, built on nym-swizzle. You supply the lightwalletd client; the crate decides what goes on the wire and when."
+schemaType: "TechArticle"
+section: "Developers"
+lastUpdated: "2026-08-14"
+---
+
+# nym-swizzle-zcash
+
+import { Callout } from 'nextra/components'
+
+[`nym-swizzle`](/developers/swizzle) gives you primitives and takes no view on
+what a good grid or a good delay is for your chain. This crate takes that view
+for Zcash: it packages the primitives into chain-specific policy, and ships a
+live example against a public `lightwalletd`.
+
+You keep your transport. The crate decides what goes on the wire and when.
+
+<Callout type="warning">
+**Not yet released.** Merged to `develop` but not published to crates.io. Install
+from Git until the next platform release.
+</Callout>
+
+## What a lightwalletd learns
+
+Assume the transport is perfect: the IP rotated on every request, nothing
+linkable at the network layer. The server still reads two things from the shape
+of what a wallet asks.
+
+**Resume-point chaining.** A wallet resumes at exactly `previous end + 1` and
+syncs to the tip. Each request start names one specific block, and today's start
+is yesterday's end. The server can chain separate sessions into one history by
+height alone.
+
+**Sync-then-send.** Wallets sync immediately before broadcasting, so the server
+attributes each `SendTransaction` to the sync session seconds earlier. Through
+chaining, that attaches the send to the wallet's whole history.
+
+Both survive any mixnet, VPN or Tor circuit, because they live in the
+application's query pattern rather than the network path.
+
+## What it does
+
+### Quantised sync ranges
+
+Instead of requesting exactly `[resume, tip]`, the wallet requests a range
+widened to a network-wide grid: start rounded down, end rounded up, spacing
+scaled to the range and never below one day of blocks. Every wallet resuming
+anywhere in the same grid cell emits **identical boundaries**, so this is
+anonymity by collision rather than by noise.
+
+The range goes on the wire deterministically: ascending, disjoint, day-sized
+cells, with no random sizes, no overlap and no shuffling. That determinism is
+deliberate. Every wallet in a collision set says exactly the same thing. Variation
+inside the set would hand the server a distinguishing dimension, and cost
+bandwidth to do it.
+
+The reorg check rides *inside* the widened range. A separate ten-block request
+just below your resume point would have named that point exactly.
+
+<Callout type="info">
+Two grids are in play and they are deliberately different. The **quantisation
+spacing** that sets the emitted boundaries scales with the range: one day
+minimum, doubling for longer catch-ups. The **wire-split unit** that chops the
+emitted range into individual requests is always the fixed one-day cell.
+</Callout>
+
+### Decoupled broadcasts
+
+Sends are delayed by an exponential draw with a mean of 144 blocks, roughly three
+hours, capped at 576, roughly twelve. That is the distribution
+[ZIP 318](https://zips.z.cash/zip-0318) uses for transfer scheduling, so wallet
+sends pool with migration traffic rather than standing out.
+
+Those delays run longer than a phone keeps a process alive, so the schedule is
+**plain data you persist**: sample once, save it, restart as often as the OS
+likes, resume the remainder. The transaction is built only when the delay fires,
+against a fresh tip.
+
+## Using it
+
+Two traits, deliberately separate, because a session should sync **or**
+broadcast and never both, ideally against different servers.
+
+`BlockSource` is the sync side. You implement one method; the crate chooses the
+ranges:
+
+```rust
+use nym_swizzle_zcash::{sync, BlockSource, QueuedRange, SyncOutcome};
+
+impl BlockSource for MyClient {
+    type Block = MyCompactBlock;
+    type Error = MyError;
+    async fn block_range(&mut self, start: u64, end: u64)
+        -> Result<Vec<(u64, MyCompactBlock)>, MyError>
+    {
+        // one wire request for [start, end)
+    }
+}
+
+let outcome = sync::fetch(
+    &mut my_client,
+    QueuedRange::catch_up(resume_point, tip),
+    tip,
+    |height, block, disposition| {
+        // disposition says what to do: discard cover, scan the rest.
+        // Buffer results; commit only on SyncOutcome::Committed
+    },
+    |height, block| my_db.stored_hash(height) == block.hash(),
+)
+.await?;
+```
+
+`TxBroadcaster` is the send side, with `PlanStore` as its own slot because the
+delay outlives the process:
+
+```rust
+use nym_swizzle_zcash::{PlanStore, Scheduler, StoredPlan, TxBroadcaster};
+use nym_swizzle_zcash::broadcast::resume_pending;
+
+impl TxBroadcaster for MyBroadcaster {
+    type Error = MyError;
+    async fn broadcast(&mut self, raw_tx: &[u8]) -> Result<(), MyError> {
+        // one SendTransaction on the wire
+    }
+}
+```
+
+`PlanStore` holds a single `StoredPlan`: a row in the wallet database, a file,
+anything that survives a restart. `resume_pending` loads it, waits out the
+remainder, builds the transaction at fire time, broadcasts, and clears the slot.
+It is a no-op when nothing is pending.
+
+`StoredPlan` derives serde behind the default feature. Drop it with
+`default-features = false` if you serialise your own way.
+
+## Installation
+
+Not on crates.io yet, so import from the repository:
+
+```toml
+[dependencies]
+nym-swizzle-zcash = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
+
+No network stack and no build script. It compiles for
+`wasm32-unknown-unknown` in both feature configurations.
+
+## Seeing it work
+
+```sh
+cargo run --release -p nym-swizzle-zcash --example wallet_sync
+```
+
+A real sync against a public `lightwalletd`, printing the grid-aligned boundaries
+per request, then the broadcast flow across five simulated wallet restarts: the
+plan loaded from the `PlanStore` on each wake-up, no network calls until fire
+time, and the transaction built against a fresh tip.
+
+An opt-in live suite covers reorg detection against real chain data, where
+matching hashes commit and a corrupted hash trips `ReorgDetected`.
+
+## See also
+
+- [`nym-swizzle`](/developers/swizzle): the primitives underneath, and what stays
+  your responsibility on any chain.
+- [Wallet threat model](/network/threat-model/examples/wallet): the adversary
+  this policy is written against, in the documentation's own vocabulary.
+- [What Nym cannot do](/developers/limitations): whether the mixnet suits your
+  sync pattern before any of this matters.

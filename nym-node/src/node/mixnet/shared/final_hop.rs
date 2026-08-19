@@ -65,26 +65,32 @@ impl SharedFinalHopData {
         }
     }
 
+    /// Returns whether the payload got stored; see [`InboxGatewayStorage::store_message`].
     pub(crate) async fn store_processed_packet_payload(
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<(), GatewayStorageError> {
+    ) -> Result<bool, GatewayStorageError> {
         let start = Instant::now();
         debug!("Storing received message for {client_address} on the disk...",);
         let result = self.storage.store_message(client_address, message).await;
         let store_us = start.elapsed().as_micros() as u64;
-        if result.is_ok() {
-            debug!(
+        match &result {
+            Ok(true) => debug!(
                 event = "gateway.disk_store",
                 store_us, "stored message for {client_address} on disk in {store_us}us"
-            );
-        } else {
-            warn!(
+            ),
+            Ok(false) => debug!(
+                event = "gateway.disk_store_skipped",
+                store_us,
+                "not storing message for {client_address}: never registered with this gateway"
+            ),
+            Err(_) => warn!(
                 event = "gateway.disk_store_failed",
                 store_us, "failed to store message for {client_address} on disk after {store_us}us"
-            );
+            ),
         }
+
         result
     }
 }

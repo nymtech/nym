@@ -10,7 +10,7 @@ lastUpdated: "2026-02-11"
 
 The Nym Network is decentralised privacy infrastructure that protects against **network-level** surveillance. Unlike tools that focus on encrypting message content, Nym protects the metadata surrounding communication: who talks to whom, when, how often, and how much. This metadata is sufficient for observers to map relationships and build behavioural profiles even without access to any message content. See [The Privacy Problem](/network/overview/privacy-problem) for a fuller treatment.
 
-Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate Mixnet mode directly via the [Nym SDKs](/developers). See [Choosing a Mode](/network/overview/choosing-a-mode) for guidance on which fits a given threat model.
+Nym offers two operating modes with different privacy/performance trade-offs, both available through [NymVPN](https://nymvpn.com). Developers can also integrate them directly: Mixnet mode via the [Nym SDKs](/developers), and dVPN mode via [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library. See [Choose a Defence](/network/threat-model/choose-config) for guidance on which fits a given threat model.
 
 ### NymVPN
 
@@ -22,7 +22,7 @@ Both modes use the same underlying infrastructure.
 
 ### Developer SDKs
 
-The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. The SDKs do **not** provide access to dVPN mode.
+The [Nym SDKs](/developers) allow developers to embed mixnet functionality directly into applications, with the same privacy guarantees as NymVPN's Mixnet mode. SDK usage is currently free for development and testing. For dVPN mode, developers use [`nym-smoldvpn`](/developers/smoldvpn), a userspace-WireGuard datapath library.
 
 ## Paying for privacy without losing it
 

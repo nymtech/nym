@@ -34,6 +34,7 @@ pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 // \/ TODO: this has to be updated once the contract is deployed
 pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
 // /\ TODO: this has to be updated once the contract is deployed
 
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
@@ -113,6 +114,7 @@ pub fn network_details() -> NymNetworkDetails {
                 NETWORK_MONITORS_CONTRACT_ADDRESS,
             ),
             node_families_contract_address: parse_optional_str(NODE_FAMILIES_CONTRACT_ADDRESS),
+            geolocation_contract_address: parse_optional_str(GEOLOCATION_CONTRACT_ADDRESS),
             ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),

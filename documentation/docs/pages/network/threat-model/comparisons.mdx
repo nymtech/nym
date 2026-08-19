@@ -1,0 +1,49 @@
+---
+title: "Nym vs VPNs, Tor, I2P, and E2EE"
+description: "How the Nym Network compares to traditional VPNs, Tor, I2P, and end-to-end encryption, framed by which threat actors each system defends against."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+# Nym vs Other Systems
+
+There are several existing approaches to network privacy, each with different assumptions about who the adversary is. Those assumptions map onto the [threat actors](/network/threat-model/actors): a system's guarantees depend on which vantage points it defends against. The useful question is not "is it private?" but "private from whom?".
+
+## Nym vs VPNs
+
+A traditional VPN creates an encrypted tunnel to a VPN server. It hides your IP from the destination ([L2](/network/threat-model/actors#actor-L2)) and encrypts traffic from a local observer like your ISP ([L3L](/network/threat-model/actors#actor-L3L)). The limitation is the operator itself. It sees every site you visit, when, and for how long. Because it sees both ends, it can act as a global observer ([L3G](/network/threat-model/actors#actor-L3G)). It can log this, or be compelled to, and your payment links your account to your activity.
+
+Nym's dVPN mode splits this trust across two independent operators. The entry gateway knows your IP but not your destination. The exit gateway knows your destination but not your IP. Neither builds a complete picture, so no single operator becomes an L3G. Payment uses [zk-nyms](/network/cryptography/zk-nym), so subscriptions are unlinkable to activity. dVPN still adds no in-transit timing protection, so it does nothing against a network observer watching your traffic pattern.
+
+Nym's mixnet mode goes further. It adds timing obfuscation and cover traffic against network observers (L3L and L3G), which no traditional VPN offers. See [Mixnet Mode](/network/mixnet-mode) for details.
+
+## Nym vs Tor
+
+[Tor](https://www.torproject.org/) routes traffic through three relays using onion encryption, so no single relay sees both source and destination. The exit sees the destination (L2) but not you. Tor was designed when a global observer was thought unrealistic, and its [architecture](https://2019.www.torproject.org/about/overview.html.en) reflects that. Packets flow through without delays, and there is no cover traffic. So a global observer (L3G) watching both ends of a circuit can correlate timing to deanonymise users.
+
+Nym's mixnet closes that L3 gap with four changes. It adds random delays at each mix node to break timing correlations. It adds cover traffic, so observers cannot tell when real communication is occurring. It routes per packet rather than using Tor's per-session circuits, so there is no long-lived path to observe. It uses a blockchain-based topology instead of Tor's centralised directory authority.
+
+The two also differ in what they can carry. Tor is TCP-only by design, while Nym's [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) routes raw IP, so UDP and any other IP protocol pass through. That is a design difference rather than a ranking, but it decides whether a given application can use the network at all.
+
+The trade-off is latency. Tor is faster because it adds no mixing delays. So it may be a better fit for general browsing, where timing protection against L3 is not needed. Nym's mixnet is designed for threat models where the adversary can perform traffic analysis.
+
+## Nym vs I2P
+
+[I2P](https://geti2p.net/) replaces Tor's centralised directory authority with a [distributed hash table](https://geti2p.net/en/docs/how/network-database). This improves decentralisation, but it introduces its own attack surface. DHT-based routing is vulnerable to eclipse attacks and Sybil attacks on the routing table. Like Tor, I2P provides no timing protection, so it shares Tor's L3 gap: packets flow without delays or cover traffic.
+
+Nym uses a blockchain-based topology registry rather than a DHT. This avoids the known attack vectors around DHT-based routing (for example eclipse and Sybil attacks on the routing table). The mixing and cover traffic on top of that close the L3 timing gap that I2P shares with Tor.
+
+## Nym vs end-to-end encryption
+
+End-to-end encryption systems like [Signal](https://signal.org/docs/) encrypt messages on your device, so only the recipient can decrypt them and the server never sees the content. But E2EE does nothing for metadata. The destination (L2) and network observers (L3) still see who you communicate with, when, how often, and how much. That metadata alone is enough to map relationships and infer sensitive activity.
+
+Nym and E2EE are complementary. E2EE protects the message content; Nym protects the metadata around it (who, when, how much). Running Signal over the Nym mixnet, for instance, protects both the content and the communication metadata.
+
+## Further reading
+
+- [What is WireGuard?](https://nym.com/blog/what-is-wireguard-vpn)
+- [VPN Tunnels Explained](https://nym.com/blog/vpn-tunnels)
+- [Tor Project: How Tor Works](https://2019.www.torproject.org/about/overview.html.en)
+- [Tor Protocol Specification](https://spec.torproject.org/tor-spec/)
+- [I2P: How It Works](https://geti2p.net/en/docs/how/tech-intro)

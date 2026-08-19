@@ -1,0 +1,436 @@
+/* Scoped visual language for the threat-model diagrams and assessment panels.
+   Ported from the zcash-wallet-visualisations app stylesheet and namespaced
+   under .nym-threat-viz so the custom properties and generic class names
+   (.card, .badge, .legend, …) cannot collide with the Nextra theme.
+
+   The docs toggle themes with `html.dark` (next-themes class attribute), so the
+   light palette is the base and the dark palette overrides under html.dark,
+   the inverse of the standalone app, which was dark-first. */
+
+.nym-threat-viz {
+  --nym-accent: #1f9d57;
+  --nym-accent-dim: #157a42;
+  --nym-bg: #f6f8f7;
+  --nym-surface: #ffffff;
+  --nym-surface-2: #eef2f0;
+  --nym-border: #d6ded9;
+  --nym-text: #1a2321;
+  --nym-text-dim: #4a5b57;
+  --nym-text-faint: #7c8a86;
+  --nym-danger: #d63b3b;
+  --nym-warn: #b8860b;
+
+  --node-client: #1f9d57;
+  --node-gateway: #1f7fd6;
+  --node-mix: #8a3bd6;
+  --node-ipr: #b8860b;
+  --node-sp: #d6691f;
+  --node-destination: #d63b3b;
+  --node-vpn: #607a76;
+  --node-internet: #7c8a86;
+
+  --mode-direct: #d63b3b;
+  --mode-vpn: #607a76;
+  --mode-dvpn: #1f7fd6;
+  --mode-mixnet: #8a3bd6;
+
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", "Consolas", monospace;
+}
+
+html.dark .nym-threat-viz {
+  --nym-accent: #85e89d;
+  --nym-accent-dim: #5cc47a;
+  --nym-bg: #242b2d;
+  --nym-surface: #2a3235;
+  --nym-surface-2: #323b3e;
+  --nym-border: #3c4548;
+  --nym-text: #e6ecec;
+  --nym-text-dim: #9fb0af;
+  --nym-text-faint: #6f8180;
+  --nym-danger: #ff6b6b;
+  --nym-warn: #ffcf6b;
+
+  --node-client: #85e89d;
+  --node-gateway: #6bc3ff;
+  --node-mix: #c58bff;
+  --node-ipr: #ffcf6b;
+  --node-sp: #ff9f6b;
+  --node-destination: #ff6b6b;
+  --node-vpn: #8fa3a1;
+  --node-internet: #6f8180;
+
+  --mode-direct: #ff6b6b;
+  --mode-vpn: #8fa3a1;
+  --mode-dvpn: #6bc3ff;
+  --mode-mixnet: #c58bff;
+}
+
+/* --- Cards / panels --- */
+.nym-threat-viz .card {
+  background: var(--nym-surface);
+  border: 1px solid var(--nym-border);
+  padding: 18px;
+}
+.nym-threat-viz .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border: 1px solid var(--nym-border);
+  color: var(--nym-text-dim);
+}
+.nym-threat-viz .badge.accent {
+  color: var(--nym-accent);
+  border-color: var(--nym-accent-dim);
+}
+
+.nym-threat-viz .meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.nym-threat-viz .meta-block h4 {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nym-text-faint);
+  margin: 0 0 8px;
+}
+.nym-threat-viz .meta-block ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--nym-text-dim);
+}
+.nym-threat-viz .meta-block li {
+  margin-bottom: 5px;
+}
+.nym-threat-viz .meta-block.sees h4 {
+  color: var(--nym-danger);
+}
+.nym-threat-viz .meta-block.cant-see h4 {
+  color: var(--nym-accent);
+}
+
+.nym-threat-viz .tri-yes {
+  color: var(--nym-accent);
+  font-weight: 700;
+}
+.nym-threat-viz .tri-no {
+  color: var(--nym-danger);
+}
+.nym-threat-viz .tri-partial {
+  color: var(--nym-warn);
+}
+
+/* --- Per-actor assessment cards --- */
+.nym-threat-viz .actor-card .meta-grid {
+  margin-top: 8px;
+}
+.nym-threat-viz .actor-card[id] {
+  scroll-margin-top: 84px; /* clear the sticky header when jumped to via #anchor */
+}
+.nym-threat-viz .actor-card[id]:target {
+  border-color: var(--nym-accent);
+  box-shadow: 0 0 0 1px var(--nym-accent-dim);
+}
+.nym-threat-viz .actor-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.nym-threat-viz .actor-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+}
+.nym-threat-viz .actor-link:hover {
+  text-decoration: none;
+}
+.nym-threat-viz .actor-link:hover .actor-name {
+  color: var(--nym-accent);
+}
+.nym-threat-viz .actor-link:hover .badge.accent {
+  border-color: var(--nym-accent);
+}
+.nym-threat-viz .prop-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.nym-threat-viz .prop-link:hover {
+  color: var(--nym-accent);
+}
+.nym-threat-viz .actor-name {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  color: var(--nym-text);
+}
+.nym-threat-viz .actor-props {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* --- Diagram --- */
+.nym-threat-viz .diagram-wrap {
+  background: var(--nym-surface);
+  border: 1px solid var(--nym-border);
+  overflow-x: auto;
+}
+.nym-threat-viz .diagram-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.nym-threat-viz .node-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--nym-text-dim);
+}
+.nym-threat-viz .observer-halo {
+  fill: none;
+  stroke: var(--nym-danger);
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+
+/* --- Legend --- */
+.nym-threat-viz .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 0.8rem;
+  color: var(--nym-text-dim);
+}
+.nym-threat-viz .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.nym-threat-viz .legend-swatch {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+/* --- Disclaimer / caption --- */
+.nym-threat-viz .disclaimer {
+  font-size: 1rem;
+  color: var(--nym-text-dim);
+  font-style: italic;
+}
+
+/* --- Comparison matrix --- */
+.nym-threat-viz .matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.nym-threat-viz .matrix th,
+.nym-threat-viz .matrix td {
+  border: 1px solid var(--nym-border);
+  padding: 9px 11px;
+  text-align: center;
+  vertical-align: top;
+}
+.nym-threat-viz .matrix th {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--nym-text-dim);
+  background: var(--nym-surface);
+}
+.nym-threat-viz .matrix td.name {
+  text-align: left;
+}
+.nym-threat-viz .matrix tr.recommended td {
+  background: color-mix(in srgb, var(--nym-accent) 12%, transparent);
+}
+.nym-threat-viz .matrix-col-sub {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--nym-text-dim);
+  margin-top: 3px;
+}
+
+/* --- Deep-dive controls (packet anatomy, mixing, dVPN cover) --- */
+.nym-threat-viz .btn {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--nym-surface);
+  color: var(--nym-text);
+  border: 1px solid var(--nym-border);
+  padding: 7px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.nym-threat-viz .btn:hover {
+  border-color: var(--nym-accent-dim);
+}
+.nym-threat-viz .btn.primary {
+  background: var(--nym-accent);
+  color: #10201a;
+  border-color: var(--nym-accent);
+  font-weight: 700;
+}
+
+.nym-threat-viz .slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--nym-text-dim);
+}
+.nym-threat-viz .slider-row label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+}
+.nym-threat-viz input[type="range"] {
+  accent-color: var(--nym-accent);
+  width: 100%;
+}
+
+.nym-threat-viz .section-title {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nym-text-faint);
+  margin: 28px 0 12px;
+}
+
+/* --- Packet anatomy --- */
+.nym-threat-viz .pkt-caption {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--nym-text-faint);
+  margin-bottom: 3px;
+}
+.nym-threat-viz .pkt-track {
+  background: var(--nym-surface-2);
+  border: 1px solid var(--nym-border);
+  overflow: hidden;
+  height: 26px;
+}
+.nym-threat-viz .pkt-fill {
+  display: flex;
+  height: 100%;
+}
+.nym-threat-viz .pkt-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 1px solid color-mix(in srgb, var(--nym-bg) 40%, transparent);
+}
+.nym-threat-viz .pkt-arrow {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--nym-accent);
+}
+
+/* Per-packet transit-time column (Sphinx framing) */
+.nym-threat-viz .pkt-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.nym-threat-viz .pkt-timing {
+  width: 100px;
+  flex: none;
+  text-align: right;
+}
+.nym-threat-viz .pkt-timing-head {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nym-text-faint);
+}
+.nym-threat-viz .pkt-timing-total {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--nym-text);
+  margin-bottom: 3px;
+}
+.nym-threat-viz .pkt-timing-bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  background: var(--nym-surface-2);
+}
+.nym-threat-viz .pkt-timing-totals {
+  border-top: 1px solid var(--nym-border);
+  padding-top: 10px;
+  max-width: 360px;
+  margin-left: auto;
+}
+.nym-threat-viz .pkt-timing-totals-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--nym-text-dim);
+  margin-bottom: 8px;
+}
+.nym-threat-viz .pkt-timing-total-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--nym-text-dim);
+  margin-bottom: 4px;
+}
+.nym-threat-viz .pkt-timing-total-label {
+  flex: 1;
+}
+.nym-threat-viz .pkt-timing-total-val {
+  font-family: var(--font-mono);
+}
+.nym-threat-viz .pkt-timing-total-grand {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--nym-text);
+  border-top: 1px solid var(--nym-border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+/* --- Observer log (dVPN cover traffic) --- */
+.nym-threat-viz .obs-log {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.nym-threat-viz .obs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 9px;
+  background: var(--nym-surface-2);
+  border-left: 3px solid var(--mode-dvpn);
+}
+.nym-threat-viz .obs-row .call {
+  color: var(--nym-accent);
+}
+.nym-threat-viz .obs-row .src {
+  color: var(--nym-text-dim);
+}

@@ -1,0 +1,41 @@
+[package]
+name = "nym-geolocator-requests"
+description = "Nym Geolocator API endpoint definitions and functions"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+schemars = { workspace = true, features = ["preserve_order"] }
+serde = { workspace = true, features = ["derive"] }
+
+utoipa = { workspace = true }
+time = { workspace = true, features = ["serde-well-known"] }
+
+# the response carries the contract's canonical `Location` rather than a parallel definition
+# of it, which would be free to drift from what actually gets committed on chain
+nym-geolocation-contract-common = { workspace = true, features = ["payload", "utoipa"] }
+nym-mixnet-contract-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "serde"] }
+nym-http-api-client = { workspace = true, optional = true }
+
+[features]
+default = []
+# the http client a node uses to talk to an agent. off by default, since the agent itself only
+# needs the routes and the models and has no business pulling in an http client to serve them
+client = ["dep:nym-http-api-client"]
+
+[dev-dependencies]
+nym-crypto = { workspace = true, features = ["asymmetric", "serde", "rand"] }
+nym-test-utils = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

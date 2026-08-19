@@ -83,6 +83,7 @@ nym-sphinx-params = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-task = { workspace = true }
 nym-types = { workspace = true }
+nym-geolocator-requests = { workspace = true, features = ["client"] }
 nym-validator-client = { workspace = true }
 nym-wireguard = { workspace = true }
 nym-wireguard-types = { workspace = true }

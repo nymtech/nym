@@ -93,9 +93,11 @@ impl LocalnetOrchestrator {
             vesting_contract_address: Some(ctx.data.contracts.vesting.address()?.to_string()),
             unsafe_skip_state_updates: Some(true),
             // currently the orchestrator is NOT instantiating the node families contract,
+            // or the orchestrator contract,
             // however, because we have set `unsafe_skip_state_updates to true,
             // the address will not actually be used, so we can put any placeholder value here
-            node_families_contract_address: ctx.data.contracts.vesting.address()?.to_string(),
+            node_families_contract_address: Some(ctx.data.contracts.vesting.address()?.to_string()),
+            geolocation_contract_address: ctx.data.contracts.vesting.address()?.to_string(),
         })
     }
 
@@ -132,6 +134,15 @@ impl LocalnetOrchestrator {
 
             // PLACEHOLDER \/
             node_families_contract_address: ctx
+                .data
+                .auxiliary_accounts
+                .mixnet_rewarder
+                .address()
+                .to_string(),
+            // PLACEHOLDER /\
+
+            // PLACEHOLDER \/
+            geolocation_contract_address: ctx
                 .data
                 .auxiliary_accounts
                 .mixnet_rewarder

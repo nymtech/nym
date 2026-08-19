@@ -1,0 +1,16 @@
+---
+title: "Hybrid (recommended)"
+description: "The recommended architecture: fast dVPN for bulk, mixnet for small timing-sensitive requests, sharing no session state."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const scenario = requireGenericScenario('hybrid')
+
+# Hybrid (recommended)
+
+<GenericScenarioView scenario={scenario} />

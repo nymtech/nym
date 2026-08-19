@@ -23,4 +23,4 @@ The tunnel must already be set up via `setupMixTunnel()`.
 
 ## Source
 
-[mix-dns/src/index.ts:23](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-dns/src/index.ts#L23)
+[mix-dns/src/index.ts:23](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-dns/src/index.ts#L23)

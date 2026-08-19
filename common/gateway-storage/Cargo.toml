@@ -44,6 +44,9 @@ sqlx = { workspace = true, features = [
     "migrate",
 ] }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
 [features]
 default = []
 mock = ["tokio"]

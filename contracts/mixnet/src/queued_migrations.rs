@@ -8,15 +8,16 @@ use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{ContractState, ContractStateParams};
 
-pub fn introduce_node_families_contract(
+pub fn introduce_geolocation_contract(
     deps: DepsMut,
-    node_families_contract_address: Addr,
+    geolocation_contract_address: Addr,
 ) -> Result<(), MixnetContractError> {
     #[derive(serde::Serialize, serde::Deserialize)]
     struct OldContractState {
         owner: Option<Addr>,
         rewarding_validator_address: Addr,
         vesting_contract_address: Addr,
+        node_families_contract_address: Addr,
         rewarding_denom: String,
         params: ContractStateParams,
     }
@@ -31,7 +32,8 @@ pub fn introduce_node_families_contract(
         vesting_contract_address: old.vesting_contract_address,
         rewarding_denom: old.rewarding_denom,
         params: old.params,
-        node_families_contract_address,
+        node_families_contract_address: Some(old.node_families_contract_address),
+        geolocation_contract_address: Some(geolocation_contract_address),
     };
     mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &updated)?;
 

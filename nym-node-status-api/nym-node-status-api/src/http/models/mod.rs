@@ -191,6 +191,15 @@ pub enum AsnKind {
     Other,
 }
 
+impl From<nym_geolocation_contract_common::payload::AsnKind> for AsnKind {
+    fn from(value: nym_geolocation_contract_common::payload::AsnKind) -> Self {
+        match value {
+            nym_geolocation_contract_common::payload::AsnKind::Residential => AsnKind::Residential,
+            nym_geolocation_contract_common::payload::AsnKind::Other => AsnKind::Other,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct Asn {
     pub asn: String,
@@ -198,6 +207,18 @@ pub struct Asn {
     pub domain: String,
     pub route: String,
     pub kind: AsnKind,
+}
+
+impl From<nym_geolocation_contract_common::payload::Asn> for Asn {
+    fn from(value: nym_geolocation_contract_common::payload::Asn) -> Self {
+        Asn {
+            kind: value.classify().into(),
+            asn: value.asn,
+            name: value.name,
+            domain: value.domain,
+            route: value.route,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -213,6 +234,25 @@ pub struct Location {
     pub timezone: String,
 
     pub asn: Option<Asn>,
+}
+
+impl From<nym_geolocation_contract_common::payload::Location> for Location {
+    fn from(value: nym_geolocation_contract_common::payload::Location) -> Self {
+        Location {
+            two_letter_iso_country_code: value.two_letter_iso_country_code,
+            // absent coordinates render as `0.0`, this surface's existing no-data
+            // convention. The substitution belongs here and nowhere else: on chain the
+            // absence stays explicit, since `0.0, 0.0` is a real location off West Africa
+            latitude: value.coordinates.map_or(0.0, |coords| coords.latitude),
+            longitude: value.coordinates.map_or(0.0, |coords| coords.longitude),
+            city: value.city,
+            region: value.region,
+            org: value.org,
+            postal: value.postal,
+            timezone: value.timezone,
+            asn: value.asn.map(Into::into),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -464,7 +504,76 @@ fn to_percent(performance: u8) -> String {
 mod test {
 
     use super::*;
+    use nym_geolocation_contract_common::payload as geo;
     use std::str::FromStr;
+
+    /// Every value is drawn from a reserved or documentation range, so the fixture cannot
+    /// be mistaken for a real node.
+    fn geo_asn(kind: &str) -> geo::Asn {
+        geo::Asn {
+            asn: "AS64512".to_owned(),
+            name: "Example Provider".to_owned(),
+            domain: "example.invalid".to_owned(),
+            route: "192.0.2.0/24".to_owned(),
+            kind: kind.to_owned(),
+        }
+    }
+
+    fn geo_location(coordinates: Option<geo::Coordinates>) -> geo::Location {
+        geo::Location {
+            two_letter_iso_country_code: "ZZ".to_owned(),
+            coordinates,
+            city: "Nowhere".to_owned(),
+            region: "Nowhere Region".to_owned(),
+            org: String::new(),
+            postal: String::new(),
+            timezone: "Etc/UTC".to_owned(),
+            asn: None,
+        }
+    }
+
+    #[test]
+    fn contract_asn_types_classify_the_way_this_api_always_has() {
+        // the contract stores the provider's raw type and this surface serves the derived
+        // two-value form, so the mapping has to reproduce the old inline `is isp` test
+        for (raw, expect_residential) in [
+            ("isp", true),
+            ("ISP", true),
+            ("hosting", false),
+            ("business", false),
+            ("education", false),
+            ("", false),
+        ] {
+            let converted = Asn::from(geo_asn(raw));
+            assert_eq!(
+                matches!(converted.kind, AsnKind::Residential),
+                expect_residential,
+                "raw provider type {raw:?}"
+            );
+            assert_eq!(converted.asn, "AS64512");
+        }
+    }
+
+    #[test]
+    fn absent_contract_coordinates_render_as_zero() {
+        let converted = Location::from(geo_location(None));
+
+        // `0.0` is this surface's existing no-data convention, and the substitution happens
+        // here alone: on chain the absence stays explicit, since `0.0, 0.0` is a real place
+        assert_eq!(converted.latitude, 0.0);
+        assert_eq!(converted.longitude, 0.0);
+    }
+
+    #[test]
+    fn present_contract_coordinates_pass_through_unchanged() {
+        let converted = Location::from(geo_location(Some(geo::Coordinates {
+            latitude: 12.3456,
+            longitude: -65.4321,
+        })));
+
+        assert_eq!(converted.latitude.to_bits(), 12.3456f64.to_bits());
+        assert_eq!(converted.longitude.to_bits(), (-65.4321f64).to_bits());
+    }
 
     #[test]
     fn to_percent_should_work() {

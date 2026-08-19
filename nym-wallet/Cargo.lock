@@ -5209,6 +5209,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-geolocation-contract-common"
+version = "1.21.5-rc.3"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-group-contract-common"
 version = "1.21.5-rc.3"
 dependencies = [
@@ -5533,6 +5546,7 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-ecash-contract-common",
+ "nym-geolocation-contract-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-mixnet-contract-common",

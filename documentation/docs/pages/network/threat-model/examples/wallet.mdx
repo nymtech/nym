@@ -1,0 +1,88 @@
+---
+title: "Wallet Sync"
+description: "A worked example: a light wallet syncing against lightwalletd. The server is the primary adversary, and the dominant vector is linking a client identity to a balance."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+import { Callout } from 'nextra/components'
+import { requireWalletScenario } from 'lib/privacy-model/examples/wallet'
+import { MetadataPanel } from 'components/threat-model/MetadataPanel'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const unprotected = requireWalletScenario('unprotected')
+export const mixnet = requireWalletScenario('mixnet-ipr')
+
+# Wallet Sync
+
+A light wallet does not hold the chain. It syncs against a server, `lightwalletd`,
+which streams the compact blocks and relays the wallet's transactions. That server
+is the party the wallet must talk to directly, so it is the primary adversary.
+
+## What must not leak
+
+Migration amounts are public on the chain. The privacy the wallet owes its user is
+the link between an identity and a balance. If the server can attribute a
+transaction, or a group of them, to one user, it recovers that link.
+
+## The threat model
+
+The primary adversary is **L2, the server**. The dominant vector is **V1 identity**
+paired with **V3 content**. A broadcast from the user's home IP attributes a
+transaction directly, and grouped transactions sum to a starting balance.
+
+The wallet also faces an application-specific public observer.
+
+| L1 | Chain-only observer |
+|---|---|
+| Vantage | Knows only what is publicly visible on the chain. |
+| Sees | Public on-chain data, including public migration amounts. |
+| Cannot see | Anything off-chain. |
+
+The invariants the wallet must hold:
+
+| Invariant | Statement | Depends on |
+|---|---|---|
+| **A. Identity to balance** | No user identifier links to a balance, even approximately. | P1 at every actor plus V2 and V3 discipline. |
+| **B. Transaction grouping** | The server must not group one wallet's transactions. | P2 plus V3 content discipline. |
+
+## Unprotected: identity and contents arrive together
+
+The wallet talks to `lightwalletd` directly. The server sees the client IP, every
+request and every broadcast. Both invariants fail with no adversarial effort.
+
+<NetworkDiagram item={unprotected} />
+
+<MetadataPanel scenario={unprotected} />
+
+## Protected: the mixnet hides the client IP
+
+Fixed-size Sphinx packets take three mix layers with per-hop delays, Poisson
+sending and cover traffic. The exit gateway forwards to a stock `lightwalletd`.
+
+<NetworkDiagram item={mixnet} />
+
+<MetadataPanel scenario={mixnet} />
+
+<Callout type="warning">
+The mixnet heavily hides the client IP and its timing from the network. Against the
+server, a fixed exit still behaves like a single dVPN exit, so requests stay
+linkable. Rotate the exit per request to restore P2.
+</Callout>
+
+The mixnet buys strong identity protection against the server and the network. It
+does not, on its own, deliver transaction unlinkability at the destination. That
+needs exit rotation plus the content discipline of the hygiene layer.
+
+## Where to go next
+
+- [Choose a Defence](/network/threat-model/choose-config) picks a configuration for your case.
+- [Build it](/developers) maps the configuration you picked to a package, for Rust and for the browser.
+- [The two-layer model](/network/threat-model/two-layer-model) explains why transport alone is never the whole answer.
+- [Packet Anatomy](/network/deep-dives/packet-anatomy) shows what a Sphinx packet exposes and hides.

@@ -1,7 +1,5 @@
 # Nym Docs v2
 
-This is v2 of the nym docs, condensed from various mdbooks projects that we had previously.
-
 These docs are hosted at [nym.com/docs](https://nym.com/docs).
 
 ## Doc projects
@@ -89,12 +87,21 @@ NEXT_PUBLIC_SITE_URL=https://nym.com/docs
 | HowTo | Step-by-step install/setup guides |
 | FAQPage | Question-answer pages |
 
-## LLM-readability
-Two files are generated in the deployment workflow: `llms.txt` and `llms-full.txt`. These files follow [Cloudflare's approach](https://developers.cloudflare.com/style-guide/how-we-docs/ai-consumability/) to generation and use.
+## MCP server & machine-readability
+The docs are built to be consumed by AI agents and LLMs, not just read. There is
+an **MCP server** at `/docs/api/mcp` for coding agents, per-page Markdown (append
+`.md` to any docs URL), and generated `llms.txt` / `llms-full.txt`. The per-page
+**Use with AI** button shows how to connect an agent to the server.
 
-When running locally can you find these at `http://localhost:3000/docs/llms.txt` and `http://localhost:3000/docs/llms-full.txt`.
+All of it is documented in **[MCP-SERVER.md](MCP-SERVER.md)**: the retrieval
+pipeline, chunking and the embedding cache, how the route serves from a static
+index with no vector database, where the API key must be set, every tunable, and
+how to test a deployment. Read it before changing anything under
+`docs/lib/retrieval/`, `docs/lib/mcp/`, `docs/pages/api/` or
+`scripts/next-scripts/generate-*`.
 
-When deployed to production, these can be found at [https://nym.com/docs/llms.txt](https://nym.com/docs/llms.txt) and [https://nym.com/docs/llms-full.txt](https://nym.com/docs/llms-full.txt).
+For readers rather than contributors: `/docs/developers/mcp` is the tool
+catalogue and client setup, and `/docs/use-with-ai` is the consumer-facing guide.
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

@@ -245,11 +245,12 @@ impl InboxGatewayStorage for GatewayStorage {
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<(), GatewayStorageError> {
-        self.inbox_manager
+    ) -> Result<bool, GatewayStorageError> {
+        let stored = self
+            .inbox_manager
             .insert_message(&client_address.as_base58_string(), message)
             .await?;
-        Ok(())
+        Ok(stored)
     }
 
     async fn retrieve_messages(

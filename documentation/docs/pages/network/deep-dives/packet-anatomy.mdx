@@ -1,0 +1,41 @@
+---
+title: "Packet Anatomy"
+description: "How an application message is chunked and framed for transport: fixed-size Sphinx packets in the mixnet versus variable-size WireGuard packets in dVPN mode, and what each choice costs in goodput."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import dynamic from 'next/dynamic'
+
+export const PacketAnatomy = dynamic(
+  () => import('../../../components/threat-model/PacketAnatomy').then((m) => m.PacketAnatomy),
+  { ssr: false },
+)
+
+# Packet Anatomy
+
+Before a message reaches its destination it is chunked and wrapped in transport framing, and the two transports do this differently. The mixnet cuts every message into fixed-size Sphinx packets, each a constant 2413 bytes (a 2 KB payload behind a 348-byte per-hop routing header and 17 bytes of payload overhead), and pads the last one, so every packet looks identical on the wire. dVPN mode wraps the message in WireGuard headers up to the link MTU, so packet size tracks the payload. The trade-off shows up as goodput: constant-size packets are unlinkable but waste bytes on padding and per-packet framing. Variable-size packets are efficient but leak size and timing.
+
+Pick a payload to see how it fragments and what the framing costs.
+
+## Sphinx framing (mixnet)
+
+Every [Sphinx](/network/cryptography/sphinx) packet is a constant 2413 bytes: a 2 KB (2048-byte) payload behind a 348-byte per-hop routing header and 17 bytes of payload overhead. Inside that payload, mixnet mode tunnels IP: a fragmentation header, the IP packet router framing, an IP packet, and padding. The router caps its IP payload at 1500 bytes, leaving room for the reply SURB the packet also carries, so even a full packet is padded. A small message becomes one heavily-padded packet. A large one fragments into many. The mixnet meters those packets onto the network one send-interval apart, so a bulk fetch can take seconds.
+
+<PacketAnatomy mode="mixnet" />
+
+## WireGuard framing (dVPN)
+
+dVPN mode uses two nested WireGuard headers (one per hop) plus the remaining payload, up to the MTU, with no padding. Fewer, larger packets mean higher goodput, but the size and inter-packet timing pass through unchanged, which is exactly what a network observer correlates.
+
+<PacketAnatomy mode="dvpn" />
+
+## Related
+
+- [Packet mixing](/network/deep-dives/mixing): how those fixed-size packets are delayed and reordered across mix layers.
+- [dVPN cover and crowding](/network/deep-dives/dvpn-cover): how variable-size dVPN traffic still hides who is talking to whom.
+- [Mixnet mode](/network/mixnet-mode/mixing) and [dVPN mode](/network/dvpn-mode) for the mode overviews.
+- [Two-layer model](/network/threat-model/two-layer-model) for where framing sits in the wider threat model.
+- [Sphinx cryptography](/network/cryptography/sphinx): how the fixed-size packet is layered and unwrapped hop by hop.
+- [Sphinx: A Compact and Provably Secure Mix Format](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) (Danezis and Goldberg, 2009): the original packet-format paper.

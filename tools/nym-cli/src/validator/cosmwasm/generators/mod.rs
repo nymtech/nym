@@ -4,7 +4,7 @@ pub(crate) async fn execute(
     match cosmwasm.command {
         nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::Mixnet(
             args,
-        ) => nym_cli_commands::validator::cosmwasm::generators::mixnet::generate(args).await,
+        ) => nym_cli_commands::validator::cosmwasm::generators::mixnet::generate(*args).await,
 
         nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::Vesting(
             args,

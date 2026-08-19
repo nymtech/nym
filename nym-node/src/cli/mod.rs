@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::commands::{
-    bonding_information, build_info, debug, migrate, node_details, reset_sphinx_keys, run, sign,
-    test_throughput,
+    bonding_information, build_info, debug, migrate, node_details, request_geolocation_check,
+    reset_sphinx_keys, run, sign, test_throughput,
 };
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use clap::{Args, Parser, Subcommand};
@@ -109,6 +109,9 @@ impl Cli {
                 Commands::NodeDetails(args) => node_details::execute(args).await?,
                 Commands::Run(args) => run::execute(*args).await?,
                 Commands::Migrate(args) => migrate::execute(*args)?,
+                Commands::RequestGeolocationCheck(args) => {
+                    request_geolocation_check::execute(args).await?
+                }
                 Commands::Sign(args) => sign::execute(args).await?,
                 Commands::TestThroughput(..) => unreachable!(),
                 Commands::UnsafeResetSphinxKeys(args) => reset_sphinx_keys::execute(args).await?,
@@ -177,6 +180,9 @@ pub(crate) enum Commands {
 
     /// Start this nym-node
     Run(Box<run::Args>),
+
+    /// Ask a geolocator agent to re-measure the location of this node.
+    RequestGeolocationCheck(request_geolocation_check::Args),
 
     /// Use identity key of this node to sign provided message.
     Sign(sign::Args),

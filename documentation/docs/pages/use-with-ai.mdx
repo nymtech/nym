@@ -1,0 +1,70 @@
+---
+title: "Use these docs with AI"
+description: "The Nym documentation is built to be read by AI agents and LLMs, not just people: an MCP server with live network tools, per-page Markdown, and llms.txt."
+schemaType: "TechArticle"
+section: "Docs"
+lastUpdated: "2026-08-14"
+---
+
+# Use these docs with AI
+
+These docs are machine-readable end to end. There are three ways to work with them
+from an AI tool, in increasing order of what they can do.
+
+Every page also has a **Use with AI** button, top-right, which shows the
+configuration for connecting a coding agent to the MCP server described below.
+
+## Copy any page as Markdown
+
+Use the **Copy page** button at the top of a page, or append `.md` to any docs URL
+to fetch it as clean Markdown:
+
+```text
+https://nym.com/docs/developers/mcp        (the page)
+https://nym.com/docs/developers/mcp.md     (the same page as Markdown)
+```
+
+Paste it into any chat, or fetch it from a script, to give an assistant the exact
+page without scraping HTML.
+
+## Bulk ingest: llms.txt
+
+For an index of every page, or the full corpus in one file:
+
+```text
+https://nym.com/docs/llms.txt        (index of pages, for discovery)
+https://nym.com/docs/llms-full.txt   (every page's content in one file)
+```
+
+Point an agent at `llms.txt` to discover pages, then dereference each entry to its
+`.md`.
+
+## MCP server (for coding agents)
+
+This is the capable option. Point your agent at a single endpoint, and it can search
+the docs and the Nym source, and read **live network state**, as structured tools.
+Claude Code, Cursor and others are supported:
+
+```text
+https://nym.com/docs/api/mcp
+```
+
+See the [MCP server reference](/developers/mcp) for the tool catalogue, client
+configuration, and examples. The live tools (node counts, gateway health, token
+supply, chain status) are the reason to use this over a static file: an agent can
+ask "is gateway X in the active set right now?" and get a current answer.
+
+## How all of this works
+
+All three surfaces come from the same build. The MCP server reads a semantic index
+constructed when the docs deploy, served as a static file rather than from a vector
+database. The Markdown files and `llms.txt` are written by the same pass over the
+same pages.
+
+Every search result carries a deep link to the section it came from. Any claim an
+agent makes can be checked against the page behind it.
+
+The MCP endpoint is open: no API key, no account. It embeds each incoming query at
+Nym's expense and returns raw sections without generating anything, so the only
+tokens you spend are your own agent's. See
+[how search works](/developers/mcp#how-search-works) for the mechanism.

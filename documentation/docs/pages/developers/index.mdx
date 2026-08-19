@@ -7,6 +7,35 @@ lastUpdated: "2026-06-09"
 ---
 
 import { Callout } from 'nextra/components'
+import dynamic from 'next/dynamic'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const NetworkDiagram = dynamic(
+  () => import('../../components/threat-model/NetworkDiagram').then((m) => m.NetworkDiagram),
+  { ssr: false },
+)
+
+export const archE2E = requireGenericScenario('end-to-end')
+export const archProxy = {
+  ...requireGenericScenario('mixnet'),
+  topology: {
+    nodes: [
+      { id: 'c', kind: 'client', col: 0 },
+      { id: 'e', kind: 'entry', col: 1 },
+      { id: 'm1', kind: 'mix', col: 2 },
+      { id: 'm2', kind: 'mix', col: 3 },
+      { id: 'm3', kind: 'mix', col: 4 },
+      { id: 'x', kind: 'exit', col: 5, label: 'Exit GW' },
+      { id: 'd', kind: 'destination', col: 6 },
+    ],
+    routes: [{ id: 'mix', mode: 'mixnet', nodeIds: ['c', 'e', 'm1', 'm2', 'm3', 'x', 'd'] }],
+  },
+}
+export const archDvpn = requireGenericScenario('dvpn-single')
+export const archBrowser = {
+  ...requireGenericScenario('mixnet'),
+  nodeLabels: { client: 'Browser + WASM client' },
+}
 
 # Overview
 
@@ -16,6 +45,14 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 2. **Approach**: do you control both sides of the connection (**end-to-end**), or are you reaching a third-party service through the mixnet (**proxy**)?
 
 The table below maps those two answers to a package.
+
+<Callout type="info">
+**Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
+
+**If you are building one of these, the threat model has already been worked through for it:** a [cryptocurrency wallet](/network/threat-model/examples/wallet), a [messaging app](/network/threat-model/examples/messaging), or [web browsing](/network/threat-model/examples/browsing). Each names the adversary that matters for that application, the invariants it owes its users, and what remains open after the transport has done its part. Start there rather than at the general model.
+
+**Check the workload first, though.** The mixnet suits small, independent requests and cannot serve bulk transfer or anything interactive. [What Nym cannot do](/developers/limitations) lists the workloads that do not fit, what the default sending rate costs, and where dVPN mode is the answer instead. Ruling Nym out in the first hour is a better outcome than discovering it in week three.
+</Callout>
 
 ## Choosing a package
 
@@ -36,21 +73,29 @@ The table below maps those two answers to a package.
 
 The runtime axis is about where your code runs: a native process has raw sockets and a filesystem, so it runs the full Rust client; a browser or WebView has neither (only WebSockets and `fetch`, under mixed-content rules), so it runs a WASM client inside a Web Worker. The approach axis is about who runs Nym at the other end.
 
-**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way ([what this protects](/developers/concepts/exit-security#proxy-mode-or-end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
+**End-to-end**: both sides run a Nym client. Traffic stays Sphinx-encrypted the whole way, so there is no Exit Gateway, no clearnet hop, and no third-party server that learns your IP ([threat-model assessment](/network/threat-model/configurations/end-to-end)). Use it for peer-to-peer setups or anywhere you control both endpoints.
 
-![](/images/developers/nym-arch-client-to-client.png)
+<NetworkDiagram item={archE2E} />
 
 **Proxy**: only your side runs Nym. Traffic exits the mixnet at an Exit Gateway and continues to the destination over the public internet. The mixnet anonymises the sender; protecting the payload (TLS, Noise) is your application's job, exactly as on a direct connection. Use it for third-party services such as blockchain RPCs or external APIs.
 
-![](/images/developers/nym-arch-ip-routing.png)
+<NetworkDiagram item={archProxy} />
+
+**dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
+
+<NetworkDiagram item={archDvpn} />
+
+<Callout type="info">
+**Native only.** [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build, so the dVPN row of the matrix above has no browser equivalent. Its WireGuard datapath (`boringtun`) and userspace IP stack are built on tokio's networking and multi-threaded runtime, which pull in `mio` and do not compile for `wasm32-unknown-unknown`. In a browser or WebView, the mixnet-based mix-* packages are the only option.
+</Callout>
 
 <Callout type="warning">
-Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit security](/developers/concepts/exit-security) for what the exit can and cannot observe.
+Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe, and [Exit security](/developers/concepts/exit-security) for which exit your package uses.
 </Callout>
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.
 
-![](/images/developers/nym-browser-arch.png)
+<NetworkDiagram item={archBrowser} />
 
 ## Packages
 
@@ -78,6 +123,6 @@ The four mix-* packages share one tunnel ([`mix-tunnel`](/developers/mix-tunnel)
 
 | Resource | Use it for |
 |---|---|
-| [SOCKS5 / WebSocket clients](/developers/clients) | Language-agnostic binaries for piping traffic through the mixnet without an SDK. |
+| [Standalone clients](/developers/clients) | SOCKS5, WebSocket, and WebAssembly clients: pipe traffic through the mixnet without embedding an SDK. |
 | [Chain interaction](/developers/chain) | Query Nyx state, submit transactions, call Nym smart contracts. |
 | [APIs](/apis/introduction) | Auto-generated reference for Nym infrastructure HTTP endpoints. |

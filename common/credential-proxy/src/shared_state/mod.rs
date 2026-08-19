@@ -222,7 +222,7 @@ impl CredentialProxyState {
     pub async fn ecash_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
         self.ecash_state()
             .ecash_clients(self.client(), epoch_id)
             .await

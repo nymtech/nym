@@ -48,7 +48,7 @@ impl TicketbookManager {
         // before we commit to making the deposit, ensure we have required signatures cached and stored
         self.ensure_global_data_cached(epoch, expiration_date)
             .await?;
-        let ecash_api_clients = self.state.ecash_clients(epoch).await?.clone();
+        let ecash_api_clients = self.state.ecash_clients(epoch).await?;
 
         let deposit_data = self
             .state

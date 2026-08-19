@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_dkg::Threshold;
 use nym_validator_client::EcashApiClient;
-use std::cmp::{min, Ordering};
+use std::cmp::min;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
@@ -177,15 +177,10 @@ impl APICommunicationChannel for QueryCommunicationChannel {
     }
 
     async fn epoch_concluded(&self, epoch_id: EpochId) -> Result<bool> {
-        let current = self.current_epoch_data().await?;
-
-        // anything before the current epoch has necessarily finished, and an epoch we
-        // have not reached yet certainly has not
-        match epoch_id.cmp(&current.epoch_id) {
-            Ordering::Less => Ok(true),
-            Ordering::Greater => Ok(false),
-            Ordering::Equal => Ok(current.state.is_in_progress()),
-        }
+        Ok(self
+            .current_epoch_data()
+            .await?
+            .is_epoch_concluded(epoch_id))
     }
 }
 

@@ -33,7 +33,7 @@ use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryC
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tracing::info;
+use tracing::{info, warn};
 use url::Url;
 
 pub struct EcashState {
@@ -53,6 +53,24 @@ pub struct EcashState {
 
     pub expiration_date_signatures:
         CachedImmutableItems<(EpochId, Date), AggregatedExpirationDateSignatures>,
+}
+
+fn construct_usable_ecash_api_clients(shares: Vec<ContractVKShare>) -> Vec<EcashApiClient> {
+    let mut clients = Vec::with_capacity(shares.len());
+
+    for share in shares {
+        let owner = share.owner.clone();
+        let epoch_id = share.epoch_id;
+
+        match construct_ecash_api_client(share) {
+            Ok(client) => clients.push(client),
+            Err(err) => {
+                warn!("ignoring the key share of {owner} for epoch {epoch_id}: {err}")
+            }
+        }
+    }
+
+    clients
 }
 
 fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, EcashApiError> {
@@ -123,23 +141,55 @@ impl EcashState {
         self.required_deposit_cache.get_or_update(client).await
     }
 
+    /// Whether the ceremony for `epoch_id` has concluded, so its set of signers is settled.
+    async fn epoch_concluded(
+        &self,
+        client: &ChainClient,
+        epoch_id: EpochId,
+    ) -> Result<bool, CredentialProxyError> {
+        Ok(self
+            .current_epoch(client)
+            .await?
+            .is_epoch_concluded(epoch_id))
+    }
+
+    /// The signers registered for `epoch_id`, skipping any whose share cannot be used.
+    ///
+    /// A single share that was never verified - or that carries an announce address the DKG
+    /// contract never validated - must not deny the caller every *other* signer of that epoch.
+    async fn registered_ecash_clients(
+        &self,
+        client: &ChainClient,
+        epoch_id: EpochId,
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
+        Ok(construct_usable_ecash_api_clients(
+            client
+                .query_chain()
+                .await
+                .get_all_verification_key_shares(epoch_id)
+                .await?,
+        ))
+    }
+
     pub async fn ecash_clients(
         &self,
         client: &ChainClient,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
+        // the moment a ceremony starts, the epoch id increments and the new epoch has no
+        // verified shares yet. this cache has no expiry, so answering from it then would
+        // remember an empty signer set for the life of the process - and this proxy would
+        // keep failing to fan out long after the ceremony finished.
+        if !self.epoch_concluded(client, epoch_id).await? {
+            return self.registered_ecash_clients(client, epoch_id).await;
+        }
+
         self.epoch_clients
             .get_or_init(epoch_id, || async {
-                Ok(client
-                    .query_chain()
-                    .await
-                    .get_all_verification_key_shares(epoch_id)
-                    .await?
-                    .into_iter()
-                    .map(construct_ecash_api_client)
-                    .collect::<anyhow::Result<Vec<_>, EcashApiError>>()?)
+                self.registered_ecash_clients(client, epoch_id).await
             })
             .await
+            .map(|guard| guard.clone())
     }
 
     pub async fn current_epoch(&self, client: &ChainClient) -> Result<Epoch, CredentialProxyError> {
@@ -277,8 +327,7 @@ impl EcashState {
                 };
 
                 let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
-                        .await?;
+                    query_all_threshold_apis(all_apis, threshold, get_partial_signatures).await?;
 
                 let aggregated = aggregate_annotated_indices_signatures(
                     nym_credentials_interface::ecash_parameters(),
@@ -352,7 +401,7 @@ impl EcashState {
                 };
 
                 let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
+                    query_all_threshold_apis(all_apis, threshold, get_partial_signatures)
                         .await?;
 
                 let aggregated = aggregate_annotated_expiration_signatures(

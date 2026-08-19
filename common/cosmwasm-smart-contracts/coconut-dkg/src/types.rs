@@ -4,6 +4,7 @@
 #![allow(clippy::derivable_impls)]
 // MAX: surpressing warning for the moment, will be dealt with in a different PR (TODO)
 use cosmwasm_schema::cw_serde;
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -200,6 +201,20 @@ impl Epoch {
         )
     }
 
+    /// Whether the ceremony for `epoch_id` has finished, judged against `self` as the current
+    /// epoch.
+    ///
+    /// Anything before the current epoch has necessarily finished, and an epoch that has not
+    /// been reached yet certainly has not. Callers working from a cached copy of the current
+    /// epoch can only get a pessimistic answer out of a stale one, never a premature "yes".
+    pub fn is_epoch_concluded(&self, epoch_id: EpochId) -> bool {
+        match epoch_id.cmp(&self.epoch_id) {
+            Ordering::Less => true,
+            Ordering::Greater => false,
+            Ordering::Equal => self.state.is_in_progress(),
+        }
+    }
+
     pub fn final_timestamp_secs(&self) -> Option<u64> {
         let mut finish = self.deadline?.seconds();
         let time_configuration = self.time_configuration;
@@ -338,5 +353,47 @@ impl EpochState {
 
     pub fn is_waiting_initialisation(&self) -> bool {
         matches!(self, EpochState::WaitingInitialisation)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn epoch_at(epoch_id: EpochId, state: EpochState) -> Epoch {
+        Epoch::new(
+            state,
+            epoch_id,
+            TimeConfiguration::default(),
+            Timestamp::from_seconds(0),
+        )
+    }
+
+    /// Signer sets are only settled once a ceremony finishes, and callers cache them per epoch.
+    /// Answering "concluded" for an epoch still mid-ceremony would have them remember a set
+    /// that is empty or partial.
+    #[test]
+    fn an_epoch_has_concluded_only_once_its_ceremony_is_done() {
+        let current = epoch_at(5, EpochState::InProgress);
+
+        // earlier epochs are finished by definition, and later ones cannot have started
+        assert!(current.is_epoch_concluded(4));
+        assert!(!current.is_epoch_concluded(6));
+
+        // the current one depends on where its ceremony has got to
+        assert!(current.is_epoch_concluded(5));
+        for state in [
+            EpochState::WaitingInitialisation,
+            EpochState::PublicKeySubmission { resharing: false },
+            EpochState::DealingExchange { resharing: false },
+            EpochState::VerificationKeySubmission { resharing: true },
+            EpochState::VerificationKeyValidation { resharing: false },
+            EpochState::VerificationKeyFinalization { resharing: false },
+        ] {
+            assert!(
+                !epoch_at(5, state).is_epoch_concluded(5),
+                "{state} was treated as a concluded ceremony"
+            );
+        }
     }
 }

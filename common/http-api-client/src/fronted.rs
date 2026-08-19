@@ -12,19 +12,6 @@ use tracing::warn;
 
 use crate::{Client, ClientBuilder};
 
-static SHARED_FRONTING_POLICY: LazyLock<Arc<RwLock<FrontPolicy>>> =
-    LazyLock::new(|| Arc::new(RwLock::new(FrontPolicy::Off)));
-
-// #[cfg(feature = "tunneling")]
-#[derive(Debug)]
-pub(crate) struct Front {
-    pub(crate) policy: Arc<RwLock<FrontPolicy>>,
-    enabled: AtomicBool,
-    // Per-domain failure counts, used by `FrontPolicy::ConfiguredRetry` to decide when enough
-    // domains have failed often enough to justify enabling fronting.
-    domain_failures: Mutex<HashMap<String, usize>>,
-}
-
 impl Clone for Front {
     fn clone(&self) -> Self {
         Self {
@@ -336,9 +323,10 @@ mod tests {
         assert!(!front.is_enabled());
     }
 
-    /// Policy can be set for the shared client and the update is applied properly
-    // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
-    // AN IMPACT ON OTHER TESTS
+    /// Policy can be set for the shared client and the update is applied properly.
+    ///
+    /// This mutates the process-wide `SHARED_FRONTING_POLICY`, so it holds the shared test-state
+    /// lock to prevent interference with other tests (previously disabled for this reason).
     #[test]
     #[serial]
     fn set_policy_shared_client() {
@@ -426,14 +414,16 @@ mod tests {
         client1.front.retry_enable(None);
         assert!(client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
+
+        // leave the shared policy as we found it for whichever test runs next
+        Client::set_shared_front_policy(FrontPolicy::Off);
     }
 
+    // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
+    // marker - must not run concurrently with tests that mutate it.
     #[tokio::test]
     #[serial]
     async fn nym_api_works() {
-        // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
-        // marker - must not run concurrently with tests that mutate it.
-
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -465,13 +455,12 @@ mod tests {
         assert_eq!(response.status(), 200);
     }
 
+    // sends real requests and relies on host rotation not being suppressed, which depends on
+    // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
+    // tests that mutate it.
     #[tokio::test]
     #[serial]
     async fn fallback_on_failure() {
-        // sends real requests and relies on host rotation not being suppressed, which depends on
-        // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
-        // tests that mutate it.
-
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
             Some(vec![

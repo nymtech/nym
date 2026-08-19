@@ -10,4 +10,4 @@
 
 ## Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:20](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L20)
+[mix-websocket/src/index.ts:20](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L20)

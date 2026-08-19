@@ -14,7 +14,7 @@
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:2
+mix-tunnel/dist/esm/types.d.ts:2
 
 ***
 
@@ -24,7 +24,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:2
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:3
+mix-tunnel/dist/esm/types.d.ts:3
 
 ***
 
@@ -34,7 +34,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:3
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:4
+mix-tunnel/dist/esm/types.d.ts:4
 
 ***
 
@@ -44,7 +44,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:4
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:5
+mix-tunnel/dist/esm/types.d.ts:5
 
 ***
 
@@ -54,7 +54,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:5
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:6
+mix-tunnel/dist/esm/types.d.ts:6
 
 ***
 
@@ -64,7 +64,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:6
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:7
+mix-tunnel/dist/esm/types.d.ts:7
 
 ***
 
@@ -74,7 +74,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:7
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:8
+mix-tunnel/dist/esm/types.d.ts:8
 
 ***
 
@@ -84,7 +84,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:8
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:9
+mix-tunnel/dist/esm/types.d.ts:9
 
 ***
 
@@ -94,7 +94,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:9
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:10
+mix-tunnel/dist/esm/types.d.ts:10
 
 ***
 
@@ -104,7 +104,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:10
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:11
+mix-tunnel/dist/esm/types.d.ts:11
 
 ***
 
@@ -114,7 +114,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:11
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:12
+mix-tunnel/dist/esm/types.d.ts:12
 
 ***
 
@@ -124,7 +124,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:12
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:13
+mix-tunnel/dist/esm/types.d.ts:13
 
 ***
 
@@ -134,7 +134,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:13
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:14
+mix-tunnel/dist/esm/types.d.ts:14
 
 ***
 
@@ -144,7 +144,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:14
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:15
+mix-tunnel/dist/esm/types.d.ts:15
 
 ***
 
@@ -154,7 +154,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:15
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:16
+mix-tunnel/dist/esm/types.d.ts:16
 
 ***
 
@@ -164,7 +164,7 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:16
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:17
+mix-tunnel/dist/esm/types.d.ts:17
 
 ***
 
@@ -174,4 +174,4 @@ dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:17
 
 #### Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/types.d.ts:18
+mix-tunnel/dist/esm/types.d.ts:18

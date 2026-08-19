@@ -41,7 +41,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:44](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L44)
+[mix-websocket/src/index.ts:44](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L44)
 
 ## Properties
 
@@ -51,7 +51,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:38](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L38)
+[mix-websocket/src/index.ts:38](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L38)
 
 ***
 
@@ -61,7 +61,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:39](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L39)
+[mix-websocket/src/index.ts:39](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L39)
 
 ***
 
@@ -71,7 +71,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:41](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L41)
+[mix-websocket/src/index.ts:41](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L41)
 
 ***
 
@@ -81,7 +81,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:42](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L42)
+[mix-websocket/src/index.ts:42](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L42)
 
 ## Accessors
 
@@ -95,7 +95,7 @@ Differences from the browser `WebSocket`:
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L76)
+[mix-websocket/src/index.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L76)
 
 ## Methods
 
@@ -112,7 +112,7 @@ Block until the WebSocket transitions out of `CONNECTING`. Resolves when
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:84](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L84)
+[mix-websocket/src/index.ts:84](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L84)
 
 ***
 
@@ -130,7 +130,7 @@ Block until the WebSocket transitions out of `CONNECTING`. Resolves when
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:97](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L97)
+[mix-websocket/src/index.ts:97](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L97)
 
 ***
 
@@ -150,7 +150,7 @@ Block until the WebSocket transitions out of `CONNECTING`. Resolves when
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:106](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L106)
+[mix-websocket/src/index.ts:106](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L106)
 
 ***
 
@@ -170,7 +170,7 @@ Block until the WebSocket transitions out of `CONNECTING`. Resolves when
 
 #### Source
 
-[dev/work/nym/sdk/typescript/packages/mix-websocket/src/index.ts:114](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L114)
+[mix-websocket/src/index.ts:114](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-websocket/src/index.ts#L114)
 
 ***
 
@@ -212,7 +212,7 @@ The event listener is appended to target's event listener list and is not append
 
 #### Source
 
-.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8256
+../../../../../../.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8256
 
 ***
 
@@ -238,7 +238,7 @@ Dispatches a synthetic event event to target and returns true if either event's 
 
 #### Source
 
-.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8262
+../../../../../../.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8262
 
 ***
 
@@ -268,4 +268,4 @@ Removes the event listener in target's event listener list with the same type, c
 
 #### Source
 
-.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8268
+../../../../../../.local/share/pnpm/global/5/.pnpm/typescript@5.4.5/node\_modules/typescript/lib/lib.dom.d.ts:8268

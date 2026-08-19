@@ -280,11 +280,13 @@ npm dist-tag add <pkg>@<version> latest
 Promoting does not clear the `next` tag, and nothing else does either. A `next` left behind
 from an earlier major can end up pointing at an older release than `latest`, so
 `npm i <pkg>@next` installs something staler than a bare `npm i`. Re-run the `npm view`
-loop from step 1; if a package's `next` now lags its `latest`, either move it forward with
-the same command or drop it:
+loop from step 1; if a package's `next` now lags its `latest`, either move it forward or
+drop it. Note the tag name is the last argument, so advancing `next` is not the command
+above:
 
 ```bash
-npm dist-tag rm <pkg> next
+npm dist-tag add <pkg>@<version> next   # move next forward
+npm dist-tag rm <pkg> next              # or remove it
 ```
 
 ### 6. Update the docs constants

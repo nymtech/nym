@@ -16,4 +16,4 @@ Tear the tunnel down. After this, the WASM is unusable until page reload.
 
 ## Source
 
-dev/work/nym/sdk/typescript/packages/mix-tunnel/dist/esm/index.d.ts:16
+mix-tunnel/dist/esm/index.d.ts:16

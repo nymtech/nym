@@ -11,6 +11,11 @@
 ## Interfaces
 
 - [SetupMixTunnelOpts](interfaces/SetupMixTunnelOpts.md)
+- [TunnelConnecting](interfaces/TunnelConnecting.md)
+- [TunnelReady](interfaces/TunnelReady.md)
+- [TunnelShuttingDown](interfaces/TunnelShuttingDown.md)
+- [TunnelShutdown](interfaces/TunnelShutdown.md)
+- [TunnelFailed](interfaces/TunnelFailed.md)
 - [MixFetchResponseInit](interfaces/MixFetchResponseInit.md)
 - [IMixTunnelWorker](interfaces/IMixTunnelWorker.md)
 - [LoadedEvent](interfaces/LoadedEvent.md)

@@ -21,6 +21,7 @@ members = [
     "clients/socks5",
     "common/async-file-watcher",
     "common/authenticator-requests",
+    "common/authorised-network-monitors",
     "common/bandwidth-controller",
     "common/bandwidth-fetcher",
     "common/bin-common",
@@ -452,6 +453,7 @@ libcrux-traits = "0.0.8"
 # Workspace dep definitions required by crates.io publication - we need a workspace version since `cargo workspaces` doesn't work with path imports from crate manifests
 nym-api-requests = { version = "1.21.6", path = "nym-api/nym-api-requests" }
 nym-authenticator-requests = { version = "1.21.6", path = "common/authenticator-requests" }
+nym-authorised-network-monitors = { version = "1.21.5", path = "common/authorised-network-monitors" }
 nym-async-file-watcher = { version = "1.21.6", path = "common/async-file-watcher" }
 nym-authenticator-client = { version = "1.21.6", path = "nym-authenticator-client" }
 nym-bandwidth-controller = { version = "1.21.6", path = "common/bandwidth-controller" }

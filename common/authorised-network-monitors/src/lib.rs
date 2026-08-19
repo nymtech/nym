@@ -1,18 +1,26 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! The ed25519 client identities announced by authorised network monitor agents.
+//! Structures derived from the set of network monitor agents authorised by the network-monitors
+//! contract, for the ones whose readers live outside the node that folds that set.
 //!
-//! A client websocket session whose registration handshake authenticates one of these identities is
+//! A node loads the authorised set once at startup and keeps it current through nyxd websocket
+//! events, folding each entry into several structures keyed differently for their different gates.
+//! Those read only by the node itself live with their readers; the ones here are shared.
+//!
+//! # Announced client identities
+//!
+//! [`AuthorisedMonitorIdentities`] holds the ed25519 client identities the authorised agents
+//! announced. A client websocket session whose registration handshake authenticates one of them is
 //! an ephemeral monitor session: unmetered, requiring no bandwidth credential and persisting
 //! nothing. The gate is the handshake-verified identity and NEVER the connection's source IP, since
 //! agents share host ports and run on recycled address pools, while the exemption itself is not
 //! confined by the routing filter.
 //!
-//! Entries are derived from the same authorised-agent set as the node's IP-keyed structures, but
-//! keyed by identity rather than by address. Each identity carries the agent entries that announced
-//! it, because an agent authorises one entry per address family and both carry its identity: the
-//! identity therefore outlives the revocation of any one of them and is dropped only with the last.
+//! It is keyed by identity rather than by address, and each identity carries the agent entries that
+//! announced it, because an agent authorises one entry per address family and both carry its
+//! identity: the identity therefore outlives the revocation of any one of them and is dropped only
+//! with the last.
 
 use arc_swap::ArcSwap;
 use nym_crypto::asymmetric::ed25519;
@@ -28,7 +36,7 @@ use std::sync::Arc;
 ///
 /// Cloning is cheap: it only clones the `Arc`, not the underlying data.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct AuthorisedMonitorIdentities {
+pub struct AuthorisedMonitorIdentities {
     inner: Arc<ArcSwap<AuthorisedMonitorIdentitiesInner>>,
 }
 
@@ -37,9 +45,7 @@ impl AuthorisedMonitorIdentities {
     ///
     /// Only the write side needs to know which agent entries announced an identity; a reader asks
     /// this one question, which is the whole of what the client-session gate is handed.
-    // read by the client-session gate, which is added separately
-    #[allow(dead_code)]
-    pub(crate) fn is_announced(&self, identity: &ed25519::PublicKey) -> bool {
+    pub fn is_announced(&self, identity: &ed25519::PublicKey) -> bool {
         self.inner.load().is_announced(identity)
     }
 
@@ -49,7 +55,7 @@ impl AuthorisedMonitorIdentities {
     /// agent, which covers both an agent that announces no identity and one whose announced value
     /// was unusable. Passing a changed identity moves the entry across, so a re-authorisation can
     /// never leave the superseded identity exempt.
-    pub(crate) fn set_announced(&self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
+    pub fn set_announced(&self, address: SocketAddr, identity: Option<ed25519::PublicKey>) {
         let mut updated = self.inner.load().as_ref().clone();
 
         updated.withdraw(address);
@@ -61,7 +67,7 @@ impl AuthorisedMonitorIdentities {
     }
 
     /// Withdraw a revoked agent entry's claim, dropping its identity once no entry announces it.
-    pub(crate) fn remove(&self, address: SocketAddr) {
+    pub fn remove(&self, address: SocketAddr) {
         let mut updated = self.inner.load().as_ref().clone();
 
         if updated.withdraw(address) {
@@ -70,7 +76,7 @@ impl AuthorisedMonitorIdentities {
     }
 
     /// Forget every announced identity.
-    pub(crate) fn reset(&self) {
+    pub fn reset(&self) {
         self.inner.store(Default::default())
     }
 }

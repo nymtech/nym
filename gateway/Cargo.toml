@@ -48,6 +48,7 @@ zeroize = { workspace = true }
 
 
 # internal
+nym-authorised-network-monitors = { workspace = true }
 nym-credentials = { workspace = true }
 nym-credentials-interface = { workspace = true }
 nym-credential-verification = { workspace = true }

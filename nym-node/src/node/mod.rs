@@ -5,7 +5,6 @@ use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
 use crate::config::{Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, Wireguard};
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
-use crate::node::authorised_agents::monitor_identities::AuthorisedMonitorIdentities;
 use crate::node::authorised_agents::{AuthorisedAgent, AuthorisedAgentsView};
 use crate::node::description::save_node_description;
 use crate::node::helpers::{
@@ -45,6 +44,7 @@ use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
 use getrandom04::SysRng;
+use nym_authorised_network_monitors::AuthorisedMonitorIdentities;
 use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
@@ -497,6 +497,7 @@ impl NymNode {
         metrics_sender: MetricEventsSender,
         active_clients_store: ActiveClientsStore,
         mix_packet_sender: MixForwardingSender,
+        monitor_identities: AuthorisedMonitorIdentities,
     ) -> Result<(), NymNodeError> {
         let config = gateway_tasks_config(&self.config);
 
@@ -567,6 +568,7 @@ impl NymNode {
                 .build_websocket_listener(
                     active_clients_store.clone(),
                     upgrade_mode_common_state.clone(),
+                    monitor_identities,
                 )
                 .await?;
             self.shutdown_tracker()
@@ -1157,7 +1159,7 @@ impl NymNode {
         let authorised_agents = AuthorisedAgentsView::new(
             routing_filter.known_network_monitors_handle(),
             noise_view.clone(),
-            monitor_identities,
+            monitor_identities.clone(),
         );
         for agent in self.known_network_monitors().await? {
             if let Some(agent) = AuthorisedAgent::parse_contract_entry(agent) {
@@ -1221,6 +1223,7 @@ impl NymNode {
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
+            monitor_identities,
         )
         .await?;
 

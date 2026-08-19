@@ -96,3 +96,8 @@ nym-wallet/.tsbuild-test/tsconfig.test.tsbuildinfo
 /data/
 
 .openlore
+
+# Credential for reaching a protected Vercel preview (documentation/scripts/*).
+# Kept out of the tree entirely: it is a shared secret, and an untracked file at
+# the repository root is one `git add -A` away from being published.
+.bypass

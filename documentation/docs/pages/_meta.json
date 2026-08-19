@@ -17,5 +17,9 @@
   "apis": {
     "title": "APIs",
     "type": "page"
+  },
+  "use-with-ai": {
+    "title": "Use with AI",
+    "type": "page"
   }
 }

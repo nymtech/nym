@@ -13,8 +13,8 @@ The Nym Network is a privacy infrastructure that protects metadata: not just mes
 ## In this section
 
 - [The Privacy Problem](/network/overview/privacy-problem): what metadata is, why it matters, and what adversary models Nym is designed against
-- [Choosing a Mode](/network/overview/choosing-a-mode): how dVPN and Mixnet mode differ, and guidance on which fits your use case
-- [Nym vs Other Systems](/network/overview/comparisons): how Nym compares to VPNs, Tor, I2P, and E2EE
+- [Choose a Defence](/network/threat-model/choose-config): compare configurations against each adversary, with use-case guidance
+- [Nym vs Other Systems](/network/threat-model/comparisons): how Nym compares to VPNs, Tor, I2P, and E2EE
 
 ## Network Components
 

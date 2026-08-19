@@ -1,0 +1,80 @@
+name: ci-docs-typedoc-fresh
+
+# Gate: the committed TypeDoc API reference must equal a fresh, correctly-ordered
+# regeneration. Runs only when SDK source (or the committed api/ tree) changes.
+#
+# It builds the SDK wasm + the four TS SDK packages BEFORE typedoc, so cross-package
+# re-exports (e.g. mix-fetch re-exporting SetupMixTunnelOpts from mix-tunnel) resolve
+# against fresh built dist rather than stale dist. Then it regenerates via
+# `pnpm run docs:typedoc` and fails if the committed docs differ.
+#
+# If this goes red: run `pnpm run docs:typedoc` locally and commit the result.
+#
+# Determinism note: generate-typedoc.sh pins source links to `develop`
+# (`--gitRevision develop`), so the output does not churn per-commit.
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [master]
+    paths:
+      - "sdk/typescript/packages/sdk/src/**"
+      - "sdk/typescript/packages/mix-tunnel/src/**"
+      - "sdk/typescript/packages/mix-fetch/src/**"
+      - "sdk/typescript/packages/mix-dns/src/**"
+      - "sdk/typescript/packages/mix-websocket/src/**"
+      - "documentation/docs/pages/developers/**/api/**"
+      - "documentation/scripts/next-scripts/generate-typedoc.sh"
+      - ".github/workflows/ci-docs-typedoc-fresh.yml"
+
+jobs:
+  typedoc-fresh:
+    runs-on: arc-linux-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTUP_PERMIT_COPY_RENAME: 1
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          version: 11.1.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: "116"
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
+
+      - name: Build SDK wasm (so the mix packages resolve before typedoc)
+        run: make sdk-wasm-build
+
+      - name: Install typedoc (global, as generate-typedoc.sh expects)
+        run: npm install -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
+
+      - name: Regenerate API docs (ordered) and check they match the committed tree
+        run: |
+          pnpm run docs:typedoc
+          if ! git diff --quiet -- documentation/docs/pages/developers; then
+            echo "::error::Committed TypeDoc API reference is stale. Run 'pnpm run docs:typedoc' locally and commit the result."
+            git --no-pager diff --stat -- documentation/docs/pages/developers
+            exit 1
+          fi
+          echo "TypeDoc API reference is up to date."
+        working-directory: ${{ github.workspace }}

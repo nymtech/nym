@@ -24,23 +24,33 @@ pub(crate) fn install_panic_recorder() {
     }));
 }
 
+// These three types are the single source of truth for the tunnel-state shape the
+// TS SDK sees. tsify (the wasm-bindgen-native TS generator, as used for SetupOpts)
+// emits their `.d.ts` during the wasm build, so `getTunnelState`'s return type is
+// generated from this serde, not hand-copied. The derive is gated to wasm32 so
+// tsify stays out of any host build; only the boundary-returned `TunnelState`
+// needs `into_wasm_abi` (the nested types are reached through it). They are `pub`
+// and re-exported from lib.rs so the `pub` wasm-bindgen accessor can name them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum TaskName {
+pub enum TaskName {
     Bridge,
     Reactor,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify))]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum FailureReason {
+pub enum FailureReason {
     TaskExited { task: TaskName },
     TaskPanicked,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(target_arch = "wasm32", derive(tsify::Tsify), tsify(into_wasm_abi))]
 #[serde(tag = "state", rename_all = "snake_case")]
-pub(crate) enum TunnelState {
+pub enum TunnelState {
     Connecting,
     Ready,
     ShuttingDown,

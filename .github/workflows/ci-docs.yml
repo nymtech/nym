@@ -51,31 +51,28 @@ jobs:
           command: build
           args: --workspace --release
 
-      - name: Check if TypeScript SDK source changed
-        id: check-ts-sdk
-        run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -qE '^sdk/typescript/packages/(sdk|mix-tunnel|mix-fetch|mix-dns|mix-websocket)/src/'; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-        working-directory: ${{ github.workspace }}
-
-      - name: Regenerate TypeDoc API reference
-        if: steps.check-ts-sdk.outputs.changed == 'true'
-        run: |
-          npm install -g typedoc@0.25.13 typedoc-plugin-markdown@4.0.3
-          cd ${{ github.workspace }}/sdk/typescript/packages/sdk          && typedoc --skipErrorChecking
-          cd ${{ github.workspace }}/sdk/typescript/packages/mix-tunnel   && typedoc --skipErrorChecking
-          cd ${{ github.workspace }}/sdk/typescript/packages/mix-fetch    && typedoc --skipErrorChecking
-          cd ${{ github.workspace }}/sdk/typescript/packages/mix-dns      && typedoc --skipErrorChecking
-          cd ${{ github.workspace }}/sdk/typescript/packages/mix-websocket && typedoc --skipErrorChecking
+      # The TypeDoc API reference is a committed artefact, regenerated locally with
+      # the ordered build `pnpm run docs:typedoc` (which builds the four SDK packages
+      # BEFORE typedoc, so cross-package re-exports resolve against fresh dist) and
+      # committed. CI no longer regenerates it here: this step used to run typedoc
+      # before the SDKs were built, so downstream packages' API docs were generated
+      # against stale/unbuilt dist and shipped wrong. CI now deploys the committed
+      # docs as-is; a regen-diff gate will enforce that they are current.
 
       - name: Verify doc versions
         run: ${{ github.workspace }}/documentation/scripts/verify-doc-versions.sh
         working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
+      # Persist the retrieval embed cache between runs so only changed chunks
+      # re-embed (Voyage). restore-keys picks up the most recent cache; the
+      # per-sha key saves a fresh one each run.
+      - name: Cache retrieval embeddings
+        uses: actions/cache@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-docs-embed-${{ github.sha }}
+          restore-keys: nym-docs-embed-
       - name: Generate llms-full.txt
         run: pnpm run generate:llms
       - name: Build project

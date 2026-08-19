@@ -22,9 +22,15 @@ export interface SetupOpts {
   debug?: boolean;
 }
 
+// Mirror of the published `TunnelState`. Only the `failed` variant carries
+// `reason`, and it is a tagged object rather than a string.
+export type FailureReason =
+  | { kind: 'task_exited'; task: 'bridge' | 'reactor' }
+  | { kind: 'task_panicked' };
+
 export interface TunnelState {
   state: string;
-  reason?: string;
+  reason?: FailureReason;
 }
 
 // Mirror of the published `MixWebSocket` runtime surface.

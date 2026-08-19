@@ -37,12 +37,37 @@ export type FailureReason = { kind: 'task_exited'; task: TaskName } | { kind: 't
 // @nymproject/smolmix-wasm; keep it in step with that generated type.
 export type TunnelStateName = 'connecting' | 'ready' | 'shutting_down' | 'shutdown' | 'failed';
 
+// The variants are named rather than written inline so typedoc renders them as
+// links; a union of anonymous object literals renders as `object | object | ...`.
+// Naming them also lets consumers write narrowing helpers against a variant, e.g.
+// `(s: TunnelState): s is TunnelFailed`.
+export interface TunnelConnecting {
+  state: 'connecting';
+}
+
+export interface TunnelReady {
+  state: 'ready';
+}
+
+export interface TunnelShuttingDown {
+  state: 'shutting_down';
+}
+
+export interface TunnelShutdown {
+  state: 'shutdown';
+}
+
+export interface TunnelFailed {
+  state: 'failed';
+  reason: FailureReason;
+}
+
 export type TunnelState =
-  | { state: 'connecting' }
-  | { state: 'ready' }
-  | { state: 'shutting_down' }
-  | { state: 'shutdown' }
-  | { state: 'failed'; reason: FailureReason };
+  | TunnelConnecting
+  | TunnelReady
+  | TunnelShuttingDown
+  | TunnelShutdown
+  | TunnelFailed;
 
 /**
  * Pre-serialised response shape produced by `smolmix-wasm::mixFetch`. Designed

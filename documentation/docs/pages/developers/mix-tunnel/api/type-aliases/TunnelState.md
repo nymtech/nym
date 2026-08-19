@@ -6,8 +6,8 @@
 
 # Type alias: TunnelState
 
-> **TunnelState**: `object` \| `object` \| `object` \| `object` \| `object`
+> **TunnelState**: [`TunnelConnecting`](../interfaces/TunnelConnecting.md) \| [`TunnelReady`](../interfaces/TunnelReady.md) \| [`TunnelShuttingDown`](../interfaces/TunnelShuttingDown.md) \| [`TunnelShutdown`](../interfaces/TunnelShutdown.md) \| [`TunnelFailed`](../interfaces/TunnelFailed.md)
 
 ## Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:40](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L40)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:65](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L65)

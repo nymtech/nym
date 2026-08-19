@@ -2,5 +2,10 @@
   "IMixTunnelWorker": "IMixTunnelWorker",
   "LoadedEvent": "LoadedEvent",
   "MixFetchResponseInit": "MixFetchResponseInit",
-  "SetupMixTunnelOpts": "SetupMixTunnelOpts"
+  "SetupMixTunnelOpts": "SetupMixTunnelOpts",
+  "TunnelConnecting": "TunnelConnecting",
+  "TunnelFailed": "TunnelFailed",
+  "TunnelReady": "TunnelReady",
+  "TunnelShutdown": "TunnelShutdown",
+  "TunnelShuttingDown": "TunnelShuttingDown"
 }

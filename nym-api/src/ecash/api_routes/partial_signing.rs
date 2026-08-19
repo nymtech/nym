@@ -143,7 +143,6 @@ async fn partial_expiration_date_signatures(
         output,
     }): Query<ExpirationDateParam>,
 ) -> AxumResult<FormattedResponse<PartialExpirationDateSignatureResponse>> {
-    state.ensure_signer().await?;
     let output = output.unwrap_or_default();
 
     let expiration_date = match expiration_date {
@@ -152,13 +151,16 @@ async fn partial_expiration_date_signatures(
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
-
     let epoch_id = match epoch_id {
         Some(epoch_id) => epoch_id,
         None => state.current_dkg_epoch().await?,
     };
+
+    // the caller wants this epoch's material, so it's this epoch's signers that have to answer
+    state.ensure_signer_for_epoch(epoch_id).await?;
+
+    // see if we're not in the middle of new dkg
+    state.ensure_dkg_not_in_progress().await?;
 
     let expiration_date_signatures = state
         .partial_expiration_date_signatures(expiration_date, epoch_id)
@@ -191,12 +193,18 @@ async fn partial_coin_indices_signatures(
     State(state): State<Arc<EcashState>>,
     Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
 ) -> AxumResult<FormattedResponse<PartialCoinIndicesSignatureResponse>> {
-    state.ensure_signer().await?;
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => state.current_dkg_epoch().await?,
+    };
+
+    // the caller wants this epoch's material, so it's this epoch's signers that have to answer
+    state.ensure_signer_for_epoch(epoch_id).await?;
 
     // see if we're not in the middle of new dkg
     state.ensure_dkg_not_in_progress().await?;
 
-    let coin_indices_signatures = state.partial_coin_index_signatures(epoch_id).await?;
+    let coin_indices_signatures = state.partial_coin_index_signatures(Some(epoch_id)).await?;
 
     Ok(output
         .unwrap_or_default()

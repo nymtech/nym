@@ -25,7 +25,7 @@ pub(crate) mod keys;
 
 pub(crate) struct DkgController<R = OsRng> {
     pub(crate) dkg_client: DkgClient,
-    pub(crate) coconut_key_path: PathBuf,
+    pub(crate) ecash_key_path: PathBuf,
     pub(crate) state: State,
     pub(super) rng: R,
     polling_rate: Duration,
@@ -53,7 +53,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
-            coconut_key_path: config.storage_paths.ecash_key_path.clone(),
+            ecash_key_path: config.storage_paths.ecash_key_path.clone(),
             state: State::new(
                 config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
@@ -377,7 +377,7 @@ impl DkgController {
     ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
-            coconut_key_path: Default::default(),
+            ecash_key_path: Default::default(),
             state,
             rng: crate::ecash::tests::fixtures::test_rng([1u8; 32]),
             polling_rate: Default::default(),
@@ -388,11 +388,11 @@ impl DkgController {
         rng: rand_chacha::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,
-        coconut_key_path: PathBuf,
+        ecash_key_path: PathBuf,
     ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
-            coconut_key_path,
+            ecash_key_path,
             state,
             rng,
             polling_rate: Default::default(),

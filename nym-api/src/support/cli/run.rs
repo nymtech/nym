@@ -4,7 +4,8 @@
 use crate::ecash::client::Client;
 use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
-    can_validate_coconut_keys, load_bte_keypair, load_ecash_keypair_if_exists,
+    can_validate_ecash_keys, load_archived_ecash_keypairs, load_bte_keypair,
+    load_ecash_keypair_if_exists,
 };
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::state::EcashState;
@@ -154,8 +155,21 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         let issued_for = loaded_keys.issued_for_epoch;
         ecash_keypair_wrapper.set(loaded_keys).await;
 
-        if can_validate_coconut_keys(&nyxd_client, issued_for).await? {
+        if can_validate_ecash_keys(&nyxd_client, issued_for).await? {
             ecash_keypair_wrapper.validate()
+        }
+    }
+
+    // credentials issued under earlier epochs remain spendable, and their auxiliary signatures
+    // can only be produced with the keys of the epoch that issued them.
+    //
+    // this is deliberately not tied to holding a *current* key: an api that restarted between
+    // archiving its old one and deriving its replacement holds nothing else.
+    if config.ecash_signer.enabled {
+        for archived in
+            load_archived_ecash_keypairs(&config.ecash_signer.storage_paths.ecash_key_path)
+        {
+            ecash_keypair_wrapper.archive(archived).await;
         }
     }
 

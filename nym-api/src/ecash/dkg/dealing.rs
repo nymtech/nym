@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg;
-use crate::ecash::dkg::controller::keys::archive_coconut_keypair;
+use crate::ecash::dkg::controller::keys::archive_ecash_keypair;
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::error::EcashError;
 use crate::ecash::keys::KeyPairWithEpoch;
@@ -273,7 +273,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         epoch_id: EpochId,
         expected_key_size: u32,
-        old_keypair: KeyPairWithEpoch,
+        old_keypair: &KeyPairWithEpoch,
     ) -> Result<(), DealingGenerationError> {
         // make sure we're allowed to participate in resharing
         if !self.can_reshare(epoch_id).await? {
@@ -304,7 +304,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         // generate resharing dealings
-        let prior_secrets = old_keypair.hazmat_into_secrets();
+        let prior_secrets = old_keypair.hazmat_secrets();
         // safety:
         // the prior secrets will be immediately converted into `Polynomial` with the specified coefficient
         // that does implement `ZeroizeOnDrop`
@@ -405,7 +405,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
             if resharing {
                 debug!("resharing + prior key");
-                self.handle_resharing_with_prior_key(epoch_id, expected_key_size, old_keypair)
+                self.handle_resharing_with_prior_key(epoch_id, expected_key_size, &old_keypair)
                     .await?;
             } else {
                 debug!("no resharing + prior key");
@@ -418,13 +418,19 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             // (so we won't be able to create resharing dealings again if we crashed since we won't be able to load the keys)
             self.state.persist()?;
             // archive the keypair
-            if let Err(source) = archive_coconut_keypair(&self.coconut_key_path, keypair_epoch) {
+            if let Err(source) = archive_ecash_keypair(&self.ecash_key_path, keypair_epoch) {
                 return Err(DealingGenerationError::KeyArchiveFailure {
                     epoch_id,
-                    path: self.coconut_key_path.clone(),
+                    path: self.ecash_key_path.clone(),
                     source,
                 });
             }
+
+            // it's no longer the key we sign with, but credentials issued under its epoch
+            // outlive the rotation and still need their auxiliary signatures, so keep it
+            // around rather than dropping it here. a restart recovers it from the archive
+            // we just wrote.
+            self.state.archive_ecash_keypair(old_keypair).await;
         } else {
             // sure, the if statements could be collapsed, but i prefer to explicitly repeat the block for readability
             if resharing {
@@ -470,6 +476,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::ecash::dkg::controller::keys::load_archived_ecash_keypairs;
     use crate::ecash::dkg::state::registration::KeyRejectionReason;
     use crate::ecash::keys::KeyPair;
     use crate::ecash::tests::fixtures::{dealers_fixtures, test_rng, TestingDkgControllerBuilder};
@@ -663,6 +670,56 @@ pub(crate) mod tests {
 
         // no dealings submitted for the epoch, because we're not an initial dealer
         assert!(generated_dealings.is_empty());
+
+        Ok(())
+    }
+
+    /// B3: rotating away from an epoch must not lose the keys it was signed with. Credentials
+    /// issued under it stay spendable for days afterwards and still need their auxiliary
+    /// signatures, which only those keys can produce.
+    ///
+    /// A restarted api recovers them from the archive on disk; a process that stays up through
+    /// the ceremony has to keep them itself, so both are asserted here. Neither depends on
+    /// whether the rotation is a resharing or a reset.
+    #[tokio::test]
+    async fn dealing_exchange_retains_the_prior_keys_for_their_own_epoch() -> anyhow::Result<()> {
+        for resharing in [true, false] {
+            let mut rng = test_rng([69u8; 32]);
+            let dealers = dealers_fixtures(&mut rng, 4);
+            let self_dealer = dealers[0].clone();
+
+            let epoch = 1;
+            let prior_epoch = epoch - 1;
+
+            let mut keys = ttp_keygen(3, 4).unwrap();
+            let ecash_keys = KeyPair::new();
+            ecash_keys
+                .set(KeyPairWithEpoch::new(keys.pop().unwrap(), prior_epoch))
+                .await;
+
+            let mut controller = TestingDkgControllerBuilder::default()
+                .with_threshold(3)
+                .with_dealers(dealers.clone())
+                .with_as_dealer(self_dealer.clone())
+                .with_keypair(ecash_keys.clone())
+                .with_initial_epoch_id(epoch)
+                .build()
+                .await;
+
+            controller.dealing_exchange(epoch, resharing).await?;
+
+            // we no longer sign for the epoch those keys belonged to ...
+            assert!(ecash_keys.keys_for_epoch(epoch).await.is_err());
+
+            // ... but we can still serve it, without having been restarted
+            let retained = ecash_keys.keys_for_epoch(prior_epoch).await?;
+            assert_eq!(retained.issued_for_epoch, prior_epoch);
+
+            // and a restart would find the same keys on disk
+            let archived = load_archived_ecash_keypairs(&controller.ecash_key_path);
+            assert_eq!(archived.len(), 1);
+            assert_eq!(archived[0].issued_for_epoch, prior_epoch);
+        }
 
         Ok(())
     }

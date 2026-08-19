@@ -87,7 +87,7 @@ pub(crate) fn calculate_config_score(
     };
 
     if !chain_interaction.can_send_transactions() {
-        version_score = (1. - chain_interactions_penalty) * version_score;
+        version_score *= (1. - chain_interactions_penalty);
     }
 
     ConfigScoreV2::new(

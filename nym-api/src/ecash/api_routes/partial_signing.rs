@@ -132,7 +132,7 @@ struct ExpirationDateParam {
             (PartialExpirationDateSignatureResponse = "application/yaml"),
             (PartialExpirationDateSignatureResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the requested epoch, or that epoch's DKG ceremony has not concluded"),
     )
 )]
 async fn partial_expiration_date_signatures(
@@ -187,7 +187,7 @@ async fn partial_expiration_date_signatures(
             (PartialCoinIndicesSignatureResponse = "application/yaml"),
             (PartialCoinIndicesSignatureResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the requested epoch, or that epoch's DKG ceremony has not concluded"),
     )
 )]
 async fn partial_coin_indices_signatures(

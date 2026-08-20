@@ -51,7 +51,8 @@ pub(crate) fn aggregation_routes() -> Router<AppState> {
             (VerificationKeyResponse = "application/json"),
             (VerificationKeyResponse = "application/yaml"),
             (VerificationKeyResponse = "application/bincode")
-        ))
+        )),
+        (status = 400, body = String, description = "the requested epoch's DKG ceremony has not concluded, so it has no key yet"),
     ),
 )]
 async fn master_verification_key(
@@ -94,7 +95,8 @@ struct ExpirationDateParam {
             (AggregatedExpirationDateSignatureResponse = "application/json"),
             (AggregatedExpirationDateSignatureResponse = "application/yaml"),
             (AggregatedExpirationDateSignatureResponse = "application/bincode")
-        ))
+        )),
+        (status = 400, body = String, description = "the requested epoch's DKG ceremony has not concluded, so it has no signatures yet"),
     ),
 )]
 async fn expiration_date_signatures(
@@ -148,7 +150,8 @@ async fn expiration_date_signatures(
             (AggregatedCoinIndicesSignatureResponse = "application/json"),
             (AggregatedCoinIndicesSignatureResponse = "application/yaml"),
             (AggregatedCoinIndicesSignatureResponse = "application/bincode")
-        ))
+        )),
+        (status = 400, body = String, description = "the requested epoch's DKG ceremony has not concluded, so it has no signatures yet"),
     ),
 )]
 async fn coin_indices_signatures(

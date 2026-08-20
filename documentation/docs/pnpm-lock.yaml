@@ -81,17 +81,17 @@ importers:
         specifier: '>=1.2.4-rc.2 || ^1'
         version: 1.4.1
       '@nymproject/mix-dns':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@nymproject/mix-fetch':
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^2.1.1
+        version: 2.1.1
       '@nymproject/mix-tunnel':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@nymproject/mix-websocket':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@nymproject/sdk-full-fat':
         specifier: '>=1.5.1-rc.0 || ^1.4.1'
         version: 1.4.1
@@ -2479,17 +2479,17 @@ packages:
   '@nymproject/contract-clients@1.4.1':
     resolution: {integrity: sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==}
 
-  '@nymproject/mix-dns@0.2.0':
-    resolution: {integrity: sha512-I99BMnl1AyzdrUQoX5dY77YDh6gnAGuH3sn3mqQ9H6X8vntJHLFnPclUDrpHvQxOTcYPna5NXB0ubepo7u2zYg==}
+  '@nymproject/mix-dns@0.2.1':
+    resolution: {integrity: sha512-9vQBg2DdqLJJkLpUn3xIdBrksqE2V/ZtAm7zj9EqVVYKq/yfH2t/59kUdiQHwnLaIYT72TQ5/6RiaOnd0ss8Vw==}
 
-  '@nymproject/mix-fetch@2.1.0':
-    resolution: {integrity: sha512-Pfo/spN7iZeJ3fGmYOwJij8OZ48DHB5UmBZKZOBRSwiEIiSEbk/aj/t0/6hYZi0anRy/z5j30fjxvAWFMJTUbA==}
+  '@nymproject/mix-fetch@2.1.1':
+    resolution: {integrity: sha512-V8bKBn7khZqgyGW4qS3p/b1bb84vLV5l5aycnuAlZprfvpeRqh0DIypjF2K1HbZI5qqY3kn5T4LsDEjACz5SIA==}
 
-  '@nymproject/mix-tunnel@0.2.0':
-    resolution: {integrity: sha512-bG2+/tHnf2BCaYec90Uz+CQQ9xwIU4u92liqpaCKJZoY2SqNLleoXjAew4S9x3khXfq+b69Q4kA/2ZXnbeNyTw==}
+  '@nymproject/mix-tunnel@0.2.1':
+    resolution: {integrity: sha512-kX1tDFvqNH+vhxEtg/DIGZZiEl7YM+AmRY4bFXH5y3FIZY2GUYQ/0PDmvOuW6qUIY2kn97PwBPxzqgLL7NGGMA==}
 
-  '@nymproject/mix-websocket@0.2.0':
-    resolution: {integrity: sha512-yTai3NhdwwT9zbymVjLq6W+u54fCKRPkatSDUnOjuAHKlqnT3fBVy2M4u7tDY2EQgk/0k2gdMTdVraYtuPCGFw==}
+  '@nymproject/mix-websocket@0.2.1':
+    resolution: {integrity: sha512-KzK6hW05d86EfBybRhlX4eL9LBD+QkyrHTmJ49cC2uquAJXksf1+dT0HEUmSczwVyoYUxDcw9+8E4B+PFDH+hg==}
 
   '@nymproject/sdk-full-fat@1.4.1':
     resolution: {integrity: sha512-dh5bvMUj3m8nEssvO8Nl66WpcJAjwRZrGNwqfczJWLG4nX3Vt95tPLv4v0/Z1W3DQWQFW6WmEPPYHNjl18V/fA==}
@@ -13317,19 +13317,19 @@ snapshots:
 
   '@nymproject/contract-clients@1.4.1': {}
 
-  '@nymproject/mix-dns@0.2.0':
+  '@nymproject/mix-dns@0.2.1':
     dependencies:
-      '@nymproject/mix-tunnel': 0.2.0
+      '@nymproject/mix-tunnel': 0.2.1
 
-  '@nymproject/mix-fetch@2.1.0':
+  '@nymproject/mix-fetch@2.1.1':
     dependencies:
-      '@nymproject/mix-tunnel': 0.2.0
+      '@nymproject/mix-tunnel': 0.2.1
 
-  '@nymproject/mix-tunnel@0.2.0': {}
+  '@nymproject/mix-tunnel@0.2.1': {}
 
-  '@nymproject/mix-websocket@0.2.0':
+  '@nymproject/mix-websocket@0.2.1':
     dependencies:
-      '@nymproject/mix-tunnel': 0.2.0
+      '@nymproject/mix-tunnel': 0.2.1
 
   '@nymproject/sdk-full-fat@1.4.1': {}
 

@@ -8,6 +8,7 @@ use nym_crypto::asymmetric::x25519::serde_helpers::{
     bs58_x25519_pubkey, option_bs58_x25519_pubkey,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -91,6 +92,39 @@ pub struct TestRunAssignmentRequest {
     pub x25519_noise_key: x25519::PublicKey,
 }
 
+/// What a test run measures. Orthogonal to [`TestedRole`], which is the role the node was probed
+/// in: a `liveness` run of a dual-role node is one run per role.
+///
+/// Deliberately has no `Default` - the kind decides eligibility, cadence and the expected signal
+/// set, so a silently defaulted value would measure the wrong thing rather than fail.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestKind {
+    /// High-volume throughput probe, one target per assignment.
+    Stress,
+
+    /// Low-volume delivery-ratio probe, a wave of targets per assignment.
+    Liveness,
+}
+
+impl TestKind {
+    /// The kind's canonical string form, shared by its JSON tag, its stored column value and its
+    /// prometheus label so the three cannot drift apart.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TestKind::Stress => "stress",
+            TestKind::Liveness => "liveness",
+        }
+    }
+}
+
+impl fmt::Display for TestKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Response from the orchestrator when an agent requests work.
 /// `assignment` is `None` when no nodes are due for testing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -99,11 +133,71 @@ pub struct TestRunAssignmentResponse {
     pub assignment: Option<TestRunAssignment>,
 }
 
-/// Details of a single node assigned to an agent for stress testing.
+/// Work handed to an agent, tagged by what is being measured and in which role.
+///
+/// The variants correspond to the ([`TestKind`], [`TestedRole`]) pairs the orchestrator may
+/// assign, and are named for both because the pairing is not one-to-one: a gateway stress test
+/// would not resemble the mixnode one. `MixnodeStress` and `MixnodeLiveness` carry the same
+/// payload because they are the same probe, differing only in the profile the agent applies, which
+/// the agent holds in its own config and selects from the tag. `GatewayLiveness` additionally
+/// carries what is needed to open a client websocket session.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestRunAssignment {
+#[serde(rename_all = "snake_case")]
+pub enum TestRunAssignment {
+    MixnodeStress(MixnetProbeTarget),
+    MixnodeLiveness(MixnetProbeTarget),
+    GatewayLiveness(GatewayProbeTarget),
+}
+
+impl TestRunAssignment {
+    /// What this assignment measures. Determines the profile the agent applies, and the kind
+    /// recorded against the resulting run.
+    pub fn kind(&self) -> TestKind {
+        match self {
+            TestRunAssignment::MixnodeStress(_) => TestKind::Stress,
+            TestRunAssignment::MixnodeLiveness(_) | TestRunAssignment::GatewayLiveness(_) => {
+                TestKind::Liveness
+            }
+        }
+    }
+
+    /// The role the node is probed in. A dual-role node is assigned each role separately, so this
+    /// is a property of the assignment rather than of the node.
+    pub fn tested_role(&self) -> TestedRole {
+        match self {
+            TestRunAssignment::MixnodeStress(_) | TestRunAssignment::MixnodeLiveness(_) => {
+                TestedRole::Mixnode
+            }
+            TestRunAssignment::GatewayLiveness(_) => TestedRole::Gateway,
+        }
+    }
+
+    /// The mixnet-listener details, which every kind needs: the gateway probe reaches the node's
+    /// mixnet listener too, for its egress phase.
+    pub fn mixnet(&self) -> &MixnetProbeTarget {
+        match self {
+            TestRunAssignment::MixnodeStress(target)
+            | TestRunAssignment::MixnodeLiveness(target) => target,
+            TestRunAssignment::GatewayLiveness(target) => &target.mixnet,
+        }
+    }
+}
+
+/// A node to probe over its mixnet listener.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MixnetProbeTarget {
     pub node_id: u32,
+
+    /// The node's ed25519 identity, as bonded in the mixnet contract. Every bonded node has one,
+    /// so it is always available regardless of what else the orchestrator has learned about the
+    /// node. Carried on every target rather than only where a probe consumes it today: the gateway
+    /// probe authenticates the node with it during the client registration handshake, and it is the
+    /// key any future signature check over a node's responses would verify against.
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub identity_key: ed25519::PublicKey,
 
     /// The address of the node that should be tested, i.e. the one the agent is expected to send
     /// the test packets to. Always one of [`Self::node_ips`] combined with the node's mix port.
@@ -126,6 +220,20 @@ pub struct TestRunAssignment {
     pub sphinx_key: x25519::PublicKey,
 
     pub key_rotation_id: u32,
+}
+
+/// A node to probe as an entry gateway: its mixnet listener for the egress phase, plus the client
+/// websocket details for the ingress phase.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GatewayProbeTarget {
+    pub mixnet: MixnetProbeTarget,
+
+    /// Port of the node's PLAIN client websocket listener. The session is established against
+    /// `ws://<one of the mixnet target's ips>:<this port>`, never an announced hostname or a wss
+    /// entry, so that no proxy sits between the agent and the gateway. The identity the handshake
+    /// authenticates the gateway against is [`MixnetProbeTarget::identity_key`].
+    pub clients_ws_port: u16,
 }
 
 /// Latency statistics computed over the set of test packets received or sent during a stress test.
@@ -458,6 +566,91 @@ mod tests {
 
     // nodes store the authorised agent addresses under their canonical form, so an ipv4-mapped
     // address in the v6 field collapses onto the v4 one instead of authorising a second ingress
+    fn mixnet_target() -> MixnetProbeTarget {
+        let mut rng = nym_test_utils::helpers::deterministic_rng();
+        let x_key = x25519::PublicKey::from(&x25519::PrivateKey::new(&mut rng));
+        MixnetProbeTarget {
+            node_id: 42,
+            identity_key: *ed25519::KeyPair::new(&mut rng).public_key(),
+            node_address: "1.1.1.1:1789".parse().unwrap(),
+            node_ips: vec!["1.1.1.1".parse().unwrap(), "aaaa::1".parse().unwrap()],
+            noise_key: x_key,
+            sphinx_key: x_key,
+            key_rotation_id: 7,
+        }
+    }
+
+    // The assignment is EXTERNALLY tagged, which is load-bearing rather than stylistic: the
+    // liveness variants become waves (a sequence), and serde cannot internally tag a sequence. If
+    // this is ever switched to `#[serde(tag = ...)]` it will compile and then fail at runtime for
+    // exactly the variants that carry a wave, so pin the shape here.
+    #[test]
+    fn assignment_variants_round_trip_under_their_own_tag() {
+        let stress = TestRunAssignment::MixnodeStress(mixnet_target());
+        let json = serde_json::to_string(&stress).unwrap();
+        assert!(json.contains(r#"{"mixnode_stress":"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Stress);
+        assert_eq!(parsed.tested_role(), TestedRole::Mixnode);
+        assert_eq!(parsed.mixnet().node_id, 42);
+        assert_eq!(parsed.mixnet().key_rotation_id, 7);
+
+        let gateway = TestRunAssignment::GatewayLiveness(GatewayProbeTarget {
+            mixnet: mixnet_target(),
+            clients_ws_port: 9000,
+        });
+        let json = serde_json::to_string(&gateway).unwrap();
+        assert!(json.contains(r#"{"gateway_liveness":"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Liveness);
+        assert_eq!(parsed.tested_role(), TestedRole::Gateway);
+        // reachable through the accessor regardless of variant, since the gateway probe's egress
+        // phase targets the mixnet listener too
+        assert_eq!(parsed.mixnet().node_id, 42);
+        let TestRunAssignment::GatewayLiveness(target) = parsed else {
+            panic!("round-tripped into the wrong variant");
+        };
+        assert_eq!(target.clients_ws_port, 9000);
+    }
+
+    // a mixnode liveness assignment carries the same payload as a stress one, so the tag is the
+    // only thing telling the agent which profile to apply
+    #[test]
+    fn the_tag_is_what_distinguishes_the_two_mixnode_probes() {
+        let stress = serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target()));
+        let liveness = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(mixnet_target()));
+
+        let stress = stress.unwrap();
+        let liveness = liveness.unwrap();
+        assert_ne!(stress, liveness);
+        assert_eq!(
+            stress.replace("mixnode_stress", "mixnode_liveness"),
+            liveness,
+        );
+    }
+
+    // `as_str` feeds the stored column value and the prometheus label while serde produces the
+    // wire tag. They must be the same string: if they diverged, rows already stored under one
+    // spelling would stop matching queries built from the other, and the drift would be silent.
+    #[test]
+    fn test_kind_wire_tag_matches_its_string_form() {
+        for kind in [TestKind::Stress, TestKind::Liveness] {
+            let json = serde_json::to_string(&kind).unwrap();
+            assert_eq!(json, format!("\"{}\"", kind.as_str()));
+            assert_eq!(kind.to_string(), kind.as_str());
+
+            let parsed: TestKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, kind);
+        }
+
+        // pin the spellings themselves, so a `rename_all` change fails here rather than in a
+        // migration that no longer matches the rows it was written against
+        assert_eq!(TestKind::Stress.as_str(), "stress");
+        assert_eq!(TestKind::Liveness.as_str(), "liveness");
+    }
+
     #[test]
     fn an_ipv4_mapped_v6_address_does_not() {
         assert!(!addresses("1.1.1.1:1789", "[::ffff:1.1.1.1]:1789").has_distinct_families());

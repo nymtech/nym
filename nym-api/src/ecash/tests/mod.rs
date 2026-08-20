@@ -1465,14 +1465,27 @@ impl TestFixture {
         self.issue_ticketbook(req).await;
     }
 
-    async fn issue_ticketbook(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
-        let response = self
+    /// Raw blind-sign request, optionally pinning the epoch whose material is being collected.
+    async fn blind_sign(
+        &self,
+        req: BlindSignRequestBody,
+        epoch_id: Option<EpochId>,
+    ) -> TestResponse {
+        let request = self
             .axum
             .post(&format!(
                 "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
             ))
-            .json(&req)
-            .await;
+            .json(&req);
+
+        match epoch_id {
+            Some(epoch_id) => request.add_query_param("epoch_id", epoch_id).await,
+            None => request.await,
+        }
+    }
+
+    async fn issue_ticketbook(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
+        let response = self.blind_sign(req, None).await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
         response.json()
@@ -1557,7 +1570,9 @@ mod credential_tests {
             .storage
             .store_issued_ticketbook(
                 deposit_id,
-                42,
+                // the epoch this share is being replayed to a caller of, so it has to be the one
+                // they are collecting for
+                test_fixture.comm_state.current_epoch() as u32,
                 &sig.to_bytes(),
                 &commitments,
                 expiration_date,
@@ -1570,13 +1585,7 @@ mod credential_tests {
             .await
             .unwrap();
 
-        let response = test_fixture
-            .axum
-            .post(&format!(
-                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
-            ))
-            .json(&request_body)
-            .await;
+        let response = test_fixture.blind_sign(request_body, None).await;
 
         assert_eq!(response.status_code(), StatusCode::OK);
         let expected_response = BlindedSignatureResponse::new(sig);
@@ -1646,6 +1655,142 @@ mod credential_tests {
         ));
     }
 
+    /// C2: the idempotency cache had no epoch component, so a share signed under one epoch's key
+    /// was replayed to a caller collecting a later epoch's material. That share cannot be
+    /// unblinded against the epoch it is being aggregated for, and the caller silently drops it -
+    /// forever, since retrying returns the same cached bytes. The refusal names the epoch the
+    /// share does belong to, which is what makes the collection recoverable.
+    #[tokio::test]
+    async fn a_share_from_another_epoch_is_refused_rather_than_replayed() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+
+        // a ceremony runs to completion and the chain moves on
+        fixture.set_epoch(2).await;
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                None,
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert!(response.text().contains(
+            &EcashError::IssuedUnderDifferentEpoch {
+                deposit_id: voucher.deposit_id(),
+                issued_for_epoch: 1,
+                requested_epoch: 2,
+            }
+            .to_string()
+        ));
+    }
+
+    /// The other half of the same fix: a caller that knows which epoch it collected under can say
+    /// so, and gets its share back however far the chain has moved since. Without this the refusal
+    /// above would simply strand the deposit instead of poisoning it.
+    #[tokio::test]
+    async fn asking_for_the_epoch_a_share_was_issued_under_returns_it() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        let issued = fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+
+        fixture.set_epoch(2).await;
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(1),
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::OK);
+        assert_eq!(
+            response.json::<BlindedSignatureResponse>().to_bytes(),
+            issued.to_bytes()
+        );
+    }
+
+    /// We hold exactly one share per deposit. If it is not the one being asked for we have nothing
+    /// to give, and signing a second would mint another book against a single payment.
+    #[tokio::test]
+    async fn asking_for_an_epoch_we_did_not_issue_under_is_refused() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(2),
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert!(response.text().contains(
+            &EcashError::IssuedUnderDifferentEpoch {
+                deposit_id: voucher.deposit_id(),
+                issued_for_epoch: 1,
+                requested_epoch: 2,
+            }
+            .to_string()
+        ));
+    }
+
+    /// The row has to record which key actually signed the share, not what the chain-state cache
+    /// happened to say at the time. The two disagree precisely when it matters: that cache is up
+    /// to five minutes stale, and a signer keeps issuing under the key it holds until it derives a
+    /// new one. The epoch-aware cache lookup compares against this value, so stamping it from the
+    /// wrong source would make that comparison wrong in exactly the window it exists for.
+    #[tokio::test]
+    async fn an_issued_ticketbook_records_the_epoch_of_the_key_that_signed_it() {
+        let fixture = TestFixture::new().await;
+
+        // the chain has moved on, but this signer still holds - and still signs with - the key it
+        // derived for epoch 1
+        fixture.set_epoch(2).await;
+
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+        fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+
+        let DepositUsage::Issued {
+            issued_for_epoch, ..
+        } = fixture
+            .storage
+            .deposit_usage(voucher.deposit_id())
+            .await
+            .unwrap()
+        else {
+            panic!("expected the deposit to be recorded as issued")
+        };
+
+        assert_eq!(issued_for_epoch, 1);
+    }
+
     /// The same invariant one layer down: the record marking a deposit as spent has to outlive the
     /// issuance data it accompanies, because nothing ever invalidates the deposit itself.
     #[tokio::test]
@@ -1677,7 +1822,7 @@ mod credential_tests {
 
         assert!(matches!(
             storage.deposit_usage(deposit_id).await.unwrap(),
-            DepositUsage::Issued(_)
+            DepositUsage::Issued { .. }
         ));
 
         storage
@@ -1760,7 +1905,9 @@ mod credential_tests {
             .await
             .unwrap();
 
-        let DepositUsage::Issued(stored) = state.deposit_usage(deposit_id).await.unwrap() else {
+        let DepositUsage::Issued { share: stored, .. } =
+            state.deposit_usage(deposit_id).await.unwrap()
+        else {
             panic!("expected the stored share to be returned")
         };
         assert_eq!(stored.to_bytes(), blinded_signature_fixture().to_bytes());
@@ -1812,7 +1959,9 @@ mod credential_tests {
             .unwrap();
 
         // Check that the same value for tx_hash is returned
-        let DepositUsage::Issued(stored) = state.deposit_usage(deposit_id).await.unwrap() else {
+        let DepositUsage::Issued { share: stored, .. } =
+            state.deposit_usage(deposit_id).await.unwrap()
+        else {
             panic!("expected the stored share to be returned")
         };
         assert_eq!(stored.to_bytes(), blinded_signature.to_bytes());

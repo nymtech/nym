@@ -16,10 +16,9 @@ use nym_api_requests::ecash::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_time::{cred_exp_date, EcashTime};
-use nym_http_api_common::{FormattedResponse, Output, OutputParams};
+use nym_http_api_common::{FormattedResponse, Output};
 use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
 use serde::Deserialize;
-use std::ops::Deref;
 use std::sync::Arc;
 use time::Date;
 use tracing::{debug, trace};
@@ -49,24 +48,24 @@ pub(crate) fn partial_signing_routes() -> Router<AppState> {
             (BlindedSignatureResponse = "application/yaml"),
             (BlindedSignatureResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch, or it already issued this deposit's ticketbook under a different epoch"),
     ),
-    params(OutputParams)
+    params(EpochIdParam)
 )]
 async fn post_blind_sign(
-    Query(output): Query<OutputParams>,
+    Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
     State(state): State<Arc<EcashState>>,
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
 ) -> AxumResult<FormattedResponse<BlindedSignatureResponse>> {
     state.ensure_signer().await?;
-    let output = output.output.unwrap_or_default();
+    let output = output.unwrap_or_default();
 
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
     // check if we have the signing key available
     debug!("checking if we actually have ecash keys derived...");
-    let signing_key = state.ecash_signing_key().await?;
+    let issuance_keys = state.ecash_issuance_keys().await?;
 
     // basic check of expiration date validity
     if blind_sign_request_body.expiration_date > cred_exp_date().ecash_date() {
@@ -82,9 +81,34 @@ async fn post_blind_sign(
         "checking if we have already issued credential for this deposit (deposit_id: {deposit_id})",
     );
     match state.deposit_usage(deposit_id).await? {
-        // a repeated request for a deposit whose share we still hold gets that same share back
-        DepositUsage::Issued(blinded_signature) => {
-            return Ok(output.to_response(BlindedSignatureResponse { blinded_signature }))
+        DepositUsage::Issued {
+            share,
+            issued_for_epoch,
+        } => {
+            // the epoch whose material the caller is collecting: whichever they asked for, or the
+            // current one if they did not say. only resolved here, since a deposit we have never
+            // signed for does not need it.
+            let requested_epoch = match epoch_id {
+                Some(epoch_id) => epoch_id,
+                None => state.current_dkg_epoch().await?,
+            };
+
+            // a share is bound to the key that signed it. one signed under a different epoch
+            // cannot be unblinded against the epoch being collected, and the caller would drop it
+            // and fall short of the threshold - every time, since this is a cache. refusing at
+            // least names the epoch under which the share can still be claimed.
+            if issued_for_epoch != requested_epoch {
+                return Err(EcashError::IssuedUnderDifferentEpoch {
+                    deposit_id,
+                    issued_for_epoch,
+                    requested_epoch,
+                }
+                .into());
+            }
+
+            return Ok(output.to_response(BlindedSignatureResponse {
+                blinded_signature: share,
+            }));
         }
 
         // we no longer hold the share, but the deposit was still spent on it. signing again here
@@ -110,12 +134,17 @@ async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.deref())?;
+    let blinded_signature = blind_sign(&blind_sign_request_body, issuance_keys.signing_key())?;
 
-    // store the information locally
+    // store the information locally, against the epoch of the key that just signed it rather than
+    // whatever the chain-state cache currently reports
     debug!("storing the issued credential in the database");
     state
-        .store_issued_ticketbook(blind_sign_request_body, &blinded_signature)
+        .store_issued_ticketbook(
+            blind_sign_request_body,
+            &blinded_signature,
+            issuance_keys.issued_for_epoch,
+        )
         .await?;
 
     // finally return the credential to the client

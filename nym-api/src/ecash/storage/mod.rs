@@ -197,13 +197,19 @@ impl EcashStorageExt for NymApiStorage {
         Ok(match self.manager.deposit_usage(deposit_id).await? {
             RawDepositUsage::Unused => DepositUsage::Unused,
             RawDepositUsage::Pruned => DepositUsage::Pruned,
-            RawDepositUsage::Issued(raw) => {
-                DepositUsage::Issued(BlindedSignature::from_bytes(&raw).map_err(|err| {
-                    NymApiStorageError::database_inconsistency(format!(
-                        "failed to recover stored partial signature: {err}"
-                    ))
-                })?)
-            }
+            RawDepositUsage::Issued {
+                blinded_partial_credential,
+                dkg_epoch_id,
+            } => DepositUsage::Issued {
+                share: BlindedSignature::from_bytes(&blinded_partial_credential).map_err(
+                    |err| {
+                        NymApiStorageError::database_inconsistency(format!(
+                            "failed to recover stored partial signature: {err}"
+                        ))
+                    },
+                )?,
+                issued_for_epoch: dkg_epoch_id as EpochId,
+            },
         })
     }
 

@@ -6,7 +6,7 @@ use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
 use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::helpers::{IssuedCoinIndicesSignatures, IssuedExpirationDateSignatures};
-use crate::ecash::keys::KeyPair;
+use crate::ecash::keys::{KeyPair, KeyPairWithEpoch};
 use crate::ecash::state::auxiliary::AuxiliaryEcashState;
 use crate::ecash::state::cleaner::EcashBackgroundStateCleaner;
 use crate::ecash::state::global::GlobalEcachState;
@@ -223,6 +223,14 @@ impl EcashState {
 
     pub(crate) async fn ecash_signing_key(&self) -> Result<RwLockReadGuard<'_, SecretKeyAuth>> {
         self.local.ecash_keypair.signing_key().await
+    }
+
+    /// The keys to issue with, alongside the epoch they belong to, read as one so that what we
+    /// record about an issuance cannot disagree with what actually signed it.
+    pub(crate) async fn ecash_issuance_keys(
+        &self,
+    ) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>> {
+        self.local.ecash_keypair.issuance_keys().await
     }
 
     #[allow(dead_code)]
@@ -739,7 +747,7 @@ impl EcashState {
 
     pub(crate) async fn persist_issued(
         &self,
-        current_epoch: EpochId,
+        issued_for_epoch: EpochId,
         issued: &IssuedTicketbook,
         merkle_leaf: MerkleLeaf,
     ) -> Result<()> {
@@ -750,7 +758,7 @@ impl EcashState {
             .storage
             .store_issued_ticketbook(
                 issued.deposit_id,
-                current_epoch as u32,
+                issued_for_epoch as u32,
                 &issued.blinded_partial_credential,
                 &issued.joined_encoded_private_attributes_commitments,
                 issued.expiration_date,
@@ -795,15 +803,15 @@ impl EcashState {
         &self,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
+        issued_for_epoch: EpochId,
     ) -> Result<()> {
-        let current_epoch = self.aux.current_epoch().await?;
         let expiration = request_body.expiration_date;
         let deposit_id = request_body.deposit_id;
 
         let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
         let issued = IssuedTicketbook {
             deposit_id: request_body.deposit_id,
-            epoch_id: current_epoch,
+            epoch_id: issued_for_epoch,
             blinded_partial_credential: blinded_signature.to_byte_vec(),
             joined_encoded_private_attributes_commitments,
             expiration_date: request_body.expiration_date,
@@ -822,7 +830,7 @@ impl EcashState {
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
         if let Err(err) = self
-            .persist_issued(current_epoch, &issued, inserted_leaf)
+            .persist_issued(issued_for_epoch, &issued, inserted_leaf)
             .await
         {
             // if we failed to insert it into the db, rollback the tree. there was most likely clash on the deposit

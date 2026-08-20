@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::NymApiStorageError;
+use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::BlindedSignature;
 use nym_credentials_interface::TicketType;
 use nym_ecash_contract_common::deposit::DepositId;
@@ -94,7 +95,10 @@ pub enum RawDepositUsage {
     Unused,
 
     /// Signed for, with the blinded share still retained.
-    Issued(Vec<u8>),
+    Issued {
+        blinded_partial_credential: Vec<u8>,
+        dkg_epoch_id: u32,
+    },
 
     /// Signed for, but the issuance data has since been removed by the stale-data cleaner.
     Pruned,
@@ -103,7 +107,13 @@ pub enum RawDepositUsage {
 /// [`RawDepositUsage`] with the stored share recovered.
 pub enum DepositUsage {
     Unused,
-    Issued(BlindedSignature),
+    Issued {
+        share: BlindedSignature,
+
+        /// The epoch of the key the share was signed with. A share is only of use to a caller
+        /// collecting that same epoch's material.
+        issued_for_epoch: EpochId,
+    },
     Pruned,
 }
 

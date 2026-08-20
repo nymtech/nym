@@ -41,6 +41,13 @@ pub enum EcashError {
     #[error("deposit {deposit_id} has already been used to issue a ticketbook. the issued data is no longer retained, but the deposit remains spent")]
     DepositAlreadyUsed { deposit_id: DepositId },
 
+    #[error("the ticketbook issued for deposit {deposit_id} was signed under epoch {issued_for_epoch}, not the requested {requested_epoch}. request that epoch explicitly to retrieve it")]
+    IssuedUnderDifferentEpoch {
+        deposit_id: DepositId,
+        issued_for_epoch: EpochId,
+        requested_epoch: EpochId,
+    },
+
     #[error("attempted to request too many partial ticketbooks at once. got {requested}, but the maximum allowed is {max}")]
     RequestTooBig { requested: usize, max: usize },
 

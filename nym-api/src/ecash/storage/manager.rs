@@ -179,7 +179,9 @@ impl EcashStorageManagerExt for StorageManager {
         // outlives pruning, so its absence is the only thing that means "never signed for"
         let Some(row) = sqlx::query!(
             r#"
-                SELECT t.blinded_partial_credential AS "blinded_partial_credential?"
+                SELECT
+                    t.blinded_partial_credential AS "blinded_partial_credential?",
+                    t.dkg_epoch_id AS "dkg_epoch_id?: u32"
                 FROM used_deposit u
                 LEFT JOIN issued_ticketbook t ON t.deposit_id = u.deposit_id
                 WHERE u.deposit_id = ?
@@ -192,9 +194,13 @@ impl EcashStorageManagerExt for StorageManager {
             return Ok(RawDepositUsage::Unused);
         };
 
-        Ok(match row.blinded_partial_credential {
-            Some(share) => RawDepositUsage::Issued(share),
-            None => RawDepositUsage::Pruned,
+        // both columns come from the same joined row, so they are present or absent together
+        Ok(match (row.blinded_partial_credential, row.dkg_epoch_id) {
+            (Some(blinded_partial_credential), Some(dkg_epoch_id)) => RawDepositUsage::Issued {
+                blinded_partial_credential,
+                dkg_epoch_id,
+            },
+            _ => RawDepositUsage::Pruned,
         })
     }
 

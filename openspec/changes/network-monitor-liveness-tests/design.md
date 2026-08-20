@@ -68,9 +68,9 @@ tests: session, bandwidth path,           tests: mixnet ingress, sphinx unwrap,
        outbound forwarder + Noise                client delivery
 ```
 
-The run produces two signals. The score denominator is fixed by the kind at two signals, so a phase that produces nothing scores zero rather than being dropped from the average. A phase-1 failure MUST NOT abort the run. Only failure to establish the session aborts, in which case both signals are zero.
+The run produces two measurements. The score denominator is fixed by the kind at two measurements, so a phase that produces nothing scores zero rather than being dropped from the average. A phase-1 failure MUST NOT abort the run. Only failure to establish the session aborts, in which case both measurements are zero.
 
-**Why.** The two phases test independent capabilities and a gateway needs both to be useful, so both must always be measured and a missing signal must never be more favourable than a zero one. This mirrors v1, which seeds every tested node at zero received so that an unreachable node scores 0 rather than being omitted. Sharing one session is required anyway, because final-hop delivery needs a live session at the moment the packet arrives.
+**Why.** The two phases test independent capabilities and a gateway needs both to be useful, so both must always be measured and a missing measurement must never be more favourable than a zero one. This mirrors v1, which seeds every tested node at zero received so that an unreachable node scores 0 rather than being omitted. Sharing one session is required anyway, because final-hop delivery needs a live session at the moment the packet arrives.
 
 **Alternative considered.** A single combined loop (`client -> GW -> agent-as-mix -> GW -> client`) exercising both directions per packet. Rejected because it halves the packet budget but destroys direction attribution, which is the entire reason for going minimal-hop. Also considered and rejected: separate assignments per phase, which would allow two agents to measure half a gateway each and produce results nobody can compose.
 
@@ -123,9 +123,11 @@ The run produces two signals. The score denominator is fixed by the kind at two 
 
 **Consequence.** Denormalising `last_tested_at` also fixes an existing defect. Today staleness is read through `JOIN testrun tr ON tr.id = n.last_testrun` with `ON DELETE SET NULL`, so when eviction removes a node's last run the node reads as never-tested and jumps the queue.
 
-### Decision 8: Results carry per-signal rows under a run-level row
+### Decision 8: Results carry per-interface measurement rows under a run-level row
 
-**Choice.** `testrun` keeps run-level facts (kind, node, tested address, timing, error) and a new `testrun_signal (testrun_id, signal)` child table carries the counts and latency distributions per measured signal. A mixnode liveness or stress run has one signal; a gateway liveness run has two (`gw_ingress`, `gw_egress`). The score reported downstream is the average over the kind's fixed signal set.
+**Choice.** `testrun` keeps run-level facts (kind, node, tested address, timing, error) and a new `testrun_measurement (testrun_id, interface)` child table carries the counts and latency distributions per interface the run exercised. A mixnode liveness or stress run exercises one interface (`mix_forwarding`); a gateway liveness run exercises two (`client_ingest`, `client_delivery`). The score reported downstream is the average over the kind's fixed measurement set.
+
+The discriminator names the node FUNCTION exercised, not a route: every value traverses the mixnet, so a route-shaped name would not distinguish them. The test kind never appears in it, because the kind is a property of the run and already sits on the parent row - encoding it twice would make a row whose kind and interface disagree representable.
 
 **Why.** Downstream consumers want one number per node, but an operator needs to tell "perfect ingress, dead egress" from "uniformly half-lossy", and averaging destroys that distinction. This is the same argument that put the tested address on each result during the dual-stack work: without it a per-address failure is indistinguishable from a dead node. A child table also stops `testrun` from growing a column group per future test kind.
 
@@ -149,11 +151,11 @@ The run produces two signals. The score denominator is fixed by the kind at two 
 
 ### Decision 11: Liveness scores delivery ratio only; latency is recorded, not scored
 
-**Choice.** The liveness score is the delivery ratio averaged over the kind's signals. The full RTT distribution keeps being recorded and submitted, but carries no weight.
+**Choice.** The liveness score is the delivery ratio averaged over the kind's measurements. The full RTT distribution keeps being recorded and submitted, but carries no weight.
 
 **Why.** Two confounds make a latency-derived score untrustworthy today. Nodes defer replay checking in batches bounded by `maximum_replay_detection_deferral` (50ms) and `maximum_replay_detection_pending_packets` (100), and only defer when the bloomfilter lock is contended, so a low-volume probe measures a busy node as slower than an idle one in a step function, penalising exactly the nodes that are carrying traffic. And measurements inside a wave include the agent's own queueing. Recording the distribution first means the weighting decision can be made against real data.
 
-**Consequence.** v1's absence of any latency signal is preserved for now, so the migration changes attribution without also changing what the score means.
+**Consequence.** v1's absence of any latency input to the score is preserved for now, so the migration changes attribution without also changing what the score means.
 
 ### Decision 12: Liveness ships as a third performance component at weight zero, with a divergence gauge
 

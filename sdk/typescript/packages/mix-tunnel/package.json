@@ -33,7 +33,7 @@
     "tsc": "tsc --noEmit true"
   },
   "devDependencies": {
-    "@nymproject/smolmix-wasm": "workspace:*",
+    "@nymproject/nym-smolmix-wasm": "workspace:*",
     "@nymproject/eslint-config-react-typescript": "workspace:*",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",

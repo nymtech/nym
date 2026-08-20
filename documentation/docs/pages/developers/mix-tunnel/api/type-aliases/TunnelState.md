@@ -1,13 +1,11 @@
-[**@nymproject/mix-tunnel**](../globals.md) • **Docs**
+[**@nymproject/mix-tunnel**](../globals.md)
 
 ***
 
-[@nymproject/mix-tunnel](../globals.md) / TunnelState
+[@nymproject/mix-tunnel](../globals-1.md) / TunnelState
 
-# Type alias: TunnelState
+# Type Alias: TunnelState
 
-> **TunnelState**: `object` \| `object` \| `object` \| `object` \| `object`
+> **TunnelState** = \{ `state`: `"connecting"`; \} \| \{ `state`: `"ready"`; \} \| \{ `state`: `"shutting_down"`; \} \| \{ `state`: `"shutdown"`; \} \| \{ `state`: `"failed"`; `reason`: [`FailureReason`](FailureReason.md); \}
 
-## Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:40](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L40)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:40](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L40)

@@ -1,33 +1,45 @@
-**@nymproject/mix-tunnel** • [**Docs**](globals.md)
+**@nymproject/mix-tunnel**
 
 ***
 
 # @nymproject/mix-tunnel
 
-## Enumerations
+Shared mixnet tunnel lifecycle for the smolmix-based SDKs.
 
-- [EventKinds](enumerations/EventKinds.md)
+This package owns the single Web Worker that hosts `@nymproject/smolmix-wasm`,
+so that `@nymproject/mix-fetch`, `@nymproject/mix-dns`, and
+`@nymproject/mix-websocket` all share one IPR connection, one smoltcp stack,
+and one DNS cache.
 
-## Interfaces
+Most consumers will not import this directly: import a feature package and
+the tunnel comes along.
 
-- [SetupMixTunnelOpts](interfaces/SetupMixTunnelOpts.md)
-- [MixFetchResponseInit](interfaces/MixFetchResponseInit.md)
-- [IMixTunnelWorker](interfaces/IMixTunnelWorker.md)
-- [LoadedEvent](interfaces/LoadedEvent.md)
+## Direct usage
 
-## Type Aliases
+```ts
+import { setupMixTunnel, disconnectMixTunnel, getTunnelState } from '@nymproject/mix-tunnel';
 
-- [TaskName](type-aliases/TaskName.md)
-- [FailureReason](type-aliases/FailureReason.md)
-- [TunnelStateName](type-aliases/TunnelStateName.md)
-- [TunnelState](type-aliases/TunnelState.md)
-- [WsEventType](type-aliases/WsEventType.md)
-- [WsEventCallback](type-aliases/WsEventCallback.md)
+await setupMixTunnel({ debug: true });
 
-## Functions
+const state = await getTunnelState(); // { state: 'ready' }
 
-- [getMixTunnel](functions/getMixTunnel.md)
-- [setupMixTunnel](functions/setupMixTunnel.md)
-- [disconnectMixTunnel](functions/disconnectMixTunnel.md)
-- [getTunnelState](functions/getTunnelState.md)
-- [proxy](functions/proxy.md)
+// ... use mix-fetch / mix-dns / mix-websocket here ...
+
+await disconnectMixTunnel();
+```
+
+## Layout
+
+```
+mix-tunnel
+  + (owns the Web Worker)
+  + (loads smolmix-wasm)
+  + exposes Comlink API to:
+      |
+      +---+--------+----------+
+      |            |          |
+  mix-fetch    mix-dns    mix-websocket
+```
+
+The feature packages call `getMixTunnel()` and invoke the same Comlinked
+handle, so the underlying tunnel is shared.

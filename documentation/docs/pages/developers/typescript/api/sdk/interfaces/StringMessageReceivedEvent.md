@@ -1,10 +1,12 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / StringMessageReceivedEvent
+[@nymproject/sdk](../globals-1.md) / StringMessageReceivedEvent
 
 # Interface: StringMessageReceivedEvent
+
+Defined in: [mixnet/wasm/types.ts:243](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L243)
 
 ## Properties
 
@@ -12,15 +14,15 @@
 
 > **kind**: [`StringMessageReceived`](../enumerations/EventKinds.md#stringmessagereceived)
 
-#### Source
-
-[mixnet/wasm/types.ts:244](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L244)
+Defined in: [mixnet/wasm/types.ts:244](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L244)
 
 ***
 
 ### args
 
 > **args**: `object`
+
+Defined in: [mixnet/wasm/types.ts:245](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L245)
 
 #### mimeType
 
@@ -36,8 +38,4 @@
 
 #### headers?
 
-> `optional` **headers**: `string`
-
-#### Source
-
-[mixnet/wasm/types.ts:245](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L245)
+> `optional` **headers?**: `string`

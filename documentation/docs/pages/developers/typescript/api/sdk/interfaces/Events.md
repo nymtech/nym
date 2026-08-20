@@ -1,16 +1,20 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / Events
+[@nymproject/sdk](../globals-1.md) / Events
 
 # Interface: Events
+
+Defined in: [mixnet/wasm/types.ts:133](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L133)
 
 ## Properties
 
 ### subscribeToLoaded
 
 > **subscribeToLoaded**: [`EventHandlerSubscribeFn`](../type-aliases/EventHandlerSubscribeFn.md)\<[`LoadedEvent`](LoadedEvent.md)\>
+
+Defined in: [mixnet/wasm/types.ts:143](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L143)
 
 #### See
 
@@ -24,15 +28,13 @@ events.subscribeToLoaded((e) => {
 });
 ```
 
-#### Source
-
-[mixnet/wasm/types.ts:143](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L143)
-
 ***
 
 ### subscribeToConnected
 
 > **subscribeToConnected**: [`EventHandlerSubscribeFn`](../type-aliases/EventHandlerSubscribeFn.md)\<[`ConnectedEvent`](ConnectedEvent.md)\>
+
+Defined in: [mixnet/wasm/types.ts:153](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L153)
 
 #### See
 
@@ -45,15 +47,17 @@ events.subscribeConnected((e) => {
  console.log(e.args.address); // Client address
 });
 
-#### Source
-
-[mixnet/wasm/types.ts:153](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L153)
-
 ***
 
 ### subscribeToTextMessageReceivedEvent
 
 > **subscribeToTextMessageReceivedEvent**: [`EventHandlerSubscribeFn`](../type-aliases/EventHandlerSubscribeFn.md)\<[`StringMessageReceivedEvent`](StringMessageReceivedEvent.md)\>
+
+Defined in: [mixnet/wasm/types.ts:167](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L167)
+
+#### Returns
+
+[EventHandlerUnsubscribeFn](../type-aliases/EventHandlerUnsubscribeFn.md)
 
 #### See
 
@@ -70,15 +74,17 @@ const unsubscribe = events.subscribeToTextMessageReceivedEvent((e) => {
 unsubscribe();
 ```
 
-#### Source
-
-[mixnet/wasm/types.ts:167](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L167)
-
 ***
 
 ### subscribeToBinaryMessageReceivedEvent
 
 > **subscribeToBinaryMessageReceivedEvent**: [`EventHandlerSubscribeFn`](../type-aliases/EventHandlerSubscribeFn.md)\<[`BinaryMessageReceivedEvent`](BinaryMessageReceivedEvent.md)\>
+
+Defined in: [mixnet/wasm/types.ts:181](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L181)
+
+#### Returns
+
+[EventHandlerUnsubscribeFn](../type-aliases/EventHandlerUnsubscribeFn.md)
 
 #### See
 
@@ -95,15 +101,17 @@ const unsubscribe = events.subscribeToBinaryMessageReceivedEvent((e) => {
 unsubscribe();
 ```
 
-#### Source
-
-[mixnet/wasm/types.ts:181](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L181)
-
 ***
 
 ### subscribeToRawMessageReceivedEvent
 
 > **subscribeToRawMessageReceivedEvent**: [`EventHandlerSubscribeFn`](../type-aliases/EventHandlerSubscribeFn.md)\<[`RawMessageReceivedEvent`](RawMessageReceivedEvent.md)\>
+
+Defined in: [mixnet/wasm/types.ts:195](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L195)
+
+#### Returns
+
+[EventHandlerUnsubscribeFn](../type-aliases/EventHandlerUnsubscribeFn.md)
 
 #### See
 
@@ -119,7 +127,3 @@ const unsubscribe = events.subscribeToRawMessageReceivedEvent((e) => {
 // Stop listening to the event
 unsubscribe();
 ```
-
-#### Source
-
-[mixnet/wasm/types.ts:195](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L195)

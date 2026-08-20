@@ -1,7 +1,7 @@
 {
   "globals": "API Index",
   "classes": "Classes",
-  "functions": "Functions",
   "interfaces": "Interfaces",
-  "type-aliases": "Type Aliases"
+  "type-aliases": "Type Aliases",
+  "variables": "Variables"
 }

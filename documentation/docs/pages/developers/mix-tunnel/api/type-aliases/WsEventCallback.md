@@ -1,25 +1,29 @@
-[**@nymproject/mix-tunnel**](../globals.md) • **Docs**
+[**@nymproject/mix-tunnel**](../globals.md)
 
 ***
 
-[@nymproject/mix-tunnel](../globals.md) / WsEventCallback
+[@nymproject/mix-tunnel](../globals-1.md) / WsEventCallback
 
-# Type alias: WsEventCallback()
+# Type Alias: WsEventCallback
 
-> **WsEventCallback**: (`handleId`, `type`, `data`) => `void`
+> **WsEventCallback** = (`handleId`, `type`, `data`) => `void`
+
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:69](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L69)
 
 ## Parameters
 
-• **handleId**: `number`
+### handleId
 
-• **type**: [`WsEventType`](WsEventType.md)
+`number`
 
-• **data**: `unknown`
+### type
+
+[`WsEventType`](WsEventType.md)
+
+### data
+
+`unknown`
 
 ## Returns
 
 `void`
-
-## Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:69](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L69)

@@ -1,18 +1,32 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / Client
+[@nymproject/sdk](../globals-1.md) / Client
 
 # Interface: Client
 
+Defined in: [mixnet/wasm/types.ts:19](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L19)
+
 ## Properties
 
-### start()
+### start
 
-> **start**: (`opts`?) => `Promise`\<`void`\>
+> **start**: (`opts?`) => `Promise`\<`void`\>
+
+Defined in: [mixnet/wasm/types.ts:33](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L33)
 
 Start the client.
+
+#### Parameters
+
+##### opts?
+
+`ClientOpts`
+
+#### Returns
+
+`Promise`\<`void`\>
 
 #### Example
 
@@ -23,25 +37,19 @@ await client.start({
  nymApiUrl: 'https://validator.nymtech.net/api',
 });
 
-#### Parameters
+***
 
-• **opts?**: `ClientOpts`
+### stop
+
+> **stop**: () => `Promise`\<`void`\>
+
+Defined in: [mixnet/wasm/types.ts:46](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L46)
+
+Stop the client.
 
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[mixnet/wasm/types.ts:33](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L33)
-
-***
-
-### stop()
-
-> **stop**: () => `Promise`\<`void`\>
-
-Stop the client.
 
 #### Example
 
@@ -54,21 +62,19 @@ await client.start({
 await client.stop();
 ```
 
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Source
-
-[mixnet/wasm/types.ts:46](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L46)
-
 ***
 
-### selfAddress()
+### selfAddress
 
-> **selfAddress**: () => `Promise`\<`undefined` \| `string`\>
+> **selfAddress**: () => `Promise`\<`string` \| `undefined`\>
+
+Defined in: [mixnet/wasm/types.ts:59](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L59)
 
 Get the client address
+
+#### Returns
+
+`Promise`\<`string` \| `undefined`\>
 
 #### Example
 
@@ -81,21 +87,25 @@ await client.start({
 const address = await client.selfAddress();
 ```
 
-#### Returns
-
-`Promise`\<`undefined` \| `string`\>
-
-#### Source
-
-[mixnet/wasm/types.ts:59](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L59)
-
 ***
 
-### setTextMimeTypes()
+### setTextMimeTypes
 
 > **setTextMimeTypes**: (`mimeTypes`) => `void`
 
-Set the mime-types that should be used when using the [Client.send](Client.md#send) method.
+Defined in: [mixnet/wasm/types.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L76)
+
+Set the mime-types that should be used when using the [Client.send](#send) method.
+
+#### Parameters
+
+##### mimeTypes
+
+`string`[]
+
+#### Returns
+
+`void`
 
 #### Example
 
@@ -111,28 +121,22 @@ await client.setTextMimeTypes(['text/plain', 'application/json']);
 #### See
 
  - [MimeTypes](../enumerations/MimeTypes.md)
- - [Client.send](Client.md#send)
- - [Client.getTextMimeTypes](Client.md#gettextmimetypes)
-
-#### Parameters
-
-• **mimeTypes**: `string`[]
-
-#### Returns
-
-`void`
-
-#### Source
-
-[mixnet/wasm/types.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L76)
+ - [Client.send](#send)
+ - [Client.getTextMimeTypes](#gettextmimetypes)
 
 ***
 
-### getTextMimeTypes()
+### getTextMimeTypes
 
 > **getTextMimeTypes**: () => `Promise`\<`string`[]\>
 
+Defined in: [mixnet/wasm/types.ts:93](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L93)
+
 Get the mime-types that are automatically converted to strings.
+
+#### Returns
+
+`Promise`\<`string`[]\>
 
 #### Example
 
@@ -149,24 +153,38 @@ const mimeTypes = await client.getTextMimeTypes();
 
  - [MimeTypes](../enumerations/MimeTypes.md)
  - [Payload](Payload.md)
- - [Client.send](Client.md#send)
- - [Client.setTextMimeTypes](Client.md#settextmimetypes)
-
-#### Returns
-
-`Promise`\<`string`[]\>
-
-#### Source
-
-[mixnet/wasm/types.ts:93](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L93)
+ - [Client.send](#send)
+ - [Client.setTextMimeTypes](#settextmimetypes)
 
 ***
 
-### send()
+### send
 
 > **send**: (`args`) => `Promise`\<`void`\>
 
+Defined in: [mixnet/wasm/types.ts:111](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L111)
+
 Send some data through the mixnet message.
+
+#### Parameters
+
+##### args
+
+###### payload
+
+[`Payload`](Payload.md)
+
+###### recipient
+
+`string`
+
+###### replySurbs?
+
+`number`
+
+#### Returns
+
+`Promise`\<`void`\>
 
 #### Example
 
@@ -187,31 +205,35 @@ await client.send({
  - [MimeTypes](../enumerations/MimeTypes.md)
  - [Payload](Payload.md)
 
+***
+
+### rawSend
+
+> **rawSend**: (`args`) => `Promise`\<`void`\>
+
+Defined in: [mixnet/wasm/types.ts:130](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L130)
+
+Send a raw payload, without any mime-type conversion.
+
 #### Parameters
 
-• **args**
+##### args
 
-• **args.payload**: [`Payload`](Payload.md)
+###### payload
 
-• **args.recipient**: `string`
+`Uint8Array`
 
-• **args.replySurbs?**: `number`
+###### recipient
+
+`string`
+
+###### replySurbs?
+
+`number`
 
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[mixnet/wasm/types.ts:111](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L111)
-
-***
-
-### rawSend()
-
-> **rawSend**: (`args`) => `Promise`\<`void`\>
-
-Send a raw payload, without any mime-type conversion.
 
 #### Example
 
@@ -232,21 +254,3 @@ await client.rawSend({
 
  - [MimeTypes](../enumerations/MimeTypes.md)
  - [Payload](Payload.md)
-
-#### Parameters
-
-• **args**
-
-• **args.payload**: `Uint8Array`
-
-• **args.recipient**: `string`
-
-• **args.replySurbs?**: `number`
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Source
-
-[mixnet/wasm/types.ts:130](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L130)

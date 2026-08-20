@@ -1,28 +1,30 @@
-[**@nymproject/mix-tunnel**](../globals.md) • **Docs**
+[**@nymproject/mix-tunnel**](../globals.md)
 
 ***
 
-[@nymproject/mix-tunnel](../globals.md) / IMixTunnelWorker
+[@nymproject/mix-tunnel](../globals-1.md) / IMixTunnelWorker
 
 # Interface: IMixTunnelWorker
+
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:71](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L71)
 
 ## Methods
 
 ### setupMixTunnel()
 
-> **setupMixTunnel**(`opts`?): `Promise`\<`void`\>
+> **setupMixTunnel**(`opts?`): `Promise`\<`void`\>
+
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:72](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L72)
 
 #### Parameters
 
-• **opts?**: [`SetupMixTunnelOpts`](SetupMixTunnelOpts.md)
+##### opts?
+
+[`SetupMixTunnelOpts`](SetupMixTunnelOpts.md)
 
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:72](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L72)
 
 ***
 
@@ -30,13 +32,11 @@
 
 > **disconnectMixTunnel**(): `Promise`\<`void`\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:73](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L73)
+
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:73](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L73)
 
 ***
 
@@ -44,13 +44,11 @@
 
 > **getTunnelState**(): `Promise`\<[`TunnelState`](../type-aliases/TunnelState.md)\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:74](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L74)
+
 #### Returns
 
 `Promise`\<[`TunnelState`](../type-aliases/TunnelState.md)\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:74](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L74)
 
 ***
 
@@ -58,19 +56,21 @@
 
 > **mixFetch**(`url`, `init`): `Promise`\<[`MixFetchResponseInit`](MixFetchResponseInit.md)\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:75](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L75)
+
 #### Parameters
 
-• **url**: `string`
+##### url
 
-• **init**: `unknown`
+`string`
+
+##### init
+
+`unknown`
 
 #### Returns
 
 `Promise`\<[`MixFetchResponseInit`](MixFetchResponseInit.md)\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:75](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L75)
 
 ***
 
@@ -78,17 +78,17 @@
 
 > **mixDNS**(`hostname`): `Promise`\<`string`\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L76)
+
 #### Parameters
 
-• **hostname**: `string`
+##### hostname
+
+`string`
 
 #### Returns
 
 `Promise`\<`string`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:76](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L76)
 
 ***
 
@@ -96,21 +96,25 @@
 
 > **mixWebSocket**(`url`, `protocols`, `onEvent`): `Promise`\<`number`\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:77](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L77)
+
 #### Parameters
 
-• **url**: `string`
+##### url
 
-• **protocols**: `undefined` \| `string`[]
+`string`
 
-• **onEvent**: [`WsEventCallback`](../type-aliases/WsEventCallback.md)
+##### protocols
+
+`string`[] \| `undefined`
+
+##### onEvent
+
+[`WsEventCallback`](../type-aliases/WsEventCallback.md)
 
 #### Returns
 
 `Promise`\<`number`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:77](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L77)
 
 ***
 
@@ -118,19 +122,21 @@
 
 > **wsSend**(`handleId`, `data`): `Promise`\<`void`\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:78](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L78)
+
 #### Parameters
 
-• **handleId**: `number`
+##### handleId
 
-• **data**: `string` \| `Uint8Array` \| `ArrayBuffer`
+`number`
+
+##### data
+
+`string` \| `ArrayBuffer` \| `Uint8Array`\<`ArrayBufferLike`\>
 
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:78](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L78)
 
 ***
 
@@ -138,18 +144,22 @@
 
 > **wsClose**(`handleId`, `code`, `reason`): `Promise`\<`void`\>
 
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:79](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L79)
+
 #### Parameters
 
-• **handleId**: `number`
+##### handleId
 
-• **code**: `number`
+`number`
 
-• **reason**: `string`
+##### code
+
+`number`
+
+##### reason
+
+`string`
 
 #### Returns
 
 `Promise`\<`void`\>
-
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:79](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L79)

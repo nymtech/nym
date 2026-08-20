@@ -1,37 +1,33 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / Payload
+[@nymproject/sdk](../globals-1.md) / Payload
 
 # Interface: Payload
+
+Defined in: [mixnet/wasm/types.ts:277](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L277)
 
 ## Properties
 
 ### message
 
-> **message**: `string` \| `Uint8Array`
+> **message**: `string` \| `Uint8Array`\<`ArrayBufferLike`\>
 
-#### Source
-
-[mixnet/wasm/types.ts:278](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L278)
+Defined in: [mixnet/wasm/types.ts:278](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L278)
 
 ***
 
 ### mimeType?
 
-> `optional` **mimeType**: `string`
+> `optional` **mimeType?**: `string`
 
-#### Source
-
-[mixnet/wasm/types.ts:279](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L279)
+Defined in: [mixnet/wasm/types.ts:279](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L279)
 
 ***
 
 ### headers?
 
-> `optional` **headers**: `string`
+> `optional` **headers?**: `string`
 
-#### Source
-
-[mixnet/wasm/types.ts:280](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L280)
+Defined in: [mixnet/wasm/types.ts:280](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L280)

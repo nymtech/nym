@@ -1,177 +1,145 @@
-[**@nymproject/mix-dns**](../globals.md) • **Docs**
+[**@nymproject/mix-dns**](../globals.md)
 
 ***
 
-[@nymproject/mix-dns](../globals.md) / SetupMixTunnelOpts
+[@nymproject/mix-dns](../globals-1.md) / SetupMixTunnelOpts
 
 # Interface: SetupMixTunnelOpts
+
+Defined in: mix-tunnel/dist/esm/types.d.ts:1
 
 ## Properties
 
 ### preferredIpr?
 
-> `optional` **preferredIpr**: `string`
+> `optional` **preferredIpr?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:2
+Defined in: mix-tunnel/dist/esm/types.d.ts:2
 
 ***
 
 ### preferredGateway?
 
-> `optional` **preferredGateway**: `string`
+> `optional` **preferredGateway?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:3
+Defined in: mix-tunnel/dist/esm/types.d.ts:3
 
 ***
 
 ### clientId?
 
-> `optional` **clientId**: `string`
+> `optional` **clientId?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:4
+Defined in: mix-tunnel/dist/esm/types.d.ts:4
 
 ***
 
 ### forceTls?
 
-> `optional` **forceTls**: `boolean`
+> `optional` **forceTls?**: `boolean`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:5
+Defined in: mix-tunnel/dist/esm/types.d.ts:5
 
 ***
 
 ### disablePoissonTraffic?
 
-> `optional` **disablePoissonTraffic**: `boolean`
+> `optional` **disablePoissonTraffic?**: `boolean`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:6
+Defined in: mix-tunnel/dist/esm/types.d.ts:6
 
 ***
 
 ### disableCoverTraffic?
 
-> `optional` **disableCoverTraffic**: `boolean`
+> `optional` **disableCoverTraffic?**: `boolean`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:7
+Defined in: mix-tunnel/dist/esm/types.d.ts:7
 
 ***
 
 ### openReplySurbs?
 
-> `optional` **openReplySurbs**: `number`
+> `optional` **openReplySurbs?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:8
+Defined in: mix-tunnel/dist/esm/types.d.ts:8
 
 ***
 
 ### dataReplySurbs?
 
-> `optional` **dataReplySurbs**: `number`
+> `optional` **dataReplySurbs?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:9
+Defined in: mix-tunnel/dist/esm/types.d.ts:9
 
 ***
 
 ### primaryDns?
 
-> `optional` **primaryDns**: `string`
+> `optional` **primaryDns?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:10
+Defined in: mix-tunnel/dist/esm/types.d.ts:10
 
 ***
 
 ### fallbackDns?
 
-> `optional` **fallbackDns**: `string`
+> `optional` **fallbackDns?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:11
+Defined in: mix-tunnel/dist/esm/types.d.ts:11
 
 ***
 
 ### storagePassphrase?
 
-> `optional` **storagePassphrase**: `string`
+> `optional` **storagePassphrase?**: `string`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:12
+Defined in: mix-tunnel/dist/esm/types.d.ts:12
 
 ***
 
 ### connectTimeoutMs?
 
-> `optional` **connectTimeoutMs**: `number`
+> `optional` **connectTimeoutMs?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:13
+Defined in: mix-tunnel/dist/esm/types.d.ts:13
 
 ***
 
 ### dnsTimeoutMs?
 
-> `optional` **dnsTimeoutMs**: `number`
+> `optional` **dnsTimeoutMs?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:14
+Defined in: mix-tunnel/dist/esm/types.d.ts:14
 
 ***
 
 ### tcpKeepaliveMs?
 
-> `optional` **tcpKeepaliveMs**: `number`
+> `optional` **tcpKeepaliveMs?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:15
+Defined in: mix-tunnel/dist/esm/types.d.ts:15
 
 ***
 
 ### tcpBufferSize?
 
-> `optional` **tcpBufferSize**: `number`
+> `optional` **tcpBufferSize?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:16
+Defined in: mix-tunnel/dist/esm/types.d.ts:16
 
 ***
 
 ### maxRedirects?
 
-> `optional` **maxRedirects**: `number`
+> `optional` **maxRedirects?**: `number`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:17
+Defined in: mix-tunnel/dist/esm/types.d.ts:17
 
 ***
 
 ### debug?
 
-> `optional` **debug**: `boolean`
+> `optional` **debug?**: `boolean`
 
-#### Source
-
-mix-tunnel/dist/esm/types.d.ts:18
+Defined in: mix-tunnel/dist/esm/types.d.ts:18

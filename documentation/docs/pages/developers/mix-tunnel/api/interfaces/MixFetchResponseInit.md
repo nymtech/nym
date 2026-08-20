@@ -1,10 +1,12 @@
-[**@nymproject/mix-tunnel**](../globals.md) • **Docs**
+[**@nymproject/mix-tunnel**](../globals.md)
 
 ***
 
-[@nymproject/mix-tunnel](../globals.md) / MixFetchResponseInit
+[@nymproject/mix-tunnel](../globals-1.md) / MixFetchResponseInit
 
 # Interface: MixFetchResponseInit
+
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:61](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L61)
 
 Pre-serialised response shape produced by `smolmix-wasm::mixFetch`. Designed
 for Comlink transfer (Uint8Array + primitive arrays survive structured clone).
@@ -25,9 +27,7 @@ The TS facade reconstructs a real `Response` via:
 
 > **body**: `Uint8Array`
 
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:62](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L62)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:62](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L62)
 
 ***
 
@@ -35,9 +35,7 @@ The TS facade reconstructs a real `Response` via:
 
 > **status**: `number`
 
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:63](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L63)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:63](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L63)
 
 ***
 
@@ -45,16 +43,12 @@ The TS facade reconstructs a real `Response` via:
 
 > **statusText**: `string`
 
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:64](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L64)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:64](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L64)
 
 ***
 
 ### headers
 
-> **headers**: [`string`, `string`][]
+> **headers**: \[`string`, `string`\][]
 
-#### Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:65](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L65)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:65](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L65)

@@ -1,13 +1,11 @@
-[**@nymproject/mix-tunnel**](../globals.md) • **Docs**
+[**@nymproject/mix-tunnel**](../globals.md)
 
 ***
 
-[@nymproject/mix-tunnel](../globals.md) / TaskName
+[@nymproject/mix-tunnel](../globals-1.md) / TaskName
 
-# Type alias: TaskName
+# Type Alias: TaskName
 
-> **TaskName**: `"bridge"` \| `"reactor"`
+> **TaskName** = `"bridge"` \| `"reactor"`
 
-## Source
-
-[sdk/typescript/packages/mix-tunnel/src/types.ts:30](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L30)
+Defined in: [sdk/typescript/packages/mix-tunnel/src/types.ts:30](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L30)

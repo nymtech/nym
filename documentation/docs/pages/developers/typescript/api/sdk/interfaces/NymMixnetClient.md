@@ -1,10 +1,12 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / NymMixnetClient
+[@nymproject/sdk](../globals-1.md) / NymMixnetClient
 
 # Interface: NymMixnetClient
+
+Defined in: [mixnet/wasm/index.ts:37](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L37)
 
 The client for the Nym mixnet which gives access to client methods and event subscriptions.
 Returned by the [createNymMixnetClient](../functions/createNymMixnetClient.md) function.
@@ -15,9 +17,7 @@ Returned by the [createNymMixnetClient](../functions/createNymMixnetClient.md) f
 
 > **client**: [`Client`](Client.md)
 
-#### Source
-
-[mixnet/wasm/index.ts:38](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L38)
+Defined in: [mixnet/wasm/index.ts:38](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L38)
 
 ***
 
@@ -25,6 +25,4 @@ Returned by the [createNymMixnetClient](../functions/createNymMixnetClient.md) f
 
 > **events**: [`Events`](Events.md)
 
-#### Source
-
-[mixnet/wasm/index.ts:39](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L39)
+Defined in: [mixnet/wasm/index.ts:39](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/index.ts#L39)

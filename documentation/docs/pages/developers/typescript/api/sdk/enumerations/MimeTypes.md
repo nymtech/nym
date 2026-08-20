@@ -1,10 +1,12 @@
-[**@nymproject/sdk**](../globals.md) • **Docs**
+[**@nymproject/sdk**](../globals.md)
 
 ***
 
-[@nymproject/sdk](../globals.md) / MimeTypes
+[@nymproject/sdk](../globals-1.md) / MimeTypes
 
 # Enumeration: MimeTypes
+
+Defined in: [mixnet/wasm/types.ts:271](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L271)
 
 Some common mime types, however, you can always just specify the mime-type as a string
 
@@ -14,9 +16,7 @@ Some common mime types, however, you can always just specify the mime-type as a 
 
 > **ApplicationOctetStream**: `"application/octet-stream"`
 
-#### Source
-
-[mixnet/wasm/types.ts:272](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L272)
+Defined in: [mixnet/wasm/types.ts:272](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L272)
 
 ***
 
@@ -24,9 +24,7 @@ Some common mime types, however, you can always just specify the mime-type as a 
 
 > **TextPlain**: `"text/plain"`
 
-#### Source
-
-[mixnet/wasm/types.ts:273](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L273)
+Defined in: [mixnet/wasm/types.ts:273](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L273)
 
 ***
 
@@ -34,6 +32,4 @@ Some common mime types, however, you can always just specify the mime-type as a 
 
 > **ApplicationJson**: `"application/json"`
 
-#### Source
-
-[mixnet/wasm/types.ts:274](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L274)
+Defined in: [mixnet/wasm/types.ts:274](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L274)

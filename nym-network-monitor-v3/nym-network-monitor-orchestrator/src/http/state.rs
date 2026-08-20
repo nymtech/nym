@@ -8,8 +8,8 @@ use crate::storage::models::NewTestRun;
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentMixAddresses, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination, TestRunAssignment,
-    TestRunData, TestRunInProgressData, TestRunResult,
+    AgentMixAddresses, MixnetProbeTarget, NymNodeData, NymNodeWithTestRun, PagedResult, Pagination,
+    TestRunAssignment, TestRunData, TestRunInProgressData, TestRunResult,
 };
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_validator_client::client::NodeId;
@@ -294,6 +294,10 @@ impl TestrunManager {
         let tested_ip = assigned.tested_ip;
         let node = assigned.node.inner;
 
+        let Ok(identity_key) = node.identity_key.parse() else {
+            return Err(ApiError::MalformedStoredData);
+        };
+
         let (Some(address), Some(noise_key), Some(sphinx_key), Some(key_rotation)) = (
             node.mixnet_socket_address,
             node.noise_key,
@@ -323,14 +327,17 @@ impl TestrunManager {
             return Err(ApiError::MalformedStoredData);
         };
 
-        Ok(Some(TestRunAssignment {
+        // only the stress kind is ever assigned today; the liveness variants stay unconstructed
+        // until per-kind scheduling lands
+        Ok(Some(TestRunAssignment::MixnodeStress(MixnetProbeTarget {
             node_id: node.node_id as u32,
+            identity_key,
             node_address,
             node_ips,
             noise_key,
             sphinx_key,
             key_rotation_id: key_rotation as u32,
-        }))
+        })))
     }
 
     /// Persists a completed test run result to the database and updates the

@@ -21,8 +21,8 @@
 
 ## 3. Shared request/response types
 
-- [ ] 3.1 Add a `TestKind` enum (`stress`, `liveness`) to `nym-network-monitor-orchestrator-requests`
-- [ ] 3.2 Replace `TestRunAssignment` with a kind-tagged assignment carrying per-kind payloads: stress and mixnode-liveness (node address, node ips, noise key, sphinx key, key rotation id, probe profile) and gateway-liveness (additionally the client websocket port and the gateway identity key)
+- [x] 3.1 Add a `TestKind` enum (`stress`, `liveness`) to `nym-network-monitor-orchestrator-requests`
+- [x] 3.2 Replace `TestRunAssignment` with a kind-tagged assignment carrying per-kind payloads: mixnode-stress and mixnode-liveness (node address, node ips, noise key, sphinx key, key rotation id) and gateway-liveness (additionally the client websocket port). Three points superseded the original wording. The `stress` variant is named `MixnodeStress`, because a gateway stress test would not resemble the mixnode one and the (kind, role) pairing is not one-to-one. No `probe profile` is carried: the spec puts every profile value in the agent's own CLI/env-overridable config, and the kind tag already selects which set to apply, so a profile field would be a second source of truth with no defined behaviour if the two disagreed. The node's ed25519 identity sits on the SHARED mixnet payload rather than only on the gateway one: every bonded node has one, so it costs no eligibility constraint, and it is what a future signature check over a node's responses would verify against
 - [ ] 3.3 Make the assignment response carry a wave (a list of targets) for liveness and a single target for stress, with an empty response still meaning "no work"
 - [ ] 3.4 Add a per-signal result shape (`signal` discriminator plus the existing counts, handshake durations and latency distributions) and make the submission request carry the run-level fields plus one or more signals
 - [ ] 3.5 Add the liveness submission route constant and the liveness batch content type mirroring the stress `SignedMessage` envelope

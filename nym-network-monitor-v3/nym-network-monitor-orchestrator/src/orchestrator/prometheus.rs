@@ -140,7 +140,7 @@ pub enum PrometheusMetric {
     AgentContractAnnounceFailures,
 
     #[strum(props(
-        help = "The number of announcements that changed the cached noise key or ipv6 address of an already known agent (its previous authorisation may be left stale in the contract)"
+        help = "The number of announcements that changed the cached noise key, ipv6 address or ed25519 identity of an already known agent (its previous authorisation may be left stale in the contract)"
     ))]
     AgentDetailsChanged,
 

@@ -47,3 +47,23 @@ pub(crate) fn derive_client_identity(
         .context("the derived ed25519 client identity seed was not a valid private key")?;
     Ok(private_key.into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // a known-answer vector rather than a determinism check: HKDF over fixed bytes can't be
+    // non-deterministic, but the label or the KDF changing silently WOULD invalidate every identity
+    // already announced on chain and stop gateways granting monitor sessions. pinning the output
+    // makes such a change fail here instead of in the field
+    #[test]
+    fn the_derived_client_identity_matches_its_known_answer() {
+        let noise_key: x25519::KeyPair = x25519::PrivateKey::from_secret([42u8; 32]).into();
+
+        let identity = derive_client_identity(&noise_key).unwrap();
+        assert_eq!(
+            identity.public_key().to_base58_string(),
+            "DwMcWZ1JGq3UosmKbhCXvkZmF2tcFuiFis8u2du1hn5x"
+        );
+    }
+}

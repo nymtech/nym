@@ -111,9 +111,14 @@ Before publishing, the workflow brings the tunnel up in chromium and firefox usi
 release wasm that `pnpm sdk:build` just produced. It is the only check that executes the
 wasm rather than compiling it, and it runs on dry runs too.
 
-It talks to a real gateway and IPR, so it can fail for reasons unrelated to the release.
-`skip_smoke` does not run it at all, so the publish proceeds ungated rather than on a known
-result. For that reason it is for a network outage blocking an urgent release, nothing else.
+It talks to a real gateway and IPR, so it can fail for reasons unrelated to the release. A
+preceding step curls nym-api's gateway selection endpoint and fails with an explicit error
+if it does not answer 200, so an unreachable nym-api is reported as such instead of
+surfacing as a browser failure you have to interpret.
+
+`skip_smoke` does not run the smoke test at all, so the publish proceeds ungated rather than
+on a known result. For that reason it is for a network outage blocking an urgent release,
+nothing else.
 
 Under `auto`, `publish.sh` resolves each package's tag from what is already on npm:
 

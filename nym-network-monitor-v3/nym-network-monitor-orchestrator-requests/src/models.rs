@@ -741,6 +741,138 @@ mod tests {
         assert_ne!(stress, liveness);
     }
 
+    // deliberately awkward values: each field gets a distinct one so a transposition is caught, and
+    // the durations carry nanosecond remainders because every one of them crosses the wire through
+    // `humantime_serde`, where silent precision loss would corrupt the measurement rather than fail
+    fn distribution(seed: u64) -> LatencyDistribution {
+        LatencyDistribution {
+            minimum: Duration::from_nanos(seed * 1_000 + 1),
+            mean: Duration::from_nanos(seed * 2_000 + 2),
+            median: Duration::from_nanos(seed * 3_000 + 3),
+            maximum: Duration::from_nanos(seed * 4_000 + 4),
+            standard_deviation: Duration::from_nanos(seed * 5_000 + 5),
+        }
+    }
+
+    fn measurement(
+        interface: ExercisedInterface,
+        sent: usize,
+        received: usize,
+    ) -> InterfaceMeasurement {
+        InterfaceMeasurement {
+            interface,
+            ingress_noise_handshake: Some(Duration::from_micros(1_234)),
+            egress_noise_handshake: Some(Duration::from_micros(5_678)),
+            sphinx_packet_delay: Duration::from_millis(50),
+            packets_sent: sent,
+            packets_received: received,
+            approximate_latency: Some(Duration::from_nanos(1_500_250)),
+            packets_statistics: Some(distribution(1)),
+            sending_statistics: Some(distribution(2)),
+            received_duplicates: false,
+        }
+    }
+
+    #[test]
+    fn a_gateway_liveness_run_round_trips_both_of_its_measurements() {
+        let run = TestRunResult {
+            kind: TestKind::Liveness,
+            time_taken: Duration::from_millis(2_500),
+            error: None,
+            measurements: vec![
+                measurement(ExercisedInterface::ClientIngest, 100, 100),
+                measurement(ExercisedInterface::ClientDelivery, 100, 0),
+            ],
+        };
+
+        let json = serde_json::to_string(&run).unwrap();
+        let parsed: TestRunResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.kind, TestKind::Liveness);
+        assert_eq!(parsed.measurements.len(), 2);
+
+        // order is preserved, so the healthy phase cannot be read as the dead one. this is the
+        // whole reason the two are kept apart instead of averaged at the agent
+        assert_eq!(
+            parsed.measurements[0].interface,
+            ExercisedInterface::ClientIngest
+        );
+        assert_eq!(
+            parsed.measurements[1].interface,
+            ExercisedInterface::ClientDelivery
+        );
+        assert_eq!(parsed.measurements[0].received_ratio(), 1.0);
+        assert_eq!(parsed.measurements[1].received_ratio(), 0.0);
+
+        // and each is reachable by interface rather than by position
+        assert_eq!(
+            parsed
+                .measurement(ExercisedInterface::ClientDelivery)
+                .unwrap()
+                .packets_received,
+            0
+        );
+        assert!(
+            parsed
+                .measurement(ExercisedInterface::MixForwarding)
+                .is_none()
+        );
+
+        // re-serialising reproduces the bytes, so nothing was dropped, reordered or rounded
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
+    }
+
+    #[test]
+    fn a_single_measurement_run_round_trips_unchanged() {
+        let run = TestRunResult {
+            kind: TestKind::Stress,
+            time_taken: Duration::from_secs(30),
+            error: Some("connection reset".to_string()),
+            measurements: vec![measurement(
+                ExercisedInterface::MixForwarding,
+                10_000,
+                9_997,
+            )],
+        };
+
+        let json = serde_json::to_string(&run).unwrap();
+        let parsed: TestRunResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.kind, TestKind::Stress);
+        assert_eq!(parsed.time_taken, Duration::from_secs(30));
+        assert_eq!(parsed.error.as_deref(), Some("connection reset"));
+        assert_eq!(parsed.measurements.len(), 1);
+
+        let measured = &parsed.measurements[0];
+        assert_eq!(measured.interface, ExercisedInterface::MixForwarding);
+        assert_eq!(measured.packets_sent, 10_000);
+        assert_eq!(measured.packets_received, 9_997);
+        assert_eq!(
+            measured.ingress_noise_handshake,
+            Some(Duration::from_micros(1_234))
+        );
+        assert_eq!(
+            measured.egress_noise_handshake,
+            Some(Duration::from_micros(5_678))
+        );
+        assert_eq!(measured.sphinx_packet_delay, Duration::from_millis(50));
+        // sub-millisecond value with a nanosecond remainder, intact
+        assert_eq!(
+            measured.approximate_latency,
+            Some(Duration::from_nanos(1_500_250))
+        );
+        assert_eq!(
+            measured.packets_statistics.unwrap().median,
+            Duration::from_nanos(3_003)
+        );
+        assert_eq!(
+            measured.sending_statistics.unwrap().standard_deviation,
+            Duration::from_nanos(10_005)
+        );
+
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
+    }
+
     // `as_str` feeds the stored column value and the prometheus label while serde produces the
     // wire tag. They must be the same string: if they diverged, rows already stored under one
     // spelling would stop matching queries built from the other, and the drift would be silent.

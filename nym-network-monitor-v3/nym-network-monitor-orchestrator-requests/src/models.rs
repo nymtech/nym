@@ -141,13 +141,21 @@ pub struct TestRunAssignmentResponse {
 /// payload because they are the same probe, differing only in the profile the agent applies, which
 /// the agent holds in its own config and selects from the tag. `GatewayLiveness` additionally
 /// carries what is needed to open a client websocket session.
+///
+/// A stress assignment is ONE target; a liveness assignment is a WAVE the agent probes
+/// concurrently, so the lease the orchestrator stamps is bounded by the slowest single target
+/// rather than by their sum. A wave is homogeneous in role, because the two liveness probes are
+/// different machinery: a dual-role node is assigned each role separately.
+///
+/// An assignment with no targets is NOT a valid assignment. "No work" is expressed by an absent
+/// assignment on [`TestRunAssignmentResponse`], so the orchestrator must not emit an empty wave.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestRunAssignment {
     MixnodeStress(MixnetProbeTarget),
-    MixnodeLiveness(MixnetProbeTarget),
-    GatewayLiveness(GatewayProbeTarget),
+    MixnodeLiveness(Vec<MixnetProbeTarget>),
+    GatewayLiveness(Vec<GatewayProbeTarget>),
 }
 
 impl TestRunAssignment {
@@ -162,24 +170,14 @@ impl TestRunAssignment {
         }
     }
 
-    /// The role the node is probed in. A dual-role node is assigned each role separately, so this
-    /// is a property of the assignment rather than of the node.
+    /// The role every node in this assignment is probed in. A dual-role node is assigned each role
+    /// separately, so this is a property of the assignment rather than of the node.
     pub fn tested_role(&self) -> TestedRole {
         match self {
             TestRunAssignment::MixnodeStress(_) | TestRunAssignment::MixnodeLiveness(_) => {
                 TestedRole::Mixnode
             }
             TestRunAssignment::GatewayLiveness(_) => TestedRole::Gateway,
-        }
-    }
-
-    /// The mixnet-listener details, which every kind needs: the gateway probe reaches the node's
-    /// mixnet listener too, for its egress phase.
-    pub fn mixnet(&self) -> &MixnetProbeTarget {
-        match self {
-            TestRunAssignment::MixnodeStress(target)
-            | TestRunAssignment::MixnodeLiveness(target) => target,
-            TestRunAssignment::GatewayLiveness(target) => &target.mixnet,
         }
     }
 }
@@ -580,55 +578,80 @@ mod tests {
         }
     }
 
-    // The assignment is EXTERNALLY tagged, which is load-bearing rather than stylistic: the
-    // liveness variants become waves (a sequence), and serde cannot internally tag a sequence. If
-    // this is ever switched to `#[serde(tag = ...)]` it will compile and then fail at runtime for
-    // exactly the variants that carry a wave, so pin the shape here.
     #[test]
-    fn assignment_variants_round_trip_under_their_own_tag() {
-        let stress = TestRunAssignment::MixnodeStress(mixnet_target());
-        let json = serde_json::to_string(&stress).unwrap();
-        assert!(json.contains(r#"{"mixnode_stress":"#), "{json}");
+    fn a_stress_assignment_round_trips_as_a_single_target() {
+        let json =
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target())).unwrap();
+        assert!(json.contains(r#"{"mixnode_stress":{"#), "{json}");
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::Stress);
         assert_eq!(parsed.tested_role(), TestedRole::Mixnode);
-        assert_eq!(parsed.mixnet().node_id, 42);
-        assert_eq!(parsed.mixnet().key_rotation_id, 7);
 
-        let gateway = TestRunAssignment::GatewayLiveness(GatewayProbeTarget {
+        let TestRunAssignment::MixnodeStress(target) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
+        };
+        assert_eq!(target.node_id, 42);
+        assert_eq!(target.key_rotation_id, 7);
+    }
+
+    // The assignment is EXTERNALLY tagged, which is load-bearing rather than stylistic: a liveness
+    // variant carries a WAVE, and serde cannot internally tag a sequence. Switching to
+    // `#[serde(tag = ...)]` would compile and then fail at runtime for exactly these variants, so
+    // pin that a wave serialises as an array under its tag.
+    #[test]
+    fn a_liveness_assignment_round_trips_as_a_wave() {
+        let wave = vec![mixnet_target(), mixnet_target()];
+        let json = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(wave)).unwrap();
+        assert!(json.contains(r#"{"mixnode_liveness":[{"#), "{json}");
+
+        let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), TestKind::Liveness);
+        assert_eq!(parsed.tested_role(), TestedRole::Mixnode);
+
+        let TestRunAssignment::MixnodeLiveness(wave) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
+        };
+        assert_eq!(wave.len(), 2);
+    }
+
+    #[test]
+    fn a_gateway_wave_keeps_its_nested_mixnet_target_and_ws_port() {
+        let wave = vec![GatewayProbeTarget {
             mixnet: mixnet_target(),
             clients_ws_port: 9000,
-        });
-        let json = serde_json::to_string(&gateway).unwrap();
-        assert!(json.contains(r#"{"gateway_liveness":"#), "{json}");
+        }];
+        let json = serde_json::to_string(&TestRunAssignment::GatewayLiveness(wave)).unwrap();
+        assert!(json.contains(r#"{"gateway_liveness":[{"#), "{json}");
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::Liveness);
         assert_eq!(parsed.tested_role(), TestedRole::Gateway);
-        // reachable through the accessor regardless of variant, since the gateway probe's egress
-        // phase targets the mixnet listener too
-        assert_eq!(parsed.mixnet().node_id, 42);
-        let TestRunAssignment::GatewayLiveness(target) = parsed else {
-            panic!("round-tripped into the wrong variant");
+
+        let TestRunAssignment::GatewayLiveness(wave) = parsed else {
+            panic!("round-tripped into the wrong variant: {json}");
         };
-        assert_eq!(target.clients_ws_port, 9000);
+        assert_eq!(wave[0].clients_ws_port, 9000);
+        // the egress phase targets the node's mixnet listener, so the nested target has to survive
+        assert_eq!(wave[0].mixnet.node_id, 42);
+        assert_eq!(wave[0].mixnet.key_rotation_id, 7);
     }
 
-    // a mixnode liveness assignment carries the same payload as a stress one, so the tag is the
-    // only thing telling the agent which profile to apply
+    // The two mixnode probes carry the SAME per-target payload and differ only in tag and arity,
+    // so nothing in the target itself can tell the agent which profile to apply.
     #[test]
     fn the_tag_is_what_distinguishes_the_two_mixnode_probes() {
-        let stress = serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target()));
-        let liveness = serde_json::to_string(&TestRunAssignment::MixnodeLiveness(mixnet_target()));
+        let target_json = serde_json::to_string(&mixnet_target()).unwrap();
 
-        let stress = stress.unwrap();
-        let liveness = liveness.unwrap();
+        let stress =
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target())).unwrap();
+        let liveness =
+            serde_json::to_string(&TestRunAssignment::MixnodeLiveness(vec![mixnet_target()]))
+                .unwrap();
+
+        assert!(stress.contains(&target_json), "{stress}");
+        assert!(liveness.contains(&target_json), "{liveness}");
         assert_ne!(stress, liveness);
-        assert_eq!(
-            stress.replace("mixnode_stress", "mixnode_liveness"),
-            liveness,
-        );
     }
 
     // `as_str` feeds the stored column value and the prometheus label while serde produces the

@@ -34,6 +34,9 @@ nym-validator-client = { workspace = true }
 sqlx = { workspace = true }
 nym-sqlx-pool-guard = { workspace = true }
 
+[dev-dependencies]
+serde = { workspace = true }
+
 [build-dependencies]
 anyhow = { workspace = true }
 sqlx = { workspace = true, features = [

@@ -158,6 +158,18 @@ impl BandwidthControllerRequestSender {
             .map_err(|_| BandwidthControllerError::ChannelClosed)?
     }
 
+    /// Prunes expired ticketbooks from storage and stops in-flight retrieval of blinded ticketbook
+    /// shares whose validity has passed.
+    #[instrument(skip(self))]
+    pub async fn prune(&self) -> Result<(), BandwidthControllerError> {
+        let (tx, rx) = ReturnSender::new();
+        self.command_tx
+            .send(BandwidthControllerRequest::Prune(tx))
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?;
+        rx.await
+            .map_err(|_| BandwidthControllerError::ChannelClosed)?
+    }
+
     /// Returns the currently stored ticketbooks.
     #[instrument(skip(self))]
     pub async fn get_available_ticketbooks(

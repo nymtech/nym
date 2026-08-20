@@ -68,6 +68,10 @@ impl CredentialFetcher for RecordingFetcher {
         Ok(Vec::new())
     }
 
+    async fn prune(&self) -> Result<(), CredentialFetcherError> {
+        Ok(())
+    }
+
     async fn cleanup(&self) {}
 
     async fn reset(self) -> Result<(), CredentialFetcherError> {

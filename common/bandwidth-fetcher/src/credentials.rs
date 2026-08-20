@@ -185,6 +185,41 @@ where
 
         Ok(issuance_data.to_issued_ticketbook(wallet, epoch_id))
     }
+
+    async fn cancel_expired_ticketbooks(&self) -> Result<(), NyxdFetcherError> {
+        let mut pruned_pending_ticketbooks = 0;
+
+        for expired_pending_ticketbook_id in self
+            .pending_storage
+            .get_pending_ticketbooks()
+            .await?
+            .iter()
+            .filter_map(|ticket_book| {
+                if ticket_book.pending_ticketbook.expired() {
+                    Some(ticket_book.pending_id)
+                } else {
+                    None
+                }
+            })
+        {
+            if let Err(err) = self
+                .pending_storage
+                .remove_pending_ticketbook(expired_pending_ticketbook_id)
+                .await
+            {
+                tracing::warn!(
+                    "Failed to remove expired ticketbook id {expired_pending_ticketbook_id} from pending storage: {err}"
+                );
+            } else {
+                pruned_pending_ticketbooks += 1;
+            }
+        }
+        tracing::debug!(
+            "Cancelled {pruned_pending_ticketbooks} expired ticketbooks that were pending"
+        );
+
+        Ok(())
+    }
 }
 
 impl<C> NyxdCredentialFetcher<C>
@@ -359,6 +394,11 @@ where
         }
     }
 
+    async fn prune(&self) -> Result<(), CredentialFetcherError> {
+        self.cancel_expired_ticketbooks().await?;
+        Ok(())
+    }
+
     async fn cleanup(&self) {
         self.pending_storage.close().await;
     }
@@ -446,6 +486,11 @@ pub(crate) mod recovery {
             Ok(recovered_ticketbooks)
         }
 
+        async fn prune(&self) -> Result<(), CredentialFetcherError> {
+            self.0.cancel_expired_ticketbooks().await?;
+            Ok(())
+        }
+
         async fn cleanup(&self) {
             self.0.pending_storage.close().await;
         }
@@ -458,5 +503,132 @@ pub(crate) mod recovery {
                 .await
                 .map_err(NyxdFetcherError::from)?)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env::temp_dir;
+
+    use serde::Deserialize;
+
+    use nym_validator_client::nyxd::{
+        Fee,
+        contract_traits::dkg_query_client::DkgQueryMsg,
+        cosmwasm_client::types::ExecuteResult,
+        error::NyxdError,
+        nym_ecash_contract_common::msg::{ExecuteMsg, QueryMsg},
+    };
+    use tokio::fs::remove_file;
+
+    use super::*;
+
+    struct MockPruneClient {}
+
+    #[async_trait]
+    impl DkgQueryClient for MockPruneClient {
+        async fn query_dkg_contract<T>(
+            &self,
+            _query: DkgQueryMsg,
+        ) -> std::result::Result<T, NyxdError>
+        where
+            for<'a> T: Deserialize<'a>,
+        {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[async_trait]
+    impl EcashSigningClient for MockPruneClient {
+        async fn execute_ecash_contract(
+            &self,
+            _fee: Option<Fee>,
+            _msg: ExecuteMsg,
+            _memo: String,
+            _funds: Vec<Coin>,
+        ) -> Result<ExecuteResult, NyxdError> {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[async_trait]
+    impl EcashQueryClient for MockPruneClient {
+        async fn query_ecash_contract<T>(&self, _query: QueryMsg) -> Result<T, NyxdError>
+        where
+            for<'a> T: Deserialize<'a>,
+        {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[tokio::test]
+    async fn prune_expired() {
+        let mut db_path = temp_dir();
+        db_path.push("prune_expired_unittest.db");
+        let fetcher = NyxdCredentialFetcher::new(
+            Arc::new(MockPruneClient {}),
+            &db_path,
+            Zeroizing::new(Vec::new()),
+        )
+        .await
+        .unwrap();
+
+        // pruning empty database doesn't fail
+        fetcher.prune().await.unwrap();
+
+        // insert late expiration ticketbook
+        let expired_ticketbook = IssuanceTicketBook::new_with_expiration(
+            0,
+            &[],
+            ed25519::PrivateKey::new(&mut OsRng),
+            TicketType::V1WireguardEntry,
+            Date::MIN,
+        );
+        fetcher
+            .pending_storage
+            .insert_pending_ticketbook(&expired_ticketbook)
+            .await
+            .unwrap();
+
+        // check pruning emptied it
+        fetcher.prune().await.unwrap();
+        assert_eq!(
+            fetcher
+                .pending_storage
+                .get_pending_ticketbooks()
+                .await
+                .unwrap()
+                .len(),
+            0
+        );
+
+        // insert late expiration ticketbook
+        let unexpired_ticketbook = IssuanceTicketBook::new_with_expiration(
+            0,
+            &[],
+            ed25519::PrivateKey::new(&mut OsRng),
+            TicketType::V1WireguardEntry,
+            Date::MAX,
+        );
+        fetcher
+            .pending_storage
+            .insert_pending_ticketbook(&unexpired_ticketbook)
+            .await
+            .unwrap();
+
+        // check pruning doesn't affect it
+        fetcher.prune().await.unwrap();
+        assert_ne!(
+            fetcher
+                .pending_storage
+                .get_pending_ticketbooks()
+                .await
+                .unwrap()
+                .len(),
+            0
+        );
+
+        fetcher.pending_storage.close().await;
+        remove_file(db_path).await.unwrap();
     }
 }

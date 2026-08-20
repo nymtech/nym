@@ -349,8 +349,21 @@ impl TestrunManager {
         node_id: NodeId,
         tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
+        // the schema holds one flattened measurement per run until migration 03 gives them their
+        // own table, and every kind assigned today exercises exactly one interface, so a result
+        // carrying any other number means the agent and this orchestrator disagree on the shape
+        let [measurement] = result.measurements.as_slice() else {
+            error!(
+                "node {node_id} submitted a {} result carrying {} measurements, expected exactly one",
+                result.kind,
+                result.measurements.len(),
+            );
+            return Err(ApiError::UnexpectedResultShape);
+        };
+
         // currently all testruns are mixnode results
-        let testrun = NewTestRun::from_mixnode_result(node_id, tested_address, result);
+        let testrun =
+            NewTestRun::from_mixnode_result(node_id, tested_address, &result, measurement);
         if let Err(err) = storage.insert_test_run(&testrun).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);

@@ -24,19 +24,19 @@
 - [x] 3.1 Add a `TestKind` enum (`stress`, `liveness`) to `nym-network-monitor-orchestrator-requests`
 - [x] 3.2 Replace `TestRunAssignment` with a kind-tagged assignment carrying per-kind payloads: mixnode-stress and mixnode-liveness (node address, node ips, noise key, sphinx key, key rotation id) and gateway-liveness (additionally the client websocket port). Three points superseded the original wording. The `stress` variant is named `MixnodeStress`, because a gateway stress test would not resemble the mixnode one and the (kind, role) pairing is not one-to-one. No `probe profile` is carried: the spec puts every profile value in the agent's own CLI/env-overridable config, and the kind tag already selects which set to apply, so a profile field would be a second source of truth with no defined behaviour if the two disagreed. The node's ed25519 identity sits on the SHARED mixnet payload rather than only on the gateway one: every bonded node has one, so it costs no eligibility constraint, and it is what a future signature check over a node's responses would verify against
 - [x] 3.3 Make the assignment response carry a wave (a list of targets) for liveness and a single target for stress, with an empty response still meaning "no work". A wave is HOMOGENEOUS in tested role, which follows from the variants being per (kind, role) rather than per kind: the two liveness probes are different machinery, so a dual-role node is assigned each role separately. "No work" stays the absent assignment on the response; an empty wave is documented as never emitted rather than given a helper, since the orchestrator is the only party that could emit one and it enforces the invariant at the point it builds the wave
-- [ ] 3.4 Add a per-signal result shape (`signal` discriminator plus the existing counts, handshake durations and latency distributions) and make the submission request carry the run-level fields plus one or more signals
+- [x] 3.4 Add a per-signal result shape (`signal` discriminator plus the existing counts, handshake durations and latency distributions) and make the submission request carry the run-level fields plus one or more signals. RENAMED throughout: the shape is `InterfaceMeasurement` discriminated by `ExercisedInterface`, with values `mix_forwarding` / `client_ingest` / `client_delivery` superseding Decision 8's `gw_ingress` / `gw_egress`. "Signal" was rejected as borrowed from another domain and not implying its representation, and route-shaped names (`path`, `leg`, `section`) were rejected because every value traverses the mixnet, so geometry does not distinguish them - the discriminator names the node FUNCTION exercised. The test kind never appears in a value: the kind is a property of the run, sits on the parent row, and duplicating it into the discriminator would make `(kind=stress, interface=liveness_*)` representable and meaningless. Run-level fields are the kind, `time_taken` and `error`; everything else is per-measurement
 - [ ] 3.5 Add the liveness submission route constant and the liveness batch content type mirroring the stress `SignedMessage` envelope
-- [ ] 3.6 Unit-test that a gateway-liveness run serialises and round-trips both of its signals, and that a single-signal run round-trips unchanged
+- [ ] 3.6 Unit-test that a gateway-liveness run serialises and round-trips both of its measurements, and that a single-measurement run round-trips unchanged
 
 ## 4. Orchestrator storage and migration
 
-- [ ] 4.1 Write migration `03`: create the per-kind work-state table keyed `(node_id, test_kind)` holding `last_tested_at`, `last_testrun_id`, `last_tested_ip`; create the per-signal child table of `testrun`; create the per-kind submission-watermark table; add `test_kind` to `testrun`; add `expires_at` and `test_kind` to `testrun_in_progress`; add the gateway client websocket port and the wss-announced flag to `nym_node`
-- [ ] 4.2 In the same migration, backfill: move `nym_node.last_testrun` / `last_tested_ip` into the work-state table under the `stress` kind, derive `expires_at` for any live in-progress row from `started_at` plus the stress budget, carry `metadata.last_submitted_testrun_id` across as the stress stream's watermark, and project existing `testrun` rows as single-signal runs
+- [ ] 4.1 Write migration `03`: create the per-kind work-state table keyed `(node_id, test_kind)` holding `last_tested_at`, `last_testrun_id`, `last_tested_ip`; create the per-interface measurement child table of `testrun`; create the per-kind submission-watermark table; add `test_kind` to `testrun`; add `expires_at` and `test_kind` to `testrun_in_progress`; add the gateway client websocket port and the wss-announced flag to `nym_node`
+- [ ] 4.2 In the same migration, backfill: move `nym_node.last_testrun` / `last_tested_ip` into the work-state table under the `stress` kind, derive `expires_at` for any live in-progress row from `started_at` plus the stress budget, carry `metadata.last_submitted_testrun_id` across as the stress stream's watermark, and project existing `testrun` rows as single-measurement runs
 - [ ] 4.3 Drop `nym_node.last_testrun` and `nym_node.last_tested_ip` once the backfill is in place
 - [ ] 4.4 `touch build.rs` and confirm the compiled-in migrations DB picks up the new columns (a "table X has no column named Y" error means the build script did not re-run)
-- [ ] 4.5 Update `storage/models.rs`: per-kind work-state row, per-signal row, `TestKind` mapping, and move the address rotation helpers (`announced_ips`, `next_ip_to_test`) onto the per-kind state so a kind rotates independently
-- [ ] 4.6 Update the storage manager's insert path to write a run-level row plus its signal rows in one transaction, and the read paths to reassemble them
-- [ ] 4.7 Update result eviction to delete signal rows with their run, and in-progress eviction to compare `expires_at` rather than a global cutoff
+- [ ] 4.5 Update `storage/models.rs`: per-kind work-state row, per-interface measurement row, `TestKind` mapping, and move the address rotation helpers (`announced_ips`, `next_ip_to_test`) onto the per-kind state so a kind rotates independently
+- [ ] 4.6 Update the storage manager's insert path to write a run-level row plus its measurement rows in one transaction, and the read paths to reassemble them
+- [ ] 4.7 Update result eviction to delete measurement rows with their run, and in-progress eviction to compare `expires_at` rather than a global cutoff
 - [ ] 4.8 Unit-test the per-kind rotation (two kinds advancing independently over one node's address set) and that deleting a node's last testrun leaves its per-kind `last_tested_at` intact
 
 ## 5. Orchestrator scheduling
@@ -81,22 +81,22 @@
 - [ ] 9.3 Implement the ingress phase: forward a sphinx packet through the session whose next hop is the agent's own mixnet address, and count arrivals at the shared listener
 - [ ] 9.4 Implement the egress phase: send final-hop packets to the gateway's mixnet listener addressed to the agent's own client session, and count arrivals on that session
 - [ ] 9.5 Hold the session open across both phases and their drain windows, and use one address family for both legs with the sphinx return hop matching it
-- [ ] 9.6 Produce two signals with a fixed two-signal denominator: a phase that produced nothing scores zero, a phase-1 failure does not abort the run, and a session that cannot be established yields two zero signals
+- [ ] 9.6 Produce two measurements with a fixed two-measurement denominator: a phase that produced nothing scores zero, a phase-1 failure does not abort the run, and a session that cannot be established yields two zero measurements
 - [ ] 9.7 Unit-test the scoring rules of 9.6, including that a healthy-ingress / dead-egress run scores 0.5 rather than 1.0
 
 ## 10. Orchestrator: per-kind submission
 
 - [ ] 10.1 Split the result submitter into one stream per kind, each reading and advancing its own watermark and posting to its own endpoint
-- [ ] 10.2 Convert a liveness run into its submission shape: the average over the kind's fixed signal set with a missing signal counted as zero, carrying the per-signal breakdown
+- [ ] 10.2 Convert a liveness run into its submission shape: the average over the kind's fixed measurement set with a missing measurement counted as zero, carrying the per-interface breakdown
 - [ ] 10.3 Keep the strictly-increasing timestamp behaviour per stream
-- [ ] 10.4 Expose the per-signal breakdown and the test kind on the operator read surface (`/v1/results/*`)
+- [ ] 10.4 Expose the per-interface breakdown and the test kind on the operator read surface (`/v1/results/*`)
 - [ ] 10.5 Unit-test that submitting one stream does not advance the other's watermark, and that a failed post leaves its own watermark unmoved
 
 ## 11. nym-api: liveness ingest and shadow-weighted component
 
 - [ ] 11.1 Add the liveness batch endpoint applying the same ordered validation as the stress endpoint (staleness, contract membership, per-signer monotonicity, signature)
 - [ ] 11.2 Scope the per-signer replay high-water mark per endpoint so the stress and liveness streams cannot invalidate each other
-- [ ] 11.3 Accept gateway-capable nodes on the liveness endpoint, and store each result with its per-signal breakdown, deduplicating on `(testrun_id, submitter_pubkey)`
+- [ ] 11.3 Accept gateway-capable nodes on the liveness endpoint, and store each result with its per-interface breakdown, deduplicating on `(testrun_id, submitter_pubkey)`
 - [ ] 11.4 Aggregate liveness results (average performance plus a reachability flag over a window) into a liveness score
 - [ ] 11.5 Add the liveness performance component to the provider behind its own `use_*`, `minimum_available_*` and `*_score_weight` flags, with the weight defaulting to ZERO
 - [ ] 11.6 Add the divergence metric comparing a node's aggregated liveness score against the v1 routing score, bucketed by whether the node announces a wss entry
@@ -108,6 +108,6 @@
 - [ ] 12.2 `cargo test` the touched crates, including the contract tests and the orchestrator's sqlx-backed storage tests
 - [ ] 12.3 Migrate the contract on a devnet and confirm an existing agent entry still reads back, then confirm a re-announcement populates its identity with no migration logic involved
 - [ ] 12.4 Exercise mixnode liveness end to end against a testnet node and confirm a non-zero score with correct per-address attribution
-- [ ] 12.5 Exercise gateway liveness end to end against a testnet gateway carrying task groups 6 and 7, and confirm both signals are non-zero
-- [ ] 12.6 Confirm an un-upgraded gateway yields a zero egress signal and a non-zero ingress signal, so the divergence bucket behaves as designed
+- [ ] 12.5 Exercise gateway liveness end to end against a testnet gateway carrying task groups 6 and 7, and confirm both measurements are non-zero
+- [ ] 12.6 Confirm an un-upgraded gateway yields a zero client-delivery measurement and a non-zero client-ingest measurement, so the divergence bucket behaves as designed
 - [ ] 12.7 Confirm the orchestrator migration applies to a copy of a live orchestrator database with its staleness positions, rotation pointers and watermark preserved

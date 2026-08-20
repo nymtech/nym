@@ -5,8 +5,8 @@ use anyhow::Context;
 use nym_api_requests::models::v3::StressTestResult;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
-    self as api, LatencyDistribution, NymNodeData, TestRunData, TestRunInProgressData,
-    TestRunResult,
+    self as api, InterfaceMeasurement, LatencyDistribution, NymNodeData, TestRunData,
+    TestRunInProgressData, TestRunResult,
 };
 use nym_node_requests::api::v1::node::models::NodeRoles;
 use nym_validator_client::client::NodeId;
@@ -115,11 +115,17 @@ impl NewTestRun {
     /// Converts an API-level [`TestRunResult`] into a database-ready row,
     /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
     /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
+    /// Folds a run and ONE of its measurements onto a single row.
+    ///
+    /// The current schema carries the measurement columns inline, so it can hold exactly one per
+    /// run. Migration `03` moves them into a child table keyed by exercised interface, at which
+    /// point this takes the whole result and writes a row per measurement instead.
     fn from_result(
         tested_role: TestedRole,
         node_id: NodeId,
         tested_address: SocketAddr,
-        result: TestRunResult,
+        result: &TestRunResult,
+        measurement: &InterfaceMeasurement,
     ) -> Self {
         NewTestRun {
             node_id: node_id as i64,
@@ -127,48 +133,78 @@ impl NewTestRun {
             tested_role,
             test_timestamp: OffsetDateTime::now_utc(),
             time_taken_us: result.time_taken.as_micros() as i64,
-            ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
-            egress_noise_handshake_us: result.egress_noise_handshake.map(duration_to_us),
-            sphinx_packet_delay_us: duration_to_us(result.sphinx_packet_delay),
-            packets_sent: result.packets_sent as i64,
-            packets_received: result.packets_received as i64,
-            approximate_latency_us: result.approximate_latency.map(duration_to_us),
-            packets_rtt_min_us: result.packets_statistics.map(|s| duration_to_us(s.minimum)),
-            packets_rtt_mean_us: result.packets_statistics.map(|s| duration_to_us(s.mean)),
-            packets_rtt_median_us: result.packets_statistics.map(|s| duration_to_us(s.median)),
-            packets_rtt_max_us: result.packets_statistics.map(|s| duration_to_us(s.maximum)),
-            packets_rtt_std_dev_us: result
+            ingress_noise_handshake_us: measurement.ingress_noise_handshake.map(duration_to_us),
+            egress_noise_handshake_us: measurement.egress_noise_handshake.map(duration_to_us),
+            sphinx_packet_delay_us: duration_to_us(measurement.sphinx_packet_delay),
+            packets_sent: measurement.packets_sent as i64,
+            packets_received: measurement.packets_received as i64,
+            approximate_latency_us: measurement.approximate_latency.map(duration_to_us),
+            packets_rtt_min_us: measurement
+                .packets_statistics
+                .map(|s| duration_to_us(s.minimum)),
+            packets_rtt_mean_us: measurement
+                .packets_statistics
+                .map(|s| duration_to_us(s.mean)),
+            packets_rtt_median_us: measurement
+                .packets_statistics
+                .map(|s| duration_to_us(s.median)),
+            packets_rtt_max_us: measurement
+                .packets_statistics
+                .map(|s| duration_to_us(s.maximum)),
+            packets_rtt_std_dev_us: measurement
                 .packets_statistics
                 .map(|s| duration_to_us(s.standard_deviation)),
-            sending_latency_min_us: result.sending_statistics.map(|s| duration_to_us(s.minimum)),
-            sending_latency_mean_us: result.sending_statistics.map(|s| duration_to_us(s.mean)),
-            sending_latency_median_us: result.sending_statistics.map(|s| duration_to_us(s.median)),
-            sending_latency_max_us: result.sending_statistics.map(|s| duration_to_us(s.maximum)),
-            sending_latency_std_dev_us: result
+            sending_latency_min_us: measurement
+                .sending_statistics
+                .map(|s| duration_to_us(s.minimum)),
+            sending_latency_mean_us: measurement
+                .sending_statistics
+                .map(|s| duration_to_us(s.mean)),
+            sending_latency_median_us: measurement
+                .sending_statistics
+                .map(|s| duration_to_us(s.median)),
+            sending_latency_max_us: measurement
+                .sending_statistics
+                .map(|s| duration_to_us(s.maximum)),
+            sending_latency_std_dev_us: measurement
                 .sending_statistics
                 .map(|s| duration_to_us(s.standard_deviation)),
-            received_duplicates: result.received_duplicates,
-            error: result.error,
+            received_duplicates: measurement.received_duplicates,
+            error: result.error.clone(),
         }
     }
 
-    /// Creates a new test run row for a mixnode stress test result.
+    /// Creates a new test run row for a result measured against the node's mixing interface.
     pub(crate) fn from_mixnode_result(
         node_id: NodeId,
         tested_address: SocketAddr,
-        result: TestRunResult,
+        result: &TestRunResult,
+        measurement: &InterfaceMeasurement,
     ) -> Self {
-        Self::from_result(TestedRole::Mixnode, node_id, tested_address, result)
+        Self::from_result(
+            TestedRole::Mixnode,
+            node_id,
+            tested_address,
+            result,
+            measurement,
+        )
     }
 
-    /// Creates a new test run row for a gateway stress test result.
+    /// Creates a new test run row for a result measured against the node's gateway interfaces.
     #[allow(dead_code)]
     pub(crate) fn from_gateway_result(
         node_id: NodeId,
         tested_address: SocketAddr,
-        result: TestRunResult,
+        result: &TestRunResult,
+        measurement: &InterfaceMeasurement,
     ) -> Self {
-        Self::from_result(TestedRole::Gateway, node_id, tested_address, result)
+        Self::from_result(
+            TestedRole::Gateway,
+            node_id,
+            tested_address,
+            result,
+            measurement,
+        )
     }
 }
 
@@ -237,29 +273,41 @@ impl From<TestRun> for TestRunData {
             tested_role: inner.tested_role.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
+                // the row carries no kind yet; migration 03 adds the column and this reads it.
+                // every run recorded so far is a stress run, so the value is accurate today
+                kind: api::TestKind::Stress,
                 time_taken: Duration::from_micros(inner.time_taken_us as u64),
-                ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
-                egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
-                sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),
-                packets_sent: inner.packets_sent as usize,
-                packets_received: inner.packets_received as usize,
-                approximate_latency: inner.approximate_latency_us.map(us_to_duration),
-                packets_statistics: latency_distribution(
-                    inner.packets_rtt_min_us,
-                    inner.packets_rtt_mean_us,
-                    inner.packets_rtt_median_us,
-                    inner.packets_rtt_max_us,
-                    inner.packets_rtt_std_dev_us,
-                ),
-                sending_statistics: latency_distribution(
-                    inner.sending_latency_min_us,
-                    inner.sending_latency_mean_us,
-                    inner.sending_latency_median_us,
-                    inner.sending_latency_max_us,
-                    inner.sending_latency_std_dev_us,
-                ),
-                received_duplicates: inner.received_duplicates,
                 error: inner.error,
+                // one flattened measurement per row until migration 03 gives them their own table
+                measurements: vec![InterfaceMeasurement {
+                    interface: match inner.tested_role {
+                        TestedRole::Mixnode => api::ExercisedInterface::MixForwarding,
+                        // no gateway run has ever been recorded, so this arm is unreachable in
+                        // practice; picking the ingest interface keeps the mapping total
+                        TestedRole::Gateway => api::ExercisedInterface::ClientIngest,
+                    },
+                    ingress_noise_handshake: inner.ingress_noise_handshake_us.map(us_to_duration),
+                    egress_noise_handshake: inner.egress_noise_handshake_us.map(us_to_duration),
+                    sphinx_packet_delay: us_to_duration(inner.sphinx_packet_delay_us),
+                    packets_sent: inner.packets_sent as usize,
+                    packets_received: inner.packets_received as usize,
+                    approximate_latency: inner.approximate_latency_us.map(us_to_duration),
+                    packets_statistics: latency_distribution(
+                        inner.packets_rtt_min_us,
+                        inner.packets_rtt_mean_us,
+                        inner.packets_rtt_median_us,
+                        inner.packets_rtt_max_us,
+                        inner.packets_rtt_std_dev_us,
+                    ),
+                    sending_statistics: latency_distribution(
+                        inner.sending_latency_min_us,
+                        inner.sending_latency_mean_us,
+                        inner.sending_latency_median_us,
+                        inner.sending_latency_max_us,
+                        inner.sending_latency_std_dev_us,
+                    ),
+                    received_duplicates: inner.received_duplicates,
+                }],
             },
         }
     }

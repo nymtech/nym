@@ -29,7 +29,7 @@ A gateway liveness assignment SHALL be a single, indivisible unit of work perfor
 
 The client session MUST be established before either phase and held open through the drain window of both, because final-hop delivery requires a live session at the instant the packet arrives. The two phases MUST NOT be assignable, executable, or submittable separately.
 
-A gateway liveness run MUST produce a signal for each phase. The score denominator MUST be fixed by the test kind at two signals, so a phase that produces no signal scores zero rather than being excluded from the average. A phase-1 failure MUST NOT abort the run; only failure to establish the client session aborts it, in which case both signals are zero. Neither phase relies on `forward_hop_processing_enabled`, which is derived from a node's mixnode mode and is disabled on a gateway-only node.
+A gateway liveness run MUST produce a measurement for each phase. The score denominator MUST be fixed by the test kind at two measurements, so a phase that produces no measurement scores zero rather than being excluded from the average. A phase-1 failure MUST NOT abort the run; only failure to establish the client session aborts it, in which case both measurements are zero. Neither phase relies on `forward_hop_processing_enabled`, which is derived from a node's mixnode mode and is disabled on a gateway-only node.
 
 #### Scenario: Both phases run in one session by one agent
 - **WHEN** a gateway liveness assignment is handed out
@@ -37,15 +37,15 @@ A gateway liveness run MUST produce a signal for each phase. The score denominat
 
 #### Scenario: A dead egress path is not hidden by a healthy ingress path
 - **WHEN** the ingress phase returns every packet and the egress phase returns none
-- **THEN** the run records one full and one zero signal, and the reported score is their average over the kind's fixed two-signal denominator
+- **THEN** the run records one full and one zero measurement, and the reported score is their average over the kind's fixed two-measurement denominator
 
 #### Scenario: An ingress failure still yields an egress measurement
 - **WHEN** the gateway fails to forward the ingress phase's packets
-- **THEN** the run continues into the egress phase and records the ingress signal as zero, rather than aborting
+- **THEN** the run continues into the egress phase and records the ingress measurement as zero, rather than aborting
 
 #### Scenario: A session that cannot be established scores zero on both phases
 - **WHEN** the agent cannot establish its client session with the gateway
-- **THEN** the run aborts with the failure recorded and both signals are zero
+- **THEN** the run aborts with the failure recorded and both measurements are zero
 
 ### Requirement: Gateway client sessions are established over plain ws at an announced ip address
 
@@ -131,7 +131,7 @@ nym-api SHALL accept liveness result batches on an endpoint distinct from the st
 
 The per-signer high-water mark used for the monotonicity check MUST be held SEPARATELY per endpoint. It MUST NOT be shared with the stress-testing endpoint, because a single orchestrator identity submits both streams and two interleaved streams validated against one high-water mark would reject each other indefinitely.
 
-Unlike stress-test ingest, liveness ingest MUST accept results for gateway-capable nodes as well as mixnodes, and MUST record each result's per-signal breakdown alongside its averaged score. Rows MUST deduplicate at the database on `(testrun_id, submitter_pubkey)` so that at-least-once resends are idempotent.
+Unlike stress-test ingest, liveness ingest MUST accept results for gateway-capable nodes as well as mixnodes, and MUST record each result's per-interface breakdown alongside its averaged score. Rows MUST deduplicate at the database on `(testrun_id, submitter_pubkey)` so that at-least-once resends are idempotent.
 
 #### Scenario: Interleaved streams do not reject each other
 - **WHEN** one orchestrator submits a stress batch and then a liveness batch whose timestamp is lower than the stress batch's
@@ -147,7 +147,7 @@ Unlike stress-test ingest, liveness ingest MUST accept results for gateway-capab
 
 ### Requirement: Each test kind defines which node types it assigns and how their results are typed
 
-Each test kind SHALL declare the node types it is eligible to assign. The `stress` kind MUST assign only nodes whose type is `mixnode` or `mixnode_and_gateway` and MUST record its runs as the mixnode test type. The `liveness` kind MUST assign nodes of type `mixnode`, `gateway`, or `mixnode_and_gateway`, selecting the mixnode probe for mixing-capable nodes and the two-phase gateway probe for gateway-capable ones. A node that is both MUST be eligible for both probes, each producing its own signal, and its liveness score MUST be the average over the signals its probes produce.
+Each test kind SHALL declare the node types it is eligible to assign. The `stress` kind MUST assign only nodes whose type is `mixnode` or `mixnode_and_gateway` and MUST record its runs as the mixnode test type. The `liveness` kind MUST assign nodes of type `mixnode`, `gateway`, or `mixnode_and_gateway`, selecting the mixnode probe for mixing-capable nodes and the two-phase gateway probe for gateway-capable ones. A node that is both MUST be eligible for both probes, each producing its own measurement, and its liveness score MUST be the average over the measurements its probes produce.
 
 A node whose type is `unknown` (never successfully self-described) MUST remain ineligible for every kind.
 
@@ -157,7 +157,7 @@ A node whose type is `unknown` (never successfully self-described) MUST remain i
 
 #### Scenario: A dual-role node is measured in both roles
 - **WHEN** a `mixnode_and_gateway` node is liveness-tested
-- **THEN** it is probed both as a mixing hop and as a gateway, and its score averages every signal produced
+- **THEN** it is probed both as a mixing hop and as a gateway, and its score averages every measurement produced
 
 #### Scenario: An unclassified node is never assigned
 - **WHEN** a node has never answered its self-description
@@ -165,7 +165,7 @@ A node whose type is `unknown` (never successfully self-described) MUST remain i
 
 ### Requirement: Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only
 
-The orchestrator SHALL persist state in a SQLite database whose work-tracking tables are keyed per test kind: a submission-watermark table (one row per kind); `nym_node` (the node registry with its self-described keys, type, announced address set, and gateway client websocket details); a per-kind work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp, last testrun id, and address rotation pointer; `testrun` (completed runs, each recording its kind and which address was tested); a per-signal child table of `testrun` holding the counts and latency distributions of each measured signal; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at`).
+The orchestrator SHALL persist state in a SQLite database whose work-tracking tables are keyed per test kind: a submission-watermark table (one row per kind); `nym_node` (the node registry with its self-described keys, type, announced address set, and gateway client websocket details); a per-kind work-state table keyed `(node_id, test_kind)` holding that kind's last-tested timestamp, last testrun id, and address rotation pointer; `testrun` (completed runs, each recording its kind and which address was tested); a per-interface measurement child table of `testrun` holding the counts and latency distributions of each interface the run exercised; and `testrun_in_progress` (the in-flight dispatch lock set, keyed by `node_id` alone so that only one test of any kind runs against a node at a time, and carrying a materialised `expires_at`).
 
 The per-kind last-tested timestamp MUST be stored directly rather than read through a join onto the last testrun row, so that evicting an old result does not make a node read as never-tested and jump the assignment queue.
 
@@ -195,7 +195,7 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 #### Scenario: Node registry and results survive a restart
 - **WHEN** the orchestrator restarts
-- **THEN** its node registry, per-kind work state, completed testruns with their signals, and per-kind submission watermarks are loaded from SQLite
+- **THEN** its node registry, per-kind work state, completed testruns with their measurements, and per-kind submission watermarks are loaded from SQLite
 
 #### Scenario: The agent set is rebuilt from the contract, not from disk
 - **WHEN** the orchestrator restarts
@@ -344,7 +344,7 @@ Intended follow-ups (recorded here as planned changes, NOT current behaviour): (
 
 The result submitter SHALL forward completed testruns to nym-api, in a SEPARATE STREAM PER TEST KIND. Each stream MUST have its own destination endpoint and its own persisted watermark, because one watermark cannot describe two destinations: advancing a shared watermark for one stream would skip unsubmitted rows of the other. Stress results MUST be submitted to `POST /v3/nym-nodes/stress-testing/batch-submit`; liveness results MUST be submitted to their own endpoint.
 
-For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each stress `TestRun` MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each liveness `TestRun` MUST be converted to a result whose performance is the average over that kind's fixed signal set, carrying the per-signal breakdown, with a signal that produced no measurement counted as zero. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing (bumped by 1 nanosecond if the clock has not advanced since the last batch, matching nym-api's replay guard), and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
+For each stream the submitter MUST read that stream's persisted watermark, fetch completed testruns of that kind after it in ascending id order, and send them in chunks of `result_submission_batch_size` (default 50). Each stress `TestRun` MUST be converted to a `StressTestResult` whose `test_performance` is `packets_received / packets_sent` (or `0.0` when `packets_sent` is zero or duplicates were seen) and whose `was_reachable` is `error.is_none()`. Each liveness `TestRun` MUST be converted to a result whose performance is the average over that kind's fixed measurement set, carrying the per-interface breakdown, with an interface that produced no measurement counted as zero. Each batch MUST be wrapped in a submission content carrying `{ signer, timestamp, results }`, given a timestamp that is strictly increasing (bumped by 1 nanosecond if the clock has not advanced since the last batch, matching nym-api's replay guard), and signed with the orchestrator's ed25519 identity key. Each stream's watermark MUST be advanced only AFTER a successful POST, so a failed submission re-sends the same testruns on the next cycle (at-least-once delivery).
 
 #### Scenario: Only new testruns are submitted, in order
 - **WHEN** the submitter runs with a watermark of N for a given kind
@@ -364,7 +364,7 @@ For each stream the submitter MUST read that stream's persisted watermark, fetch
 
 ### Requirement: Stale in-flight dispatches and old results are evicted
 
-The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days), along with their per-signal rows. One eviction sweep MUST run before the HTTP server begins serving.
+The stale-data eviction task SHALL clear `testrun_in_progress` rows whose `expires_at` has passed, so that a dispatch abandoned by a crashed or hung agent frees its node for reassignment, and MUST delete completed testruns older than `testrun_eviction_age` (default 7 days), along with their per-interface measurement rows. One eviction sweep MUST run before the HTTP server begins serving.
 
 The deadline MUST be materialised on the in-progress row at hand-out rather than derived by the sweep from a single global timeout, because different test kinds have different budgets (a stress run is minutes, a liveness wave is seconds) and a future kind may be more expensive still. The sweep therefore requires no knowledge of kinds.
 
@@ -378,7 +378,7 @@ The deadline MUST be materialised on the in-progress row at hand-out rather than
 
 #### Scenario: Old results are pruned
 - **WHEN** completed testruns are older than `testrun_eviction_age`
-- **THEN** they and their per-signal rows are deleted from the database
+- **THEN** they and their per-interface measurement rows are deleted from the database
 
 ### Requirement: The agent is a one-shot job that announces, requests one assignment, tests, submits, and exits
 
@@ -400,9 +400,9 @@ The agent MUST be able to execute every test kind the orchestrator may assign, s
 
 ### Requirement: The per-node result captures counts, handshake and latency statistics, and an optional error
 
-Each test SHALL produce a result carrying its test kind, `time_taken`, and an optional `error`, plus ONE OR MORE SIGNALS. Each signal MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; per-packet and per-send latency distributions (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. A stress or mixnode-liveness run produces exactly one signal; a gateway-liveness run produces one per phase. Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
+Each test SHALL produce a result carrying its test kind, `time_taken`, and an optional `error`, plus ONE OR MORE MEASUREMENTS, each tagged with the node interface it exercised. Each measurement MUST carry: ingress and egress Noise-handshake durations; the sphinx packet delay; `packets_sent` and `packets_received`; the baseline `approximate_latency`; per-packet and per-send latency distributions (minimum, mean, median, maximum, standard deviation); and a `received_duplicates` flag. A stress or mixnode-liveness run produces exactly one measurement (`mix_forwarding`); a gateway-liveness run produces one per phase (`client_ingest` and `client_delivery`). Only a critical failure (for example an inability to bind the ingress listener) MUST bubble up as an error return; node-level failures (no response, bloomfilter misconfiguration, a rejected Noise handshake, a refused client session) MUST be recorded inside the returned result so the orchestrator always receives partial data.
 
-The per-signal breakdown MUST be persisted and exposed on the operator read surface even though downstream consumers receive only the averaged score, because a gateway with a healthy ingress and a dead egress is otherwise indistinguishable from one that is uniformly half-lossy.
+The per-interface breakdown MUST be persisted and exposed on the operator read surface even though downstream consumers receive only the averaged score, because a gateway with a healthy ingress and a dead egress is otherwise indistinguishable from one that is uniformly half-lossy.
 
 The submission that carries a result to the orchestrator MUST additionally report WHICH address was tested, and that address MUST be persisted with the run and exposed on the operator read surface. A node may announce several addresses of which only some are healthy, so without it a per-address failure is indistinguishable from a dead node and gets averaged into that node's single result series.
 
@@ -418,7 +418,7 @@ Latency statistics MUST be recorded but MUST NOT contribute to any score. Two co
 
 #### Scenario: A gateway result keeps its per-phase breakdown
 - **WHEN** a gateway liveness run is stored and read back
-- **THEN** the ingress and egress signals are separately visible, alongside the averaged score submitted downstream
+- **THEN** the ingress and egress measurements are separately visible, alongside the averaged score submitted downstream
 
 #### Scenario: A rejected handshake scores zero rather than being excluded
 - **WHEN** a node rejects the agent's Noise handshake, so nothing can be measured
@@ -504,9 +504,9 @@ The announced pair MUST be validated at configuration time, applying the same ru
 
 ### Requirement: Orchestrator state is a four-table SQLite database and the agent registry is in-memory only
 
-**Reason**: The schema is no longer four tables, and its shape is no longer describable per node rather than per (node, kind). Work state moves into a per-kind table, results gain a per-signal child table, in-progress rows gain a materialised lease, and the single submission watermark becomes one per kind. The requirement's normative content is replaced by "Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only", which restates the agent-rehydration rules unchanged.
+**Reason**: The schema is no longer four tables, and its shape is no longer describable per node rather than per (node, kind). Work state moves into a per-kind table, results gain a per-interface measurement child table, in-progress rows gain a materialised lease, and the single submission watermark becomes one per kind. The requirement's normative content is replaced by "Orchestrator state is a per-kind SQLite schema and the agent registry is in-memory only", which restates the agent-rehydration rules unchanged.
 
-**Migration**: A migration MUST move `nym_node.last_testrun` and `nym_node.last_tested_ip` into the new per-kind work-state table under the `stress` kind, so existing nodes keep their staleness position and address rotation; MUST backfill `expires_at` on any in-progress row from `started_at` plus the stress lease budget; and MUST carry the existing `metadata.last_submitted_testrun_id` across as the stress stream's watermark. No result data is lost: existing `testrun` rows keep their columns and are read as single-signal runs.
+**Migration**: A migration MUST move `nym_node.last_testrun` and `nym_node.last_tested_ip` into the new per-kind work-state table under the `stress` kind, so existing nodes keep their staleness position and address rotation; MUST backfill `expires_at` on any in-progress row from `started_at` plus the stress lease budget; and MUST carry the existing `metadata.last_submitted_testrun_id` across as the stress stream's watermark. No result data is lost: existing `testrun` rows keep their columns and are read as single-measurement runs.
 
 ### Requirement: The subsystem tests mixnodes only; the gateway test path is an unwired extension seam
 

@@ -5,11 +5,11 @@ use crate::agent::config::NodeTesterConfig;
 use crate::agent::helpers::derive_client_identity;
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::agent::tester::NodeStressTester;
-use anyhow::Context;
+use anyhow::{Context, bail};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentMixAddresses, TestRunAssignmentRequest,
+    AgentAnnounceRequest, AgentMixAddresses, TestRunAssignment, TestRunAssignmentRequest,
     TestRunResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
@@ -104,11 +104,22 @@ impl NetworkMonitorAgent {
         };
 
         info!("retrieved the following work assignment: {work_assignment:?}");
-        let node_id = work_assignment.node_id;
-        let tested_address = work_assignment.node_address;
+
+        // the orchestrator picks the kind, so refuse loudly rather than silently mis-measuring a
+        // target under the wrong profile. it cannot assign liveness work until per-kind scheduling
+        // lands, so reaching this arm means an orchestrator newer than this agent.
+        let TestRunAssignment::MixnodeStress(target) = work_assignment else {
+            bail!(
+                "was assigned {} work, which this agent cannot execute",
+                work_assignment.kind()
+            );
+        };
+
+        let node_id = target.node_id;
+        let tested_address = target.node_address;
 
         // 3. otherwise construct the tester and attempt to perform the measurements
-        let tested_node = TestedNodeDetails::from_testrun_assignment(work_assignment);
+        let tested_node = TestedNodeDetails::from_probe_target(target);
         let mut stress_tester =
             NodeStressTester::new(self.tester_config, self.noise_key.clone(), tested_node)?;
 

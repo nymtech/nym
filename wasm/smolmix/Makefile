@@ -56,14 +56,14 @@ internal-dev-install:
 	cd internal-dev && pnpm install --ignore-workspace
 
 # Playwright tests (headless browser).
-# Prereqs: make dev-build && cd tests && pnpm install && pnpm exec playwright install
+# Prereqs: make dev-build && cd tests && npm ci && npx playwright install
 # IPR_ADDRESS env var is optional; tests fall back to the default in
 # internal-dev/index.html / internal-dev/headless.js when unset.
 test\:smoke:
-	cd tests && pnpm exec playwright test --project=smoke-chromium --project=smoke-firefox
+	cd tests && npx playwright test --project=smoke-chromium --project=smoke-firefox
 
 test\:suite:
-	cd tests && pnpm exec playwright test --project=suite-chromium --project=suite-firefox --project=suite-webkit
+	cd tests && npx playwright test --project=suite-chromium --project=suite-firefox --project=suite-webkit
 
 test:
-	cd tests && pnpm exec playwright test
+	cd tests && npx playwright test

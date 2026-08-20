@@ -12,7 +12,7 @@ use crate::ecash::state::cleaner::EcashBackgroundStateCleaner;
 use crate::ecash::state::global::GlobalEcachState;
 use crate::ecash::state::helpers::{ensure_sane_expiration_date, query_all_threshold_apis};
 use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
-use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
+use crate::ecash::storage::models::{DepositUsage, SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
 use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
@@ -575,14 +575,10 @@ impl EcashState {
         Ok(())
     }
 
-    /// Check if this nym-api has already issued a credential for the provided deposit id.
-    /// If so, return it.
-    pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {
-        Ok(self
-            .aux
-            .storage
-            .get_issued_partial_signature(deposit_id)
-            .await?)
+    /// Check whether this nym-api has already issued a credential for the provided deposit id,
+    /// and whether it still holds the share it issued.
+    pub async fn deposit_usage(&self, deposit_id: DepositId) -> Result<DepositUsage> {
+        Ok(self.aux.storage.deposit_usage(deposit_id).await?)
     }
 
     pub async fn get_deposit(&self, deposit_id: DepositId) -> Result<Deposit> {

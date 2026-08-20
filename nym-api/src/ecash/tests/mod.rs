@@ -1531,6 +1531,7 @@ impl TestFixture {
 mod credential_tests {
     use super::*;
     use crate::ecash::helpers::IssuedExpirationDateSignatures;
+    use crate::ecash::storage::models::DepositUsage;
     use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
     use nym_api_requests::ecash::models::AggregatedExpirationDateSignatureResponse;
@@ -1587,6 +1588,110 @@ mod credential_tests {
         );
     }
 
+    /// C10: the local `issued_ticketbook` row is the only thing standing between a deposit and a
+    /// second ticketbook, and the stale-data cleaner deletes it a couple of days after the book
+    /// expires. The deposit outlives it by design - the contract has no notion of a deposit
+    /// having been consumed - so once the row is gone a fresh withdrawal transcript for that
+    /// same deposit looks exactly like a first request, and the one payment mints another book.
+    ///
+    /// The record of a deposit having been paid out has to outlive the material issued against
+    /// it, so pruning must not reopen the deposit.
+    #[tokio::test]
+    async fn a_deposit_whose_issuance_record_was_pruned_cannot_be_used_again() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        // the deposit is spent on a ticketbook
+        let issued = fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+
+        // each transcript carries a freshly drawn wallet secret, so this is a genuinely different
+        // request over the same deposit. while the record is around it gets the stored share back
+        // rather than a signature over the new request.
+        let replayed = fixture
+            .issue_ticketbook(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+            )
+            .await;
+        assert_eq!(issued.to_bytes(), replayed.to_bytes());
+
+        // ... and then the cleaner catches up with the long-expired book
+        fixture
+            .storage
+            .remove_old_issued_ticketbooks(voucher.expiration_date() + time::Duration::days(1))
+            .await
+            .unwrap();
+
+        // the deposit has already been paid out, so it must still be refused - and refused for
+        // that reason. a bare status check would also pass on the storage error the write path
+        // happens to raise if this request gets as far as signing.
+        let response = fixture
+            .axum
+            .post(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"
+            ))
+            .json(&voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert!(response.text().contains(
+            &EcashError::DepositAlreadyUsed {
+                deposit_id: voucher.deposit_id()
+            }
+            .to_string()
+        ));
+    }
+
+    /// The same invariant one layer down: the record marking a deposit as spent has to outlive the
+    /// issuance data it accompanies, because nothing ever invalidates the deposit itself.
+    #[tokio::test]
+    async fn pruning_an_issuance_leaves_its_deposit_marked_as_used() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let deposit_id = 42;
+        let expiration_date = ecash_today_date();
+
+        assert!(matches!(
+            storage.deposit_usage(deposit_id).await.unwrap(),
+            DepositUsage::Unused
+        ));
+
+        storage
+            .store_issued_ticketbook(
+                deposit_id,
+                1,
+                &blinded_signature_fixture().to_bytes(),
+                &[],
+                expiration_date,
+                TicketType::V1MixnetEntry,
+                MerkleLeaf {
+                    hash: vec![42u8; 32],
+                    index: 0,
+                },
+            )
+            .await
+            .unwrap();
+
+        assert!(matches!(
+            storage.deposit_usage(deposit_id).await.unwrap(),
+            DepositUsage::Issued(_)
+        ));
+
+        storage
+            .remove_old_issued_ticketbooks(expiration_date + time::Duration::days(1))
+            .await
+            .unwrap();
+
+        // the share itself is gone, but the deposit stays spent
+        assert!(matches!(
+            storage.deposit_usage(deposit_id).await.unwrap(),
+            DepositUsage::Pruned
+        ));
+    }
+
     #[tokio::test]
     async fn state_functions() {
         let mut rng = OsRng;
@@ -1627,7 +1732,10 @@ mod credential_tests {
         );
 
         let deposit_id = 42;
-        assert!(state.already_issued(deposit_id).await.unwrap().is_none());
+        assert!(matches!(
+            state.deposit_usage(deposit_id).await.unwrap(),
+            DepositUsage::Unused
+        ));
 
         let voucher = voucher_fixture(None);
         let signing_data = voucher.prepare_for_signing();
@@ -1652,15 +1760,10 @@ mod credential_tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            state
-                .already_issued(deposit_id)
-                .await
-                .unwrap()
-                .unwrap()
-                .to_bytes(),
-            blinded_signature_fixture().to_bytes()
-        );
+        let DepositUsage::Issued(stored) = state.deposit_usage(deposit_id).await.unwrap() else {
+            panic!("expected the stored share to be returned")
+        };
+        assert_eq!(stored.to_bytes(), blinded_signature_fixture().to_bytes());
 
         let blinded_signature = BlindedSignature::from_bytes(&[
             183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25,
@@ -1709,15 +1812,10 @@ mod credential_tests {
             .unwrap();
 
         // Check that the same value for tx_hash is returned
-        assert_eq!(
-            state
-                .already_issued(deposit_id)
-                .await
-                .unwrap()
-                .unwrap()
-                .to_bytes(),
-            blinded_signature.to_bytes()
-        );
+        let DepositUsage::Issued(stored) = state.deposit_usage(deposit_id).await.unwrap() else {
+            panic!("expected the stored share to be returned")
+        };
+        assert_eq!(stored.to_bytes(), blinded_signature.to_bytes());
     }
 
     #[tokio::test]

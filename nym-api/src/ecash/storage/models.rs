@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::NymApiStorageError;
+use nym_compact_ecash::BlindedSignature;
 use nym_credentials_interface::TicketType;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ticketbooks_merkle::IssuedTicketbook;
@@ -81,6 +82,29 @@ impl TryFrom<RawIssuedTicketbook> for IssuedTicketbook {
                 .map_err(|err| NymApiStorageError::database_inconsistency(err.to_string()))?,
         })
     }
+}
+
+/// What this signer's records say about a deposit, straight out of the database.
+///
+/// The `used_deposit` tombstone outlives the `issued_ticketbook` row it accompanies, so a deposit
+/// that was signed for and then had its issuance data pruned is a state of its own, distinct from
+/// one that was never signed for at all.
+pub enum RawDepositUsage {
+    /// No record of this deposit ever having been signed for.
+    Unused,
+
+    /// Signed for, with the blinded share still retained.
+    Issued(Vec<u8>),
+
+    /// Signed for, but the issuance data has since been removed by the stale-data cleaner.
+    Pruned,
+}
+
+/// [`RawDepositUsage`] with the stored share recovered.
+pub enum DepositUsage {
+    Unused,
+    Issued(BlindedSignature),
+    Pruned,
 }
 
 #[derive(FromRow)]

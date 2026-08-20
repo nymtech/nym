@@ -5,6 +5,7 @@ use crate::ecash::api_routes::helpers::EpochIdParam;
 use crate::ecash::error::EcashError;
 use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
+use crate::ecash::storage::models::DepositUsage;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
@@ -80,8 +81,17 @@ async fn post_blind_sign(
     debug!(
         "checking if we have already issued credential for this deposit (deposit_id: {deposit_id})",
     );
-    if let Some(blinded_signature) = state.already_issued(deposit_id).await? {
-        return Ok(output.to_response(BlindedSignatureResponse { blinded_signature }));
+    match state.deposit_usage(deposit_id).await? {
+        // a repeated request for a deposit whose share we still hold gets that same share back
+        DepositUsage::Issued(blinded_signature) => {
+            return Ok(output.to_response(BlindedSignatureResponse { blinded_signature }))
+        }
+
+        // we no longer hold the share, but the deposit was still spent on it. signing again here
+        // would mint a second ticketbook against a single payment.
+        DepositUsage::Pruned => return Err(EcashError::DepositAlreadyUsed { deposit_id }.into()),
+
+        DepositUsage::Unused => (),
     }
 
     //check if account was blacklisted

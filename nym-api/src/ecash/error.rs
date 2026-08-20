@@ -38,6 +38,9 @@ pub enum EcashError {
     #[error("the provided expiration date is too early")]
     ExpirationDateTooEarly,
 
+    #[error("deposit {deposit_id} has already been used to issue a ticketbook. the issued data is no longer retained, but the deposit remains spent")]
+    DepositAlreadyUsed { deposit_id: DepositId },
+
     #[error("attempted to request too many partial ticketbooks at once. got {requested}, but the maximum allowed is {max}")]
     RequestTooBig { requested: usize, max: usize },
 

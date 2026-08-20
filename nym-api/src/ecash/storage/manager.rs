@@ -3,8 +3,8 @@
 
 use crate::ecash::storage::models::{
     IssuedHash, IssuedTicketbooksCount, IssuedTicketbooksForCount, IssuedTicketbooksOnCount,
-    RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper, TicketProvider,
-    VerifiedTicket,
+    RawDepositUsage, RawExpirationDateSignatures, RawIssuedTicketbook, SerialNumberWrapper,
+    TicketProvider, VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
@@ -14,15 +14,13 @@ use tracing::{error, info};
 
 #[async_trait]
 pub trait EcashStorageManagerExt {
-    /// Attempts to retrieve an issued credential from the data store.
+    /// Reports whether this deposit has ever been signed for, and if so whether the resulting
+    /// share is still retained.
     ///
     /// # Arguments
     ///
     /// * `deposit_id`: id the deposit used in the issued bandwidth credential
-    async fn get_issued_partial_signature(
-        &self,
-        deposit_id: DepositId,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error>;
+    async fn deposit_usage(&self, deposit_id: DepositId) -> Result<RawDepositUsage, sqlx::Error>;
 
     /// Get the hashes of all issued ticketbooks with the particular expiration date
     async fn get_issued_hashes(
@@ -170,27 +168,34 @@ pub trait EcashStorageManagerExt {
 
 #[async_trait]
 impl EcashStorageManagerExt for StorageManager {
-    /// Attempts to retrieve an issued credential from the data store.
+    /// Reports whether this deposit has ever been signed for, and if so whether the resulting
+    /// share is still retained.
     ///
     /// # Arguments
     ///
     /// * `deposit_id`: id the deposit used in the issued bandwidth credential
-    async fn get_issued_partial_signature(
-        &self,
-        deposit_id: DepositId,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error> {
-        Ok(sqlx::query!(
+    async fn deposit_usage(&self, deposit_id: DepositId) -> Result<RawDepositUsage, sqlx::Error> {
+        // anchored on the tombstone rather than on the issuance row: the tombstone is what
+        // outlives pruning, so its absence is the only thing that means "never signed for"
+        let Some(row) = sqlx::query!(
             r#"
-                SELECT
-                blinded_partial_credential
-                FROM issued_ticketbook
-                WHERE deposit_id = ?
+                SELECT t.blinded_partial_credential AS "blinded_partial_credential?"
+                FROM used_deposit u
+                LEFT JOIN issued_ticketbook t ON t.deposit_id = u.deposit_id
+                WHERE u.deposit_id = ?
             "#,
             deposit_id
         )
         .fetch_optional(&self.connection_pool)
         .await?
-        .map(|r| r.blinded_partial_credential))
+        else {
+            return Ok(RawDepositUsage::Unused);
+        };
+
+        Ok(match row.blinded_partial_credential {
+            Some(share) => RawDepositUsage::Issued(share),
+            None => RawDepositUsage::Pruned,
+        })
     }
 
     /// Get the hashes of all issued ticketbooks with the particular expiration date
@@ -228,6 +233,10 @@ impl EcashStorageManagerExt for StorageManager {
         merkle_leaf: &[u8],
         merkle_index: u32,
     ) -> Result<(), sqlx::Error> {
+        // the issuance row and the tombstone that outlives it have to land together, or a crash
+        // in between would leave a deposit that reopens the moment its issuance data is pruned
+        let mut tx = self.connection_pool.begin().await?;
+
         sqlx::query!(
             r#"
                 INSERT INTO issued_ticketbook (
@@ -255,8 +264,21 @@ impl EcashStorageManagerExt for StorageManager {
             merkle_index,
             expiration_date
         )
-        .execute(&self.connection_pool)
+        .execute(&mut *tx)
         .await?;
+
+        // this is what keeps the deposit spent once the row above is pruned. it can only clash if
+        // the insert above somehow didn't, so let it surface rather than ignoring the conflict.
+        sqlx::query!(
+            r#"
+                INSERT INTO used_deposit (deposit_id) VALUES (?)
+            "#,
+            deposit_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
 
         Ok(())
     }

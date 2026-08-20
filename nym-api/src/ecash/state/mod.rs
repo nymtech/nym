@@ -185,7 +185,7 @@ impl EcashState {
         // our own membership is only settled once the ceremony has concluded. this cache
         // never expires, so answering "not a signer" mid-ceremony and remembering it
         // would have us refuse to sign for the rest of the epoch.
-        if !self.aux.comm_channel.epoch_concluded(epoch_id).await? {
+        if !self.aux.comm_channel.ceremony_concluded(epoch_id).await? {
             return self.check_dkg_signer(epoch_id).await;
         }
 
@@ -553,6 +553,20 @@ impl EcashState {
     pub(crate) async fn ensure_dkg_not_in_progress(&self) -> Result<()> {
         if self.aux.comm_channel.dkg_in_progress().await? {
             return Err(EcashError::DkgInProgress);
+        }
+        Ok(())
+    }
+
+    /// Ensures the DKG ceremony that established `epoch_id`'s keys has finished, so everything
+    /// derived from them is settled.
+    ///
+    /// Only the epoch whose ceremony is running right now has nothing to give. Everything an
+    /// earlier one was ever asked for is fixed for good, and its credentials stay spendable for
+    /// days after it stops being used for issuance - so refusing those requests for the duration
+    /// of a ceremony takes credentials out of service for a reason that does not apply to them.
+    pub(crate) async fn ensure_ceremony_concluded(&self, epoch_id: EpochId) -> Result<()> {
+        if !self.aux.comm_channel.ceremony_concluded(epoch_id).await? {
+            return Err(EcashError::CeremonyNotConcluded { epoch_id });
         }
         Ok(())
     }
@@ -1347,6 +1361,76 @@ mod tests {
 
         let master_coin_indices = state.master_coin_index_signatures(Some(past_epoch)).await?;
         assert_eq!(master_coin_indices.epoch_id, past_epoch);
+
+        Ok(())
+    }
+
+    /// B2 at the layer beneath the routes: lifting the gate is only worth anything if the data
+    /// can actually be produced while a ceremony runs. Everything it depends on belongs to the
+    /// epoch being asked about - its signer set, its threshold, its keys - so none of it is
+    /// touched by the ceremony running for the *next* epoch.
+    #[tokio::test]
+    async fn a_concluded_epoch_can_still_be_served_while_the_next_ceremony_runs(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        let key_dir = tempfile::tempdir()?;
+        let key_path = key_dir.path().join("ecash.pem");
+        persist_ecash_keypair(
+            &KeyPairWithEpoch::new(past_keys.keypairs.into_iter().next().unwrap(), past_epoch),
+            &key_path,
+        )?;
+        archive_ecash_keypair(&key_path, past_epoch)?;
+
+        // a fresh ceremony is under way and has not produced anything yet
+        trigger_reset(&chain);
+        cheap::register_dealers(&chain, false);
+        cheap::advance(&chain);
+        let current_epoch = chain.epoch().epoch_id;
+        assert_ne!(past_epoch, current_epoch);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+        for keys in load_archived_ecash_keypairs(&key_path) {
+            state.local.ecash_keypair.archive(keys).await;
+        }
+
+        // the blanket gate would have refused everything in this situation
+        assert!(state.ensure_dkg_not_in_progress().await.is_err());
+
+        // the epoch being built has nothing to give ...
+        assert!(matches!(
+            state.ensure_ceremony_concluded(current_epoch).await,
+            Err(EcashError::CeremonyNotConcluded { epoch_id }) if epoch_id == current_epoch
+        ));
+
+        // ... while the one that finished is settled, and every layer can still serve it
+        state.ensure_ceremony_concluded(past_epoch).await?;
+
+        let expiration_date = ecash_today_date();
+        let partial = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(partial.epoch_id, past_epoch);
+        drop(partial);
+
+        let master = state
+            .master_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(master.epoch_id, past_epoch);
+        drop(master);
+
+        let coin_indices = state.master_coin_index_signatures(Some(past_epoch)).await?;
+        assert_eq!(coin_indices.epoch_id, past_epoch);
+        drop(coin_indices);
+
+        let vk = state.master_verification_key(Some(past_epoch)).await?;
+        assert_eq!(*vk, past_keys.master);
 
         Ok(())
     }

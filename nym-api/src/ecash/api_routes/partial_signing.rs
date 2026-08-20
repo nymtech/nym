@@ -159,8 +159,9 @@ async fn partial_expiration_date_signatures(
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
+    // an aggregator collecting a past epoch's signatures depends on us answering this while a
+    // later ceremony runs, so only that ceremony's own epoch is refused
+    state.ensure_ceremony_concluded(epoch_id).await?;
 
     let expiration_date_signatures = state
         .partial_expiration_date_signatures(expiration_date, epoch_id)
@@ -201,8 +202,8 @@ async fn partial_coin_indices_signatures(
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
+    // as above: refuse only the epoch whose ceremony is still running
+    state.ensure_ceremony_concluded(epoch_id).await?;
 
     let coin_indices_signatures = state.partial_coin_index_signatures(Some(epoch_id)).await?;
 

@@ -61,10 +61,16 @@ async fn master_verification_key(
     trace!("aggregated_verification_key request");
     let output = output.unwrap_or_default();
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => state.current_dkg_epoch().await?,
+    };
 
-    let key = state.master_verification_key(epoch_id).await?;
+    // a concluded epoch's key is fixed, so a ceremony running for some *other* epoch is no
+    // reason to withhold it
+    state.ensure_ceremony_concluded(epoch_id).await?;
+
+    let key = state.master_verification_key(Some(epoch_id)).await?;
 
     Ok(output.to_response(VerificationKeyResponse::new(key.clone())))
 }
@@ -108,13 +114,14 @@ async fn expiration_date_signatures(
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
-
     let epoch_id = match epoch_id {
         Some(epoch_id) => epoch_id,
         None => state.current_dkg_epoch().await?,
     };
+
+    // these signatures are an input to spending a ticketbook from that epoch, and they cannot
+    // change once its ceremony is done - so a later ceremony must not withhold them
+    state.ensure_ceremony_concluded(epoch_id).await?;
 
     let expiration_date_signatures = state
         .master_expiration_date_signatures(expiration_date, epoch_id)
@@ -151,10 +158,16 @@ async fn coin_indices_signatures(
     trace!("aggregated_coin_indices_signatures request");
 
     let output = output.unwrap_or_default();
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
 
-    let coin_indices_signatures = state.master_coin_index_signatures(epoch_id).await?;
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => state.current_dkg_epoch().await?,
+    };
+
+    // as above: an input to spending, fixed once that epoch's ceremony concluded
+    state.ensure_ceremony_concluded(epoch_id).await?;
+
+    let coin_indices_signatures = state.master_coin_index_signatures(Some(epoch_id)).await?;
 
     Ok(output.to_response(AggregatedCoinIndicesSignatureResponse {
         epoch_id: coin_indices_signatures.epoch_id,

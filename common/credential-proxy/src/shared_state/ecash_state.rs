@@ -142,7 +142,7 @@ impl EcashState {
     }
 
     /// Whether the ceremony for `epoch_id` has concluded, so its set of signers is settled.
-    async fn epoch_concluded(
+    async fn ceremony_concluded(
         &self,
         client: &ChainClient,
         epoch_id: EpochId,
@@ -150,7 +150,7 @@ impl EcashState {
         Ok(self
             .current_epoch(client)
             .await?
-            .is_epoch_concluded(epoch_id))
+            .is_ceremony_concluded(epoch_id))
     }
 
     /// The signers registered for `epoch_id`, skipping any whose share cannot be used.
@@ -180,7 +180,7 @@ impl EcashState {
         // verified shares yet. this cache has no expiry, so answering from it then would
         // remember an empty signer set for the life of the process - and this proxy would
         // keep failing to fan out long after the ceremony finished.
-        if !self.epoch_concluded(client, epoch_id).await? {
+        if !self.ceremony_concluded(client, epoch_id).await? {
             return self.registered_ecash_clients(client, epoch_id).await;
         }
 

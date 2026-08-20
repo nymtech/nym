@@ -201,13 +201,15 @@ impl Epoch {
         )
     }
 
-    /// Whether the ceremony for `epoch_id` has finished, judged against `self` as the current
-    /// epoch.
+    /// Whether the DKG ceremony that establishes `epoch_id`'s keys has finished, judged against
+    /// `self` as the current epoch. Note this says nothing about whether that epoch is *over* -
+    /// the current epoch's own ceremony is concluded for all of the time it is in use.
     ///
-    /// Anything before the current epoch has necessarily finished, and an epoch that has not
-    /// been reached yet certainly has not. Callers working from a cached copy of the current
-    /// epoch can only get a pessimistic answer out of a stale one, never a premature "yes".
-    pub fn is_epoch_concluded(&self, epoch_id: EpochId) -> bool {
+    /// The ceremony of any epoch before the current one has necessarily finished, and one that
+    /// has not been reached yet certainly has not started. Callers working from a cached copy of
+    /// the current epoch can only get a pessimistic answer out of a stale one, never a premature
+    /// "yes".
+    pub fn is_ceremony_concluded(&self, epoch_id: EpochId) -> bool {
         match epoch_id.cmp(&self.epoch_id) {
             Ordering::Less => true,
             Ordering::Greater => false,
@@ -373,15 +375,15 @@ mod tests {
     /// Answering "concluded" for an epoch still mid-ceremony would have them remember a set
     /// that is empty or partial.
     #[test]
-    fn an_epoch_has_concluded_only_once_its_ceremony_is_done() {
+    fn a_ceremony_is_concluded_only_once_its_epoch_is_in_progress() {
         let current = epoch_at(5, EpochState::InProgress);
 
-        // earlier epochs are finished by definition, and later ones cannot have started
-        assert!(current.is_epoch_concluded(4));
-        assert!(!current.is_epoch_concluded(6));
+        // earlier ceremonies are finished by definition, and later ones cannot have started
+        assert!(current.is_ceremony_concluded(4));
+        assert!(!current.is_ceremony_concluded(6));
 
-        // the current one depends on where its ceremony has got to
-        assert!(current.is_epoch_concluded(5));
+        // the current epoch's own ceremony is concluded for all the time it is in use
+        assert!(current.is_ceremony_concluded(5));
         for state in [
             EpochState::WaitingInitialisation,
             EpochState::PublicKeySubmission { resharing: false },
@@ -391,7 +393,7 @@ mod tests {
             EpochState::VerificationKeyFinalization { resharing: false },
         ] {
             assert!(
-                !epoch_at(5, state).is_epoch_concluded(5),
+                !epoch_at(5, state).is_ceremony_concluded(5),
                 "{state} was treated as a concluded ceremony"
             );
         }

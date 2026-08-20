@@ -60,11 +60,16 @@ jobs:
       # just filled with the release wasm, so this tests the bytes being published.
       # Not `make dev-build`: it rebuilds pkg/ with `--features debug` and would
       # replace them.
+      # No `--with-deps`: it shells out to apt-get, and the runner's Azure mirror is
+      # unreachable here, so it falls back to archive.ubuntu.com and hangs. The image
+      # already carries the browser system libraries. The timeout is a backstop, since
+      # the smoke test drives a live mixnet connection.
       - name: Smoke test the release wasm in a browser
         if: ${{ !inputs.skip_smoke }}
+        timeout-minutes: 25
         run: |
           (cd wasm/smolmix/internal-dev && pnpm install --ignore-workspace && ./node_modules/.bin/webpack --mode production)
-          (cd wasm/smolmix/tests && npm ci && npx playwright install --with-deps chromium firefox)
+          (cd wasm/smolmix/tests && npm ci && npx playwright install chromium firefox)
           make -C wasm/smolmix test:smoke
 
       - name: Upload smoke test traces

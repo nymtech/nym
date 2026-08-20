@@ -15,10 +15,11 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-/// Discriminator for the type of node targeted by a [`TestRun`].
+/// The role a node was probed in by a [`TestRun`]. Distinct from [`NodeType`], which is the
+/// node's own capability classification and may be both.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-pub(crate) enum TestType {
+pub(crate) enum TestedRole {
     #[default]
     Mixnode,
     Gateway,
@@ -63,7 +64,9 @@ pub(crate) struct NewTestRun {
     /// `None` for runs recorded before the orchestrator started tracking it.
     pub(crate) tested_address: Option<String>,
 
-    pub(crate) test_type: TestType,
+    // the column is still named `test_type`; migration 03 renames it and this bridge goes away
+    #[sqlx(rename = "test_type")]
+    pub(crate) tested_role: TestedRole,
     pub(crate) test_timestamp: OffsetDateTime,
 
     /// How long the test took, in microseconds.
@@ -113,7 +116,7 @@ impl NewTestRun {
     /// flattening [`LatencyDistribution`](nym_network_monitor_orchestrator_requests::models::LatencyDistribution)
     /// fields into individual microsecond columns and recording the current UTC time as the test timestamp.
     fn from_result(
-        test_type: TestType,
+        tested_role: TestedRole,
         node_id: NodeId,
         tested_address: SocketAddr,
         result: TestRunResult,
@@ -121,7 +124,7 @@ impl NewTestRun {
         NewTestRun {
             node_id: node_id as i64,
             tested_address: Some(tested_address.to_string()),
-            test_type,
+            tested_role,
             test_timestamp: OffsetDateTime::now_utc(),
             time_taken_us: result.time_taken.as_micros() as i64,
             ingress_noise_handshake_us: result.ingress_noise_handshake.map(duration_to_us),
@@ -155,7 +158,7 @@ impl NewTestRun {
         tested_address: SocketAddr,
         result: TestRunResult,
     ) -> Self {
-        Self::from_result(TestType::Mixnode, node_id, tested_address, result)
+        Self::from_result(TestedRole::Mixnode, node_id, tested_address, result)
     }
 
     /// Creates a new test run row for a gateway stress test result.
@@ -165,7 +168,7 @@ impl NewTestRun {
         tested_address: SocketAddr,
         result: TestRunResult,
     ) -> Self {
-        Self::from_result(TestType::Gateway, node_id, tested_address, result)
+        Self::from_result(TestedRole::Gateway, node_id, tested_address, result)
     }
 }
 
@@ -209,11 +212,11 @@ fn latency_distribution(
 /// Maps the internal enum onto its public API counterpart. Kept as a separate
 /// type so `sqlx::Type` can be derived on the internal side without leaking
 /// sqlx into the public request crate.
-impl From<TestType> for api::TestType {
-    fn from(t: TestType) -> Self {
+impl From<TestedRole> for api::TestedRole {
+    fn from(t: TestedRole) -> Self {
         match t {
-            TestType::Mixnode => api::TestType::Mixnode,
-            TestType::Gateway => api::TestType::Gateway,
+            TestedRole::Mixnode => api::TestedRole::Mixnode,
+            TestedRole::Gateway => api::TestedRole::Gateway,
         }
     }
 }
@@ -231,7 +234,7 @@ impl From<TestRun> for TestRunData {
             // a malformed stored address is not worth failing the whole result over,
             // it's informational rather than something we act on
             tested_address: inner.tested_address.and_then(|addr| addr.parse().ok()),
-            test_type: inner.test_type.into(),
+            tested_role: inner.tested_role.into(),
             test_timestamp: inner.test_timestamp,
             result: TestRunResult {
                 time_taken: Duration::from_micros(inner.time_taken_us as u64),
@@ -288,7 +291,7 @@ impl From<TestRun> for StressTestResult {
         StressTestResult {
             testrun_id: id,
             node_id: inner.node_id as u32,
-            is_mixnode: matches!(inner.test_type, TestType::Mixnode),
+            is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
             test_timestamp: inner.test_timestamp,
             test_performance,
             was_reachable: inner.error.is_none(),

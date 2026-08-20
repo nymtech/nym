@@ -319,11 +319,12 @@ pub struct PagedResult<T> {
     pub items: Vec<T>,
 }
 
-/// Discriminator for the type of node targeted by a test run.
+/// The role a node was probed in by a test run. Distinct from the node's own capability
+/// classification, which may be both.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum TestType {
+pub enum TestedRole {
     Mixnode,
     Gateway,
 }
@@ -347,8 +348,8 @@ pub struct TestRunData {
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
     pub tested_address: Option<SocketAddr>,
 
-    /// Kind of node that was tested.
-    pub test_type: TestType,
+    /// The role the node was probed in.
+    pub tested_role: TestedRole,
 
     /// When the test run completed and was recorded.
     /// Serialised as an RFC 3339 timestamp string.

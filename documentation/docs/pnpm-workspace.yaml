@@ -21,3 +21,10 @@ allowBuilds:
   web3-bzz: false
   web3-shh: false
   esbuild: true
+
+# pnpm's default 24h supply-chain cooldown guards against a compromised third-party
+# package being published and yanked before anyone installs it. It does not apply to
+# packages this repo publishes itself, and it otherwise blocks verifying the docs
+# against a release on the day it is cut, plus any Vercel deploy for 24h after.
+minimumReleaseAgeExclude:
+  - "@nymproject/*"

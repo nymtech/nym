@@ -25,6 +25,7 @@ on:
       - "sdk/typescript/packages/mix-websocket/src/**"
       - "documentation/docs/pages/developers/**/api/**"
       - "documentation/scripts/next-scripts/generate-typedoc.sh"
+      - "sdk/typescript/packages/*/typedoc.json"
       - ".github/workflows/ci-docs-typedoc-fresh.yml"
 
 jobs:

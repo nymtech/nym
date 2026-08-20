@@ -2,6 +2,14 @@
 
 A trust-minimised directory of node data (sphinx keys, addresses, wireguard/LP details, descriptions, ...). Any client can fetch the directory from anyone - a random gateway, a CDN, a hostile relay - and still end up with a copy it can prove is **complete and untampered**, because trust comes from cryptography rather than from whom it asked. This document describes the trust model and the end-to-end flow, and maps each stage to the code that implements it.
 
+## In plain terms (ELI5)
+
+Every node publishes data others depend on - its sphinx keys, addresses, which services it runs. These changes give the network one shared directory living in an on-chain contract, where each node writes its own entry signed with its identity key (the new nym-node code is that writer side). The point is that whoever reads an entry can verify it rather than trust whoever served it.
+
+To make that verifiable in bulk, the contract keeps a running digest of the whole directory (an LtHash, updated incrementally on each write) in its on-chain state, so it is committed in the chain's state root. A reader can pull the entire directory from any untrusted source, recompute the digest, and check it against the on-chain value with a state proof; a match means the copy is provably complete and unmodified. So clients need not recompute over everything, the nym-apis act as attesters - each verifies the directory once against the chain, then signs whatever subset you ask for - and you gain confidence by cross-checking a threshold of independent nym-apis, with the self-verify path always available as a fallback.
+
+The only bootstrap trust is a signed checkpoint: a known validator set at some height, vouched for by a hardcoded root key. From there a light client follows the chain, and everything else (its current state, which nym-apis are legitimate, and the entries themselves) is verified against it. That is what "attested" means here - every response carries signatures or a proof you check yourself, so a dishonest nym-api or a man-in-the-middle is caught rather than believed.
+
 ## Trust model
 
 ### Core principle
@@ -134,9 +142,23 @@ The two routes converge on the same guarantee: **verified directory data whose t
 
 Archived change specs live under `openspec/changes/archive/` and the promoted capability specs under `openspec/specs/`.
 
-## Status
+## Status and remaining work
 
-The pipeline is complete in code. Before it is live on a network:
+> Accurate as of the `node-directory-publishing` PR stack (2026-08-20). This section describes work still outstanding at that point and will rot as it lands - verify against the current tree (the crates in the implementation map above) before relying on it.
 
-- **Real checkpoint source / root-key ceremony** - the genesis checkpoint must be signed by the real (offline) mainnet root key; a placeholder key is used until then.
-- **Deploy-time operations** - instantiate the contract, seed the curated Tier-1 nym-api keys (admin `SetCuratedEntry`), wire the contract address into `network-defaults`, and set `[directory].enabled` per node. Publishing is opt-in and disabled by default.
+As of that point, the **writer side** is done (nym-nodes publish six signed payload types into the directory contract) and the **attest/retrieve framework** is built and generic: the `DirectorySubset` trait, `sign_subset` / `SignedSubsetDigest` / `AttestedSubset`, the K-of-N `SubsetQuorumConfig` fetch+verify path, the checkpoint + light-client anchor, and the whole-directory LtHash-digest recompute. What is not yet wired is turning the published data into something the running system actually consumes.
+
+### To consume the directory end-to-end
+
+1. **Declare concrete `DirectorySubset`(s).** The only implementors so far are test doubles (`DummySubset`, `TestSubset`). Real subsets - the canonical slices clients want (e.g. all nodes' sphinx keys, all node information, wireguard, LP details, service-provider addresses) - must be built by decoding the published `nym_directory_types` payloads out of the contract, each with a stable `SUBSET_ID` and a byte-identical canonical encoding shared by every producer and verifier.
+2. **Make nym-apis produce and serve them.** Pull the verified directory, assemble each canonical subset, `sign_subset` with the nym-api identity key, and expose it with its `SignedSubsetDigest` and an ICS23 proof that the signer's key is a curated (Tier-1) entry. Nym-apis currently attest only the existing node-identities snapshot; no directory subset is produced.
+3. **Make clients retrieve and cross-check them.** `fetch_subset` from a Tier-1 nym-api, run the quorum cross-check across K independent nym-apis, and fall back to the paranoid whole-directory recompute against the on-chain digest when confidence is insufficient. The generic fetch/verify code exists but is exercised only with test subsets.
+4. **Switch real consumers over.** Point the components that use node data (the topology / node-info source clients build routes from today, currently the unverified self-described HTTP path) at the verified directory subsets. Until this, the directory is published and independently verifiable but nothing in the running system depends on it.
+
+### Deploy-time prerequisites (before turning it on)
+
+5. **Seed curated Tier-1 keys on-chain.** A client authenticates a nym-api's subset signature as Tier-1 only if that nym-api's identity key is a curated entry in the contract. The `SetCuratedEntry` (admin) path exists but has no automated writer, so this is a governance/deploy step (a small CLI would help).
+6. **Real checkpoint source.** The anchor/cache currently bootstraps from a mainnet placeholder key; the genuine root-key-signed checkpoint is required before this is trustworthy on mainnet.
+7. **Contract deployment + opt-in.** Instantiate the contract, wire its address into `network-defaults`, and set `[directory].enabled` per node (publishing is opt-in and disabled by default).
+
+Items 1-4 are the integration work; 5-7 are deploy-time prerequisites. When the consumption work is scheduled it should become its own OpenSpec change rather than living only here.

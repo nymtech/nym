@@ -56,14 +56,29 @@ jobs:
       - name: Build WASM and Typescript SDK
         run: pnpm sdk:build
 
+      # The smoke test drives a live mixnet, so a failure is ambiguous: broken wasm, or
+      # a runner that cannot reach nym-api. This asks for the exact URL the client's
+      # gateway selection uses (validator-client's get_basic_entry_assigned_nodes_v2) so
+      # the log says which, before ~10 minutes of browser time.
+      - name: Check nym-api is reachable from this runner
+        if: ${{ !inputs.skip_smoke }}
+        run: |
+          url="https://validator.nymtech.net/api/v2/unstable/nym-nodes/skimmed/entry-gateways?page=0&per_page=1"
+          code=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' "$url" || echo 000)
+          echo "nym-api gateway selection endpoint returned $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::nym-api is not serving gateway selection from this runner (HTTP $code). This is an infrastructure problem, not a defect in the wasm being published. Re-run once nym-api is healthy."
+            exit 1
+          fi
+
       # Webpacks internal-dev against wasm/smolmix/pkg, which `pnpm sdk:build` has
       # just filled with the release wasm, so this tests the bytes being published.
       # Not `make dev-build`: it rebuilds pkg/ with `--features debug` and would
       # replace them.
-      # No `--with-deps`: it shells out to apt-get, and the runner's Azure mirror is
-      # unreachable here, so it falls back to archive.ubuntu.com and hangs. The image
-      # already carries the browser system libraries. The timeout is a backstop, since
-      # the smoke test drives a live mixnet connection.
+      # No `--with-deps` on the playwright install: it shells out to apt-get, and the
+      # runner's Azure mirror is unreachable here, so it falls back to
+      # archive.ubuntu.com and hangs. The image already carries the browser system
+      # libraries. The timeout is a backstop against any similar stall.
       - name: Smoke test the release wasm in a browser
         if: ${{ !inputs.skip_smoke }}
         timeout-minutes: 25

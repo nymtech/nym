@@ -279,17 +279,55 @@ pub struct TestRunResultSubmissionRequest {
     pub result: TestRunResult,
 }
 
-/// Captures the outcome of a single test run against a nym node.
+/// Which of the node's packet-handling interfaces a set of counts exercised.
+///
+/// Names the node FUNCTION under measurement rather than a route, because every value traverses
+/// the mixnet in some form and so a route-shaped name would not distinguish them. The mixnode
+/// probe exercises one interface and so produces only [`ExercisedInterface::MixForwarding`]; the
+/// gateway probe exercises two, kept separate because averaging them at the agent would make a
+/// healthy ingest with a dead delivery indistinguishable from a uniformly half-lossy node.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExercisedInterface {
+    /// The node forwarding as a mixing hop, measured by the two-hop self-loop through its mixnet
+    /// listener.
+    MixForwarding,
+
+    /// The node accepting packets from a client session and injecting them into the mixnet.
+    ClientIngest,
+
+    /// The node taking final-hop packets off the mixnet and delivering them to a client session.
+    ClientDelivery,
+}
+
+impl ExercisedInterface {
+    /// The interface's canonical string form, shared by its JSON tag, its stored column value and
+    /// its prometheus label so the three cannot drift apart.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ExercisedInterface::MixForwarding => "mix_forwarding",
+            ExercisedInterface::ClientIngest => "client_ingest",
+            ExercisedInterface::ClientDelivery => "client_delivery",
+        }
+    }
+}
+
+impl fmt::Display for ExercisedInterface {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// The counts and timings gathered against ONE of a node's interfaces.
 ///
 /// Fields are populated incrementally as the test progresses; absent values (`None`) indicate
 /// that the corresponding step was not reached or did not produce a result.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct TestRunResult {
-    /// Total duration of the test run, including the time it took to establish the connections.
-    #[serde(default, with = "humantime_serde")]
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
-    pub time_taken: Duration,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InterfaceMeasurement {
+    /// Which interface these counts describe.
+    pub interface: ExercisedInterface,
 
     /// Duration of the Noise handshake on the ingress (responder) side, if completed.
     #[serde(default, with = "humantime_serde")]
@@ -332,18 +370,67 @@ pub struct TestRunResult {
     /// Duplicates should never occur under normal operation; their presence may indicate a
     /// misbehaving or malicious node replaying packets.
     pub received_duplicates: bool,
-
-    /// Human-readable description of the first error that caused the test to abort if any.
-    pub error: Option<String>,
 }
 
-impl TestRunResult {
+impl InterfaceMeasurement {
+    /// A measurement with nothing recorded yet, which is also what a phase that never ran reports:
+    /// zero sent, zero received, hence a zero delivery ratio.
+    pub fn new(interface: ExercisedInterface, sphinx_packet_delay: Duration) -> Self {
+        InterfaceMeasurement {
+            interface,
+            ingress_noise_handshake: None,
+            egress_noise_handshake: None,
+            sphinx_packet_delay,
+            packets_sent: 0,
+            packets_received: 0,
+            approximate_latency: None,
+            packets_statistics: None,
+            sending_statistics: None,
+            received_duplicates: false,
+        }
+    }
+
+    /// Delivery ratio for this interface, clamped to `[0.0, 1.0]`. A measurement that sent nothing
+    /// scores zero rather than being treated as absent: a node that could not be measured must not
+    /// score better than one measured as broken.
     pub fn received_ratio(&self) -> f64 {
         if self.packets_sent == 0 {
             return 0.0;
         }
         let received = self.packets_received.min(self.packets_sent);
         received as f64 / self.packets_sent as f64
+    }
+}
+
+/// Captures the outcome of a single test run against a nym node: the run-level facts plus one
+/// measurement per interface the run exercised.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRunResult {
+    /// What this run measured. Echoed back from the assignment so the orchestrator records the run
+    /// under the kind it handed out.
+    pub kind: TestKind,
+
+    /// Total duration of the test run, including the time it took to establish the connections.
+    /// Covers every measurement, since a gateway run holds one session open across both phases.
+    #[serde(default, with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub time_taken: Duration,
+
+    /// Human-readable description of the first error that caused the test to abort if any.
+    /// Run-level rather than per-measurement: an aborted run stops the whole test.
+    pub error: Option<String>,
+
+    /// One entry per interface exercised. A mixnode probe produces exactly one; the gateway probe
+    /// produces one per phase. A phase that produced nothing is still reported, as a zeroed
+    /// measurement, so the denominator downstream stays fixed.
+    pub measurements: Vec<InterfaceMeasurement>,
+}
+
+impl TestRunResult {
+    /// The measurement for a given interface, if this run exercised it.
+    pub fn measurement(&self, interface: ExercisedInterface) -> Option<&InterfaceMeasurement> {
+        self.measurements.iter().find(|m| m.interface == interface)
     }
 }
 

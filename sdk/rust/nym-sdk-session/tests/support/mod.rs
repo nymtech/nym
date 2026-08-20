@@ -13,6 +13,7 @@
 
 pub mod fake_dkg;
 pub mod http_harness;
+pub mod prune;
 
 use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
 use nym_compact_ecash::tests::helpers::{
@@ -77,11 +78,13 @@ impl TestEcash {
         }
     }
 
-    /// Fabricate a real threshold-signed ticketbook for `typ`. Distinct `seed`s
-    /// yield distinct books (fresh user keypair per book).
-    pub fn ticketbook(&self, typ: TicketType, seed: u64) -> IssuedTicketBook {
+    pub fn ticketbook_with_expiration(
+        &self,
+        typ: TicketType,
+        seed: u64,
+        expiration_date: Date,
+    ) -> IssuedTicketBook {
         let user = generate_keypair_user_from_seed(seed.to_be_bytes());
-        let expiration_date = ecash_default_expiration_date();
         let expiration_ts = expiration_date.ecash_unix_timestamp();
 
         let (req, req_info) = withdrawal_request(user.secret_key(), expiration_ts, typ.encode())
@@ -116,6 +119,13 @@ impl TestEcash {
             typ,
             expiration_date,
         )
+    }
+
+    /// Fabricate a real threshold-signed ticketbook for `typ`. Distinct `seed`s
+    /// yield distinct books (fresh user keypair per book).
+    pub fn ticketbook(&self, typ: TicketType, seed: u64) -> IssuedTicketBook {
+        let expiration_date = ecash_default_expiration_date();
+        self.ticketbook_with_expiration(typ, seed, expiration_date)
     }
 
     /// The master verification key as the fetcher would serve it.

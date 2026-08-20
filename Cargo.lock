@@ -6079,6 +6079,7 @@ dependencies = [
  "nym-sqlx-pool-guard",
  "nym-validator-client",
  "rand 0.8.6",
+ "serde",
  "sqlx",
  "thiserror 2.0.19",
  "tokio",

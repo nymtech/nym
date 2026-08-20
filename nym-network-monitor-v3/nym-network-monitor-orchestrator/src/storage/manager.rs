@@ -99,7 +99,7 @@ impl StorageManager {
             "#,
             run.node_id,
             run.tested_address,
-            run.test_type,
+            run.tested_role,
             run.test_timestamp,
             run.time_taken_us,
             run.ingress_noise_handshake_us,
@@ -519,7 +519,7 @@ impl StorageManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::models::{NewNymNode, NewTestRun, NodeType, TestType};
+    use crate::storage::models::{NewNymNode, NewTestRun, NodeType, TestedRole};
     use std::path::Path;
     use time::macros::datetime;
 
@@ -557,7 +557,7 @@ mod tests {
         NewTestRun {
             node_id,
             tested_address: Some("1.2.3.4:1789".to_string()),
-            test_type: TestType::Mixnode,
+            tested_role: TestedRole::Mixnode,
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             time_taken_us: 0,
             ingress_noise_handshake_us: None,
@@ -1136,6 +1136,9 @@ mod tests {
             let fetched = db.get_testrun_by_id(id).await.unwrap().unwrap();
             assert_eq!(fetched.id, id);
             assert_eq!(fetched.inner.node_id, 1);
+            // `tested_role` reads from the `test_type` column via an explicit sqlx rename until
+            // migration 03 renames it, so pin that the mapping survives the round-trip
+            assert_eq!(fetched.inner.tested_role, TestedRole::Mixnode);
             assert_eq!(fetched.inner.packets_sent, 42);
             assert_eq!(fetched.inner.packets_received, 41);
             assert_eq!(fetched.inner.error.as_deref(), Some("boom"));

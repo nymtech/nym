@@ -81,22 +81,29 @@ impl KeyPair {
             .map(|keys| keys.issued_for_epoch)
     }
 
-    /// The keys derived for `epoch_id`, whether that is the epoch we're actively signing for
-    /// or one that has since rotated.
+    /// The keys derived for `epoch_id`, wherever we happen to be keeping them - the live slot
+    /// if it is still the epoch we sign for, otherwise the archive.
+    ///
+    /// This is a lookup and nothing more: it deliberately does **not** consult [`Self::valid`],
+    /// which answers a different question ("may we issue credentials right now"). A rotation
+    /// clears that flag the moment the next ceremony starts, while the keys it clears it for
+    /// stay in the live slot until dealing exchange moves them to the archive - so a gate here
+    /// would refuse a settled epoch's auxiliary signatures for exactly as long as that window
+    /// lasts, and serve them either side of it.
+    ///
+    /// Callers are responsible for establishing that they may use these keys at all;
+    /// `EcashState::ensure_ceremony_concluded` is how the signature paths do it.
     pub async fn keys_for_epoch(
         &self,
         epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>, EcashError> {
         let current = self.current_key_epoch().await;
 
-        // the epoch we're actively signing for goes through the usual validity gate
         if current == Some(epoch_id) {
-            return self.keys().await;
+            return RwLockReadGuard::try_map(self.read_keys().await, |keys| keys.as_ref())
+                .map_err(|_| EcashError::KeyPairNotDerivedYet);
         }
 
-        // any other epoch comes out of the archive, and is deliberately not subject to that
-        // gate: it tracks whether the *current* keys may be used for issuance, and the chain
-        // is the authority on whether an archived share was ever verified
         RwLockReadGuard::try_map(self.archived.read().await, |archived| {
             archived.get(&epoch_id)
         })
@@ -115,12 +122,6 @@ impl KeyPair {
         } else {
             None
         }
-    }
-
-    pub async fn keys(&self) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>, EcashError> {
-        let keypair_guard = self.get().await.ok_or(EcashError::KeyPairNotDerivedYet)?;
-        RwLockReadGuard::try_map(keypair_guard, |keypair| keypair.as_ref())
-            .map_err(|_| EcashError::KeyPairNotDerivedYet)
     }
 
     pub async fn signing_key(&self) -> Result<RwLockReadGuard<'_, SecretKeyAuth>, EcashError> {
@@ -170,25 +171,28 @@ mod tests {
         KeyPairWithEpoch::new(ttp_keygen(1, 1).unwrap().pop().unwrap(), epoch_id)
     }
 
+    /// The lookup is only about where the keys are, never about whether we may issue with them.
+    ///
+    /// That distinction is load bearing: a rotation clears `valid` when the next ceremony
+    /// starts, but the keys it clears it for stay in the live slot until dealing exchange
+    /// archives them. A gate here would refuse a settled epoch's auxiliary signatures for
+    /// precisely that window and serve them either side of it.
     #[tokio::test]
-    async fn the_epoch_we_sign_for_is_still_subject_to_the_validity_gate() {
+    async fn the_lookup_does_not_care_whether_the_keys_may_be_used_for_issuance() {
         let keys = KeyPair::new();
         keys.set(dummy_keys(5)).await;
 
-        // derived but not yet finalised on chain
-        assert!(matches!(
-            keys.keys_for_epoch(5).await,
-            Err(EcashError::KeyPairNotDerivedYet)
-        ));
+        // never validated, e.g. derived but not yet finalised on chain
+        assert_eq!(keys.keys_for_epoch(5).await.unwrap().issued_for_epoch, 5);
 
         keys.validate();
         assert_eq!(keys.keys_for_epoch(5).await.unwrap().issued_for_epoch, 5);
+
+        // and once a later ceremony has cleared the flag again
+        keys.invalidate();
+        assert_eq!(keys.keys_for_epoch(5).await.unwrap().issued_for_epoch, 5);
     }
 
-    /// The gate above tracks whether the keys we sign *with* may be used for issuance. An
-    /// archived epoch is not covered by it: the chain already settled which shares were
-    /// verified for that epoch, and its credentials need their material regardless of what
-    /// the current ceremony is doing.
     #[tokio::test]
     async fn an_archived_epoch_is_served_whatever_the_current_keys_are_doing() {
         let keys = KeyPair::new();
@@ -200,6 +204,22 @@ mod tests {
         // ... including in the middle of the next ceremony, when the live keys are unusable
         keys.invalidate();
         assert_eq!(keys.keys_for_epoch(4).await.unwrap().issued_for_epoch, 4);
+    }
+
+    /// Issuance keeps its own gate, and it is the only thing the flag governs.
+    #[tokio::test]
+    async fn issuance_is_still_refused_while_the_keys_are_not_usable() {
+        let keys = KeyPair::new();
+        keys.set(dummy_keys(5)).await;
+
+        assert!(keys.signing_key().await.is_err());
+        assert!(keys.verification_key().await.is_none());
+
+        keys.validate();
+        assert!(keys.signing_key().await.is_ok());
+
+        keys.invalidate();
+        assert!(keys.signing_key().await.is_err());
     }
 
     #[tokio::test]

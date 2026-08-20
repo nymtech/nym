@@ -392,7 +392,10 @@ impl EcashState {
                 // 2. perform actual issuance
                 //
                 // a past epoch is answered from the key it was signed with, which we archived
-                // rather than destroyed when it rotated
+                // rather than destroyed when it rotated. what makes that safe is the epoch's
+                // ceremony being over, so check exactly that rather than inheriting the
+                // "may we issue right now" flag, which a later ceremony clears
+                self.ensure_ceremony_concluded(epoch_id).await?;
                 let signing_keys = self.local.ecash_keypair.keys_for_epoch(epoch_id).await?;
                 let master_vk = self.master_verification_key(Some(epoch_id)).await?;
                 let signatures = sign_coin_indices(
@@ -525,8 +528,9 @@ impl EcashState {
 
                 // 3. perform actual issuance
                 //
-                // a past epoch is answered from the key it was signed with, which we archived
-                // rather than destroyed when it rotated
+                // as with the coin index sibling: a settled epoch is answered from the key it
+                // was signed with, and it is the ceremony being over that makes that safe
+                self.ensure_ceremony_concluded(epoch_id).await?;
                 let signing_keys = self.local.ecash_keypair.keys_for_epoch(epoch_id).await?;
 
                 let signatures = sign_expiration_date(
@@ -1431,6 +1435,69 @@ mod tests {
 
         let vk = state.master_verification_key(Some(past_epoch)).await?;
         assert_eq!(*vk, past_keys.master);
+
+        Ok(())
+    }
+
+    /// The window the two tests above miss. A ceremony clears the "may we issue" flag as soon as
+    /// it starts, but the keys it clears it for are not archived until dealing exchange - so for
+    /// the first phase of every ceremony the previous epoch's keys sit in the live slot, unusable
+    /// for issuance and not yet in the archive. Its credentials still need serving throughout.
+    #[tokio::test]
+    async fn a_settled_epoch_is_served_from_the_live_slot_before_its_keys_are_archived(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // the keys it signed that epoch with, in use and usable
+        state
+            .local
+            .ecash_keypair
+            .set(KeyPairWithEpoch::new(
+                past_keys.keypairs.into_iter().next().unwrap(),
+                past_epoch,
+            ))
+            .await;
+        state.local.ecash_keypair.validate();
+
+        // a ceremony begins: the flag is cleared at public key submission, but nothing has
+        // been archived yet - dealing exchange is what does that
+        trigger_reset(&chain);
+        state.local.ecash_keypair.invalidate();
+        let current_epoch = chain.epoch().epoch_id;
+        assert_ne!(past_epoch, current_epoch);
+
+        // issuance is indeed halted ...
+        assert!(state.ecash_signing_key().await.is_err());
+
+        // ... but the epoch that finished is still settled, and still has to be served
+        let expiration_date = ecash_today_date();
+        let partial = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(partial.epoch_id, past_epoch);
+        drop(partial);
+
+        let coin_indices = state
+            .partial_coin_index_signatures(Some(past_epoch))
+            .await?;
+        assert_eq!(coin_indices.epoch_id, past_epoch);
+        drop(coin_indices);
+
+        // the epoch being built is refused, even though its keys are the ones we hold
+        assert!(matches!(
+            state
+                .partial_expiration_date_signatures(expiration_date, current_epoch)
+                .await,
+            Err(EcashError::CeremonyNotConcluded { epoch_id }) if epoch_id == current_epoch
+        ));
 
         Ok(())
     }

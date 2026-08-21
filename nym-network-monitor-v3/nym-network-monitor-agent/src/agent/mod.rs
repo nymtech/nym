@@ -119,7 +119,7 @@ impl NetworkMonitorAgent {
         let tested_address = target.node_address;
 
         // 3. otherwise construct the tester and attempt to perform the measurements
-        let tested_node = TestedNodeDetails::from_probe_target(target);
+        let tested_node = TestedNodeDetails::from_probe_target(*target);
         let mut stress_tester =
             NodeStressTester::new(self.tester_config, self.noise_key.clone(), tested_node)?;
 

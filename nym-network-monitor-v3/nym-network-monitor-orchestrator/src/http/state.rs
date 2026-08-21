@@ -333,15 +333,17 @@ impl TestrunManager {
 
         // only the stress kind is ever assigned today; the liveness variants stay unconstructed
         // until per-kind scheduling lands
-        Ok(Some(TestRunAssignment::MixnodeStress(MixnetProbeTarget {
-            node_id: node.node_id as u32,
-            identity_key,
-            node_address,
-            node_ips,
-            noise_key,
-            sphinx_key,
-            key_rotation_id: key_rotation as u32,
-        })))
+        Ok(Some(TestRunAssignment::MixnodeStress(Box::new(
+            MixnetProbeTarget {
+                node_id: node.node_id as u32,
+                identity_key,
+                node_address,
+                node_ips,
+                noise_key,
+                sphinx_key,
+                key_rotation_id: key_rotation as u32,
+            },
+        ))))
     }
 
     /// Persists a completed test run result, with its measurements, under the kind and role the

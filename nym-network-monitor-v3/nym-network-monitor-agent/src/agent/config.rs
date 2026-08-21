@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_network_monitor_orchestrator_requests::models::AgentMixAddresses;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -35,11 +36,31 @@ pub(crate) struct NodeTesterConfig {
     /// Local socket address the agent binds its mixnet listener on to receive returning packets.
     pub(crate) mixnet_bind_address: SocketAddr,
 
-    /// The mixnet address announced in the contract, where the tested nodes will send their packets to.
-    pub(crate) external_mixnet_address: SocketAddr,
+    /// The ipv4 mixnet address announced in the contract, where the tested nodes will send their packets to.
+    pub(crate) external_mixnet_address_v4: SocketAddr,
+
+    /// The ipv6 mixnet address announced in the contract, where the tested nodes will send their packets to.
+    pub(crate) external_mixnet_address_v6: SocketAddr,
 }
 
 impl NodeTesterConfig {
+    /// The address the tested node should return the test packets to, encoded as the final hop of
+    /// the sphinx route. It follows the family the node itself is being reached over, so that a
+    /// test run exercises the same family in both directions rather than measuring the node's
+    /// ipv6 ingress and its ipv4 egress.
+    pub(crate) fn return_address_for(&self, tested_node_address: SocketAddr) -> SocketAddr {
+        self.announced_addresses()
+            .matching_family(tested_node_address)
+    }
+
+    /// The pair of addresses this agent has announced to the orchestrator.
+    pub(crate) fn announced_addresses(&self) -> AgentMixAddresses {
+        AgentMixAddresses {
+            v4: self.external_mixnet_address_v4,
+            v6: self.external_mixnet_address_v6,
+        }
+    }
+
     /// Total number of packets the agent intends to send: `floor(target_rate * sending_duration)`.
     pub(crate) fn expected_packets(&self) -> usize {
         (self.target_rate as f32 * self.sending_duration.as_secs_f32()).floor() as usize
@@ -72,7 +93,8 @@ mod tests {
             target_rate,
             reuse_header: true,
             mixnet_bind_address: "127.0.0.1:1789".parse().unwrap(),
-            external_mixnet_address: "127.0.0.1:1789".parse().unwrap(),
+            external_mixnet_address_v4: "127.0.0.1:1789".parse().unwrap(),
+            external_mixnet_address_v6: "[f00b::]:80".parse().unwrap(),
         }
     }
 

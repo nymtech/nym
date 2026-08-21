@@ -72,7 +72,10 @@ current_bloomfilters_directory = '{{ mixnet.replay_protection.storage_paths.curr
 [storage_paths]
 
 # Path to a file containing basic node description: human-readable name, website, details, etc.
-description = '{{ storage_paths.description }}' 
+description = '{{ storage_paths.description }}'
+
+# Path to file containing cosmos account mnemonic used for nyx chain interactions
+cosmos_mnemonic = '{{ storage_paths.cosmos_mnemonic }}'
 
 [nyx]
 
@@ -271,8 +274,6 @@ clients_storage = '{{ gateway_tasks.storage_paths.clients_storage }}'
 # Path to sqlite database containing all persistent stats data.
 stats_storage = '{{ gateway_tasks.storage_paths.stats_storage }}'
 
-# Path to file containing cosmos account mnemonic used for zk-nym redemption.
-cosmos_mnemonic = '{{ gateway_tasks.storage_paths.cosmos_mnemonic }}'
 {{#if gateway_tasks.storage_paths.bridge_client_params}}
 # Path to file containing bridge client params to be served in the node self-described.
 # Populated externally (e.g. by bridge-cfg) as part of nym-bridge setup; omitted entirely

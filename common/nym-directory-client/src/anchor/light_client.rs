@@ -286,6 +286,15 @@ where
     if !commit_res.canonical {
         return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
     }
+    // the verifier only checks untrusted > trusted, so a commit for a different height would
+    // otherwise verify and its app hash be cached under `target - 1`
+    let received = commit_res.signed_header.header.height;
+    if received != target {
+        return Err(DirectoryClientError::UnexpectedCommitHeight {
+            requested: target.value(),
+            received: received.value(),
+        });
+    }
     let validators =
         ValidatorSet::without_proposer(client.get_all_validators(target).await?.validators);
     // the new trusted state at `target` must carry the validator set of `target + 1` as its
@@ -603,6 +612,29 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(got, adjacent_fixtures().0.signed_header.header.app_hash);
+    }
+
+    // a validly-signed commit for the WRONG height must be rejected up front, not verified
+    // and have its app hash cached under the requested height
+    #[tokio::test]
+    async fn wrong_height_commit_is_rejected() {
+        let (c906, ..) = skip_fixtures();
+        let mut mock = MockRpcClient::default();
+        // the RPC answers the commit query for 24499897 with the (real, signed) 24499906 header
+        mock.with_commit_response(24499897u32, Ok(c906));
+
+        let anchor = build_anchor(mock, test_options(FAR_FUTURE));
+        let err = anchor
+            .trusted_app_hash(Height::from(CHECKPOINT))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            DirectoryClientError::UnexpectedCommitHeight {
+                requested: 24499897,
+                received: 24499906,
+            }
+        ));
     }
 
     // a height below the pinned checkpoint is unverifiable

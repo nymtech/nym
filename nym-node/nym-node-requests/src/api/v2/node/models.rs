@@ -1,10 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::api::v1::node::models::AnnouncePorts;
 use celes::Country;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+pub use crate::api::v1::node::models::AnnouncePorts;
 
 /// Auxiliary details of the associated Nym Node.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]

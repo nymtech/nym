@@ -106,9 +106,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         config.debug.testnet = true
     }
 
-    let nym_node = NymNode::new(config)
-        .await?
-        .with_accepted_operator_terms_and_conditions(accepted_operator_terms_and_conditions);
+    let nym_node = NymNode::new(config, accepted_operator_terms_and_conditions).await?;
 
     // if requested, write bonding info
     if let Some(bonding_info_path) = bonding_info_path {

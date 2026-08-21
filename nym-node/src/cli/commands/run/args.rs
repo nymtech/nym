@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::helpers::{
-    ConfigArgs, EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, LpArgs, MetricsArgs,
-    MixnetArgs, NyxArgs, VerlocArgs, WireguardArgs,
+    ConfigArgs, DirectoryArgs, EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, LpArgs,
+    MetricsArgs, MixnetArgs, NyxArgs, VerlocArgs, WireguardArgs,
 };
 use crate::config::persistence::NymNodePaths;
 use crate::config::{Config, ConfigBuilder, NodeMode, NodeModes};
@@ -131,6 +131,9 @@ pub(crate) struct Args {
 
     #[clap(flatten)]
     lp: LpArgs,
+
+    #[clap(flatten)]
+    directory: DirectoryArgs,
 }
 
 impl Args {
@@ -182,6 +185,7 @@ impl Args {
             .with_gateway_tasks(self.entry_gateway.build_config_section(&data_dir)?)
             .with_service_providers(self.exit_gateway.build_config_section(&data_dir))
             .with_lp(self.lp.build_config_section())
+            .with_directory(self.directory.build_config_section())
             .build()
     }
 

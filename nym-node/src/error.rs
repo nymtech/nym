@@ -153,6 +153,9 @@ pub enum NymNodeError {
     #[error("there are no available nym api endpoints")]
     NoNymApiUrls,
 
+    #[error("there are no available endpoints to the nyx chain")]
+    NoNyxEndpoints,
+
     #[error("failed to resolve nym-api query - no nodes returned a valid response")]
     NymApisExhausted,
 
@@ -252,6 +255,9 @@ pub enum NymNodeError {
 
     #[error("no valid network monitors contract address configured")]
     MissingNetworkMonitorsContractAddress,
+
+    #[error("no valid directory contract address configured")]
+    MissingDirectoryContractAddress,
 
     #[error(transparent)]
     ChainWatcherFailure(#[from] ScraperError),

@@ -3,8 +3,8 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::config::upgrade_helpers::try_load_current_config;
-use crate::node::ServiceProvidersData;
 use crate::node::helpers::load_ed25519_identity_public_key;
+use crate::node::node_details::ServiceProvidersKeys;
 use nym_network_requester::{CustomGatewayDetails, GatewayDetails, GatewayRegistration};
 use std::fs;
 
@@ -30,7 +30,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         fs::remove_file(db_path)?;
         let gateway_details: GatewayRegistration =
             GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
-        ServiceProvidersData::initialise_client_gateway_storage(db_path, &gateway_details).await?;
+        ServiceProvidersKeys::initialise_client_gateway_storage(db_path, &gateway_details).await?;
     }
     Ok(())
 }

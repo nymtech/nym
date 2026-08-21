@@ -80,6 +80,12 @@ pub enum DirectoryClientError {
     #[error("non-canonical commit returned for height {0}")]
     NonCanonicalCommit(u64),
 
+    /// The RPC answered a commit query for one height with a (validly signed) commit for a
+    /// different one; accepting it would mislabel that header's app hash under the
+    /// requested height.
+    #[error("commit for height {received} returned when height {requested} was requested")]
+    UnexpectedCommitHeight { requested: u64, received: u64 },
+
     /// Fewer than `needed` distinct trusted signers agreed on identical attested
     /// values (or none did). `agreed` is the largest distinct-signer count seen across
     /// any single value grouping, so callers can see how close the quorum came.

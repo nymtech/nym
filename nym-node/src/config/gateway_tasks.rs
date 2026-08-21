@@ -50,6 +50,12 @@ pub struct GatewayTasksConfig {
     pub debug: Debug,
 }
 
+impl GatewayTasksConfig {
+    pub(crate) fn external_ws_port(&self) -> u16 {
+        self.announce_ws_port.unwrap_or(self.ws_bind_address.port())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]

@@ -116,6 +116,14 @@ where
     if !commit_res.canonical {
         return Err(DirectoryClientError::NonCanonicalCommit(height.value()));
     }
+    // a checkpoint minted from a wrong-height commit would carry an inconsistent height field
+    let received = commit_res.signed_header.header.height;
+    if received != height {
+        return Err(DirectoryClientError::UnexpectedCommitHeight {
+            requested: height.value(),
+            received: received.value(),
+        });
+    }
     let validators_res = client.validators(height, Paging::All).await?;
     let next_validators_res = client
         .validators(height.value() as u32 + 1, Paging::All)
@@ -239,6 +247,28 @@ mod tests {
         let b =
             SignedCheckpoint::new(cp, ts, dummy_ed25519_keypair(1).private_key()).signing_payload();
         assert_eq!(a, b);
+    }
+
+    #[tokio::test]
+    async fn fetch_checkpoint_rejects_a_wrong_height_commit() {
+        use crate::test_support::checkpoint_fixtures;
+        use nym_validator_client::rpc::mocks::MockRpcClient;
+
+        let (commit, ..) = checkpoint_fixtures();
+        let mut mock = MockRpcClient::default();
+        // the RPC answers the commit query for 24499897 with the real 24499896 commit
+        mock.with_commit_response(24499897u32, Ok(commit));
+
+        let err = Checkpoint::fetch(&mock, Height::from(24499897u32))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            DirectoryClientError::UnexpectedCommitHeight {
+                requested: 24499897,
+                received: 24499896,
+            }
+        ));
     }
 
     #[test]

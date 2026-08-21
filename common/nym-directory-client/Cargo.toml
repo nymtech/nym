@@ -22,7 +22,6 @@ prost = { workspace = true }
 tendermint-proto = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 cosmrs = { workspace = true }
-rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tracing = { workspace = true }

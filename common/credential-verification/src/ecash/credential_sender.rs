@@ -129,12 +129,7 @@ impl CredentialHandler {
         ticket_receiver: UnboundedReceiver<ClientTicket>,
         shared_state: SharedState,
     ) -> Result<Self, Error> {
-        let multisig_threshold = shared_state
-            .nyxd_client
-            .read()
-            .await
-            .query_threshold()
-            .await?;
+        let multisig_threshold = shared_state.nyxd_client.query_threshold().await?;
 
         let ThresholdResponse::AbsolutePercentage { percentage, .. } = multisig_threshold else {
             return Err(Error::InvalidMultisigThreshold);

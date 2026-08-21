@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use crate::node::directory_publisher::{DirectoryPayload, DirectoryPublisherEventsSender};
 use crate::node::key_rotation::manager::SphinxKeyManager;
 use crate::node::nym_apis_client::NymApisClient;
 use crate::node::replay_protection::manager::ReplayProtectionBloomfiltersManager;
@@ -43,6 +44,10 @@ pub(crate) struct KeyRotationController {
     client: NymApisClient,
     managed_keys: SphinxKeyManager,
     shutdown_token: ShutdownToken,
+
+    /// Best-effort notifier to the directory publisher; `None` when the publisher is
+    /// disabled. Emitting on it never blocks or fails rotation.
+    directory_publisher_events: Option<DirectoryPublisherEventsSender>,
 }
 
 struct NextAction {
@@ -115,6 +120,7 @@ impl KeyRotationController {
         client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
         managed_keys: SphinxKeyManager,
+        directory_publisher_events: Option<DirectoryPublisherEventsSender>,
         shutdown_token: ShutdownToken,
     ) -> Self {
         KeyRotationController {
@@ -128,6 +134,7 @@ impl KeyRotationController {
             client,
             managed_keys,
             shutdown_token,
+            directory_publisher_events,
         }
     }
 
@@ -300,6 +307,22 @@ impl KeyRotationController {
         // self-described endpoints of all nodes before the key rotation epoch rolls over
     }
 
+    /// Best-effort: after pre-announcing a new sphinx key, notify the directory publisher of
+    /// the node's current key set so it republishes ahead of the swap. Swap and purge need no
+    /// emit: swap does not change the published key *set* (only which key is primary), and a
+    /// purged key belongs to a previous rotation a correct client never selects; the
+    /// publisher's periodic sweep reconciles both. A full or absent channel drops the
+    /// notification and never disrupts rotation.
+    fn notify_directory_publisher(&self) {
+        let Some(tx) = &self.directory_publisher_events else {
+            return;
+        };
+        let payload = DirectoryPayload::SphinxKeys(self.managed_keys.keys.directory_sphinx_keys());
+        if let Err(err) = tx.try_send(payload) {
+            debug!("could not notify the directory publisher of the sphinx key change: {err}");
+        }
+    }
+
     fn swap_default_key(&self, expected_new_rotation: u32) {
         info!("attempting to swap the primary key to the previously generated one");
         if let Err(err) = self.managed_keys.rotate_keys(expected_new_rotation) {
@@ -329,7 +352,8 @@ impl KeyRotationController {
     async fn execute_next_action(&self, action: KeyRotationActionState) {
         match action {
             KeyRotationActionState::PreAnnounce { rotation_id } => {
-                self.pre_announce_new_key(rotation_id).await
+                self.pre_announce_new_key(rotation_id).await;
+                self.notify_directory_publisher();
             }
             KeyRotationActionState::SwapDefault {
                 expected_new_rotation,

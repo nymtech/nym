@@ -3,6 +3,8 @@
 
 use crate::node::key_rotation::key::SphinxPrivateKey;
 use arc_swap::{ArcSwap, ArcSwapOption, Guard};
+use nym_directory_types::SphinxKeys;
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::sync::Arc;
 use tracing::error;
@@ -110,6 +112,29 @@ impl ActiveSphinxKeys {
 
     pub(crate) fn deactivate_secondary(&self) {
         self.inner.secondary_key.store(None);
+    }
+
+    /// Snapshot the currently-held sphinx public keys as a directory payload, keyed by
+    /// rotation id: the primary always, plus the secondary during an overlap/pre-announce
+    /// window. This is the single source of truth for both the rotation-driven publisher
+    /// emit and the publisher's reconcile sweep, so the two produce byte-identical entries.
+    pub(crate) fn directory_sphinx_keys(&self) -> SphinxKeys {
+        let mut keys = BTreeMap::new();
+
+        let primary = self.primary();
+        keys.insert(
+            primary.rotation_id(),
+            primary.x25519_pubkey().to_bytes().to_vec(),
+        );
+
+        if let Some(secondary) = self.secondary() {
+            keys.insert(
+                secondary.rotation_id(),
+                secondary.x25519_pubkey().to_bytes().to_vec(),
+            );
+        }
+
+        SphinxKeys { keys }
     }
 }
 

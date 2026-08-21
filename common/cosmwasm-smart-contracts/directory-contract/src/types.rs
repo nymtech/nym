@@ -6,6 +6,7 @@ use crate::helpers::read_len_prefixed;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Binary;
 use nym_mixnet_contract_common::NodeId;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// Key-class / trust-tier discriminant for a directory entry. Extensible: new
@@ -132,27 +133,67 @@ pub struct LabelConfig {
 /// [`KnownLabel::from_str`]) and are handled as opaque bytes.
 #[non_exhaustive]
 #[cw_serde]
-#[derive(Copy, Ord, Eq, PartialOrd)]
+#[derive(Copy, Ord, Eq, PartialOrd, Hash)]
 pub enum KnownLabel {
     /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
     /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous
     /// key's overlap drains long before the next is pre-announced (overlap window <<
     /// the 24h rotation), so three are never held at once; one key at a node's very
     /// first publish. Consumers select by the current rotation; roles are derived,
-    /// not stored, so advancement needs no extra writes. Exact payload format TBD.
+    /// not stored, so advancement needs no extra writes.
     SphinxKeys,
+
+    /// The node's operator-provided description (moniker, website, contact, details).
+    NodeDescription,
+
+    /// The node's mixnet service-provider addresses (network requester, IPR, authenticator).
+    MixnetServiceProviders,
+
+    /// The node's wireguard connection details.
+    Wireguard,
+
+    /// The node's general self-reported information (hostname, IPs, cosmos address, ports, modes).
+    NodeInformation,
+
+    /// The node's Lewes Protocol (LP) connection details.
+    LewesProtocolDetails,
+}
+
+impl Display for KnownLabel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
 }
 
 impl KnownLabel {
+    const SPHINX_KEY_STR: &'static str = "sphinx_key";
+    const NODE_DESCRIPTION_STR: &'static str = "node_description";
+    const MIXNET_SERVICE_PROVIDERS_STR: &'static str = "mixnet_service_providers";
+    const WIREGUARD_STR: &'static str = "wireguard";
+    const NODE_INFORMATION_STR: &'static str = "node_information";
+    const LEWES_PROTOCOL_DETAILS_STR: &'static str = "lewes_protocol_details";
+
     /// Every known label, in a stable order - all auto-whitelisted at contract
     /// instantiation. Keep in sync with the variants above.
-    pub const ALL: &'static [KnownLabel] = &[KnownLabel::SphinxKeys];
+    pub const ALL: &'static [KnownLabel] = &[
+        KnownLabel::SphinxKeys,
+        KnownLabel::NodeDescription,
+        KnownLabel::MixnetServiceProviders,
+        KnownLabel::Wireguard,
+        KnownLabel::NodeInformation,
+        KnownLabel::LewesProtocolDetails,
+    ];
 
     /// The canonical on-chain label string for this known label. Stable: once
     /// entries exist under it, the string must not change.
     pub const fn as_str(self) -> &'static str {
         match self {
-            KnownLabel::SphinxKeys => "sphinx_key",
+            KnownLabel::SphinxKeys => KnownLabel::SPHINX_KEY_STR,
+            KnownLabel::NodeDescription => KnownLabel::NODE_DESCRIPTION_STR,
+            KnownLabel::MixnetServiceProviders => KnownLabel::MIXNET_SERVICE_PROVIDERS_STR,
+            KnownLabel::Wireguard => KnownLabel::WIREGUARD_STR,
+            KnownLabel::NodeInformation => KnownLabel::NODE_INFORMATION_STR,
+            KnownLabel::LewesProtocolDetails => KnownLabel::LEWES_PROTOCOL_DETAILS_STR,
         }
     }
 
@@ -160,7 +201,12 @@ impl KnownLabel {
     /// instantiation; never exceeds [`crate::constants::MAX_LABEL_SIZE_CEILING`].
     pub const fn default_max_size(self) -> u32 {
         match self {
-            KnownLabel::SphinxKeys => 256,
+            KnownLabel::SphinxKeys => 128,
+            KnownLabel::NodeDescription => 256,
+            KnownLabel::MixnetServiceProviders => 512,
+            KnownLabel::Wireguard => 256,
+            KnownLabel::NodeInformation => 2048,
+            KnownLabel::LewesProtocolDetails => 2048,
         }
     }
 
@@ -184,7 +230,12 @@ impl FromStr for KnownLabel {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "sphinx_key" => Ok(KnownLabel::SphinxKeys),
+            KnownLabel::SPHINX_KEY_STR => Ok(KnownLabel::SphinxKeys),
+            KnownLabel::NODE_DESCRIPTION_STR => Ok(KnownLabel::NodeDescription),
+            KnownLabel::MIXNET_SERVICE_PROVIDERS_STR => Ok(KnownLabel::MixnetServiceProviders),
+            KnownLabel::WIREGUARD_STR => Ok(KnownLabel::Wireguard),
+            KnownLabel::NODE_INFORMATION_STR => Ok(KnownLabel::NodeInformation),
+            KnownLabel::LEWES_PROTOCOL_DETAILS_STR => Ok(KnownLabel::LewesProtocolDetails),
             other => Err(UnknownLabelError(other.to_owned())),
         }
     }

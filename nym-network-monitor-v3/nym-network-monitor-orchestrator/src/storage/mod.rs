@@ -82,9 +82,9 @@ impl NetworkMonitorStorage {
     /// (kind, role) pairing it belongs to, and releases the node's in-flight lock — all in one
     /// transaction.
     ///
-    /// Decrements the `TestrunsInProgress` gauge iff a lock was actually released — a late
-    /// submission whose in-progress row was already reaped by the lease sweep must not
-    /// double-decrement the gauge.
+    /// Decrements the `TestrunsInProgress` gauge iff a lock was actually released — if the lease
+    /// sweep reaped the row first, it already accounted for it, and decrementing again would drift
+    /// the gauge below the real in-flight count.
     pub(crate) async fn insert_test_run(
         &self,
         run: &NewTestRun,

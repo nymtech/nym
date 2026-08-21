@@ -314,53 +314,12 @@ impl From<TestKind> for api::TestKind {
     }
 }
 
-impl From<api::TestKind> for TestKind {
-    fn from(kind: api::TestKind) -> Self {
-        match kind {
-            api::TestKind::Stress => TestKind::Stress,
-            api::TestKind::Liveness => TestKind::Liveness,
-        }
-    }
-}
-
 impl From<TestedRole> for api::TestedRole {
     fn from(role: TestedRole) -> Self {
         match role {
             TestedRole::Mixnode => api::TestedRole::Mixnode,
             TestedRole::Gateway => api::TestedRole::Gateway,
         }
-    }
-}
-
-impl TestedRole {
-    /// The role a submitted result implies, read off the interfaces it measured.
-    ///
-    /// Used only as the fallback for a submission whose `testrun_in_progress` row has already been
-    /// reaped, i.e. one that arrives after its lease expired. It is sound because the interfaces
-    /// determine the role - which is why the result carries no role field of its own to trust - and
-    /// it keeps a measurement that really happened rather than discarding it.
-    ///
-    /// `None` for an empty set (nothing was measured) and for a set mixing mixing-hop and
-    /// client-facing interfaces (no assignment produces one, so it means the agent and this
-    /// orchestrator disagree about the result shape).
-    pub(crate) fn from_measurements(measurements: &[InterfaceMeasurement]) -> Option<Self> {
-        let mut interfaces = measurements.iter().map(|measurement| measurement.interface);
-
-        let role = match interfaces.next()? {
-            api::ExercisedInterface::MixForwarding => TestedRole::Mixnode,
-            api::ExercisedInterface::ClientIngest | api::ExercisedInterface::ClientDelivery => {
-                TestedRole::Gateway
-            }
-        };
-
-        let consistent = interfaces.all(|interface| match interface {
-            api::ExercisedInterface::MixForwarding => role == TestedRole::Mixnode,
-            api::ExercisedInterface::ClientIngest | api::ExercisedInterface::ClientDelivery => {
-                role == TestedRole::Gateway
-            }
-        });
-
-        consistent.then_some(role)
     }
 }
 
@@ -669,8 +628,9 @@ pub(crate) struct AssignedTestrun {
 }
 
 /// Outcome of persisting a completed run: the id the run was stored under, and whether its
-/// in-flight row was still there to clear. A submission arriving after the lease expired finds
-/// nothing to clear, and the caller uses that to avoid double-decrementing the in-flight gauge.
+/// in-flight row was still there to clear. The submission path rejects a result whose lease has
+/// already expired, so this is normally one - but the sweep can reap the row in the window between
+/// that check and this insert, and the caller uses the count to keep the in-flight gauge honest.
 pub(crate) struct InsertedTestRun {
     // no caller acts on the id yet - the submission path only needs to know whether a lock was
     // released - but an insert reporting what it stored is what the storage tests assert against

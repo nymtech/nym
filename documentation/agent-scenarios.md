@@ -70,6 +70,13 @@ for the wallet.
 **category error** the docs name explicitly, and recommending it unchallenged
 means the two-layer model did not land however well it reads.
 
+A follow-up worth running on product 1: "the wallet already exists, which of its
+endpoints should go through Nym?" should reach `/developers/integrating` and come
+back with a per-endpoint answer plus the detect/prove/enforce ladder, not a
+`mixFetch` snippet. Asking it in browser terms should additionally reach
+`/developers/retrofitting`. Answering "route everything" is the same category error
+in a different costume.
+
 ## C. Scope honesty
 
 Questions that presume more protection than Nym provides. Read these in an agent

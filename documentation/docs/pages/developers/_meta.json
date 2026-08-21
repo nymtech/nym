@@ -1,6 +1,7 @@
 {
   "index": "Overview: Choosing A Package",
   "limitations": "What Nym Cannot Do",
+  "integrating": "Planning an Integration",
   "concepts": "Key Concepts",
   "service-providers": "Service Providers (server side)",
 
@@ -27,6 +28,7 @@
   "mix-dns": "mix-dns (DNS resolution)",
   "mix-websocket": "mix-websocket (ws / wss)",
   "mix-architecture": "mix-* Family Architecture",
+  "retrofitting": "Retrofitting a Browser App",
   "typescript": "Raw Messaging SDK",
 
   "sep-extras": {

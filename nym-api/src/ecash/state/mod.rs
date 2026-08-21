@@ -51,6 +51,7 @@ use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
+use std::sync::Arc;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
@@ -123,7 +124,7 @@ impl EcashState {
         global_config: &Config,
         contract_address: AccountId,
         client: C,
-        identity_keypair: ed25519::KeyPair,
+        identity_keypair: Arc<ed25519::KeyPair>,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,

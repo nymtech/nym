@@ -56,7 +56,8 @@ pub(crate) mod sealed {
     use crate::ecash::models::*;
     use crate::models::network_monitor::v3::StressTestBatchSubmissionContent;
     use crate::models::{
-        ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody, SignersStatusResponseBody,
+        ChainBlocksStatusResponseBody, DetailedSignersStatusResponseBody,
+        KeyPossessionChallengePlaintext, SignersStatusResponseBody,
     };
 
     pub trait Sealed {}
@@ -76,4 +77,7 @@ pub(crate) mod sealed {
 
     // v3 stress testing
     impl Sealed for StressTestBatchSubmissionContent {}
+
+    // api key possession challenge
+    impl Sealed for KeyPossessionChallengePlaintext {}
 }

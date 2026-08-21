@@ -90,13 +90,10 @@ pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
         api_url: "https://nym-api-signer-2.nymtech.net/api",
         identity_ed25519_bs58: "2dJHDhUr5bRWxELMzZBZGVAW8cUHEJC1mGQYniKscQMo",
     },
-    // TODO: we need unconditional key exposure for this to work
-    // (currently https://validator.nymtech.net/api even though has an ed25519 key it does NOT expose
-    // it anywhere)
-    // DirectoryAttestationSourceConst {
-    //     api_url: "https://validator.nymtech.net/api",
-    //     identity_ed25519_bs58: "<UNKNOWN>",
-    // },
+    DirectoryAttestationSourceConst {
+        api_url: "https://validator.nymtech.net/api",
+        identity_ed25519_bs58: "Dp7x8TaSNyUX9k2n9A2v5yr6D5UHevhEegRu6aCiCC45",
+    },
 ];
 
 #[cfg(feature = "network")]

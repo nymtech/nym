@@ -159,7 +159,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     let storage = initialise_storage(&config).await?;
 
-    let identity_keypair = config.base.storage_paths.load_identity()?;
+    let identity_keypair = Arc::new(config.base.storage_paths.load_identity()?);
     let identity_public_key = *identity_keypair.public_key();
 
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
@@ -244,7 +244,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         &config,
         ecash_contract,
         nyxd_client.clone(),
-        identity_keypair,
+        identity_keypair.clone(),
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
@@ -406,6 +406,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         config.base.utility_routes_bearer.take(),
     )
     .with_state(AppState {
+        identity_keypair,
         nyxd_client,
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
         ecash_signers_cache,

@@ -4,7 +4,7 @@
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::NewTestRun;
+use crate::storage::models::{NewTestRun, TestKind, TestRunMeasurement, TestedRole};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -267,6 +267,10 @@ pub(crate) struct TestrunManager {
     /// Minimum time that must elapse after a node's last test before it becomes
     /// eligible for another one. Passed to the storage layer as a staleness gate.
     testrun_staleness_age: Duration,
+
+    /// How long a dispatched run holds its node before the lease expires and the slot is freed
+    /// for reassignment. Materialised onto each `testrun_in_progress` row at dispatch.
+    testrun_lease_budget: Duration,
 }
 
 impl TestrunManager {
@@ -277,7 +281,7 @@ impl TestrunManager {
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
         let node_to_test = match storage
-            .assign_next_mixnode_testrun(self.testrun_staleness_age)
+            .assign_next_mixnode_testrun(self.testrun_staleness_age, self.testrun_lease_budget)
             .await
         {
             Ok(node) => node,
@@ -340,8 +344,8 @@ impl TestrunManager {
         })))
     }
 
-    /// Persists a completed test run result to the database and updates the
-    /// node's `last_testrun` pointer.
+    /// Persists a completed test run result, with its measurements, under the kind and role the
+    /// orchestrator dispatched it for, and releases the node's in-flight lock.
     async fn submit_testrun_result(
         &self,
         storage: &NetworkMonitorStorage,
@@ -349,22 +353,56 @@ impl TestrunManager {
         node_id: NodeId,
         tested_address: SocketAddr,
     ) -> Result<(), ApiError> {
-        // the schema holds one flattened measurement per run until migration 03 gives them their
-        // own table, and every kind assigned today exercises exactly one interface, so a result
-        // carrying any other number means the agent and this orchestrator disagree on the shape
-        let [measurement] = result.measurements.as_slice() else {
+        // every kind reports a measurement per interface it exercised, and a phase that produced
+        // nothing is still reported as a zeroed one, so an empty set means the agent and this
+        // orchestrator disagree about the shape of a result
+        if result.measurements.is_empty() {
             error!(
-                "node {node_id} submitted a {} result carrying {} measurements, expected exactly one",
-                result.kind,
-                result.measurements.len(),
+                "node {node_id} submitted a {} result carrying no measurements",
+                result.kind
             );
             return Err(ApiError::UnexpectedResultShape);
+        }
+
+        // the in-flight row is authoritative for the kind and the role: the submission reports only
+        // the node and the address, so taking them from what we dispatched is what stops an agent
+        // choosing the values its own result is filed under
+        let dispatched = match storage.get_testrun_in_progress(node_id).await {
+            Ok(dispatched) => dispatched,
+            Err(err) => {
+                error!("in-flight testrun lookup failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
         };
 
-        // currently all testruns are mixnode results
-        let testrun =
-            NewTestRun::from_mixnode_result(node_id, tested_address, &result, measurement);
-        if let Err(err) = storage.insert_test_run(&testrun).await {
+        let (test_kind, tested_role) = match dispatched {
+            Some(row) => (row.test_kind, row.tested_role),
+            None => {
+                // the lease expired and the sweep reaped the row before this arrived. the run still
+                // happened, so it is recorded rather than dropped: the role comes from the
+                // interfaces the result measured, which determine it - the very reason the result
+                // carries no role of its own to trust
+                let Some(tested_role) = TestedRole::from_measurements(&result.measurements) else {
+                    error!(
+                        "node {node_id} submitted a late {} result whose {} measurements imply no single role",
+                        result.kind,
+                        result.measurements.len(),
+                    );
+                    return Err(ApiError::UnexpectedResultShape);
+                };
+                warn!(
+                    "node {node_id} submitted a {} result after its lease had expired - recording it under the role its measurements imply",
+                    result.kind
+                );
+                (TestKind::from(result.kind), tested_role)
+            }
+        };
+
+        let run = NewTestRun::from_result(node_id, tested_address, test_kind, tested_role, &result);
+        let measurements: Vec<TestRunMeasurement> =
+            result.measurements.iter().map(Into::into).collect();
+
+        if let Err(err) = storage.insert_test_run(&run, &measurements).await {
             error!("testrun result storage failure: {err}");
             return Err(ApiError::StorageFailure);
         }
@@ -389,6 +427,7 @@ impl AppState {
         agents: KnownAgents,
         storage: NetworkMonitorStorage,
         testrun_staleness_age: Duration,
+        testrun_lease_budget: Duration,
         validator_client: Arc<RwLock<DirectSigningHttpRpcValidatorClient>>,
     ) -> Self {
         AppState {
@@ -396,6 +435,7 @@ impl AppState {
             storage,
             testrun_manager: TestrunManager {
                 testrun_staleness_age,
+                testrun_lease_budget,
             },
             validator_client,
         }
@@ -411,8 +451,8 @@ impl AppState {
             .await
     }
 
-    /// Persists a completed test run result to the database and updates the
-    /// node's `last_testrun` pointer.
+    /// Persists a completed test run result with its measurements, under the kind and role the
+    /// orchestrator dispatched.
     pub(crate) async fn submit_testrun_result(
         &self,
         result: TestRunResult,
@@ -441,9 +481,8 @@ impl AppState {
     }
 
     /// Backs `GET /v1/results/nym-node/{node_id}`. If the node is known, its
-    /// snapshot is returned along with the most recent completed test run
-    /// (fetched in a second query via [`Self::get_testrun_by_id`]);
-    /// `latest_test_run` is `None` when no such run exists.
+    /// snapshot is returned along with the most recent completed test run of any kind
+    /// (fetched in a second query); `latest_test_run` is `None` when no such run exists.
     ///
     /// Malformed stored data (e.g. an unparsable base58 key) is surfaced as
     /// [`ApiError::MalformedStoredData`]; this should never happen in practice
@@ -461,9 +500,12 @@ impl AppState {
             Ok(Some(nym_node)) => nym_node,
         };
 
-        let latest_test_run = match nym_node.last_testrun {
-            None => None,
-            Some(testrun_id) => self.get_testrun_by_id(testrun_id).await?,
+        let latest_test_run = match self.storage.get_latest_testrun_for_node(node_id).await {
+            Err(err) => {
+                error!("get_latest_testrun_for_node storage failure: {err}");
+                return Err(ApiError::StorageFailure);
+            }
+            Ok(latest) => latest.map(Into::into),
         };
 
         Ok(Some(NymNodeWithTestRun {

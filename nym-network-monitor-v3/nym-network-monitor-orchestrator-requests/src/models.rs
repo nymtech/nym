@@ -157,7 +157,7 @@ pub struct TestRunAssignmentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestRunAssignment {
-    MixnodeStress(MixnetProbeTarget),
+    MixnodeStress(Box<MixnetProbeTarget>),
     MixnodeLiveness(Vec<MixnetProbeTarget>),
     GatewayLiveness(Vec<GatewayProbeTarget>),
 }
@@ -662,7 +662,8 @@ mod tests {
     #[test]
     fn a_stress_assignment_round_trips_as_a_single_target() {
         let json =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target())).unwrap();
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+                .unwrap();
         assert!(json.contains(r#"{"mixnode_stress":{"#), "{json}");
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
@@ -722,7 +723,8 @@ mod tests {
         let target_json = serde_json::to_string(&mixnet_target()).unwrap();
 
         let stress =
-            serde_json::to_string(&TestRunAssignment::MixnodeStress(mixnet_target())).unwrap();
+            serde_json::to_string(&TestRunAssignment::MixnodeStress(Box::new(mixnet_target())))
+                .unwrap();
         let liveness =
             serde_json::to_string(&TestRunAssignment::MixnodeLiveness(vec![mixnet_target()]))
                 .unwrap();

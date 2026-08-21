@@ -756,6 +756,7 @@ mod tests {
     use crate::storage::models::{
         ExercisedInterface, NewNymNode, NewTestRun, NodeTestState, NodeType,
     };
+    use std::net::IpAddr;
     use std::path::Path;
     use time::macros::datetime;
 
@@ -776,12 +777,17 @@ mod tests {
     }
 
     fn node(id: i64, identity_key: &str) -> NewNymNode {
+        node_with_ips(id, identity_key, "1.2.3.4")
+    }
+
+    /// A node announcing `announced_ips` (comma-separated), for exercising the address rotation.
+    fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) -> NewNymNode {
         NewNymNode {
             node_id: id,
             identity_key: identity_key.to_string(),
             last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
             mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-            announced_ips: Some("1.2.3.4".to_string()),
+            announced_ips: Some(announced_ips.to_string()),
             noise_key: Some("placeholder_noise_key".to_string()),
             sphinx_key: Some("placeholder_sphinx_key".to_string()),
             key_rotation_id: Some(0),
@@ -875,6 +881,45 @@ mod tests {
         .fetch_all(&db.connection_pool)
         .await
         .unwrap()
+    }
+
+    // A far-future cutoff that effectively disables the staleness gate,
+    // used in tests that are not concerned with that behaviour.
+    fn no_staleness_gate() -> OffsetDateTime {
+        datetime!(9999-12-31 23:59:59 UTC)
+    }
+
+    /// Assigns at `now`, with an hour-long lease and the given staleness gate.
+    async fn assign(
+        db: &StorageManager,
+        now: OffsetDateTime,
+        last_tested_before: OffsetDateTime,
+    ) -> Option<AssignedTestrun> {
+        db.assign_next_mixnode_testrun(now, last_tested_before, now + time::Duration::hours(1))
+            .await
+            .unwrap()
+    }
+
+    /// Seeds a pairing's rotation pointer, standing in for an assignment of a (kind, role) the
+    /// orchestrator cannot dispatch yet.
+    async fn seed_rotation_pointer(
+        db: &StorageManager,
+        node_id: i64,
+        test_kind: TestKind,
+        tested_role: TestedRole,
+        last_tested_ip: &str,
+    ) {
+        sqlx::query(
+            "INSERT INTO node_test_state (node_id, test_kind, tested_role, last_tested_ip)
+             VALUES (?, ?, ?, ?)",
+        )
+        .bind(node_id)
+        .bind(test_kind)
+        .bind(tested_role)
+        .bind(last_tested_ip)
+        .execute(&db.connection_pool)
+        .await
+        .unwrap();
     }
 
     /// Marks a node as in-progress with the stress/mixnode pairing and an hour-long lease.
@@ -1375,23 +1420,6 @@ mod tests {
     mod assign_next_mixnode_testrun {
         use super::*;
 
-        // A far-future cutoff that effectively disables the staleness gate,
-        // used in tests that are not concerned with that behaviour.
-        fn no_staleness_gate() -> OffsetDateTime {
-            datetime!(9999-12-31 23:59:59 UTC)
-        }
-
-        /// Assigns at `now`, with an hour-long lease and no staleness gate unless one is given.
-        async fn assign(
-            db: &StorageManager,
-            now: OffsetDateTime,
-            last_tested_before: OffsetDateTime,
-        ) -> Option<AssignedTestrun> {
-            db.assign_next_mixnode_testrun(now, last_tested_before, now + time::Duration::hours(1))
-                .await
-                .unwrap()
-        }
-
         #[tokio::test]
         async fn returns_none_when_no_nodes() {
             let db = setup().await;
@@ -1592,6 +1620,103 @@ mod tests {
             .await
             .unwrap();
             assert_eq!(assigned.node.inner.node_id, 2);
+        }
+    }
+
+    /// The two properties the three-part `(node_id, test_kind, tested_role)` work-state key exists
+    /// to provide, driven through the real assignment and eviction paths.
+    mod per_pairing_work_state {
+        use super::*;
+
+        // the rotation pointer is per pairing, so one pairing walking the node's address set must
+        // leave another's position where it was, and must not continue from it either.
+        //
+        // the two decoy pairings differ from the assigned one in ONE component each - one in the
+        // role, one in the kind - so that each half of the key is pinned separately. a decoy
+        // differing in both would be excluded by either predicate alone, and the test would still
+        // pass with one of them dropped. (stress, gateway) is not a pairing the orchestrator
+        // dispatches; it is here precisely because the role is then the only thing distinguishing
+        // it. the second pairing is seeded rather than assigned because only (stress, mixnode) is
+        // dispatchable until per-kind selection lands
+        #[tokio::test]
+        async fn one_pairing_walking_the_address_set_leaves_anothers_pointer_alone() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[node_with_ips(1, "key_a", "1.2.3.4,5.6.7.8")])
+                .await
+                .unwrap();
+
+            // same kind, different role
+            seed_rotation_pointer(&db, 1, TestKind::Stress, TestedRole::Gateway, "1.2.3.4").await;
+            // same role, different kind
+            seed_rotation_pointer(&db, 1, TestKind::Liveness, TestedRole::Mixnode, "1.2.3.4").await;
+
+            // the assigned pairing has no pointer of its own yet, so it starts at the beginning of
+            // the set rather than continuing from where either decoy had got to
+            let first = assign(&db, datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate())
+                .await
+                .unwrap();
+            assert_eq!(first.tested_ip, "1.2.3.4".parse::<IpAddr>().unwrap());
+
+            // record the run, which releases the node's lock and moves its staleness position
+            insert_run(&db, &minimal_test_run(1)).await;
+
+            let second = assign(
+                &db,
+                datetime!(2025-06-01 13:00:00 UTC),
+                datetime!(2025-06-01 12:30:00 UTC),
+            )
+            .await
+            .unwrap();
+            assert_eq!(second.tested_ip, "5.6.7.8".parse::<IpAddr>().unwrap());
+
+            let assigned = work_state(&db, 1, TestKind::Stress, TestedRole::Mixnode)
+                .await
+                .unwrap();
+            assert_eq!(assigned.last_tested_ip.as_deref(), Some("5.6.7.8"));
+
+            // neither decoy moved, so the upsert wrote only its own pairing's row
+            for (test_kind, tested_role) in [
+                (TestKind::Stress, TestedRole::Gateway),
+                (TestKind::Liveness, TestedRole::Mixnode),
+            ] {
+                let decoy = work_state(&db, 1, test_kind, tested_role).await.unwrap();
+                assert_eq!(decoy.last_tested_ip.as_deref(), Some("1.2.3.4"));
+            }
+        }
+
+        // the defect that denormalising `last_tested_at` fixes: read through a join onto the last
+        // run, an evicted result made the node read as never-tested, so it jumped the assignment
+        // queue ahead of nodes that genuinely had not been measured
+        #[tokio::test]
+        async fn evicting_a_result_leaves_the_pairings_staleness_position_intact() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let run = minimal_test_run(1);
+            let run_id = insert_run(&db, &run).await;
+
+            db.evict_old_testruns(datetime!(2025-06-02 00:00:00 UTC))
+                .await
+                .unwrap();
+            assert!(db.get_testrun_by_id(run_id).await.unwrap().is_none());
+
+            let state = work_state(&db, 1, TestKind::Stress, TestedRole::Mixnode)
+                .await
+                .unwrap();
+            // the pointer to the run goes with the run itself...
+            assert!(state.last_testrun_id.is_none());
+            // ...while the staleness position it established survives, which is the whole reason
+            // that timestamp is stored rather than joined
+            assert_eq!(state.last_tested_at, Some(run.test_timestamp));
+
+            // and behaviourally: the node is still gated, rather than jumping the queue
+            let assigned = assign(
+                &db,
+                datetime!(2025-06-01 12:30:00 UTC),
+                datetime!(2025-06-01 11:00:00 UTC),
+            )
+            .await;
+            assert!(assigned.is_none());
         }
     }
 

@@ -17,6 +17,7 @@ use std::{
 use zeroize::Zeroizing;
 
 use crate::storage::{error::StorageError, models::RetrievedPendingTicketbook};
+use nym_validator_client::nym_api::EpochId;
 
 pub(crate) mod error;
 pub(crate) mod models;
@@ -88,6 +89,7 @@ impl PendingCredentialRequestsStorage {
     pub(crate) async fn insert_pending_ticketbook(
         &self,
         ticketbook: &IssuanceTicketBook,
+        dkg_epoch_id: EpochId,
     ) -> Result<(), StorageError> {
         let ser = ticketbook.pack();
         let data = Zeroizing::new(ser.data);
@@ -99,6 +101,7 @@ impl PendingCredentialRequestsStorage {
                 ticketbook.deposit_id(),
                 &data,
                 ticketbook.expiration_date(),
+                dkg_epoch_id as i64,
             )
             .await?;
 
@@ -123,6 +126,7 @@ impl PendingCredentialRequestsStorage {
                     .map(|pending_ticketbook| RetrievedPendingTicketbook {
                         pending_id: p.deposit_id,
                         pending_ticketbook,
+                        issuance_epoch: p.dkg_epoch_id.map(|e| e as EpochId),
                     })
             })
             .collect::<Result<_, _>>()?;

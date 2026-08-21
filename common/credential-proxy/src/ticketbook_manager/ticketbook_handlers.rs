@@ -46,7 +46,7 @@ impl TicketbookManager {
                 .await?;
 
             let shares = self
-                .try_obtain_wallet_shares(uuid, requested_on, request)
+                .try_obtain_wallet_shares(uuid, requested_on, request, epoch_id)
                 .await
                 .inspect_err(|err| warn!("shares request failure: {err}"))?;
 

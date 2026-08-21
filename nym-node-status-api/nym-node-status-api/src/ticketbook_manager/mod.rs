@@ -112,10 +112,12 @@ impl TicketbookManager {
             );
             let issuance_data =
                 self.deposit_to_issuance_ticketbook(deposit, ticket_type, expiration_date);
+            // the same epoch the signer set and threshold above belong to
             let aggregated_wallet = match obtain_aggregate_wallet(
                 &issuance_data,
                 &ecash_clients,
                 threshold,
+                epoch_id,
             )
             .await
             {

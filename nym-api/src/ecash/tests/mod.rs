@@ -36,7 +36,7 @@ use nym_coconut_dkg_common::dealing::{
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
     ChunkIndex, DealerRegistrationDetails, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch,
-    EpochId, EpochState, PartialContractDealingData, State as ContractState,
+    EpochId, EpochState, PartialContractDealingData, State as ContractState, Timestamp,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_compact_ecash::BlindedSignature;
@@ -1113,6 +1113,10 @@ struct CommStateInner {
     /// Whether the current epoch's ceremony is still running.
     ceremony_in_flight: AtomicBool,
 
+    /// When the current epoch's ceremony concluded, as the chain would report it. `None` models
+    /// both a running ceremony and an epoch that concluded before the contract recorded this.
+    ceremony_concluded_at: RwLock<Option<Timestamp>>,
+
     ecash_clients: RwLock<HashMap<EpochId, Vec<EcashApiClient>>>,
 }
 
@@ -1123,9 +1127,29 @@ impl SharedCommState {
             inner: Arc::new(CommStateInner {
                 current_epoch: AtomicU64::new(epoch_id),
                 ceremony_in_flight: AtomicBool::new(false),
+                // as on mainnet today: concluded, but before the chain recorded when
+                ceremony_concluded_at: RwLock::new(None),
                 ecash_clients: RwLock::new(HashMap::from([(epoch_id, ecash_clients)])),
             }),
         }
+    }
+
+    pub async fn ceremony_concluded_at(&self) -> Option<Timestamp> {
+        *self.inner.ceremony_concluded_at.read().await
+    }
+
+    /// Place the current epoch's conclusion at a given point, as the chain would report it.
+    pub async fn set_ceremony_concluded_at(&self, concluded_at: Option<Timestamp>) {
+        *self.inner.ceremony_concluded_at.write().await = concluded_at;
+    }
+
+    /// Conclude the current epoch's ceremony `ago` before now, so a test can sit inside or
+    /// outside a window measured from it without touching a clock.
+    pub async fn conclude_ceremony_ago(&self, ago: std::time::Duration) {
+        self.conclude_ceremony();
+        let now = time::OffsetDateTime::now_utc().unix_timestamp() as u64;
+        self.set_ceremony_concluded_at(Some(Timestamp::from_seconds(now - ago.as_secs())))
+            .await;
     }
 
     pub fn current_epoch(&self) -> EpochId {
@@ -1228,6 +1252,10 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
             CmpOrdering::Greater => Ok(false),
             CmpOrdering::Equal => Ok(!self.state.ceremony_in_flight()),
         }
+    }
+
+    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>> {
+        Ok(self.state.ceremony_concluded_at().await)
     }
 
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {

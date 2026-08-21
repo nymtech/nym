@@ -433,6 +433,42 @@ mod tests {
         assert_eq!(concluded.deadline, None);
     }
 
+    /// The epoch already stored on chain predates this field, so it has to keep deserialising -
+    /// which is what lets the contract be migrated without touching stored data. Its conclusion
+    /// time reads as unknown, deliberately: nothing on chain records it (the snapshot history is
+    /// keyed by height, not time) and deriving it from the deadline would recover the last
+    /// self-extension instead, which looks recent and would grant a window rather than withhold
+    /// one. Callers must read `None` as "no window".
+    #[test]
+    fn an_epoch_stored_before_this_field_existed_still_loads() {
+        let stored = r#"{
+            "state": "in_progress",
+            "epoch_id": 0,
+            "state_progress": {
+                "registered_dealers": 3,
+                "registered_resharing_dealers": 0,
+                "submitted_dealings": 15,
+                "submitted_key_shares": 3,
+                "verified_keys": 3
+            },
+            "time_configuration": {
+                "public_key_submission_time_secs": 600,
+                "dealing_exchange_time_secs": 300,
+                "verification_key_submission_time_secs": 300,
+                "verification_key_validation_time_secs": 60,
+                "verification_key_finalization_time_secs": 60,
+                "in_progress_time_secs": 1209600
+            },
+            "deadline": "1750000000000000000"
+        }"#;
+
+        // the same entry point cw_storage_plus reads stored values through
+        let epoch: Epoch = cosmwasm_std::from_json(stored).unwrap();
+        assert_eq!(epoch.epoch_id, 0);
+        assert!(epoch.state.is_in_progress());
+        assert_eq!(epoch.ceremony_concluded_at, None);
+    }
+
     /// A fresh ceremony has not concluded, whatever the epoch it replaced had recorded.
     #[test]
     fn a_reset_clears_the_recorded_conclusion() {

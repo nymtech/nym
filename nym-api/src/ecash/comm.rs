@@ -4,11 +4,13 @@
 use crate::ecash::client::Client;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::helpers::CachedImmutableEpochItem;
+use crate::support::config::{Config, EcashSignerDebug};
 use async_trait::async_trait;
-use nym_coconut_dkg_common::types::{Epoch, EpochId};
+use nym_coconut_dkg_common::types::{Epoch, EpochId, Timestamp};
 use nym_dkg::Threshold;
 use nym_validator_client::EcashApiClient;
 use std::cmp::min;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
@@ -28,6 +30,19 @@ pub trait APICommunicationChannel {
     /// then the set is still being filled in, and whatever partial view a caller happens
     /// to observe would be pinned for the lifetime of the process.
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool>;
+
+    /// When the current epoch's ceremony concluded, i.e. when the keys now in use came into
+    /// service.
+    ///
+    /// Every signer reads the same value, which is what lets them agree on a window measured
+    /// from it without having to agree on when they each noticed.
+    ///
+    /// `None` while a ceremony is still running, and for an epoch that concluded before the
+    /// contract began recording this - which is the epoch mainnet is on until the next ceremony.
+    /// Callers must treat the unknown case as "no window", never as "just now".
+    // consumed by the issuable-epoch resolution, landing next
+    #[allow(dead_code)]
+    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>>;
 }
 
 struct CachedEpoch {
@@ -49,8 +64,12 @@ impl CachedEpoch {
         self.valid_until > OffsetDateTime::now_utc()
     }
 
-    fn update(&mut self, epoch: Epoch) -> Result<()> {
+    /// `max_staleness` is a ceiling on how long this copy may then be served for. It is the
+    /// window over which signers can disagree about a concluded ceremony, so anything sized
+    /// against that skew - see `EcashSignerDebug::issuance_grace_period` - is sized against it.
+    fn update(&mut self, epoch: Epoch, max_staleness: Duration) -> Result<()> {
         let now = OffsetDateTime::now_utc();
+        let max_staleness = time::Duration::seconds(max_staleness.as_secs() as i64);
 
         let validity_duration = if let Some(epoch_finish) = epoch.deadline {
             // SAFETY: values set in our contract are valid unix timestamps
@@ -58,10 +77,11 @@ impl CachedEpoch {
             let state_end =
                 OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
             let until_epoch_state_end = state_end - now;
-            // make it valid until the next epoch transition or next 5min, whichever is smaller
-            min(until_epoch_state_end, 5 * time::Duration::MINUTE)
+            // make it valid until the next epoch transition or the staleness ceiling, whichever
+            // is smaller
+            min(until_epoch_state_end, max_staleness)
         } else {
-            5 * time::Duration::MINUTE
+            max_staleness
         };
 
         self.valid_until = now + validity_duration;
@@ -71,16 +91,42 @@ impl CachedEpoch {
     }
 }
 
+/// Tuning for [`QueryCommunicationChannel`], sourced from the api's config.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct CommunicationChannelConfig {
+    /// How long a cached view of the DKG epoch may be served for.
+    pub(crate) epoch_cache_staleness: Duration,
+}
+
+impl CommunicationChannelConfig {
+    pub(crate) fn new(global_config: &Config) -> Self {
+        CommunicationChannelConfig {
+            epoch_cache_staleness: global_config.ecash_signer.debug.epoch_cache_staleness,
+        }
+    }
+}
+
+impl Default for CommunicationChannelConfig {
+    /// For tests; the running api always builds this from its config.
+    fn default() -> Self {
+        CommunicationChannelConfig {
+            epoch_cache_staleness: EcashSignerDebug::DEFAULT_EPOCH_CACHE_STALENESS,
+        }
+    }
+}
+
 pub(crate) struct QueryCommunicationChannel {
     client: Box<dyn Client + Send + Sync>,
 
     epoch_clients: CachedImmutableEpochItem<Vec<EcashApiClient>>,
     cached_epoch: RwLock<CachedEpoch>,
     threshold_values: CachedImmutableEpochItem<Threshold>,
+
+    config: CommunicationChannelConfig,
 }
 
 impl QueryCommunicationChannel {
-    pub fn new<C>(client: C) -> Self
+    pub fn new<C>(client: C, config: CommunicationChannelConfig) -> Self
     where
         C: Client + Send + Sync + 'static,
     {
@@ -89,6 +135,7 @@ impl QueryCommunicationChannel {
             epoch_clients: Default::default(),
             cached_epoch: Default::default(),
             threshold_values: Default::default(),
+            config,
         }
     }
 
@@ -97,7 +144,7 @@ impl QueryCommunicationChannel {
 
         let epoch = self.client.get_current_epoch().await?;
 
-        guard.update(epoch)?;
+        guard.update(epoch, self.config.epoch_cache_staleness)?;
         Ok(guard)
     }
 
@@ -182,6 +229,10 @@ impl APICommunicationChannel for QueryCommunicationChannel {
             .await?
             .is_ceremony_concluded(epoch_id))
     }
+
+    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>> {
+        Ok(self.current_epoch_data().await?.ceremony_concluded_at)
+    }
 }
 
 #[cfg(test)]
@@ -207,8 +258,10 @@ mod tests {
         cheap::run_ceremony(&chain, false);
         cheap::install_real_verification_keys(&chain);
 
-        let channel =
-            QueryCommunicationChannel::new(ContractChainClient::new(chain.admin(), chain.clone()));
+        let channel = QueryCommunicationChannel::new(
+            ContractChainClient::new(chain.admin(), chain.clone()),
+            Default::default(),
+        );
 
         assert_eq!(channel.current_epoch().await?, epoch_id);
         assert!(!channel.dkg_in_progress().await?);
@@ -262,8 +315,10 @@ mod tests {
             .expect("no threshold was set");
         assert_eq!(threshold, 2);
 
-        let channel =
-            QueryCommunicationChannel::new(ContractChainClient::new(chain.admin(), chain.clone()));
+        let channel = QueryCommunicationChannel::new(
+            ContractChainClient::new(chain.admin(), chain.clone()),
+            Default::default(),
+        );
 
         let clients = channel.ecash_clients(epoch_id).await?;
         assert_eq!(clients.len() as u64, threshold);
@@ -315,8 +370,10 @@ mod tests {
         initiate_dkg(&chain);
         let epoch_id = chain.epoch().epoch_id;
 
-        let channel =
-            QueryCommunicationChannel::new(ContractChainClient::new(chain.admin(), chain.clone()));
+        let channel = QueryCommunicationChannel::new(
+            ContractChainClient::new(chain.admin(), chain.clone()),
+            Default::default(),
+        );
 
         // a gateway hits the api after every phase of the ceremony. none of these are
         // expected to succeed - the point is that asking must not poison later answers.

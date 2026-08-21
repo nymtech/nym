@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::client::Client;
-use crate::ecash::comm::QueryCommunicationChannel;
+use crate::ecash::comm::{CommunicationChannelConfig, QueryCommunicationChannel};
 use crate::ecash::dkg::controller::keys::{
     can_validate_ecash_keys, load_archived_ecash_keypairs, load_bte_keypair,
     load_ecash_keypair_if_exists,
@@ -253,7 +253,10 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         .await
         .context("e-cash contract address is required to setup the nym-api routes")?;
 
-    let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
+    let comm_channel = QueryCommunicationChannel::new(
+        nyxd_client.clone(),
+        CommunicationChannelConfig::new(&config),
+    );
 
     let encoded_identity = identity_keypair.public_key().to_base58_string();
     let mut ecash_state = EcashState::new(

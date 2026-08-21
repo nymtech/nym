@@ -911,6 +911,21 @@ pub struct EcashSignerDebug {
     #[serde(with = "humantime_serde")]
     pub stale_data_cleaner_interval: Duration,
 
+    /// How long a cached view of the DKG epoch may be served before it is refreshed, and hence
+    /// the window over which signers can disagree about whether a ceremony has concluded.
+    #[serde(with = "humantime_serde")]
+    pub epoch_cache_staleness: Duration,
+
+    /// How long an epoch that has just stopped being issuable is still accepted on issuance
+    /// requests that explicitly ask for it.
+    ///
+    /// Signers learn of a ceremony concluding from a cache, so for a short while they disagree
+    /// about which epoch is issuable. This window covers that disagreement, and MUST therefore
+    /// stay above `epoch_cache_staleness` - otherwise a client collecting across the changeover
+    /// can have some signers sign for it and the rest refuse for good.
+    #[serde(with = "humantime_serde")]
+    pub issuance_grace_period: Duration,
+
     /// Specifies how long should the issued ticketbooks be kept (beyond the specified expiration date)
     pub issued_ticketbooks_retention_period_days: u32,
 
@@ -927,6 +942,14 @@ impl EcashSignerDebug {
     // it still operates at "day" cutoffs
     pub const DEFAULT_STALE_DATA_CLEANER_INTERVAL: Duration = Duration::from_secs(2 * 60 * 60);
 
+    pub const DEFAULT_EPOCH_CACHE_STALENESS: Duration = Duration::from_secs(5 * 60);
+
+    // twice the window over which signers can disagree, so that every one of them has seen a
+    // concluded ceremony before any stops honouring the epoch it replaced. Derived from the
+    // staleness itself, since that is what the window is compensating for.
+    pub const DEFAULT_ISSUANCE_GRACE_PERIOD: Duration =
+        Duration::from_secs(2 * Self::DEFAULT_EPOCH_CACHE_STALENESS.as_secs());
+
     // keep them for 2 extra days beyond the specified expiration date
     pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS: u32 = 2;
 
@@ -942,6 +965,8 @@ impl Default for EcashSignerDebug {
         EcashSignerDebug {
             dkg_contract_polling_rate: Self::DEFAULT_DKG_CONTRACT_POLLING_RATE,
             stale_data_cleaner_interval: Self::DEFAULT_STALE_DATA_CLEANER_INTERVAL,
+            epoch_cache_staleness: Self::DEFAULT_EPOCH_CACHE_STALENESS,
+            issuance_grace_period: Self::DEFAULT_ISSUANCE_GRACE_PERIOD,
             issued_ticketbooks_retention_period_days:
                 Self::DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS,
             verified_tickets_retention_period_days:

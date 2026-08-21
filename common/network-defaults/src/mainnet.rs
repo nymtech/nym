@@ -57,9 +57,9 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&[
-            "fastly-support.global.ssl.fastly.net",
+            // "fastly-support.global.ssl.fastly.net",
             "yelp.global.ssl.fastly.net",
-            "pypi.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
         ]),
     },
     ApiUrlConst {
@@ -84,9 +84,9 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
         front_hosts: Some(&[
-            "fastly-support.global.ssl.fastly.net",
+            // "fastly-support.global.ssl.fastly.net",
             "yelp.global.ssl.fastly.net",
-            "pypi.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
         ]),
     },
     ApiUrlConst {

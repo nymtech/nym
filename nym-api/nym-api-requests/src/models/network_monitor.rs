@@ -244,9 +244,14 @@ pub mod v3 {
         pub test_timestamp: OffsetDateTime,
 
         /// Score for the run: the average over the fixed set of interfaces its probe exercises,
-        /// with an interface that produced no measurement counted as zero. Averaging here rather
-        /// than downstream keeps a single number per node for scoring while `interfaces` retains
-        /// the detail an operator needs.
+        /// with an interface that produced no measurement counted as zero.
+        ///
+        /// This is the AUTHORITATIVE number for scoring, and `interfaces` is the diagnostic
+        /// breakdown behind it. The two are not independent, but the average cannot be recomputed
+        /// from the breakdown here: its denominator is the set the run's (kind, role) pairing is
+        /// expected to produce, and this submission deliberately carries neither, so a run missing
+        /// one of its interfaces would average over the wrong denominator on this side. The
+        /// orchestrator knows the expected set from the row it stored, so it averages there.
         pub test_performance: f64,
 
         /// Whether the node responded at all during testing.
@@ -284,15 +289,6 @@ pub mod v3 {
     }
 
     impl LivenessTestBatchSubmissionContent {
-        /// Build a batch submission body stamped with the current UTC time.
-        pub fn new(signer: ed25519::PublicKey, results: Vec<LivenessTestResult>) -> Self {
-            LivenessTestBatchSubmissionContent {
-                signer,
-                timestamp: OffsetDateTime::now_utc(),
-                results,
-            }
-        }
-
         /// Whether this submission is older than `max_age` relative to the current UTC time.
         ///
         /// Used server-side to reject submissions that have been sitting around too long, even if

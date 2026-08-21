@@ -54,28 +54,21 @@ async fn fetch_measurements(
     Ok(grouped)
 }
 
-/// Reattaches each run to its measurements. A run with no measurement rows is kept, carrying an
-/// empty set: dropping it would hide a real (if malformed) result from the read surface.
-fn attach_measurements(
-    runs: Vec<TestRun>,
-    mut grouped: HashMap<i64, Vec<TestRunMeasurement>>,
-) -> Vec<CompletedTestRun> {
-    runs.into_iter()
-        .map(|run| CompletedTestRun {
-            measurements: grouped.remove(&run.id).unwrap_or_default(),
-            run,
-        })
-        .collect()
-}
-
-/// Fetches the measurements for `runs` over `conn` and reattaches them.
+/// Fetches the measurements for `runs` over `conn` and reattaches each run to its own.
 async fn complete_runs(
     conn: &mut SqliteConnection,
     runs: Vec<TestRun>,
 ) -> anyhow::Result<Vec<CompletedTestRun>> {
     let ids: Vec<_> = runs.iter().map(|run| run.id).collect();
-    let grouped = fetch_measurements(conn, &ids).await?;
-    Ok(attach_measurements(runs, grouped))
+    let mut grouped = fetch_measurements(conn, &ids).await?;
+
+    Ok(runs
+        .into_iter()
+        .map(|run| CompletedTestRun {
+            measurements: grouped.remove(&run.id).unwrap_or_default(),
+            run,
+        })
+        .collect())
 }
 
 impl StorageManager {
@@ -1131,10 +1124,11 @@ mod tests {
             assert_eq!(count, 0);
         }
 
-        // a submission that arrives after its lease was reaped is still stored, but reports that it
-        // cleared nothing so the caller doesn't double-decrement the in-flight gauge
+        // the insert does not require a lock to exist: the submission path rejects a result whose
+        // lease expired, but the sweep can still reap the row in the window between that check and
+        // this insert, and the reported count is what keeps the in-flight gauge from drifting
         #[tokio::test]
-        async fn a_late_submission_clears_nothing() {
+        async fn releasing_an_already_reaped_lock_reports_nothing_cleared() {
             let db = setup().await;
             seed_node(&db, 1).await;
 

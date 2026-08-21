@@ -1,6 +1,8 @@
 import fs from 'fs';
 
 const WORKSPACE_FILE = 'pnpm-workspace.yaml';
+const LOCKFILE = 'pnpm-lock.yaml';
+const LOCKFILE_STASH = 'pnpm-lock.yaml.predev';
 
 const devWorkspace = [
   'dist/**',
@@ -27,3 +29,10 @@ const updated = current
   .map(p => `  - '${p}'`).join('\n') + '\n';
 
 fs.writeFileSync(WORKSPACE_FILE, content.replace(packagesRegex, `$1${updated}`));
+
+// Put back the lockfile dev-mode-add.mjs stashed, so dev:off leaves the tree as
+// it found it. Absent stash means dev:on never ran here; leave the lockfile be.
+if (fs.existsSync(LOCKFILE_STASH)) {
+  fs.copyFileSync(LOCKFILE_STASH, LOCKFILE);
+  fs.rmSync(LOCKFILE_STASH);
+}

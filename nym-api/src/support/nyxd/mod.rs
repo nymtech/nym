@@ -53,12 +53,13 @@ use nym_validator_client::nyxd::{
         PagedMixnetQueryClient, PagedMultisigQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
-    BlockResponse, CosmWasmClient, Fee, TendermintRpcClient,
+    BlockResponse, Fee, TendermintRpcClient,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     AccountId, TendermintTime,
 };
+use nym_validator_client::rpc::TendermintRpcClientExt;
 use nym_validator_client::{
     nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient, QueryHttpRpcNyxdClient,
 };

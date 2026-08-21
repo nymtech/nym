@@ -12,9 +12,9 @@ use serde::Deserialize;
 pub use nym_directory_contract_common::{
     msg::QueryMsg as DirectoryQueryMsg, AllEntriesPagedResponse, AllowedLabelsResponse,
     AnnotatedNodeLabelEntry, CuratedEntriesPagedResponse, CuratedEntry, CuratedEntryResponse,
-    CuratedLabelEntry, DigestResponse, DirectoryEntry, DirectoryEntryRecord, EntryKey, LabelConfig,
-    LabelEntry, NodeEntriesPagedResponse, NodeEntriesResponse, NodeEntry, NodeEntryResponse,
-    NodeLabelEntry, SequenceResponse,
+    CuratedLabelEntry, DigestResponse, DirectoryEntryRecord, EntryKey, LabelConfig, LabelEntry,
+    NodeEntriesPagedResponse, NodeEntriesResponse, NodeEntry, NodeEntryResponse, NodeLabelEntry,
+    SequenceResponse,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

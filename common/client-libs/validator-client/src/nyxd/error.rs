@@ -92,6 +92,9 @@ pub enum NyxdError {
     #[error("Block has an invalid height (either negative or larger than i64::MAX")]
     InvalidHeight,
 
+    #[error("The response did not contain the requested IAVL inclusion proof")]
+    MissingProof,
+
     #[error("Failed to compress provided wasm code - {0}")]
     WasmCompressionError(io::Error),
 

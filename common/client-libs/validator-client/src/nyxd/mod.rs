@@ -26,7 +26,6 @@ use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
 use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
 use nym_contracts_common::ContractBuildInformation;
-use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 use std::time::SystemTime;
@@ -41,7 +40,7 @@ pub use crate::nyxd::{
     },
     fee::Fee,
 };
-pub use crate::rpc::TendermintRpcClient;
+pub use crate::rpc::{TendermintRpcClient, TendermintRpcClientExt};
 pub use bip39;
 pub use coin::Coin;
 pub use cosmrs::{
@@ -65,6 +64,7 @@ pub use cw3;
 pub use cw4;
 pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+pub use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 pub use prost::Name;
 pub use tendermint_rpc::endpoint::block::Response as BlockResponse;
 pub use tendermint_rpc::{
@@ -400,7 +400,7 @@ where
         &self,
         address: &AccountId,
     ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError> {
-        if let Some(account) = self.client.get_account(address).await? {
+        if let Some(account) = TendermintRpcClientExt::get_account(&self.client, address).await? {
             let base_account = account.try_get_base_account()?;
             return Ok(base_account.pubkey);
         }
@@ -416,15 +416,19 @@ where
         &self,
         height: Option<u32>,
     ) -> Result<TendermintTime, NyxdError> {
-        Ok(self.client.get_block(height).await?.block.header.time)
+        Ok(TendermintRpcClientExt::get_block(&self.client, height)
+            .await?
+            .block
+            .header
+            .time)
     }
 
     pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
-        self.client.get_block(height).await
+        TendermintRpcClientExt::get_block(&self.client, height).await
     }
 
     pub async fn get_current_block_height(&self) -> Result<Height, NyxdError> {
-        self.client.get_height().await
+        TendermintRpcClientExt::get_height(&self.client).await
     }
 
     /// Obtains the hash of a block specified by the provided height.
@@ -433,10 +437,7 @@ where
     ///
     /// * `height`: height of the block for which we want to obtain the hash.
     pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError> {
-        self.client
-            .get_block(Some(height))
-            .await
-            .map(|block| block.block_id.hash)
+        Ok(self.get_block(Some(height)).await?.block_id.hash)
     }
 
     pub async fn try_get_cw2_contract_version(
@@ -497,7 +498,7 @@ where
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NyxdError> {
-        self.client.get_sequence(&self.address()).await
+        TendermintRpcClientExt::get_sequence(&self.client, &self.address()).await
     }
 
     pub fn wrap_contract_execute_message<M>(

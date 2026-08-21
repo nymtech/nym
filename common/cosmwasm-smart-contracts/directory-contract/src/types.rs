@@ -30,47 +30,6 @@ impl Namespace {
     }
 }
 
-/// A directory entry of either key-class - the unified in-memory / response type
-/// for the single entry store and mixed enumeration; the active variant matches
-/// the entry's [`Namespace`]. On-chain the concrete variant is determined by the
-/// key's namespace tag, so the raw-bytes value codec stores no redundant
-/// discriminant - this `cw_serde` enum is for JSON responses and in-memory use.
-#[cw_serde]
-pub enum DirectoryEntry {
-    /// A self-published node entry.
-    NodeEntry(NodeEntry),
-
-    /// An admin-curated entry.
-    CuratedEntry(CuratedEntry),
-}
-
-impl DirectoryEntry {
-    /// The opaque payload bytes, regardless of class.
-    pub fn data(&self) -> &[u8] {
-        match self {
-            DirectoryEntry::NodeEntry(e) => e.data.as_slice(),
-            DirectoryEntry::CuratedEntry(e) => e.data.as_slice(),
-        }
-    }
-
-    /// Append this entry's committed value bytes to a digest-leaf buffer. A node
-    /// entry commits `data`, `signature`, and `sequence` (so the signature is
-    /// independently verifiable); a curated entry commits only `data`. The per-class
-    /// field layout is fixed, so the leading namespace tag keeps the two shapes unambiguous.
-    fn push_digest_value(&self, buf: &mut Vec<u8>) {
-        match self {
-            DirectoryEntry::NodeEntry(e) => {
-                crate::helpers::push_len_prefixed(buf, e.data.as_slice());
-                crate::helpers::push_len_prefixed(buf, e.signature.as_slice());
-                buf.extend_from_slice(&e.sequence.to_le_bytes());
-            }
-            DirectoryEntry::CuratedEntry(e) => {
-                crate::helpers::push_len_prefixed(buf, e.data.as_slice());
-            }
-        }
-    }
-}
-
 /// A node-published entry: the opaque payload, the block height of the last write,
 /// and the `sequence` + ed25519 `signature` it was written with. Storing the
 /// sequence makes the signature independently re-verifiable - the signed message is
@@ -164,7 +123,7 @@ pub struct LabelConfig {
 /// added after a consumer was built fall through as unknown (see
 /// [`KnownLabel::from_str`]) and are handled as opaque bytes.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum KnownLabel {
     /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
     /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous
@@ -382,57 +341,85 @@ impl EntryKey {
             EntryKey::Curated { .. } => Namespace::Curated,
         }
     }
-
-    /// The canonical LtHash leaf for this entry: a class tag, the length-framed key
-    /// components, then the entry's committed value. A node leaf commits
-    /// `(data, signature, sequence)` so it is self-authenticating; a curated leaf
-    /// commits `data`. The leading tag plus length-prefixing make every distinct
-    /// `(key, value)` map to distinct leaf bytes, within and across classes.
-    pub fn digest_leaf(&self, entry: &DirectoryEntry) -> Vec<u8> {
-        let mut buf = vec![self.namespace().tag()];
-        match self {
-            EntryKey::Node { node_id, label } => {
-                // `node_id` is fixed-width, so it needs no length prefix before the
-                // variable, length-prefixed `label`.
-                buf.extend_from_slice(&node_id.to_be_bytes());
-                crate::helpers::push_len_prefixed(&mut buf, label.as_bytes());
-            }
-            EntryKey::Curated { key } => {
-                crate::helpers::push_len_prefixed(&mut buf, key.as_bytes());
-            }
-        }
-        entry.push_digest_value(&mut buf);
-        buf
-    }
 }
 
-/// One entry together with its key, as yielded by the global enumeration.
+/// One directory entry together with its key, as yielded by the global enumeration.
 #[cw_serde]
-pub struct DirectoryEntryRecord {
-    pub key: EntryKey,
-    pub entry: DirectoryEntry,
+pub enum DirectoryEntryRecord {
+    /// A self-published node entry, keyed `(node_id, label)`.
+    Node {
+        node_id: NodeId,
+        label: String,
+        entry: NodeEntry,
+    },
+
+    /// An admin-curated entry, keyed by a single admin-chosen path string.
+    Curated { key: String, entry: CuratedEntry },
 }
 
 impl DirectoryEntryRecord {
     /// A curated record from its key and entry.
-    pub fn new_curated(label: String, entry: CuratedEntry) -> Self {
-        Self {
-            key: EntryKey::new_curated(label),
-            entry: DirectoryEntry::CuratedEntry(entry),
-        }
+    pub fn new_curated(key: String, entry: CuratedEntry) -> Self {
+        DirectoryEntryRecord::Curated { key, entry }
     }
 
     /// A node record from its `(node_id, label)` and entry.
     pub fn new_node(node_id: NodeId, label: String, entry: NodeEntry) -> Self {
-        Self {
-            key: EntryKey::new_node(node_id, label),
-            entry: DirectoryEntry::NodeEntry(entry),
+        DirectoryEntryRecord::Node {
+            node_id,
+            label,
+            entry,
         }
     }
 
-    /// The canonical LtHash leaf for this record - its key over its committed value.
+    /// The key-class tag for this record.
+    pub fn namespace(&self) -> Namespace {
+        match self {
+            DirectoryEntryRecord::Node { .. } => Namespace::Node,
+            DirectoryEntryRecord::Curated { .. } => Namespace::Curated,
+        }
+    }
+
+    /// The logical key (the [`crate::QueryMsg::AllEntries`] cursor / response key) for
+    /// this record.
+    pub fn key(&self) -> EntryKey {
+        match self {
+            DirectoryEntryRecord::Node { node_id, label, .. } => {
+                EntryKey::new_node(*node_id, label.clone())
+            }
+            DirectoryEntryRecord::Curated { key, .. } => EntryKey::new_curated(key.clone()),
+        }
+    }
+
+    /// The canonical LtHash leaf for this record: a class tag, the length-framed key
+    /// components, then the entry's committed value. A node leaf commits
+    /// `(data, signature, sequence)` so it is self-authenticating; a curated leaf commits
+    /// `data`. The leading tag plus length-prefixing make every distinct `(key, value)`
+    /// map to distinct leaf bytes, within and across classes.
     pub fn digest_leaf(&self) -> Vec<u8> {
-        self.key.digest_leaf(&self.entry)
+        use crate::helpers::push_len_prefixed;
+
+        let mut buf = vec![self.namespace().tag()];
+        match self {
+            DirectoryEntryRecord::Node {
+                node_id,
+                label,
+                entry,
+            } => {
+                // `node_id` is fixed-width, so it needs no length prefix before the
+                // variable, length-prefixed `label`.
+                buf.extend_from_slice(&node_id.to_be_bytes());
+                push_len_prefixed(&mut buf, label.as_bytes());
+                push_len_prefixed(&mut buf, entry.data.as_slice());
+                push_len_prefixed(&mut buf, entry.signature.as_slice());
+                buf.extend_from_slice(&entry.sequence.to_le_bytes());
+            }
+            DirectoryEntryRecord::Curated { key, entry } => {
+                push_len_prefixed(&mut buf, key.as_bytes());
+                push_len_prefixed(&mut buf, entry.data.as_slice());
+            }
+        }
+        buf
     }
 }
 
@@ -477,104 +464,102 @@ mod tests {
         }
     }
 
-    fn node_entry(data: &[u8], sequence: u64, sig: &[u8]) -> DirectoryEntry {
-        DirectoryEntry::NodeEntry(NodeEntry {
-            data: data.to_vec().into(),
-            updated_at_height: 0,
-            sequence,
-            signature: sig.to_vec().into(),
-        })
+    fn node_record(
+        node_id: NodeId,
+        label: &str,
+        data: &[u8],
+        sequence: u64,
+        sig: &[u8],
+    ) -> DirectoryEntryRecord {
+        DirectoryEntryRecord::Node {
+            node_id,
+            label: label.to_owned(),
+            entry: NodeEntry {
+                data: data.to_vec().into(),
+                updated_at_height: 0,
+                sequence,
+                signature: sig.to_vec().into(),
+            },
+        }
     }
 
-    fn curated_entry(data: &[u8]) -> DirectoryEntry {
-        DirectoryEntry::CuratedEntry(CuratedEntry {
-            data: data.to_vec().into(),
-        })
+    fn curated_record(key: &str, data: &[u8]) -> DirectoryEntryRecord {
+        DirectoryEntryRecord::Curated {
+            key: key.to_owned(),
+            entry: CuratedEntry {
+                data: data.to_vec().into(),
+            },
+        }
     }
 
     #[test]
     fn digest_leaf_classes_differ() {
         // same string + data, different class -> different leaf (the tag separates them)
-        let node_key = EntryKey::Node {
-            node_id: 1,
-            label: "x".into(),
-        };
-        let curated_key = EntryKey::Curated { key: "x".into() };
         assert_ne!(
-            node_key.digest_leaf(&node_entry(b"v", 0, b"sig")),
-            curated_key.digest_leaf(&curated_entry(b"v")),
+            node_record(1, "x", b"v", 0, b"sig").digest_leaf(),
+            curated_record("x", b"v").digest_leaf(),
         );
     }
 
     #[test]
     fn digest_leaf_length_prefix_disambiguates() {
         // curated (key "ab", data "c") vs (key "a", data "bc") must not collide
-        let ab_c = EntryKey::Curated { key: "ab".into() };
-        let a_bc = EntryKey::Curated { key: "a".into() };
         assert_ne!(
-            ab_c.digest_leaf(&curated_entry(b"c")),
-            a_bc.digest_leaf(&curated_entry(b"bc")),
+            curated_record("ab", b"c").digest_leaf(),
+            curated_record("a", b"bc").digest_leaf(),
         );
         // and likewise for a node's (label, data) framing
-        let node_ab = EntryKey::Node {
-            node_id: 1,
-            label: "ab".into(),
-        };
-        let node_a = EntryKey::Node {
-            node_id: 1,
-            label: "a".into(),
-        };
         assert_ne!(
-            node_ab.digest_leaf(&node_entry(b"c", 0, b"s")),
-            node_a.digest_leaf(&node_entry(b"bc", 0, b"s")),
+            node_record(1, "ab", b"c", 0, b"s").digest_leaf(),
+            node_record(1, "a", b"bc", 0, b"s").digest_leaf(),
         );
     }
 
     #[test]
     fn node_leaf_commits_signature_and_sequence() {
-        let key = EntryKey::Node {
-            node_id: 1,
-            label: "x".into(),
-        };
-        let base = key.digest_leaf(&node_entry(b"d", 5, b"sigA"));
+        let base = node_record(1, "x", b"d", 5, b"sigA").digest_leaf();
         assert_eq!(
             base,
-            key.digest_leaf(&node_entry(b"d", 5, b"sigA")),
+            node_record(1, "x", b"d", 5, b"sigA").digest_leaf(),
             "deterministic"
         );
         assert_ne!(
             base,
-            key.digest_leaf(&node_entry(b"d", 5, b"sigB")),
+            node_record(1, "x", b"d", 5, b"sigB").digest_leaf(),
             "signature is committed"
         );
         assert_ne!(
             base,
-            key.digest_leaf(&node_entry(b"d", 6, b"sigA")),
+            node_record(1, "x", b"d", 6, b"sigA").digest_leaf(),
             "sequence is committed"
         );
     }
 
     #[test]
     fn node_leaf_excludes_updated_at_height() {
-        let key = EntryKey::Node {
+        let a = DirectoryEntryRecord::Node {
             node_id: 1,
             label: "x".into(),
+            entry: NodeEntry {
+                data: b"d".to_vec().into(),
+                updated_at_height: 1,
+                sequence: 5,
+                signature: b"s".to_vec().into(),
+            },
         };
-        let a = DirectoryEntry::NodeEntry(NodeEntry {
-            data: b"d".to_vec().into(),
-            updated_at_height: 1,
-            sequence: 5,
-            signature: b"s".to_vec().into(),
-        });
-        let b = DirectoryEntry::NodeEntry(NodeEntry {
-            data: b"d".to_vec().into(),
-            updated_at_height: 999,
-            sequence: 5,
-            signature: b"s".to_vec().into(),
-        });
+        let b = DirectoryEntryRecord::Node {
+            node_id: 1,
+            label: "x".into(),
+            entry: NodeEntry {
+                data: b"d".to_vec().into(),
+                updated_at_height: 999,
+                sequence: 5,
+                signature: b"s".to_vec().into(),
+            },
+        };
         assert_eq!(
-            key.digest_leaf(&a),
-            key.digest_leaf(&b),
+            a.digest_leaf(),
+            b.digest_leaf(),
             "height must not be committed"
         );
     }

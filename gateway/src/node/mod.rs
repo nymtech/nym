@@ -25,7 +25,7 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient};
+use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -46,6 +46,7 @@ pub use nym_gateway_storage::{
     GatewayStorage,
 };
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
+use nym_validator_client::rpc::TendermintRpcClientExt;
 
 pub(crate) mod client_handling;
 pub(crate) mod internal_service_providers;

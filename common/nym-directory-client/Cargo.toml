@@ -1,0 +1,37 @@
+[package]
+name = "nym-directory-client"
+description = "Library for retrieving verifiable Nym directory"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+ics23 = { workspace = true, features = ["host-functions"] }
+prost = { workspace = true }
+cosmrs = { workspace = true }
+tracing = { workspace = true }
+
+nym-lthash = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-validator-client = { workspace = true, features = ["http-client"] }
+nym-directory-contract-common = { workspace = true }
+nym-mixnet-contract-common = { workspace = true }
+
+
+[dev-dependencies]
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-test-utils = { workspace = true }
+anyhow = { workspace = true }
+cw-storage-plus = { workspace = true }
+
+[lints]
+workspace = true

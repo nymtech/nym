@@ -4189,11 +4189,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73b17f1a5bd7d12ad30a21445cfa5f52fd7651cb3243ba866f9916b1ec112f12"
 dependencies = [
  "anyhow",
+ "blake2 0.10.6",
+ "blake3",
  "bytes",
  "hex",
  "informalsystems-pbjson",
  "prost 0.13.5",
+ "ripemd",
  "serde",
+ "sha2 0.10.9",
+ "sha3 0.10.9",
 ]
 
 [[package]]
@@ -6839,6 +6844,26 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+]
+
+[[package]]
+name = "nym-directory-client"
+version = "1.21.5-rc.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "cosmrs",
+ "cw-storage-plus",
+ "ics23",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
+ "nym-validator-client",
+ "prost 0.13.5",
+ "thiserror 2.0.19",
+ "tracing",
 ]
 
 [[package]]

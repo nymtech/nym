@@ -37,6 +37,9 @@ pub enum ContractError {
     #[error("Too soon to advance epoch state. {0} more seconds until it can be advanced")]
     EarlyEpochStateAdvancement(u64),
 
+    #[error("the epoch is already in progress; rotating its keys is an explicit admin action")]
+    EpochAlreadyInProgress,
+
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
 

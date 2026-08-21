@@ -9,6 +9,18 @@
     "time_configuration"
   ],
   "properties": {
+    "ceremony_concluded_at": {
+      "description": "When this epoch's ceremony finished, i.e. when its keys came into service.\n\nNothing else on chain records this: the epoch id increments when a ceremony *starts*, and [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs it - the window in which a signer still honours the epoch just superseded, and any pruning of retired key material.\n\n`None` for an epoch mid-ceremony, and for one that concluded before this field existed.",
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "deadline": {
       "anyOf": [
         {
@@ -212,6 +224,8 @@
           "minimum": 0.0
         },
         "in_progress_time_secs": {
+          "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+          "deprecated": true,
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0

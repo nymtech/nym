@@ -17,6 +17,17 @@ fn ensure_can_advance_state(
         return Err(ContractError::WaitingInitialisation);
     }
 
+    // an epoch in progress is where the state machine stops. it used to re-save itself here with
+    // a fresh deadline, the same id and the same keys, which made `in_progress_time_secs` read
+    // like a rotation period while rotating nothing. Rotation is an admin action, via
+    // `TriggerReset` / `TriggerResharing`, which do not come through here.
+    //
+    // this also keeps `ceremony_concluded_at` fixed for as long as the keys are in service,
+    // which is what anything sizing a window against their age relies on.
+    if current_epoch.state.is_in_progress() {
+        return Err(ContractError::EpochAlreadyInProgress);
+    }
+
     // check if we completed the state, so we could short circuit the deadline
     if check_state_completion(deps.storage, current_epoch)? {
         return Ok(());
@@ -62,15 +73,11 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
         return Ok(Response::new());
     }
 
-    let next_state = match current_epoch.state.next() {
-        Some(next_state) => next_state,
-        None => {
-            debug_assert!(current_epoch.state.is_in_progress());
-            // TODO: that's for the future because it will involve more changes in the other bits of the codebase
-            // but change epoch_id upon extending time of the "in progress" phase and instead store a map of
-            // [current_epoch_id => epoch_id_of_keys_creation] for key retrieval
-            EpochState::InProgress
-        }
+    // `InProgress` is the only state with nothing after it, and `ensure_can_advance_state` has
+    // already refused it above
+    let Some(next_state) = current_epoch.state.next() else {
+        debug_assert!(current_epoch.state.is_in_progress());
+        return Err(ContractError::EpochAlreadyInProgress);
     };
 
     // if we're advancing into dealing exchange, we need to set the threshold value based on the number of registered dealers
@@ -125,6 +132,44 @@ mod tests {
         let current = load_current_epoch(storage).unwrap();
         let updated = action(current);
         save_epoch(storage, env.block.height, &updated).unwrap();
+    }
+
+    /// B5: advancing an epoch already in progress used to re-save it with a fresh deadline, the
+    /// same id and the same keys, so `in_progress_time_secs` read like a rotation period while
+    /// nothing rotated. Rotation is an admin action (`TriggerReset` / `TriggerResharing`), which
+    /// does not come through here, so this is where the state machine stops.
+    ///
+    /// It also means the recorded conclusion time stays put, which is what anything sizing a
+    /// window against the age of the current keys depends on.
+    #[test]
+    fn an_epoch_in_progress_is_never_advanced() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        update_epoch(deps.as_mut().storage, &env, |epoch| {
+            epoch.update(EpochState::InProgress, env.block.time)
+        });
+        let concluded_at = load_current_epoch(deps.as_ref().storage)
+            .unwrap()
+            .ceremony_concluded_at;
+
+        // there is no deadline to wait out any more, so let an absurd amount of time pass: this
+        // is where the epoch used to quietly extend itself
+        assert_eq!(
+            load_current_epoch(deps.as_ref().storage).unwrap().deadline,
+            None
+        );
+        env.block.time = env.block.time.plus_seconds(60 * 60 * 24 * 365);
+
+        assert!(matches!(
+            try_advance_epoch_state(deps.as_mut(), env.clone()),
+            Err(ContractError::EpochAlreadyInProgress)
+        ));
+
+        // same epoch, same keys, and the conclusion time was not moved along with it
+        let epoch = load_current_epoch(deps.as_ref().storage).unwrap();
+        assert_eq!(epoch.state, EpochState::InProgress);
+        assert_eq!(epoch.ceremony_concluded_at, concluded_at);
     }
 
     #[test]
@@ -543,41 +588,24 @@ mod tests {
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = load_current_epoch(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::InProgress);
-        assert_eq!(
-            epoch.deadline.unwrap(),
-            env.block
-                .time
-                .plus_seconds(epoch.time_configuration.in_progress_time_secs)
-        );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(epoch.time_configuration.in_progress_time_secs - 100);
-        assert_eq!(
-            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(100)
-        );
+        // concluding the ceremony records when it happened, and leaves no deadline behind: this
+        // is the end of the state machine, not another phase waiting to expire
+        assert_eq!(epoch.ceremony_concluded_at, Some(env.block.time));
+        assert_eq!(epoch.deadline, None);
 
-        env.block.time = env.block.time.plus_seconds(50);
-        assert_eq!(
-            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(50)
-        );
+        // so however much time passes, it is never advanced again, and the epoch it settled into
+        // keeps both its id and its recorded conclusion
+        for skip in [100, 50, 60 * 60 * 24 * 365] {
+            env.block.time = env.block.time.plus_seconds(skip);
+            assert_eq!(
+                try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                ContractError::EpochAlreadyInProgress
+            );
+        }
 
-        // Group hasn't changed, so we remain in the same epoch, with updated finish timestamp
-        env.block.time = env.block.time.plus_seconds(100);
-        let prev_epoch = load_current_epoch(deps.as_mut().storage).unwrap();
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let curr_epoch = load_current_epoch(deps.as_mut().storage).unwrap();
-        let mut expected_epoch = Epoch::new(
-            EpochState::InProgress,
-            prev_epoch.epoch_id,
-            prev_epoch.time_configuration,
-            env.block.time,
-        );
-        expected_epoch.state_progress = curr_epoch.state_progress;
-        assert_eq!(curr_epoch, expected_epoch);
+        let unchanged = load_current_epoch(deps.as_mut().storage).unwrap();
+        assert_eq!(unchanged, epoch);
 
         // advancing from key finalization without threshold keys verified results in reset
         THRESHOLD.save(deps.as_mut().storage, &42).unwrap();

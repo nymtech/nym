@@ -280,7 +280,8 @@ mod tests {
     use cosmrs::rpc::endpoint::{commit, validators};
     use cosmrs::tendermint::validator::Info;
     use cosmrs::tendermint::{PublicKey, vote};
-    use nym_validator_client::nyxd::{AccountId, Paging, Response};
+    use nym_directory_attestation::source::mock::mock_contract;
+    use nym_validator_client::nyxd::{Paging, Response};
     use nym_validator_client::rpc::mocks::MockRpcClient;
 
     // the app_hash committing state at H lives in header[H+1] (CometBFT off-by-one), so the
@@ -374,12 +375,6 @@ mod tests {
         }
     }
 
-    fn dummy_contract() -> AccountId {
-        "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
-            .parse()
-            .unwrap()
-    }
-
     /// A mock RPC serving every fixture (checkpoint, adjacent block, skip block).
     fn full_mock() -> MockRpcClient {
         let (c896, v896, v897) = checkpoint_fixtures();
@@ -399,7 +394,7 @@ mod tests {
     }
 
     fn build_anchor(client: MockRpcClient, options: Options) -> LightClientAnchor<MockRpcClient> {
-        LightClientAnchor::new(client, dummy_contract(), checkpoint(), options)
+        LightClientAnchor::new(client, mock_contract(0), checkpoint(), options)
     }
 
     // bisection support: the skip target 24499898 (whose direct hop from the tampered checkpoint
@@ -529,7 +524,7 @@ mod tests {
         // note the TAMPERED checkpoint: its padded next_validators make every skip hop fail
         let anchor = LightClientAnchor::new(
             client,
-            dummy_contract(),
+            mock_contract(0),
             tampered_checkpoint(),
             test_options(FAR_FUTURE),
         );

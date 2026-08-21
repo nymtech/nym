@@ -26,6 +26,7 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 tendermint-light-client = { workspace = true, optional = true }
 
+nym-directory-attestation = { workspace = true }
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 nym-network-defaults = { workspace = true }
@@ -33,14 +34,15 @@ nym-validator-client = { workspace = true, features = ["http-client"] }
 nym-directory-contract-common = { workspace = true }
 nym-mixnet-contract-common = { workspace = true }
 
-
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
-nym-test-utils = { workspace = true }
+nym-test-utils = { workspace = true, features = ["crypto-helpers"] }
 anyhow = { workspace = true }
 cw-storage-plus = { workspace = true }
 nym-validator-client = { workspace = true, features = ["mocks"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-http-api-client = { workspace = true }
 
 [features]
 light-client = ["tendermint-light-client"]

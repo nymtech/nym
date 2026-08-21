@@ -360,9 +360,9 @@ impl AxumErrorResponse {
         }
     }
 
-    pub(crate) fn service_unavailable() -> Self {
+    pub(crate) fn service_unavailable(msg: impl Display) -> Self {
         Self {
-            message: RequestError::empty(),
+            message: RequestError::new(msg.to_string()),
             status: StatusCode::SERVICE_UNAVAILABLE,
         }
     }

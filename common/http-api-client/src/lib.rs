@@ -151,7 +151,10 @@ use wasmtimer::std::Instant;
 
 pub mod registry;
 
-use crate::path::RequestPath;
+// re-exported (not merely `use`d) because it appears as a bound on the public
+// `ApiClientCore::create_request`, so external crates cannot implement that public trait
+// without being able to name it (e.g. to provide a test double).
+pub use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
 use cfg_if::cfg_if;

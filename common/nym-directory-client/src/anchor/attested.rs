@@ -3,127 +3,22 @@
 
 use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
+use crate::verify::{VerifiedDirectory, verify_directory_offline};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmrs::tendermint::chain;
 use futures::future::join_all;
 use nym_crypto::asymmetric::ed25519;
+use nym_directory_attestation::{
+    AttestationSource, DigestSnapshot, DirectorySnapshotData, SignedDigestSnapshot,
+};
 use nym_lthash::LtHash16;
 use nym_network_defaults::default_directory_attestation_sources;
 use nym_validator_client::nyxd::Height;
 use nym_validator_client::nyxd::hash::AppHash;
 use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use tokio::sync::Mutex;
-
-/// Domain-separation tag for [`digest_snapshot_signing_payload`], so a snapshot
-/// signature can never be interpreted as a `node_signing_payload` signature (which
-/// carries no tag of its own), even for a signer whose identity key is used for both.
-const DIGEST_SNAPSHOT_DOMAIN_TAG: &[u8] = b"nym-directory-digest-snapshot-v1";
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DigestSnapshot {
-    /// The chain this attestation is scoped to, so a signature cannot be replayed
-    /// against a different chain.
-    chain_id: chain::Id,
-
-    /// The directory contract this attestation is scoped to, so a signature cannot be
-    /// replayed against a different contract instance.
-    directory_contract: AccountId,
-
-    /// The block height every other field attests to.
-    height: Height,
-
-    /// The block `app_hash` at `height` - the ICS23 fallback root for single-entry reads.
-    #[serde(with = "cosmrs::tendermint::serializers::apphash")]
-    app_hash: AppHash,
-
-    /// The directory contract's LtHash accumulator at `height`.
-    accumulator: LtHash16,
-
-    /// Hash over the current `NodeId -> ed25519 identity` mapping at `height`
-    /// (see [`crate::verify::node_identities_hash`]).
-    node_identities_hash: [u8; 32],
-}
-
-impl Hash for DigestSnapshot {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.chain_id.hash(state);
-        self.directory_contract.as_ref().hash(state);
-        self.height.hash(state);
-        self.app_hash.as_ref().hash(state);
-        self.accumulator.hash(state);
-        self.node_identities_hash.hash(state);
-    }
-}
-
-impl DigestSnapshot {
-    pub(crate) fn signing_payload(&self) -> Vec<u8> {
-        digest_snapshot_signing_payload(
-            self.chain_id.as_ref(),
-            &self.directory_contract,
-            self.height,
-            &self.app_hash,
-            &self.accumulator,
-            &self.node_identities_hash,
-        )
-    }
-}
-
-/// A [`DigestSnapshot`] as published by a nym-api (or a nym-node), together with its signer and
-/// signature over the snapshot's canonical signing payload.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct SignedDigestSnapshot {
-    snapshot: DigestSnapshot,
-
-    signer: ed25519::PublicKey,
-
-    signature: ed25519::Signature,
-}
-
-impl SignedDigestSnapshot {
-    /// Whether this attestation is trustworthy on its own: `signer` is in `trusted`,
-    /// the snapshot is scoped to `chain_id` and `contract`, and the signature verifies
-    /// over the canonical signing payload. Says nothing about quorum - that is the
-    /// anchor's job, counting distinct signers across many valid attestations like this
-    /// one. Mirrors `node_signature_verifies`.
-    pub(crate) fn verify(
-        &self,
-        trusted: &HashSet<ed25519::PublicKey>,
-        chain_id: &chain::Id,
-        contract: &AccountId,
-    ) -> bool {
-        if !trusted.contains(&self.signer) {
-            return false;
-        }
-        if &self.snapshot.chain_id != chain_id || &self.snapshot.directory_contract != contract {
-            return false;
-        }
-        self.signer
-            .verify(self.snapshot.signing_payload(), &self.signature)
-            .is_ok()
-    }
-}
-
-/// A source of nym-api-signed directory snapshots, so the anchor is independent of any
-/// particular transport and can be exercised with a mock.
-#[async_trait]
-pub trait AttestationSource {
-    /// This source's ed25519 identity key.
-    fn identity(&self) -> ed25519::PublicKey;
-
-    /// This source's latest signed snapshot.
-    async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, DirectoryClientError>;
-
-    /// This source's signed snapshot at a specific height, if still within its
-    /// retained window.
-    async fn snapshot_at(
-        &self,
-        height: Height,
-    ) -> Result<SignedDigestSnapshot, DirectoryClientError>;
-}
 
 /// A quorum-agreed `app_hash`, digest accumulator, and node-identity hash for a
 /// specific height - the trusted output of [`AttestedTrustAnchor::reach_quorum`].
@@ -141,6 +36,19 @@ impl TrustedSnapshot {
             accumulator: snapshot.accumulator,
             node_identities_hash: snapshot.node_identities_hash,
         }
+    }
+
+    fn verify_directory_data(
+        &self,
+        data: DirectorySnapshotData,
+    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+        verify_directory_offline(
+            data.height,
+            data.records,
+            &data.node_identities,
+            &self.accumulator,
+            Some(self.node_identities_hash),
+        )
     }
 }
 
@@ -401,6 +309,39 @@ where
     ) -> Result<[u8; 32], DirectoryClientError> {
         Ok(self.snapshot_for(height).await?.node_identities_hash)
     }
+
+    /// The whole directory at `height`, fetched over HTTP from a source and verified
+    /// offline against the quorum'd snapshot's accumulator + node-identities hash.
+    ///
+    /// The accumulator + identities hash are already quorum-trusted (via [`Self::snapshot_for`]),
+    /// so the bulk data only needs to be fetched from a single source and recompute-checked
+    /// against them. A source that fails to answer OR serves data that does not recompute to
+    /// the trusted values is skipped in favour of the next, so one unavailable/tampered source
+    /// does not doom the fetch; verification stays fail-closed (a mismatch is never accepted,
+    /// only retried elsewhere). Surfaces the last failure if no source produced verifying data.
+    pub async fn verified_directory(
+        &self,
+        height: Height,
+    ) -> Result<VerifiedDirectory, DirectoryClientError> {
+        let trusted = self.snapshot_for(height).await?; // reuses quorum + cache
+
+        let mut last_err = None;
+        for source in &self.sources {
+            match source.directory_data(height).await {
+                Ok(data) => match trusted.verify_directory_data(data) {
+                    Ok(verified) => return Ok(verified),
+                    Err(err) => last_err = Some(err),
+                },
+                Err(err) => last_err = Some(err.into()),
+            }
+        }
+
+        Err(
+            last_err.unwrap_or(DirectoryClientError::NoQuorumSnapshotForHeight(
+                height.value(),
+            )),
+        )
+    }
 }
 
 #[async_trait]
@@ -421,314 +362,34 @@ where
     }
 }
 
-/// Append `bytes` prefixed with its u32 little-endian length, so adjacent
-/// variable-length fields cannot be confused with one another. Mirrors
-/// `nym_directory_contract_common::helpers::push_len_prefixed`'s framing (private to
-/// that crate); reproduced here since it is the only encoder in this crate that needs it.
-fn push_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
-    buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
-    buf.extend_from_slice(bytes);
-}
-
-/// The exact bytes a nym-api signs when attesting a directory snapshot: the block
-/// `app_hash`, the directory's LtHash `accumulator`, and a hash over the current
-/// `NodeId -> ed25519 identity` mapping (see
-/// [`crate::verify::node_identities_hash`]), all bound to a chain-id, contract address,
-/// and height so a signature cannot be replayed across chains, contract instances, or
-/// heights.
-pub(crate) fn digest_snapshot_signing_payload(
-    chain_id: &str,
-    contract: &AccountId,
-    height: Height,
-    app_hash: &AppHash,
-    accumulator: &LtHash16,
-    node_identities_hash: &[u8; 32],
-) -> Vec<u8> {
-    let mut buf = Vec::new();
-    buf.extend_from_slice(DIGEST_SNAPSHOT_DOMAIN_TAG);
-    push_len_prefixed(&mut buf, chain_id.as_bytes());
-    push_len_prefixed(&mut buf, &contract.to_bytes());
-    buf.extend_from_slice(&height.value().to_le_bytes());
-    push_len_prefixed(&mut buf, app_hash.as_bytes());
-    push_len_prefixed(&mut buf, &accumulator.to_bytes());
-    buf.extend_from_slice(node_identities_hash);
-    buf
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_crypto::asymmetric::ed25519::{KeyPair, PublicKey};
-    use nym_test_utils::helpers::u64_seeded_rng;
-    use std::collections::HashMap;
-    use std::str::FromStr;
+    use nym_directory_attestation::source::mock::{
+        mock_app_hash, mock_attestation_source, mock_chain_id, mock_contract, mock_digest_snapshot,
+    };
+    use nym_test_utils::helpers::dummy_ed25519_keypair;
 
-    fn contract() -> AccountId {
-        AccountId::from_str("n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr").unwrap()
-    }
-
-    fn other_contract() -> AccountId {
-        AccountId::from_str("n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf").unwrap()
-    }
-
-    fn app_hash(byte: u8) -> AppHash {
-        AppHash::try_from(vec![byte; 32]).unwrap()
-    }
-
-    fn keypair(seed: u64) -> KeyPair {
-        let mut rng = u64_seeded_rng(seed);
-        KeyPair::new(&mut rng)
-    }
-
-    fn signed_snapshot_with(
-        kp: &KeyPair,
-        chain_id: &str,
-        contract: &AccountId,
-        height: Height,
-        app_hash: AppHash,
-        accumulator: LtHash16,
-        node_identities_hash: [u8; 32],
-    ) -> SignedDigestSnapshot {
-        let snapshot = DigestSnapshot {
-            chain_id: chain::Id::try_from(chain_id).unwrap(),
-            directory_contract: contract.clone(),
-            height,
-            app_hash,
-            accumulator,
-            node_identities_hash,
-        };
-        let signature = kp.private_key().sign(snapshot.signing_payload());
-        SignedDigestSnapshot {
-            snapshot,
-            signer: *kp.public_key(),
-            signature,
-        }
-    }
-
-    fn signed_snapshot(
-        kp: &KeyPair,
-        chain_id: &str,
-        contract: &AccountId,
-        height: Height,
-    ) -> SignedDigestSnapshot {
-        signed_snapshot_with(
-            kp,
-            chain_id,
-            contract,
-            height,
-            app_hash(1),
-            LtHash16::new(),
-            [0u8; 32],
-        )
-    }
-
-    #[test]
-    fn digest_snapshot_payload_is_deterministic_and_field_sensitive() {
-        let contract = contract();
-        let acc = LtHash16::new();
-        let node_hash = [9u8; 32];
-        let base = digest_snapshot_signing_payload(
-            "nyx-testnet",
-            &contract,
-            Height::from(100u32),
-            &app_hash(1),
-            &acc,
-            &node_hash,
-        );
-        assert_eq!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &contract,
-                Height::from(100u32),
-                &app_hash(1),
-                &acc,
-                &node_hash,
-            )
-        );
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-mainnet",
-                &contract,
-                Height::from(100u32),
-                &app_hash(1),
-                &acc,
-                &node_hash,
-            )
-        );
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &other_contract(),
-                Height::from(100u32),
-                &app_hash(1),
-                &acc,
-                &node_hash,
-            )
-        );
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &contract,
-                Height::from(101u32),
-                &app_hash(1),
-                &acc,
-                &node_hash,
-            )
-        );
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &contract,
-                Height::from(100u32),
-                &app_hash(2),
-                &acc,
-                &node_hash,
-            )
-        );
-        let mut other_acc = LtHash16::new();
-        other_acc.add(b"leaf");
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &contract,
-                Height::from(100u32),
-                &app_hash(1),
-                &other_acc,
-                &node_hash,
-            )
-        );
-        let mut other_node_hash = node_hash;
-        other_node_hash[0] ^= 1;
-        assert_ne!(
-            base,
-            digest_snapshot_signing_payload(
-                "nyx-testnet",
-                &contract,
-                Height::from(100u32),
-                &app_hash(1),
-                &acc,
-                &other_node_hash,
-            )
-        );
-    }
-
-    #[test]
-    fn digest_snapshot_payload_length_prefix_disambiguates() {
-        // (chain-id "ab", contract-derived bytes) framing must not let adjacent
-        // variable-length fields bleed into one another; exercised here via chain-id
-        // vs. the contract's encoded bytes rather than two strings of our own choosing,
-        // since `contract` is a real bech32 address.
-        let acc = LtHash16::new();
-        let node_hash = [0u8; 32];
-        assert_ne!(
-            digest_snapshot_signing_payload(
-                "ab",
-                &contract(),
-                Height::from(0u32),
-                &app_hash(0),
-                &acc,
-                &node_hash,
-            ),
-            digest_snapshot_signing_payload(
-                "a",
-                &other_contract(),
-                Height::from(0u32),
-                &app_hash(0),
-                &acc,
-                &node_hash,
-            ),
-        );
-    }
-
-    #[test]
-    fn digest_snapshot_payload_is_domain_tagged() {
-        let payload = digest_snapshot_signing_payload(
-            "chain",
-            &contract(),
-            Height::from(1u32),
-            &app_hash(7),
-            &LtHash16::new(),
-            &[7u8; 32],
-        );
-        assert!(payload.starts_with(DIGEST_SNAPSHOT_DOMAIN_TAG));
-
-        // a representative node-entry payload never starts with the snapshot's domain
-        // tag, so the two signature domains cannot be confused
-        let node_payload = nym_directory_contract_common::node_signing_payload(1, "x", 1, b"y");
-        assert!(!node_payload.starts_with(DIGEST_SNAPSHOT_DOMAIN_TAG));
-    }
-
-    #[test]
-    fn verify_accepts_a_valid_attestation_from_a_trusted_signer() {
-        let kp = keypair(1);
-        let trusted = HashSet::from([*kp.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
-
-        assert!(snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
-    }
-
-    #[test]
-    fn verify_rejects_an_untrusted_signer() {
-        let kp = keypair(1);
-        let other = keypair(2);
-        let trusted = HashSet::from([*other.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
-
-        assert!(!snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
-    }
-
-    #[test]
-    fn verify_rejects_a_mismatched_chain_id_or_contract() {
-        let kp = keypair(1);
-        let trusted = HashSet::from([*kp.public_key()]);
-        let snapshot = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
-
-        assert!(!snapshot.verify(&trusted, &"nyx-mainnet".parse().unwrap(), &contract()));
-        assert!(!snapshot.verify(&trusted, &"nyx-testnet".parse().unwrap(), &other_contract()));
-    }
-
-    #[test]
-    fn verify_rejects_a_forged_or_malformed_signature() {
-        let kp = keypair(1);
-        let trusted = HashSet::from([*kp.public_key()]);
-
-        let mut forged = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(100u32));
-        forged.signature = keypair(2)
-            .private_key()
-            .sign(forged.snapshot.signing_payload());
-        assert!(!forged.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
-
-        let mut malformed = signed_snapshot(&kp, "nyx-testnet", &contract(), Height::from(101u32));
-        malformed.signature = forged.signature;
-        assert!(!malformed.verify(&trusted, &"nyx-testnet".parse().unwrap(), &contract()));
-    }
-
-    fn anchor(trusted: HashSet<ed25519::PublicKey>, quorum: usize) -> AttestedTrustAnchor<()> {
+    fn mock_anchor(trusted: HashSet<ed25519::PublicKey>, quorum: usize) -> AttestedTrustAnchor<()> {
         AttestedTrustAnchor::new(
             Vec::new(),
             trusted,
             quorum,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         )
         .unwrap()
     }
 
     #[test]
     fn new_rejects_zero_quorum() {
-        let trusted = HashSet::from([*keypair(1).public_key()]);
+        let trusted = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let result = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             trusted,
             0,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         );
         assert!(matches!(
             result,
@@ -741,13 +402,13 @@ mod tests {
 
     #[test]
     fn new_rejects_quorum_exceeding_signer_count() {
-        let trusted = HashSet::from([*keypair(1).public_key()]);
+        let trusted = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let result = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             trusted,
             2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         );
         assert!(matches!(
             result,
@@ -760,14 +421,17 @@ mod tests {
 
     #[test]
     fn new_accepts_a_valid_configuration() {
-        let trusted = HashSet::from([*keypair(1).public_key(), *keypair(2).public_key()]);
+        let trusted = HashSet::from([
+            *dummy_ed25519_keypair(1).public_key(),
+            *dummy_ed25519_keypair(2).public_key(),
+        ]);
         assert!(
             AttestedTrustAnchor::<()>::new(
                 Vec::new(),
                 trusted,
                 2,
-                chain::Id::try_from("nyx-testnet").unwrap(),
-                contract(),
+                mock_chain_id(),
+                mock_contract(0),
             )
             .is_ok()
         );
@@ -786,8 +450,8 @@ mod tests {
     fn with_default_anchor_uses_the_compiled_in_default() {
         let anchor = AttestedTrustAnchor::<()>::with_default_anchor(
             Vec::new(),
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         )
         .unwrap();
 
@@ -800,13 +464,13 @@ mod tests {
 
     #[test]
     fn new_with_a_caller_supplied_set_is_unaffected_by_the_default() {
-        let custom = HashSet::from([*keypair(1).public_key()]);
+        let custom = HashSet::from([*dummy_ed25519_keypair(1).public_key()]);
         let anchor = AttestedTrustAnchor::<()>::new(
             Vec::new(),
             custom.clone(),
             1,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         )
         .unwrap();
 
@@ -816,14 +480,15 @@ mod tests {
 
     #[test]
     fn reach_quorum_accepts_k_distinct_agreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-        let anchor = anchor(trusted, 2);
+        let anchor = mock_anchor(trusted, 2);
 
         let candidates = vec![
-            signed_snapshot(&a, "nyx-testnet", &contract(), Height::from(100u32)),
-            signed_snapshot(&b, "nyx-testnet", &contract(), Height::from(100u32)),
+            mock_digest_snapshot(height).signed(&a),
+            mock_digest_snapshot(height).signed(&b),
         ];
 
         let (height, _) = anchor.reach_quorum(candidates).unwrap();
@@ -832,17 +497,12 @@ mod tests {
 
     #[test]
     fn reach_quorum_fails_with_fewer_than_k_agreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-        let anchor = anchor(trusted, 2);
+        let anchor = mock_anchor(trusted, 2);
 
-        let candidates = vec![signed_snapshot(
-            &a,
-            "nyx-testnet",
-            &contract(),
-            Height::from(100u32),
-        )];
+        let candidates = vec![mock_digest_snapshot(Height::from(100u32)).signed(&a)];
 
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
@@ -856,16 +516,17 @@ mod tests {
 
     #[test]
     fn reach_quorum_counts_a_duplicated_signer_once() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-        let anchor = anchor(trusted, 2);
+        let anchor = mock_anchor(trusted, 2);
 
         // the same signer's attestation presented twice must not, by itself, reach a
         // quorum of 2
         let candidates = vec![
-            signed_snapshot(&a, "nyx-testnet", &contract(), Height::from(100u32)),
-            signed_snapshot(&a, "nyx-testnet", &contract(), Height::from(100u32)),
+            mock_digest_snapshot(height).signed(&a),
+            mock_digest_snapshot(height).signed(&a),
         ];
 
         let err = anchor.reach_quorum(candidates).unwrap_err();
@@ -880,20 +541,18 @@ mod tests {
 
     #[test]
     fn reach_quorum_ignores_untrusted_or_invalid_attestations() {
-        let a = keypair(1);
-        let untrusted = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let untrusted = dummy_ed25519_keypair(2);
+        let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key()]);
-        let anchor = anchor(trusted, 1);
+        let anchor = mock_anchor(trusted, 1);
 
-        let mut forged = signed_snapshot(&a, "nyx-testnet", &contract(), Height::from(100u32));
+        let mut forged = mock_digest_snapshot(height).signed(&a);
         forged.signature = untrusted
             .private_key()
             .sign(forged.snapshot.signing_payload());
 
-        let candidates = vec![
-            signed_snapshot(&untrusted, "nyx-testnet", &contract(), Height::from(100u32)),
-            forged,
-        ];
+        let candidates = vec![mock_digest_snapshot(height).signed(&untrusted), forged];
 
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
@@ -907,33 +566,20 @@ mod tests {
 
     #[test]
     fn reach_quorum_rejects_disagreeing_signers() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
+        let height = Height::from(100u32);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-        let anchor = anchor(trusted, 2);
+        let anchor = mock_anchor(trusted, 2);
 
         // a and b sign DIFFERENT accumulators at the same height - no single value
         // reaches the quorum of 2
-        let candidates = vec![
-            signed_snapshot_with(
-                &a,
-                "nyx-testnet",
-                &contract(),
-                Height::from(100u32),
-                app_hash(1),
-                LtHash16::new(),
-                [0u8; 32],
-            ),
-            signed_snapshot_with(
-                &b,
-                "nyx-testnet",
-                &contract(),
-                Height::from(100u32),
-                app_hash(2),
-                LtHash16::new(),
-                [0u8; 32],
-            ),
-        ];
+        let mut snapshot1 = mock_digest_snapshot(height);
+        snapshot1.app_hash = mock_app_hash(1);
+        let mut snapshot2 = mock_digest_snapshot(height);
+        snapshot2.app_hash = mock_app_hash(2);
+
+        let candidates = vec![snapshot1.signed(&a), snapshot2.signed(&b)];
 
         let err = anchor.reach_quorum(candidates).unwrap_err();
         assert!(matches!(
@@ -945,90 +591,18 @@ mod tests {
         ));
     }
 
-    /// Calls made to a [`MockAttestationSource`], in call order - mirrors
-    /// `nym_validator_client::rpc::mocks::MockRpcClient`'s `CallLog` pattern.
-    #[derive(Default)]
-    struct AttestationCallLog {
-        latest_snapshot: usize,
-        snapshot_at: Vec<Height>,
-    }
-
-    /// In-memory [`AttestationSource`] serving pre-registered latest + per-height
-    /// signed snapshots, with a call log so tests can assert which sources were (or
-    /// were not) queried - mirrors `MockRpcClient`. `Clone` shares the same underlying
-    /// log (an `Arc<Mutex<_>>`), so a test can keep its own handle after moving a
-    /// clone into an anchor's `sources`.
-    #[derive(Clone)]
-    struct MockAttestationSource {
-        identity: ed25519::PublicKey,
-        latest: Option<SignedDigestSnapshot>,
-        by_height: HashMap<Height, SignedDigestSnapshot>,
-        call_log: std::sync::Arc<std::sync::Mutex<AttestationCallLog>>,
-    }
-
-    impl MockAttestationSource {
-        /// Number of times [`AttestationSource::latest_snapshot`] was called.
-        fn latest_snapshot_calls(&self) -> usize {
-            self.call_log.lock().unwrap().latest_snapshot
-        }
-
-        /// Heights passed to [`AttestationSource::snapshot_at`], in call order.
-        fn snapshot_at_calls(&self) -> Vec<Height> {
-            self.call_log.lock().unwrap().snapshot_at.clone()
-        }
-    }
-
-    #[async_trait]
-    impl AttestationSource for MockAttestationSource {
-        fn identity(&self) -> PublicKey {
-            self.identity
-        }
-
-        async fn latest_snapshot(&self) -> Result<SignedDigestSnapshot, DirectoryClientError> {
-            self.call_log.lock().unwrap().latest_snapshot += 1;
-            self.latest
-                .clone()
-                .ok_or(DirectoryClientError::NoQuorumSnapshotForHeight(0))
-        }
-
-        async fn snapshot_at(
-            &self,
-            height: Height,
-        ) -> Result<SignedDigestSnapshot, DirectoryClientError> {
-            self.call_log.lock().unwrap().snapshot_at.push(height);
-            self.by_height.get(&height).cloned().ok_or(
-                DirectoryClientError::NoQuorumSnapshotForHeight(height.value()),
-            )
-        }
-    }
-
-    fn mock_source(kp: &KeyPair, height: Height) -> MockAttestationSource {
-        let snapshot = signed_snapshot(kp, "nyx-testnet", &contract(), height);
-        MockAttestationSource {
-            identity: *kp.public_key(),
-            latest: Some(snapshot.clone()),
-            by_height: HashMap::from([(height, snapshot)]),
-            call_log: Default::default(),
-        }
-    }
-
     #[tokio::test]
     async fn refresh_seeds_a_height_and_confirms_it_across_sources() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
-            mock_source(&a, Height::from(100u32)),
-            mock_source(&b, Height::from(100u32)),
+            mock_attestation_source(&a, Height::from(100u32)),
+            mock_attestation_source(&b, Height::from(100u32)),
         ];
-        let anchor = AttestedTrustAnchor::new(
-            sources,
-            trusted,
-            2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
-        )
-        .unwrap();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
         let height = anchor.refresh().await.unwrap();
         assert_eq!(height, Height::from(100u32));
@@ -1037,21 +611,16 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_pins_the_height_and_a_cached_query_does_not_requery_sources() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
-        let source_a = mock_source(&a, Height::from(100u32));
-        let source_b = mock_source(&b, Height::from(100u32));
+        let source_a = mock_attestation_source(&a, Height::from(100u32));
+        let source_b = mock_attestation_source(&b, Height::from(100u32));
         let sources = vec![source_a.clone(), source_b.clone()];
 
-        let anchor = AttestedTrustAnchor::new(
-            sources,
-            trusted,
-            2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
-        )
-        .unwrap();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
         let height = anchor.refresh().await.unwrap();
         assert_eq!(height, Height::from(100u32));
@@ -1081,23 +650,18 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_fails_when_sources_disagree() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         // a and b each only ever answer for their OWN, different height, so asking the
         // other for the seeded height always comes back empty
         let sources = vec![
-            mock_source(&a, Height::from(100u32)),
-            mock_source(&b, Height::from(200u32)),
+            mock_attestation_source(&a, Height::from(100u32)),
+            mock_attestation_source(&b, Height::from(200u32)),
         ];
-        let anchor = AttestedTrustAnchor::new(
-            sources,
-            trusted,
-            2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
-        )
-        .unwrap();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
         let err = anchor.refresh().await.unwrap_err();
         assert!(matches!(
@@ -1111,21 +675,16 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_for_returns_the_cached_value_on_a_second_call() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
-            mock_source(&a, Height::from(100u32)),
-            mock_source(&b, Height::from(100u32)),
+            mock_attestation_source(&a, Height::from(100u32)),
+            mock_attestation_source(&b, Height::from(100u32)),
         ];
-        let anchor = AttestedTrustAnchor::new(
-            sources,
-            trusted,
-            2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
-        )
-        .unwrap();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
         let first = anchor.snapshot_for(Height::from(100u32)).await.unwrap();
         let second = anchor.snapshot_for(Height::from(100u32)).await.unwrap();
@@ -1134,21 +693,16 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_for_rejects_a_height_no_quorum_can_attest() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let sources = vec![
-            mock_source(&a, Height::from(100u32)),
-            mock_source(&b, Height::from(100u32)),
+            mock_attestation_source(&a, Height::from(100u32)),
+            mock_attestation_source(&b, Height::from(100u32)),
         ];
-        let anchor = AttestedTrustAnchor::new(
-            sources,
-            trusted,
-            2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
-        )
-        .unwrap();
+        let anchor =
+            AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                .unwrap();
 
         let err = anchor.snapshot_for(Height::from(999u32)).await.unwrap_err();
         assert!(matches!(
@@ -1159,51 +713,218 @@ mod tests {
 
     #[tokio::test]
     async fn directory_trust_anchor_impl_returns_the_attested_values() {
-        let a = keypair(1);
-        let b = keypair(2);
+        let a = dummy_ed25519_keypair(1);
+        let b = dummy_ed25519_keypair(2);
         let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
         let height = Height::from(100u32);
-        let hash = app_hash(7);
-        let mut acc = LtHash16::new();
-        acc.add(b"leaf");
-        let node_hash = [3u8; 32];
 
-        let sources = [&a, &b].map(|kp| {
-            let snapshot = signed_snapshot_with(
-                kp,
-                "nyx-testnet",
-                &contract(),
-                height,
-                hash.clone(),
-                acc.clone(),
-                node_hash,
-            );
-            MockAttestationSource {
-                identity: *kp.public_key(),
-                latest: Some(snapshot.clone()),
-                by_height: HashMap::from([(height, snapshot)]),
-                call_log: Default::default(),
-            }
-        });
+        // the anchor must surface exactly what the quorum's mock snapshot committed
+        let expected = mock_digest_snapshot(height);
+        let sources = [&a, &b].map(|kp| mock_attestation_source(kp, height));
 
         let anchor = AttestedTrustAnchor::new(
             sources.into(),
             trusted,
             2,
-            chain::Id::try_from("nyx-testnet").unwrap(),
-            contract(),
+            mock_chain_id(),
+            mock_contract(0),
         )
         .unwrap();
 
-        assert_eq!(anchor.trusted_app_hash(height).await.unwrap(), hash);
+        assert_eq!(
+            anchor.trusted_app_hash(height).await.unwrap(),
+            expected.app_hash
+        );
 
         let digest = anchor.trusted_digest(height).await.unwrap();
         assert_eq!(digest.height, height);
-        assert_eq!(digest.accumulator, acc);
+        assert_eq!(digest.accumulator, expected.accumulator);
 
         assert_eq!(
             anchor.trusted_node_identities_hash(height).await.unwrap(),
-            node_hash
+            expected.node_identities_hash
         );
+    }
+
+    mod verified_directory {
+        use super::*;
+        use crate::verify::recompute_accumulator;
+        use nym_directory_attestation::node_identities_hash;
+        use nym_directory_attestation::source::mock::MockAttestationSource;
+        use nym_directory_contract_common::{CuratedEntry, DirectoryEntryRecord, NodeEntry};
+        use nym_mixnet_contract_common::NodeId;
+
+        // a directory whose recomputed accumulator + node-identities hash are self-consistent,
+        // so a snapshot committing exactly these values verifies against it
+        fn consistent_directory(
+            node_kp: &ed25519::KeyPair,
+        ) -> (
+            Vec<DirectoryEntryRecord>,
+            BTreeMap<NodeId, ed25519::PublicKey>,
+            LtHash16,
+            [u8; 32],
+        ) {
+            let records = vec![
+                DirectoryEntryRecord::new_curated(
+                    "nym-api/1".to_string(),
+                    CuratedEntry {
+                        data: b"curated".to_vec().into(),
+                    },
+                ),
+                DirectoryEntryRecord::new_node(
+                    1,
+                    "sphinx_key".to_string(),
+                    NodeEntry {
+                        data: b"key".to_vec().into(),
+                        updated_at_height: 0,
+                        sequence: 0,
+                        signature: vec![0u8; 64].into(),
+                    },
+                ),
+            ];
+            let accumulator = recompute_accumulator(&records);
+            let identities = BTreeMap::from([(1, *node_kp.public_key())]);
+            let identities_hash = node_identities_hash(&identities);
+            (records, identities, accumulator, identities_hash)
+        }
+
+        fn snapshot_with(height: Height, accumulator: LtHash16, nih: [u8; 32]) -> DigestSnapshot {
+            DigestSnapshot {
+                chain_id: mock_chain_id(),
+                directory_contract: mock_contract(0),
+                height,
+                app_hash: mock_app_hash(1),
+                accumulator,
+                node_identities_hash: nih,
+            }
+        }
+
+        // a source serving `snapshot` (so the quorum can form) and `data` as its directory
+        fn dir_source(
+            kp: &ed25519::KeyPair,
+            height: Height,
+            snapshot: &DigestSnapshot,
+            data: DirectorySnapshotData,
+        ) -> MockAttestationSource {
+            let signed = snapshot.clone().signed(kp);
+            MockAttestationSource::new(
+                *kp.public_key(),
+                signed.clone(),
+                HashMap::from([(height, signed)]),
+            )
+            .with_directory_data(height, data)
+        }
+
+        #[tokio::test]
+        async fn returns_the_verified_directory_on_the_happy_path() {
+            let a = dummy_ed25519_keypair(1);
+            let b = dummy_ed25519_keypair(2);
+            let node = dummy_ed25519_keypair(10);
+            let height = Height::from(100u32);
+
+            let (records, identities, accumulator, nih) = consistent_directory(&node);
+            let snapshot = snapshot_with(height, accumulator.clone(), nih);
+            let data = DirectorySnapshotData {
+                height,
+                records,
+                node_identities: identities,
+            };
+
+            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+            let sources = vec![
+                dir_source(&a, height, &snapshot, data.clone()),
+                dir_source(&b, height, &snapshot, data.clone()),
+            ];
+            let anchor =
+                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                    .unwrap();
+
+            let verified = anchor.verified_directory(height).await.unwrap();
+            assert_eq!(verified.height, height);
+            assert_eq!(verified.accumulator, accumulator);
+            assert_eq!(verified.curated_entries.len(), 1);
+            assert_eq!(verified.node_entries.len(), 1);
+        }
+
+        #[tokio::test]
+        async fn fails_closed_when_every_source_serves_tampered_data() {
+            let a = dummy_ed25519_keypair(1);
+            let b = dummy_ed25519_keypair(2);
+            let node = dummy_ed25519_keypair(10);
+            let height = Height::from(100u32);
+
+            let (records, identities, accumulator, nih) = consistent_directory(&node);
+            let snapshot = snapshot_with(height, accumulator, nih);
+
+            // an extra entry the trusted accumulator does not commit to
+            let mut tampered = records.clone();
+            tampered.push(DirectoryEntryRecord::new_curated(
+                "nym-api/2".to_string(),
+                CuratedEntry {
+                    data: b"rogue".to_vec().into(),
+                },
+            ));
+            let bad = DirectorySnapshotData {
+                height,
+                records: tampered,
+                node_identities: identities,
+            };
+
+            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+            let sources = vec![
+                dir_source(&a, height, &snapshot, bad.clone()),
+                dir_source(&b, height, &snapshot, bad.clone()),
+            ];
+            let anchor =
+                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                    .unwrap();
+
+            let err = anchor.verified_directory(height).await.unwrap_err();
+            assert!(matches!(err, DirectoryClientError::DigestMismatch));
+        }
+
+        #[tokio::test]
+        async fn skips_a_source_serving_bad_data_for_one_serving_good_data() {
+            let a = dummy_ed25519_keypair(1);
+            let b = dummy_ed25519_keypair(2);
+            let node = dummy_ed25519_keypair(10);
+            let height = Height::from(100u32);
+
+            let (records, identities, accumulator, nih) = consistent_directory(&node);
+            let snapshot = snapshot_with(height, accumulator, nih);
+            let good = DirectorySnapshotData {
+                height,
+                records: records.clone(),
+                node_identities: identities.clone(),
+            };
+
+            let mut tampered = records;
+            tampered.push(DirectoryEntryRecord::new_curated(
+                "nym-api/2".to_string(),
+                CuratedEntry {
+                    data: b"rogue".to_vec().into(),
+                },
+            ));
+            let bad = DirectorySnapshotData {
+                height,
+                records: tampered,
+                node_identities: identities,
+            };
+
+            // first source (a) serves tampered data, second (b) serves good data: the anchor
+            // must recompute against a's data, reject it, and retry b rather than fail
+            let trusted = HashSet::from([*a.public_key(), *b.public_key()]);
+            let sources = vec![
+                dir_source(&a, height, &snapshot, bad),
+                dir_source(&b, height, &snapshot, good),
+            ];
+            let anchor =
+                AttestedTrustAnchor::new(sources, trusted, 2, mock_chain_id(), mock_contract(0))
+                    .unwrap();
+
+            let verified = anchor.verified_directory(height).await.unwrap();
+            assert_eq!(verified.curated_entries.len(), 1);
+            assert_eq!(verified.node_entries.len(), 1);
+        }
     }
 }

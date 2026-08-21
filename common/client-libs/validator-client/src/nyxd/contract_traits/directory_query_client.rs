@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use nym_mixnet_contract_common::NodeId;
 use serde::Deserialize;
 
+use nym_directory_contract_common::SnapshotIntervalResponse;
 pub use nym_directory_contract_common::{
     msg::QueryMsg as DirectoryQueryMsg, AllEntriesPagedResponse, AllowedLabelsResponse,
     AnnotatedNodeLabelEntry, CuratedEntriesPagedResponse, CuratedEntry, CuratedEntryResponse,
@@ -89,6 +90,11 @@ pub trait DirectoryQueryClient {
         self.query_directory_contract(DirectoryQueryMsg::AllowedLabels {})
             .await
     }
+
+    async fn get_snapshot_interval(&self) -> Result<SnapshotIntervalResponse, NyxdError> {
+        self.query_directory_contract(DirectoryQueryMsg::SnapshotInterval {})
+            .await
+    }
 }
 
 // extension trait for paged queries
@@ -160,6 +166,7 @@ mod tests {
             DirectoryQueryMsg::Sequence { node_id } => client.get_sequence(node_id).ignore(),
             DirectoryQueryMsg::Digest {} => client.get_digest().ignore(),
             DirectoryQueryMsg::AllowedLabels {} => client.get_allowed_labels().ignore(),
+            DirectoryQueryMsg::SnapshotInterval {} => client.get_snapshot_interval().ignore(),
         };
     }
 }

@@ -72,6 +72,9 @@ pub enum DirectoryContractError {
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },
 
+    #[error("The directory snapshot interval must be greater than 0")]
+    InvalidSnapshotInterval,
+
     /// Wraps `cw-controllers::Admin` errors (e.g. caller is not the admin).
     #[error(transparent)]
     Admin(#[from] AdminError),

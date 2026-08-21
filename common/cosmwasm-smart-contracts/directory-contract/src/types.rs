@@ -35,11 +35,17 @@ impl Namespace {
 /// sequence makes the signature independently re-verifiable - the signed message is
 /// `(node_id, label, sequence, data)` - and both are committed to the digest, so an
 /// entry is self-authenticating and the directory is auditable from current state alone.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct NodeEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub data: Binary,
+
     pub updated_at_height: u64,
+
     pub sequence: u64,
+
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub signature: Binary,
 }
 
@@ -86,8 +92,10 @@ impl NodeEntry {
 }
 
 /// An admin-curated entry: opaque bytes (the authority is the contract admin).
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub struct CuratedEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub data: Binary,
 }
 
@@ -123,7 +131,8 @@ pub struct LabelConfig {
 /// added after a consumer was built fall through as unknown (see
 /// [`KnownLabel::from_str`]) and are handled as opaque bytes.
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[cw_serde]
+#[derive(Copy, Ord, Eq, PartialOrd)]
 pub enum KnownLabel {
     /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
     /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous
@@ -344,6 +353,7 @@ impl EntryKey {
 }
 
 /// One directory entry together with its key, as yielded by the global enumeration.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[cw_serde]
 pub enum DirectoryEntryRecord {
     /// A self-published node entry, keyed `(node_id, label)`.
@@ -430,6 +440,11 @@ pub struct AllEntriesPagedResponse {
     pub entries: Vec<DirectoryEntryRecord>,
     /// Cursor to pass as the next `start_after`, or `None` when exhausted.
     pub start_next_after: Option<EntryKey>,
+}
+
+#[cw_serde]
+pub struct SnapshotIntervalResponse {
+    pub interval: u32,
 }
 
 #[cfg(test)]

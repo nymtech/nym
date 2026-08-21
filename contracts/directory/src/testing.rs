@@ -66,6 +66,7 @@ impl TestableNymContract for DirectoryContract {
         builder
             .instantiate::<Self>(Some(InstantiateMsg {
                 mixnet_contract_address: mixnet_address.to_string(),
+                snapshot_interval: None,
                 initial_labels: vec![],
             }))
             .build()
@@ -125,6 +126,7 @@ pub(crate) fn init_contract_tester_with_node_families() -> ContractTester<Direct
     let mut tester = builder
         .instantiate::<DirectoryContract>(Some(InstantiateMsg {
             mixnet_contract_address: mixnet_address.to_string(),
+            snapshot_interval: None,
             initial_labels: vec![],
         }))
         .build()

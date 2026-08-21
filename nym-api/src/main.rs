@@ -10,6 +10,7 @@ use support::nyxd;
 use tracing::{info, trace};
 
 mod circulating_supply_api;
+mod directory;
 mod ecash;
 mod epoch_operations;
 mod key_rotation;

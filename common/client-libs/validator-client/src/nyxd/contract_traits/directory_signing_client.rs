@@ -157,6 +157,20 @@ pub trait DirectorySigningClient {
         )
         .await
     }
+
+    async fn update_snapshot_interval(
+        &self,
+        interval: u32,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_directory_contract(
+            fee,
+            DirectoryExecuteMsg::UpdateSnapshotInterval { interval },
+            "DirectoryContract::UpdateSnapshotInterval".to_string(),
+            vec![],
+        )
+        .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -196,7 +210,6 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
-    use nym_directory_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -233,8 +246,11 @@ mod tests {
             }
             DirectoryExecuteMsg::RemoveLabel { label } => client.remove_label(label, None).ignore(),
             DirectoryExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
-            ExecuteMsg::OnNymNodeUnbond { node_id } => {
+            DirectoryExecuteMsg::OnNymNodeUnbond { node_id } => {
                 client.on_nym_node_unbond(node_id, None).ignore()
+            }
+            DirectoryExecuteMsg::UpdateSnapshotInterval { interval } => {
+                client.update_snapshot_interval(interval, None).ignore()
             }
         };
     }

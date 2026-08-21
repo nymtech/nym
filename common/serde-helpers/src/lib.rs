@@ -1,48 +1,72 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// note: "use 'serde_with' alongside '#[serde_as(as = 'Base64')]' instead"
 #[cfg(feature = "base64")]
 pub mod base64 {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
-    use serde::{Deserialize, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs, base64::Base64};
 
-    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&STANDARD.encode(bytes))
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        Base64: SerializeAs<T>,
+        S: Serializer,
+    {
+        Base64::serialize_as(value, serializer)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
-        let s = <String>::deserialize(deserializer)?;
-        STANDARD.decode(s).map_err(serde::de::Error::custom)
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        Base64: DeserializeAs<'de, T>,
+        D: Deserializer<'de>,
+    {
+        Base64::deserialize_as(deserializer)
     }
 }
 
+// note: "use 'serde_with' alongside '#[serde_as(as = 'Base58')]' instead"
 #[cfg(feature = "bs58")]
 pub mod bs58 {
-    use serde::{Deserialize, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs, base58::Base58};
 
-    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&::bs58::encode(bytes).into_string())
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        Base58: SerializeAs<T>,
+        S: Serializer,
+    {
+        Base58::serialize_as(value, serializer)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        ::bs58::decode(&s)
-            .into_vec()
-            .map_err(serde::de::Error::custom)
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        Base58: DeserializeAs<'de, T>,
+        D: Deserializer<'de>,
+    {
+        Base58::deserialize_as(deserializer)
     }
 }
 
+// note: "use 'serde_with' alongside '#[serde_as(as = 'Hex')]' instead"
 #[cfg(feature = "hex")]
 pub mod hex {
-    use serde::{Deserialize, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs, hex::Hex};
 
-    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&::hex::encode(bytes))
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        Hex: SerializeAs<T>,
+        S: Serializer,
+    {
+        Hex::serialize_as(value, serializer)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        ::hex::decode(&s).map_err(serde::de::Error::custom)
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        Hex: DeserializeAs<'de, T>,
+        D: Deserializer<'de>,
+    {
+        Hex::deserialize_as(deserializer)
     }
 }
 

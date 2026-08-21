@@ -23,6 +23,7 @@ fn formatted_time() -> String {
     // note: the reason for this very particular format is a very simple one
     // it's what we've always been using since we copied it from the example,
     // so feel free to update it to whatever
+    #[allow(deprecated)]
     let format =
         format_description::parse("[[[year]-[month]-[day]][[[hour]:[minute]:[second]]").unwrap();
     _now.format(&format).unwrap()

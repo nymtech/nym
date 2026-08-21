@@ -9,6 +9,10 @@
 /// against an admin fat-finger, on top of the chain's own transaction-size limit.
 pub const MAX_LABEL_SIZE_CEILING: u32 = 128 * 1024;
 
+/// Default snapshotting interval, in blocks.
+/// With ~6s block time, it works out to around every 10 minutes.
+pub const DEFAULT_SNAPSHOT_INTERVAL: u32 = 100;
+
 /// Event types and attribute keys emitted by the contract's execute handlers.
 pub mod events {
     /// Emitted on a successful node-entry write.
@@ -38,6 +42,9 @@ pub mod events {
 pub mod storage_keys {
     /// `Admin` (cw-controllers): admin allowed to perform privileged operations.
     pub const CONTRACT_ADMIN: &str = "contract-admin";
+
+    /// `Item<u64>`: the directory snapshotting interval, in blocks.
+    pub const SNAPSHOT_INTERVAL: &str = "snapshot-interval";
 
     /// `Item<Addr>`: address of the mixnet contract used to validate node existence.
     pub const MIXNET_CONTRACT_ADDRESS: &str = "mixnet-contract-address";

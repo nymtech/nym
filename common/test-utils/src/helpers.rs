@@ -101,3 +101,9 @@ pub fn setup_test_logger() {
         )
         .init();
 }
+
+#[cfg(feature = "crypto-helpers")]
+pub fn dummy_ed25519_keypair(seed: u64) -> nym_crypto::asymmetric::ed25519::KeyPair {
+    let mut rng = u64_seeded_rng(seed);
+    nym_crypto::asymmetric::ed25519::KeyPair::new(&mut rng)
+}

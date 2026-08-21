@@ -21,9 +21,13 @@ tokio = { workspace = true, features = ["sync", "time", "rt"] }
 tracing = { workspace = true }
 
 nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-crypto = { workspace = true, features = ["rand", "asymmetric"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+
+[features]
+crypto-helpers = ["nym-crypto"]
 
 [lints]
 workspace = true

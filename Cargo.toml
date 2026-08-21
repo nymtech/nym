@@ -190,6 +190,7 @@ members = [
     "nym-geolocator",
     "nym-geolocator/nym-geolocator-requests",
     "common/nym-directory-client",
+    "common/directory-attestation",
 ]
 
 default-members = [
@@ -371,7 +372,7 @@ serde_derive = "1.0"
 serde_json = { version = "1.0.140", features = ["float_roundtrip"] }
 serde_json_path = "0.7.2"
 serde_repr = "0.1"
-serde_with = "3.9.0"
+serde_with = "3.21.0"
 serde_yaml = "0.9.25"
 serde_plain = "1.0.2"
 sha2 = "0.10.3"
@@ -471,6 +472,8 @@ nym-credentials-interface = { version = "1.21.5", path = "common/credentials-int
 nym-credential-proxy-requests = { version = "1.21.5", path = "nym-credential-proxy/nym-credential-proxy-requests", default-features = false }
 nym-credential-verification = { version = "1.21.5", path = "common/credential-verification" }
 nym-crypto = { version = "1.21.5", path = "common/crypto", default-features = false }
+nym-directory-attestation = { version = "1.21.5", path = "common/directory-attestation" }
+nym-directory-client = { version = "1.21.5", path = "common/nym-directory-client" }
 nym-dkg = { version = "1.21.5", path = "common/dkg" }
 nym-ecash-contract-common = { version = "1.21.5", path = "common/cosmwasm-smart-contracts/ecash-contract" }
 nym-ecash-signer-check = { version = "1.21.5", path = "common/ecash-signer-check" }

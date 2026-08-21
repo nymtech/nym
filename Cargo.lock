@@ -5929,6 +5929,8 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-directory-attestation",
+ "nym-directory-client",
  "nym-dkg",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",
@@ -5995,6 +5997,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-directory-contract-common",
  "nym-ecash-signer-check-types",
  "nym-ecash-time",
  "nym-kkt-ciphersuite",
@@ -6008,6 +6011,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
+ "serde_with",
  "sha2 0.10.9",
  "strum 0.28.0",
  "strum_macros 0.28.0",
@@ -6875,8 +6879,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-attestation"
+version = "1.21.5"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "cosmrs",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract-common",
+ "nym-test-utils",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.19",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-directory-client"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6886,7 +6909,9 @@ dependencies = [
  "futures",
  "ics23",
  "nym-crypto",
+ "nym-directory-attestation",
  "nym-directory-contract-common",
+ "nym-http-api-client",
  "nym-lthash",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
@@ -6912,6 +6937,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "thiserror 2.0.19",
+ "utoipa",
 ]
 
 [[package]]
@@ -8510,11 +8536,9 @@ dependencies = [
 name = "nym-serde-helpers"
 version = "1.21.5"
 dependencies = [
- "base64 0.22.1",
- "bs58",
- "hex",
  "serde",
  "serde_json",
+ "serde_with",
  "time",
 ]
 
@@ -9084,6 +9108,7 @@ dependencies = [
  "anyhow",
  "futures",
  "nym-bin-common",
+ "nym-crypto",
  "rand_chacha 0.10.0",
  "rand_chacha 0.3.1",
  "tokio",
@@ -9217,6 +9242,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
+ "nym-directory-attestation",
  "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",

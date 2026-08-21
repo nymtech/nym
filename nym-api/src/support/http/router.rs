@@ -12,7 +12,7 @@ use crate::unstable_routes::v1::unstable_routes_v1;
 use crate::unstable_routes::v2::unstable_routes_v2;
 use crate::unstable_routes::v3::unstable_routes_v3;
 use crate::utility_routes::utility_routes;
-use crate::{network, nym_nodes, status};
+use crate::{directory, network, nym_nodes, status};
 use anyhow::anyhow;
 use axum::response::Redirect;
 use axum::routing::get;
@@ -50,6 +50,7 @@ impl RouterBuilder {
             .nest("/api-status", status::handlers::api_status_routes())
             .nest("/nym-nodes", nym_nodes::handlers::v1::routes())
             .nest("/node-families", node_families_handlers::routes())
+            .nest("/directory", directory::handlers::routes())
             .nest("/ecash", ecash_routes())
             .nest("/unstable", unstable_routes_v1())
             .nest("/legacy", legacy_nodes_routes()); // CORS layer needs to be "outside" of routes

@@ -160,6 +160,9 @@ pub struct Config {
     #[serde(alias = "coconut_signer")]
     pub ecash_signer: EcashSigner,
 
+    #[serde(default)]
+    pub directory: DirectoryConfig,
+
     #[serde(skip)]
     pub address_cache: AddressCacheConfig,
 }
@@ -186,6 +189,7 @@ impl Config {
             rewarding: Default::default(),
             signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
+            directory: Default::default(),
             address_cache: Default::default(),
         }
     }
@@ -942,6 +946,48 @@ impl Default for EcashSignerDebug {
             verified_tickets_retention_period_days:
                 Self::DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS,
             maximum_size_of_data_request: Self::MAXIMUM_SIZE_OF_DATA_REQUEST,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize, Default)]
+#[serde(default)]
+pub struct DirectoryConfig {
+    pub debug: DirectoryConfigDebug,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct DirectoryConfigDebug {
+    /// Number of snapshots to keep
+    pub retention_count: usize,
+
+    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
+    pub settle_lag: usize,
+
+    /// Specifies whether the RPC node this api is connected to is trusted.
+    /// It controls method of anchoring directory trust.
+    pub trusted_rpc_node: bool,
+
+    /// How often the chain should be polled for the current height
+    /// and consequently for whether new snapshot should be taken
+    #[serde(with = "humantime_serde")]
+    pub polling_interval: Duration,
+}
+
+impl DirectoryConfigDebug {
+    pub const DEFAULT_RETENTION_COUNT: usize = 3;
+    pub const DEFAULT_SETTLE_LAG: usize = 10;
+    pub const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
+}
+
+impl Default for DirectoryConfigDebug {
+    fn default() -> Self {
+        DirectoryConfigDebug {
+            retention_count: Self::DEFAULT_RETENTION_COUNT,
+            settle_lag: Self::DEFAULT_SETTLE_LAG,
+            trusted_rpc_node: true,
+            polling_interval: Self::DEFAULT_POLLING_INTERVAL,
         }
     }
 }

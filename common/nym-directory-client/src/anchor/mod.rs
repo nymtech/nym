@@ -17,7 +17,6 @@ mod helpers;
 pub mod light_client;
 pub mod proven;
 
-pub use attested::{AttestationSource, AttestedTrustAnchor, DigestSnapshot, SignedDigestSnapshot};
 #[cfg(feature = "light-client")]
 pub use light_client::{LightClientAnchor, nyx_default_options};
 
@@ -85,4 +84,15 @@ pub trait DirectoryTrustAnchor {
     /// The directory digest trusted at `height` (in proven mode, an ICS23 membership proof
     /// of the digest item against [`Self::trusted_app_hash`]).
     async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError>;
+}
+
+#[async_trait]
+impl<T: DirectoryTrustAnchor + Send + Sync + ?Sized> DirectoryTrustAnchor for Box<T> {
+    async fn trusted_app_hash(&self, height: Height) -> Result<AppHash, DirectoryClientError> {
+        (**self).trusted_app_hash(height).await
+    }
+
+    async fn trusted_digest(&self, height: Height) -> Result<TrustedDigest, DirectoryClientError> {
+        (**self).trusted_digest(height).await
+    }
 }

@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AllowedLabelsResponse",
+  "type": "object",
+  "required": [
+    "labels"
+  ],
+  "properties": {
+    "labels": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/LabelEntry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "LabelConfig": {
+      "description": "Per-label policy.",
+      "type": "object",
+      "required": [
+        "max_size"
+      ],
+      "properties": {
+        "max_size": {
+          "description": "Maximum permitted `data` length, in bytes, for entries under this label.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "LabelEntry": {
+      "description": "One whitelisted label together with its policy.",
+      "type": "object",
+      "required": [
+        "config",
+        "label"
+      ],
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/LabelConfig"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

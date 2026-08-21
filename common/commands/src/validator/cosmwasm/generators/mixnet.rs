@@ -34,6 +34,9 @@ pub struct Args {
     pub node_families_contract_address: Option<AccountId>,
 
     #[clap(long)]
+    pub directory_contract_address: Option<AccountId>,
+
+    #[clap(long)]
     pub geolocation_contract_address: Option<AccountId>,
 
     #[clap(long)]
@@ -144,6 +147,13 @@ pub async fn generate(args: Args) {
             .expect("Failed converting node families contract address to AccountId")
     });
 
+    let directory_contract_address = args.directory_contract_address.unwrap_or_else(|| {
+        let address = std::env::var(nym_network_defaults::var_names::DIRECTORY_CONTRACT_ADDRESS)
+            .expect("directory contract address has to be set");
+        AccountId::from_str(address.as_str())
+            .expect("Failed converting directory contract address to AccountId")
+    });
+
     let geolocation_contract_address = args.geolocation_contract_address.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::GEOLOCATION_CONTRACT_ADDRESS)
             .expect("geolocation contract address has to be set");
@@ -164,6 +174,7 @@ pub async fn generate(args: Args) {
         rewarding_validator_address: rewarding_validator_address.to_string(),
         vesting_contract_address: vesting_contract_address.to_string(),
         node_families_contract_address: node_families_contract_address.to_string(),
+        directory_contract_address: directory_contract_address.to_string(),
         geolocation_contract_address: geolocation_contract_address.to_string(),
         rewarding_denom,
         epochs_in_interval: args.epochs_in_interval,

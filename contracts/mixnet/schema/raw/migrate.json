@@ -3,9 +3,13 @@
   "title": "MigrateMsg",
   "type": "object",
   "required": [
+    "directory_contract_address",
     "geolocation_contract_address"
   ],
   "properties": {
+    "directory_contract_address": {
+      "type": "string"
+    },
     "geolocation_contract_address": {
       "type": "string"
     },

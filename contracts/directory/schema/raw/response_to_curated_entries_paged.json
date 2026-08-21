@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CuratedEntriesPagedResponse",
+  "description": "A page of curated entries.",
+  "type": "object",
+  "required": [
+    "entries"
+  ],
+  "properties": {
+    "entries": {
+      "description": "Entries in ascending key order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CuratedLabelEntry"
+      }
+    },
+    "start_next_after": {
+      "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "CuratedEntry": {
+      "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CuratedLabelEntry": {
+      "description": "A `(label, entry)` pair belonging to a curated entry.",
+      "type": "object",
+      "required": [
+        "entry",
+        "label"
+      ],
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/CuratedEntry"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

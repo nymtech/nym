@@ -5,7 +5,9 @@ use crate::contract::{execute, instantiate, migrate, query};
 use crate::storage::NYM_PERFORMANCE_CONTRACT_STORAGE;
 use cosmwasm_std::testing::{mock_env, MockApi};
 use cosmwasm_std::{Addr, ContractInfo, Deps, DepsMut, Env, QuerierWrapper, StdError, StdResult};
-use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
+use mixnet_contract::testable_mixnet_contract::{
+    EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
+};
 use nym_contracts_common::Percent;
 use nym_contracts_common_testing::{
     addr, AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt,
@@ -83,7 +85,7 @@ pub fn init_contract_tester() -> ContractTester<PerformanceContract> {
     // remove placeholder addresses for node families and geolocation contracts from the mixnet
     // contract so that their on unbond hooks don't get invoked
     tester
-        .set_mixnet_sibling_contracts(None.into(), None.into())
+        .set_mixnet_sibling_contracts(MixnetContractSiblings::default().with_clear_all())
         .expect("should be able to patch mixnet contract state");
 
     tester

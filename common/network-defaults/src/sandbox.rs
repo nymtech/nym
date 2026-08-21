@@ -31,17 +31,14 @@ pub const MULTISIG_CONTRACT_ADDRESS: &str =
     "n1tz0setr8vkh9udp8xyxgpqc89ns27k4d0jx2h942hr0ax63yjhmqz6xct8";
 pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1v3n2ly2dp3a9ng3ff6rh26yfkn0pc5hed7w2shc5u9ca5c865utqj5elvh";
-
-// \/ TODO: this has to be updated once the contract is deployed
-pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
-pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
-// /\ TODO: this has to be updated once the contract is deployed
-
+pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
+    "n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z";
 pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1x5krtvyqklj360x38v62ze42g8s8trfsfqzlv8c9296chcpvqadssqnem5";
 
-pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
-    "n13clyapdqk5umyynp20kqwf59rxlwlp24yf2ltzasflhsdhrxq7fsahyr6z";
+pub const PERFORMANCE_CONTRACT_ADDRESS: &str = "";
+pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
+pub const DIRECTORY_CONTRACT_ADDRESS: &str = "";
 
 pub const NYXD_URL: &str = "https://validator-sandbox-1.nymtech.net";
 pub const NYXD_WS: &str = "wss://validator-sandbox-1.nymtech.net/websocket";
@@ -111,6 +108,7 @@ pub fn network_details() -> NymNetworkDetails {
                 NETWORK_MONITORS_CONTRACT_ADDRESS,
             ),
             node_families_contract_address: parse_optional_str(NODE_FAMILIES_CONTRACT_ADDRESS),
+            directory_contract_address: parse_optional_str(DIRECTORY_CONTRACT_ADDRESS),
             geolocation_contract_address: parse_optional_str(GEOLOCATION_CONTRACT_ADDRESS),
             ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),

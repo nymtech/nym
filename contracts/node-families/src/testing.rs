@@ -9,7 +9,9 @@ use crate::contract::{execute, instantiate, migrate, query};
 use crate::helpers::{normalise_family_name, NewFamilyName};
 use crate::storage::NodeFamiliesStorage;
 use cosmwasm_std::{coin, Addr, Coin, Storage};
-use mixnet_contract::testable_mixnet_contract::{EmbeddedMixnetContractExt, MixnetContract};
+use mixnet_contract::testable_mixnet_contract::{
+    EmbeddedMixnetContractExt, MixnetContract, MixnetContractSiblings,
+};
 use nym_contracts_common_testing::{
     AdminExt, ArbitraryContractStorageReader, ArbitraryContractStorageWriter, BankExt, ChainOpts,
     CommonStorageKeys, ContractFn, ContractOpts, ContractTester, ContractTesterBuilder, DenomExt,
@@ -85,7 +87,11 @@ pub fn init_contract_tester() -> ContractTester<NodeFamiliesContract> {
     let families_address = tester.contract_address.clone();
 
     tester
-        .set_mixnet_sibling_contracts(Some(families_address).into(), None.into())
+        .set_mixnet_sibling_contracts(
+            MixnetContractSiblings::default()
+                .with_clear_all()
+                .with_node_families_contract(families_address),
+        )
         .expect("should be able to patch mixnet contract state");
 
     tester

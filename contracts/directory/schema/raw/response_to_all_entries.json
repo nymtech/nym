@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AllEntriesPagedResponse",
+  "description": "A page of the global entry enumeration across both namespaces - the input from which a client recomputes and verifies the digest.",
+  "type": "object",
+  "required": [
+    "entries"
+  ],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DirectoryEntryRecord"
+      }
+    },
+    "start_next_after": {
+      "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EntryKey"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "CuratedEntry": {
+      "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DirectoryEntry": {
+      "description": "A directory entry of either key-class - the unified in-memory / response type for the single entry store and mixed enumeration; the active variant matches the entry's [`Namespace`]. On-chain the concrete variant is determined by the key's namespace tag, so the raw-bytes value codec stores no redundant discriminant - this `cw_serde` enum is for JSON responses and in-memory use.",
+      "oneOf": [
+        {
+          "description": "A self-published node entry.",
+          "type": "object",
+          "required": [
+            "node_entry"
+          ],
+          "properties": {
+            "node_entry": {
+              "$ref": "#/definitions/NodeEntry"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "An admin-curated entry.",
+          "type": "object",
+          "required": [
+            "curated_entry"
+          ],
+          "properties": {
+            "curated_entry": {
+              "$ref": "#/definitions/CuratedEntry"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DirectoryEntryRecord": {
+      "description": "One entry together with its key, as yielded by the global enumeration.",
+      "type": "object",
+      "required": [
+        "entry",
+        "key"
+      ],
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/DirectoryEntry"
+        },
+        "key": {
+          "$ref": "#/definitions/EntryKey"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EntryKey": {
+      "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
+      "oneOf": [
+        {
+          "description": "A self-published node entry, keyed `(node_id, label)`.",
+          "type": "object",
+          "required": [
+            "node"
+          ],
+          "properties": {
+            "node": {
+              "type": "object",
+              "required": [
+                "label",
+                "node_id"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "node_id": {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+          "type": "object",
+          "required": [
+            "curated"
+          ],
+          "properties": {
+            "curated": {
+              "type": "object",
+              "required": [
+                "key"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "NodeEntry": {
+      "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+      "type": "object",
+      "required": [
+        "data",
+        "sequence",
+        "signature",
+        "updated_at_height"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "signature": {
+          "$ref": "#/definitions/Binary"
+        },
+        "updated_at_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

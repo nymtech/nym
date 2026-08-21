@@ -36,6 +36,7 @@ members = [
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/contracts-common-testing",
+    "common/cosmwasm-smart-contracts/directory-contract",
     "common/cosmwasm-smart-contracts/easy_addr",
     "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
@@ -459,6 +460,7 @@ nym-common = { version = "1.21.5", path = "common/nym-common" }
 nym-compact-ecash = { version = "1.21.5", path = "common/nym_offline_compact_ecash" }
 nym-config = { version = "1.21.5", path = "common/config" }
 nym-contracts-common = { version = "1.21.5", path = "common/cosmwasm-smart-contracts/contracts-common" }
+nym-directory-contract-common = { version = "1.21.5", path = "common/cosmwasm-smart-contracts/directory-contract" }
 nym-coconut-dkg-common = { version = "1.21.5", path = "common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-credential-storage = { version = "1.21.5", path = "common/credential-storage" }
 nym-credential-proxy-lib = { version = "1.21.5", path = "common/credential-proxy" }

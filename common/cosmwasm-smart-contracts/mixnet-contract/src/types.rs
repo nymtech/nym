@@ -220,6 +220,10 @@ pub struct ContractState {
     /// so that its geolocation data could be removed from the underlying storage.
     pub geolocation_contract_address: Option<Addr>,
 
+    /// Address of the directory contract. It is called whenever nym-node unbonds,
+    /// so that it directory data could be removed from the underlying storage.
+    pub directory_contract_address: Option<Addr>,
+
     /// The expected denom used for rewarding (and realistically any other operation).
     /// Default: `unym`
     pub rewarding_denom: String,

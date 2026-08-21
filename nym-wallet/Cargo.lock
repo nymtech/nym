@@ -5163,6 +5163,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-contract-common"
+version = "1.21.3"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-ecash-contract-common"
 version = "1.21.5"
 dependencies = [
@@ -5545,6 +5558,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
+ "nym-directory-contract-common",
  "nym-ecash-contract-common",
  "nym-geolocation-contract-common",
  "nym-group-contract-common",

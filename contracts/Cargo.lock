@@ -1098,6 +1098,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
@@ -1227,6 +1228,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-directory-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "node-families",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
+]
+
+[[package]]
+name = "nym-directory-contract-common"
+version = "1.21.5"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-ecash"
 version = "0.1.0"
 dependencies = [
@@ -1290,7 +1327,7 @@ dependencies = [
 
 [[package]]
 name = "nym-geolocation-contract-common"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1314,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "nym-lthash"
-version = "1.21.5-rc.3"
+version = "1.21.5"
 dependencies = [
  "blake3",
  "digest",
@@ -1335,6 +1372,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract-common",
  "nym-geolocation-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",

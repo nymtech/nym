@@ -8,6 +8,7 @@
     "type": "object",
     "required": [
       "current_nym_node_version",
+      "directory_contract_address",
       "epoch_duration",
       "epochs_in_interval",
       "geolocation_contract_address",
@@ -19,6 +20,9 @@
     ],
     "properties": {
       "current_nym_node_version": {
+        "type": "string"
+      },
+      "directory_contract_address": {
         "type": "string"
       },
       "epoch_duration": {
@@ -3611,9 +3615,13 @@
     "title": "MigrateMsg",
     "type": "object",
     "required": [
+      "directory_contract_address",
       "geolocation_contract_address"
     ],
     "properties": {
+      "directory_contract_address": {
+        "type": "string"
+      },
       "geolocation_contract_address": {
         "type": "string"
       },
@@ -10893,6 +10901,17 @@
         "vesting_contract_address"
       ],
       "properties": {
+        "directory_contract_address": {
+          "description": "Address of the directory contract. It is called whenever nym-node unbonds, so that it directory data could be removed from the underlying storage.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "geolocation_contract_address": {
           "description": "Address of the geolocation contract. It is called whenever nym-node unbonds, so that its geolocation data could be removed from the underlying storage.",
           "anyOf": [

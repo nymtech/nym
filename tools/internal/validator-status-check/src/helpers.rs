@@ -33,6 +33,7 @@ pub(crate) async fn get_signer_status(raw_api_endpoint: &str) -> SignerStatus {
     info!("attempting to get signer status of {raw_api_endpoint}...");
     let mut status = SignerStatus::new(raw_api_endpoint.to_string());
 
+    status.try_update_signer_information().await;
     status.try_update_api_version().await;
     status.try_update_rpc_status().await;
     status

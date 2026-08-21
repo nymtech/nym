@@ -1,6 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_bin_common::bin_info;
+use nym_http_api_client::UserAgent;
+use nym_validator_client::ecash::models::EcashSignerStatusResponseBody;
 use nym_validator_client::nym_api::NymApiClientExt;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -15,6 +18,8 @@ pub(crate) struct SignerStatus {
     rpc_status: RpcStatus,
     used_rpc_endpoint: RpcEndpoint,
     abci_version: AbciVersion,
+
+    signer_status: Option<EcashSignerStatusResponseBody>,
 }
 
 impl Display for SignerStatus {
@@ -24,6 +29,7 @@ impl Display for SignerStatus {
         writeln!(f, "rpc_status: {}", self.rpc_status)?;
         writeln!(f, "used_rpc_endpoint: {}", self.used_rpc_endpoint)?;
         writeln!(f, "abci_version: {}", self.abci_version)?;
+        writeln!(f, "can issue credentials: {}", self.can_sign())?;
         Ok(())
     }
 }
@@ -36,7 +42,16 @@ impl SignerStatus {
             rpc_status: Default::default(),
             used_rpc_endpoint: Default::default(),
             abci_version: Default::default(),
+            signer_status: None,
         }
+    }
+
+    pub(crate) fn can_sign(&self) -> bool {
+        let Some(status) = &self.signer_status else {
+            return false;
+        };
+
+        status.has_signing_keys && !status.signer_disabled && status.is_ecash_signer
     }
 
     pub(crate) fn api_up(&self) -> bool {
@@ -58,6 +73,9 @@ impl SignerStatus {
 
         nym_http_api_client::Client::builder(api_endpoint)
             .ok()?
+            .no_hickory_dns()
+            .with_timeout(std::time::Duration::from_secs(1))
+            .with_user_agent(UserAgent::from(bin_info!()))
             .build()
             .ok()
     }
@@ -75,6 +93,23 @@ impl SignerStatus {
             Err(err) => {
                 error!(
                     "failed to retrieve build information of {}: {err}",
+                    self.api_endpoint
+                )
+            }
+        }
+    }
+
+    pub(crate) async fn try_update_signer_information(&mut self) {
+        let Some(client) = self.build_api_client() else {
+            return;
+        };
+        match client.get_signer_status().await {
+            Ok(signer_status) => {
+                self.signer_status = Some(signer_status.body);
+            }
+            Err(err) => {
+                error!(
+                    "failed to retrieve signer status of {}: {err}",
                     self.api_endpoint
                 )
             }
@@ -118,6 +153,7 @@ impl SignerStatus {
             self.rpc_status.as_cell(),
             self.used_rpc_endpoint.as_cell(),
             self.abci_version.as_cell(),
+            self.can_sign().to_string(),
         ]
     }
 }

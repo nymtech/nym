@@ -108,7 +108,7 @@ nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
 nym-directory-attestation = { workspace = true, features = ["utoipa"] }
-nym-directory-client = { workspace = true }
+nym-directory-client = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
 
 
 [features]

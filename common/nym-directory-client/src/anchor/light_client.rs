@@ -1,8 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::anchor::checkpoint::Checkpoint;
+use crate::anchor::checkpoint::NYX_TRUSTING_PERIOD;
+use crate::anchor::checkpoint::store::CheckpointStore;
 use crate::anchor::helpers::get_trusted_directory_digest;
-use crate::anchor::{Checkpoint, DirectoryTrustAnchor, TrustedDigest};
+use crate::anchor::{DirectoryTrustAnchor, TrustedDigest};
 use crate::error::DirectoryClientError;
 use async_trait::async_trait;
 use cosmrs::AccountId;
@@ -12,19 +15,18 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 use tendermint_light_client::light_client::Options;
 use tendermint_light_client::types::{
-    Hash, SignedHeader, Time, TrustThreshold, TrustedBlockState, UntrustedBlockState,
+    Hash, Time, TrustThreshold, TrustedBlockState, UntrustedBlockState,
 };
 use tendermint_light_client::verifier::{ProdVerifier, Verdict, Verifier};
 use tokio::sync::Mutex;
 use tracing::debug;
 
 /// Sane defaults for the Nym mainnet: trust threshold 1/3 (required for skip/bisection
-/// verification), trusting period of 14 days (below the 21-day unbonding period), and
-/// a 5-second clock-drift allowance.
+/// verification), the [`NYX_TRUSTING_PERIOD`], and a 5-second clock-drift allowance.
 pub fn nyx_default_options() -> Options {
     Options {
         trust_threshold: TrustThreshold::ONE_THIRD,
-        trusting_period: Duration::from_secs(14 * 24 * 60 * 60),
+        trusting_period: NYX_TRUSTING_PERIOD,
         clock_drift: Duration::from_secs(5),
     }
 }
@@ -62,12 +64,12 @@ impl TrustedAnchorState {
         }
     }
 
-    fn advance(&mut self, signed_header: SignedHeader, next_validators: ValidatorSet) {
-        self.chain_id = signed_header.header.chain_id.clone();
-        self.header_time = signed_header.header.time;
-        self.height = signed_header.header.height;
-        self.next_validators_hash = signed_header.header.next_validators_hash;
-        self.next_validators = next_validators;
+    fn advance(&mut self, checkpoint: &Checkpoint) {
+        self.chain_id = checkpoint.signed_header.header.chain_id.clone();
+        self.header_time = checkpoint.signed_header.header.time;
+        self.height = checkpoint.signed_header.header.height;
+        self.next_validators_hash = checkpoint.signed_header.header.next_validators_hash;
+        self.next_validators = checkpoint.next_validators.clone();
     }
 }
 
@@ -96,9 +98,14 @@ pub struct LightClientAnchor<C> {
     options: Options,
 
     verifier: ProdVerifier,
+
+    /// Optional write side: when present, the anchor persists its advanced head here (the read
+    /// side is the loader's stored provider). See [`CheckpointStore`].
+    store: Option<Box<dyn CheckpointStore>>,
 }
 
 impl<C> LightClientAnchor<C> {
+    /// Construct an anchor seeded from `checkpoint`, without head persistence.
     pub fn new(
         client: C,
         directory_contract: AccountId,
@@ -125,7 +132,15 @@ impl<C> LightClientAnchor<C> {
             }),
             options,
             verifier: ProdVerifier::default(),
+            store: None,
         }
+    }
+
+    /// Attach head persistence
+    #[must_use]
+    pub fn with_store<S: CheckpointStore + 'static>(mut self, store: S) -> Self {
+        self.store = Some(Box::new(store));
+        self
     }
 }
 
@@ -135,49 +150,16 @@ where
 {
     /// Verify the header at `target` directly against `base` via the Tendermint light-client rule.
     ///
-    /// Returns `Some((signed_header, next_validators))` on success (`next_validators` is the
-    /// set at `target + 1`, ready to become the new trusted state's next-validators),
-    /// `None` when the trusted validator overlap is insufficient (caller should bisect),
-    /// `Err` on hard verification failures or RPC errors.
+    /// Returns the verified block as a [`Checkpoint`] on success (carrying `target`'s signed
+    /// header, its own validator set, and the set at `target + 1` ready to become the new
+    /// trusted state's next-validators), `None` when the trusted validator overlap is
+    /// insufficient (caller should bisect), `Err` on hard verification failures or RPC errors.
     async fn verify_hop(
         &self,
         base: &TrustedAnchorState,
         target: Height,
-    ) -> Result<Option<(SignedHeader, ValidatorSet)>, DirectoryClientError> {
-        let commit_res = self.client.commit(target).await?;
-        if !commit_res.canonical {
-            return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
-        }
-        let validators = ValidatorSet::without_proposer(
-            self.client.get_all_validators(target).await?.validators,
-        );
-        // the new trusted state at `target` must carry the validator set of `target + 1` as its
-        // next-validators (that is what skip verification checks the next commit's overlap against).
-        let next = Height::from(target.value() as u32 + 1);
-        let next_validators =
-            ValidatorSet::without_proposer(self.client.get_all_validators(next).await?.validators);
-
-        // pass `next_validators` so the verifier ties it to the verified header's
-        // `next_validators_hash` (`next_validators_match`); otherwise the RPC-supplied set we
-        // store for the next skip hop would be trusted blindly.
-        let untrusted = UntrustedBlockState {
-            signed_header: &commit_res.signed_header,
-            validators: &validators,
-            next_validators: Some(&next_validators),
-        };
-        let trusted = base.as_trusted_block_state();
-        let now = Time::now();
-
-        match self
-            .verifier
-            .verify_update_header(untrusted, trusted, &self.options, now)
-        {
-            Verdict::Success => Ok(Some((commit_res.signed_header, next_validators))),
-            Verdict::NotEnoughTrust(_) => Ok(None),
-            Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
-                err.to_string(),
-            )),
-        }
+    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
+        verify_header_against(&self.client, &self.verifier, &self.options, base, target).await
     }
 
     /// Advance `base` forward to `target` using skip verification with bisection, caching every
@@ -187,30 +169,33 @@ where
     /// `NotEnoughTrust` it bisects: verifies the midpoint, advances `base` to it in place, then
     /// retries the target. Depth is O(log(target - base)). `base` is `&mut` so the below-head
     /// walk (over a local checkpoint clone) makes progress without touching the persisted head.
+    /// Returns the [`Checkpoint`] for the final verified `target` (so a caller advancing the real
+    /// head can persist it), or `None` if `base` was already at/past `target`.
     async fn walk_to(
         &self,
         base: &mut TrustedAnchorState,
         cache: &mut BTreeMap<Height, AppHash>,
         target: Height,
-    ) -> Result<(), DirectoryClientError> {
+    ) -> Result<Option<Checkpoint>, DirectoryClientError> {
         let current = base.height;
         if current >= target {
-            return Ok(());
+            return Ok(None);
         }
         debug!("light-client: advancing from {current} to {target}",);
 
-        if let Some((signed_header, next_validators)) = self.verify_hop(base, target).await? {
+        if let Some(checkpoint) = self.verify_hop(base, target).await? {
             // `header[target]` commits the app state at `target - 1` (CometBFT off-by-one); this
             // holds for any verified header, including bisection midpoints.
             cache.insert(
                 Height::from(target.value() as u32 - 1),
-                signed_header.header.app_hash.clone(),
+                checkpoint.signed_header.header.app_hash.clone(),
             );
-            base.advance(signed_header, next_validators);
-            return Ok(());
+            base.advance(&checkpoint);
+            return Ok(Some(checkpoint));
         }
 
-        // NotEnoughTrust: bisect.
+        // NotEnoughTrust: bisect. The midpoint's checkpoint is discarded; the final `target` walk
+        // yields the head checkpoint.
         let mid = Height::from((current.value() as u32 + target.value() as u32) / 2);
         debug!("light-client: bisecting [{current}, {target}] via midpoint {mid}");
         Box::pin(self.walk_to(base, cache, mid)).await?;
@@ -234,12 +219,21 @@ where
                     checkpoint: state.checkpoint.height.value(),
                 });
             }
+            // below the head: walk a throwaway clone; the head did not move, so nothing to persist
             let mut local = state.checkpoint.clone();
             self.walk_to(&mut local, &mut state.app_hash_cache, target)
-                .await
+                .await?;
+            Ok(())
         } else {
-            self.walk_to(&mut state.trusted, &mut state.app_hash_cache, target)
-                .await
+            // forward of the head: the head advances, so persist the new head (once per advance,
+            // not per bisection hop). A missing store is simply a no-op.
+            let head = self
+                .walk_to(&mut state.trusted, &mut state.app_hash_cache, target)
+                .await?;
+            if let (Some(store), Some(head)) = (&self.store, head) {
+                store.save(&head);
+            }
+            Ok(())
         }
     }
 }
@@ -274,6 +268,88 @@ where
     }
 }
 
+/// Core Tendermint light-client verification of the header at `target` against `base`, factored out
+/// of [`LightClientAnchor`] so a checkpoint can be validated without an anchor instance (and thus
+/// without a directory contract address). Returns the verified block as a [`Checkpoint`] on
+/// success, `None` on insufficient trust overlap (the anchor bisects), `Err` on hard failure.
+async fn verify_header_against<C>(
+    client: &C,
+    verifier: &ProdVerifier,
+    options: &Options,
+    base: &TrustedAnchorState,
+    target: Height,
+) -> Result<Option<Checkpoint>, DirectoryClientError>
+where
+    C: TendermintRpcClientExt + Send + Sync,
+{
+    let commit_res = client.commit(target).await?;
+    if !commit_res.canonical {
+        return Err(DirectoryClientError::NonCanonicalCommit(target.value()));
+    }
+    let validators =
+        ValidatorSet::without_proposer(client.get_all_validators(target).await?.validators);
+    // the new trusted state at `target` must carry the validator set of `target + 1` as its
+    // next-validators (that is what skip verification checks the next commit's overlap against).
+    let next = Height::from(target.value() as u32 + 1);
+    let next_validators =
+        ValidatorSet::without_proposer(client.get_all_validators(next).await?.validators);
+
+    // pass `next_validators` so the verifier ties it to the verified header's
+    // `next_validators_hash` (`next_validators_match`); otherwise the RPC-supplied set we
+    // store for the next skip hop would be trusted blindly.
+    let untrusted = UntrustedBlockState {
+        signed_header: &commit_res.signed_header,
+        validators: &validators,
+        next_validators: Some(&next_validators),
+    };
+    let trusted = base.as_trusted_block_state();
+    let now = Time::now();
+
+    match verifier.verify_update_header(untrusted, trusted, options, now) {
+        Verdict::Success => Ok(Some(Checkpoint {
+            height: target,
+            signed_header: commit_res.signed_header,
+            validators,
+            next_validators,
+        })),
+        Verdict::NotEnoughTrust(_) => Ok(None),
+        Verdict::Invalid(err) => Err(DirectoryClientError::LightClientVerificationFailed(
+            err.to_string(),
+        )),
+    }
+}
+
+/// Validate that `checkpoint` is a usable light-client seed by advancing exactly one hop forward -
+/// verifying block `checkpoint.height + 1` against it, with `client` as the block source - without
+/// constructing a [`LightClientAnchor`] (so callers need not supply a directory contract address).
+///
+/// This runs the real verification predicates: the fetched next block's commit must carry >2/3 of
+/// the checkpoint's `next_validators`' voting power, and that set must hash to the checkpoint
+/// header's `next_validators_hash`. A malformed, tampered, or non-chaining checkpoint is rejected.
+/// Returns the verified `height + 1` [`Checkpoint`].
+///
+/// Requires block `checkpoint.height + 2` to be committed (the verifier reads the next block's own
+/// next-validators). The offline minting tool ensures this by defaulting to `latest - 2`.
+pub async fn verify_checkpoint_advances_one_hop<C>(
+    client: &C,
+    checkpoint: &Checkpoint,
+    options: &Options,
+) -> Result<Checkpoint, DirectoryClientError>
+where
+    C: TendermintRpcClientExt + Send + Sync,
+{
+    let base: TrustedAnchorState = checkpoint.clone().into();
+    let target = Height::from(checkpoint.height.value() as u32 + 1);
+    verify_header_against(client, &ProdVerifier::default(), options, &base, target)
+        .await?
+        .ok_or_else(|| {
+            DirectoryClientError::LightClientVerificationFailed(
+                "checkpoint could not advance a single adjacent hop: insufficient validator overlap"
+                    .to_string(),
+            )
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,21 +364,10 @@ mod tests {
     // heights below are one apart: checkpoint at 24499896, adjacent block 24499897,
     // and a 10-block skip target 24499906. Fixtures are real `nyx` mainnet RPC responses.
 
-    const CHECKPOINT: u32 = 24499896;
+    use crate::test_support::{CHECKPOINT_HEIGHT, checkpoint, checkpoint_fixtures};
+
+    const CHECKPOINT: u32 = CHECKPOINT_HEIGHT;
     const FAR_FUTURE: Duration = Duration::from_secs(100000000);
-
-    // checkpoint at 24499896 with its own (24499896) and next-height (24499897) validator sets
-    fn checkpoint_fixtures() -> (commit::Response, validators::Response, validators::Response) {
-        // commit response at height 24499896
-        let commit = commit::Response::from_string(r#"{"jsonrpc":"2.0","id":-1,"result":{"signed_header":{"header":{"version":{"block":"11"},"chain_id":"nyx","height":"24499896","time":"2026-07-02T13:42:10.714384986Z","last_block_id":{"hash":"BE80352CD7A25BC761099C4380BC6090841E67262B3F4D13CB02E2D778366C65","parts":{"total":1,"hash":"6F734694B1F6F77B8CDFF522B0C1A3887F18F7CA6F44EAFEE533A416744924BB"}},"last_commit_hash":"8B84DCEBE5D893BE15BCAA5F2179FEFA52ED336B84FDA13B802D2DC3552C3078","data_hash":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","validators_hash":"3C8E7E6CB54A4A6FF5D81247F50D4582F43208D534D60AACE4C91B961778A853","next_validators_hash":"3C8E7E6CB54A4A6FF5D81247F50D4582F43208D534D60AACE4C91B961778A853","consensus_hash":"048091BC7DDC283F77BFBF91D73C44DA58C3DF8A9CBC867405D8B7F3DAADA22F","app_hash":"135A50DFF243CB63C8AC11C90BE156A59B0C963E8D44DF15EB46D773A5EE90EE","last_results_hash":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","evidence_hash":"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855","proposer_address":"A43138580D4EF4571A6E4A5C0CDEC3243EAA7276"},"commit":{"height":"24499896","round":0,"block_id":{"hash":"1BDC0588F03C5DF679C16FBD5D8145734FCF4C1ACBD36D7AA37B6232F26E8842","parts":{"total":1,"hash":"B6C5B357EF913752F0F7763B71D2374BD5E7334F2E5EE4D1755F8397191F6886"}},"signatures":[{"block_id_flag":2,"validator_address":"9A5783B0CB39B4AE670E0F9215D3C720B56506D1","timestamp":"2026-07-02T13:42:16.360156178Z","signature":"ohUP5xripu34NRApzIFnpjPwf8gOHxSKuRgDerxSz9YEoToeFzw6v4HtIhSE+l7rtrkvYCz3vo1Ix2mOn0f+CQ=="},{"block_id_flag":2,"validator_address":"47601B18F0F434375F7219AC5297E156459D2A8C","timestamp":"2026-07-02T13:42:16.316620025Z","signature":"0iiGEGDW6snrNgLYV1y7oFa6ENKqOhCr50joDa8yqaDbOmTx5pFZqw9tblhNd2RVzPDw70/E9HC1Ev3SKCwNBA=="},{"block_id_flag":2,"validator_address":"4E4A4575F97EDCE249812A7AD125414AFCD86933","timestamp":"2026-07-02T13:42:16.364815041Z","signature":"Vdask5nZlSLfu8unJ9CShD9+BaqLVOSjeSPq6v76z4+nbsRngd1mO/ENgq1LGIXeKaQKK0ddng6xYqXOUH3lCQ=="},{"block_id_flag":2,"validator_address":"73837BE389D82E7881B504A43F40ADF4855E3B4D","timestamp":"2026-07-02T13:42:16.366013355Z","signature":"b1qhQ5l3R0eNNJ97UXeK11SyrkvaqM01tAotowhWX6SsNxgWohxWXmnRWNA1/xK4TarEYerufxt/wEQJBJCICw=="},{"block_id_flag":2,"validator_address":"A43138580D4EF4571A6E4A5C0CDEC3243EAA7276","timestamp":"2026-07-02T13:42:16.364169309Z","signature":"KKfXHCj1JKUfjnezy7c2RwHOYgcmTsm3tWn4YhlOsSeNCIavQJYKqZ8y8JMYYDEIGn0pD2BOHpSSTUSPHAbDBA=="},{"block_id_flag":2,"validator_address":"1DB464D43981AA325BC0CE4ACA3EB12EAC076A5D","timestamp":"2026-07-02T13:42:16.373637546Z","signature":"1K4n8liD1y/2zOU7EBX57y3AfVhU0+n4oiV7e0M3N0LqPPvX7NN8Tb8o3hh1dEKaXzP5WE68HmgDnlj5WaK8CA=="},{"block_id_flag":2,"validator_address":"AA71546DB40A211CDB8B78D8DEB6F750A611336D","timestamp":"2026-07-02T13:42:16.345809219Z","signature":"TkBcyqTRwt5ANAdccjrqTcPqKqRS2Xy6FwUjA6dsTzfu+icwXq731tB/r/mON8m0Jie1Ua3HtFrKGhIn0pgxCw=="},{"block_id_flag":2,"validator_address":"D72D363E94A7C20E7A3A274F1A074E577F04432A","timestamp":"2026-07-02T13:42:16.367039096Z","signature":"mLrLICbMnRr6MwQfqU8MSWOaa4bPzDxIPtedzyfnwk2WQz5VHlq9MqRXSIusz78vH5anFxSjeS8ZLOlCVupBCw=="},{"block_id_flag":2,"validator_address":"6EF6EE46207C59ACA4CDD011FD00A0D8F4172BED","timestamp":"2026-07-02T13:42:16.274159223Z","signature":"sAabApetTdatHEztZkTEVVdznsoxLYXi47RsN5Geli5rNiNHmiZfhY151jA1+1UjUG1vntkYRIdAqd4OejJ2Dg=="},{"block_id_flag":2,"validator_address":"24CF61027DF3E26A774EBD6A527DDE7F28D1CB32","timestamp":"2026-07-02T13:42:16.335752492Z","signature":"hF3ABM8HuKXMjE0cbGaqc03JizJpyciJ4lVOije6Lsxa05WLChiWue8itgKq65je90z93sZ920MO67bZmotoBw=="},{"block_id_flag":2,"validator_address":"1354CE3615325D1820E451ED8AE09A057BB22753","timestamp":"2026-07-02T13:42:16.361246127Z","signature":"K1JGkby7KtCCjOB7OlskdtVE4kPcNshXSFkT+30X2bBGX++OpwLsGq9lm7x5UYRQFirNLHmJFiXVWZtFBgi/CA=="},{"block_id_flag":2,"validator_address":"D5CFFB5F5F7647A983FBEB4089891AC7402CB43A","timestamp":"2026-07-02T13:42:16.356946895Z","signature":"rVT6mhtgpksKP+l1DX6VS+7FyG8obgyD0wd+wJd34f5OY1QY+7snB/hboEoCrBb2gits2vCq1D+bbO96QuZHCQ=="},{"block_id_flag":2,"validator_address":"519AD7739408413E80010AECFDF1B509A580D0C0","timestamp":"2026-07-02T13:42:16.320922124Z","signature":"Vi4mYyq6X+MWWbXQ7OcC1OYPvjQWXQVTyE2UAnX1WlbF0RXK+Yknoc2w3J7HCb34PfXt8lQ93TCIChfz/aFaDA=="},{"block_id_flag":2,"validator_address":"F15247741FAFBF85DB50C741E21E824D6D90059E","timestamp":"2026-07-02T13:42:22.070686697Z","signature":"UA0zIkAyif96FwJtZ6i1fTsKS57XGfxygqRUgKP771OM9hzkHr+/3+eOMfgtcsikiAzOfZPcpp3XKU/gUp34CA=="},{"block_id_flag":2,"validator_address":"3363E8F97B02ECC00289E72173D827543047ACDA","timestamp":"2026-07-02T13:42:16.3399976Z","signature":"YeLTujTXJi0qqpEGaMCQjOPOv1vrsaFjIpAQxdrpry0v0iMT+2iFh35Gk51CdFES/0IxhXmr4j6xaZLpOmf7Cg=="},{"block_id_flag":2,"validator_address":"25219C7188D73816F8B2B7B153F83FA06A9A699E","timestamp":"2026-07-02T13:42:16.365599249Z","signature":"6ul3QBJe1Vt6DK5bNoa26IqQ5yN/UdgzJFdvJTk8GrDRIDZzlTlul7IbMvnzOKAAyR+m/y4oUnaRqRc7arcLAA=="}]}},"canonical":true}}"#).unwrap();
-
-        // validators at height 24499896
-        let validators = validators::Response::from_string(r#"{"jsonrpc":"2.0","id":-1,"result":{"block_height":"24499896","validators":[{"address":"9A5783B0CB39B4AE670E0F9215D3C720B56506D1","pub_key":{"type":"tendermint/PubKeyEd25519","value":"fWg+2+R4FRJAEOAdZJnxav5Nt1ckULfUYxwSor/WVzg="},"voting_power":"1799415","proposer_priority":"13398814"},{"address":"47601B18F0F434375F7219AC5297E156459D2A8C","pub_key":{"type":"tendermint/PubKeyEd25519","value":"/6i7POj/PPpoAeCnYAliUopKxPW+fx+YVt9iocB+N7E="},"voting_power":"1798054","proposer_priority":"-4791707"},{"address":"4E4A4575F97EDCE249812A7AD125414AFCD86933","pub_key":{"type":"tendermint/PubKeyEd25519","value":"A3qll5g0IyGUft3ePAdiRWcFIMwBJR5mfLTCIOmpKzY="},"voting_power":"1798054","proposer_priority":"-1961224"},{"address":"73837BE389D82E7881B504A43F40ADF4855E3B4D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"WVEQK6+phIZfZNVCtyNbeB1deIyGQuUDEwRdJQCeJqs="},"voting_power":"1798053","proposer_priority":"6812098"},{"address":"A43138580D4EF4571A6E4A5C0CDEC3243EAA7276","pub_key":{"type":"tendermint/PubKeyEd25519","value":"W2ek87VdjheHyYIsDbLwcY0ElBjKQDZ7QBXxcLfgtXE="},"voting_power":"1798052","proposer_priority":"-11551949"},{"address":"1DB464D43981AA325BC0CE4ACA3EB12EAC076A5D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"3QVGlX6R4tv9jO7u2gyU4fi8IM5V8FLyggN4tckct3I="},"voting_power":"1798048","proposer_priority":"-8344365"},{"address":"AA71546DB40A211CDB8B78D8DEB6F750A611336D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"00qwGl9hr3K3Bv0z9FFCfxfDNbwwYrPKLzrC4Hj+atM="},"voting_power":"1798046","proposer_priority":"5712212"},{"address":"D72D363E94A7C20E7A3A274F1A074E577F04432A","pub_key":{"type":"tendermint/PubKeyEd25519","value":"1qvOrXd0UxQBCPewUYch5SfOmpW7l0N/WCh9Pa2Fv1s="},"voting_power":"1798041","proposer_priority":"-3584618"},{"address":"6EF6EE46207C59ACA4CDD011FD00A0D8F4172BED","pub_key":{"type":"tendermint/PubKeyEd25519","value":"Qerh8g8MKIv1Y+tP4iNofYOGA89fdgNJJLX77FJC/GU="},"voting_power":"1798029","proposer_priority":"-3520771"},{"address":"24CF61027DF3E26A774EBD6A527DDE7F28D1CB32","pub_key":{"type":"tendermint/PubKeyEd25519","value":"ZDsrSs5naDnL0ZXibIN5WP+C/cqsPd8chk2QIHi3D6c="},"voting_power":"1788057","proposer_priority":"7790777"},{"address":"1354CE3615325D1820E451ED8AE09A057BB22753","pub_key":{"type":"tendermint/PubKeyEd25519","value":"udITsIl01Vog3jm6cZjK9vlUetFf3xd8OVck5MJZwZs="},"voting_power":"1556809","proposer_priority":"-10708718"},{"address":"D5CFFB5F5F7647A983FBEB4089891AC7402CB43A","pub_key":{"type":"tendermint/PubKeyEd25519","value":"n6XDWPG7i9pZNoMEbmLxsOMggu8sBfI+ChM24W6dxq4="},"voting_power":"1513945","proposer_priority":"8770450"},{"address":"519AD7739408413E80010AECFDF1B509A580D0C0","pub_key":{"type":"tendermint/PubKeyEd25519","value":"hzrYFXAbynbIpJs8OGf5PAt/vH9GI2lbRyiRtYo46SI="},"voting_power":"1467666","proposer_priority":"9431435"},{"address":"F15247741FAFBF85DB50C741E21E824D6D90059E","pub_key":{"type":"tendermint/PubKeyEd25519","value":"/O3LQ8ipc7OO8vwVrivviE3+H8HxfbeKyUcjACznpew="},"voting_power":"1424749","proposer_priority":"13570066"},{"address":"3363E8F97B02ECC00289E72173D827543047ACDA","pub_key":{"type":"tendermint/PubKeyEd25519","value":"mPnu910hOOa1tAQ7pbOLFDxvllbQUmrbtGjqQrYg1nM="},"voting_power":"1140040","proposer_priority":"-10702444"},{"address":"25219C7188D73816F8B2B7B153F83FA06A9A699E","pub_key":{"type":"tendermint/PubKeyEd25519","value":"HIYOoPElWdXDpddcgiI2+ipY++J4DDoqyAtThP44m84="},"voting_power":"759540","proposer_priority":"-10320048"}],"count":"16","total":"16"}}"#).unwrap();
-
-        // validators at height 24499897
-        let next_validators = validators::Response::from_string(r#"{"jsonrpc":"2.0","id":-1,"result":{"block_height":"24499897","validators":[{"address":"9A5783B0CB39B4AE670E0F9215D3C720B56506D1","pub_key":{"type":"tendermint/PubKeyEd25519","value":"fWg+2+R4FRJAEOAdZJnxav5Nt1ckULfUYxwSor/WVzg="},"voting_power":"1799415","proposer_priority":"-10636369"},{"address":"47601B18F0F434375F7219AC5297E156459D2A8C","pub_key":{"type":"tendermint/PubKeyEd25519","value":"/6i7POj/PPpoAeCnYAliUopKxPW+fx+YVt9iocB+N7E="},"voting_power":"1798054","proposer_priority":"-2993653"},{"address":"4E4A4575F97EDCE249812A7AD125414AFCD86933","pub_key":{"type":"tendermint/PubKeyEd25519","value":"A3qll5g0IyGUft3ePAdiRWcFIMwBJR5mfLTCIOmpKzY="},"voting_power":"1798054","proposer_priority":"-163170"},{"address":"73837BE389D82E7881B504A43F40ADF4855E3B4D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"WVEQK6+phIZfZNVCtyNbeB1deIyGQuUDEwRdJQCeJqs="},"voting_power":"1798053","proposer_priority":"8610151"},{"address":"A43138580D4EF4571A6E4A5C0CDEC3243EAA7276","pub_key":{"type":"tendermint/PubKeyEd25519","value":"W2ek87VdjheHyYIsDbLwcY0ElBjKQDZ7QBXxcLfgtXE="},"voting_power":"1798052","proposer_priority":"-9753897"},{"address":"1DB464D43981AA325BC0CE4ACA3EB12EAC076A5D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"3QVGlX6R4tv9jO7u2gyU4fi8IM5V8FLyggN4tckct3I="},"voting_power":"1798048","proposer_priority":"-6546317"},{"address":"AA71546DB40A211CDB8B78D8DEB6F750A611336D","pub_key":{"type":"tendermint/PubKeyEd25519","value":"00qwGl9hr3K3Bv0z9FFCfxfDNbwwYrPKLzrC4Hj+atM="},"voting_power":"1798046","proposer_priority":"7510258"},{"address":"D72D363E94A7C20E7A3A274F1A074E577F04432A","pub_key":{"type":"tendermint/PubKeyEd25519","value":"1qvOrXd0UxQBCPewUYch5SfOmpW7l0N/WCh9Pa2Fv1s="},"voting_power":"1798041","proposer_priority":"-1786577"},{"address":"6EF6EE46207C59ACA4CDD011FD00A0D8F4172BED","pub_key":{"type":"tendermint/PubKeyEd25519","value":"Qerh8g8MKIv1Y+tP4iNofYOGA89fdgNJJLX77FJC/GU="},"voting_power":"1798029","proposer_priority":"-1722742"},{"address":"24CF61027DF3E26A774EBD6A527DDE7F28D1CB32","pub_key":{"type":"tendermint/PubKeyEd25519","value":"ZDsrSs5naDnL0ZXibIN5WP+C/cqsPd8chk2QIHi3D6c="},"voting_power":"1788057","proposer_priority":"9578834"},{"address":"1354CE3615325D1820E451ED8AE09A057BB22753","pub_key":{"type":"tendermint/PubKeyEd25519","value":"udITsIl01Vog3jm6cZjK9vlUetFf3xd8OVck5MJZwZs="},"voting_power":"1556809","proposer_priority":"-9151909"},{"address":"D5CFFB5F5F7647A983FBEB4089891AC7402CB43A","pub_key":{"type":"tendermint/PubKeyEd25519","value":"n6XDWPG7i9pZNoMEbmLxsOMggu8sBfI+ChM24W6dxq4="},"voting_power":"1513945","proposer_priority":"10284395"},{"address":"519AD7739408413E80010AECFDF1B509A580D0C0","pub_key":{"type":"tendermint/PubKeyEd25519","value":"hzrYFXAbynbIpJs8OGf5PAt/vH9GI2lbRyiRtYo46SI="},"voting_power":"1467666","proposer_priority":"10899101"},{"address":"F15247741FAFBF85DB50C741E21E824D6D90059E","pub_key":{"type":"tendermint/PubKeyEd25519","value":"/O3LQ8ipc7OO8vwVrivviE3+H8HxfbeKyUcjACznpew="},"voting_power":"1424749","proposer_priority":"14994815"},{"address":"3363E8F97B02ECC00289E72173D827543047ACDA","pub_key":{"type":"tendermint/PubKeyEd25519","value":"mPnu910hOOa1tAQ7pbOLFDxvllbQUmrbtGjqQrYg1nM="},"voting_power":"1140040","proposer_priority":"-9562404"},{"address":"25219C7188D73816F8B2B7B153F83FA06A9A699E","pub_key":{"type":"tendermint/PubKeyEd25519","value":"HIYOoPElWdXDpddcgiI2+ipY++J4DDoqyAtThP44m84="},"voting_power":"759540","proposer_priority":"-9560508"}],"count":"16","total":"16"}}"#).unwrap();
-        (commit, validators, next_validators)
-    }
 
     // adjacent block 24499897 with its next-height (24499898) validator set
     fn adjacent_fixtures() -> (commit::Response, validators::Response) {
@@ -329,16 +394,6 @@ mod tests {
     }
 
     // --- helpers ---
-
-    fn checkpoint() -> Checkpoint {
-        let (commit, validators, next_validators) = checkpoint_fixtures();
-        Checkpoint {
-            height: Height::from(CHECKPOINT),
-            signed_header: commit.signed_header,
-            validators: ValidatorSet::without_proposer(validators.validators),
-            next_validators: ValidatorSet::without_proposer(next_validators.validators),
-        }
-    }
 
     fn test_options(trusting_period: Duration) -> Options {
         Options {
@@ -432,6 +487,54 @@ mod tests {
         let state = anchor.state.lock().await;
         assert_eq!(state.trusted.height, Height::from(24499897u32));
         assert!(state.app_hash_cache.contains_key(&Height::from(CHECKPOINT)));
+    }
+
+    #[tokio::test]
+    async fn advanced_head_is_persisted_and_reseeds_a_fresh_loader() {
+        use crate::anchor::checkpoint::provider::{StoredCheckpointProvider, load_checkpoint};
+        use crate::anchor::checkpoint::store::{CheckpointStore, FileCheckpointStore};
+
+        let path = std::env::temp_dir().join("nym-dc-persist-reseed.json");
+        let _ = std::fs::remove_file(&path);
+
+        // anchor with a file-backed store; querying the checkpoint height advances the head to
+        // 24499897, which the forward branch must persist
+        let anchor = LightClientAnchor::new(
+            full_mock(),
+            mock_contract(0),
+            checkpoint(),
+            test_options(FAR_FUTURE),
+        )
+        .with_store(FileCheckpointStore::new(&path));
+        anchor
+            .trusted_app_hash(Height::from(CHECKPOINT))
+            .await
+            .unwrap();
+
+        // the persisted head is the advanced height...
+        let persisted = FileCheckpointStore::new(&path).load().unwrap();
+        assert_eq!(persisted.height, Height::from(24499897u32));
+
+        // ...and it reseeds a fresh loader run via the stored provider (a `now` within the
+        // trusting period of the head's ~2026-07-02 block time)
+        let provider = StoredCheckpointProvider::new(FileCheckpointStore::new(&path));
+        let now = time::macros::datetime!(2026-07-05 00:00:00 +00:00);
+        let reseeded = load_checkpoint(&[&provider], now).await.unwrap();
+        assert_eq!(reseeded.height, Height::from(24499897u32));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[tokio::test]
+    async fn anchor_without_a_store_still_advances() {
+        // build_anchor uses `new` (no store): verification/advance must work regardless
+        let anchor = build_anchor(full_mock(), test_options(FAR_FUTURE));
+        anchor
+            .trusted_app_hash(Height::from(CHECKPOINT))
+            .await
+            .unwrap();
+        let state = anchor.state.lock().await;
+        assert_eq!(state.trusted.height, Height::from(24499897u32));
     }
 
     #[tokio::test]

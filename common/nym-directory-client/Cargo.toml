@@ -19,13 +19,17 @@ blake3 = { workspace = true }
 futures = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
+tendermint-proto = { workspace = true }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 cosmrs = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 tendermint-light-client = { workspace = true, optional = true }
 
+nym-http-api-client = { workspace = true, optional = true }
 nym-directory-attestation = { workspace = true }
 nym-lthash = { workspace = true, features = ["serde"] }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
@@ -45,6 +49,7 @@ nym-directory-attestation = { workspace = true, features = ["mock"] }
 nym-http-api-client = { workspace = true }
 
 [features]
+https-checkpoint-fetcher = ["nym-http-api-client"]
 light-client = ["tendermint-light-client"]
 
 [lints]

@@ -37,8 +37,9 @@ pub use subset::{
 
 /// Append `bytes` prefixed with its u32 little-endian length, so adjacent
 /// variable-length fields in a canonical signing payload cannot be confused with one
-/// another. Shared by the snapshot and subset encoders.
-pub(crate) fn push_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
+/// another. Shared by the snapshot and subset encoders, and by the directory checkpoint
+/// signing payload in `nym-directory-client`.
+pub fn push_len_prefixed(buf: &mut Vec<u8>, bytes: &[u8]) {
     buf.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
     buf.extend_from_slice(bytes);
 }

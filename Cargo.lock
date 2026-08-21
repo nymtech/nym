@@ -6920,8 +6920,11 @@ dependencies = [
  "prost 0.13.5",
  "rand 0.8.6",
  "serde",
+ "serde_json",
  "tendermint-light-client",
+ "tendermint-proto",
  "thiserror 2.0.19",
+ "time",
  "tokio",
  "tracing",
 ]
@@ -9603,6 +9606,23 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+]
+
+[[package]]
+name = "nyx-checkpoint-updater"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-directory-client",
+ "nym-validator-client",
+ "serde_json",
+ "time",
+ "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]

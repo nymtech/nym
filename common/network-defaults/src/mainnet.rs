@@ -4,6 +4,9 @@
 #[cfg(feature = "network")]
 use crate::{ApiUrlConst, DenomDetails, DirectoryAttestationSourceConst, ValidatorDetails};
 
+mod directory_checkpoint;
+pub use directory_checkpoint::DIRECTORY_CHECKPOINT;
+
 pub const NETWORK_NAME: &str = "mainnet";
 
 pub const BECH32_PREFIX: &str = "n";
@@ -77,8 +80,14 @@ pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 
 pub const UPGRADE_MODE_ATTESTATION_URL: &str =
     "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
-pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
-    "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+pub const ROOT_ATTESTER_ED25519_BS58_PUBKEY: &str = "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+
+// TODO: FILL THIS IN ONCE DEPLOYED
+// probably @ https://nymtech.net/.wellknown/directory/checkpoint.json
+// \/
+pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "";
+// /\
+// TODO: FILL THIS IN ONCE DEPLOYED
 
 #[cfg(feature = "network")]
 pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
@@ -241,14 +250,19 @@ pub fn export_to_env() {
         UPGRADE_MODE_ATTESTATION_URL,
     );
     set_var_to_default(
-        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
-        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY,
+        ROOT_ATTESTER_ED25519_BS58_PUBKEY,
     );
     set_var_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
     set_var_to_default(
         var_names::DIRECTORY_ATTESTATION_SOURCES,
         &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
+    set_var_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
     );
 }
 
@@ -311,13 +325,18 @@ pub fn export_to_env_if_not_set() {
         UPGRADE_MODE_ATTESTATION_URL,
     );
     set_var_conditionally_to_default(
-        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
-        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY,
+        ROOT_ATTESTER_ED25519_BS58_PUBKEY,
     );
     set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
     set_var_conditionally_to_default(
         var_names::DIRECTORY_ATTESTATION_SOURCES,
         &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
+    set_var_conditionally_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_conditionally_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
     );
 }

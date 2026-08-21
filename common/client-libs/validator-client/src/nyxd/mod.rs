@@ -53,7 +53,7 @@ pub use cosmrs::{
         block::{signed_header::SignedHeader, Height},
         hash::{self, Algorithm, Hash},
         validator::{Info as TendermintValidatorInfo, Set as ValidatorSet},
-        Time as TendermintTime,
+        PublicKey as TendermintPublicKey, Time as TendermintTime,
     },
     tx::{self, Msg},
     AccountId, Any, Coin as CosmosCoin, Denom, Gas,

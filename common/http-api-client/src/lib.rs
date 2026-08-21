@@ -775,6 +775,7 @@ impl ClientBuilder {
     /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
     ///
     /// Default is [`DEFAULT_TIMEOUT`].
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
@@ -787,18 +788,21 @@ impl ClientBuilder {
     ///
     /// If multiple urls (or fronting configurations if enabled) are available, retried requests
     /// will be sent to the next URL in the list.
+    #[must_use]
     pub fn with_retries(mut self, retry_limit: usize) -> Self {
         self.retry_limit = retry_limit;
         self
     }
 
     /// Provide a pre-configured [`reqwest::ClientBuilder`]
+    #[must_use]
     pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
         self.reqwest_client_builder = Some(reqwest_builder);
         self
     }
 
     /// Sets the `User-Agent` header to be used by this client.
+    #[must_use]
     pub fn with_user_agent<V>(mut self, value: V) -> Self
     where
         V: TryInto<HeaderValue>,
@@ -814,12 +818,14 @@ impl ClientBuilder {
     }
 
     /// Set the serialization format for API requests and responses
+    #[must_use]
     pub fn with_serialization(mut self, format: SerializationFormat) -> Self {
         self.serialization = format;
         self
     }
 
     /// Configure the client to use bincode serialization
+    #[must_use]
     pub fn with_bincode(self) -> Self {
         self.with_serialization(SerializationFormat::Bincode)
     }

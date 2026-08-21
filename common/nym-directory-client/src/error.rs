@@ -117,4 +117,29 @@ pub enum DirectoryClientError {
     /// into the expected type via `DirectorySubset::from_canonical_bytes`.
     #[error("malformed subset canonical bytes: {0}")]
     MalformedSubset(String),
+
+    /// The root signature over a [`SignedCheckpoint`](crate::anchor::checkpoint::SignedCheckpoint)
+    /// did not verify against the configured root key.
+    #[error("checkpoint root signature verification failed")]
+    InvalidCheckpointSignature,
+
+    /// A checkpoint's carried validator set does not hash to the value committed in its own
+    /// signed header, so the datum is internally inconsistent.
+    #[error("checkpoint validator set does not match the hash committed in its signed header")]
+    CheckpointValidatorMismatch,
+
+    /// The checkpoint's block time is older than the trusting period relative to now, so it
+    /// can no longer seed a light client (weak-subjectivity boundary).
+    #[error(
+        "checkpoint at height {height} is stale: block time is older than the {trusting_period_secs}s trusting period"
+    )]
+    StaleCheckpoint {
+        height: u64,
+        trusting_period_secs: u64,
+    },
+
+    /// No configured checkpoint source (stored, hardcoded, or HTTPS) yielded a valid,
+    /// non-stale checkpoint.
+    #[error("no checkpoint source produced a valid, non-stale checkpoint")]
+    NoValidCheckpointSource,
 }

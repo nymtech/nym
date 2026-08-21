@@ -109,8 +109,12 @@ pub enum TestKind {
 }
 
 impl TestKind {
-    /// The kind's canonical string form, shared by its JSON tag, its stored column value and its
-    /// prometheus label so the three cannot drift apart.
+    /// The kind's canonical string form, backing [`Display`](fmt::Display) and pinned to the JSON
+    /// tag by a test in this module, so a log line and the wire form cannot disagree.
+    ///
+    /// The orchestrator stores the kind through its own sqlx-side enum rather than through this,
+    /// so the two spellings are tied only by both being pinned to the same literals - here, and by
+    /// the storage tests on that side.
     pub fn as_str(&self) -> &'static str {
         match self {
             TestKind::Stress => "stress",
@@ -167,17 +171,6 @@ impl TestRunAssignment {
             TestRunAssignment::MixnodeLiveness(_) | TestRunAssignment::GatewayLiveness(_) => {
                 TestKind::Liveness
             }
-        }
-    }
-
-    /// The role every node in this assignment is probed in. A dual-role node is assigned each role
-    /// separately, so this is a property of the assignment rather than of the node.
-    pub fn tested_role(&self) -> TestedRole {
-        match self {
-            TestRunAssignment::MixnodeStress(_) | TestRunAssignment::MixnodeLiveness(_) => {
-                TestedRole::Mixnode
-            }
-            TestRunAssignment::GatewayLiveness(_) => TestedRole::Gateway,
         }
     }
 }
@@ -302,8 +295,9 @@ pub enum ExercisedInterface {
 }
 
 impl ExercisedInterface {
-    /// The interface's canonical string form, shared by its JSON tag, its stored column value and
-    /// its prometheus label so the three cannot drift apart.
+    /// The interface's canonical string form, backing [`Display`](fmt::Display) and pinned to the
+    /// JSON tag by a test in this module. Same relationship to the stored column value as
+    /// [`TestKind::as_str`]: separate enums, tied by both being pinned to the same literals.
     pub fn as_str(&self) -> &'static str {
         match self {
             ExercisedInterface::MixForwarding => "mix_forwarding",
@@ -673,7 +667,6 @@ mod tests {
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::Stress);
-        assert_eq!(parsed.tested_role(), TestedRole::Mixnode);
 
         let TestRunAssignment::MixnodeStress(target) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
@@ -694,7 +687,6 @@ mod tests {
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::Liveness);
-        assert_eq!(parsed.tested_role(), TestedRole::Mixnode);
 
         let TestRunAssignment::MixnodeLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
@@ -713,7 +705,6 @@ mod tests {
 
         let parsed: TestRunAssignment = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.kind(), TestKind::Liveness);
-        assert_eq!(parsed.tested_role(), TestedRole::Gateway);
 
         let TestRunAssignment::GatewayLiveness(wave) = parsed else {
             panic!("round-tripped into the wrong variant: {json}");
@@ -873,9 +864,10 @@ mod tests {
         assert_eq!(serde_json::to_string(&parsed).unwrap(), json);
     }
 
-    // `as_str` feeds the stored column value and the prometheus label while serde produces the
-    // wire tag. They must be the same string: if they diverged, rows already stored under one
-    // spelling would stop matching queries built from the other, and the drift would be silent.
+    // `as_str` backs Display while serde produces the wire tag, so a divergence would make a log
+    // line disagree with what actually went over the wire. Pinning the literals as well is what
+    // ties this crate's spelling to the migration's CHECK constraint and to the orchestrator's
+    // stored column, which is a separate enum pinned to the same literals on that side.
     #[test]
     fn test_kind_wire_tag_matches_its_string_form() {
         for kind in [TestKind::Stress, TestKind::Liveness] {

@@ -4,7 +4,7 @@
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{NewTestRun, TestKind, TestRunMeasurement, TestedRole};
+use crate::storage::models::{NewTestRun, TestRunMeasurement};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -375,30 +375,25 @@ impl TestrunManager {
             }
         };
 
-        let (test_kind, tested_role) = match dispatched {
-            Some(row) => (row.test_kind, row.tested_role),
-            None => {
-                // the lease expired and the sweep reaped the row before this arrived. the run still
-                // happened, so it is recorded rather than dropped: the role comes from the
-                // interfaces the result measured, which determine it - the very reason the result
-                // carries no role of its own to trust
-                let Some(tested_role) = TestedRole::from_measurements(&result.measurements) else {
-                    error!(
-                        "node {node_id} submitted a late {} result whose {} measurements imply no single role",
-                        result.kind,
-                        result.measurements.len(),
-                    );
-                    return Err(ApiError::UnexpectedResultShape);
-                };
-                warn!(
-                    "node {node_id} submitted a {} result after its lease had expired - recording it under the role its measurements imply",
-                    result.kind
-                );
-                (TestKind::from(result.kind), tested_role)
-            }
+        // no row means the lease expired and the sweep already freed the node, so this result is
+        // both unattributable and stale: the node has since been eligible for reassignment, and
+        // recording an older run now would drag its pairing's staleness position BACKWARDS, hiding
+        // whatever measurement replaced it
+        let Some(dispatched) = dispatched else {
+            warn!(
+                "node {node_id} submitted a {} result after its lease had expired - dropping it, the node has already been freed for reassignment",
+                result.kind
+            );
+            return Err(ApiError::TestRunLeaseExpired);
         };
 
-        let run = NewTestRun::from_result(node_id, tested_address, test_kind, tested_role, &result);
+        let run = NewTestRun::from_result(
+            node_id,
+            tested_address,
+            dispatched.test_kind,
+            dispatched.tested_role,
+            &result,
+        );
         let measurements: Vec<TestRunMeasurement> =
             result.measurements.iter().map(Into::into).collect();
 

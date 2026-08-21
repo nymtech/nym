@@ -155,7 +155,7 @@ The discriminator names the node FUNCTION exercised, not a route: every value tr
 
 ### Decision 11: Liveness scores delivery ratio only; latency is recorded, not scored
 
-**Choice.** The liveness score is the delivery ratio averaged over the kind's measurements. The full RTT distribution keeps being recorded and submitted, but carries no weight.
+**Choice.** The liveness score is the delivery ratio averaged over the kind's measurements. The full RTT distribution keeps being recorded per interface and exposed on the orchestrator's own read surface, but carries no weight. It is NOT submitted to nym-api: the stress stream never sent latency either, and a submission shape carrying figures nothing reads would have to be versioned before it could be trusted. Adding it is an additive field on the batch content if a latency-weighted score is ever wanted.
 
 **Why.** Two confounds make a latency-derived score untrustworthy today. Nodes defer replay checking in batches bounded by `maximum_replay_detection_deferral` (50ms) and `maximum_replay_detection_pending_packets` (100), and only defer when the bloomfilter lock is contended, so a low-volume probe measures a busy node as slower than an idle one in a step function, penalising exactly the nodes that are carrying traffic. And measurements inside a wave include the agent's own queueing. Recording the distribution first means the weighting decision can be made against real data.
 

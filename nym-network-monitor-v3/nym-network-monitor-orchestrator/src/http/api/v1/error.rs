@@ -38,6 +38,11 @@ pub(crate) enum ApiError {
         "the submitted result does not carry the measurements expected for its test kind - the agent and this orchestrator disagree about the shape of a result"
     )]
     UnexpectedResultShape,
+
+    #[error(
+        "no test run is in progress for this node - its lease expired and the node was freed for reassignment before the result arrived"
+    )]
+    TestRunLeaseExpired,
 }
 
 impl ApiError {
@@ -48,6 +53,9 @@ impl ApiError {
             AgentNotFound | AgentNotAnnounced | MalformedAgentAddresses | UnexpectedResultShape => {
                 StatusCode::BAD_REQUEST
             }
+            // the request was well-formed and would have been accepted earlier, so this is a
+            // conflict with current state rather than a client error
+            TestRunLeaseExpired => StatusCode::CONFLICT,
             TestRunNotFound | NymNodeNotFound => StatusCode::NOT_FOUND,
             ContractFailure | StorageFailure | MalformedStoredData => {
                 StatusCode::INTERNAL_SERVER_ERROR

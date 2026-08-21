@@ -47,6 +47,33 @@ impl SqliteZkNymRequestsStorageManager {
         Ok(())
     }
 
+    /// Insert a row the way this table was written before it recorded an epoch, so the loading of
+    /// such rows can be exercised.
+    #[cfg(test)]
+    pub(crate) async fn insert_legacy_pending_ticketbook(
+        &self,
+        serialisation_revision: u8,
+        deposit_id: u32,
+        data: &[u8],
+        expiration_date: Date,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO pending_issuance
+                (deposit_id, serialization_revision, pending_ticketbook_data, expiration_date)
+                VALUES (?, ?, ?, ?)
+            "#,
+            deposit_id,
+            serialisation_revision,
+            data,
+            expiration_date,
+        )
+        .execute(&*self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn get_pending_ticketbooks(
         &self,
     ) -> Result<Vec<StoredPendingTicketbook>, sqlx::Error> {

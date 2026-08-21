@@ -37,7 +37,7 @@
 - [x] 4.5 Update `storage/models.rs`: per-(kind, role) work-state row, per-interface measurement row, `TestKind` / `TestedRole` mappings, and move the address rotation helpers (`announced_ips`, `next_ip_to_test`) onto that state so each (kind, role) pairing rotates independently
 - [x] 4.6 Update the storage manager's insert path to write a run-level row plus its measurement rows in one transaction, and the read paths to reassemble them
 - [x] 4.7 Update result eviction to delete measurement rows with their run, and in-progress eviction to compare `expires_at` rather than a global cutoff
-- [ ] 4.8 Unit-test the per-(kind, role) rotation (two pairings advancing independently over one node's address set, including the two liveness roles of a dual-role node) and that deleting a node's last testrun leaves its per-kind `last_tested_at` intact
+- [x] 4.8 Unit-test the per-(kind, role) rotation (two pairings advancing independently over one node's address set, including the two liveness roles of a dual-role node) and that deleting a node's last testrun leaves its per-kind `last_tested_at` intact
 
 ## 5. Orchestrator scheduling
 

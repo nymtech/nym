@@ -6918,7 +6918,6 @@ dependencies = [
  "nym-test-utils",
  "nym-validator-client",
  "prost 0.13.5",
- "rand 0.8.6",
  "serde",
  "serde_json",
  "tendermint-light-client",

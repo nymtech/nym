@@ -22,8 +22,6 @@ pub trait APICommunicationChannel {
 
     async fn ecash_threshold(&self, epoch_id: EpochId) -> Result<Threshold>;
 
-    async fn dkg_in_progress(&self) -> Result<bool>;
-
     /// Whether this epoch's ceremony has finished, making its signer set final.
     ///
     /// Anything derived from the signer set may only be cached once this is true: until
@@ -40,8 +38,6 @@ pub trait APICommunicationChannel {
     /// `None` while a ceremony is still running, and for an epoch that concluded before the
     /// contract began recording this - which is the epoch mainnet is on until the next ceremony.
     /// Callers must treat the unknown case as "no window", never as "just now".
-    // consumed by the issuable-epoch resolution, landing next
-    #[allow(dead_code)]
     async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>>;
 }
 
@@ -210,19 +206,6 @@ impl APICommunicationChannel for QueryCommunicationChannel {
             .map(|t| *t)
     }
 
-    async fn dkg_in_progress(&self) -> Result<bool> {
-        let guard = self.cached_epoch.read().await;
-        if guard.is_valid() {
-            return Ok(!guard.current_epoch.state.is_in_progress());
-        }
-
-        // update cache
-        drop(guard);
-        let guard = self.update_epoch_cache().await?;
-
-        return Ok(!guard.current_epoch.state.is_in_progress());
-    }
-
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
         Ok(self
             .current_epoch_data()
@@ -264,7 +247,6 @@ mod tests {
         );
 
         assert_eq!(channel.current_epoch().await?, epoch_id);
-        assert!(!channel.dkg_in_progress().await?);
 
         // every dealer that finished the ceremony is discoverable as a signer
         let clients = channel.ecash_clients(epoch_id).await?;

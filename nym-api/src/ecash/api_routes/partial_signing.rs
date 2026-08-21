@@ -48,7 +48,13 @@ pub(crate) fn partial_signing_routes() -> Router<AppState> {
             (BlindedSignatureResponse = "application/yaml"),
             (BlindedSignatureResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch, or it already issued this deposit's ticketbook under a different epoch"),
+        (status = 400, body = String, description = "\
+            the requested epoch is not one this nym-api will issue under - either its ceremony has \
+            not concluded or it has been superseded; or no epoch was requested while a ceremony \
+            concluded recently, so which one is meant has to be stated; or this nym-api is not an \
+            ecash signer for that epoch, or holds no key for it; or this deposit's ticketbook was \
+            already issued under a different epoch, or was issued and its data has since been \
+            pruned. None of these consume the deposit."),
     ),
     params(EpochIdParam)
 )]
@@ -57,23 +63,20 @@ async fn post_blind_sign(
     State(state): State<Arc<EcashState>>,
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
 ) -> AxumResult<FormattedResponse<BlindedSignatureResponse>> {
-    state.ensure_signer().await?;
     let output = output.unwrap_or_default();
 
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
-    // check if we have the signing key available
-    debug!("checking if we actually have ecash keys derived...");
-    let issuance_keys = state.ecash_issuance_keys().await?;
+    // which epoch we would put a signature under right now. this replaces the blanket refusal
+    // while a ceremony runs: the epoch under ceremony has no keys, but the one it is replacing
+    // does, and its credentials are still being spent.
+    let issuable = state.issuable_epochs().await?;
 
     // basic check of expiration date validity
     if blind_sign_request_body.expiration_date > cred_exp_date().ecash_date() {
         return Err(EcashError::ExpirationDateTooLate.into());
     }
-
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
 
     // check if we already issued a credential for this deposit
     let deposit_id = blind_sign_request_body.deposit_id;
@@ -85,23 +88,28 @@ async fn post_blind_sign(
             share,
             issued_for_epoch,
         } => {
-            // the epoch whose material the caller is collecting: whichever they asked for, or the
-            // current one if they did not say. only resolved here, since a deposit we have never
-            // signed for does not need it.
-            let requested_epoch = match epoch_id {
-                Some(epoch_id) => epoch_id,
-                None => state.current_dkg_epoch().await?,
+            state.ensure_signer_for_epoch(issued_for_epoch).await?;
+
+            // handing back a share we already hold consumes nothing, so there is no epoch to
+            // choose and nothing to be ambiguous about: it is enough that this is the epoch the
+            // caller named. A caller that named none gets it if we would still sign for it.
+            //
+            // note this deliberately serves an epoch we would no longer *issue* under, as long as
+            // it was asked for: that is how a collection stranded across a rotation is recovered.
+            let acceptable = match epoch_id {
+                Some(requested) => issued_for_epoch == requested,
+                None => issuable.accepts(issued_for_epoch),
             };
 
-            // a share is bound to the key that signed it. one signed under a different epoch
-            // cannot be unblinded against the epoch being collected, and the caller would drop it
-            // and fall short of the threshold - every time, since this is a cache. refusing at
-            // least names the epoch under which the share can still be claimed.
-            if issued_for_epoch != requested_epoch {
+            if !acceptable {
+                // a share is bound to the key that signed it. one signed under a different epoch
+                // cannot be unblinded against the epoch being collected, so the caller drops it
+                // and falls short of the threshold - every time, since this is a cache. refusing
+                // at least names the epoch under which the share can still be claimed.
                 return Err(EcashError::IssuedUnderDifferentEpoch {
                     deposit_id,
                     issued_for_epoch,
-                    requested_epoch,
+                    requested_epoch: epoch_id.unwrap_or(issuable.issuable),
                 }
                 .into());
             }
@@ -117,6 +125,21 @@ async fn post_blind_sign(
 
         DepositUsage::Unused => (),
     }
+
+    // a fresh deposit, so an epoch has to be settled on and signed under. everything from here to
+    // the signature refuses without consuming the deposit.
+    let issuing_epoch = match epoch_id {
+        Some(requested) => requested,
+        None => issuable.default_for_fresh_issuance()?,
+    };
+    issuable.ensure_issuable(issuing_epoch)?;
+
+    // it is that epoch's signer set that answers for it: an api that has since joined or left the
+    // group is not the authority on an epoch it was not part of
+    state.ensure_signer_for_epoch(issuing_epoch).await?;
+
+    debug!("checking if we actually have ecash keys derived for epoch {issuing_epoch}...");
+    let issuance_keys = state.ecash_issuance_keys(issuing_epoch).await?;
 
     //check if account was blacklisted
     let pub_key_bs58 = blind_sign_request_body.ecash_pubkey.to_base58_string();
@@ -136,8 +159,8 @@ async fn post_blind_sign(
     debug!("producing the partial credential");
     let blinded_signature = blind_sign(&blind_sign_request_body, issuance_keys.signing_key())?;
 
-    // store the information locally, against the epoch of the key that just signed it rather than
-    // whatever the chain-state cache currently reports
+    // store the information locally, against the epoch of the key that just signed it. the lookup
+    // above guarantees these agree, which is what the epoch-aware cache relies on.
     debug!("storing the issued credential in the database");
     state
         .store_issued_ticketbook(

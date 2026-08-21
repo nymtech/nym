@@ -128,19 +128,6 @@ impl KeyPair {
         }
     }
 
-    /// The keys we may issue with right now, together with the epoch they were derived for.
-    ///
-    /// Issuance needs both, and needs them consistent: a caller that took the key here and the
-    /// epoch from anywhere else could record a share as belonging to an epoch other than the one
-    /// whose key signed it, which is the disagreement the whole epoch-aware cache rests on not
-    /// happening.
-    pub async fn issuance_keys(&self) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>, EcashError> {
-        let keypair_guard = self.get().await.ok_or(EcashError::KeyPairNotDerivedYet)?;
-
-        RwLockReadGuard::try_map(keypair_guard, |keypair| keypair.as_ref())
-            .map_err(|_| EcashError::KeyPairNotDerivedYet)
-    }
-
     pub async fn signing_key(&self) -> Result<RwLockReadGuard<'_, SecretKeyAuth>, EcashError> {
         let keypair_guard = self.get().await.ok_or(EcashError::KeyPairNotDerivedYet)?;
 

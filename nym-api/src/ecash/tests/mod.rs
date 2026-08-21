@@ -1241,10 +1241,6 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
         Ok(self.state.current_epoch())
     }
 
-    async fn dkg_in_progress(&self) -> Result<bool> {
-        Ok(self.state.ceremony_in_flight())
-    }
-
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
         // mirrors the real channel: only the current epoch's ceremony can be unfinished
         match epoch_id.cmp(&self.state.current_epoch()) {
@@ -1337,6 +1333,7 @@ fn dummy_signature() -> ed25519::Signature {
 struct TestFixture {
     axum: TestServer,
     storage: NymApiStorage,
+    ecash_keypair: crate::ecash::keys::KeyPair,
     chain_state: SharedFakeChain,
     comm_state: SharedCommState,
 }
@@ -1352,6 +1349,9 @@ pub(crate) struct DummyEcashBundle {
     /// `nyxd_client` field on [`AppState`]. Built from a global env-var dance
     /// (see body), which is required because `AppState` is not generic.
     pub real_client: Client,
+
+    /// The same keypair the state holds, so a test can rotate it the way a ceremony would.
+    pub ecash_keypair: crate::ecash::keys::KeyPair,
 }
 
 /// Build a self-contained [`EcashState`] suitable for handler tests. Pulls
@@ -1381,6 +1381,7 @@ pub(crate) async fn build_dummy_ecash_state(
         })
         .await;
     staged_key_pair.validate();
+    let keypair_handle = staged_key_pair.clone();
 
     let chain_state = SharedFakeChain::default();
     let nyxd_client = DummyClient::new(address, chain_state.clone());
@@ -1423,15 +1424,21 @@ pub(crate) async fn build_dummy_ecash_state(
         chain_state,
         comm_state,
         real_client,
+        ecash_keypair: keypair_handle,
     }
 }
 
 impl TestFixture {
     async fn new() -> Self {
+        Self::with_config(|_| {}).await
+    }
+
+    async fn with_config<F: FnOnce(&mut config::Config)>(adjust: F) -> Self {
         let storage = NymApiStorage::init_in_memory().await.unwrap();
 
         let mut config = config::Config::new("test");
         config.ecash_signer.enabled = true;
+        adjust(&mut config);
 
         let bundle = build_dummy_ecash_state(&config, storage.clone(), [69u8; 32]).await;
 
@@ -1449,9 +1456,25 @@ impl TestFixture {
                     .with_state(app_state),
             ),
             storage,
+            ecash_keypair: bundle.ecash_keypair,
             chain_state: bundle.chain_state,
             comm_state: bundle.comm_state,
         }
+    }
+
+    /// Rotate as a concluded ceremony would: the outgoing key moves to the archive and a freshly
+    /// generated one takes the live slot for `epoch`.
+    async fn rotate_key_to(&self, epoch: EpochId) {
+        if let Some(outgoing) = self.ecash_keypair.take().await {
+            self.ecash_keypair.archive(outgoing).await;
+        }
+        self.ecash_keypair
+            .set(KeyPairWithEpoch {
+                keys: ttp_keygen(1, 1).unwrap().remove(0),
+                issued_for_epoch: epoch,
+            })
+            .await;
+        self.ecash_keypair.validate();
     }
 
     #[allow(dead_code)]
@@ -1579,6 +1602,7 @@ mod credential_tests {
     use nym_ecash_time::ecash_today_date;
     use nym_ticketbooks_merkle::MerkleLeaf;
     use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1683,6 +1707,199 @@ mod credential_tests {
         ));
     }
 
+    /// B1, the headline: issuance used to stop network-wide for the whole of every ceremony, which
+    /// can run for hours or stall indefinitely. The epoch under ceremony has no keys yet, but the
+    /// one before it does, and its credentials are still being spent - so that is what a book gets
+    /// issued under until the new keys exist.
+    #[tokio::test]
+    async fn a_ticketbook_is_issued_mid_ceremony_under_the_epoch_still_in_service() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        // a ceremony begins for epoch 2; this signer still holds only epoch 1's key
+        fixture.set_epoch(2).await;
+        fixture.comm_state.start_ceremony();
+
+        for pinned in [Some(1), None] {
+            let response = fixture
+                .blind_sign(
+                    voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                    pinned,
+                )
+                .await;
+            assert_eq!(response.status_code(), StatusCode::OK, "pinned: {pinned:?}");
+        }
+
+        // and it is recorded against the epoch that actually signed it, not the one being run
+        let DepositUsage::Issued {
+            issued_for_epoch, ..
+        } = fixture
+            .storage
+            .deposit_usage(voucher.deposit_id())
+            .await
+            .unwrap()
+        else {
+            panic!("expected the deposit to be recorded as issued")
+        };
+        assert_eq!(issued_for_epoch, 1);
+    }
+
+    /// The epoch a ceremony is running for has nothing to sign with, and asking for it says so
+    /// rather than quietly signing with whatever key is to hand.
+    #[tokio::test]
+    async fn the_epoch_under_ceremony_cannot_be_issued_under() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        fixture.set_epoch(2).await;
+        fixture.comm_state.start_ceremony();
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(2),
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert!(response
+            .text()
+            .contains(&EcashError::CeremonyNotConcluded { epoch_id: 2 }.to_string()));
+    }
+
+    /// The security boundary on all of this: signing under a key that has been retired mints books
+    /// verifying against shares that persist on chain for good. It is permitted only for the epoch
+    /// just superseded, and only while other signers may still be serving it.
+    #[tokio::test]
+    async fn a_retired_epoch_cannot_be_issued_under() {
+        let fixture = TestFixture::new().await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        // epoch 3 is in service and settled: nothing is owed to anything older
+        fixture.rotate_key_to(3).await;
+        fixture.set_epoch(3).await;
+        fixture
+            .comm_state
+            .conclude_ceremony_ago(Duration::from_secs(60 * 60 * 24))
+            .await;
+
+        for retired in [1, 2] {
+            let response = fixture
+                .blind_sign(
+                    voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                    Some(retired),
+                )
+                .await;
+            assert_eq!(
+                response.status_code(),
+                StatusCode::BAD_REQUEST,
+                "epoch {retired}"
+            );
+            assert!(response.text().contains(
+                &EcashError::EpochNoLongerIssuable {
+                    requested: retired,
+                    issuable: 3,
+                }
+                .to_string()
+            ));
+        }
+
+        // refusing cost the deposit nothing: it is still there to be spent properly
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(3),
+            )
+            .await;
+        assert_eq!(response.status_code(), StatusCode::OK);
+    }
+
+    /// Signers learn of a concluded ceremony from a cache, so for a short while they disagree about
+    /// which epoch is issuable. One that has seen the change keeps honouring the epoch it replaced,
+    /// so a client collecting across the changeover is not left holding shares it can never add to.
+    #[tokio::test]
+    async fn the_epoch_just_superseded_is_still_issued_under_inside_the_window() {
+        let fixture = TestFixture::with_config(|cfg| {
+            cfg.ecash_signer.debug.issuance_grace_period = Duration::from_secs(600);
+        })
+        .await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        // a ceremony concluded a minute ago: epoch 2 is in service, epoch 1 is on its way out
+        fixture.rotate_key_to(2).await;
+        fixture.set_epoch(2).await;
+        fixture
+            .comm_state
+            .conclude_ceremony_ago(Duration::from_secs(60))
+            .await;
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(1),
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::OK);
+
+        let DepositUsage::Issued {
+            issued_for_epoch, ..
+        } = fixture
+            .storage
+            .deposit_usage(voucher.deposit_id())
+            .await
+            .unwrap()
+        else {
+            panic!("expected the deposit to be recorded as issued")
+        };
+        assert_eq!(issued_for_epoch, 1);
+    }
+
+    /// The window is the one moment when signers would pick different defaults, and a deposit
+    /// signed under two epochs at two signers can never be aggregated. So a caller that did not
+    /// say which epoch it is collecting for is asked to, rather than guessed at.
+    #[tokio::test]
+    async fn a_request_naming_no_epoch_is_refused_inside_the_window() {
+        let fixture = TestFixture::with_config(|cfg| {
+            cfg.ecash_signer.debug.issuance_grace_period = Duration::from_secs(600);
+        })
+        .await;
+        let voucher = voucher_fixture(None);
+        fixture.add_chain_deposit(&voucher);
+
+        fixture.rotate_key_to(2).await;
+        fixture.set_epoch(2).await;
+        fixture
+            .comm_state
+            .conclude_ceremony_ago(Duration::from_secs(60))
+            .await;
+
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                None,
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert!(response
+            .text()
+            .contains(&EcashError::AmbiguousIssuanceEpoch { issuable: 2 }.to_string()));
+
+        // ... and naming one works, so nothing was consumed by being asked
+        let response = fixture
+            .blind_sign(
+                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
+                Some(2),
+            )
+            .await;
+        assert_eq!(response.status_code(), StatusCode::OK);
+    }
+
     /// C2: the idempotency cache had no epoch component, so a share signed under one epoch's key
     /// was replayed to a caller collecting a later epoch's material. That share cannot be
     /// unblinded against the epoch it is being aggregated for, and the caller silently drops it -
@@ -1782,41 +1999,6 @@ mod credential_tests {
             }
             .to_string()
         ));
-    }
-
-    /// The row has to record which key actually signed the share, not what the chain-state cache
-    /// happened to say at the time. The two disagree precisely when it matters: that cache is up
-    /// to five minutes stale, and a signer keeps issuing under the key it holds until it derives a
-    /// new one. The epoch-aware cache lookup compares against this value, so stamping it from the
-    /// wrong source would make that comparison wrong in exactly the window it exists for.
-    #[tokio::test]
-    async fn an_issued_ticketbook_records_the_epoch_of_the_key_that_signed_it() {
-        let fixture = TestFixture::new().await;
-
-        // the chain has moved on, but this signer still holds - and still signs with - the key it
-        // derived for epoch 1
-        fixture.set_epoch(2).await;
-
-        let voucher = voucher_fixture(None);
-        fixture.add_chain_deposit(&voucher);
-        fixture
-            .issue_ticketbook(
-                voucher.create_blind_sign_request_body(&voucher.prepare_for_signing()),
-            )
-            .await;
-
-        let DepositUsage::Issued {
-            issued_for_epoch, ..
-        } = fixture
-            .storage
-            .deposit_usage(voucher.deposit_id())
-            .await
-            .unwrap()
-        else {
-            panic!("expected the deposit to be recorded as issued")
-        };
-
-        assert_eq!(issued_for_epoch, 1);
     }
 
     /// The same invariant one layer down: the record marking a deposit as spent has to outlive the

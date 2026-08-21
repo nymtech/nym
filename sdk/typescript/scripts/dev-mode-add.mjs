@@ -1,6 +1,8 @@
 import fs from 'fs';
 
 const WORKSPACE_FILE = 'pnpm-workspace.yaml';
+const LOCKFILE = 'pnpm-lock.yaml';
+const LOCKFILE_STASH = 'pnpm-lock.yaml.predev';
 
 // Order matters only for human readability; the script appends missing
 // entries to the yaml's `packages:` block. The `wasm/smolmix/pkg` entry
@@ -31,4 +33,12 @@ const toAdd = devWorkspace.filter(e => !current.includes(e));
 if (toAdd.length === 0) process.exit(0);
 
 const updated = [...current, ...toAdd].map(p => `  - '${p}'`).join('\n') + '\n';
+// The `pnpm install` that follows resolves the injected packages and rewrites
+// pnpm-lock.yaml with importers that only exist in dev mode. Nothing else puts
+// the static lockfile back, so stash it here for dev-mode-remove.mjs. Guarded on
+// existence: a second dev:on must not overwrite the stash with a polluted copy.
+if (fs.existsSync(LOCKFILE) && !fs.existsSync(LOCKFILE_STASH)) {
+  fs.copyFileSync(LOCKFILE, LOCKFILE_STASH);
+}
+
 fs.writeFileSync(WORKSPACE_FILE, content.replace(packagesRegex, `$1${updated}`));

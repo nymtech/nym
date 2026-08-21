@@ -9,20 +9,18 @@ use crate::error::DirectoryClientError;
 use crate::key::{curated_entry_key, node_entry_key};
 use crate::proof::{ProvenPresence, WASM_STORE_PATH, verify_wasm_store_presence};
 use crate::verify::{
-    DirectoryNode, DirectoryNodeEntry, ProvenNodeEntry, VerifiedDirectory, node_signature_verifies,
-    recompute_accumulator,
+    ProvenNodeEntry, VerifiedDirectory, node_signature_verifies, verify_directory,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_directory_contract_common::{
-    AllEntriesPagedResponse, CuratedEntry, DirectoryEntryRecord, EntryKey, KnownLabel, NodeEntry,
+    AllEntriesPagedResponse, CuratedEntry, DirectoryEntryRecord, EntryKey, NodeEntry,
     QueryMsg as DirectoryQueryMsg,
 };
 use nym_mixnet_contract_common::nym_node::{NodeDetailsResponse, PagedNymNodeBondsResponse};
 use nym_mixnet_contract_common::{NodeId, QueryMsg as MixnetQueryMsg};
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_validator_client::nyxd::{CosmWasmClient, Height};
-use std::collections::{BTreeMap, HashMap};
-use std::str::FromStr;
+use std::collections::HashMap;
 use tracing::error;
 
 /// A verifiable directory reader. Composes a trust anchor (which produces a digest to
@@ -46,69 +44,33 @@ where
     ///
     /// The digest proof and every entry page are read at the SAME `height`, so a write
     /// committed mid-pagination cannot interleave into a set that matches no digest.
-    /// Fails closed: any anchor / query error, or a recomputed digest that does not
-    /// match the proven one, returns an error rather than unverified data.
+    /// A thin wrapper around [`verify_directory`] (a chain-connection-agnostic core, see
+    /// `verify.rs`): fetches records and node identities via `self.client` as before,
+    /// then delegates the recompute-and-attribute logic - existing behavior for every
+    /// anchor is unchanged. Fails closed: any anchor / query error, or a recomputed
+    /// digest that does not match the proven one, returns an error rather than
+    /// unverified data.
     pub async fn verified_directory(
         &self,
         height: Height,
     ) -> Result<VerifiedDirectory, DirectoryClientError> {
-        // 1. establish the digest we trust at this height (proof handled by the anchor)
+        // establish the digest we trust at this height (proof handled by the anchor)
         let trusted = self.anchor.trusted_digest(height).await?;
 
-        // 2. fetch the whole entry set at the SAME height
+        // fetch the whole entry set and node identities at the SAME height
         let records = self.all_entries_at(height).await?;
-
-        // 3. recompute locally and compare (whole-set integrity in one shot)
-        if recompute_accumulator(&records) != trusted.accumulator {
-            return Err(DirectoryClientError::DigestMismatch);
-        }
-
-        // 4. retrieve identity keys of all nym-nodes at this height
         let node_identities = self.all_node_identities_at(height).await?;
 
-        // 5. attribute each entry to its author (node signature vs admin authority)
-        let mut curated_entries = BTreeMap::new();
-        let mut node_entries = BTreeMap::new();
-
-        for record in records {
-            match record {
-                DirectoryEntryRecord::Curated { key, entry } => {
-                    curated_entries.insert(key, entry.data.into());
-                }
-                DirectoryEntryRecord::Node {
-                    node_id,
-                    label,
-                    entry: node_entry,
-                } => {
-                    // verify the node signature on the submitted data
-                    let verified = match node_identities.get(&node_id) {
-                        Some(identity) => {
-                            node_signature_verifies(node_id, &label, &node_entry, identity)
-                        }
-                        None => false,
-                    };
-                    let entry = node_entries
-                        .entry(node_id)
-                        .or_insert(DirectoryNode::new(verified));
-                    entry.verified &= verified;
-
-                    let data = DirectoryNodeEntry::from(node_entry);
-
-                    if let Ok(known) = KnownLabel::from_str(&label) {
-                        entry.known_labels.insert(known, data);
-                    } else {
-                        entry.unknown_labels.insert(label, data);
-                    }
-                }
-            }
-        }
-
-        Ok(VerifiedDirectory {
-            height: trusted.height,
-            accumulator: trusted.accumulator,
-            curated_entries,
-            node_entries,
-        })
+        // no trusted node-identities hash here - this anchor-agnostic path
+        // authenticates node identities via the live (though unproven) query above,
+        // exactly as before this was extracted
+        verify_directory(
+            height,
+            records,
+            &node_identities,
+            &trusted.accumulator,
+            None,
+        )
     }
 
     /// Retrieve and verify a single node entry `(node_id, label)` at `height` via its own

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "network")]
-use crate::{ApiUrlConst, DenomDetails, ValidatorDetails};
+use crate::{ApiUrlConst, DenomDetails, DirectoryAttestationSourceConst, ValidatorDetails};
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -81,6 +81,25 @@ pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
     "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
 
 #[cfg(feature = "network")]
+pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
+    DirectoryAttestationSourceConst {
+        api_url: "https://nym-api-signer-1.nymtech.net/api",
+        identity_ed25519_bs58: "5dRq2oCSD6GUozZH3Qq5p1hPuztT6sFvpxtSbK311tDp",
+    },
+    DirectoryAttestationSourceConst {
+        api_url: "https://nym-api-signer-2.nymtech.net/api",
+        identity_ed25519_bs58: "2dJHDhUr5bRWxELMzZBZGVAW8cUHEJC1mGQYniKscQMo",
+    },
+    // TODO: we need unconditional key exposure for this to work
+    // (currently https://validator.nymtech.net/api even though has an ed25519 key it does NOT expose
+    // it anywhere)
+    // DirectoryAttestationSourceConst {
+    //     api_url: "https://validator.nymtech.net/api",
+    //     identity_ed25519_bs58: "<UNKNOWN>",
+    // },
+];
+
+#[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     ApiUrlConst {
         url: NYM_VPN_API,
@@ -100,14 +119,6 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
 ];
 
-#[cfg(feature = "env")]
-fn serialize_api_urls(urls: &[ApiUrlConst]) -> String {
-    serde_json::to_string(urls)
-        .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
-        .unwrap_or_default()
-}
-
-// I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 
@@ -168,6 +179,7 @@ pub fn read_parsed_var<T: std::str::FromStr>(var: &str) -> Result<T, T::Err> {
 
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
+    use crate::network::json_serialise;
     use crate::var_names;
 
     set_var_to_default(var_names::CONFIGURED, "true");
@@ -222,11 +234,11 @@ pub fn export_to_env() {
     );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
-    set_var_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
+    set_var_to_default(var_names::NYM_APIS, &json_serialise(NYM_APIS));
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
-    set_var_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
+    set_var_to_default(var_names::NYM_VPN_APIS, &json_serialise(NYM_VPN_APIS));
     set_var_to_default(
         var_names::UPGRADE_MODE_ATTESTATION_URL,
         UPGRADE_MODE_ATTESTATION_URL,
@@ -237,10 +249,15 @@ pub fn export_to_env() {
     );
     set_var_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
+    set_var_to_default(
+        var_names::DIRECTORY_ATTESTATION_SOURCES,
+        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env_if_not_set() {
+    use crate::network::json_serialise;
     use crate::var_names;
 
     set_var_conditionally_to_default(var_names::CONFIGURED, "true");
@@ -287,9 +304,9 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
-    set_var_conditionally_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
+    set_var_conditionally_to_default(var_names::NYM_APIS, &json_serialise(NYM_APIS));
     set_var_conditionally_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
-    set_var_conditionally_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
+    set_var_conditionally_to_default(var_names::NYM_VPN_APIS, &json_serialise(NYM_VPN_APIS));
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_conditionally_to_default(
@@ -302,4 +319,8 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
+    set_var_conditionally_to_default(
+        var_names::DIRECTORY_ATTESTATION_SOURCES,
+        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
 }

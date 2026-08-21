@@ -78,4 +78,30 @@ pub enum DirectoryClientError {
 
     #[error("non-canonical commit returned for height {0}")]
     NonCanonicalCommit(u64),
+
+    /// Fewer than `needed` distinct trusted signers agreed on identical attested
+    /// values (or none did). `agreed` is the largest distinct-signer count seen across
+    /// any single value grouping, so callers can see how close the quorum came.
+    #[error("quorum not reached: needed {needed} distinct trusted signers, got {agreed}")]
+    QuorumNotReached { needed: usize, agreed: usize },
+
+    /// No quorum-agreed attestation exists for the requested height. This can be
+    /// transient (a source has not yet, or no longer, holds that height) or permanent
+    /// (the height was never a real snapshot point) - the anchor cannot always tell
+    /// which, since a requested height only ever comes from a real observed snapshot
+    /// (self-seeded during `refresh`, or externally supplied by a caller with
+    /// independent reason to trust it exists), never guessed.
+    #[error("no quorum-agreed snapshot exists for height {0}")]
+    NoQuorumSnapshotForHeight(u64),
+
+    /// `AttestedTrustAnchor::new` was called with a degenerate quorum threshold.
+    #[error("invalid quorum configuration: quorum {quorum} with {signers} trusted signers")]
+    InvalidQuorumConfig { quorum: usize, signers: usize },
+
+    /// The data-source-agnostic whole-directory verification path
+    /// (`verify::verify_directory_offline`) was called without a trusted
+    /// node-identities hash to check against - today, only `AttestedTrustAnchor`'s
+    /// snapshot carries one.
+    #[error("no trusted node-identities hash is available to verify authorship against")]
+    NodeIdentitiesHashUnavailable,
 }

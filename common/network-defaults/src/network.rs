@@ -97,6 +97,44 @@ pub struct ApiUrlConst<'a> {
     pub front_hosts: Option<&'a [&'a str]>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DirectoryAttestationSource {
+    pub api_url: String,
+    pub identity_ed25519_bs58: String,
+}
+
+/// A nym-api capable of producing a signed directory-digest-snapshot attestation (see
+/// `nym-directory-client`'s `AttestedTrustAnchor`), paired with the ed25519 identity
+/// key it is expected to sign with.
+#[derive(Copy, Clone, Debug, Serialize)]
+pub struct DirectoryAttestationSourceConst<'a> {
+    pub api_url: &'a str,
+    pub identity_ed25519_bs58: &'a str,
+}
+
+impl From<DirectoryAttestationSourceConst<'_>> for DirectoryAttestationSource {
+    fn from(value: DirectoryAttestationSourceConst) -> Self {
+        DirectoryAttestationSource {
+            api_url: value.api_url.into(),
+            identity_ed25519_bs58: value.identity_ed25519_bs58.into(),
+        }
+    }
+}
+
+pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource> {
+    #[cfg(feature = "env")]
+    {
+        if crate::env_configured() {
+            return json_deserialise_env(var_names::DIRECTORY_ATTESTATION_SOURCES)
+                .unwrap_or_default();
+        }
+    }
+    mainnet::DIRECTORY_ATTESTATION_SOURCES
+        .iter()
+        .map(|i| (*i).into())
+        .collect()
+}
+
 impl From<ApiUrlConst<'_>> for ApiUrl {
     fn from(value: ApiUrlConst) -> Self {
         ApiUrl {
@@ -495,6 +533,27 @@ impl NymNetworkDetails {
             .inspect_err(|e| tracing::warn!("failed to serialize nym_vpn_api_urls for env: {e}"))
             .ok()
     }
+}
+
+#[cfg(feature = "env")]
+pub(crate) fn json_serialise<T>(data: &T) -> String
+where
+    T: ?Sized + serde::Serialize,
+{
+    serde_json::to_string(data)
+        .inspect_err(|e| tracing::warn!("failed to serialise data for env: {e}"))
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "env")]
+pub(crate) fn json_deserialise_env<T>(k: impl AsRef<OsStr>) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let raw = var(k).ok()?;
+    serde_json::from_str(&raw)
+        .inspect_err(|e| tracing::warn!("failed to parse data from env \"{raw:?}\": {e}"))
+        .ok()
 }
 
 #[cfg(feature = "env")]

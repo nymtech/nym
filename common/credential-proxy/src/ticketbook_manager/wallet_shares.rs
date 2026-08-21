@@ -200,7 +200,7 @@ impl TicketbookManager {
         params: TicketbookObtainParams,
         pending: &BlindedShares,
     ) -> Result<(), CredentialProxyError> {
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
 
         let device_id = &request_data.device_id;
         let credential_id = &request_data.credential_id;

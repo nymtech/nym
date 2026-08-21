@@ -213,10 +213,7 @@ async fn partial_expiration_date_signatures(
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;
@@ -256,10 +253,7 @@ async fn partial_coin_indices_signatures(
     State(state): State<Arc<EcashState>>,
     Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
 ) -> AxumResult<FormattedResponse<PartialCoinIndicesSignatureResponse>> {
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;

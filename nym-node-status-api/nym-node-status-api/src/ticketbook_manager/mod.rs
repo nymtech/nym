@@ -89,7 +89,7 @@ impl TicketbookManager {
         ticket_type: TicketType,
     ) -> anyhow::Result<()> {
         let expiration_date = ecash_default_expiration_date();
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         let threshold = self.state.ecash_threshold(epoch_id).await?;
         let ecash_clients = self.state.ecash_clients(epoch_id).await?;
 

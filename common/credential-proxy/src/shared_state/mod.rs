@@ -114,8 +114,10 @@ impl CredentialProxyState {
         }
     }
 
-    pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
-        self.ecash_state().current_epoch_id(self.client()).await
+    /// The epoch signers are issuing under. See
+    /// [`crate::shared_state::ecash_state::EcashState::issuable_epoch_id`].
+    pub async fn issuable_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
+        self.ecash_state().issuable_epoch_id(self.client()).await
     }
 
     pub async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {

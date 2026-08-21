@@ -2281,6 +2281,52 @@ mod credential_tests {
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
     }
 
+    /// A request that names no epoch means "the one in service", and mid-ceremony that is the
+    /// epoch before the current one - the same epoch a book would be issued under right now. If it
+    /// meant the current epoch instead, a client could obtain a book mid-ceremony and then fail to
+    /// fetch the auxiliary data to spend it, because it would be asking about the epoch being built.
+    #[tokio::test]
+    async fn data_for_no_stated_epoch_means_the_one_in_service() {
+        let fixture = TestFixture::new().await;
+        let expiration_date = ecash_today_date();
+        let in_service = fixture.comm_state.current_epoch();
+
+        fixture
+            .storage
+            .insert_master_expiration_date_signatures(
+                expiration_date,
+                &IssuedExpirationDateSignatures {
+                    epoch_id: in_service,
+                    signatures: Vec::new(),
+                },
+            )
+            .await
+            .unwrap();
+
+        // a ceremony begins for the next epoch, which has nothing to give yet
+        fixture.set_epoch(in_service + 1).await;
+        fixture.comm_state.start_ceremony();
+
+        let response = fixture
+            .axum
+            .get(&format!(
+                "/{V1_API_VERSION}/{ECASH_ROUTES}/{GLOBAL_EXPIRATION_DATE_SIGNATURES}"
+            ))
+            .add_query_param(
+                "expiration_date",
+                expiration_date.format(RFC_3339_DATE_FORMAT).unwrap(),
+            )
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::OK);
+        assert_eq!(
+            response
+                .json::<AggregatedExpirationDateSignatureResponse>()
+                .epoch_id,
+            in_service
+        );
+    }
+
     #[test]
     fn blind_sign_request_body_serde() {
         let deposit_id = 123;

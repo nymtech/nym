@@ -279,6 +279,19 @@ impl EcashState {
         })
     }
 
+    /// The epoch a request concerns: the one it named, or - having named none - the one in service.
+    ///
+    /// "In service" rather than "current" is what makes a paramless request coherent while a
+    /// ceremony runs. The epoch being built has nothing to give, so answering about it would refuse
+    /// a caller who never asked about it, and would disagree with the epoch a book issued at that
+    /// same moment is signed under.
+    pub(crate) async fn requested_epoch(&self, epoch_id: Option<EpochId>) -> Result<EpochId> {
+        match epoch_id {
+            Some(epoch_id) => Ok(epoch_id),
+            None => Ok(self.issuable_epochs().await?.issuable),
+        }
+    }
+
     /// Whether a ceremony that concluded at `concluded_at` is recent enough that other signers may
     /// not have noticed yet, and so may still be issuing under the epoch it replaced.
     ///

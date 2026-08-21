@@ -32,7 +32,7 @@ impl TicketbookManager {
             info!("");
 
             self.state.ensure_credentials_issuable().await?;
-            let epoch_id = self.state.current_epoch_id().await?;
+            let epoch_id = self.state.issuable_epoch_id().await?;
             ensure_sane_expiration_date(request.expiration_date)?;
 
             // if additional data was requested, grab them first in case there are any cache/network issues
@@ -132,7 +132,7 @@ impl TicketbookManager {
     ) -> Result<PartialVerificationKeysResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
 
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         let signers = self.state.ecash_clients(epoch_id).await?;
         Ok(PartialVerificationKeysResponse {
             epoch_id,
@@ -154,7 +154,7 @@ impl TicketbookManager {
 
         let epoch_id = match epoch_id {
             Some(epoch_id) => epoch_id,
-            None => self.state.current_epoch_id().await?,
+            None => self.state.issuable_epoch_id().await?,
         };
         let key = self.state.master_verification_key(Some(epoch_id)).await?;
         Ok(MasterVerificationKeyResponse {
@@ -184,7 +184,7 @@ impl TicketbookManager {
 
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.state.current_epoch_id().await?,
+            None => self.state.issuable_epoch_id().await?,
         };
 
         let expiration_date = match expiration_date {
@@ -204,7 +204,7 @@ impl TicketbookManager {
 
     pub async fn current_epoch(&self) -> Result<CurrentEpochResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         Ok(CurrentEpochResponse { epoch_id })
     }
 }

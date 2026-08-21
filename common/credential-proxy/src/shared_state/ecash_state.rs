@@ -119,7 +119,10 @@ impl EcashState {
     ) -> Result<(), CredentialProxyError> {
         let epoch = self.current_epoch(client).await?;
 
-        if epoch.state.is_final() {
+        // a ceremony running no longer stops issuance: signers keep issuing under the epoch it is
+        // replacing, so the only genuine refusal is when no epoch has ever concluded and there is
+        // nothing to issue under at all
+        if epoch.state.is_final() || epoch.epoch_id > 0 {
             Ok(())
         } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // SAFETY: the timestamp values in our DKG contract should be valid timestamps,
@@ -207,22 +210,27 @@ impl EcashState {
         Ok(epoch)
     }
 
-    pub async fn current_epoch_id(
+    /// The epoch signers are issuing under: the most recent whose ceremony has concluded. While a
+    /// ceremony runs that is the epoch before the current one, whose keys exist and whose
+    /// credentials are still circulating.
+    ///
+    /// Everything about one request has to agree on this - the signers asked, the threshold, the
+    /// auxiliary data returned alongside the shares, and the epoch stated on each request - so it
+    /// is resolved once per request and threaded through.
+    pub async fn issuable_epoch_id(
         &self,
         client: &ChainClient,
     ) -> Result<EpochId, CredentialProxyError> {
-        let read_guard = self.cached_epoch.read().await;
-        if read_guard.is_valid() {
-            return Ok(read_guard.current_epoch.epoch_id);
+        let epoch = self.current_epoch(client).await?;
+
+        if epoch.state.is_final() {
+            return Ok(epoch.epoch_id);
         }
 
-        // update cache
-        drop(read_guard);
-        let mut write_guard = self.cached_epoch.write().await;
-        let epoch = client.query_chain().await.get_current_epoch().await?;
-
-        write_guard.update(epoch);
-        Ok(epoch.epoch_id)
+        epoch
+            .epoch_id
+            .checked_sub(1)
+            .ok_or(CredentialProxyError::UninitialisedDkg)
     }
 
     pub async fn master_verification_key<S>(
@@ -236,7 +244,7 @@ impl EcashState {
     {
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.current_epoch_id(client).await?,
+            None => self.issuable_epoch_id(client).await?,
         };
 
         self.master_verification_key
@@ -285,7 +293,7 @@ impl EcashState {
     {
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.current_epoch_id(client).await?,
+            None => self.issuable_epoch_id(client).await?,
         };
 
         self.coin_index_signatures

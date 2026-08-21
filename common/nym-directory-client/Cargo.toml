@@ -18,7 +18,10 @@ async-trait = { workspace = true }
 ics23 = { workspace = true, features = ["host-functions"] }
 prost = { workspace = true }
 cosmrs = { workspace = true }
+serde = { workspace = true }
 tracing = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tendermint-light-client = { workspace = true, optional = true }
 
 nym-lthash = { workspace = true }
 nym-crypto = { workspace = true, features = ["asymmetric"] }
@@ -32,6 +35,11 @@ nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
 anyhow = { workspace = true }
 cw-storage-plus = { workspace = true }
+nym-validator-client = { workspace = true, features = ["mocks"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[features]
+light-client = ["tendermint-light-client"]
 
 [lints]
 workspace = true

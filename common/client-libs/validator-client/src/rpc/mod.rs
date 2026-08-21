@@ -14,6 +14,7 @@ use crate::nyxd::cosmwasm_client::types::{Account, SequenceResponse, SimulateRes
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::helpers::{create_pagination, next_page_key};
 use crate::nyxd::{BlockResponse, Coin, TxResponse};
+use crate::rpc::types::ProvableAbciQueryResponse;
 use async_trait::async_trait;
 use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
 use cosmrs::proto::cosmos::bank::v1beta1::{
@@ -49,12 +50,13 @@ use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 
-use crate::rpc::types::ProvableAbciQueryResponse;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::std::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 
+#[cfg(feature = "mocks")]
+pub mod mocks;
 pub mod reqwest;
 pub mod types;
 
@@ -420,6 +422,10 @@ pub trait TendermintRpcClientExt: TendermintRpcClient {
             .await?;
 
         res.try_into()
+    }
+
+    async fn get_all_validators(&self, height: Height) -> Result<validators::Response, NyxdError> {
+        Ok(self.validators(height, Paging::All).await?)
     }
 }
 

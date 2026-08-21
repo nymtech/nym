@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_lthash::DIGEST_LEN;
+use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 
@@ -38,6 +39,9 @@ pub enum DirectoryClientError {
     #[error("chain query failed: {0}")]
     ChainQueryFailure(#[from] NyxdError),
 
+    #[error("rpc query failed: {0}")]
+    RpcQueryFailure(#[from] TendermintRpcError),
+
     #[error(transparent)]
     Proof(#[from] ProofError),
 
@@ -63,4 +67,15 @@ pub enum DirectoryClientError {
 
     #[error("no known mixnet contract address was provided")]
     UnavailableMixnetContract,
+
+    #[error("light client header verification failed: {0}")]
+    LightClientVerificationFailed(String),
+
+    #[error(
+        "requested height {requested} precedes the pinned light-client checkpoint at height {checkpoint}"
+    )]
+    HeightBelowCheckpoint { requested: u64, checkpoint: u64 },
+
+    #[error("non-canonical commit returned for height {0}")]
+    NonCanonicalCommit(u64),
 }

@@ -50,9 +50,9 @@ pub use cosmrs::{
     query::{PageRequest, PageResponse},
     tendermint::{
         abci::{response::DeliverTx, types::ExecTxResult, Event, EventAttribute},
-        block::Height,
+        block::{signed_header::SignedHeader, Height},
         hash::{self, Algorithm, Hash},
-        validator::Info as TendermintValidatorInfo,
+        validator::{Info as TendermintValidatorInfo, Set as ValidatorSet},
         Time as TendermintTime,
     },
     tx::{self, Msg},

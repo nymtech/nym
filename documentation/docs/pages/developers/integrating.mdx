@@ -14,8 +14,8 @@ Most integrations start from one sentence: send the app's traffic through Nym.
 That is rarely one change. It goes wrong in the same order every time. First a
 user flow hangs, because nobody counted the round trips inside it. Then it turns
 out that some traffic never went through Nym, although every code path suggested
-it did. Neither is a transport bug. Both come from one assumption: that an
-application has a single point where traffic leaves.
+it did. Neither is a transport bug. They come from the same assumption: that an
+application has one point where traffic leaves.
 
 This page is about what to route, and what that decision costs. It applies to
 any runtime. For the browser-specific ways a routing policy fails to bind, see
@@ -53,7 +53,7 @@ reach the peer through Nym, or not at all.
 
 Consider an app with three endpoints. The first sees an account identifier on
 every request. That destination can link the identifier to an IP address, and
-the mixnet exists to remove exactly that. So route it. The second serves public
+the mixnet exists to remove that link. Route it. The second serves public
 data and sees no identifier. Routing it adds latency and hides nothing. The
 third runs inside a third-party iframe, so your code cannot route it at all.
 
@@ -61,7 +61,7 @@ Three endpoints, three answers, one transport. The transport decided none of
 them. Two things decided them: what each destination already knows about the
 user, and how the app reaches it.
 
-The unit of decision is therefore the endpoint. Planning produces a list of them.
+The unit of decision is the endpoint, and planning produces a list of them.
 
 ## Profiling an endpoint before you route it
 
@@ -69,8 +69,7 @@ This section assumes a clearnet destination. End to end, the exit-facing
 questions below have no equivalent.
 
 Work through these questions for each endpoint. Any one of them can change the
-answer on its own. This is why you cannot reason about the application as a
-whole.
+answer on its own. Reasoning about the application as a whole does not work.
 
 | Question | Why it decides the answer |
 |---|---|
@@ -80,8 +79,8 @@ whole.
 | **Is it called in sequence with others?** | Sequential dependent calls multiply the cost. No single request reveals this. See below. |
 | **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
 
-Route the smallest set that identifies users over HTTPS. Then widen it. A narrow
-set that works beats a broad set that you must debug underneath a hanging UI.
+Route the smallest set that identifies users over HTTPS, then widen it. Starting
+broad means debugging the routing underneath a UI that already hangs.
 
 ## Sequential calls in one user action are the usual failure
 
@@ -89,12 +88,13 @@ A single routed request is not where the cost shows up.
 
 One routed request that takes a second is fine. Now take a flow that issues
 three dependent requests inside a single user action. It pays that second three
-times over, in series. It also pays the tunnel bring-up, if the tunnel was cold.
+times over, in series. It pays the tunnel bring-up as well, if the tunnel was
+cold.
 From the outside, one button appears to do nothing for many seconds. No request
-timed out. None errored. None was individually unreasonable.
+timed out, none errored, and none was individually unreasonable.
 
 The cost belongs to the flow, not to any request inside it. Profiling endpoints
-one at a time therefore never surfaces it. Walk your user journeys and count the
+one at a time never surfaces it. Walk your user journeys and count the
 round trips in each. Restructure or defer any journey with more than one
 dependent routed call. Where the destination is on the clearnet, you can also
 leave it unrouted until the tunnel is warm.
@@ -106,7 +106,7 @@ TLS for you.
 
 The opposite arrangement fails differently. Issue several calls at once. Each
 one misses the connection pool, because a pool only helps after a connection
-returns to it. Each one therefore opens its own connection and its own TLS
+returns to it. Each one opens its own connection and its own TLS
 handshake through the mixnet. You pay setup once per call, instead of
 amortising it across the batch.
 
@@ -129,8 +129,7 @@ and it leaves the tunnel warm for everything after it.
 
 The obvious response to the concurrency problem is a strict queue. It
 overcorrects. One stalled request now blocks everything behind it for the full
-timeout. Without the queue, the rest would have gone through. A frozen app is
-worse than a slow one.
+timeout. Without the queue, the rest would have gone through.
 
 A small concurrency limit, with a per-request bound, is the shape to aim for.
 Pick the bound deliberately in both directions. Too generous, and a
@@ -139,8 +138,7 @@ completed.
 
 End to end, the same bound earns its place for a different reason. Replies
 arrive on single-use reply blocks. Your client computes and sends those blocks
-in advance. Outstanding requests are therefore reply capacity that you already
-spent. See [anonymous replies](/network/mixnet-mode/anonymous-replies) for
+in advance. Outstanding requests are reply capacity you already spent. See [anonymous replies](/network/mixnet-mode/anonymous-replies) for
 replenishment.
 
 <Callout type="warning">
@@ -161,8 +159,8 @@ something specific.
 
 Log the resolved configuration at startup, whatever the flag says: the values as
 read, the routed set as parsed, and the failure policy in force. It costs a few
-lines. It also separates an integration that ran and did nothing from one that
-nobody switched on.
+lines. It separates an integration that ran and did nothing from one that nobody
+switched on.
 
 ## Decide fail-open or fail-closed explicitly
 
@@ -195,9 +193,8 @@ strongest. Each catches what the others miss.
 | **Positive proof** | Asks one echo service over both paths, and compares the source address it saw each time. | Whether anything else leaks. It tests a single request. |
 | **Enforcement** | Removes the direct path at the platform level. A request that succeeds can then only have come through the tunnel. | Anything the platform does not govern, such as another process or an embedded third-party context. |
 
-Positive proof is the only level that separates "the request went through the
-tunnel" from "our transport code ran without throwing". All three levels are
-platform-specific. For the browser
+Only positive proof separates "the request went through the tunnel" from "our
+transport code ran without throwing". All three levels are platform-specific. For the browser
 mechanics, see [routing a browser or WebView app](/developers/browser-routing).
 
 ## Read timings with retries in mind
@@ -231,8 +228,7 @@ vocabulary of the [two-layer model](/network/threat-model/two-layer-model),
 routing your endpoints is Layer 1 and only Layer 1:
 
 - **The destination stops seeing the user's IP address.** That is V1 identity
-  protection against the destination. It is the whole of what the transport buys
-  you here.
+  protection against the destination. That is all the transport buys you here.
 - **Timing and content are untouched.** The destination still sees when every
   request arrives, and everything each one contains. Mixing changes what a
   network observer can infer. It does nothing about the server you talk to. That
@@ -280,8 +276,7 @@ Outstanding requests still need a bound.
 
 Everything that needs an exit or a direct path does not carry over. That covers
 the routing decision itself, the HTTPS question, connection pooling, the
-resolver, and fail-open. It also covers the whole of proving that the traffic
-took the tunnel.
+resolver, and fail-open. It covers proving that the traffic took the tunnel.
 
 <Callout type="info">
 The failure modes on this page come from clearnet-exit integrations. No

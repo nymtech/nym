@@ -17,8 +17,7 @@ iframes, vendor SDKs and Web Workers. Only your own helper is yours to redirect.
 A WebView host runs the same web platform as a browser tab, so everything below
 applies to both. Capacitor, Cordova, WKWebView and Android WebView are in scope.
 
-A routing policy written in application code therefore binds less than it
-appears to. When it fails to bind, you get no error. The request succeeds, it
+A routing policy written in application code binds less than it appears to. When it fails to bind, you get no error. The request succeeds, it
 returns the data you expected, and it travels over the clearnet.
 
 This page covers those failures and what to do about them.
@@ -81,8 +80,8 @@ backend, or record it as accepted in your threat model.
 
 Wrap `window.fetch` and `XMLHttpRequest.prototype.open` at startup. Treat any
 direct request to a routed host as a leak. The mixnet path never touches those
-globals for those hosts. A hit is therefore a bug in your own code every time,
-with no false positives to triage. It catches the bare-identifier bypass above
+globals for those hosts. A hit is a bug in your own code every time, with no
+false positives to triage. It catches the bare-identifier bypass above
 the moment it fires.
 
 ```js
@@ -118,8 +117,7 @@ export function installLeakGuard() {
 [fail-open or fail-closed](/developers/integrating#decide-fail-open-or-fail-closed-explicitly),
 made one request at a time. Left off, the request still goes out, and you find
 out afterwards. Turned on, the throw propagates to whoever called `fetch`. That
-stops the leak. It also surfaces as a network error in code that did not expect
-one. Run it on in development.
+stops the leak. It surfaces as a network error in code that did not expect one. Run it on in development.
 
 Log once at install time as well, whatever you choose. Otherwise "no leaks
 reported" and "the guard was never installed" produce identical output. The
@@ -147,7 +145,7 @@ console.log({ clearnet, mixnet, differ: clearnet !== mixnet })
 // { clearnet: "203.0.113.9", mixnet: "51.x.x.x", differ: true }
 ```
 
-Hang it somewhere you can reach from the console. Nothing else separates a
+Hang it somewhere you can reach from the console. No other check separates a
 request that went through the tunnel from transport code that ran without
 throwing.
 
@@ -156,12 +154,12 @@ throwing.
 `connect-src` is the only browser-enforced answer. The mechanism behind it is
 not obvious. Mixnet payload traffic never reaches CSP as a connection to your
 destination. It is a WebSocket to a Nym gateway, and the TLS session terminates
-inside the WASM. So leave the routed host out of `connect-src`. Every direct
-path to it is then blocked, and the mixnet path keeps working.
+inside the WASM. Leave the routed host out of `connect-src`. Every direct path
+to it is then blocked, and the mixnet path keeps working.
 
-That combination is the proof. A request succeeds, while the browser refuses
-every direct connection to its destination. It can only have come through the
-tunnel.
+That combination is what proves the routing. A request succeeds while the
+browser refuses every direct connection to its destination, so it can only have
+come through the tunnel.
 
 ```text
 connect-src 'self' wss: https://validator.nymtech.net
@@ -187,8 +185,8 @@ request answers to the policy like any other.
 Leave it out, and the tunnel dies at startup with a gateway selection error. The
 error never mentions CSP. On mainnet the host is `https://validator.nymtech.net`.
 
-Enforcement must therefore allow the control plane and still deny the data
-plane's destination. They are different hosts, which is the only reason this
+Enforcement has to allow the control plane and still deny the data plane's
+destination. They are different hosts, which is the only reason this
 works.
 
 <Callout type="warning">
@@ -202,8 +200,8 @@ Two mitigations. First, roll out with `Content-Security-Policy-Report-Only` as a
 *header*, which a `<meta>` tag cannot express. Collect violations from real
 sessions instead of guessing at the list. Second, check for a policy already set
 server-side. Multiple policies intersect and the narrower one wins. A header
-that carries `default-src` or `script-src` without `blob:` therefore defeats
-anything you change in a `<meta>` tag.
+that carries `default-src` or `script-src` without `blob:` defeats anything you
+change in a `<meta>` tag.
 </Callout>
 
 ## Use an incomplete policy to map your egress surface
@@ -233,8 +231,8 @@ page, and a second `setupMixTunnel` call rejects.
 [The guidance](/developers/mix-tunnel/guides#tunnel-state) is therefore to guard
 on `getTunnelState()`. That guard races. Two call sites can check while the
 state is `connecting`, and both then call setup. One of them takes the
-rejection. A memoised promise has no such window. It also hands concurrent
-callers one bring-up to await, instead of a state to poll.
+rejection. A memoised promise has no such window, and it hands concurrent
+callers one bring-up to await instead of a state to poll.
 
 Add one thing before you ship it. `??=` caches a rejection as durably as it
 caches a success. A chunk that fails to load once leaves every later caller
@@ -257,9 +255,9 @@ miss:
   and are lighter.
 
 If your build disables code splitting on purpose, weigh the exception rather
-than assuming it. A stale lazy chunk disables the mixnet until the user reloads.
-A stale main bundle breaks the app. The blast radius is therefore contained. It
-does mean keeping old chunks for as long as sessions outlive a deployment.
+than assuming it. A stale lazy chunk disables the mixnet until the user reloads, where a stale main
+bundle breaks the app, so the blast radius is contained. It does mean keeping old
+chunks for as long as sessions outlive a deployment.
 
 ## Feature flags read from localStorage are per origin
 

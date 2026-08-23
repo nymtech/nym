@@ -91,13 +91,15 @@ moment it fires.
 
 ```js
 const ROUTED_HOSTS = new Set(['api.example.com'])
+const FAIL_CLOSED = false
 
 function isRouted(url) {
   return ROUTED_HOSTS.has(new URL(url, location.href).hostname)
 }
 
 function onLeak(url) {
-  // TODO(human): decide what happens on a detected leak
+  console.error('nym leak guard: direct request to routed host', url)
+  if (FAIL_CLOSED) throw new Error(`blocked direct request to ${url}`)
 }
 
 export function installLeakGuard() {
@@ -115,6 +117,17 @@ export function installLeakGuard() {
   }
 }
 ```
+
+`FAIL_CLOSED` is the same decision as
+[fail-open or fail-closed](/developers/integrating#decide-fail-open-or-fail-closed-explicitly),
+made one request at a time. Left off, the request still goes out and you find
+out afterwards. Turned on, the throw propagates to whoever called `fetch`, which
+stops the leak and surfaces as a network error in code that was not expecting
+one. Development is the place to run it on.
+
+Log once at install time as well, whatever you choose. Otherwise "no leaks
+reported" and "the guard was never installed" produce identical output, and the
+first is the claim you will want to make.
 
 It does not see `navigator.sendBeacon`, `EventSource`, `WebSocket`, `<img>` and
 `<script>` sources, or anything inside a cross-origin iframe. Those need

@@ -3,7 +3,7 @@ title: "Planning an Integration: Per-Endpoint Routing and Failure Modes"
 description: "Routing an application through the mixnet is a decision per endpoint, not an application-wide switch. How to profile each destination, why sequential and concurrent calls fail differently, how to prove traffic went through Nym, and which of it stops applying when both ends run Nym."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-21"
+lastUpdated: "2026-08-23"
 ---
 
 import { Callout } from 'nextra/components'
@@ -11,276 +11,291 @@ import { Callout } from 'nextra/components'
 # Planning an integration
 
 Most integrations start from one sentence: send the app's traffic through Nym.
-What follows is rarely one change, and it tends to go wrong in the same order.
-First a user flow hangs, because nobody counted the round trips inside it. Then
-it turns out some traffic was never routed at all, while every code path
-suggested it was. Neither is a transport bug. Both come from treating an
-application as though it had a single point where traffic leaves.
+That is rarely one change. It goes wrong in the same order every time. First a
+user flow hangs, because nobody counted the round trips inside it. Then it turns
+out that some traffic never went through Nym, although every code path suggested
+it did. Neither is a transport bug. Both come from one assumption: that an
+application has a single point where traffic leaves.
 
-This page is about deciding what to route and what that decision costs. It
-applies to any runtime. The browser-specific ways a routing policy fails to bind
-are covered in [routing a browser app](/developers/browser-routing).
+This page is about what to route, and what that decision costs. It applies to
+any runtime. For the browser-specific ways a routing policy fails to bind, see
+[routing a browser app](/developers/browser-routing).
 
 <Callout type="info">
 Two decisions come before this one. [What Nym cannot do](/developers/limitations)
-tells you whether your workload fits at all, and
-[choose a defence](/network/threat-model/choose-config) turns your threat model
-into a network configuration. This page assumes both are settled.
+tells you whether your workload fits. [Choose a defence](/network/threat-model/choose-config)
+turns your threat model into a network configuration. This page assumes that you
+settled both.
 </Callout>
 
 ## Which shape your integration has
 
-Most of what follows assumes you are reaching a **clearnet destination**: a
-third-party server that does not run Nym, reached through an
+Most of this page assumes that you reach a **clearnet destination**. That is a
+third-party server which does not run Nym. You reach it through an
 [exit gateway](/network/infrastructure/exit-services). The rest of the developer
-docs call that **proxy mode**. It is the common case, and it is where these
-failure modes came from. Two other shapes exist, and much
-of what follows does not hold for them: if both ends run Nym, skip to
-[reaching another Nym client](#reaching-another-nym-client), and if you are the
-one being reached, skip to
-[when you are the destination](#when-you-are-the-destination).
+docs call this **proxy mode**. It is the common case, and these failure modes
+come from it.
 
 | Shape | What it means | How much of this page applies |
 |---|---|---|
 | **Proxy (clearnet exit)** | Your app reaches a third-party server over the public internet, through an exit gateway. | All of it. |
+| **dVPN proxy** | The same shape, but [`nym-smoldvpn`](/developers/smoldvpn) carries the traffic over WireGuard instead of the mixnet. | Most of it. See [if you use the dVPN datapath](#if-you-use-the-dvpn-datapath). |
 | **End-to-end (client to client)** | Both ends run Nym. No exit gateway, no clearnet destination. | The flow arithmetic only. See [reaching another Nym client](#reaching-another-nym-client). |
 | **You are the destination** | You run the service that others reach over Nym. | Almost none. See [when you are the destination](#when-you-are-the-destination). |
 
 Every section that assumes a clearnet destination says so in its first line. A
-section that does not say it holds whatever shape you have.
+section that does not say it applies to every shape.
 
 ## Routing is a per-endpoint decision
 
-This section assumes a clearnet destination. End to end there is nothing to
-decide: the peer is reachable through Nym or not at all.
+This section assumes a clearnet destination. End to end you decide nothing: you
+reach the peer through Nym, or not at all.
 
-Take a wallet with three destinations. The blockchain RPC endpoint sees an
-account address on every call, and tying that address to an IP address is the
-exposure the mixnet exists to remove, so route it. The price feed sees no
-account identifier, so routing it buys latency and nothing else. The on-ramp
-provider runs in a third-party iframe, so it cannot be routed from your code
-whatever you decide.
+Take a wallet with three endpoints. The blockchain RPC endpoint sees an account
+address on every call. That destination can link the address to an IP address,
+and the mixnet exists to remove exactly that. So route it. The price feed sees
+no account identifier. Routing it adds latency and hides nothing. The on-ramp
+provider runs in a third-party iframe, so your code cannot route it at all.
 
-Three destinations, three answers, one transport. Nothing about the transport
-decided any of them. What decided them was what each destination already knows
-about the user, and how the app talks to it.
+Three endpoints, three answers, one transport. The transport decided none of
+them. Two things decided them: what each destination already knows about the
+user, and how the app reaches it.
 
-So the unit of decision is the endpoint, and what you produce at the end of
-planning is a list of them.
+The unit of decision is therefore the endpoint. Planning produces a list of them.
 
 ## Profiling an endpoint before you route it
 
-This section assumes a clearnet destination. The exit-facing questions below
-have no equivalent when both ends run Nym.
+This section assumes a clearnet destination. End to end, the exit-facing
+questions below have no equivalent.
 
-Work through these per endpoint. Any one of them can flip the answer on its own,
-which is why reasoning about the application as a whole does not work.
+Work through these questions for each endpoint. Any one of them can change the
+answer on its own. This is why you cannot reason about the application as a
+whole.
 
 | Question | Why it decides the answer |
 |---|---|
-| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | The whole case for routing. An endpoint that sees no identifier gains nothing from hiding the IP address, because there is nothing to correlate it against. |
-| **Is it HTTPS?** | The [exit gateway](/network/infrastructure/exit-services#ip-packet-router) reads plain HTTP in full, so routing an `http://` endpoint relocates the observer instead of removing it. |
-| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it. A call sitting in front of a user does not. |
-| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost in a way no single request reveals. See below. |
-| **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking are outside your control regardless of what your policy says. |
+| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the whole case for routing. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
+| **Is it HTTPS?** | The [exit gateway](/network/infrastructure/exit-services#ip-packet-router) reads plain HTTP in full. Routing an `http://` endpoint moves the observer. It does not remove it. |
+| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it. A call in front of a user does not. |
+| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost. No single request reveals this. See below. |
+| **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
 
-Route the smallest set that identifies users over HTTPS, then widen. A narrow
-set that works beats a broad set you have to debug underneath a hanging UI.
+Route the smallest set that identifies users over HTTPS. Then widen it. A narrow
+set that works beats a broad set that you must debug underneath a hanging UI.
 
 ## Sequential calls in one user action are the usual failure
 
 This is what gets reported as "the mixnet is too slow".
 
-One routed request taking a second is fine. A flow issuing three dependent
-requests inside a single user action pays that second three times over, in
-series, plus the tunnel bring-up if it was not already warm. From the outside,
-one button does nothing for a quarter of a minute. No request timed out, none
-errored, and none of them was individually unreasonable.
+One routed request that takes a second is fine. Now take a flow that issues
+three dependent requests inside a single user action. It pays that second three
+times over, in series. It also pays the tunnel bring-up, if the tunnel was cold.
+From the outside, one button does nothing for a quarter of a minute. No request
+timed out. None errored. None was individually unreasonable.
 
-The cost belongs to the flow, not to any request inside it, so profiling
-endpoints one at a time will never surface it. Walk your user journeys and count
-the round trips in each. Any journey with more than one dependent routed call
-needs restructuring, deferring, or, where the destination is on the clearnet,
-leaving unrouted until the tunnel is warm.
+The cost belongs to the flow, not to any request inside it. Profiling endpoints
+one at a time therefore never surfaces it. Walk your user journeys and count the
+round trips in each. Restructure or defer any journey with more than one
+dependent routed call. Where the destination is on the clearnet, you can also
+leave it unrouted until the tunnel is warm.
 
 ## Concurrent requests each pay their own handshake
 
 This section assumes a clearnet destination, where the tunnel carries TCP and
-TLS on your behalf.
+TLS for you.
 
-The opposite arrangement fails differently. Fire five calls at once and each one
-misses the connection pool and opens its own connection and TLS handshake
-through the mixnet, because a pool only helps once a connection has been
-returned to it. Setup gets paid for five times over instead of being amortised across
+The opposite arrangement fails differently. Fire five calls at once. Each one
+misses the connection pool, because a pool only helps after a connection returns
+to it. Each one therefore opens its own connection and its own TLS handshake
+through the mixnet. You pay setup five times instead of amortising it across
 five requests.
 
-Libraries that batch or parallelise on your behalf will do this without being
-asked, so find out which of your dependencies do.
+Libraries that batch or parallelise on your behalf do this without being asked.
+Find out which of your dependencies do.
 
 ## Warm the tunnel before the first request
 
-Cold start is dominated by work that happens once and has nothing to do with the
-request that triggered it: bringing up the client and the gateway handshake, and
-then, if the destination is on the clearnet, DNS, TCP and TLS through the
-tunnel. Whoever triggers it waits for all of that and blames your application.
+Cold start is dominated by work that happens once. That work has nothing to do
+with the request that triggered it. It brings up the client and completes the
+gateway handshake. If the destination is on the clearnet, it then adds DNS, TCP
+and TLS through the tunnel. Whoever triggers this waits for all of it, and
+blames your application.
 
-Bring the tunnel up ahead of use, then send one warm-up request before the app
-starts querying. This is the highest-value change available, because it moves
-the expensive part away from someone who is waiting and leaves the tunnel warm
+Bring the tunnel up ahead of use. Then send one warm-up request before the app
+starts querying. This is the highest-value change available. It moves the
+expensive part away from someone who is waiting, and it leaves the tunnel warm
 for everything after it.
 
 ## Bound requests, but do not serialise them to one
 
 The obvious response to the concurrency problem is a strict queue. It
 overcorrects. One stalled request now blocks everything behind it for the full
-timeout, where before, the rest would have gone through. A frozen app is worse
-than a slow one.
+timeout. Without the queue, the rest would have gone through. A frozen app is
+worse than a slow one.
 
-A concurrency limit of two with a per-request bound is the shape that survives
-contact. Pick the bound deliberately in both directions: too generous and a
-stuck request holds the UI, too tight and you abandon requests that would have
+A concurrency limit of two, with a per-request bound, is the shape that survives
+contact. Pick the bound deliberately in both directions. Too generous, and a
+stuck request holds the UI. Too tight, and you abandon requests that would have
 completed.
 
-End to end the same bound earns its place for a different reason. Replies arrive
-on single-use reply blocks that your client computed and sent in advance, so
-outstanding requests are reply capacity already spent. See
-[anonymous replies](/network/mixnet-mode/anonymous-replies) for replenishment.
+End to end, the same bound earns its place for a different reason. Replies
+arrive on single-use reply blocks. Your client computes and sends those blocks
+in advance. Outstanding requests are therefore reply capacity that you already
+spent. See [anonymous replies](/network/mixnet-mode/anonymous-replies) for
+replenishment.
 
 <Callout type="warning">
-Check what your timeout actually does. In the browser packages it is a race that
-bounds *your* wait. The underlying request continues inside the worker and
-cannot be cancelled (see
+Check what your timeout does. In the browser packages it is a race that bounds
+*your* wait. The underlying request continues inside the worker, and you cannot
+cancel it (see
 [timeouts and cancellation](/developers/mix-fetch/guides#timeouts-and-cancellation)).
-Since the bound abandons rather than cancels, retrying on timeout leaves two
-requests in flight.
+The bound abandons the request rather than cancelling it, so a retry on timeout
+leaves two requests in flight.
 </Callout>
+
+## Make the privacy flag announce itself unconditionally
+
+Gate every log line on the feature flag, and "switched off" produces the same
+output as "never ran". That distinction is the one thing you need when you ask
+where a user's traffic went. Gated logging destroys it. Silence must mean
+something specific.
+
+Log the resolved configuration at startup, whatever the flag says: the values as
+read, the routed set as parsed, and the failure policy in force. It costs a few
+lines. It also ends the debugging session where the integration appears to do
+nothing, and the answer is that nobody switched it on.
 
 ## Decide fail-open or fail-closed explicitly
 
-This section assumes a clearnet destination. It is the existence of a direct
-path to the same server that makes the choice possible, and no such path exists
-to a Nym address.
+This section assumes a clearnet destination. A direct path to the same server is
+what makes the choice possible, and no direct path reaches a Nym address.
 
 When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
 
-Whichever you pick, pick it. What goes wrong is deciding by accident: a `catch`
-written for another purpose, or a retry helper three layers down, chooses
-fail-open for you and nothing reports that it happened. An integration whose
-leak detection raises while its transport quietly retries over the clearnet has
+Whichever you pick, pick it. What goes wrong is deciding by accident. A `catch`
+written for another purpose chooses fail-open for you. So does a retry helper
+three layers down. Nothing reports that it happened. An integration whose leak
+detection raises, while its transport quietly retries over the clearnet, has
 shipped fail-open, whatever the setting says.
-
-## Make the privacy flag announce itself unconditionally
-
-Gate every log line on the feature flag and "switched off" produces the same
-output as "never ran". That distinction is the one thing you need when the
-question is where a user's traffic went, and gated logging destroys it. Silence
-has to mean something specific.
-
-Log the resolved configuration at startup regardless of the flag: the values as
-read, the routed set as parsed, the failure policy in force. It costs a few
-lines. It also ends the debugging session where the integration appears to do
-nothing and the answer is that it was never switched on.
 
 ## Prove the traffic went through the mixnet
 
 This section assumes a clearnet destination. All three levels below test whether
-a request took the tunnel instead of a direct path, and end to end no direct
-path to the peer exists.
+a request took the tunnel instead of a direct path. End to end, no direct path
+reaches the peer.
 
 A routing policy written in application code is a statement of intent. Put
-something underneath it that fails loudly. Three levels, weakest to strongest,
-each catching what the others miss:
+something underneath it that fails loudly. Here are three levels, weakest to
+strongest. Each catches what the others miss.
 
 | Level | What it does | What it cannot tell you |
 |---|---|---|
-| **Detection** | Traps requests reaching a routed destination by a path the policy does not control, and reports them as bugs. | Whether the mixnet did anything. It only proves your code ran. |
-| **Positive proof** | Asks one echo service over both paths and compares the source address it saw each time. | Whether anything else is leaking. It tests a single request. |
-| **Enforcement** | Removes the direct path at the platform level, so a request that succeeds can only have come through the tunnel. | Anything the platform does not govern, such as another process or an embedded third-party context. |
+| **Detection** | Traps requests that reach a routed destination by a path the policy does not control, and reports them as bugs. | Whether the mixnet did anything. It only proves that your code ran. |
+| **Positive proof** | Asks one echo service over both paths, and compares the source address it saw each time. | Whether anything else leaks. It tests a single request. |
+| **Enforcement** | Removes the direct path at the platform level. A request that succeeds can then only have come through the tunnel. | Anything the platform does not govern, such as another process or an embedded third-party context. |
 
-Positive proof is the level integrations skip, and the only one that separates
-"the request went through the tunnel" from "our transport code ran without
-throwing". All three are platform-specific; the browser mechanics are in
-[routing a browser app](/developers/browser-routing).
+Positive proof is the level that integrations skip. It is also the only one that
+separates "the request went through the tunnel" from "our transport code ran
+without throwing". All three levels are platform-specific. For the browser
+mechanics, see [routing a browser app](/developers/browser-routing).
 
 ## Read timings with retries in mind
 
-Clients retry a failed connection internally, and a retry that succeeds never
-surfaces as an error. A request several times slower than its neighbours may
-have been one silent reconnection rather than mixnet latency. Turn debug logging
-on before you tune anything against a slow sample.
+Clients retry a failed connection internally. A retry that succeeds never
+surfaces as an error. A request several times slower than its neighbours may be
+one silent reconnection rather than mixnet latency. Turn debug logging on before
+you tune anything against a slow sample.
 
 ## Set the resolver deliberately
 
-This section assumes a clearnet destination. End to end there is no DNS at all:
-you address a Nym client by its key, not by a name.
+This section assumes a clearnet destination. End to end there is no DNS: you
+address a Nym client by its key, not by a name.
 
-DNS lookups travel through the tunnel and exit with everything else, so the
-resolver sees queries arriving from the exit gateway instead of from your user.
-That much is the property you wanted. It does not stop the resolver seeing every
-hostname your app looks up, and the default is a large public resolver.
+DNS lookups travel through the tunnel and exit with everything else. The
+resolver therefore sees queries that arrive from the exit gateway, not from your
+user. That much is the property you wanted. It does not stop the resolver seeing
+every hostname your app looks up, and the default is a large public resolver.
 
-Decide whether that suits your users instead of inheriting it. `primaryDns` and
-`fallbackDns` change it; [mix-dns](/developers/mix-dns/guides) has the format.
+Decide whether that suits your users, instead of inheriting it. `primaryDns` and
+`fallbackDns` change it. [mix-dns](/developers/mix-dns/guides) has the format.
 
 ## What the integration gets you, and what it does not
 
-This section assumes a clearnet destination. End to end the assessment is a
-different one, because there is no third-party server to take the view away
-from: see [end to end](/network/threat-model/configurations/end-to-end).
+This section assumes a clearnet destination. End to end the assessment differs,
+because no third-party server exists to take the view away from. See
+[end to end](/network/threat-model/configurations/end-to-end).
 
 The resulting property is narrower than "the app is now private". In the
 vocabulary of the [two-layer model](/network/threat-model/two-layer-model),
 routing your endpoints is Layer 1 and only Layer 1:
 
-- **The destination stops seeing the user's IP address.** V1 identity
-  protection against the destination, and the whole of what the transport buys
+- **The destination stops seeing the user's IP address.** That is V1 identity
+  protection against the destination. It is the whole of what the transport buys
   you here.
 - **Timing and content are untouched.** The destination still sees when every
-  request arrives and everything each one contains. Mixing changes what a
-  network observer can infer and does nothing about the server you are talking
-  to. That is V2 and V3, that is Layer 2, and it belongs to
+  request arrives, and everything each one contains. Mixing changes what a
+  network observer can infer. It does nothing about the server you talk to. That
+  is V2 and V3, that is Layer 2, and it belongs to
   [your application](/developers/swizzle).
 - **Requests stay linkable.** Any identifier your requests already carry still
-  identifies the user, and a session holding one exit for its lifetime presents
-  a stable exit address alongside it.
+  identifies the user. A session that holds one exit for its lifetime also
+  presents a stable exit address.
 - **Unroutable traffic is unchanged.** Third-party contexts still see the real
   address.
 
 For most applications the destination is the
 [primary adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications).
-Taking its view of the user's IP address away is a real win, and it is one
+Taking its view of the user's IP address away is a real win. It is also one
 vector of three. Say both halves of that to whoever signs the work off.
+
+## If you use the dVPN datapath
+
+[`nym-smoldvpn`](/developers/smoldvpn) reaches a clearnet destination like any
+other proxy integration, so this page applies to it. It carries your traffic
+over a WireGuard dVPN instead of the mixnet, which changes three things.
+
+Latency is much lower, so the flow arithmetic hurts less. It does not disappear:
+cold start and sequential round trips still cost what they cost. The mixnet
+parts of this page do not apply, because dVPN mode sends no Sphinx packets and
+uses no reply blocks. Most importantly, dVPN mode provides **no in-transit
+timing protection**. It hides the client IP address from the destination and
+splits trust across two operators. It closes nothing else.
+
+Read [dVPN mode](/network/dvpn-mode) before you choose it. It is a different
+product, not a faster mixnet.
 
 ## Reaching another Nym client
 
-When both ends run Nym there is no exit gateway and no clearnet destination.
-Traffic stays inside the mixnet the whole way, the peer never learns your IP
-address, and replies come back on reply blocks you supplied. This removes the
-untrusted destination rather than hiding your address from it, which is a
-different assessment: see
+When both ends run Nym, there is no exit gateway and no clearnet destination.
+Traffic stays inside the mixnet the whole way. The peer never learns your IP
+address, and replies come back on reply blocks that you supplied. This removes
+the untrusted destination, rather than hiding your address from it, so the
+assessment differs. See
 [end to end](/network/threat-model/configurations/end-to-end).
 
-What carries over from this page is the flow arithmetic. Round trips inside one
-user action still cost what they cost, cold start still lands on whoever
-triggers it, and outstanding requests still need a bound. What does not carry
-over is everything that needs an exit or a direct path to exist: the routing
-decision itself, the HTTPS question, connection pooling, the resolver,
-fail-open, and the whole of proving the traffic took the tunnel.
+The flow arithmetic carries over from this page. Round trips inside one user
+action still cost what they cost. Cold start still lands on whoever triggers it.
+Outstanding requests still need a bound.
+
+Everything that needs an exit or a direct path does not carry over. That covers
+the routing decision itself, the HTTPS question, connection pooling, the
+resolver, and fail-open. It also covers the whole of proving that the traffic
+took the tunnel.
 
 <Callout type="info">
-The failure modes on this page came from clearnet-exit integrations. There is no
-equivalent list for client-to-client work yet, and a visible gap is more use to
-you than a guessed one.
+The failure modes on this page come from clearnet-exit integrations. No
+equivalent list exists yet for client-to-client work. A visible gap is more use
+to you than a guessed one.
 </Callout>
 
 ## When you are the destination
 
 If you run the service that others reach over Nym, the planning problem inverts.
-You never open an outbound connection, your address is
-[only as stable as its gateway](/developers/service-providers#your-address-is-only-as-stable-as-its-gateway),
-and every reply you send spends one of the sender's reply blocks out of a fixed
+You never open an outbound connection. Your address is
+[only as stable as its gateway](/developers/service-providers#your-address-is-only-as-stable-as-its-gateway).
+Every reply you send spends one of the sender's reply blocks, out of a fixed
 per-second budget. That is its own page:
 [building a Nym service provider](/developers/service-providers).
 
@@ -290,7 +305,7 @@ per-second budget. That is its own page:
   fails to bind in a browser, and how to detect, prove and enforce it.
 - [Building a Nym service provider](/developers/service-providers): the server
   side, if others reach you over Nym.
-- [What Nym cannot do](/developers/limitations): workload fit, and what the
-  default sending rate costs.
+- [What Nym cannot do](/developers/limitations): workload fit, and the cost of
+  the default sending rate.
 - [Choose a defence](/network/threat-model/choose-config): threat model to
   network configuration.

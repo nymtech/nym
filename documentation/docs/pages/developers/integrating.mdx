@@ -51,11 +51,11 @@ section that does not say it applies to every shape.
 This section assumes a clearnet destination. End to end you decide nothing: you
 reach the peer through Nym, or not at all.
 
-Take a wallet with three endpoints. The blockchain RPC endpoint sees an account
-address on every call. That destination can link the address to an IP address,
-and the mixnet exists to remove exactly that. So route it. The price feed sees
-no account identifier. Routing it adds latency and hides nothing. The on-ramp
-provider runs in a third-party iframe, so your code cannot route it at all.
+Consider an app with three endpoints. The first sees an account identifier on
+every request. That destination can link the identifier to an IP address, and
+the mixnet exists to remove exactly that. So route it. The second serves public
+data and sees no identifier. Routing it adds latency and hides nothing. The
+third runs inside a third-party iframe, so your code cannot route it at all.
 
 Three endpoints, three answers, one transport. The transport decided none of
 them. Two things decided them: what each destination already knows about the
@@ -85,12 +85,12 @@ set that works beats a broad set that you must debug underneath a hanging UI.
 
 ## Sequential calls in one user action are the usual failure
 
-This is what gets reported as "the mixnet is too slow".
+A single routed request is not where the cost shows up.
 
 One routed request that takes a second is fine. Now take a flow that issues
 three dependent requests inside a single user action. It pays that second three
 times over, in series. It also pays the tunnel bring-up, if the tunnel was cold.
-From the outside, one button does nothing for a quarter of a minute. No request
+From the outside, one button appears to do nothing for many seconds. No request
 timed out. None errored. None was individually unreasonable.
 
 The cost belongs to the flow, not to any request inside it. Profiling endpoints
@@ -104,11 +104,11 @@ leave it unrouted until the tunnel is warm.
 This section assumes a clearnet destination, where the tunnel carries TCP and
 TLS for you.
 
-The opposite arrangement fails differently. Fire five calls at once. Each one
-misses the connection pool, because a pool only helps after a connection returns
-to it. Each one therefore opens its own connection and its own TLS handshake
-through the mixnet. You pay setup five times instead of amortising it across
-five requests.
+The opposite arrangement fails differently. Issue several calls at once. Each
+one misses the connection pool, because a pool only helps after a connection
+returns to it. Each one therefore opens its own connection and its own TLS
+handshake through the mixnet. You pay setup once per call, instead of
+amortising it across the batch.
 
 Libraries that batch or parallelise on your behalf do this without being asked.
 Find out which of your dependencies do.
@@ -122,9 +122,8 @@ and TLS through the tunnel. Whoever triggers this waits for all of it, and
 blames your application.
 
 Bring the tunnel up ahead of use. Then send one warm-up request before the app
-starts querying. This is the highest-value change available. It moves the
-expensive part away from someone who is waiting, and it leaves the tunnel warm
-for everything after it.
+starts querying. This moves the expensive part away from someone who is waiting,
+and it leaves the tunnel warm for everything after it.
 
 ## Bound requests, but do not serialise them to one
 
@@ -133,8 +132,8 @@ overcorrects. One stalled request now blocks everything behind it for the full
 timeout. Without the queue, the rest would have gone through. A frozen app is
 worse than a slow one.
 
-A concurrency limit of two, with a per-request bound, is the shape that survives
-contact. Pick the bound deliberately in both directions. Too generous, and a
+A small concurrency limit, with a per-request bound, is the shape to aim for.
+Pick the bound deliberately in both directions. Too generous, and a
 stuck request holds the UI. Too tight, and you abandon requests that would have
 completed.
 
@@ -162,8 +161,8 @@ something specific.
 
 Log the resolved configuration at startup, whatever the flag says: the values as
 read, the routed set as parsed, and the failure policy in force. It costs a few
-lines. It also ends the debugging session where the integration appears to do
-nothing, and the answer is that nobody switched it on.
+lines. It also separates an integration that ran and did nothing from one that
+nobody switched on.
 
 ## Decide fail-open or fail-closed explicitly
 
@@ -196,9 +195,9 @@ strongest. Each catches what the others miss.
 | **Positive proof** | Asks one echo service over both paths, and compares the source address it saw each time. | Whether anything else leaks. It tests a single request. |
 | **Enforcement** | Removes the direct path at the platform level. A request that succeeds can then only have come through the tunnel. | Anything the platform does not govern, such as another process or an embedded third-party context. |
 
-Positive proof is the level that integrations skip. It is also the only one that
-separates "the request went through the tunnel" from "our transport code ran
-without throwing". All three levels are platform-specific. For the browser
+Positive proof is the only level that separates "the request went through the
+tunnel" from "our transport code ran without throwing". All three levels are
+platform-specific. For the browser
 mechanics, see [routing a browser app](/developers/browser-routing).
 
 ## Read timings with retries in mind

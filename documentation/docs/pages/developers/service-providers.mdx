@@ -36,7 +36,7 @@ export const spScenario = {
 
 A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that embedded client directly over the mixnet. Your code answers without learning who asked.
 
-The embedded client is what separates the [two approaches](/developers#end-to-end-or-proxy):
+The embedded client is what separates the [approaches](/developers#end-to-end-or-proxy):
 
 - **You cannot change the service.** That is proxy mode. An Exit Gateway leaves the mixnet on your behalf and connects to it over ordinary clearnet, subject to that gateway's [exit policy](/network/infrastructure/exit-services#the-exit-policy-applies).
 - **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Traffic stays Sphinx-encrypted the whole way.

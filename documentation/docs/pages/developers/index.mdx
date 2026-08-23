@@ -42,7 +42,7 @@ export const archBrowser = {
 Every Nym integration sends its traffic through the mixnet via a Nym client. Which crate or package you use comes down to two questions:
 
 1. **Runtime**: where does your code run?
-2. **Approach**: do you control both sides of the connection (**end-to-end**), or are you reaching a third-party service through the mixnet (**proxy**)?
+2. **Approach**: do you control both sides of the connection (**end-to-end**), are you reaching a third-party service through the mixnet (**proxy**), or are you the service others reach over Nym (**service provider**)?
 
 The table below maps those two answers to a package.
 
@@ -84,6 +84,8 @@ The runtime axis is about where your code runs: a native process has raw sockets
 <NetworkDiagram item={archProxy} />
 
 **dVPN proxy**: for bulk data, [`nym-smoldvpn`](/developers/smoldvpn) is a faster proxy that tunnels over a 2-hop WireGuard dVPN instead of the mixnet. It hides the client IP at line rate but drops the mixnet's timing protection, so choose it only where that trade suits your threat model.
+
+**Service provider**: you run the thing being reached. There is no outbound connection to route, your address is only as stable as the gateway named inside it, and every reply spends one of the sender's reply blocks. See [building a Nym service provider](/developers/service-providers), and [planning an integration](/developers/integrating#when-you-are-the-destination) for how the planning problem inverts.
 
 <NetworkDiagram item={archDvpn} />
 

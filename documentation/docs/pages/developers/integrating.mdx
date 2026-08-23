@@ -1,6 +1,6 @@
 ---
 title: "Planning an Integration: Per-Endpoint Routing and Failure Modes"
-description: "Routing an application through the mixnet is a decision per endpoint, not an application-wide switch. How to profile each destination, why sequential and concurrent calls fail differently, and how to prove traffic went through Nym."
+description: "Routing an application through the mixnet is a decision per endpoint, not an application-wide switch. How to profile each destination, why sequential and concurrent calls fail differently, how to prove traffic went through Nym, and which of it stops applying when both ends run Nym."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-08-21"
@@ -19,7 +19,7 @@ application as though it had a single point where traffic leaves.
 
 This page is about deciding what to route and what that decision costs. It
 applies to any runtime. The browser-specific ways a routing policy fails to bind
-are covered in [retrofitting a browser app](/developers/retrofitting).
+are covered in [routing a browser app](/developers/browser-routing).
 
 <Callout type="info">
 Two decisions come before this one. [What Nym cannot do](/developers/limitations)
@@ -28,7 +28,27 @@ tells you whether your workload fits at all, and
 into a network configuration. This page assumes both are settled.
 </Callout>
 
+## Which shape your integration has
+
+Most of what follows assumes you are reaching a **clearnet destination**: a
+third-party server that does not run Nym, reached through an
+[exit gateway](/network/infrastructure/exit-services). That is the common case,
+and it is where these failure modes came from. Two other shapes exist, and much
+of what follows does not hold for them.
+
+| Shape | What it means | How much of this page applies |
+|---|---|---|
+| **Clearnet exit** | Your app reaches a third-party server over the public internet, through an exit gateway. | All of it. |
+| **Client to client (end to end)** | Both ends run Nym. No exit gateway, no clearnet destination. | The flow arithmetic only. See [reaching another Nym client](#reaching-another-nym-client). |
+| **You are the destination** | You run the service that others reach over Nym. | Almost none. See [when you are the destination](#when-you-are-the-destination). |
+
+Every section that assumes a clearnet destination says so in its first line. A
+section that does not say it holds whatever shape you have.
+
 ## Routing is a per-endpoint decision
+
+This section assumes a clearnet destination. End to end there is nothing to
+decide: the peer is reachable through Nym or not at all.
 
 Take a wallet with three destinations. The blockchain RPC endpoint sees an
 account address on every call, and tying that address to an IP address is the
@@ -45,6 +65,9 @@ So the unit of decision is the endpoint, and what you produce at the end of
 planning is a list of them.
 
 ## Profiling an endpoint before you route it
+
+This section assumes a clearnet destination. The exit-facing questions below
+have no equivalent when both ends run Nym.
 
 Work through these per endpoint. Any one of them can flip the answer on its own,
 which is why reasoning about the application as a whole does not work.
@@ -73,9 +96,13 @@ errored, and none of them was individually unreasonable.
 The cost belongs to the flow, not to any request inside it, so profiling
 endpoints one at a time will never surface it. Walk your user journeys and count
 the round trips in each. Any journey with more than one dependent routed call
-needs restructuring, deferring, or leaving unrouted until the tunnel is warm.
+needs restructuring, deferring, or, where the destination is on the clearnet,
+leaving unrouted until the tunnel is warm.
 
 ## Concurrent requests each pay their own handshake
+
+This section assumes a clearnet destination, where the tunnel carries TCP and
+TLS on your behalf.
 
 The opposite arrangement fails differently. Fire five calls at once and each one
 misses the connection pool and opens its own connection and TLS handshake
@@ -89,14 +116,14 @@ asked, so find out which of your dependencies do.
 ## Warm the tunnel before the first request
 
 Cold start is dominated by work that happens once and has nothing to do with the
-request that triggered it: bringing up the client, the gateway handshake, then
-DNS, TCP and TLS through the tunnel. Whoever triggers it waits for all of that
-and blames your application.
+request that triggered it: bringing up the client and the gateway handshake, and
+then, if the destination is on the clearnet, DNS, TCP and TLS through the
+tunnel. Whoever triggers it waits for all of that and blames your application.
 
 Bring the tunnel up ahead of use, then send one warm-up request before the app
 starts querying. This is the highest-value change available, because it moves
-the expensive part away from someone who is waiting and leaves a live connection
-in the pool for everything after it.
+the expensive part away from someone who is waiting and leaves the tunnel warm
+for everything after it.
 
 ## Bound requests, but do not serialise them to one
 
@@ -110,6 +137,11 @@ contact. Pick the bound deliberately in both directions: too generous and a
 stuck request holds the UI, too tight and you abandon requests that would have
 completed.
 
+End to end the same bound earns its place for a different reason. Replies arrive
+on single-use reply blocks that your client computed and sent in advance, so
+outstanding requests are reply capacity already spent. See
+[anonymous replies](/network/mixnet-mode/anonymous-replies) for replenishment.
+
 <Callout type="warning">
 Check what your timeout actually does. In the browser packages it is a race that
 bounds *your* wait. The underlying request continues inside the worker and
@@ -120,6 +152,10 @@ requests in flight.
 </Callout>
 
 ## Decide fail-open or fail-closed explicitly
+
+This section assumes a clearnet destination. It is the existence of a direct
+path to the same server that makes the choice possible, and no such path exists
+to a Nym address.
 
 When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
@@ -145,6 +181,10 @@ nothing and the answer is that it was never switched on.
 
 ## Prove the traffic went through the mixnet
 
+This section assumes a clearnet destination. All three levels below test whether
+a request took the tunnel instead of a direct path, and end to end no direct
+path to the peer exists.
+
 A routing policy written in application code is a statement of intent. Put
 something underneath it that fails loudly. Three levels, weakest to strongest,
 each catching what the others miss:
@@ -158,7 +198,7 @@ each catching what the others miss:
 Positive proof is the level integrations skip, and the only one that separates
 "the request went through the tunnel" from "our transport code ran without
 throwing". All three are platform-specific; the browser mechanics are in
-[retrofitting a browser app](/developers/retrofitting).
+[routing a browser app](/developers/browser-routing).
 
 ## Read timings with retries in mind
 
@@ -169,6 +209,9 @@ on before you tune anything against a slow sample.
 
 ## Set the resolver deliberately
 
+This section assumes a clearnet destination. End to end there is no DNS at all:
+you address a Nym client by its key, not by a name.
+
 DNS lookups travel through the tunnel and exit with everything else, so the
 resolver sees queries arriving from the exit gateway instead of from your user.
 That much is the property you wanted. It does not stop the resolver seeing every
@@ -178,6 +221,10 @@ Decide whether that suits your users instead of inheriting it. `primaryDns` and
 `fallbackDns` change it; [mix-dns](/developers/mix-dns/guides) has the format.
 
 ## What the integration gets you, and what it does not
+
+This section assumes a clearnet destination. End to end the assessment is a
+different one, because there is no third-party server to take the view away
+from: see [end to end](/network/threat-model/configurations/end-to-end).
 
 The resulting property is narrower than "the app is now private". In the
 vocabulary of the [two-layer model](/network/threat-model/two-layer-model),
@@ -202,10 +249,43 @@ For most applications the destination is the
 Taking its view of the user's IP address away is a real win, and it is one
 vector of three. Say both halves of that to whoever signs the work off.
 
+## Reaching another Nym client
+
+When both ends run Nym there is no exit gateway and no clearnet destination.
+Traffic stays inside the mixnet the whole way, the peer never learns your IP
+address, and replies come back on reply blocks you supplied. This removes the
+untrusted destination rather than hiding your address from it, which is a
+different assessment: see
+[end to end](/network/threat-model/configurations/end-to-end).
+
+What carries over from this page is the flow arithmetic. Round trips inside one
+user action still cost what they cost, cold start still lands on whoever
+triggers it, and outstanding requests still need a bound. What does not carry
+over is everything that needs an exit or a direct path to exist: the routing
+decision itself, the HTTPS question, connection pooling, the resolver,
+fail-open, and the whole of proving the traffic took the tunnel.
+
+<Callout type="info">
+The failure modes on this page came from clearnet-exit integrations. There is no
+equivalent list for client-to-client work yet, and a visible gap is more use to
+you than a guessed one.
+</Callout>
+
+## When you are the destination
+
+If you run the service that others reach over Nym, the planning problem inverts.
+You never open an outbound connection, your address is
+[only as stable as its gateway](/developers/service-providers#your-address-is-only-as-stable-as-its-gateway),
+and every reply you send spends one of the sender's reply blocks out of a fixed
+per-second budget. That is its own page:
+[building a Nym service provider](/developers/service-providers).
+
 ## Next
 
-- [Retrofitting a browser app](/developers/retrofitting): how a routing policy
+- [Routing a browser app](/developers/browser-routing): how a routing policy
   fails to bind in a browser, and how to detect, prove and enforce it.
+- [Building a Nym service provider](/developers/service-providers): the server
+  side, if others reach you over Nym.
 - [What Nym cannot do](/developers/limitations): workload fit, and what the
   default sending rate costs.
 - [Choose a defence](/network/threat-model/choose-config): threat model to

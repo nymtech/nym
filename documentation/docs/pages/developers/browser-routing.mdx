@@ -142,7 +142,7 @@ connect-src 'self' wss: https://validator.nymtech.net
 worker-src 'self' blob:;
 ```
 
-`worker-src 'self' blob:` is required. `mix-tunnel` base64-decodes its Web
+You need `worker-src 'self' blob:`. `mix-tunnel` base64-decodes its Web
 Worker and starts it from an object URL. With no `worker-src`, CSP falls back to
 `script-src` and the browser blocks it. Raise the cost of that in review,
 because `blob:` permits worker code that did not come from your origin.
@@ -206,7 +206,7 @@ is `connecting`, and both then call setup. One of them takes the rejection. A
 memoised promise has no such window, and it hands concurrent callers one
 bring-up to await instead of a state to poll.
 
-Add one thing before you ship it. `??=` caches a rejection as durably as it
+Add one thing before you ship it. `??=` caches a rejection for as long as it
 caches a success. A chunk that fails to load once leaves every later caller
 awaiting that rejection for the life of the page. So does a `setupMixTunnel`
 that rejects because something else brought the tunnel up first. Clear
@@ -214,8 +214,8 @@ that rejects because something else brought the tunnel up first. Clear
 
 Expect several megabytes gzipped for the chunk. The worker arrives as one long
 base64 line, which makes minification the memory-hungry step of your build. A
-build that dies with a bare `Killed` was stopped by the out-of-memory killer,
-not by a code error.
+build that dies with a bare `Killed` hit the out-of-memory killer, not a code
+error.
 
 ## See also
 

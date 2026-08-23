@@ -14,7 +14,7 @@ This page covers which of your endpoints to route through Nym, and what each of
 those decisions costs. It applies to any runtime.
 
 The unit of decision is the endpoint, not the application. Two failures follow
-from ignoring that. One is a user flow that hangs because nobody counted the
+from ignoring that. One is a user flow that hangs because you never counted the
 round trips inside it. The other is traffic that every code path says is routed,
 but that never reaches the mixnet. Neither is a transport bug.
 
@@ -25,7 +25,7 @@ For the web-runtime reasons a policy fails to bind, see
 Two decisions come before this one. [What Nym cannot do](/developers/limitations)
 tells you whether your workload fits.
 [Choose a defence](/network/threat-model/choose-config) turns your threat model
-into a network configuration. This page assumes that you settled both.
+into a network configuration. Settle both first.
 </Callout>
 
 ## Which shape your integration has
@@ -80,9 +80,9 @@ broad means debugging the routing underneath a UI that already hangs.
 
 ## Sequential dependent calls multiply latency
 
-One routed request that takes a second is fine. A flow that issues three
-dependent requests inside a single user action pays that second three times
-over, in series. It pays the tunnel bring-up as well, if the tunnel was cold.
+One routed request that takes a second is fine. A flow issuing three dependent
+requests inside a single user action pays that second three times over, in
+series. Add the tunnel bring-up if the tunnel was cold.
 From the outside, one button appears to do nothing for many seconds. No request
 timed out, none errored, and none was unreasonable on its own.
 
@@ -93,7 +93,7 @@ dependent routed call.
 
 ## Warm the tunnel before the first request
 
-Cold start is dominated by work that happens once. It brings up the client and
+Work that happens once dominates cold start. It brings up the client and
 completes the gateway handshake. If the destination is on the clearnet, it then
 adds DNS, TCP and TLS through the tunnel. Whoever triggers this waits for all of
 it, and blames your application.
@@ -102,7 +102,7 @@ Bring the tunnel up ahead of use, then send one warm-up request before the app
 starts querying. This moves the expensive part away from someone who is waiting,
 and leaves the tunnel warm for everything after it.
 
-Read timings with retries in mind. Clients retry a failed connection internally,
+Read timings with retries in mind. The client retries a failed connection on its own,
 and a retry that succeeds never surfaces as an error. A request several times
 slower than its neighbours may be one silent reconnection, so turn debug logging
 on before you tune against a slow sample.
@@ -114,7 +114,7 @@ requests at once and each one misses the connection pool, because a pool only
 helps after a connection returns to it. Each one opens its own connection, and
 under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
 through the mixnet. You pay setup once per call. Libraries that batch or
-parallelise on your behalf do this without being asked.
+parallelise on your behalf do this on their own.
 
 A strict queue overcorrects. One stalled request then blocks everything behind
 it for the full timeout, where the rest would otherwise have gone through. A
@@ -140,11 +140,11 @@ leaves two requests in flight.
 
 Gate every log line on the feature flag, and "switched off" produces the same
 output as "never ran". That distinction is the one thing you need when you ask
-where a user's traffic went. Silence must mean something specific.
+where a user's traffic went, and gated logging throws it away.
 
 Log the resolved configuration at startup, whatever the flag says: the values as
 read, the routed set as parsed, and the failure policy in force. It separates an
-integration that ran and did nothing from one that nobody switched on.
+integration that ran and did nothing from one you never switched on.
 
 ## Decide fail-open or fail-closed explicitly
 
@@ -168,8 +168,8 @@ This section assumes a clearnet destination. All three levels below test whether
 a request took the tunnel instead of a direct path. End to end, no direct path
 reaches the peer.
 
-A routing policy written in application code is a statement of intent. Put
-something underneath it that fails loudly.
+A routing policy written in application code states an intent. Put something
+underneath it that raises an error when the intent is wrong.
 
 | Level | What it does | What it cannot tell you |
 |---|---|---|
@@ -204,11 +204,11 @@ because no third-party destination exists to take the view away from. See
 Routing your endpoints is
 [Layer 1](/network/threat-model/two-layer-model) and only Layer 1. The
 destination stops seeing the user's IP address, which closes
-[V1](/network/threat-model/vectors) against it. Timing and content are
-untouched, so [V2 and V3](/network/threat-model/vectors) remain open and belong
-to [your application](/developers/swizzle). Any identifier your requests already
-carry still identifies the user, and traffic you could not route still shows the
-real address.
+[V1](/network/threat-model/vectors) against it. The mixnet leaves timing and
+content untouched, which keeps [V2 and V3](/network/threat-model/vectors) open
+and hands them to [your application](/developers/swizzle). Any identifier your
+requests already carry still identifies the user, and traffic you could not
+route still shows the real address.
 
 For most applications the destination is the
 [primary adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications),

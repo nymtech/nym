@@ -1,5 +1,5 @@
 ---
-title: "Retrofitting a Browser App: Why Your Traffic Still Bypasses the Mixnet"
+title: "Routing a Browser App: Why Your Policy Does Not Bind"
 description: "Browser-specific ways a mixnet routing policy silently fails to bind: patching fetch does not cover libraries or bare identifiers, some contexts cannot be routed at all, and how to detect, prove and enforce routing with a leak guard and Content Security Policy."
 schemaType: "TechArticle"
 section: "Developers"
@@ -8,7 +8,7 @@ lastUpdated: "2026-08-21"
 
 import { Callout } from 'nextra/components'
 
-# Retrofitting a browser app
+# Routing a browser app
 
 Requests leave a browser app from your own `fetch` helper, from libraries that
 call the global `fetch` themselves, from cross-origin iframes, from vendor SDKs
@@ -92,14 +92,26 @@ moment it fires.
 ```js
 const ROUTED_HOSTS = new Set(['api.example.com'])
 
+function isRouted(url) {
+  return ROUTED_HOSTS.has(new URL(url, location.href).hostname)
+}
+
+function onLeak(url) {
+  // TODO(human): decide what happens on a detected leak
+}
+
 export function installLeakGuard() {
   const nativeFetch = window.fetch
   window.fetch = function (input, init) {
     const url = input instanceof Request ? input.url : String(input)
-    if (ROUTED_HOSTS.has(new URL(url, location.href).hostname)) {
-      // TODO(human): decide what happens on a detected leak
-    }
+    if (isRouted(url)) onLeak(url)
     return nativeFetch.call(this, input, init)
+  }
+
+  const nativeOpen = XMLHttpRequest.prototype.open
+  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+    if (isRouted(String(url))) onLeak(String(url))
+    return nativeOpen.call(this, method, url, ...rest)
   }
 }
 ```
@@ -215,6 +227,12 @@ page and a second `setupMixTunnel` call rejects, so
 `connecting` both go on to call setup, and one of them takes the rejection. A
 memoised promise has no such window, and it hands concurrent callers one
 bring-up to await instead of a state to poll.
+
+One thing to add before you ship it. `??=` caches a rejection as durably as it
+caches a success, so a chunk that fails to load once, or a `setupMixTunnel` that
+rejects because something else brought the tunnel up first, leaves every later
+caller awaiting that same rejection for the life of the page. Clear
+`tunnelPromise` in a `catch` so the next call retries.
 
 ### Build notes that recur
 

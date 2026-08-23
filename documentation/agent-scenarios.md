@@ -74,7 +74,7 @@ A follow-up worth running on product 1: "the wallet already exists, which of its
 endpoints should go through Nym?" should reach `/developers/integrating` and come
 back with a per-endpoint answer plus the detect/prove/enforce ladder, not a
 `mixFetch` snippet. Asking it in browser terms should additionally reach
-`/developers/retrofitting`. Answering "route everything" is the same category error
+`/developers/browser-routing`. Answering "route everything" is the same category error
 in a different costume.
 
 ## C. Scope honesty

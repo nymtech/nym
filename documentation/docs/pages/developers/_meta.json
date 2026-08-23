@@ -28,7 +28,7 @@
   "mix-dns": "mix-dns (DNS resolution)",
   "mix-websocket": "mix-websocket (ws / wss)",
   "mix-architecture": "mix-* Family Architecture",
-  "browser-routing": "Routing a Browser App",
+  "browser-routing": "Routing a Browser or WebView App",
   "typescript": "Raw Messaging SDK",
 
   "sep-extras": {

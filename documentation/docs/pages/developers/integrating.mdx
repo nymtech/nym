@@ -19,7 +19,7 @@ application has a single point where traffic leaves.
 
 This page is about what to route, and what that decision costs. It applies to
 any runtime. For the browser-specific ways a routing policy fails to bind, see
-[routing a browser app](/developers/browser-routing).
+[routing a browser or WebView app](/developers/browser-routing).
 
 <Callout type="info">
 Two decisions come before this one. [What Nym cannot do](/developers/limitations)
@@ -198,7 +198,7 @@ strongest. Each catches what the others miss.
 Positive proof is the only level that separates "the request went through the
 tunnel" from "our transport code ran without throwing". All three levels are
 platform-specific. For the browser
-mechanics, see [routing a browser app](/developers/browser-routing).
+mechanics, see [routing a browser or WebView app](/developers/browser-routing).
 
 ## Read timings with retries in mind
 
@@ -300,7 +300,7 @@ per-second budget. That is its own page:
 
 ## Next
 
-- [Routing a browser app](/developers/browser-routing): how a routing policy
+- [Routing a browser or WebView app](/developers/browser-routing): how a routing policy
   fails to bind in a browser, and how to detect, prove and enforce it.
 - [Building a Nym service provider](/developers/service-providers): the server
   side, if others reach you over Nym.

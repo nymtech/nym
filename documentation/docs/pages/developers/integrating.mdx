@@ -56,8 +56,8 @@ the mixnet exists to remove that link. Route it. The second serves public data
 and sees no identifier. Routing it adds latency and hides nothing. The third
 runs inside a third-party iframe, so your code cannot route it at all.
 
-Three endpoints, three answers, one transport. What decided them was what each
-destination already knows about the user, and how the app reaches it.
+The transport played no part in any of those three answers. Each came from what
+that destination already knows about the user, and from how the app reaches it.
 
 ## Profiling an endpoint before you route it
 
@@ -84,7 +84,7 @@ One routed request that takes a second is fine. A flow that issues three
 dependent requests inside a single user action pays that second three times
 over, in series. It pays the tunnel bring-up as well, if the tunnel was cold.
 From the outside, one button appears to do nothing for many seconds. No request
-timed out, none errored, and none was individually unreasonable.
+timed out, none errored, and none was unreasonable on its own.
 
 The cost belongs to the flow, not to any request inside it. Profiling endpoints
 one at a time never surfaces it. Walk your user journeys and count the round
@@ -119,8 +119,8 @@ parallelise on your behalf do this without being asked.
 A strict queue overcorrects. One stalled request then blocks everything behind
 it for the full timeout, where the rest would otherwise have gone through. A
 small concurrency limit with a per-request bound is the shape to aim for. Pick
-the bound deliberately in both directions. Too generous, and a stuck request
-holds the UI. Too tight, and you abandon requests that would have completed.
+the bound in both directions: too generous and a stuck request holds the UI, too
+tight and you abandon requests that would have completed.
 
 End to end the same bound applies for a different reason. Replies arrive on
 [single-use reply blocks](/network/mixnet-mode/anonymous-replies) that your
@@ -156,10 +156,10 @@ When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
 
-Whichever you pick, pick it. What goes wrong is deciding by accident. A `catch`
-written for another purpose chooses fail-open for you. So does a retry helper
-three layers down. An integration whose leak detection raises, while its
-transport quietly retries over the clearnet, has shipped fail-open, whatever the
+Whichever you pick, pick it. The failure is deciding by accident: a `catch`
+written for another purpose chooses fail-open for you, and so does a retry
+helper three layers down. An integration whose leak detection raises, while its
+transport retries over the clearnet, has shipped fail-open, whatever the
 setting says.
 
 ## Prove the traffic went through the mixnet
@@ -182,7 +182,7 @@ transport code ran without throwing". All three levels are platform-specific.
 For the browser mechanics, see
 [routing a browser or WebView app](/developers/browser-routing).
 
-## Set the resolver deliberately
+## Choose the resolver
 
 This section assumes a clearnet destination. End to end there is no DNS: you
 address a Nym client by its [key](/network/reference/addressing), not by a name.
@@ -222,12 +222,14 @@ other proxy integration, so this page applies to it. It carries your traffic
 over a WireGuard [dVPN](/network/dvpn-mode) instead of the mixnet, which changes
 three things.
 
-Latency is much lower, so the flow arithmetic hurts less, though cold start and
+Latency is much lower, so the flow arithmetic hurts less. Cold start and
 sequential round trips still cost what they cost. The mixnet parts of this page
 do not apply, because dVPN mode sends no Sphinx packets and uses no reply
-blocks. Most importantly, dVPN mode provides **no in-transit timing protection**. It
-hides the client IP address from the destination and splits trust across two
-operators, and closes nothing else.
+blocks.
+
+dVPN mode provides **no in-transit timing protection**. It hides the client IP
+address from the destination and splits trust across two operators, and closes
+nothing else.
 
 ## Reaching another Nym client
 

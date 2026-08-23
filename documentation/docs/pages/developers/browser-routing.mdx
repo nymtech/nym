@@ -1,6 +1,6 @@
 ---
 title: "Routing a Browser or WebView App: Why Your Policy Does Not Bind"
-description: "Web-runtime ways a mixnet routing policy silently fails to bind: what cannot be routed from a page at all, how to prove the tunnel carried the request, and how Content Security Policy enforces routing when mixnet traffic is invisible to it."
+description: "Web-runtime ways a mixnet routing policy fails to bind without raising an error: what cannot be routed from a page at all, how to prove the tunnel carried the request, and how Content Security Policy enforces routing when mixnet traffic is invisible to it."
 schemaType: "TechArticle"
 section: "Developers"
 lastUpdated: "2026-08-23"
@@ -43,7 +43,7 @@ the transports in your dependency tree, not the call sites in your own code.
 
 ## What cannot be routed from a web runtime
 
-Some traffic is unreachable from your JavaScript, however carefully you work.
+Some traffic is unreachable from your JavaScript, whatever you do.
 Being explicit about this matters more than the part that works, because it is
 what your users are still exposed to.
 
@@ -151,7 +151,7 @@ because `blob:` permits worker code that did not come from your origin.
 runtime, so you cannot enumerate them in advance.
 
 Turning enforcement on early is also the cheapest way to find out what your app
-talks to. Run with a deliberately incomplete `connect-src` and read the
+talks to. Leave hosts out of `connect-src` on purpose, then read the
 violations as a map. Expect it to name destinations that appear in no config
 file.
 

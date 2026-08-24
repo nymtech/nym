@@ -1,69 +1,42 @@
 ---
-title: "Routing a Browser or WebView App: Why Your Policy Does Not Bind"
-description: "Web-runtime ways a mixnet routing policy fails to bind without raising an error: what cannot be routed from a page at all, how to prove the tunnel carried the request, and how Content Security Policy enforces routing when mixnet traffic is invisible to it."
+title: "Routing a Browser or WebView App"
+description: "The browser mechanics of routing through the mixnet: the traffic a web app cannot route at all, how to catch direct requests to a routed host, and how Content Security Policy enforces the routing it cannot see."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-23"
+lastUpdated: "2026-08-24"
 ---
 
 import { Callout } from 'nextra/components'
 
 # Routing a browser or WebView app
 
-This page covers the web-runtime reasons a mixnet routing policy fails to bind,
-and the traffic that no policy can reach. A WebView host runs the same web
-platform as a browser tab, so it applies to both. Capacitor, Cordova, WKWebView
-and Android WebView are in scope.
-
-Requests leave a web app from several places: your own `fetch` helper, libraries
-that call the global `fetch`, cross-origin iframes, vendor SDKs and Web Workers.
-You control the first. A routing policy written in application code
-covers less than it appears to, and a policy that fails to bind raises no error.
-The request succeeds, returns the data you expected, and travels over the
-clearnet.
-
-[Planning an integration](/developers/integrating) decides *what* to route. This
-page assumes you have that list.
-
-## Why a routing policy does not bind
-
-A single module that wraps `fetch`, imported in twenty places, looks like a
-choke point. Two things stop it being one, and neither announces itself.
-
-The wrapper only binds code that imports it. JavaScript resolves a bare
-identifier by scope, so a call site that forgot the import still compiles, still
-runs, and still returns real data. The only visible sign is in the network
-panel: an `HTTP/2` connection and a round trip of tens of milliseconds, which no
-mixnet request produces. Search for the bare identifier, not only for the import.
-
-Libraries also bring their own transport. Ethers calls the global `fetch` from
-its own web layer, so routing it means subclassing the provider and overriding
-`send()`. The same holds for `axios`, `got`, or any generated API client. Audit
-the transports in your dependency tree, not the call sites in your own code.
+This page covers the browser mechanics behind the three checks in
+[planning an integration](/developers/integrating#prove-the-traffic-went-through-the-mixnet):
+detection, positive proof and enforcement. It lists the traffic no policy can
+reach. A WebView host runs the same web platform as a browser tab, so
+Capacitor, Cordova, WKWebView and Android WebView are in scope.
 
 ## What cannot be routed from a web runtime
 
-Some traffic is unreachable from your JavaScript, whatever you do. Write these
-down, because your users stay exposed through them after the routed part works.
+Some traffic never reaches your JavaScript. Record it, because your users stay
+exposed through it after the routed part works.
 
 | Source | Why it is out of reach |
 |---|---|
 | Cross-origin iframes | A separate browsing context with its own networking. Embedded swap widgets, on-ramp providers and dApp frames route nothing through your code. |
 | Vendor SDKs in their own contexts | Payment and identity providers, analytics loaders, and connect libraries that open their own windows or frames. |
-| Third-party WebSocket relays | [`mix-websocket`](/developers/mix-websocket) carries `ws` and `wss`, but its constructor is asynchronous and it exposes no `bufferedAmount`. To drop it in for a synchronous `WebSocket` inside someone else's library, you write an adapter for that library. |
+| Third-party WebSocket relays | [`mix-websocket`](/developers/mix-websocket) carries `ws` and `wss`, but its constructor is asynchronous and it exposes no `bufferedAmount`. Dropping it into someone else's library means writing an adapter for that library. |
 | Hardware wallets | Some paths are local and touch no network at all (WebHID, WebUSB). Others reach out from a vendor-hosted page that you do not control. |
 | Browser-initiated requests | `navigator.sendBeacon`, `EventSource`, `<img>` and `<script>` sources, and prefetch hints. |
 
-A destination in that table may learn something you want to hide. Transport is
-then the wrong layer to fix it at. Drop the integration, move it behind your own
-backend, or record it as accepted in your threat model.
+If a destination in that table learns something you want to hide, no transport
+change fixes it. Drop the integration or move it behind your own backend.
 
-## Detecting requests that bypass the policy
+## Detecting direct requests
 
-Wrap `window.fetch` and `XMLHttpRequest.prototype.open` at startup, and treat
-any direct request to a routed host as a leak. The mixnet path never touches
-those globals for those hosts. A hit is a bug in your own code, with no false
-positives to triage.
+Wrap `window.fetch` and `XMLHttpRequest.prototype.open` at startup. The mixnet
+path never touches those globals, so a direct request to a routed host is a bug
+in your own code.
 
 ```js
 const ROUTED_HOSTS = new Set(['api.example.com'])
@@ -92,20 +65,25 @@ export function installLeakGuard() {
 }
 ```
 
-`FAIL_CLOSED` is the same decision as
-[fail-open or fail-closed](/developers/integrating#decide-fail-open-or-fail-closed-explicitly),
-made one request at a time. Run it on in development, where a network error in
-code that did not expect one is cheaper than a leak.
+`FAIL_CLOSED` decides whether a detected direct request throws or only logs.
+That is the
+[fail-open or fail-closed choice](/developers/integrating#decide-fail-open-or-fail-closed-explicitly).
+Set it to `true` in development, where an unexpected network error costs less
+than a leak.
+
+`onLeak` must log even when your privacy feature flag is off. A gated guard
+makes "no leaks" and "no guard installed" produce the same silence. See
+[announcing the flag unconditionally](/developers/integrating#make-the-privacy-flag-announce-itself-unconditionally).
 
 The guard does not see `navigator.sendBeacon`, `EventSource`, `WebSocket`,
-`<img>` and `<script>` sources, or anything inside a cross-origin iframe. Those
-need enforcement, below.
+`<img>` and `<script>` sources, or anything inside a cross-origin iframe.
+Content Security Policy covers those.
 
-## Proving the mixnet did the work
+## Proving the tunnel carried the request
 
-A leak guard proves that your code ran. It says nothing about whether the tunnel
-carried anything. To test that, ask one echo service over both paths and compare
-what it saw:
+The guard proves your code ran, not that the tunnel carried anything. Ask one
+echo service over both paths and compare
+the source address it saw.
 
 ```js
 const sourceIp = async (get) => (await (await get('https://echo.example/ip')).json()).ip
@@ -119,21 +97,12 @@ console.log({ clearnet, mixnet, differ: clearnet !== mixnet })
 // { clearnet: "203.0.113.9", mixnet: "51.x.x.x", differ: true }
 ```
 
-Hang it somewhere you can reach from the console. No other check separates a
-request that went through the tunnel from transport code that ran without
-throwing.
-
 ## Enforcing with Content Security Policy
 
-`connect-src` is the only browser-enforced answer, and the mechanism behind it
-is not obvious. Mixnet payload traffic never reaches CSP as a connection to your
-destination. It is a WebSocket to a Nym gateway, and the TLS session terminates
-inside the WASM. Leave the routed host out of `connect-src`. Every direct path
-to it is then blocked, and the mixnet path keeps working.
-
-That combination is what proves the routing. A request succeeds while the
-browser refuses every direct connection to its destination, so it can only have
-come through the tunnel.
+Mixnet payload traffic never reaches `connect-src` as a connection to your
+destination. The client opens a WebSocket to a Nym gateway, and the TLS session
+terminates inside the WASM. Leave the routed host out of `connect-src`: every
+direct path to it is blocked, and the mixnet path keeps working.
 
 ```text
 connect-src 'self' wss: https://validator.nymtech.net
@@ -141,75 +110,49 @@ connect-src 'self' wss: https://validator.nymtech.net
 worker-src 'self' blob:;
 ```
 
-You need `worker-src 'self' blob:`. `mix-tunnel` base64-decodes its Web
-Worker and starts it from an object URL. With no `worker-src`, CSP falls back to
-`script-src` and the browser blocks it. Raise the cost of that in review,
-because `blob:` permits worker code that did not come from your origin.
+You need `worker-src 'self' blob:`. `mix-tunnel` base64-decodes its Web Worker
+and starts it from an object URL. With no `worker-src`, CSP falls back to
+`script-src` and the browser blocks the worker. Note in review that `blob:`
+lets the page start a worker from any object URL, not only from your origin.
 
 `wss:` has to stay broad. Gateway hostnames come from the network topology at
 runtime, so you cannot enumerate them in advance.
 
-Turning enforcement on early is also the cheapest way to find out what your app
-talks to. Leave hosts out of `connect-src` on purpose, then read the
-violations as a map. Expect it to name destinations that appear in no config
-file.
+### The nym-api bootstrap is policed
 
-### The nym-api bootstrap is policed even though payload traffic is not
-
-Payload traffic is invisible to `connect-src`. The client's own bootstrap is
-not. Before any mixnet traffic exists, the client fetches the network topology
-from the nym-api over ordinary HTTPS, and uses it to pick a gateway. That
-request answers to the policy like any other.
-
-Leave it out, and the tunnel dies at startup with a gateway selection error. The
-error never mentions CSP. On mainnet the host is `https://validator.nymtech.net`.
-
-Enforcement has to allow the control plane and still deny the data plane's
-destination. They are different hosts, which is the only reason this works.
+Before any mixnet traffic exists, the client fetches the network topology from
+the nym-api over ordinary HTTPS and picks a gateway. `connect-src` governs that
+request. Leave its host out and the tunnel fails at startup with a gateway
+selection error that never mentions CSP. On mainnet the host is
+`https://validator.nymtech.net`.
 
 <Callout type="warning">
-CSP is an allowlist, so you cannot deny a single host. Leaving your routed
-destination out means enumerating every other destination the app uses, and
-keeping that list current. Add an endpoint anywhere in the app and forget the
-list. The browser then blocks it in production, after it worked in every local
-test that carried no policy.
-
-Roll out with `Content-Security-Policy-Report-Only` as a *header* first, which a
-`<meta>` tag cannot express, and collect violations from real sessions. Check
-for a policy already set server-side as well. Multiple policies intersect and
-the narrower one wins. A header that carries `default-src` or `script-src`
-without `blob:` defeats anything you change in a `<meta>` tag.
+Check for a policy already set server-side. Multiple policies intersect and the
+narrower one wins. A header carrying `default-src` or `script-src` without
+`blob:` blocks the worker whatever your `<meta>` tag says.
 </Callout>
 
-## Keeping the WASM out of your initial payload
+## Bringing the tunnel up once
 
-Pull the Nym packages in with a dynamic `import()` behind a named chunk. They
-are then fetched when the mixnet is first used, and never land in the initial
-bundle:
+The tunnel is [one-shot per page](/developers/mix-tunnel/guides#tunnel-state). A
+second `setupMixTunnel` call rejects, and guarding on `getTunnelState()` races:
+two call sites can both read `connecting`, and both then call setup. Memoise one
+promise instead, so concurrent callers await one bring-up. A dynamic `import()`
+keeps the WASM out of your initial bundle.
 
 ```js
 let tunnelPromise
 
 export function ensureTunnel() {
-  tunnelPromise ??= import(/* webpackChunkName: "nym-mixnet" */ '@nymproject/mix-tunnel')
+  tunnelPromise ??= import('@nymproject/mix-tunnel')
     .then((m) => m.setupMixTunnel({ /* opts */ }))
+    .catch((err) => { tunnelPromise = undefined; throw err })
   return tunnelPromise
 }
 ```
 
-Memoising the promise does more than tidy the code. The tunnel is one-shot per
-page, and a second `setupMixTunnel` call rejects, so
-[the guidance](/developers/mix-tunnel/guides#tunnel-state) is to guard on
-`getTunnelState()`. That guard races. Two call sites can check while the state
-is `connecting`, and both then call setup. One of them takes the rejection. A
-memoised promise has no such window, and it hands concurrent callers one
-bring-up to await instead of a state to poll.
-
-Add one thing before you ship it. `??=` caches a rejection for as long as it
-caches a success. A chunk that fails to load once leaves every later caller
-awaiting that rejection for the life of the page. So does a `setupMixTunnel`
-that rejects because something else brought the tunnel up first. Clear
-`tunnelPromise` in a `catch`, so that the next call retries.
+Without the `catch`, one failed chunk load leaves every later caller awaiting
+that rejection.
 
 Expect several megabytes gzipped for the chunk. The worker arrives as one long
 base64 line, which makes minification the memory-hungry step of your build. A
@@ -222,7 +165,7 @@ error.
   failure modes that are not specific to the web runtime.
 - [mix-fetch reference](/developers/mix-fetch/guides): request shape, default
   headers, and where `mixFetch` departs from `fetch`.
-- [mix-* architecture](/developers/mix-architecture): the shared tunnel,
-  the worker boundary and the tunnel lifecycle.
+- [mix-* architecture](/developers/mix-architecture): the shared tunnel, the
+  worker boundary and the tunnel lifecycle.
 - [Baseline hygiene](/developers/swizzle): what your request pattern leaks once
   the transport has done its part.

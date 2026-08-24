@@ -18,8 +18,9 @@ A user flow hangs because it makes several routed round trips in a row. Or
 traffic looks routed in the code, but reaches the destination over the clearnet.
 Neither is a transport bug.
 
-For the web-runtime reasons a policy fails to bind, see
-[routing a browser or WebView app](/developers/browser-routing).
+[Routing a browser or WebView app](/developers/browser-routing) covers the
+browser mechanics: the leak guard, CSP enforcement, and the traffic a web app
+cannot route.
 
 <Callout type="info">
 Two decisions come before this one. [What Nym cannot do](/developers/limitations)
@@ -259,8 +260,8 @@ per-second budget. See
 
 ## Next
 
-- [Routing a browser or WebView app](/developers/browser-routing): why a policy
-  fails to bind in a web runtime, and how to enforce it.
+- [Routing a browser or WebView app](/developers/browser-routing): the leak
+  guard, CSP enforcement, and the traffic a web app cannot route.
 - [Building a Nym service provider](/developers/service-providers): the server
   side, if others reach you over Nym.
 - [What Nym cannot do](/developers/limitations): workload fit, and the cost of

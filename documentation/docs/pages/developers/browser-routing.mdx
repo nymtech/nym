@@ -43,9 +43,8 @@ the transports in your dependency tree, not the call sites in your own code.
 
 ## What cannot be routed from a web runtime
 
-Some traffic is unreachable from your JavaScript, whatever you do.
-Being explicit about this matters more than the part that works, because it is
-what your users are still exposed to.
+Some traffic is unreachable from your JavaScript, whatever you do. Write these
+down, because your users stay exposed through them after the routed part works.
 
 | Source | Why it is out of reach |
 |---|---|

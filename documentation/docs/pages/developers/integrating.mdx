@@ -10,13 +10,13 @@ import { Callout } from 'nextra/components'
 
 # Planning an integration
 
-This page covers which of your endpoints to route through Nym, and what each of
-those decisions costs. It applies to any runtime.
+This page covers which of your endpoints to route through Nym, and the latency
+and failure handling that routing adds. It applies to any runtime.
 
-The unit of decision is the endpoint, not the application. Two failures follow
-from ignoring that. One is a user flow that hangs because you never counted the
-round trips inside it. The other is traffic that every code path says is routed,
-but that never reaches the mixnet. Neither is a transport bug.
+Decide endpoint by endpoint, not once for the whole application. Deciding once produces two common bugs.
+A user flow hangs because it makes several routed round trips in a row. Or
+traffic looks routed in the code, but reaches the destination over the clearnet.
+Neither is a transport bug.
 
 For the web-runtime reasons a policy fails to bind, see
 [routing a browser or WebView app](/developers/browser-routing).
@@ -28,22 +28,22 @@ tells you whether your workload fits.
 into a network configuration. Settle both first.
 </Callout>
 
-## Which shape your integration has
+## Which approach you are using
 
 Most of this page assumes [proxy mode](/developers#end-to-end-or-proxy): you
 reach a third-party destination through an
 [exit gateway](/network/infrastructure/exit-services). These failure modes come
 from that case.
 
-| Shape | What it means | How much of this page applies |
+| Approach | What it means | How much of this page applies |
 |---|---|---|
 | [**Proxy**](/developers#end-to-end-or-proxy) | Your app reaches a third-party destination over the public internet, through an exit gateway. | All of it. |
-| [**dVPN proxy**](/network/dvpn-mode) | The same shape, but [`nym-smoldvpn`](/developers/smoldvpn) carries the traffic over WireGuard instead of the mixnet. | Most of it. See [if you use the dVPN datapath](#if-you-use-the-dvpn-datapath). |
-| [**End to end**](/network/threat-model/configurations/end-to-end) | Both ends run Nym. No exit gateway, no clearnet destination. | The flow arithmetic only. See [reaching another Nym client](#reaching-another-nym-client). |
+| [**dVPN proxy**](/network/dvpn-mode) | A clearnet exit as above, but [`nym-smoldvpn`](/developers/smoldvpn) carries the traffic over WireGuard instead of the mixnet. | Most of it. See [if you use the dVPN datapath](#if-you-use-the-dvpn-datapath). |
+| [**End to end**](/network/threat-model/configurations/end-to-end) | Both ends run Nym. No exit gateway, no clearnet destination. | Round trips, cold start and request bounds only. See [reaching another Nym client](#reaching-another-nym-client). |
 | [**Service provider**](/developers/service-providers) | You run the service that others reach over Nym. | Almost none. See [when you are the destination](#when-you-are-the-destination). |
 
-Every section that assumes a clearnet destination says so in its first line. A
-section that does not say it applies to every shape.
+Sections that assume a clearnet destination say so in their first line. The
+rest apply to all four approaches.
 
 ## Routing is a per-endpoint decision
 
@@ -56,8 +56,8 @@ the mixnet exists to remove that link. Route it. The second serves public data
 and sees no identifier. Routing it adds latency and hides nothing. The third
 runs inside a third-party iframe, so your code cannot route it at all.
 
-The transport played no part in any of those three answers. Each came from what
-that destination already knows about the user, and from how the app reaches it.
+The same transport serves all three endpoints. The answer depends on what the
+destination already knows about the user, and on how the app reaches it.
 
 ## Profiling an endpoint before you route it
 
@@ -69,7 +69,7 @@ answer on its own.
 
 | Question | Why it decides the answer |
 |---|---|
-| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the whole case for routing. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
+| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
 | **Is it HTTPS?** | The [exit gateway](/network/infrastructure/exit-services#ip-packet-router) reads plain HTTP in full. Routing an `http://` endpoint moves the observer. It does not remove it. |
 | **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it. A call in front of a user does not. |
 | **Is it called in sequence with others?** | Sequential dependent calls multiply the cost. No single request reveals this. See below. |
@@ -86,8 +86,8 @@ series. Add the tunnel bring-up if the tunnel was cold.
 From the outside, one button appears to do nothing for many seconds. No request
 timed out, none errored, and none was unreasonable on its own.
 
-The cost belongs to the flow, not to any request inside it. Profiling endpoints
-one at a time never surfaces it. Walk your user journeys and count the round
+The delay comes from the flow, not from any single request, so profiling
+endpoints one at a time never surfaces it. Walk your user journeys and count the round
 trips in each, then restructure or defer any journey with more than one
 dependent routed call.
 
@@ -118,14 +118,14 @@ parallelise on your behalf do this on their own.
 
 A strict queue overcorrects. One stalled request then blocks everything behind
 it for the full timeout, where the rest would otherwise have gone through. A
-small concurrency limit with a per-request bound is the shape to aim for. Pick
+small concurrency limit with a per-request bound avoids both problems. Pick
 the bound in both directions: too generous and a stuck request holds the UI, too
 tight and you abandon requests that would have completed.
 
 End to end the same bound applies for a different reason. Replies arrive on
 [single-use reply blocks](/network/mixnet-mode/anonymous-replies) that your
-client computed and sent in advance, so outstanding requests are reply capacity
-you already spent.
+client computed and sent in advance. Each outstanding request holds reply blocks
+that nothing else can use.
 
 <Callout type="warning">
 Check what your timeout does. In the browser packages it is a race that bounds
@@ -168,8 +168,8 @@ This section assumes a clearnet destination. All three levels below test whether
 a request took the tunnel instead of a direct path. End to end, no direct path
 reaches the peer.
 
-A routing policy written in application code states an intent. Put something
-underneath it that raises an error when the intent is wrong.
+Routing code that fails to route raises no error, as the sections above show.
+Add a check underneath it that does.
 
 | Level | What it does | What it cannot tell you |
 |---|---|---|
@@ -197,8 +197,8 @@ Decide whether that suits your users, instead of inheriting it. `primaryDns` and
 
 ## What the integration gets you, and what it does not
 
-This section assumes a clearnet destination. End to end the assessment differs,
-because no third-party destination exists to take the view away from. See
+This section assumes a clearnet destination. End to end there is no third-party
+destination, so none of this applies. See
 [end to end](/network/threat-model/configurations/end-to-end).
 
 Routing your endpoints is
@@ -211,9 +211,9 @@ requests already carry still identifies the user, and traffic you could not
 route still shows the real address.
 
 For most applications the destination is the
-[primary adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications),
-so this is a real win against one vector of three. Say both halves of that to
-whoever signs the work off.
+[primary adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications).
+Routing closes one of its three vectors. Report it as that, not as "the app is
+now private".
 
 ## If you use the dVPN datapath
 
@@ -222,8 +222,8 @@ other proxy integration, so this page applies to it. It carries your traffic
 over a WireGuard [dVPN](/network/dvpn-mode) instead of the mixnet, which changes
 three things.
 
-Latency is much lower, so the flow arithmetic hurts less. Cold start and
-sequential round trips still cost what they cost. The mixnet parts of this page
+Latency is much lower, so cold start and sequential round trips hurt less,
+though neither disappears. The mixnet parts of this page
 do not apply, because dVPN mode sends no Sphinx packets and uses no reply
 blocks.
 
@@ -236,12 +236,12 @@ nothing else.
 When both ends run Nym, there is no exit gateway and no clearnet destination.
 Traffic stays inside the mixnet the whole way, the peer never learns your IP
 address, and replies come back on reply blocks that you supplied. This removes
-the untrusted destination instead of hiding your address from it, so the
-assessment differs. See
-[end to end](/network/threat-model/configurations/end-to-end).
+the untrusted destination instead of hiding your address from it. See
+[end to end](/network/threat-model/configurations/end-to-end) for what that
+leaves an observer.
 
-The flow arithmetic carries over. Round trips inside one user action still cost
-what they cost. Cold start still lands on whoever triggers it, and outstanding
+The round-trip advice carries over. Sequential calls in one user action still
+multiply latency, cold start still lands on whoever triggers it, and outstanding
 requests still need a bound.
 
 Everything that needs an exit or a direct path does not carry over. That covers
@@ -255,8 +255,8 @@ equivalent list exists yet for client-to-client work.
 
 ## When you are the destination
 
-If you run the service that others reach over Nym, the planning problem inverts.
-You never open an outbound connection. Your address is
+If you run the service that others reach over Nym, you never open an outbound
+connection, so almost none of this page applies. Your address is
 [only as stable as its gateway](/developers/service-providers#your-address-is-only-as-stable-as-its-gateway).
 Every reply you send spends one of the sender's reply blocks, out of a fixed
 per-second budget. See

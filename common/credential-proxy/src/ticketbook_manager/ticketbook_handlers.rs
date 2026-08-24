@@ -127,12 +127,20 @@ impl TicketbookManager {
         })
     }
 
+    /// `epoch_id` is the epoch whose signers are being asked about. A caller unblinding shares
+    /// must name the epoch those shares were issued under: omitting it means the epoch currently
+    /// being issued under, and a rotation in between would otherwise hand back keys the shares
+    /// cannot be verified against.
     pub async fn partial_verification_keys(
         &self,
+        epoch_id: Option<EpochId>,
     ) -> Result<PartialVerificationKeysResponse, CredentialProxyError> {
         self.state.ensure_credentials_issuable().await?;
 
-        let epoch_id = self.state.issuable_epoch_id().await?;
+        let epoch_id = match epoch_id {
+            Some(epoch_id) => epoch_id,
+            None => self.state.issuable_epoch_id().await?,
+        };
         let signers = self.state.ecash_clients(epoch_id).await?;
         Ok(PartialVerificationKeysResponse {
             epoch_id,

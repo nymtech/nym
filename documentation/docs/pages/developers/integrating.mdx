@@ -59,11 +59,6 @@ runs inside a third-party iframe, so your code cannot route it at all.
 The same transport serves all three endpoints. The answer depends on what the
 destination already knows about the user, and on how the app reaches it.
 
-## Profiling an endpoint before you route it
-
-This section assumes a clearnet destination. End to end, the exit-facing
-questions below have no equivalent.
-
 Work through these questions for each endpoint. Any one of them can change the
 answer on its own.
 
@@ -78,7 +73,7 @@ answer on its own.
 Route the smallest set that identifies users over HTTPS, then widen it. Starting
 broad means debugging the routing underneath a UI that already hangs.
 
-## Sequential dependent calls multiply latency
+## Sequential calls and cold start
 
 One routed request that takes a second is fine. A flow issuing three dependent
 requests inside a single user action pays that second three times over, in
@@ -87,16 +82,14 @@ From the outside, one button appears to do nothing for many seconds. No request
 timed out, none errored, and none was unreasonable on its own.
 
 The delay comes from the flow, not from any single request, so profiling
-endpoints one at a time never surfaces it. Walk your user journeys and count the round
-trips in each, then restructure or defer any journey with more than one
+endpoints one at a time never surfaces it. Walk your user journeys and count the
+round trips in each, then restructure or defer any journey with more than one
 dependent routed call.
 
-## Warm the tunnel before the first request
-
-Work that happens once dominates cold start. It brings up the client and
-completes the gateway handshake. If the destination is on the clearnet, it then
-adds DNS, TCP and TLS through the tunnel. Whoever triggers this waits for all of
-it, and blames your application.
+Cold start compounds this. The one-off work brings up the client and completes
+the gateway handshake. If the destination is on the clearnet, it then adds DNS,
+TCP and TLS through the tunnel. Whoever triggers the first request waits for all
+of it, and blames your application.
 
 Bring the tunnel up ahead of use, then send one warm-up request before the app
 starts querying. This moves the expensive part away from someone who is waiting,
@@ -215,7 +208,9 @@ For most applications the destination is the
 Routing closes one of its three vectors. Report it as that, not as "the app is
 now private".
 
-## If you use the dVPN datapath
+## dVPN, end to end, and service provider
+
+### If you use the dVPN datapath
 
 [`nym-smoldvpn`](/developers/smoldvpn) reaches a clearnet destination like any
 other proxy integration, so this page applies to it. It carries your traffic
@@ -231,7 +226,7 @@ dVPN mode provides **no in-transit timing protection**. It hides the client IP
 address from the destination and splits trust across two operators, and closes
 nothing else.
 
-## Reaching another Nym client
+### Reaching another Nym client
 
 When both ends run Nym, there is no exit gateway and no clearnet destination.
 Traffic stays inside the mixnet the whole way, the peer never learns your IP
@@ -253,7 +248,7 @@ The failure modes on this page come from clearnet-exit integrations. No
 equivalent list exists yet for client-to-client work.
 </Callout>
 
-## When you are the destination
+### When you are the destination
 
 If you run the service that others reach over Nym, you never open an outbound
 connection, so almost none of this page applies. Your address is

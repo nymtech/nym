@@ -12,6 +12,43 @@ use std::time::Duration;
 use tracing::info;
 use url::Url;
 
+/// The liveness kind's own scheduling knobs. Grouped rather than flattened into [`Config`] because
+/// every one of them is per-kind: the stress kind keeps `test_interval` and `test_timeout`, and
+/// this is the same set of decisions taken for liveness.
+///
+/// Every value is provisional and deployment-tunable by design - no behaviour may depend on a
+/// specific one.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct LivenessConfig {
+    /// Whether liveness work may be assigned at all. On by default, so switching it off is a
+    /// deployment-time decision; an agent that predates wave support cannot deserialise a liveness
+    /// assignment, so a fleet mid-upgrade is a reason to set it.
+    pub(crate) enabled: bool,
+
+    /// How often each (node, role) pairing should be liveness-tested (e.g. `15m`). Well below the
+    /// stress `test_interval`, since liveness is the low-volume probe.
+    pub(crate) test_interval: Duration,
+
+    /// Lease stamped on a liveness assignment's in-progress rows. Bounds ONE concurrent wave rather
+    /// than the sum over its targets, because the agent probes the whole wave at once, so it does
+    /// not scale with the wave size. It does have to cover the SLOWER of the two probes: a gateway
+    /// wave pays session setup and measures two interfaces where a mixnode wave measures one.
+    pub(crate) test_timeout: Duration,
+
+    /// Maximum number of targets in a mixnode liveness wave.
+    pub(crate) mixnode_wave_size: usize,
+
+    /// Maximum number of targets in a gateway liveness wave. Lower than the mixnode wave: since a
+    /// wave is one concurrent batch, this is what an agent holds open at once, and a gateway target
+    /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
+    /// 50-client window over its whole gateway population per cycle.
+    pub(crate) gateway_wave_size: usize,
+
+    /// How long after a node's stress test it stays ineligible for liveness, so a liveness probe
+    /// does not measure a node whose queues are still draining from the load.
+    pub(crate) after_stress_cooldown: Duration,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     /// HTTPS RPC URL of a Nyx node (e.g. `https://rpc.nymtech.net`).
@@ -28,8 +65,11 @@ pub(crate) struct Config {
     pub(crate) test_interval: Duration,
 
     /// Maximum time a single test run is allowed to run before being considered timed out
-    /// (e.g. `5m`).
+    /// (e.g. `5m`). The stress kind's lease budget.
     pub(crate) test_timeout: Duration,
+
+    /// Scheduling knobs of the liveness kind, whose cadence and lease are its own.
+    pub(crate) liveness: LivenessConfig,
 
     /// Path to the SQLite database file.
     pub(crate) database_path: PathBuf,

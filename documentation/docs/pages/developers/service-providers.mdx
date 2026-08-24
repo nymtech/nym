@@ -34,16 +34,14 @@ export const spScenario = {
   },
 }
 
-A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that embedded client directly over the mixnet. Your code answers without learning who asked.
+A **service provider** is your own server-side application with a Nym client embedded in it. Clients address that embedded client directly over the mixnet, which answers anonymously using [SURBs](/network/mixnet-mode/anonymous-replies).
 
 The embedded client is what separates the [approaches](/developers#end-to-end-or-proxy):
 
 - **You cannot change the service.** That is proxy mode. An Exit Gateway leaves the mixnet on your behalf and connects to it over ordinary clearnet, subject to that gateway's [exit policy](/network/infrastructure/exit-services#the-exit-policy-applies).
 - **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Traffic stays Sphinx-encrypted the whole way.
 
-This page is the second case. It assumes you own the server code and are willing to modify it. In practice that means adding a mixnet client alongside whatever transport the service already speaks, then routing requests in from there.
-
-Three things follow from that choice. The process can sit in a DMZ with no inbound access. Its Nym address becomes the only way to reach it. Replies go back over [SURBs](/network/mixnet-mode/anonymous-replies) rather than an open connection.
+**This page is the second case**; it assumes you own the server code and are willing to modify it. In practice that means adding a mixnet client alongside whatever transport the service already speaks, then routing requests in from there. The process can sit in a DMZ with no inbound access. Its [Nym address](/network/reference/addressing) becomes the only way to reach it. Replies go back over [SURBs](/network/mixnet-mode/anonymous-replies).
 
 ## The fourth participant
 
@@ -58,7 +56,7 @@ mixnet ──▶ your app + embedded Nym client ──▶ backend it already tal
 
 Your application gains a Nym client. Whatever it calls downstream needs no awareness of Nym. A database, an RPC node or a payment network sees ordinary local calls from your process, exactly as before. The whitepaper's example is a provider that relays Bitcoin transactions to the Bitcoin peer-to-peer network. That network knows nothing about Nym.
 
-It is also distinct from the [exit gateway services](/network/infrastructure/exit-services) Nym itself operates. The Network Requester and IP Packet Router are general-purpose exits, run by gateway operators, forwarding to arbitrary clearnet destinations. A service provider serves one application, and you are the one running it.
+It is also distinct from the [exit gateway services](/network/infrastructure/exit-services) that run on Exit Gateways to support proxy-mode integrations. The Network Requester and IP Packet Router are general-purpose exits, run by Gateway operators, forwarding to arbitrary clearnet destinations. A service provider serves one application, and you are the one running it.
 
 ## It never accepts an inbound connection
 
@@ -175,3 +173,7 @@ All of these are configuration. A client built through the SDK can override ever
 Every reply packet consumes one SURB, and the client has to pre-compute and send those SURBs up front. That suits request-response traffic with small answers: a transaction broadcast, a balance query, a status check.
 
 It does not suit bulk transfer. Syncing a chain, streaming media, or anything else measured in megabytes will exhaust the SURB budget and the sending rate long before it finishes. See [What Nym Cannot Do](/developers/limitations) for the full list of limits, and [nym-smoldvpn](/developers/smoldvpn) for the tunnel alternative when the workload is bulk rather than request-response.
+
+## How this compares to a Tor Hidden Service
+
+There are some similarities to a Tor Hidden Service, such as access only by Nym address (no clearnet IP/domain), and keeping traffic 'within' the Mixnet. There are however some key architectural differences which can be found in the [SURBs vs Tor HS](/network/deep-dives/hidden-services) doc.

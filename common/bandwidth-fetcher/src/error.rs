@@ -28,6 +28,7 @@ pub enum NyxdFetcherError {
     #[error("Threshold not set yet")]
     NoThreshold,
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("no epoch is currently issuable: no DKG ceremony has concluded yet")]
     NoIssuableEpoch,
 

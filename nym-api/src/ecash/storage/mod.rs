@@ -201,13 +201,13 @@ impl EcashStorageExt for NymApiStorage {
                 blinded_partial_credential,
                 dkg_epoch_id,
             } => DepositUsage::Issued {
-                share: BlindedSignature::from_bytes(&blinded_partial_credential).map_err(
-                    |err| {
+                share: Box::new(
+                    BlindedSignature::from_bytes(&blinded_partial_credential).map_err(|err| {
                         NymApiStorageError::database_inconsistency(format!(
                             "failed to recover stored partial signature: {err}"
                         ))
-                    },
-                )?,
+                    })?,
+                ),
                 issued_for_epoch: dkg_epoch_id as EpochId,
             },
         })

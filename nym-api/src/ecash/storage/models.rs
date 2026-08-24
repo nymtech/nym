@@ -108,7 +108,7 @@ pub enum RawDepositUsage {
 pub enum DepositUsage {
     Unused,
     Issued {
-        share: BlindedSignature,
+        share: Box<BlindedSignature>,
 
         /// The epoch of the key the share was signed with. A share is only of use to a caller
         /// collecting that same epoch's material.

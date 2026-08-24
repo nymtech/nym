@@ -115,7 +115,7 @@ async fn post_blind_sign(
             }
 
             return Ok(output.to_response(BlindedSignatureResponse {
-                blinded_signature: share,
+                blinded_signature: *share,
             }));
         }
 

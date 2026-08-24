@@ -3,6 +3,7 @@
 
 use crate::error::CredentialProxyError;
 use crate::nym_api_helpers::ensure_sane_expiration_date;
+use crate::shared_state::ecash_state::CallerCapabilities;
 use crate::ticketbook_manager::TicketbookManager;
 use nym_compact_ecash::Base58;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
@@ -32,6 +33,9 @@ impl TicketbookManager {
             info!("");
 
             self.state.ensure_credentials_issuable().await?;
+            self.state
+                .ensure_issuable_to_caller(CallerCapabilities::epoch_aware(request.epoch_aware))
+                .await?;
             let epoch_id = self.state.issuable_epoch_id().await?;
             ensure_sane_expiration_date(request.expiration_date)?;
 
@@ -76,6 +80,11 @@ impl TicketbookManager {
 
             // 1. perform basic validation
             self.state.ensure_credentials_issuable().await?;
+            self.state
+                .ensure_issuable_to_caller(CallerCapabilities::epoch_aware(
+                    request.inner.epoch_aware,
+                ))
+                .await?;
 
             ensure_sane_expiration_date(request.inner.expiration_date)?;
 

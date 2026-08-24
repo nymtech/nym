@@ -67,6 +67,9 @@ pub async fn generate_withdrawal_request(args: Args) -> anyhow::Result<()> {
             expiration_date: args.expiration_date,
             ticketbook_type: args.ticketbook_type,
             is_freepass_request: false,
+            // this tool emits a request for a human to submit; whoever unblinds the result is
+            // responsible for asking about the right epoch, so claim nothing on their behalf
+            epoch_aware: false,
         },
         ecash_secret: ecash_keypair.secret_key().to_bs58(),
         ecash_request_info_bs58: request_info.to_bs58(),

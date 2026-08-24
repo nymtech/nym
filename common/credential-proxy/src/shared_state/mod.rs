@@ -3,7 +3,7 @@
 
 use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
 use crate::error::CredentialProxyError;
-use crate::shared_state::ecash_state::EcashState;
+use crate::shared_state::ecash_state::{CallerCapabilities, EcashState};
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::storage::CredentialProxyStorage;
 use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
@@ -74,6 +74,17 @@ impl CredentialProxyState {
     pub async fn ensure_credentials_issuable(&self) -> Result<(), CredentialProxyError> {
         self.ecash_state()
             .ensure_credentials_issuable(self.client())
+            .await
+    }
+
+    /// See [`crate::shared_state::ecash_state::EcashState::ensure_issuable_to_caller`]. Only the
+    /// paths that actually issue need this; reads do not.
+    pub async fn ensure_issuable_to_caller(
+        &self,
+        caller: CallerCapabilities,
+    ) -> Result<(), CredentialProxyError> {
+        self.ecash_state()
+            .ensure_issuable_to_caller(self.client(), caller)
             .await
     }
 

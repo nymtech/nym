@@ -96,6 +96,22 @@ fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, 
     })
 }
 
+/// What a caller has told us it is able to do, which decides whether issuing to it right now is
+/// safe. Defaults to the least capable thing, because that is what a caller predating a given
+/// field is.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct CallerCapabilities {
+    /// The caller states which epoch it means when fetching verification material, so a ceremony
+    /// concluding between issuance and unblinding cannot leave it holding shares it can never use.
+    pub epoch_aware: bool,
+}
+
+impl CallerCapabilities {
+    pub fn epoch_aware(epoch_aware: bool) -> Self {
+        CallerCapabilities { epoch_aware }
+    }
+}
+
 impl EcashState {
     pub fn new(
         required_deposit_cache: RequiredDepositCache,
@@ -111,6 +127,34 @@ impl EcashState {
             coin_index_signatures: Default::default(),
             expiration_date_signatures: Default::default(),
         }
+    }
+
+    /// Refuse to *issue* to a caller that cannot say which epoch it means, while a ceremony runs.
+    ///
+    /// A book issued mid-ceremony belongs to the epoch still in service, which is not the chain's
+    /// current one. A caller that omits the epoch when it later fetches verification material is
+    /// served the current one, and once the ceremony concludes that no longer matches - so it can
+    /// never unblind what it just paid for, and the failure is permanent because the epoch its
+    /// shares were signed under never changes.
+    ///
+    /// Such a caller waits instead, which is recoverable and is exactly what it did before
+    /// mid-ceremony issuance existed. Deliberately separate from
+    /// [`Self::ensure_credentials_issuable`]: that one asks whether ecash works at all, and gates
+    /// reads as well, which issue nothing and cannot strand anybody.
+    pub async fn ensure_issuable_to_caller(
+        &self,
+        client: &ChainClient,
+        caller: CallerCapabilities,
+    ) -> Result<(), CredentialProxyError> {
+        if caller.epoch_aware {
+            return Ok(());
+        }
+
+        if !self.current_epoch(client).await?.state.is_final() {
+            return Err(CredentialProxyError::CallerCannotIssueMidCeremony);
+        }
+
+        Ok(())
     }
 
     pub async fn ensure_credentials_issuable(

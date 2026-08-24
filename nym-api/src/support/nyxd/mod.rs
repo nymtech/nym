@@ -481,7 +481,7 @@ impl Client {
     }
 }
 
-fn construct_ecash_api_client(
+pub(crate) fn construct_ecash_api_client(
     share: ContractVKShare,
 ) -> std::result::Result<EcashApiClient, EcashApiError> {
     if !share.verified {

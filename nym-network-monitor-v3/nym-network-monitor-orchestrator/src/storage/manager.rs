@@ -326,14 +326,34 @@ impl StorageManager {
     ///
     /// The comparison is strict, so a lease expiring exactly at `now` survives until the next
     /// sweep, matching the result eviction sweep.
+    ///
+    /// Reports how many rows each kind lost, because that is the signal that a kind's lease budget
+    /// is too short for the work it covers, and a total would hide it: liveness leases are minutes
+    /// shorter than stress ones, so the two expire at very different rates even when both are
+    /// healthy. Counted before the delete, in the same transaction, since the delete itself reports
+    /// only a total.
     pub(crate) async fn clear_expired_testruns_in_progress(
         &self,
         now: OffsetDateTime,
-    ) -> anyhow::Result<u64> {
-        let res = sqlx::query!("DELETE FROM testrun_in_progress WHERE expires_at < ?", now,)
-            .execute(&self.connection_pool)
+    ) -> anyhow::Result<HashMap<TestKind, u64>> {
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
+
+        let expiring = sqlx::query_as::<_, (TestKind, i64)>(
+            "SELECT test_kind, COUNT(*) FROM testrun_in_progress WHERE expires_at < ? GROUP BY test_kind",
+        )
+        .bind(now)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        sqlx::query!("DELETE FROM testrun_in_progress WHERE expires_at < ?", now,)
+            .execute(&mut *tx)
             .await?;
-        Ok(res.rows_affected())
+
+        tx.commit().await?;
+        Ok(expiring
+            .into_iter()
+            .map(|(kind, count)| (kind, count as u64))
+            .collect())
     }
 
     /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
@@ -343,6 +363,21 @@ impl StorageManager {
             .fetch_one(&self.connection_pool)
             .await?;
         Ok(total)
+    }
+
+    /// The same count broken down by kind, for the per-kind in-flight gauges. Kinds with no rows are
+    /// absent from the map rather than present as zero, so a caller publishing gauges has to decide
+    /// what an absent kind means - it means zero.
+    pub(crate) async fn count_testruns_in_progress_by_kind(
+        &self,
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        let counts = sqlx::query_as::<_, (TestKind, i64)>(
+            "SELECT test_kind, COUNT(*) FROM testrun_in_progress GROUP BY test_kind",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
+
+        Ok(counts.into_iter().collect())
     }
 
     /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing and marks
@@ -1317,11 +1352,22 @@ mod tests {
             started_at: OffsetDateTime,
             expires_at: OffsetDateTime,
         ) {
+            lease_of(db, node_id, TestKind::Stress, started_at, expires_at).await
+        }
+
+        /// The same, under a chosen kind. The role plays no part in expiry, so it stays fixed.
+        async fn lease_of(
+            db: &StorageManager,
+            node_id: i64,
+            test_kind: TestKind,
+            started_at: OffsetDateTime,
+            expires_at: OffsetDateTime,
+        ) {
             db.mark_testrun_in_progress(
                 node_id,
                 started_at,
                 expires_at,
-                TestKind::Stress,
+                test_kind,
                 TestedRole::Mixnode,
             )
             .await
@@ -1374,8 +1420,33 @@ mod tests {
             lease(&db, 4, datetime!(2025-06-01 11:55:00 UTC), now).await;
 
             let cleared = db.clear_expired_testruns_in_progress(now).await.unwrap();
-            assert_eq!(cleared, 1);
+            assert_eq!(cleared.get(&TestKind::Stress).copied(), Some(1));
             assert_eq!(remaining(&db).await, vec![2, 3, 4]);
+        }
+
+        // the breakdown is the whole point of counting before the delete: it says WHICH kind's lease
+        // is too short for the work it covers, which a single total cannot, since the two kinds run
+        // on leases minutes apart and so expire at different rates even when both are healthy
+        #[tokio::test]
+        async fn expiries_are_counted_per_kind() {
+            let db = setup().await;
+            for node_id in 1..=3 {
+                seed_node(&db, node_id).await;
+            }
+            let expired_at = datetime!(2025-06-01 11:00:00 UTC);
+
+            lease_of(&db, 1, TestKind::Stress, expired_at, expired_at).await;
+            lease_of(&db, 2, TestKind::Liveness, expired_at, expired_at).await;
+            lease_of(&db, 3, TestKind::Liveness, expired_at, expired_at).await;
+
+            let cleared = db
+                .clear_expired_testruns_in_progress(datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+
+            assert_eq!(cleared.get(&TestKind::Stress).copied(), Some(1));
+            assert_eq!(cleared.get(&TestKind::Liveness).copied(), Some(2));
+            assert!(remaining(&db).await.is_empty());
         }
 
         #[tokio::test]
@@ -1394,8 +1465,27 @@ mod tests {
                 .clear_expired_testruns_in_progress(datetime!(2025-06-01 12:00:00 UTC))
                 .await
                 .unwrap();
-            assert_eq!(cleared, 0);
+            assert!(cleared.is_empty());
             assert_eq!(remaining(&db).await, vec![1]);
+        }
+
+        // the per-kind gauges are published from this count, and a kind absent from the map is
+        // published as zero - so absence has to mean "none in flight", not "not measured"
+        #[tokio::test]
+        async fn in_flight_rows_are_counted_per_kind_and_a_drained_kind_is_absent() {
+            let db = setup().await;
+            for node_id in 1..=3 {
+                seed_node(&db, node_id).await;
+            }
+            let started_at = datetime!(2025-06-01 12:00:00 UTC);
+            let expires_at = datetime!(2025-06-01 13:00:00 UTC);
+
+            lease_of(&db, 1, TestKind::Liveness, started_at, expires_at).await;
+            lease_of(&db, 2, TestKind::Liveness, started_at, expires_at).await;
+
+            let counts = db.count_testruns_in_progress_by_kind().await.unwrap();
+            assert_eq!(counts.get(&TestKind::Liveness).copied(), Some(2));
+            assert_eq!(counts.get(&TestKind::Stress), None);
         }
     }
 

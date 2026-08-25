@@ -13,6 +13,13 @@ import { Callout } from 'nextra/components'
 This page covers which of your endpoints to route through Nym, and the latency
 and failure handling that routing adds. It applies to any runtime.
 
+It assumes [proxy mode](/developers#end-to-end-or-proxy): your app reaches a
+third-party destination through an
+[exit gateway](/network/infrastructure/exit-services). If both ends run Nym,
+you use the dVPN datapath, or you are the service others reach, start with
+[the other integration shapes](#the-other-integration-shapes) at the end of
+this page.
+
 Decide endpoint by endpoint, not once for the whole application. Deciding once produces two common bugs.
 A user flow hangs because it makes several routed round trips in a row. Or
 traffic looks routed in the code, but reaches the destination over the clearnet.
@@ -29,27 +36,7 @@ tells you whether your workload fits.
 into a network configuration. Settle both first.
 </Callout>
 
-## Which approach you are using
-
-Most of this page assumes [proxy mode](/developers#end-to-end-or-proxy): you
-reach a third-party destination through an
-[exit gateway](/network/infrastructure/exit-services). These failure modes come
-from that case.
-
-| Approach | What it means | How much of this page applies |
-|---|---|---|
-| [**Proxy**](/developers#end-to-end-or-proxy) | Your app reaches a third-party destination over the public internet, through an exit gateway. | All of it. |
-| [**dVPN proxy**](/network/dvpn-mode) | A clearnet exit as above, but [`nym-smoldvpn`](/developers/smoldvpn) carries the traffic over WireGuard instead of the mixnet. | Most of it. See [if you use the dVPN datapath](#if-you-use-the-dvpn-datapath). |
-| [**End to end**](/network/threat-model/configurations/end-to-end) | Both ends run Nym. No exit gateway, no clearnet destination. | Round trips, cold start and request bounds only. See [reaching another Nym client](#reaching-another-nym-client). |
-| [**Service provider**](/developers/service-providers) | You run the service that others reach over Nym. | Almost none. See [when you are the destination](#when-you-are-the-destination). |
-
-Sections that assume a clearnet destination say so in their first line. The
-rest apply to all four approaches.
-
 ## Routing is a per-endpoint decision
-
-This section assumes a clearnet destination. End to end you decide nothing: you
-reach the peer through Nym, or not at all.
 
 Consider an app with three endpoints. The first sees an account identifier on
 every request. That destination can link the identifier to an IP address, and
@@ -116,11 +103,6 @@ small concurrency limit with a per-request bound avoids both problems. Pick
 the bound in both directions: too generous and a stuck request holds the UI, too
 tight and you abandon requests that would have completed.
 
-End to end the same bound applies for a different reason. Replies arrive on
-[single-use reply blocks](/network/mixnet-mode/anonymous-replies) that your
-client computed and sent in advance. Each outstanding request holds reply blocks
-that nothing else can use.
-
 <Callout type="warning">
 Check what your timeout does. In the browser packages it is a race that bounds
 *your* wait. The underlying request continues inside the worker, and you cannot
@@ -142,10 +124,6 @@ integration that ran and did nothing from one you never switched on.
 
 ## Decide fail-open or fail-closed explicitly
 
-This section assumes a clearnet destination. A direct path to the same
-destination is what makes the choice possible, and no direct path reaches a Nym
-address.
-
 When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
@@ -157,10 +135,6 @@ transport retries over the clearnet, has shipped fail-open, whatever the
 setting says.
 
 ## Prove the traffic went through the mixnet
-
-This section assumes a clearnet destination. All three levels below test whether
-a request took the tunnel instead of a direct path. End to end, no direct path
-reaches the peer.
 
 Routing code that fails to route raises no error, as the sections above show.
 Add a check underneath it that does.
@@ -178,9 +152,6 @@ For the browser mechanics, see
 
 ## Choose the resolver
 
-This section assumes a clearnet destination. End to end there is no DNS: you
-address a Nym client by its [key](/network/reference/addressing), not by a name.
-
 DNS lookups travel through the tunnel and exit with everything else. The
 resolver sees queries that arrive from the exit gateway, not from your user, and
 that much is the property you wanted. It does not stop the resolver seeing every
@@ -190,10 +161,6 @@ Decide whether that suits your users, instead of inheriting it. `primaryDns` and
 `fallbackDns` change it. [mix-dns](/developers/mix-dns/guides) has the format.
 
 ## What the integration gets you, and what it does not
-
-This section assumes a clearnet destination. End to end there is no third-party
-destination, so none of this applies. See
-[end to end](/network/threat-model/configurations/end-to-end).
 
 Routing your endpoints is
 [Layer 1](/network/threat-model/two-layer-model) and only Layer 1. The
@@ -209,53 +176,46 @@ For most applications the destination is the
 Routing closes one of its three vectors. Report it as that, not as "the app is
 now private".
 
-## dVPN, end to end, and service provider
+## The other integration shapes
 
-### If you use the dVPN datapath
+### dVPN datapath
 
 [`nym-smoldvpn`](/developers/smoldvpn) reaches a clearnet destination like any
-other proxy integration, so this page applies to it. It carries your traffic
-over a WireGuard [dVPN](/network/dvpn-mode) instead of the mixnet, which changes
-three things.
+other proxy integration, so this page applies to it, with three changes:
 
-Latency is much lower, so cold start and sequential round trips hurt less,
-though neither disappears. The mixnet parts of this page
-do not apply, because dVPN mode sends no Sphinx packets and uses no reply
-blocks.
+- Latency is much lower, so cold start and sequential round trips hurt less,
+  though neither disappears.
+- Nothing here that involves Sphinx packets or reply blocks applies, because
+  the traffic travels over a WireGuard [dVPN](/network/dvpn-mode) instead of
+  the mixnet.
+- The swap has a cost:
+  [what Nym cannot do](/developers/limitations#is-my-workload-a-fit) covers
+  what dVPN mode gives up.
 
-dVPN mode provides **no in-transit timing protection**. It hides the client IP
-address from the destination and splits trust across two operators, and closes
-nothing else.
+### End to end
 
-### Reaching another Nym client
+When both ends run Nym, there is no exit gateway and no clearnet destination:
+traffic stays inside the mixnet the whole way, and the peer never learns your
+IP address. Most of this page falls away with the exit:
 
-When both ends run Nym, there is no exit gateway and no clearnet destination.
-Traffic stays inside the mixnet the whole way, the peer never learns your IP
-address, and replies come back on reply blocks that you supplied. This removes
-the untrusted destination instead of hiding your address from it. See
-[end to end](/network/threat-model/configurations/end-to-end) for what that
-leaves an observer.
+- The round-trip advice holds. Sequential calls in one user action still
+  multiply latency, cold start still lands on whoever triggers it, and
+  outstanding requests still need a bound: replies arrive on
+  [single-use reply blocks](/network/mixnet-mode/anonymous-replies) your
+  client computed and sent in advance, and each outstanding request holds
+  reply blocks that nothing else can use.
+- The routing decision, the HTTPS question, connection pooling, fail-open and
+  the proof checks do not apply, because no direct path reaches a Nym address.
+- There is no DNS. You address a Nym client by its
+  [key](/network/reference/addressing), not by a name.
 
-The round-trip advice carries over. Sequential calls in one user action still
-multiply latency, cold start still lands on whoever triggers it, and outstanding
-requests still need a bound.
+See [end to end](/network/threat-model/configurations/end-to-end) for what
+that configuration leaves an observer.
 
-Everything that needs an exit or a direct path does not carry over. That covers
-the routing decision, the HTTPS question, connection pooling, the resolver,
-fail-open, and proving that the traffic took the tunnel.
-
-<Callout type="info">
-The failure modes on this page come from clearnet-exit integrations. No
-equivalent list exists yet for client-to-client work.
-</Callout>
-
-### When you are the destination
+### Service provider
 
 If you run the service that others reach over Nym, you never open an outbound
-connection, so almost none of this page applies. Your address is
-[only as stable as its gateway](/developers/service-providers#your-address-is-only-as-stable-as-its-gateway).
-Every reply you send spends one of the sender's reply blocks, out of a fixed
-per-second budget. See
+connection, so almost none of this page applies. See
 [building a Nym service provider](/developers/service-providers).
 
 ## Next

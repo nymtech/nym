@@ -41,7 +41,8 @@ use nym_api_requests::models::directory::{
     DirectoryEntriesIdentitiesResponse, DirectoryEntriesRecordsResponse,
 };
 use nym_api_requests::models::v3::{
-    KnownNetworkMonitorResponse, StressTestBatchSubmission, StressTestBatchSubmissionResponse,
+    KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
+    StressTestBatchSubmission, StressTestBatchSubmissionResponse,
 };
 pub use nym_api_requests::{
     ecash::{
@@ -1570,6 +1571,34 @@ pub trait NymApiClientExt: ApiClient {
                 routes::NYM_NODES_ROUTES,
                 routes::STRESS_TESTING,
                 routes::STRESS_TESTING_BATCH_SUBMIT,
+            ],
+            NO_PARAMS,
+            request,
+        )
+        .await
+    }
+
+    /// Submit a signed batch of liveness-testing results to nym-api on behalf of a network monitor
+    /// orchestrator.
+    ///
+    /// Posts to its own endpoint rather than sharing the stress one: nym-api keeps the replay
+    /// high-water mark per endpoint per signer, so two streams from the same orchestrator validated
+    /// against one shared mark would reject each other indefinitely.
+    ///
+    /// The caller is expected to have built the content and signed it with the orchestrator's
+    /// ed25519 key; nym-api will reject submissions that are stale, replayed, unauthorised, or
+    /// whose signature fails to verify.
+    #[instrument(level = "debug", skip(self, request))]
+    async fn submit_liveness_testing_results(
+        &self,
+        request: &LivenessTestBatchSubmission,
+    ) -> Result<LivenessTestBatchSubmissionResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::V3_API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::LIVENESS_TESTING,
+                routes::LIVENESS_TESTING_BATCH_SUBMIT,
             ],
             NO_PARAMS,
             request,

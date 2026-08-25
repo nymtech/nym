@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::{Context, bail};
-use nym_api_requests::models::v3::StressTestResult;
+use nym_api_requests::models::v3 as nym_api_requests;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
     self as api, InterfaceMeasurement, LatencyDistribution, NymNodeData, TestRunData,
@@ -13,7 +13,7 @@ use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::nym_mixnet_contract_common::NymNodeBond;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
-use strum::{EnumCount, EnumIter};
+use strum::{Display, EnumCount, EnumIter};
 use time::OffsetDateTime;
 
 /// What a test run measures. Selects the run's cadence, eligibility rules and expected measurement
@@ -21,9 +21,11 @@ use time::OffsetDateTime;
 /// would measure the wrong thing rather than fail.
 ///
 /// Every kind exists in order to be assigned, so the scheduler rotates over the variants themselves
-/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, EnumCount, EnumIter)]
+/// rather than over a list kept in step with them by hand, and does so in DECLARATION ORDER. The
+/// same holds for submission, where each kind is a stream of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type, Display, EnumCount, EnumIter)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub(crate) enum TestKind {
     Stress,
     Liveness,
@@ -386,6 +388,23 @@ impl From<api::ExercisedInterface> for ExercisedInterface {
     }
 }
 
+/// The nym-api carries its own copy of the same enum - the dependency runs orchestrator ->
+/// nym-api-requests, so the two cannot share one type - which makes this the bridge the liveness
+/// submission crosses.
+impl From<ExercisedInterface> for nym_api_requests::ExercisedInterface {
+    fn from(interface: ExercisedInterface) -> Self {
+        match interface {
+            ExercisedInterface::MixForwarding => {
+                nym_api_requests::ExercisedInterface::MixForwarding
+            }
+            ExercisedInterface::ClientIngest => nym_api_requests::ExercisedInterface::ClientIngest,
+            ExercisedInterface::ClientDelivery => {
+                nym_api_requests::ExercisedInterface::ClientDelivery
+            }
+        }
+    }
+}
+
 /// A completed run together with every measurement it produced, i.e. the parent row plus its
 /// children reassembled. This is the unit both the operator read surface and the nym-api
 /// submission path consume, since a run's score is defined over its whole measurement set.
@@ -401,6 +420,14 @@ impl CompletedTestRun {
         self.measurements
             .iter()
             .find(|measurement| measurement.interface == interface)
+    }
+
+    /// Delivery ratio against one interface, zero if the run produced no measurement for it.
+    fn performance(&self, interface: ExercisedInterface) -> f64 {
+        self.measurement(interface)
+            // the ratio (and its clamp) is defined once, on the API-level measurement
+            .map(|measurement| InterfaceMeasurement::from(measurement).received_ratio())
+            .unwrap_or_default()
     }
 }
 
@@ -444,7 +471,7 @@ impl From<CompletedTestRun> for TestRunData {
 /// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
 ///   that aborted before the node responded sets `error` to the first failure, so the inverse is
 ///   an accurate "did we reach the node at all" signal.
-impl From<&CompletedTestRun> for StressTestResult {
+impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
@@ -456,13 +483,54 @@ impl From<&CompletedTestRun> for StressTestResult {
             _ => 0.0,
         };
 
-        StressTestResult {
+        nym_api_requests::StressTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
             test_timestamp: inner.test_timestamp,
             test_performance,
             was_reachable: inner.error.is_none(),
+        }
+    }
+}
+
+/// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape.
+///
+/// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
+/// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
+/// denominator - a gateway whose delivery never ran must not tie with one that passed both. The
+/// breakdown is built from the same set, so it always accounts for the score above it, and the role
+/// that fixes that set never leaves the orchestrator: the ratio is already normalised into
+/// `[0.0, 1.0]` and comparable across roles without it. `was_reachable` is `error.is_none()`, as on
+/// the stress path.
+impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
+    fn from(completed: &CompletedTestRun) -> Self {
+        let inner = &completed.run.inner;
+
+        let expected: &[ExercisedInterface] = match inner.tested_role {
+            TestedRole::Mixnode => &[ExercisedInterface::MixForwarding],
+            TestedRole::Gateway => &[
+                ExercisedInterface::ClientIngest,
+                ExercisedInterface::ClientDelivery,
+            ],
+        };
+
+        let interfaces: Vec<_> = expected
+            .iter()
+            .map(|&interface| nym_api_requests::InterfacePerformance {
+                interface: interface.into(),
+                performance: completed.performance(interface),
+            })
+            .collect();
+
+        nym_api_requests::LivenessTestResult {
+            testrun_id: completed.run.id,
+            node_id: inner.node_id as u32,
+            test_timestamp: inner.test_timestamp,
+            test_performance: interfaces.iter().map(|i| i.performance).sum::<f64>()
+                / expected.len() as f64,
+            was_reachable: inner.error.is_none(),
+            interfaces,
         }
     }
 }

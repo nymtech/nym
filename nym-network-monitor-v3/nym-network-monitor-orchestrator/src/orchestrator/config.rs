@@ -119,7 +119,7 @@ pub(crate) struct Config {
     /// batch submission (e.g. `15m`, `1h`).
     pub(crate) result_submission_interval: Duration,
 
-    /// Maximum number of stress testing results to submit in a single POST request
+    /// Maximum number of results to submit in a single POST request, applied per stream
     pub(crate) result_submission_batch_size: usize,
 }
 

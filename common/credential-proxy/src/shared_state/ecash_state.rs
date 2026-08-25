@@ -6,7 +6,7 @@ use crate::nym_api_helpers::{
     CachedEpoch, CachedImmutableEpochItem, ensure_sane_expiration_date, query_all_threshold_apis,
 };
 use crate::quorum_checker::QuorumState;
-use crate::shared_state::nyxd_client::ChainClient;
+use crate::shared_state::nyxd_client::{ChainClient, EpochSource};
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
 use crate::storage::traits::GlobalEcashDataCache;
 use nym_cache::CachedImmutableItems;
@@ -143,7 +143,7 @@ impl EcashState {
     /// reads as well, which issue nothing and cannot strand anybody.
     pub async fn ensure_issuable_to_caller(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
         caller: CallerCapabilities,
     ) -> Result<(), CredentialProxyError> {
         if caller.epoch_aware {
@@ -159,7 +159,7 @@ impl EcashState {
 
     pub async fn ensure_credentials_issuable(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
     ) -> Result<(), CredentialProxyError> {
         let epoch = self.current_epoch(client).await?;
 
@@ -191,7 +191,7 @@ impl EcashState {
     /// Whether the ceremony for `epoch_id` has concluded, so its set of signers is settled.
     async fn ceremony_concluded(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
         epoch_id: EpochId,
     ) -> Result<bool, CredentialProxyError> {
         Ok(self
@@ -239,7 +239,10 @@ impl EcashState {
             .map(|guard| guard.clone())
     }
 
-    pub async fn current_epoch(&self, client: &ChainClient) -> Result<Epoch, CredentialProxyError> {
+    pub async fn current_epoch(
+        &self,
+        client: &impl EpochSource,
+    ) -> Result<Epoch, CredentialProxyError> {
         let read_guard = self.cached_epoch.read().await;
         if read_guard.is_valid() {
             return Ok(read_guard.current_epoch);
@@ -248,7 +251,7 @@ impl EcashState {
         // update cache
         drop(read_guard);
         let mut write_guard = self.cached_epoch.write().await;
-        let epoch = client.query_chain().await.get_current_epoch().await?;
+        let epoch = client.current_epoch().await?;
 
         write_guard.update(epoch);
         Ok(epoch)
@@ -263,7 +266,7 @@ impl EcashState {
     /// is resolved once per request and threaded through.
     pub async fn issuable_epoch_id(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
     ) -> Result<EpochId, CredentialProxyError> {
         let epoch = self.current_epoch(client).await?;
 
@@ -498,5 +501,144 @@ impl EcashState {
             })
             .await
             .map(|t| *t)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::Timestamp;
+    use nym_validator_client::nyxd::contract_traits::dkg_query_client::EpochState;
+
+    /// The chain frozen at one point of one epoch.
+    struct FixedEpoch(Epoch);
+
+    impl EpochSource for FixedEpoch {
+        async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
+            Ok(self.0)
+        }
+    }
+
+    fn state() -> EcashState {
+        EcashState::new(RequiredDepositCache::default(), QuorumState::fixed(true))
+    }
+
+    /// `epoch_id`'s ceremony is running, so the keys in service are the previous epoch's.
+    fn mid_ceremony(epoch_id: EpochId) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::DealingExchange { resharing: true },
+            epoch_id,
+            ..Default::default()
+        })
+    }
+
+    /// `epoch_id`'s ceremony concluded and its keys are the ones in service.
+    fn concluded(epoch_id: EpochId) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::InProgress,
+            epoch_id,
+            ..Default::default()
+        })
+    }
+
+    #[tokio::test]
+    async fn epoch_aware_caller_may_issue_mid_ceremony() {
+        assert!(
+            state()
+                .ensure_issuable_to_caller(&mid_ceremony(5), CallerCapabilities::epoch_aware(true))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn caller_that_cannot_state_the_epoch_is_refused_mid_ceremony() {
+        let err = state()
+            .ensure_issuable_to_caller(&mid_ceremony(5), CallerCapabilities::default())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            CredentialProxyError::CallerCannotIssueMidCeremony
+        ));
+    }
+
+    #[tokio::test]
+    async fn caller_that_cannot_state_the_epoch_may_issue_between_ceremonies() {
+        assert!(
+            state()
+                .ensure_issuable_to_caller(&concluded(5), CallerCapabilities::default())
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_running_ceremony_does_not_stop_issuance_once_an_epoch_has_concluded() {
+        assert!(
+            state()
+                .ensure_credentials_issuable(&mid_ceremony(5))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn issuance_is_refused_until_the_first_ceremony_concludes() {
+        let deadline = 1_700_000_000;
+        let first_ceremony = FixedEpoch(Epoch {
+            state: EpochState::PublicKeySubmission { resharing: false },
+            epoch_id: 0,
+            deadline: Some(Timestamp::from_seconds(deadline)),
+            ..Default::default()
+        });
+
+        let err = state()
+            .ensure_credentials_issuable(&first_ceremony)
+            .await
+            .unwrap_err();
+
+        let CredentialProxyError::CredentialsNotYetIssuable { availability } = err else {
+            panic!("expected the refusal to say when issuance becomes available, got: {err}")
+        };
+        // the caller is pointed at the end of the whole ceremony, not of its current state
+        assert!(availability > OffsetDateTime::from_unix_timestamp(deadline as i64).unwrap());
+    }
+
+    #[tokio::test]
+    async fn issuance_is_refused_while_the_dkg_is_uninitialised() {
+        let uninitialised = FixedEpoch(Epoch::default());
+        assert!(uninitialised.0.state.is_waiting_initialisation());
+
+        let err = state()
+            .ensure_credentials_issuable(&uninitialised)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, CredentialProxyError::UninitialisedDkg));
+    }
+
+    #[tokio::test]
+    async fn issuable_epoch_is_the_current_one_between_ceremonies() {
+        assert_eq!(5, state().issuable_epoch_id(&concluded(5)).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn issuable_epoch_is_the_one_being_replaced_mid_ceremony() {
+        assert_eq!(
+            4,
+            state().issuable_epoch_id(&mid_ceremony(5)).await.unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn no_epoch_is_issuable_during_the_very_first_ceremony() {
+        let err = state()
+            .issuable_epoch_id(&mid_ceremony(0))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, CredentialProxyError::UninitialisedDkg));
     }
 }

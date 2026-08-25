@@ -48,7 +48,9 @@ nym-network-defaults = { workspace = true }
 nym-cache = { workspace = true }
 
 [dev-dependencies]
+cosmwasm-std = { workspace = true }
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
 
 [build-dependencies]
 anyhow = { workspace = true }

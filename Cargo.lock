@@ -6732,6 +6732,7 @@ dependencies = [
  "axum",
  "bip39",
  "bs58",
+ "cosmwasm-std",
  "futures",
  "humantime",
  "nym-cache",

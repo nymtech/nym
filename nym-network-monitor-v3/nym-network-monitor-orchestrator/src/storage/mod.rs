@@ -12,8 +12,10 @@ use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
+use strum::IntoEnumIterator;
 use time::OffsetDateTime;
 use tracing::log::{LevelFilter, debug};
 
@@ -30,6 +32,23 @@ pub(crate) mod models;
 #[derive(Clone)]
 pub(crate) struct NetworkMonitorStorage {
     pub(crate) storage_manager: StorageManager,
+}
+
+/// The in-flight gauge belonging to a kind. Exhaustive rather than defaulting, so a new kind is a
+/// compile error here instead of a silently unpublished series.
+fn in_progress_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::Stress => PrometheusMetric::StressTestrunsInProgress,
+        TestKind::Liveness => PrometheusMetric::LivenessTestrunsInProgress,
+    }
+}
+
+/// The expired-lease counter belonging to a kind, exhaustive for the same reason.
+fn expired_leases_metric(kind: TestKind) -> PrometheusMetric {
+    match kind {
+        TestKind::Stress => PrometheusMetric::StressLeasesExpired,
+        TestKind::Liveness => PrometheusMetric::LivenessLeasesExpired,
+    }
 }
 
 impl NetworkMonitorStorage {
@@ -144,19 +163,49 @@ impl NetworkMonitorStorage {
 
     /// Releases every in-flight lock whose lease has already expired, on the assumption that those
     /// runs will never report back. Decrements the `TestrunsInProgress` gauge by the number of rows
-    /// actually cleared.
+    /// actually cleared, and counts each kind's expiries against its own series.
     ///
     /// Takes no timeout: the deadline lives on each row, stamped at dispatch from the budget of the
     /// kind being dispatched, so this sweep needs no knowledge of any kind's lease.
+    ///
+    /// Returns the total number of locks released.
     pub(crate) async fn clear_expired_testruns_in_progress(&self) -> anyhow::Result<u64> {
         let cleared = self
             .storage_manager
             .clear_expired_testruns_in_progress(OffsetDateTime::now_utc())
             .await?;
-        if cleared > 0 {
-            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(cleared as i64));
+
+        for (kind, count) in &cleared {
+            PROMETHEUS_METRICS.inc_by(expired_leases_metric(*kind), *count as i64);
         }
-        Ok(cleared)
+
+        let total: u64 = cleared.values().sum();
+        if total > 0 {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, -(total as i64));
+        }
+        Ok(total)
+    }
+
+    /// Publishes the per-kind in-flight gauges from the authoritative row counts.
+    ///
+    /// Set from a count rather than maintained by inc/dec like the total gauge: the delta paths
+    /// (assign, submit, expire) would each have to attribute their change to a kind, and a single
+    /// missed attribution leaves a per-kind gauge permanently wrong, whereas a recount cannot drift.
+    /// Every kind is published on every call, so a kind that has drained reads as zero rather than
+    /// holding its last value.
+    pub(crate) async fn publish_in_progress_gauges(&self) -> anyhow::Result<()> {
+        let counts = self
+            .storage_manager
+            .count_testruns_in_progress_by_kind()
+            .await?;
+
+        for kind in TestKind::iter() {
+            PROMETHEUS_METRICS.set(
+                in_progress_metric(kind),
+                counts.get(&kind).copied().unwrap_or_default(),
+            );
+        }
+        Ok(())
     }
 
     /// Atomically selects the nodes due for one (kind, role) pairing and marks each as having a test

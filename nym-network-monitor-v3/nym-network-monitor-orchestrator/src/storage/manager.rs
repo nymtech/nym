@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::models::{
-    AssignedTestrun, AssignmentCandidate, AssignmentRequest, CompletedTestRun, InsertedTestRun,
-    KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead, TestKind, TestPairing,
-    TestRun, TestRunInProgress, TestRunMeasurement, TestedRole, next_ip_to_test,
+    AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
+    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead,
+    TestKind, TestPairing, TestRun, TestRunInProgress, TestRunMeasurement, TestedRole,
+    next_ip_to_test,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -354,6 +355,40 @@ impl StorageManager {
             .into_iter()
             .map(|(kind, count)| (kind, count as u64))
             .collect())
+    }
+
+    /// Records that these nodes are still bonded WITHOUT touching anything their own endpoint would
+    /// have supplied.
+    ///
+    /// Used for a node whose describe failed this cycle. Overwriting its learned fields with nulls
+    /// would fail every eligibility predicate at once and drop the node out of all kinds until a
+    /// later cycle answered, so a failed describe leaves the previous reading in place instead. A
+    /// node seen for the first time is inserted with those columns empty, which is the one state
+    /// that genuinely means "never described".
+    pub(crate) async fn batch_touch_bonded_nodes(
+        &self,
+        nodes: &[BondedNymNode],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for node in nodes {
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded)
+                VALUES (?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    last_seen_bonded = excluded.last_seen_bonded
+                "#,
+                node.node_id,
+                node.identity_key,
+                node.last_seen_bonded,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
     }
 
     /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
@@ -1111,6 +1146,76 @@ mod tests {
             assert_eq!(count, 2);
         }
 
+        /// The bond-only write, i.e. what a node whose describe failed this cycle gets.
+        async fn touch(db: &StorageManager, node_id: i64, last_seen_bonded: OffsetDateTime) {
+            db.batch_touch_bonded_nodes(&[BondedNymNode {
+                node_id,
+                identity_key: format!("key_{node_id}"),
+                last_seen_bonded,
+            }])
+            .await
+            .unwrap()
+        }
+
+        // A failed describe must not cost the node everything an earlier cycle learned: nulling
+        // these columns fails every eligibility predicate at once, which would drop a node that is
+        // merely slow out of EVERY kind until a later cycle answered.
+        #[tokio::test]
+        async fn a_bond_only_refresh_keeps_what_was_already_learned() {
+            let db = setup().await;
+            let mut described = node(1, "key_1");
+            described.clients_ws_port = Some(9000);
+            described.node_type = NodeType::MixnodeAndGateway;
+            db.batch_insert_or_update_nym_nodes(&[described])
+                .await
+                .unwrap();
+
+            touch(&db, 1, datetime!(2025-06-02 00:00:00 UTC)).await;
+
+            let node = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(node.mixnet_socket_address.as_deref(), Some("1.2.3.4:1789"));
+            assert_eq!(node.noise_key.as_deref(), Some("placeholder_noise_key"));
+            assert_eq!(node.sphinx_key.as_deref(), Some("placeholder_sphinx_key"));
+            assert_eq!(node.announced_ips.as_deref(), Some("1.2.3.4"));
+            assert_eq!(node.key_rotation_id, Some(0));
+            assert_eq!(node.clients_ws_port, Some(9000));
+            assert_eq!(node.node_type, NodeType::MixnodeAndGateway);
+
+            // the one thing it does record is that the bond is still there
+            assert_eq!(node.last_seen_bonded, datetime!(2025-06-02 00:00:00 UTC));
+        }
+
+        // A node seen for the first time still has to exist as a row, and its empty describe columns
+        // are the one state that genuinely means "never described" rather than "described once".
+        #[tokio::test]
+        async fn a_bond_only_refresh_inserts_an_undescribed_node() {
+            let db = setup().await;
+            touch(&db, 7, datetime!(2025-06-02 00:00:00 UTC)).await;
+
+            let node = db.get_nym_node_by_id(7).await.unwrap().unwrap().inner;
+            assert_eq!(node.identity_key, "key_7");
+            assert!(node.mixnet_socket_address.is_none());
+            assert!(node.noise_key.is_none());
+            assert!(node.sphinx_key.is_none());
+            assert!(node.clients_ws_port.is_none());
+            assert_eq!(node.node_type, NodeType::Unknown);
+        }
+
+        // and being described afterwards fills it in, so a node that answers late is not stuck as a
+        // stub
+        #[tokio::test]
+        async fn a_later_describe_replaces_a_bond_only_row() {
+            let db = setup().await;
+            touch(&db, 1, datetime!(2025-06-02 00:00:00 UTC)).await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1")])
+                .await
+                .unwrap();
+
+            let node = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(node.noise_key.as_deref(), Some("placeholder_noise_key"));
+            assert_eq!(node.node_type, NodeType::Mixnode);
+        }
+
         #[tokio::test]
         async fn empty_batch_is_noop() {
             let db = setup().await;
@@ -1813,6 +1918,64 @@ mod tests {
 
             let result = assign(&db, datetime!(2025-06-01 12:00:00 UTC), no_staleness_gate()).await;
             assert!(result.is_none());
+        }
+
+        // and the other direction, which is the one the liveness kind depends on: a node being
+        // stress-tested at high rate must not be measured by a liveness probe at the same time, or
+        // both results describe something other than the node
+        #[tokio::test]
+        async fn a_stress_run_in_flight_blocks_a_liveness_assignment() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            assert!(assign(&db, now, no_staleness_gate()).await.is_some());
+
+            let wave = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    no_staleness_gate(),
+                    10,
+                ))
+                .await
+                .unwrap();
+            assert!(wave.is_empty());
+        }
+
+        // The per-node lock is the WHOLE of the exclusion between kinds: there is no cooldown after
+        // it clears. The staleness gate here would reject the node if the stress run's timestamp
+        // were consulted for liveness, so this also pins that each pairing reads only its own.
+        #[tokio::test]
+        async fn a_node_freed_by_one_kind_is_immediately_assignable_by_another() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+
+            // a stress run takes the node, completes, and releases the lock
+            assert!(assign(&db, now, no_staleness_gate()).await.is_some());
+            insert_run(
+                &db,
+                &NewTestRun {
+                    test_timestamp: now,
+                    ..minimal_test_run(1)
+                },
+            )
+            .await;
+            assert!(db.get_testrun_in_progress(1).await.unwrap().is_none());
+
+            // at the very same instant, under a gate an hour in the past
+            let wave = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    now - time::Duration::hours(1),
+                    10,
+                ))
+                .await
+                .unwrap();
+
+            assert_eq!(wave.len(), 1);
+            assert_eq!(wave[0].node.inner.node_id, 1);
         }
 
         #[tokio::test]

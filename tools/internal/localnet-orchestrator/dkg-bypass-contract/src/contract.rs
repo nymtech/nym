@@ -126,6 +126,9 @@ pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response,
             deadline: None,
             // this bypass exists to hand out a concluded ceremony, so it is concluding it now
             ceremony_concluded_at: Some(env.block.time),
+            // and its keys are the ones in service, with no earlier generation behind them
+            keys_in_service: Some(0),
+            outgoing_keys: None,
         },
     )?;
 

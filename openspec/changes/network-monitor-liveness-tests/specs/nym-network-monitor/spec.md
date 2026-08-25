@@ -211,7 +211,11 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
-The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: the only consumer of that fact is the divergence gauge's bucketing, which lives in nym-api and reads the same self-described `mixnet_websockets` interface from its own described-nodes cache, so storing it here would be a second copy no orchestrator path reads. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32); a node that fails to answer leaves the corresponding fields NULL. The refresher MUST persist ALL bonded nodes, including unreachable ones (upserting on `node_id`, updating every field except `identity_key`), so that previously-learned keys are retained when a node is transiently unreachable.
+The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: the only consumer of that fact is the divergence gauge's bucketing, which lives in nym-api and reads the same self-described `mixnet_websockets` interface from its own described-nodes cache, so storing it here would be a second copy no orchestrator path reads. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
+
+A node MUST be described COMPLETELY or not at all: every self-described field comes from one reading of the node's endpoint, and a failure of any part of that reading - including the client websocket interface of a gateway-capable node - MUST discard the whole reading rather than storing the fields that did answer. The refresher MUST persist ALL bonded nodes, including unreachable ones, but the two outcomes are written differently: a described node has every field replaced, while a node that could not be described has only its bond recorded, leaving everything an earlier cycle learned about it in place. Nulling those fields instead would fail every eligibility predicate at once and drop a merely slow node out of EVERY kind until a later cycle answered, which at the liveness cadence costs several test slots per incident. Empty self-described columns therefore mean "never described", not "did not answer this time". `identity_key` is never updated, since a `node_id` maps to exactly one identity and is never reassigned.
+
+The consequence, accepted deliberately, is that a node which stops answering keeps its last reading indefinitely and continues to be assigned against it. That is the intended behaviour: a probe against stale data fails, and for a liveness measurement an unreachable node failing its probe is the measurement, whereas silently not testing it is not.
 
 The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), deduplicated and sorted before being stored, because test runs rotate through it by position: a node is free to report its addresses in a different order on every refresh (a resolved hostname typically will), and a duplicate entry would stall the rotation on a subset of the set. The stored `mixnet_socket_address` MUST be derived deterministically from the first address of that sorted set plus the announced mix port, and contributes only that port to the address a given run actually targets.
 
@@ -229,7 +233,15 @@ The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), dedu
 
 #### Scenario: An unreachable node is retained with prior data
 - **WHEN** a bonded node does not answer within `node_info_query_timeout`
-- **THEN** the node row is still upserted, leaving newly-unknown fields NULL and keeping any previously stored keys
+- **THEN** only its bond is recorded, and every field an earlier cycle learned about it survives untouched, so it stays eligible for testing
+
+#### Scenario: A node seen for the first time without answering is a stub
+- **WHEN** a node the orchestrator has never described does not answer
+- **THEN** its row is inserted with the self-described columns empty, which is what marks it as never described rather than as unreachable this cycle
+
+#### Scenario: A partial reading is discarded
+- **WHEN** a gateway-capable node answers for its keys and roles but not for its client websocket interface
+- **THEN** the whole reading is discarded and the node keeps its previous data, rather than being stored as described everywhere except that interface
 
 ### Requirement: Testruns are assigned lazily from a staleness-ordered node table guarded by an in-flight lock set
 

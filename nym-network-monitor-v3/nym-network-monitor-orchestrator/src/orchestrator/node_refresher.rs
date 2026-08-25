@@ -4,7 +4,7 @@
 use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{NewNymNode, NodeType};
+use crate::storage::models::{BondedNymNode, NewNymNode, NodeType};
 use anyhow::Context;
 use futures::{StreamExt, stream};
 use nym_bin_common::bin_info;
@@ -34,7 +34,7 @@ pub(crate) struct NodeRefresher {
     pub(crate) node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     pub(crate) node_info_query_timeout: Duration,
 
@@ -42,6 +42,34 @@ pub(crate) struct NodeRefresher {
     pub(crate) number_of_concurrent_node_queries: usize,
 
     pub(crate) shutdown_token: ShutdownToken,
+}
+
+/// What one node's refresh produced. The two cases are persisted differently, and keeping them
+/// apart in the type is what makes "described completely or not at all" checkable rather than a
+/// convention: there is no value of this type that carries a half-described node.
+enum RefreshedNode {
+    /// Everything the node's own endpoint reported, all from one reading of it.
+    Described(NewNymNode),
+
+    /// The node is bonded, but its endpoint did not answer (or answered incompletely), so only that
+    /// much is known this cycle.
+    BondOnly(BondedNymNode),
+}
+
+impl RefreshedNode {
+    fn described(self) -> Option<NewNymNode> {
+        match self {
+            RefreshedNode::Described(node) => Some(node),
+            RefreshedNode::BondOnly(_) => None,
+        }
+    }
+
+    fn bond_only(self) -> Option<BondedNymNode> {
+        match self {
+            RefreshedNode::BondOnly(node) => Some(node),
+            RefreshedNode::Described(_) => None,
+        }
+    }
 }
 
 /// Information about the node retrieved from the node directly
@@ -149,20 +177,17 @@ impl NodeRefresher {
 
         // the gateway liveness probe opens a client session, which needs the port that interface
         // listens on. asked for separately because it is not one of the announced ports, and only of
-        // gateway-capable nodes, since a pure mixnode serves no client websocket
+        // gateway-capable nodes, since a pure mixnode serves no client websocket. a gateway that
+        // will not answer for it fails the whole describe rather than yielding a node described
+        // everywhere except here
         let clients_ws_port = if roles.gateway_enabled {
-            match api_client.get_mixnet_websockets().await {
-                Ok(websockets) => Some(websockets.ws_port),
-                // best effort: a node that will not answer for this one interface keeps everything
-                // else this refresh learned, and is simply not liveness-testable as a gateway until
-                // a later cycle gets an answer
-                Err(err) => {
-                    debug!(
-                        "failed to retrieve the client websocket interface of node {node_id}: {err}"
-                    );
-                    None
-                }
-            }
+            Some(
+                api_client
+                    .get_mixnet_websockets()
+                    .await
+                    .context("failed to retrieve the client websocket interface")?
+                    .ws_port,
+            )
         } else {
             None
         };
@@ -179,8 +204,15 @@ impl NodeRefresher {
         })
     }
 
-    async fn get_node_details(&self, bond: NymNodeBond, timeout: Duration) -> NewNymNode {
-        let mut node_update = NewNymNode::from_bond(&bond);
+    /// Refreshes one node, either completely or not at all.
+    ///
+    /// A node is described as a whole: every field comes from the same reading of its endpoint, so a
+    /// row can never hold a fresh key beside an address from an earlier cycle. When any part of the
+    /// describe fails, the outcome carries the bond alone and the node's previously learned fields
+    /// are left exactly as they were, rather than being overwritten with nulls that would make an
+    /// otherwise testable node ineligible for every kind until the next successful cycle.
+    async fn get_node_details(&self, bond: NymNodeBond, timeout: Duration) -> RefreshedNode {
+        let bonded = BondedNymNode::from_bond(&bond);
 
         let node_id = bond.node_id;
         let self_described = match tokio::time::timeout(timeout, self.get_node_details_inner(bond))
@@ -190,31 +222,35 @@ impl NodeRefresher {
                 debug!(
                     "timed out while attempting to retrieve self-described node details for node {node_id}"
                 );
-                return node_update;
+                return RefreshedNode::BondOnly(bonded);
             }
             Ok(Err(err)) => {
                 debug!("failed to retrieve self-described node details for node {node_id}: {err}");
-                return node_update;
+                return RefreshedNode::BondOnly(bonded);
             }
             Ok(Ok(info)) => info,
         };
 
-        node_update.mixnet_socket_address = Some(self_described.mixnet_socket_address.to_string());
-        node_update.announced_ips = Some(
-            self_described
-                .announced_ips
-                .iter()
-                .map(|ip| ip.to_string())
-                .collect::<Vec<_>>()
-                .join(","),
-        );
-        node_update.noise_key = Some(self_described.noise_key.to_base58_string());
-        node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
-        node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);
-        node_update.node_type = NodeType::from_roles(&self_described.roles);
-        node_update.clients_ws_port = self_described.clients_ws_port.map(i64::from);
-
-        node_update
+        RefreshedNode::Described(NewNymNode {
+            node_id: bonded.node_id,
+            identity_key: bonded.identity_key,
+            last_seen_bonded: bonded.last_seen_bonded,
+            // only contributes the mix port now that the address under test is picked per run
+            mixnet_socket_address: Some(self_described.mixnet_socket_address.to_string()),
+            announced_ips: Some(
+                self_described
+                    .announced_ips
+                    .iter()
+                    .map(|ip| ip.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
+            noise_key: Some(self_described.noise_key.to_base58_string()),
+            sphinx_key: Some(self_described.sphinx_key.to_base58_string()),
+            key_rotation_id: Some(self_described.key_rotation_id as i64),
+            node_type: NodeType::from_roles(&self_described.roles),
+            clients_ws_port: self_described.clients_ws_port.map(i64::from),
+        })
     }
 
     async fn refresh_bonded_nodes(&self) -> anyhow::Result<()> {
@@ -233,13 +269,29 @@ impl NodeRefresher {
             .collect()
             .await;
 
+        // the two outcomes are persisted differently: a described node replaces everything stored
+        // about it, while one that could not be described only proves it is still bonded
+        let (described, bond_only): (Vec<_>, Vec<_>) = refreshed_nodes
+            .into_iter()
+            .partition(|node| matches!(node, RefreshedNode::Described(_)));
+        let described: Vec<_> = described
+            .into_iter()
+            .filter_map(RefreshedNode::described)
+            .collect();
+        let bond_only: Vec<_> = bond_only
+            .into_iter()
+            .filter_map(RefreshedNode::bond_only)
+            .collect();
+
         let mut per_type: HashMap<NodeType, i64> = HashMap::new();
-        for node in &refreshed_nodes {
+        for node in &described {
             *per_type.entry(node.node_type).or_insert(0) += 1;
         }
         let count_of = |t: NodeType| per_type.get(&t).copied().unwrap_or(0);
-        let unknown = count_of(NodeType::Unknown);
-        let successful = (refreshed_nodes.len() as i64) - unknown;
+        // a described node reporting no roles at all is as unusable as one that never answered, so
+        // both land in the unknown bucket
+        let unknown = count_of(NodeType::Unknown) + bond_only.len() as i64;
+        let successful = described.len() as i64 - count_of(NodeType::Unknown);
         info!("managed to retrieve full node information on {successful} nodes ({unknown} failed)");
 
         PROMETHEUS_METRICS.set(
@@ -258,12 +310,14 @@ impl NodeRefresher {
         PROMETHEUS_METRICS.set(PrometheusMetric::SuccessfulNymNodeDataRetrieval, successful);
         PROMETHEUS_METRICS.set(PrometheusMetric::FailedNymNodeDataRetrieval, unknown);
 
-        // 3. persist every node (including unreachable ones so we keep their
-        //    previously-learned keys around for the next refresh). The testrun
-        //    assignment query filters out non-mixnode / unknown entries.
+        // 3. persist what each node yielded. A described node has every field replaced; one that
+        //    could not be described has only its bond recorded, keeping whatever was learned about
+        //    it before, since nulling that would drop an otherwise testable node out of every kind
+        //    until a later cycle answered.
         self.storage
-            .batch_insert_or_update_nym_nodes(&refreshed_nodes)
+            .batch_insert_or_update_nym_nodes(&described)
             .await?;
+        self.storage.batch_touch_bonded_nodes(&bond_only).await?;
 
         // Observe the cycle duration last so it reflects the full refresh path
         // (contract query + per-node queries + storage write).

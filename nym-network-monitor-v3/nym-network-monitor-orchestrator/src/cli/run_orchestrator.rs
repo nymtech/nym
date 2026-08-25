@@ -93,7 +93,7 @@ pub(crate) struct Args {
     node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     #[clap(long, env = NYM_NETWORK_MONITOR_NODE_INFO_QUERY_TIMEOUT_ARG, value_parser = humantime::parse_duration, default_value = "10s")]
     node_info_query_timeout: Duration,
@@ -230,6 +230,26 @@ impl Args {
     }
 }
 
+pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
+    info!("Starting network monitor orchestrator");
+    let config = args.build_orchestrator_config()?;
+    let identity_keys = args.take_identity_key()?;
+    let agents_auth_token = args.take_agents_orchestrator_token()?;
+    let metrics_and_results_auth_token = args.take_metrics_and_results_orchestrator_token()?;
+    let mnemonic = args.into_mnemonic();
+
+    let mut orchestrator = NetworkMonitorOrchestrator::new(
+        config,
+        identity_keys,
+        agents_auth_token,
+        metrics_and_results_auth_token,
+        mnemonic,
+    )
+    .await?;
+    orchestrator.run().await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,24 +344,4 @@ mod tests {
             );
         }
     }
-}
-
-pub(crate) async fn execute(mut args: Args) -> anyhow::Result<()> {
-    info!("Starting network monitor orchestrator");
-    let config = args.build_orchestrator_config()?;
-    let identity_keys = args.take_identity_key()?;
-    let agents_auth_token = args.take_agents_orchestrator_token()?;
-    let metrics_and_results_auth_token = args.take_metrics_and_results_orchestrator_token()?;
-    let mnemonic = args.into_mnemonic();
-
-    let mut orchestrator = NetworkMonitorOrchestrator::new(
-        config,
-        identity_keys,
-        agents_auth_token,
-        metrics_and_results_auth_token,
-        mnemonic,
-    )
-    .await?;
-    orchestrator.run().await?;
-    Ok(())
 }

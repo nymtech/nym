@@ -10,11 +10,15 @@ import { Callout } from 'nextra/components'
 
 # Routing a browser or WebView app
 
-This page covers the browser mechanics behind the three checks in
-[planning an integration](/developers/integrating#prove-the-traffic-went-through-the-mixnet):
-detection, positive proof and enforcement. It lists the traffic no policy can
-reach. A WebView host runs the same web platform as a browser tab, so
-Capacitor, Cordova, WKWebView and Android WebView are in scope.
+This page covers how a web app catches requests that bypass the mixnet, proves
+a request went through it, and blocks the direct path with Content Security
+Policy. It also lists the traffic no web app can route. A WebView host runs
+the same web platform as a browser tab, so Capacitor, Cordova, WKWebView and
+Android WebView are in scope.
+
+Which endpoints to route, and the failure modes that are not specific to the
+web runtime, are covered in
+[planning an integration](/developers/integrating).
 
 ## What cannot be routed from a web runtime
 
@@ -25,7 +29,7 @@ exposed through it after the routed part works.
 |---|---|
 | Cross-origin iframes | A separate browsing context with its own networking. Embedded swap widgets, on-ramp providers and dApp frames route nothing through your code. |
 | Vendor SDKs in their own contexts | Payment and identity providers, analytics loaders, and connect libraries that open their own windows or frames. |
-| Third-party WebSocket relays | [`mix-websocket`](/developers/mix-websocket) carries `ws` and `wss`, but its constructor is asynchronous and it exposes no `bufferedAmount`. Dropping it into someone else's library means writing an adapter for that library. |
+| Third-party WebSocket relays | [`mix-websocket`](/developers/mix-websocket) carries `ws` and `wss`, but a library that opens its own `WebSocket` will not use it without an adapter. |
 | Hardware wallets | Some paths are local and touch no network at all (WebHID, WebUSB). Others reach out from a vendor-hosted page that you do not control. |
 | Browser-initiated requests | `navigator.sendBeacon`, `EventSource`, `<img>` and `<script>` sources, and prefetch hints. |
 
@@ -112,8 +116,8 @@ worker-src 'self' blob:;
 
 You need `worker-src 'self' blob:`. `mix-tunnel` base64-decodes its Web Worker
 and starts it from an object URL. With no `worker-src`, CSP falls back to
-`script-src` and the browser blocks the worker. Note in review that `blob:`
-lets the page start a worker from any object URL, not only from your origin.
+`script-src` and the browser blocks the worker. `blob:` lets the page start a
+worker from any object URL, not only from your origin.
 
 `wss:` has to stay broad. Gateway hostnames come from the network topology at
 runtime, so you cannot enumerate them in advance.

@@ -61,11 +61,6 @@ pub(crate) struct Args {
     #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_GATEWAY_WAVE_SIZE_ARG, default_value = "50")]
     liveness_gateway_wave_size: NonZeroUsize,
 
-    /// How long after a node's stress test it remains ineligible for liveness testing (e.g. `2m`),
-    /// so that a liveness probe does not measure a node still recovering from the load.
-    #[clap(long, env = NYM_NETWORK_MONITOR_LIVENESS_AFTER_STRESS_COOLDOWN_ARG, value_parser = humantime::parse_duration, default_value = "2m")]
-    liveness_after_stress_cooldown: Duration,
-
     /// HTTP address to bind the HTTP server to (e.g. `0.0.0.0:8080`).
     #[clap(long, env = NYM_NETWORK_MONITOR_HTTP_SERVER_BIND_ADDRESS_ARG, default_value = "0.0.0.0:8080")]
     http_server_bind_address: SocketAddr,
@@ -165,7 +160,6 @@ impl Args {
                 test_timeout: self.liveness_test_timeout,
                 mixnode_wave_size: self.liveness_mixnode_wave_size.get(),
                 gateway_wave_size: self.liveness_gateway_wave_size.get(),
-                after_stress_cooldown: self.liveness_after_stress_cooldown,
             },
             database_path: self.database_path.clone(),
             node_refresh_rate: self.node_refresh_rate,
@@ -282,7 +276,6 @@ mod tests {
         assert!(liveness.enabled);
         assert_eq!(liveness.test_interval, Duration::from_secs(15 * 60));
         assert_eq!(liveness.test_timeout, Duration::from_secs(60));
-        assert_eq!(liveness.after_stress_cooldown, Duration::from_secs(2 * 60));
 
         // the two waves are sized independently, the gateway one lower because each of its targets
         // costs a live client session rather than a Noise connection
@@ -306,8 +299,6 @@ mod tests {
             "7",
             "--liveness-gateway-wave-size",
             "3",
-            "--liveness-after-stress-cooldown",
-            "45s",
         ]);
 
         assert!(!liveness.enabled);
@@ -315,7 +306,6 @@ mod tests {
         assert_eq!(liveness.test_timeout, Duration::from_secs(30));
         assert_eq!(liveness.mixnode_wave_size, 7);
         assert_eq!(liveness.gateway_wave_size, 3);
-        assert_eq!(liveness.after_stress_cooldown, Duration::from_secs(45));
     }
 
     // an assignment with no targets is not a valid assignment, so an empty wave is rejected at

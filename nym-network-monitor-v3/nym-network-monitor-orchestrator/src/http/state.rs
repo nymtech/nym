@@ -4,7 +4,7 @@
 use crate::http::api::v1::error::ApiError;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
-use crate::storage::models::{NewTestRun, TestRunMeasurement};
+use crate::storage::models::{NewTestRun, PairingSchedule, TestRunMeasurement};
 use axum::extract::FromRef;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::models::{
@@ -280,18 +280,22 @@ impl TestrunManager {
         &self,
         storage: &NetworkMonitorStorage,
     ) -> Result<Option<TestRunAssignment>, ApiError> {
-        let node_to_test = match storage
-            .assign_next_mixnode_testrun(self.testrun_staleness_age, self.testrun_lease_budget)
-            .await
-        {
-            Ok(node) => node,
+        // the only pairing dispatched today; choosing among the pairings that are due is what the
+        // kind rotation adds
+        let schedule =
+            PairingSchedule::stress(self.testrun_staleness_age, self.testrun_lease_budget);
+
+        let nodes_to_test = match storage.assign_next_testruns(&schedule).await {
+            Ok(nodes) => nodes,
             Err(err) => {
                 error!("testrun assignment storage failure: {err}");
                 return Err(ApiError::StorageFailure);
             }
         };
 
-        let Some(assigned) = node_to_test else {
+        // a stress wave is one target wide, so the wave collapses back to the single assignment the
+        // stress variant carries
+        let Some(assigned) = nodes_to_test.into_iter().next() else {
             return Ok(None);
         };
         let node_ips = assigned.node.announced_ips();

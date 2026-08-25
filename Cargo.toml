@@ -543,7 +543,6 @@ nym-sphinx-routing = { version = "1.21.5", path = "common/nymsphinx/routing" }
 nym-sphinx-types = { version = "1.21.5", path = "common/nymsphinx/types" }
 nym-statistics-common = { version = "1.21.5", path = "common/statistics" }
 nym-store-cipher = { version = "1.21.5", path = "common/store-cipher" }
-nym-swizzle = { version = "1.21.5", path = "sdk/rust/nym-swizzle" }
 nym-task = { version = "1.21.5", path = "common/task" }
 nym-tun = { version = "1.21.5", path = "common/tun" }
 nym-test-utils = { version = "1.21.5", path = "common/test-utils" }
@@ -569,6 +568,8 @@ nyxd-scraper-shared = { version = "1.21.5", path = "common/nyxd-scraper-shared" 
 nym-smol-core = { version = "1.21.5", path = "common/smol-core" }
 nym-smolmix = { version = "1.21.5", path = "smolmix/core" }
 nym-smoldvpn = { version = "1.21.5", path = "smoldvpn" }
+nym-swizzle = { version = "1.21.5", path = "sdk/rust/nym-swizzle" }
+nym-swizzle-zcash = { version = "1.21.5", path = "sdk/rust/nym-swizzle-zcash" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

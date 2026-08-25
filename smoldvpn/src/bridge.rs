@@ -188,7 +188,7 @@ async fn dial(
     params: ClientConfig,
     cancel: CancellationToken,
 ) -> std::result::Result<BridgeConn, TransportError> {
-    BridgeConn::try_connect(params, cancel).await
+    BridgeConn::try_connect(params, cancel, None).await
 }
 
 #[cfg(test)]

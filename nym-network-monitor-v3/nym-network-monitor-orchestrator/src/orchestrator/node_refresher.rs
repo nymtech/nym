@@ -65,6 +65,15 @@ struct SelfDescribedData {
 
     /// The supported roles of the node in the network.
     roles: NodeRoles,
+
+    /// Port of the node's PLAIN client websocket listener, which a gateway liveness probe opens its
+    /// session on. `None` for a node announcing no entry-gateway interface, and for one whose
+    /// websocket query failed.
+    ///
+    /// Its `wss` counterpart is deliberately not read: the only consumer of that fact is the
+    /// divergence bucket in nym-api, which reads the same interface from its own described-nodes
+    /// cache, so a copy here would be one nothing in this service looks at.
+    clients_ws_port: Option<u16>,
 }
 
 impl NodeRefresher {
@@ -131,12 +140,32 @@ impl NodeRefresher {
             .mix_port
             .unwrap_or(DEFAULT_MIX_LISTENING_PORT);
 
-        // retrieve information about the node roles so that we can classify the node
-        // (we're not testing gateways yet, but we still store them for completeness)
+        // retrieve information about the node roles so that we can classify the node, and so that we
+        // know whether to ask it about its client websocket interface at all
         let roles = api_client
             .get_roles()
             .await
             .context("failed to retrieve node roles")?;
+
+        // the gateway liveness probe opens a client session, which needs the port that interface
+        // listens on. asked for separately because it is not one of the announced ports, and only of
+        // gateway-capable nodes, since a pure mixnode serves no client websocket
+        let clients_ws_port = if roles.gateway_enabled {
+            match api_client.get_mixnet_websockets().await {
+                Ok(websockets) => Some(websockets.ws_port),
+                // best effort: a node that will not answer for this one interface keeps everything
+                // else this refresh learned, and is simply not liveness-testable as a gateway until
+                // a later cycle gets an answer
+                Err(err) => {
+                    debug!(
+                        "failed to retrieve the client websocket interface of node {node_id}: {err}"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         Ok(SelfDescribedData {
             // only contributes the mix port now that the address under test is picked per run
@@ -146,6 +175,7 @@ impl NodeRefresher {
             sphinx_key,
             key_rotation_id,
             roles,
+            clients_ws_port,
         })
     }
 
@@ -182,6 +212,7 @@ impl NodeRefresher {
         node_update.sphinx_key = Some(self_described.sphinx_key.to_base58_string());
         node_update.key_rotation_id = Some(self_described.key_rotation_id as i64);
         node_update.node_type = NodeType::from_roles(&self_described.roles);
+        node_update.clients_ws_port = self_described.clients_ws_port.map(i64::from);
 
         node_update
     }

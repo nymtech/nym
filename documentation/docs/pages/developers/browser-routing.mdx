@@ -1,9 +1,9 @@
 ---
 title: "Routing a Browser or WebView App"
-description: "The browser mechanics of routing through the mixnet: the traffic a web app cannot route at all, how to catch direct requests to a routed host, and how Content Security Policy enforces the routing it cannot see."
+description: "How a web app catches requests that bypass the mixnet, proves a request went through it, and enforces the routing with Content Security Policy."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-24"
+lastUpdated: "2026-08-25"
 ---
 
 import { Callout } from 'nextra/components'
@@ -22,8 +22,8 @@ web runtime, are covered in
 
 ## What cannot be routed from a web runtime
 
-Some traffic never reaches your JavaScript. Record it, because your users stay
-exposed through it after the routed part works.
+Some traffic never reaches your JavaScript. Record it: your users stay exposed
+through this traffic even after the routed part works.
 
 | Source | Why it is out of reach |
 |---|---|

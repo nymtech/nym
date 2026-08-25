@@ -1,9 +1,9 @@
 ---
-title: "Planning an Integration: Per-Endpoint Routing and Failure Modes"
-description: "Which of your endpoints to route through Nym, and what each decision costs. Profiling a destination, why sequential and concurrent calls fail differently, how to prove traffic went through the mixnet, and which of it stops applying end to end."
+title: "Planning an Integration"
+description: "Which of your endpoints to route through Nym, what the routing costs in latency and failure handling, and how to prove it worked."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-23"
+lastUpdated: "2026-08-25"
 ---
 
 import { Callout } from 'nextra/components'
@@ -20,10 +20,10 @@ you use the dVPN datapath, or you are the service others reach, start with
 [the other integration shapes](#the-other-integration-shapes) at the end of
 this page.
 
-Decide endpoint by endpoint, not once for the whole application. Deciding once produces two common bugs.
-A user flow hangs because it makes several routed round trips in a row. Or
-traffic looks routed in the code, but reaches the destination over the clearnet.
-Neither is a transport bug.
+Decide endpoint by endpoint, not once for the whole application. Deciding once
+leads to two common bugs, neither of them in the transport: a user flow hangs
+because it makes several routed round trips in a row, or traffic that looks
+routed in the code reaches the destination over the clearnet.
 
 [Routing a browser or WebView app](/developers/browser-routing) covers the
 browser mechanics: the leak guard, CSP enforcement, and the traffic a web app
@@ -43,9 +43,9 @@ answer on its own.
 | Question | Why it decides the answer |
 |---|---|
 | **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
-| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/concepts/exit-security#protect-the-payload)). Routing an `http://` endpoint moves the observer. It does not remove it. |
-| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it. A call in front of a user does not. |
-| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost. No single request reveals this. See below. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/concepts/exit-security#protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
+| **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it; a call in front of a user does not. |
+| **Is it called in sequence with others?** | Sequential dependent calls multiply the cost, and no single request reveals it. See below. |
 | **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
 
 Route the smallest set that identifies users over HTTPS, then widen it. Starting
@@ -84,7 +84,7 @@ Concurrency fails in the opposite direction to sequential calls. Issue several
 requests at once and each one misses the connection pool, because a pool only
 helps after a connection returns to it. Each one opens its own connection, and
 under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
-through the mixnet. You pay setup once per call. Libraries that batch or
+through the mixnet, so you pay the full setup cost on every call. Libraries that batch or
 parallelise on your behalf do this on their own. The requests also share one
 client, whose sending is paced on a fixed schedule
 (see [the message queue](/developers/concepts/message-queue)), so they queue
@@ -111,7 +111,7 @@ When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
 
-Whichever you pick, pick it. The failure is deciding by accident: a `catch`
+Make the choice deliberately. The common failure is deciding by accident: a `catch`
 written for another purpose chooses fail-open for you, and so does a retry
 helper three layers down. An integration whose leak detection raises, while its
 transport retries over the clearnet, has shipped fail-open, whatever the
@@ -141,8 +141,8 @@ them for the web runtime.
 ## Choose the resolver
 
 DNS lookups travel through the tunnel and exit with everything else. The
-resolver sees queries that arrive from the exit gateway, not from your user, and
-that much is the property you wanted. It does not stop the resolver seeing every
+resolver sees queries that arrive from the exit gateway, not from your user,
+which is the property you wanted. It does not stop the resolver seeing every
 hostname your app looks up, and the default is a large public resolver.
 
 Decide whether that suits your users, instead of inheriting it. `primaryDns` and

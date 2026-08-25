@@ -3,7 +3,7 @@ title: "Overview"
 description: "Choose a Nym integration path by runtime and approach, then find the crate or package: nym-sdk, smolmix, nym-smoldvpn, mix-tunnel, mix-fetch, mix-dns, mix-websocket, and the TypeScript SDK."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-09"
+lastUpdated: "2026-08-25"
 ---
 
 import { Callout } from 'nextra/components'
@@ -99,7 +99,7 @@ The runtime axis is about where your code runs: a native process has raw sockets
 <NetworkDiagram item={archDvpn} />
 
 <Callout type="info">
-**Native only.** [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build, so the dVPN row of the matrix above has no browser equivalent. Its WireGuard datapath (`boringtun`) and userspace IP stack are built on tokio's networking and multi-threaded runtime, which pull in `mio` and do not compile for `wasm32-unknown-unknown`. In a browser or WebView, the mixnet-based mix-* packages are the only option.
+**Native only.** [`nym-smoldvpn`](/developers/smoldvpn) has no WebAssembly build, so the dVPN option in the matrix above has no browser equivalent. Its WireGuard datapath (`boringtun`) and userspace IP stack are built on tokio's networking and multi-threaded runtime, which pull in `mio` and do not compile for `wasm32-unknown-unknown`. In a browser or WebView, the mixnet-based mix-* packages are the only option.
 </Callout>
 
 <Callout type="warning">

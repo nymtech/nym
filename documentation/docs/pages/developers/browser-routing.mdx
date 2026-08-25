@@ -76,12 +76,15 @@ Set it to `true` in development, where an unexpected network error costs less
 than a leak.
 
 `onLeak` must log even when your privacy feature flag is off. A gated guard
-makes "no leaks" and "no guard installed" produce the same silence. See
-[decide fail-open or fail-closed explicitly](/developers/integrating#decide-fail-open-or-fail-closed-explicitly).
+makes "no leaks" and "no guard installed" produce the same silence. The
+startup-logging note in that same section of
+[planning an integration](/developers/integrating#decide-fail-open-or-fail-closed-explicitly)
+states the general rule.
 
 The guard does not see `navigator.sendBeacon`, `EventSource`, `WebSocket`,
 `<img>` and `<script>` sources, or anything inside a cross-origin iframe.
-Content Security Policy covers those.
+Content Security Policy covers the first four. A cross-origin iframe stays out
+of reach for CSP too: it fetches under its own policy, not yours.
 
 ## Proving the tunnel carried the request
 

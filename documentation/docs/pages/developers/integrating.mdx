@@ -15,15 +15,14 @@ and failure handling that routing adds. It applies to any runtime.
 
 It assumes [proxy mode](/developers#end-to-end-or-proxy): your app reaches a
 third-party destination through an
-[exit gateway](/network/infrastructure/exit-services). If both ends run Nym,
-you use the dVPN datapath, or you are the service others reach, start with
-[the other integration shapes](#the-other-integration-shapes) at the end of
-this page.
+[exit gateway](/network/infrastructure/exit-services). The other shapes (both
+ends run Nym, the dVPN datapath, or you are the service others reach) have
+[their own section](#the-other-integration-shapes) at the end of this page.
 
-Decide endpoint by endpoint, not once for the whole application. Deciding once
-leads to two common bugs, neither of them in the transport: a user flow hangs
-because it makes several routed round trips in a row, or traffic that looks
-routed in the code reaches the destination over the clearnet.
+Decide endpoint by endpoint, not once for the whole application. A single
+decision leads to two common bugs, and neither is in the transport. A user
+flow hangs because it makes several routed round trips in a row. Or traffic
+that looks routed in the code reaches the destination over the clearnet.
 
 [Routing a browser or WebView app](/developers/browser-routing) covers the
 browser mechanics: the leak guard, CSP enforcement, and the traffic a web app
@@ -31,8 +30,9 @@ cannot route.
 
 <Callout type="info">
 This is step four of [the decisions in order](/developers): it assumes you
-have checked [whether your workload fits](/developers/limitations) and picked
-a package.
+have checked [whether your workload fits](/developers/limitations),
+[chosen a configuration](/network/threat-model/choose-config), and picked a
+package.
 </Callout>
 
 ## Routing is a per-endpoint decision
@@ -84,11 +84,11 @@ Concurrency fails in the opposite direction to sequential calls. Issue several
 requests at once and each one misses the connection pool, because a pool only
 helps after a connection returns to it. Each one opens its own connection, and
 under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
-through the mixnet, so you pay the full setup cost on every call. Libraries that batch or
-parallelise on your behalf do this on their own. The requests also share one
-client, whose sending is paced on a fixed schedule
-(see [the message queue](/developers/concepts/message-queue)), so they queue
-behind each other at the sender as well.
+through the mixnet. You pay the full setup cost on every call. Libraries that
+batch or parallelise on your behalf do this on their own. The requests also
+share one client, which paces its sending on a Poisson schedule (see
+[the message queue](/developers/concepts/message-queue)). Concurrent requests
+queue behind each other at the sender as well.
 
 A strict queue overcorrects. One stalled request then blocks everything behind
 it for the full timeout, where the rest would otherwise have gone through. A
@@ -111,31 +111,31 @@ When the tunnel is unavailable, the app either refuses the request or falls back
 to the clearnet. Fail-open gives the better user experience and the worse
 privacy outcome. Fail-closed reverses that.
 
-Make the choice deliberately. The common failure is deciding by accident: a `catch`
-written for another purpose chooses fail-open for you, and so does a retry
-helper three layers down. An integration whose leak detection raises, while its
-transport retries over the clearnet, has shipped fail-open, whatever the
-setting says.
+Make the choice on purpose. The common failure is a choice made by accident.
+A `catch` written for another purpose chooses fail-open for you. So does a
+retry helper three layers down. An integration whose leak detection raises,
+while its transport retries over the clearnet, has shipped fail-open, whatever
+the setting says.
 
 <Callout type="info">
 Log the resolved configuration at startup even when the privacy flag is off:
 the values as read, the routed set as parsed, and the failure policy in force.
 Logging gated on the flag makes "switched off" and "never ran" produce the
-same silence, which is the one distinction you need when you ask where a
+same silence. That distinction is the one you need when you ask where a
 user's traffic went.
 </Callout>
 
 ## Prove the traffic went through the mixnet
 
 Routing code that fails to route raises no error, as the sections above show,
-so add a check underneath it that does. Three checks exist: detect direct
-requests to a routed host and report them as bugs, prove one request took the
-tunnel by comparing the source address an echo service sees over both paths,
-and enforce the routing by removing the direct path at the platform level.
-Only the second separates "the request went through the tunnel" from "our
-transport code ran without throwing"; the other two prove that your code ran
-and that nothing bypassed it. All three are platform-specific, and
-[routing a browser or WebView app](/developers/browser-routing) implements
+so add a check underneath it that does. Three checks exist. **Detection**
+traps direct requests to a routed host and reports them as bugs. It proves
+that your code ran. **Positive proof** compares the source address one echo
+service sees over the tunnel and over the clearnet. Only this check proves
+that a request went through the mixnet. **Enforcement** removes the direct
+path at the platform level. It stops bypasses, within what the platform
+governs. All three checks are platform-specific.
+[Routing a browser or WebView app](/developers/browser-routing) implements
 them for the web runtime.
 
 ## Choose the resolver
@@ -145,14 +145,15 @@ resolver sees queries that arrive from the exit gateway, not from your user,
 which is the property you wanted. It does not stop the resolver seeing every
 hostname your app looks up, and the default is a large public resolver.
 
-Decide whether that suits your users, instead of inheriting it. `primaryDns` and
-`fallbackDns` change it. [mix-dns](/developers/mix-dns/guides) has the format.
+Decide whether that suits your users, instead of inheriting it. In the browser
+packages, `primaryDns` and `fallbackDns` change it, and
+[mix-dns](/developers/mix-dns/guides) has the format.
 
 ## What the integration gets you
 
 The destination stops seeing the user's IP address, for the endpoints you
 routed. It still sees request timing, request content, and any identifier your
-requests already carry, and traffic you could not route still shows the real
+requests already carry. Traffic you could not route still shows the real
 address. Report the result as that, not as "the app is now private".
 
 [What Nym cannot do](/developers/limitations#what-the-transport-never-does)
@@ -168,29 +169,31 @@ other proxy integration, so this page applies to it, with three changes:
 
 - Latency is much lower, so cold start and sequential round trips hurt less,
   though neither disappears.
-- Nothing here that involves Sphinx packets or reply blocks applies, because
-  the traffic travels over a WireGuard [dVPN](/network/dvpn-mode) instead of
-  the mixnet.
+- The client-side pacing does not apply. The traffic travels over a WireGuard
+  [dVPN](/network/dvpn-mode), which sends when you send: no Sphinx packets,
+  no paced queue, no reply blocks.
 - The swap has a cost:
   [what Nym cannot do](/developers/limitations#is-my-workload-a-fit) covers
   what dVPN mode gives up.
 
 ### End to end
 
-When both ends run Nym, there is no exit gateway and no clearnet destination:
-traffic stays inside the mixnet the whole way, and the peer never learns your
-IP address. Most of this page falls away with the exit:
+When both ends run Nym, there is no exit gateway and no clearnet destination.
+Traffic stays inside the mixnet the whole way, and the peer never learns your
+IP address.
 
-- The round-trip advice holds. Sequential calls in one user action still
-  multiply latency, cold start still lands on whoever triggers it, and
-  outstanding requests still need a bound: replies arrive on
-  [single-use reply blocks](/network/mixnet-mode/anonymous-replies) your
-  client computed and sent in advance, and each outstanding request holds
-  reply blocks that nothing else can use.
-- The routing decision, the HTTPS question, connection pooling, fail-open and
-  the proof checks do not apply, because no direct path reaches a Nym address.
-- There is no DNS. You address a Nym client by its
-  [key](/network/reference/addressing), not by a name.
+The round-trip advice holds. Sequential calls in one user action still
+multiply latency, and cold start still lands on whoever triggers it.
+Outstanding requests still need a bound. Replies arrive on
+[single-use reply blocks](/network/mixnet-mode/anonymous-replies) that your
+client computed and sent in advance, and each outstanding request holds reply
+blocks that nothing else can use.
+
+The rest of the page does not apply, because there is no exit and no direct
+path to a Nym address. That covers the routing decision, the HTTPS question,
+connection pooling, fail-open, and the proof checks. There is also no DNS:
+you address a Nym client by its [key](/network/reference/addressing), not by
+a name.
 
 See [end to end](/network/threat-model/configurations/end-to-end) for what
 that configuration leaves an observer.
@@ -203,7 +206,7 @@ connection, so almost none of this page applies. See
 
 ## Next
 
-- [Routing a browser or WebView app](/developers/browser-routing): the leak
-  guard, CSP enforcement, and the traffic a web app cannot route.
+- [Routing a browser or WebView app](/developers/browser-routing): the three
+  checks in a web runtime.
 - [Building a Nym service provider](/developers/service-providers): the server
   side, if others reach you over Nym.

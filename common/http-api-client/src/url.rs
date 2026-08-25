@@ -5,7 +5,7 @@
 
 use std::fmt::Display;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use itertools::Itertools;
 pub use url::ParseError;
@@ -59,6 +59,13 @@ pub struct Url {
     url: url::Url,
     fronts: Option<Vec<url::Url>>,
     current_front: Arc<AtomicUsize>,
+
+    // Used only by the `include_non_fronted_in_rotation` rotation policy: each host gets a turn
+    // shown directly (slot 0) before cycling through its configured fronts (slot `i + 1` for
+    // `fronts[i]`) one at a time. `rotation_seen` tracks whether this host's direct turn has
+    // already happened during the current lap.
+    rotation_slot: Arc<AtomicUsize>,
+    rotation_seen: Arc<AtomicBool>,
 }
 
 impl IntoUrl for Url {
@@ -119,6 +126,8 @@ impl From<reqwest::Url> for Url {
             url,
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
+            rotation_slot: Arc::new(AtomicUsize::new(0)),
+            rotation_seen: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -129,6 +138,8 @@ impl From<&reqwest::Url> for Url {
             url: url.clone(),
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
+            rotation_slot: Arc::new(AtomicUsize::new(0)),
+            rotation_seen: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -154,6 +165,8 @@ impl std::str::FromStr for Url {
             url,
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
+            rotation_slot: Arc::new(AtomicUsize::new(0)),
+            rotation_seen: Arc::new(AtomicBool::new(false)),
         })
     }
 }
@@ -169,6 +182,8 @@ impl Url {
             url: url.into_url()?,
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
+            rotation_slot: Arc::new(AtomicUsize::new(0)),
+            rotation_seen: Arc::new(AtomicBool::new(false)),
         };
 
         // ensure that the provided URLs are valid
@@ -190,6 +205,8 @@ impl Url {
             url,
             fronts: None,
             current_front: Arc::new(AtomicUsize::new(0)),
+            rotation_slot: Arc::new(AtomicUsize::new(0)),
+            rotation_seen: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -228,8 +245,16 @@ impl Url {
 
     /// Return the serialization of this URL.
     ///
-    /// This is fast since that serialization is already stored in the inner url::Url struct.
+    /// This is fast since that serialization is already stored in the inner url::Url struct,
+    /// unless [`Self::take_rotation_turn`] has advanced this host onto one of its fronts, in
+    /// which case the active front's serialization is returned instead.
     pub fn as_str(&self) -> &str {
+        let slot = self.rotation_slot.load(Ordering::Relaxed);
+        if slot != 0
+            && let Some(front) = self.fronts.as_ref().and_then(|fronts| fronts.get(slot - 1))
+        {
+            return front.as_str();
+        }
         self.url.as_str()
     }
 
@@ -244,6 +269,49 @@ impl Url {
             return next == 0;
         }
         true
+    }
+
+    /// Used by [`crate::Client::update_host`] when a policy allows non-fronted domains into the
+    /// rotation alongside fronted ones (`include_non_fronted_in_rotation`). Each host gets one
+    /// turn shown directly before cycling through its configured fronts, one at a time.
+    ///
+    /// Returns `true` if this host just advanced onto one of its fronts (the caller should stay
+    /// on this host rather than rotating away), or `false` if this was the host's direct turn,
+    /// or if the direct turn and every front have each already had a turn - in the latter case
+    /// the cursor is reset so the next lap starts fresh with the direct turn again.
+    pub(crate) fn take_rotation_turn(&self) -> bool {
+        let Some(fronts) = &self.fronts else {
+            return false;
+        };
+        if fronts.is_empty() {
+            return false;
+        }
+
+        if !self.rotation_seen.swap(true, Ordering::Relaxed) {
+            // first turn for this host this lap - it was already being shown directly.
+            return false;
+        }
+
+        let next = self.rotation_slot.load(Ordering::Relaxed) + 1;
+        if next <= fronts.len() {
+            self.rotation_slot.store(next, Ordering::Relaxed);
+            return true;
+        }
+
+        self.rotation_slot.store(0, Ordering::Relaxed);
+        self.rotation_seen.store(false, Ordering::Relaxed);
+        false
+    }
+
+    /// The front currently in use for this host's rotation turn, if [`Self::take_rotation_turn`]
+    /// has advanced it onto one of its fronts. Returns `None` while this host's direct turn is
+    /// active, meaning requests should go out unfronted.
+    pub(crate) fn active_rotation_front_str(&self) -> Option<&str> {
+        let slot = self.rotation_slot.load(Ordering::Relaxed);
+        if slot == 0 {
+            return None;
+        }
+        self.fronts.as_ref()?.get(slot - 1)?.host_str()
     }
 
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ‘:’ delimiter.

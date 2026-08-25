@@ -99,13 +99,15 @@ jobs:
           # snippet self-heals the same way the workspace path-dep sed above does.
           # cargo-workspaces unifies every workspace crate to VERSION, so all of
           # these crates share it after the bump.
-          sed -i -E "s/^(nym-sdk|nym-bin-common|nym-network-defaults|nym-smolmix|nym-smoldvpn)(.*)\"[0-9][^\"]*\"/\1\2\"${VERSION}\"/" \
+          sed -i -E "s/^(nym-sdk|nym-bin-common|nym-network-defaults|nym-smolmix|nym-smoldvpn|nym-swizzle)(.*)\"[0-9][^\"]*\"/\1\2\"${VERSION}\"/" \
             "$DOCS/pages/developers/rust/importing.mdx" \
             "$DOCS/pages/developers/rust/mixnet/tutorial.mdx" \
             "$DOCS/pages/developers/rust/stream/tutorial.mdx" \
             "$DOCS/pages/developers/rust/client-pool/tutorial.mdx" \
             "$DOCS/pages/developers/smolmix.mdx" \
-            "$DOCS/pages/developers/smoldvpn.mdx"
+            "$DOCS/pages/developers/smoldvpn.mdx" \
+            "$DOCS/pages/developers/swizzle.mdx" \
+            "$DOCS/pages/developers/swizzle/zcash.mdx"
 
       - name: Install build dependencies
         run: |

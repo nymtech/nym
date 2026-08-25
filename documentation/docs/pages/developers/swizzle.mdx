@@ -3,7 +3,7 @@ title: "nym-swizzle: Traffic-Shape Hygiene"
 description: "A Rust library that shapes the timing and content of an application's requests, so the destination learns less from the pattern of what it sends. Randomised delay scheduling and overlapping range chunking."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-18"
+lastUpdated: "2026-08-25"
 ---
 
 # Traffic-shape hygiene
@@ -12,25 +12,6 @@ import { Callout } from 'nextra/components'
 import { RUST_MSRV } from '../../components/versions'
 
 {/* Canonical source: sdk/rust/nym-swizzle/README.md and the crate rustdoc. */}
-
-{/*
-  MAINTENANCE NOTE, delete when it no longer applies.
-
-  nym-swizzle and nym-swizzle-zcash are merged to develop but are NOT yet
-  published to crates.io. Both carry publish = true and version.workspace =
-  true, so the next platform release publishes them automatically.
-
-  At that release, update this page:
-    1. Replace the git dependency under "Installation" with a versioned
-       crates.io one, keeping the git form in a "From Git" subsection as the
-       smolmix page does.
-    2. Delete the "Not yet released" callout below.
-    3. Add the docs.rs links under "API reference".
-    4. Bump lastUpdated.
-
-  Version literals in mdx are rewritten by ci-crates-version-bump.yml, so match
-  the form the smolmix page uses once a version exists.
-*/}
 
 Baseline hygiene is the second layer of the
 [two-layer model](/network/threat-model/two-layer-model): transport-independent
@@ -43,11 +24,6 @@ transport alone cannot.
 what your application puts on the wire, and when. That makes it
 transport-independent: it works the same over the mixnet, a VPN, Tor, or a
 direct connection.
-
-<Callout type="warning">
-**Not yet released.** The crate is merged to `develop` but is not yet published
-to crates.io. Install it from Git until the next platform release.
-</Callout>
 
 ## What your request pattern leaks
 
@@ -75,11 +51,11 @@ The library provides one primitive for each.
 
 ## Installation
 
-`nym-swizzle` is not on crates.io yet, so import it from the repository:
+Add `nym-swizzle` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-swizzle = { git = "https://github.com/nymtech/nym", branch = "develop" }
+nym-swizzle = "1.21.5"
 ```
 
 **Minimum Rust version:** {RUST_MSRV}+
@@ -92,6 +68,14 @@ through `getrandom`'s `js` feature. Verify the guarantee with:
 
 ```sh
 cargo check -p nym-swizzle --target wasm32-unknown-unknown
+```
+
+### From Git
+
+For unreleased changes, import directly from the repository:
+
+```toml
+nym-swizzle = { git = "https://github.com/nymtech/nym", branch = "develop" }
 ```
 
 ## Delay: decorrelate an action from its trigger
@@ -273,10 +257,10 @@ cargo run --release -p nym-swizzle --example profiling
 
 ## API reference
 
-Source and rustdoc comments:
-[`sdk/rust/nym-swizzle`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle)
-and
-[`sdk/rust/nym-swizzle-zcash`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle-zcash).
+| Crate | Registry | Docs | Source |
+|---|---|---|---|
+| `nym-swizzle` | [crates.io](https://crates.io/crates/nym-swizzle) | [docs.rs](https://docs.rs/nym-swizzle) | [`sdk/rust/nym-swizzle`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle) |
+| `nym-swizzle-zcash` | [crates.io](https://crates.io/crates/nym-swizzle-zcash) | [docs.rs](https://docs.rs/nym-swizzle-zcash) | [`sdk/rust/nym-swizzle-zcash`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle-zcash) |
 
 ## See also
 

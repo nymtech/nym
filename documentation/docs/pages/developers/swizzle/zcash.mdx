@@ -3,7 +3,7 @@ title: "nym-swizzle-zcash: Hygiene Policy for Zcash Light Clients"
 description: "Quantised sync ranges and decoupled, restart-safe broadcast scheduling for Zcash light wallets, built on nym-swizzle. You supply the lightwalletd client; the crate decides what goes on the wire and when."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-14"
+lastUpdated: "2026-08-25"
 ---
 
 # nym-swizzle-zcash
@@ -16,11 +16,6 @@ for Zcash: it packages the primitives into chain-specific policy, and ships a
 live example against a public `lightwalletd`.
 
 You keep your transport. The crate decides what goes on the wire and when.
-
-<Callout type="warning">
-**Not yet released.** Merged to `develop` but not published to crates.io. Install
-from Git until the next platform release.
-</Callout>
 
 ## What a lightwalletd learns
 
@@ -137,15 +132,23 @@ It is a no-op when nothing is pending.
 
 ## Installation
 
-Not on crates.io yet, so import from the repository:
+Add `nym-swizzle-zcash` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nym-swizzle-zcash = { git = "https://github.com/nymtech/nym", branch = "develop" }
+nym-swizzle-zcash = "1.21.5"
 ```
 
 No network stack and no build script. It compiles for
 `wasm32-unknown-unknown` in both feature configurations.
+
+### From Git
+
+For unreleased changes, import directly from the repository:
+
+```toml
+nym-swizzle-zcash = { git = "https://github.com/nymtech/nym", branch = "develop" }
+```
 
 ## Seeing it work
 
@@ -160,6 +163,15 @@ time, and the transaction built against a fresh tip.
 
 An opt-in live suite covers reorg detection against real chain data, where
 matching hashes commit and a corrupted hash trips `ReorgDetected`.
+
+## API reference
+
+Full API documentation is available on
+[docs.rs/nym-swizzle-zcash](https://docs.rs/nym-swizzle-zcash). The published
+crate is on
+[crates.io/crates/nym-swizzle-zcash](https://crates.io/crates/nym-swizzle-zcash),
+and the source is in
+[`sdk/rust/nym-swizzle-zcash`](https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-swizzle-zcash).
 
 ## See also
 

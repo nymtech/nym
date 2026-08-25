@@ -18,7 +18,7 @@ The `TcpStream` type implements tokio's `AsyncRead`/`AsyncWrite` traits and `Udp
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │  Your application (TLS, HTTP, WebSocket, DNS, etc.)          │
-│       └─ nym_smolmix::TcpStream / UdpSocket                      │
+│       └─ nym_smolmix::TcpStream / UdpSocket                  │
 │            └─ smoltcp (userspace TCP/IP)                     │
 │                 └─ Nym mixnet → IPR exit gateway → internet  │
 └──────────────────────────────────────────────────────────────┘

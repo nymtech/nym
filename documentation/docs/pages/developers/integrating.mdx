@@ -38,22 +38,13 @@ into a network configuration. Settle both first.
 
 ## Routing is a per-endpoint decision
 
-Consider an app with three endpoints. The first sees an account identifier on
-every request. That destination can link the identifier to an IP address, and
-the mixnet exists to remove that link. Route it. The second serves public data
-and sees no identifier. Routing it adds latency and hides nothing. The third
-runs inside a third-party iframe, so your code cannot route it at all.
-
-The same transport serves all three endpoints. The answer depends on what the
-destination already knows about the user, and on how the app reaches it.
-
 Work through these questions for each endpoint. Any one of them can change the
 answer on its own.
 
 | Question | Why it decides the answer |
 |---|---|
 | **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
-| **Is it HTTPS?** | The [exit gateway](/network/infrastructure/exit-services#ip-packet-router) reads plain HTTP in full. Routing an `http://` endpoint moves the observer. It does not remove it. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/concepts/exit-security#protect-the-payload)). Routing an `http://` endpoint moves the observer. It does not remove it. |
 | **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it. A call in front of a user does not. |
 | **Is it called in sequence with others?** | Sequential dependent calls multiply the cost. No single request reveals this. See below. |
 | **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
@@ -95,7 +86,10 @@ requests at once and each one misses the connection pool, because a pool only
 helps after a connection returns to it. Each one opens its own connection, and
 under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
 through the mixnet. You pay setup once per call. Libraries that batch or
-parallelise on your behalf do this on their own.
+parallelise on your behalf do this on their own. The requests also share one
+client, whose sending is paced on a fixed schedule
+(see [the message queue](/developers/concepts/message-queue)), so they queue
+behind each other at the sender as well.
 
 A strict queue overcorrects. One stalled request then blocks everything behind
 it for the full timeout, where the rest would otherwise have gone through. A
@@ -112,16 +106,6 @@ The bound abandons the request rather than cancelling it, so a retry on timeout
 leaves two requests in flight.
 </Callout>
 
-## Make the privacy flag announce itself unconditionally
-
-Gate every log line on the feature flag, and "switched off" produces the same
-output as "never ran". That distinction is the one thing you need when you ask
-where a user's traffic went, and gated logging throws it away.
-
-Log the resolved configuration at startup, whatever the flag says: the values as
-read, the routed set as parsed, and the failure policy in force. It separates an
-integration that ran and did nothing from one you never switched on.
-
 ## Decide fail-open or fail-closed explicitly
 
 When the tunnel is unavailable, the app either refuses the request or falls back
@@ -134,21 +118,26 @@ helper three layers down. An integration whose leak detection raises, while its
 transport retries over the clearnet, has shipped fail-open, whatever the
 setting says.
 
+<Callout type="info">
+Log the resolved configuration at startup even when the privacy flag is off:
+the values as read, the routed set as parsed, and the failure policy in force.
+Logging gated on the flag makes "switched off" and "never ran" produce the
+same silence, which is the one distinction you need when you ask where a
+user's traffic went.
+</Callout>
+
 ## Prove the traffic went through the mixnet
 
-Routing code that fails to route raises no error, as the sections above show.
-Add a check underneath it that does.
-
-| Level | What it does | What it cannot tell you |
-|---|---|---|
-| **Detection** | Traps requests that reach a routed destination by a path the policy does not control, and reports them as bugs. | Whether the mixnet did anything. It only proves that your code ran. |
-| **Positive proof** | Asks one echo service over both paths, and compares the source address it saw each time. | Whether anything else leaks. It tests a single request. |
-| **Enforcement** | Removes the direct path at the platform level. A request that succeeds can then only have come through the tunnel. | Anything the platform does not govern, such as another process or an embedded third-party context. |
-
-Only positive proof separates "the request went through the tunnel" from "our
-transport code ran without throwing". All three levels are platform-specific.
-For the browser mechanics, see
-[routing a browser or WebView app](/developers/browser-routing).
+Routing code that fails to route raises no error, as the sections above show,
+so add a check underneath it that does. Three checks exist: detect direct
+requests to a routed host and report them as bugs, prove one request took the
+tunnel by comparing the source address an echo service sees over both paths,
+and enforce the routing by removing the direct path at the platform level.
+Only the second separates "the request went through the tunnel" from "our
+transport code ran without throwing"; the other two prove that your code ran
+and that nothing bypassed it. All three are platform-specific, and
+[routing a browser or WebView app](/developers/browser-routing) implements
+them for the web runtime.
 
 ## Choose the resolver
 
@@ -160,21 +149,16 @@ hostname your app looks up, and the default is a large public resolver.
 Decide whether that suits your users, instead of inheriting it. `primaryDns` and
 `fallbackDns` change it. [mix-dns](/developers/mix-dns/guides) has the format.
 
-## What the integration gets you, and what it does not
+## What the integration gets you
 
-Routing your endpoints is
-[Layer 1](/network/threat-model/two-layer-model) and only Layer 1. The
-destination stops seeing the user's IP address, which closes
-[V1](/network/threat-model/vectors) against it. The mixnet leaves timing and
-content untouched, which keeps [V2 and V3](/network/threat-model/vectors) open
-and hands them to [your application](/developers/swizzle). Any identifier your
-requests already carry still identifies the user, and traffic you could not
-route still shows the real address.
+The destination stops seeing the user's IP address, for the endpoints you
+routed. It still sees request timing, request content, and any identifier your
+requests already carry, and traffic you could not route still shows the real
+address. Report the result as that, not as "the app is now private".
 
-For most applications the destination is the
-[primary adversary](/network/threat-model/actors#l2-is-the-primary-adversary-for-most-applications).
-Routing closes one of its three vectors. Report it as that, not as "the app is
-now private".
+[What Nym cannot do](/developers/limitations#what-the-transport-never-does)
+covers what stays the application's responsibility, and
+[baseline hygiene](/developers/swizzle) is how you take it up.
 
 ## The other integration shapes
 

@@ -73,7 +73,7 @@ than a leak.
 
 `onLeak` must log even when your privacy feature flag is off. A gated guard
 makes "no leaks" and "no guard installed" produce the same silence. See
-[announcing the flag unconditionally](/developers/integrating#make-the-privacy-flag-announce-itself-unconditionally).
+[decide fail-open or fail-closed explicitly](/developers/integrating#decide-fail-open-or-fail-closed-explicitly).
 
 The guard does not see `navigator.sendBeacon`, `EventSource`, `WebSocket`,
 `<img>` and `<script>` sources, or anything inside a cross-origin iframe.

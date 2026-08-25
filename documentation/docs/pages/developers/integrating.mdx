@@ -42,7 +42,7 @@ answer on its own.
 
 | Question | Why it decides the answer |
 |---|---|
-| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route. A destination that sees no identifier gains nothing when you hide the IP address, because it has nothing to correlate. |
+| **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
 | **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/concepts/exit-security#protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
 | **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it; a call in front of a user does not. |
 | **Is it called in sequence with others?** | Sequential dependent calls multiply the cost, and no single request reveals it. See below. |
@@ -70,8 +70,11 @@ TCP and TLS through the tunnel. Whoever triggers the first request waits for all
 of it, and blames your application.
 
 Bring the tunnel up ahead of use, then send one warm-up request before the app
-starts querying. This moves the expensive part away from someone who is waiting,
-and leaves the tunnel warm for everything after it.
+starts querying. Use a request that changes no state, such as a `HEAD` or a
+health-check `GET`. If the destination offers no safe endpoint, bring the
+tunnel up and let the first real request pay the connection setup. Warming up
+moves the expensive part away from someone who is waiting, and leaves the
+tunnel warm for everything after it.
 
 Read timings with retries in mind. The client retries a failed connection on its own,
 and a retry that succeeds never surfaces as an error. A request several times
@@ -200,8 +203,9 @@ that configuration leaves an observer.
 
 ### Service provider
 
-If you run the service that others reach over Nym, you never open an outbound
-connection, so almost none of this page applies. See
+If you run the service that others reach over Nym, you open no outbound
+connection to any clearnet destination. The client's only outbound connection
+goes to its Nym gateway, so almost none of this page applies. See
 [building a Nym service provider](/developers/service-providers).
 
 ## Next

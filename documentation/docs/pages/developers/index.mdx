@@ -44,7 +44,9 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 1. **Runtime**: where does your code run?
 2. **Approach**: do you control both sides of the connection (**end-to-end**), are you reaching a third-party service through the mixnet (**proxy**), or are you the service others reach over Nym (**service provider**)?
 
-The table below maps those two answers to a package.
+The table below maps those two answers to a package. It covers the first two
+approaches: a service provider is the end-to-end tooling on the server side,
+and [building a Nym service provider](/developers/service-providers) covers it.
 
 <Callout type="info">
 The decisions come in order:

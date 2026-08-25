@@ -3,7 +3,7 @@ title: "Building a Nym Service Provider"
 description: "Embedding a Nym client in your own server-side application so clients reach it end-to-end over the mixnet rather than through an exit gateway: the receive-and-reply loop in Rust, SURBs, Nym addressing and gateway stability, and the default sending budget."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-08-18"
+lastUpdated: "2026-08-25"
 ---
 
 # Building a Nym Service Provider
@@ -39,7 +39,7 @@ A **service provider** is your own server-side application with a Nym client emb
 The embedded client is what separates the [approaches](/developers#end-to-end-or-proxy):
 
 - **You cannot change the service.** That is proxy mode. An Exit Gateway leaves the mixnet on your behalf and connects to it over ordinary clearnet, subject to that gateway's [exit policy](/network/infrastructure/exit-services#the-exit-policy-applies).
-- **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Traffic stays Sphinx-encrypted the whole way.
+- **You can change the service.** That is end-to-end. You put a Nym client inside it, so there is no Exit Gateway, no clearnet hop, and no exit policy to satisfy. Client-to-provider traffic stays Sphinx-encrypted across the mixnet. Your process decrypts it before it reaches anything downstream.
 
 **This page is the second case**; it assumes you own the server code and are willing to modify it. In practice that means adding a mixnet client alongside whatever transport the service already speaks, then routing requests in from there. The process can sit in a DMZ with no inbound access. Its [Nym address](/network/reference/addressing) becomes the only way to reach it. Replies go back over [SURBs](/network/mixnet-mode/anonymous-replies).
 

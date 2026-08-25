@@ -83,8 +83,9 @@ states the general rule.
 
 The guard does not see `navigator.sendBeacon`, `EventSource`, `WebSocket`,
 `<img>` and `<script>` sources, or anything inside a cross-origin iframe.
-Content Security Policy covers the first four. A cross-origin iframe stays out
-of reach for CSP too: it fetches under its own policy, not yours.
+`connect-src` governs the first three. `img-src` and `script-src` govern the
+tag sources, so add those directives if you enforce them. A cross-origin
+iframe stays outside your policy: it fetches under its own.
 
 ## Proving the tunnel carried the request
 

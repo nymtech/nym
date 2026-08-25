@@ -43,10 +43,6 @@ pub(crate) struct LivenessConfig {
     /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
     /// 50-client window over its whole gateway population per cycle.
     pub(crate) gateway_wave_size: usize,
-
-    /// How long after a node's stress test it stays ineligible for liveness, so a liveness probe
-    /// does not measure a node whose queues are still draining from the load.
-    pub(crate) after_stress_cooldown: Duration,
 }
 
 #[derive(Debug, Clone)]

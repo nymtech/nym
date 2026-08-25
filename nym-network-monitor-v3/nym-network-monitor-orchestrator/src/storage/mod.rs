@@ -4,8 +4,8 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, CompletedTestRun, NewNymNode, NewTestRun, NymNode, TestKind,
-    TestRunInProgress, TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, CompletedTestRun, NewNymNode, NewTestRun, NymNode,
+    PairingSchedule, TestKind, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -139,35 +139,38 @@ impl NetworkMonitorStorage {
         Ok(cleared)
     }
 
-    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
-    /// progress, with a lease of `lease_budget` from now.
+    /// Atomically selects the nodes due for one (kind, role) pairing and marks each as having a test
+    /// run in progress, leased for `schedule.lease_budget` from now. One target for a stress
+    /// pairing, up to `schedule.wave_size` for a liveness one.
     ///
-    /// Staleness and the address rotation are evaluated for the `(stress, mixnode)` pairing alone,
-    /// so no other kind's cadence disturbs this one. "Most stale" means: nodes that pairing has
-    /// never tested come first, followed by those whose last run under it is oldest.
+    /// Resolves the schedule's durations against a single `now`, so every gate applied and every row
+    /// stamped by one assignment agrees on when it happened.
     ///
-    /// `staleness_age` acts as a minimum-staleness gate: a node already tested by this pairing is
-    /// only eligible if its last run completed more than `staleness_age` ago. Never-tested nodes
-    /// are always eligible.
+    /// "Most stale" means: nodes this pairing has never tested come first, followed by those whose
+    /// last run under it is oldest. `staleness_age` is a minimum-staleness gate that never-tested
+    /// nodes bypass.
     ///
-    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind or role that row holds.
-    /// Only nodes classified as `mixnode` or `mixnode_and_gateway` are eligible.
+    /// Nodes with a row in `testrun_in_progress` are excluded whatever kind or role that row holds,
+    /// and become eligible for any kind again as soon as that row clears.
     ///
-    /// Returns `None` if no eligible idle mixnode exists.
-    pub(crate) async fn assign_next_mixnode_testrun(
+    /// Returns an empty vector if nothing is eligible.
+    pub(crate) async fn assign_next_testruns(
         &self,
-        staleness_age: Duration,
-        lease_budget: Duration,
-    ) -> anyhow::Result<Option<AssignedTestrun>> {
+        schedule: &PairingSchedule,
+    ) -> anyhow::Result<Vec<AssignedTestrun>> {
         let now = OffsetDateTime::now_utc();
-        let last_tested_before = now - staleness_age;
-        let expires_at = now + lease_budget;
-        let assigned = self
-            .storage_manager
-            .assign_next_mixnode_testrun(now, last_tested_before, expires_at)
-            .await?;
-        if assigned.is_some() {
-            PROMETHEUS_METRICS.inc(PrometheusMetric::TestrunsInProgress);
+        let request = AssignmentRequest {
+            test_kind: schedule.test_kind,
+            tested_role: schedule.tested_role,
+            now,
+            last_tested_before: now - schedule.staleness_age,
+            expires_at: now + schedule.lease_budget,
+            wave_size: schedule.wave_size,
+        };
+
+        let assigned = self.storage_manager.assign_next_testruns(&request).await?;
+        if !assigned.is_empty() {
+            PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
         }
         Ok(assigned)
     }

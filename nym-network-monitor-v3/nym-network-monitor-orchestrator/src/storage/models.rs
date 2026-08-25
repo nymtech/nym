@@ -619,6 +619,61 @@ pub(crate) struct AssignmentCandidate {
     pub(crate) last_tested_ip: Option<String>,
 }
 
+/// What the scheduler settled on for one (kind, role) pairing, expressed in the durations its
+/// configuration carries. Resolved into an [`AssignmentRequest`] against a single `now`.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct PairingSchedule {
+    pub(crate) test_kind: TestKind,
+    pub(crate) tested_role: TestedRole,
+
+    /// Minimum time since this pairing's last run against a node before it is due again.
+    pub(crate) staleness_age: Duration,
+
+    /// How long a dispatched run holds its node before the lease expires.
+    pub(crate) lease_budget: Duration,
+
+    /// Upper bound on the targets one assignment may carry: one for a stress run, the role's wave
+    /// size for a liveness run.
+    pub(crate) wave_size: usize,
+}
+
+impl PairingSchedule {
+    /// The stress pairing. Its wave is always ONE target, since a stress assignment carries a single
+    /// probe target by construction.
+    pub(crate) fn stress(staleness_age: Duration, lease_budget: Duration) -> Self {
+        PairingSchedule {
+            test_kind: TestKind::Stress,
+            tested_role: TestedRole::Mixnode,
+            staleness_age,
+            lease_budget,
+            wave_size: 1,
+        }
+    }
+}
+
+/// One pairing's dispatch parameters with every duration already resolved against one `now`, which
+/// is what the assignment query binds. Absolute rather than relative so a caller can hold a single
+/// timestamp across the gates it applies and the rows it stamps.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct AssignmentRequest {
+    pub(crate) test_kind: TestKind,
+    pub(crate) tested_role: TestedRole,
+
+    /// Stamped as `started_at` on every in-progress row this assignment writes.
+    pub(crate) now: OffsetDateTime,
+
+    /// Staleness gate: a node this pairing has tested before is eligible only if that run predates
+    /// this. Never-tested nodes bypass it.
+    pub(crate) last_tested_before: OffsetDateTime,
+
+    /// Lease deadline stamped on every in-progress row, so the eviction sweep needs no knowledge of
+    /// which kind produced the row.
+    pub(crate) expires_at: OffsetDateTime,
+
+    /// Maximum number of targets to select and lock.
+    pub(crate) wave_size: usize,
+}
+
 /// A node selected for a test run, along with the address that this particular run should target.
 pub(crate) struct AssignedTestrun {
     pub(crate) node: NymNode,

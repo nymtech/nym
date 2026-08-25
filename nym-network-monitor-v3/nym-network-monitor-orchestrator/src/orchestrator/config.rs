@@ -86,7 +86,7 @@ pub(crate) struct Config {
     pub(crate) node_refresh_rate: Duration,
 
     /// Timeout for querying a single node for its detailed information (sphinx key, noise key,
-    /// etc.). Queries that exceed this budget leave the corresponding fields as `NULL`
+    /// etc.). A node that exceeds this budget keeps whatever an earlier cycle learned about it
     /// (e.g. `10s`).
     pub(crate) node_info_query_timeout: Duration,
 

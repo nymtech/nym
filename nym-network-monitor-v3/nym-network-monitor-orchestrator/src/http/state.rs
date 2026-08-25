@@ -1014,10 +1014,14 @@ mod assignment_tests {
     /// A manager carrying the shipped defaults, so the rotation is exercised against the cadences it
     /// actually runs with.
     fn manager(liveness_enabled: bool) -> TestrunManager {
+        manager_with(liveness_config(liveness_enabled))
+    }
+
+    fn manager_with(liveness: LivenessConfig) -> TestrunManager {
         TestrunManager {
             testrun_staleness_age: Duration::from_secs(2 * 60 * 60),
             testrun_lease_budget: Duration::from_secs(5 * 60),
-            liveness: liveness_config(liveness_enabled),
+            liveness,
             kind_cursor: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -1131,6 +1135,68 @@ mod assignment_tests {
         assert_eq!(wave[0].mixnet.node_id, 1);
         // the port the ingress phase opens its session on comes from the stored row
         assert_eq!(wave[0].clients_ws_port, 9000);
+    }
+
+    /// Deliberately unequal and both far below the shipped values, so a wave that took the wrong
+    /// role's cap - or the storage default - fails rather than coincidentally passing.
+    fn narrow_waves() -> LivenessConfig {
+        LivenessConfig {
+            mixnode_wave_size: 3,
+            gateway_wave_size: 1,
+            ..liveness_config(true)
+        }
+    }
+
+    // Each role's wave is cut to ITS cap, not to a shared one. The populations are homogeneous so
+    // that the pairing under test is the only one with work: with both roles available the tie-break
+    // would settle it and the gateway cap would never be exercised.
+    #[tokio::test]
+    async fn a_mixnode_liveness_wave_is_capped_by_the_mixnode_wave_size() {
+        let manager = manager_with(narrow_waves());
+        let nodes: Vec<_> = (1..=5)
+            .map(|id| node(id, NodeType::Mixnode, None))
+            .collect();
+        let storage = storage_with(&nodes).await;
+
+        // spend stress's turn, which takes one node, so the next request is liveness's
+        assert!(
+            manager
+                .assign_next_testrun(&storage)
+                .await
+                .unwrap()
+                .is_some()
+        );
+
+        let assignment = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let TestRunAssignment::MixnodeLiveness(wave) = assignment else {
+            panic!("a mixnode-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_gateway_liveness_wave_is_capped_by_the_gateway_wave_size() {
+        let manager = manager_with(narrow_waves());
+        let nodes: Vec<_> = (1..=5)
+            .map(|id| node(id, NodeType::Gateway, Some(9000)))
+            .collect();
+        let storage = storage_with(&nodes).await;
+
+        let assignment = manager
+            .assign_next_testrun(&storage)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let TestRunAssignment::GatewayLiveness(wave) = assignment else {
+            panic!("a gateway-only population produced {assignment:?}");
+        };
+        assert_eq!(wave.len(), 1);
     }
 
     // The decoy for the fall-through test above: the same bonded gateway, differing only in never

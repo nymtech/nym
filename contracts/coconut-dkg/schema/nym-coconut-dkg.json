@@ -1264,6 +1264,26 @@
           "format": "uint64",
           "minimum": 0.0
         },
+        "keys_in_service": {
+          "description": "The epoch whose keys signers are issuing under.\n\nOnly a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind with no keys and never any.\n\n`None` before the first ceremony concludes, and on an epoch stored before this field existed. Read that as \"unknown\", never as \"none in service\".",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "outgoing_keys": {
+          "description": "The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed ceremonies may sit between the two.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
         "state": {
           "$ref": "#/definitions/EpochState"
         },
@@ -2171,6 +2191,26 @@
             },
             "epoch_id": {
               "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "keys_in_service": {
+              "description": "The epoch whose keys signers are issuing under.\n\nOnly a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind with no keys and never any.\n\n`None` before the first ceremony concludes, and on an epoch stored before this field existed. Read that as \"unknown\", never as \"none in service\".",
+              "default": null,
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "outgoing_keys": {
+              "description": "The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed ceremonies may sit between the two.",
+              "default": null,
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "uint64",
               "minimum": 0.0
             },

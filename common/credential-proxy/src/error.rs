@@ -234,3 +234,49 @@ impl CredentialProxyError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conditions_that_resolve_on_their_own_are_retryable() {
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::CredentialsNotYetIssuable {
+                availability: OffsetDateTime::UNIX_EPOCH
+            }
+            .status_code()
+        );
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::CallerCannotIssueMidCeremony.status_code()
+        );
+    }
+
+    #[test]
+    fn everything_else_is_reported_as_a_server_fault() {
+        // `UninitialisedDkg` is in here deliberately: nothing resolves it on its own, so a caller
+        // retrying against it would loop forever
+        let permanent = [
+            CredentialProxyError::UninitialisedDkg,
+            CredentialProxyError::UnknownEcashFailure,
+            CredentialProxyError::UnavailableSigningQuorum,
+            CredentialProxyError::DepositFailure,
+            CredentialProxyError::ExpirationDateTooLate,
+            CredentialProxyError::UnavailableThreshold { epoch_id: 42 },
+            CredentialProxyError::InsufficientNumberOfSigners {
+                available: 1,
+                threshold: 3,
+            },
+        ];
+
+        for err in permanent {
+            assert_eq!(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                err.status_code(),
+                "{err} should not have been reported as retryable"
+            );
+        }
+    }
+}

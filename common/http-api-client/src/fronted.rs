@@ -96,12 +96,46 @@ impl Front {
                     .filter(|&&count| count >= cfg.failures_per_domain)
                     .count();
 
+                // both comparisons are inclusive, so a threshold of 0 is trivially satisfied -
+                // see the `FrontingConfig` docs for the resulting edge-case behavior.
                 if failed_domains >= cfg.num_domains_failed {
                     self.enabled.store(true, Ordering::Relaxed);
                 }
             }
             FrontPolicy::Off | FrontPolicy::Always => {}
         }
+    }
+
+    /// Whether domains without a front configured should still be considered when rotating
+    /// hosts while fronting is enabled. Only meaningful for [`FrontPolicy::ConfiguredRetry`] -
+    /// other policies keep the existing behavior of only rotating between fronted domains.
+    pub(crate) fn include_non_fronted_in_rotation(&self) -> bool {
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::ConfiguredRetry(cfg) => cfg.include_non_fronted_in_rotation,
+            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+        }
+    }
+
+    /// Whether a successful request against a non-fronted domain, while fronting was enabled,
+    /// should reset accumulated failure state and disable fronting again. See
+    /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
+    pub(crate) fn should_recover_on_non_fronted_success(&self) -> bool {
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::ConfiguredRetry(cfg) => {
+                // this recovery path only makes sense if non-fronted domains can actually be
+                // selected during rotation in the first place.
+                cfg.include_non_fronted_in_rotation && cfg.disable_fronting_on_non_fronting_success
+            }
+            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+        }
+    }
+
+    /// Disable fronting and clear any accumulated per-domain failure counts, letting the retry
+    /// policy start fresh. Used to recover once a non-fronted domain succeeds, per
+    /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
+    pub(crate) fn recover(&self) {
+        self.enabled.store(false, Ordering::Relaxed);
+        self.domain_failures.lock().unwrap().clear();
     }
 }
 
@@ -126,13 +160,36 @@ pub enum FrontPolicy {
 /// Configuration for [`FrontPolicy::ConfiguredRetry`]. A domain is considered "failed" once it
 /// has failed `failures_per_domain` times; fronting is enabled once `num_domains_failed` distinct
 /// domains have failed.
+///
+/// Both thresholds are inclusive (`>=`), so `0` is a valid, well-defined value for either field
+/// rather than an error - it simply means the threshold is already satisfied:
+/// - `failures_per_domain: 0` - a domain counts as "failed" on its very first failure.
+/// - `num_domains_failed: 0` - fronting is enabled as soon as `retry_enable` is called with a
+///   domain, even before any domain has reached `failures_per_domain`. This makes
+///   `failures_per_domain` irrelevant, so setting `num_domains_failed` to `0` alongside a
+///   non-zero `failures_per_domain` is almost certainly a configuration mistake - use
+///   [`FrontPolicy::OnRetry`] instead if "enable on the first failure" is actually what's wanted.
+/// - `FrontingConfig::default()` (both `0`) therefore enables fronting on the very first failure
+///   seen, same as `num_domains_failed: 0` above.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct FrontingConfig {
-    /// Allow N failures per domain before fronting enables
+    /// Allow N failures per domain before fronting enables. `0` means a single failure is
+    /// enough for a domain to count as "failed" - see the type-level docs for details.
     failures_per_domain: usize,
 
-    /// Allow N domains to fail before fronting is enabled
+    /// Allow N domains to fail before fronting is enabled. `0` means fronting enables as soon as
+    /// any failure is recorded, bypassing `failures_per_domain` entirely - see the type-level
+    /// docs for details.
     num_domains_failed: usize,
+
+    /// Once Fronting is enabled allow non-fronted domains to be included in the
+    /// rotation of domains that are used as the external facing SNI.
+    include_non_fronted_in_rotation: bool,
+
+    /// Requires `include_non_fronted_in_rotation()` to be set and on the success of a non-fronted
+    /// domain for an API request resets the counters and disables domain fronting. This is meant to
+    /// allow the http client to recover and use domain fronting less if it doesn't need to do so.
+    disable_fronting_on_non_fronting_success: bool,
 }
 
 impl FrontingConfig {
@@ -141,6 +198,8 @@ impl FrontingConfig {
         Self {
             failures_per_domain,
             num_domains_failed,
+            include_non_fronted_in_rotation: false,
+            disable_fronting_on_non_fronting_success: false,
         }
     }
 
@@ -153,6 +212,22 @@ impl FrontingConfig {
     /// Set the number of distinct domains that must fail before fronting is enabled.
     pub fn with_num_domains_failed(mut self, num_domains_failed: usize) -> Self {
         self.num_domains_failed = num_domains_failed;
+        self
+    }
+
+    /// Once fronting is enabled, allow domains without a configured front to still be selected
+    /// when rotating hosts (rather than only rotating between fronted domains).
+    pub fn with_include_non_fronted_in_rotation(mut self, include: bool) -> Self {
+        self.include_non_fronted_in_rotation = include;
+        self
+    }
+
+    /// Requires [`Self::with_include_non_fronted_in_rotation`] to also be set. When a request
+    /// against a non-fronted domain succeeds while fronting is enabled, reset the accumulated
+    /// failure counts and disable fronting again, letting the client rely less on fronting once
+    /// it is no longer needed.
+    pub fn with_disable_fronting_on_non_fronting_success(mut self, disable: bool) -> Self {
+        self.disable_fronting_on_non_fronting_success = disable;
         self
     }
 }
@@ -320,6 +395,45 @@ mod tests {
         assert!(!front.is_enabled());
     }
 
+    /// `failures_per_domain: 0` means a domain counts as "failed" on its very first failure,
+    /// rather than being an invalid or ignored configuration.
+    #[test]
+    fn configured_retry_zero_failures_per_domain_counts_first_failure() {
+        let cfg = FrontingConfig::new(0, 2);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        // domain-a's single failure immediately counts it as "failed" (threshold of 0), but a
+        // second distinct domain is still required to reach num_domains_failed.
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        front.retry_enable(Some("domain-b"));
+        assert!(front.is_enabled());
+    }
+
+    /// `num_domains_failed: 0` means the threshold is already satisfied, so fronting enables on
+    /// the very first tracked failure regardless of `failures_per_domain` - even a very high
+    /// `failures_per_domain` does not delay this.
+    #[test]
+    fn configured_retry_zero_num_domains_failed_enables_immediately() {
+        let cfg = FrontingConfig::new(1000, 0);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+    }
+
+    /// The default `FrontingConfig` (all fields zeroed) enables fronting on the very first
+    /// tracked failure - documenting this explicitly since a naive reading of "default" might
+    /// otherwise suggest fronting never turns on.
+    #[test]
+    fn configured_retry_default_config_enables_on_first_failure() {
+        let front = Front::new(FrontPolicy::ConfiguredRetry(FrontingConfig::default()));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+    }
+
     /// Setting a new policy resets both the enabled flag and any accumulated per-domain failure
     /// counts.
     #[test]
@@ -332,6 +446,92 @@ mod tests {
 
         // re-applying the same policy should reset accumulated failure state
         front.set_policy(FrontPolicy::ConfiguredRetry(cfg));
+        assert!(!front.is_enabled());
+    }
+
+    /// By default, host rotation should skip domains that have no front configured once fronting
+    /// is enabled - only `include_non_fronted_in_rotation` opts into visiting them.
+    #[test]
+    fn rotation_skips_non_fronted_domains_by_default() {
+        let fronted_url =
+            Url::new("https://has-front.test", Some(vec!["https://front.test"])).unwrap();
+        let plain_url = Url::new("https://no-front.test", None).unwrap();
+
+        let cfg = FrontingConfig::new(1, 1);
+        let client = ClientBuilder::new_with_urls(vec![fronted_url, plain_url])
+            .unwrap()
+            .with_fronting(Some(FrontPolicy::ConfiguredRetry(cfg)))
+            .build()
+            .unwrap();
+
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+
+        client.front.retry_enable(Some("has-front.test"));
+        assert!(client.front.is_enabled());
+
+        // the only other base url has no front - rotation should skip it and stay put.
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+    }
+
+    /// `include_non_fronted_in_rotation` allows a non-fronted domain to be selected during host
+    /// rotation even while fronting is enabled.
+    #[test]
+    fn rotation_includes_non_fronted_domains_when_configured() {
+        let fronted_url =
+            Url::new("https://has-front.test", Some(vec!["https://front.test"])).unwrap();
+        let plain_url = Url::new("https://no-front.test", None).unwrap();
+
+        let cfg = FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true);
+        let client = ClientBuilder::new_with_urls(vec![fronted_url, plain_url])
+            .unwrap()
+            .with_fronting(Some(FrontPolicy::ConfiguredRetry(cfg)))
+            .build()
+            .unwrap();
+
+        client.front.retry_enable(Some("has-front.test"));
+        assert!(client.front.is_enabled());
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://no-front.test/");
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://front.test/");
+    }
+
+    /// `disable_fronting_on_non_fronting_success` requires `include_non_fronted_in_rotation` to
+    /// also be set - it has no effect on its own.
+    #[test]
+    fn recover_flag_requires_include_non_fronted_in_rotation() {
+        let cfg = FrontingConfig::new(1, 1).with_disable_fronting_on_non_fronting_success(true);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        assert!(!front.should_recover_on_non_fronted_success());
+    }
+
+    /// When both flags are set, [`Front::recover`] disables fronting and clears accumulated
+    /// per-domain failure counts, so it takes a fresh run of failures to re-enable fronting.
+    #[test]
+    fn recover_disables_fronting_and_clears_failure_counts() {
+        let cfg = FrontingConfig::new(2, 1)
+            .with_include_non_fronted_in_rotation(true)
+            .with_disable_fronting_on_non_fronting_success(true);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(Some("domain-a"));
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+        assert!(front.should_recover_on_non_fronted_success());
+
+        front.recover();
+        assert!(!front.is_enabled());
+
+        // a single failure is not enough on its own (needs 2) - proves the counters were cleared,
+        // not just the enabled flag.
+        front.retry_enable(Some("domain-a"));
         assert!(!front.is_enabled());
     }
 

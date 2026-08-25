@@ -45,7 +45,7 @@
 - [x] 5.2 Add the kind-selection policy (which kind an agent is handed when several are due) and the liveness enable flag that switches liveness assignment off without a redeploy
 - [x] 5.3 Extend the node refresher to record the entry-gateway client websocket port
 - [x] 5.4 Add the liveness config knobs (staleness interval, lease budget, per-role wave sizes, enable flag) with the provisional defaults from 1.1 and 1.2, all CLI- and env-overridable
-- [ ] 5.5 Add prometheus series for liveness assignments, wave sizes, per-kind in-progress counts, and lease expiries
+- [x] 5.5 Add prometheus series for liveness assignments, wave sizes, per-kind in-progress counts, and lease expiries
 - [ ] 5.6 Unit-test that a node with an open stress in-progress row is not assigned liveness and vice versa, that a node freed by one kind is immediately assignable by another, and that a wave never exceeds its role's wave size
 
 ## 6. nym-node: final-hop delivery for monitors

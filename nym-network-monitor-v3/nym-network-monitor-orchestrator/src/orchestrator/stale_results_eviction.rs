@@ -100,6 +100,12 @@ impl StaleResultsEviction {
             Ok(count) => PROMETHEUS_METRICS.set(PrometheusMetric::TestrunsInProgress, count),
             Err(err) => error!("failed to count in-flight testruns for metric: {err}"),
         }
+
+        // the per-kind gauges are only ever published here, so their freshness is this sweep's
+        // cadence rather than the assignment path's
+        if let Err(err) = self.storage.publish_in_progress_gauges().await {
+            error!("failed to count in-flight testruns per kind for metrics: {err}");
+        }
         Ok(())
     }
 

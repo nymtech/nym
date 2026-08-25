@@ -6527,7 +6527,7 @@ dependencies = [
 [[package]]
 name = "nym-bridges"
 version = "0.2.1-rc.1"
-source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.2#8b632b16831dd798a197ff1dc032627eea573faf"
+source = "git+https://github.com/nymtech/nym-bridges?branch=jmwample%2Fconfig-generation#eb509a2aa618b5851deefb2de5eb46114f438556"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -6569,7 +6569,7 @@ dependencies = [
 [[package]]
 name = "nym-bridges-types"
 version = "0.2.1-rc.1"
-source = "git+https://github.com/nymtech/nym-bridges?branch=v0.2.1-rc.2#8b632b16831dd798a197ff1dc032627eea573faf"
+source = "git+https://github.com/nymtech/nym-bridges?branch=jmwample%2Fconfig-generation#eb509a2aa618b5851deefb2de5eb46114f438556"
 dependencies = [
  "serde",
  "uniffi 0.31.1",

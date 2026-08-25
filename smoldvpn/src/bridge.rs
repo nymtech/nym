@@ -174,7 +174,7 @@ async fn dial(
     params: ClientConfig,
     cancel: CancellationToken,
 ) -> std::result::Result<BridgeConn, TransportError> {
-    BridgeConn::try_connect(params, cancel, nym_bridges::connection::SOCKET_OPEN_NOP).await
+    BridgeConn::try_connect(params, cancel, nym_bridges::connection::SOCKET_OPEN_NOP, None).await
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]

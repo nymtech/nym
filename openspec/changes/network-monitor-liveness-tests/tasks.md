@@ -86,9 +86,9 @@
 
 ## 10. Orchestrator: per-kind submission
 
-- [ ] 10.1 Split the result submitter into one stream per kind, each reading and advancing its own watermark and posting to its own endpoint
+- [x] 10.1 Split the result submitter into one stream per kind, each reading and advancing its own watermark and posting to its own endpoint. The sweep iterates `TestKind` itself rather than calling two hand-written stream functions, so a future kind cannot be added without a stream to submit it, and a stream whose POST fails is logged and skipped rather than aborting the sweep
 - [ ] 10.2 Convert a liveness run into its submission shape: the average over the kind's fixed measurement set with a missing measurement counted as zero, carrying the per-interface breakdown
-- [ ] 10.3 Keep the strictly-increasing timestamp behaviour per stream
+- [x] 10.3 Keep the strictly-increasing timestamp behaviour per stream. Falls out of 10.1: the tracker is a local of the per-kind sweep, so each stream bumps against its own previous batch and never against the other's, matching nym-api's per-endpoint replay mark
 - [ ] 10.4 Expose the per-interface breakdown and the test kind on the operator read surface (`/v1/results/*`)
 - [ ] 10.5 Unit-test that submitting one stream does not advance the other's watermark, and that a failed post leaves its own watermark unmoved
 

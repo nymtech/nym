@@ -47,13 +47,24 @@ Every Nym integration sends its traffic through the mixnet via a Nym client. Whi
 The table below maps those two answers to a package.
 
 <Callout type="info">
-**Decide what you are defending against first.** Which package you build with follows from which network configuration you need, and that follows from your threat model. If you have not chosen a configuration yet, start with [Choose a Defence](/network/threat-model/choose-config): pick your adversary, get a configuration, then map it to a package here. Whatever you pick, [baseline hygiene](/developers/swizzle) is owed on top, because no transport closes the timing and content vectors at the destination on its own.
+The decisions come in order:
 
-**If you are building one of these, the threat model has already been worked through for it:** a [cryptocurrency wallet](/network/threat-model/examples/wallet), a [messaging app](/network/threat-model/examples/messaging), or [web browsing](/network/threat-model/examples/browsing). Each names the adversary that matters for that application, the invariants it owes its users, and what remains open after the transport has done its part. Start there rather than at the general model.
-
-**What to route is its own decision.** Which package you use is not the same question as which of your endpoints should go through it. [Planning an integration](/developers/integrating) works through that per endpoint, and covers the failure modes that follow: sequential calls in one user action, cold start, and fail-open versus fail-closed. If the app runs in a browser or WebView, [routing a browser or WebView app](/developers/browser-routing) covers the mechanics there: the leak guard, CSP enforcement, and the traffic a web app cannot route.
-
-**Check the workload first, though.** The mixnet suits small, independent requests and cannot serve bulk transfer or anything interactive. [What Nym cannot do](/developers/limitations) lists the workloads that do not fit, what the default sending rate costs, and where dVPN mode is the answer instead. Ruling Nym out in the first hour is a better outcome than discovering it in week three.
+1. **Does the workload fit?** [What Nym cannot do](/developers/limitations)
+   rules the mixnet in or out while doing so is still cheap.
+2. **What are you defending against?**
+   [Choose a defence](/network/threat-model/choose-config) turns your threat
+   model into a network configuration. For a
+   [wallet](/network/threat-model/examples/wallet), a
+   [messaging app](/network/threat-model/examples/messaging) or
+   [web browsing](/network/threat-model/examples/browsing), that work is
+   already done.
+3. **Pick a package.** The matrix below maps your runtime and approach to a
+   crate or package.
+4. **Decide what to route.**
+   [Planning an integration](/developers/integrating) works through it
+   endpoint by endpoint. In a browser or WebView,
+   [routing a browser or WebView app](/developers/browser-routing) has the
+   mechanics.
 </Callout>
 
 ## Choosing a package
@@ -68,7 +79,7 @@ The table below maps those two answers to a package.
 </Callout>
 
 <Callout type="info">
-**Throughput over the mixnet, threat model permitting.** To move large amounts of data faster than the Sphinx mixnet, [`nym-smoldvpn`](/developers/smoldvpn) tunnels your tokio traffic over a userspace WireGuard dVPN (1-/2-hop, exit to clearnet) instead. This trades the mixnet's metadata protection for WireGuard-level throughput, so choose it only where that trade suits your threat model. A general integration guide is coming soon.
+**Throughput over the mixnet, threat model permitting.** For bulk data, [`nym-smoldvpn`](/developers/smoldvpn) tunnels your tokio traffic over a userspace WireGuard dVPN instead. [What Nym cannot do](/developers/limitations#is-my-workload-a-fit) covers what that trade gives up.
 </Callout>
 
 ## End-to-end or proxy

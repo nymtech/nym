@@ -103,7 +103,8 @@ pub(crate) struct IssuableEpochs {
     pub(crate) issuable: EpochId,
 
     /// The epoch [`Self::issuable`] replaced, while other signers may still be serving it because
-    /// they have not seen the change yet. Always `issuable - 1` when present.
+    /// they have not seen the change yet. Not necessarily `issuable - 1`: any number of failed
+    /// ceremonies may sit between the two, and none of those epochs was ever issuable.
     pub(crate) outgoing_in_grace: Option<EpochId>,
 }
 
@@ -244,29 +245,20 @@ impl EcashState {
     /// the change, so that a client which resolved it - or which is talking to signers that have
     /// not caught up - can finish collecting under it. See [`Self::within_grace_of`].
     pub(crate) async fn issuable_epochs(&self) -> Result<IssuableEpochs> {
-        let current = self.current_dkg_epoch().await?;
+        // one snapshot for the whole answer: a ceremony concluding between two reads would
+        // otherwise be able to name an issuable epoch from one side of the change and a window
+        // from the other
+        let epoch = self.aux.comm_channel.current_epoch_details().await?;
 
-        if !self.aux.comm_channel.ceremony_concluded(current).await? {
-            // a ceremony is running for `current`, so the epoch before it is the one in service.
-            // its own conclusion is long past, and no change of issuable epoch has just happened,
-            // so nothing is in grace - which is why the *start* of a ceremony races with nothing.
-            let Some(issuable) = current.checked_sub(1) else {
-                return Err(EcashError::NoIssuableEpoch);
-            };
-            return Ok(IssuableEpochs {
-                issuable,
-                outgoing_in_grace: None,
-            });
-        }
+        let Some(issuable) = epoch.issuing_epoch_id() else {
+            return Err(EcashError::NoIssuableEpoch);
+        };
 
-        // `current` has concluded, so it is in service and the epoch it replaced may still be
-        // within the window measured from that conclusion
-        let concluded_at = self
-            .aux
-            .comm_channel
-            .current_ceremony_concluded_at()
-            .await?;
-        let outgoing_in_grace = match (current.checked_sub(1), concluded_at) {
+        // a window only opens where a ceremony has just concluded and put a *different* epoch into
+        // service. while one is running - or has failed, leaving the id ahead of the keys - the
+        // issuable epoch has not changed, so there is nothing to overlap with: which is why the
+        // start of a ceremony races with nothing.
+        let outgoing_in_grace = match (epoch.outgoing_keys, epoch.ceremony_concluded_at) {
             (Some(outgoing), Some(concluded_at)) if self.within_grace_of(concluded_at) => {
                 Some(outgoing)
             }
@@ -274,7 +266,7 @@ impl EcashState {
         };
 
         Ok(IssuableEpochs {
-            issuable: current,
+            issuable,
             outgoing_in_grace,
         })
     }
@@ -1276,7 +1268,7 @@ mod issuable_epoch_tests {
         let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
 
         comm.set_current_epoch(2).await;
-        comm.start_ceremony();
+        comm.start_ceremony().await;
 
         let issuable = state.issuable_epochs().await.unwrap();
 
@@ -1326,13 +1318,52 @@ mod issuable_epoch_tests {
         let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
 
         comm.set_current_epoch(2).await;
-        comm.conclude_ceremony();
+        comm.conclude_ceremony().await;
         comm.set_ceremony_concluded_at(None).await;
 
         let issuable = state.issuable_epochs().await.unwrap();
 
         assert_eq!(issuable.issuable, 2);
         assert_eq!(issuable.outgoing_in_grace, None);
+    }
+
+    /// A ceremony that fails moves the epoch id on without producing keys, so the epoch it
+    /// abandons is not issuable - it has no aggregate key and never will. The generation already
+    /// in service keeps serving instead, which is what stops a failed reset from halting issuance
+    /// network-wide until some later ceremony happens to succeed.
+    #[tokio::test]
+    async fn a_failed_ceremony_leaves_the_epoch_in_service_issuable() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        // epoch 1's keys are in service; the ceremony for 2 starts, fails, and the contract
+        // resets into 3
+        comm.set_current_epoch(2).await;
+        comm.start_ceremony().await;
+        comm.fail_ceremony().await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(3, comm.current_epoch());
+        assert_eq!(1, issuable.issuable);
+        assert_eq!(None, issuable.outgoing_in_grace);
+    }
+
+    /// And when one finally concludes, the epoch it supersedes is the one that was actually in
+    /// service, not the id below it: that one concluded nothing, so a client cannot have been
+    /// collecting under it and honouring it would extend the window to an epoch with no keys.
+    #[tokio::test]
+    async fn concluding_after_a_failure_grants_grace_to_the_epoch_that_was_in_service() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(2).await;
+        comm.start_ceremony().await;
+        comm.fail_ceremony().await;
+        comm.conclude_ceremony_ago(Duration::from_secs(60)).await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(3, issuable.issuable);
+        assert_eq!(Some(1), issuable.outgoing_in_grace);
     }
 
     /// Before any ceremony has ever concluded there is nothing to issue under, and no earlier
@@ -1342,7 +1373,7 @@ mod issuable_epoch_tests {
         let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
 
         comm.set_current_epoch(0).await;
-        comm.start_ceremony();
+        comm.start_ceremony().await;
 
         assert!(matches!(
             state.issuable_epochs().await,

@@ -60,7 +60,6 @@ use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse}
 use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
-use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::str::FromStr;
@@ -1117,6 +1116,12 @@ struct CommStateInner {
     /// both a running ceremony and an epoch that concluded before the contract recorded this.
     ceremony_concluded_at: RwLock<Option<Timestamp>>,
 
+    /// Which epoch's keys are in service, and the one they replaced - the chain's answer, kept
+    /// explicitly rather than derived from [`Self::current_epoch`], because the derivation is
+    /// only right while no ceremony has ever failed.
+    keys_in_service: RwLock<Option<EpochId>>,
+    outgoing_keys: RwLock<Option<EpochId>>,
+
     ecash_clients: RwLock<HashMap<EpochId, Vec<EcashApiClient>>>,
 }
 
@@ -1129,8 +1134,29 @@ impl SharedCommState {
                 ceremony_in_flight: AtomicBool::new(false),
                 // as on mainnet today: concluded, but before the chain recorded when
                 ceremony_concluded_at: RwLock::new(None),
+                keys_in_service: RwLock::new(Some(epoch_id)),
+                outgoing_keys: RwLock::new(None),
                 ecash_clients: RwLock::new(HashMap::from([(epoch_id, ecash_clients)])),
             }),
+        }
+    }
+
+    /// The epoch as the chain would report it, so the dummy answers from the same type the real
+    /// channel does rather than reimplementing its rules.
+    pub async fn epoch(&self) -> Epoch {
+        let state = if self.ceremony_in_flight() {
+            EpochState::DealingExchange { resharing: false }
+        } else {
+            EpochState::InProgress
+        };
+
+        Epoch {
+            state,
+            epoch_id: self.current_epoch(),
+            ceremony_concluded_at: self.ceremony_concluded_at().await,
+            keys_in_service: *self.inner.keys_in_service.read().await,
+            outgoing_keys: *self.inner.outgoing_keys.read().await,
+            ..Default::default()
         }
     }
 
@@ -1146,7 +1172,7 @@ impl SharedCommState {
     /// Conclude the current epoch's ceremony `ago` before now, so a test can sit inside or
     /// outside a window measured from it without touching a clock.
     pub async fn conclude_ceremony_ago(&self, ago: std::time::Duration) {
-        self.conclude_ceremony();
+        self.conclude_ceremony().await;
         let now = time::OffsetDateTime::now_utc().unix_timestamp() as u64;
         self.set_ceremony_concluded_at(Some(Timestamp::from_seconds(now - ago.as_secs())))
             .await;
@@ -1157,6 +1183,9 @@ impl SharedCommState {
     }
 
     /// Move to a new epoch, carrying the signers of the old one over to it.
+    ///
+    /// The keys in service stay where they are, as they do on chain: moving to a new epoch id is
+    /// a ceremony *starting*, which retires nothing.
     pub async fn set_current_epoch(&self, epoch_id: EpochId) {
         let previous = self.current_epoch();
         self.inner.current_epoch.store(epoch_id, Ordering::Relaxed);
@@ -1167,15 +1196,33 @@ impl SharedCommState {
         }
     }
 
-    /// Put the current epoch mid-ceremony, as a rotation would.
-    pub fn start_ceremony(&self) {
+    /// Put the current epoch mid-ceremony, as a rotation would: its own keys do not exist yet, so
+    /// the epoch before it is the one in service.
+    pub async fn start_ceremony(&self) {
         self.inner.ceremony_in_flight.store(true, Ordering::Relaxed);
+        *self.inner.keys_in_service.write().await = self.current_epoch().checked_sub(1);
+        *self.inner.outgoing_keys.write().await = None;
     }
 
-    pub fn conclude_ceremony(&self) {
+    /// A ceremony that failed: the contract resets into a fresh epoch id and the keys already in
+    /// service keep serving, however many attempts it takes.
+    pub async fn fail_ceremony(&self) {
+        let next = self.current_epoch() + 1;
+        self.inner.current_epoch.store(next, Ordering::Relaxed);
+        self.inner.ceremony_in_flight.store(true, Ordering::Relaxed);
+        *self.inner.ceremony_concluded_at.write().await = None;
+    }
+
+    pub async fn conclude_ceremony(&self) {
         self.inner
             .ceremony_in_flight
             .store(false, Ordering::Relaxed);
+
+        // concluding puts the current epoch's keys into service, superseding whichever generation
+        // held that position - not `current - 1`, which a failed ceremony leaves behind
+        let superseded = *self.inner.keys_in_service.read().await;
+        *self.inner.outgoing_keys.write().await = superseded;
+        *self.inner.keys_in_service.write().await = Some(self.current_epoch());
     }
 
     pub fn ceremony_in_flight(&self) -> bool {
@@ -1242,16 +1289,13 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
     }
 
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
-        // mirrors the real channel: only the current epoch's ceremony can be unfinished
-        match epoch_id.cmp(&self.state.current_epoch()) {
-            CmpOrdering::Less => Ok(true),
-            CmpOrdering::Greater => Ok(false),
-            CmpOrdering::Equal => Ok(!self.state.ceremony_in_flight()),
-        }
+        // delegated rather than reimplemented, so the dummy cannot drift from the rule the real
+        // channel applies
+        Ok(self.state.epoch().await.is_ceremony_concluded(epoch_id))
     }
 
-    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>> {
-        Ok(self.state.ceremony_concluded_at().await)
+    async fn current_epoch_details(&self) -> Result<Epoch> {
+        Ok(self.state.epoch().await)
     }
 
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
@@ -1719,7 +1763,7 @@ mod credential_tests {
 
         // a ceremony begins for epoch 2; this signer still holds only epoch 1's key
         fixture.set_epoch(2).await;
-        fixture.comm_state.start_ceremony();
+        fixture.comm_state.start_ceremony().await;
 
         for pinned in [Some(1), None] {
             let response = fixture
@@ -1754,7 +1798,7 @@ mod credential_tests {
         fixture.add_chain_deposit(&voucher);
 
         fixture.set_epoch(2).await;
-        fixture.comm_state.start_ceremony();
+        fixture.comm_state.start_ceremony().await;
 
         let response = fixture
             .blind_sign(
@@ -2250,7 +2294,7 @@ mod credential_tests {
 
         // a new ceremony begins: the epoch id increments and its keys do not exist yet
         fixture.set_epoch(past_epoch + 1).await;
-        fixture.comm_state.start_ceremony();
+        fixture.comm_state.start_ceremony().await;
         let current_epoch = fixture.comm_state.current_epoch();
 
         let request = |epoch_id: EpochId| {
@@ -2305,7 +2349,7 @@ mod credential_tests {
 
         // a ceremony begins for the next epoch, which has nothing to give yet
         fixture.set_epoch(in_service + 1).await;
-        fixture.comm_state.start_ceremony();
+        fixture.comm_state.start_ceremony().await;
 
         let response = fixture
             .axum

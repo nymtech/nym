@@ -993,7 +993,16 @@ impl Client {
         // Only compare against the front host if the current url actually has one configured -
         // otherwise requests to it go out unfronted, so the offending host will be the real one.
         if self.front.is_enabled() && self.current_url().has_front() {
-            url.host_str() == self.current_url().front_str()
+            let active_front = if self.front.include_non_fronted_in_rotation() {
+                self.current_url().active_rotation_front_str()
+            } else {
+                self.current_url().front_str()
+            };
+
+            match active_front {
+                Some(_) => url.host_str() == active_front,
+                None => url.host_str() == self.current_url().host_str(),
+            }
         } else {
             url.host_str() == self.current_url().host_str()
         }
@@ -1020,13 +1029,18 @@ impl Client {
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            // if we are using fronting, try updating to the next front
             let url = self.current_url();
 
-            // try to update the current host to use a next front, if one is available, otherwise
-            // we move on and try the next base url (if one is available)
-            if url.has_front() && !url.update() {
-                // we swapped to the next front for the current host
+            if self.front.include_non_fronted_in_rotation() {
+                // each host gets a turn shown directly before cycling through its fronts one at
+                // a time - only rotate away once the direct turn and every front are exhausted.
+                if url.has_front() && url.take_rotation_turn() {
+                    return;
+                }
+            } else if url.has_front() && !url.update() {
+                // if we are using fronting, try updating to the next front. If one is available
+                // we swapped to it for the current host, otherwise we move on and try the next
+                // base url (if one is available)
                 return;
             }
         }
@@ -1037,9 +1051,10 @@ impl Client {
             #[allow(unused_mut)]
             let mut next = (orig + 1) % self.base_urls.len();
 
-            // if fronting is enabled we want to update to a host that has fronts configured
+            // if fronting is enabled we want to update to a host that has fronts configured,
+            // unless the policy explicitly allows non-fronted domains into the rotation.
             #[cfg(feature = "tunneling")]
-            if self.front.is_enabled() {
+            if self.front.is_enabled() && !self.front.include_non_fronted_in_rotation() {
                 while next != orig {
                     if self.base_urls[next].has_front() {
                         // we have a front for the next host, so we can use it
@@ -1076,7 +1091,13 @@ impl Client {
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            if let Some(front_host) = url.front_str() {
+            let front_host = if self.front.include_non_fronted_in_rotation() {
+                url.active_rotation_front_str()
+            } else {
+                url.front_str()
+            };
+
+            if let Some(front_host) = front_host {
                 if let Some(actual_host) = url.host_str() {
                     tracing::debug!(
                         "Domain fronting enabled: routing via CDN {} to actual host {}",
@@ -1102,7 +1123,7 @@ impl Client {
                         .headers_mut()
                         .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
-                    return (url.as_str(), url.front_str());
+                    return (url.as_str(), Some(front_host));
                 } else {
                     tracing::debug!(
                         "Domain fronting is enabled, but no host_url is defined for current URL"
@@ -1194,7 +1215,7 @@ impl ApiClientCore for Client {
             let mut req = r
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
-            self.apply_hosts_to_req(&mut req);
+            let (_, _front_used) = self.apply_hosts_to_req(&mut req);
             let url: Url = req.url().clone().into();
 
             let request_start = Instant::now();
@@ -1228,6 +1249,18 @@ impl ApiClientCore for Client {
                         warn!("encountered rate limit error for {}", url.as_str());
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
+                    } else {
+                        #[cfg(feature = "tunneling")]
+                        if _front_used.is_none()
+                            && self.front.is_enabled()
+                            && self.front.should_recover_on_non_fronted_success()
+                        {
+                            debug!(
+                                "non-fronted request to {} succeeded while fronting was enabled; disabling fronting and resetting retry counters",
+                                url.as_str()
+                            );
+                            self.front.recover();
+                        }
                     }
 
                     return Ok(resp);
@@ -1248,10 +1281,7 @@ impl ApiClientCore for Client {
                         self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        self.maybe_enable_fronting(
-                            url.host_str(),
-                            ("network", url.as_str(), &err),
-                        );
+                        self.maybe_enable_fronting(url.host_str(), ("network", url.as_str(), &err));
                     }
 
                     if attempts < self.retry_limit {

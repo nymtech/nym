@@ -5,7 +5,7 @@ use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
     AssignedTestrun, AssignmentRequest, CompletedTestRun, NewNymNode, NewTestRun, NymNode,
-    PairingSchedule, TestKind, TestRunInProgress, TestRunMeasurement,
+    PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
@@ -33,6 +33,26 @@ pub(crate) struct NetworkMonitorStorage {
 }
 
 impl NetworkMonitorStorage {
+    /// A migrated, empty database held entirely in memory, for tests that need storage without a
+    /// file on disk.
+    #[cfg(test)]
+    pub(crate) async fn in_memory() -> Self {
+        let connection_pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("failed to create in-memory SQLite pool");
+        let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        sqlx::migrate::Migrator::new(migrations.as_path())
+            .await
+            .expect("failed to find migrations")
+            .run(&connection_pool)
+            .await
+            .expect("failed to run migrations");
+
+        NetworkMonitorStorage {
+            storage_manager: StorageManager { connection_pool },
+        }
+    }
+
     /// Opens (or creates) the SQLite database at `database_path`, configures
     /// WAL journaling and incremental auto-vacuum, and runs the embedded
     /// migrations. Slow statements (>50ms) are logged at `WARN`.
@@ -160,8 +180,7 @@ impl NetworkMonitorStorage {
     ) -> anyhow::Result<Vec<AssignedTestrun>> {
         let now = OffsetDateTime::now_utc();
         let request = AssignmentRequest {
-            test_kind: schedule.test_kind,
-            tested_role: schedule.tested_role,
+            pairing: schedule.pairing,
             now,
             last_tested_before: now - schedule.staleness_age,
             expires_at: now + schedule.lease_budget,
@@ -173,6 +192,22 @@ impl NetworkMonitorStorage {
             PROMETHEUS_METRICS.inc_by(PrometheusMetric::TestrunsInProgress, assigned.len() as i64);
         }
         Ok(assigned)
+    }
+
+    /// How overdue the node one pairing would assign next is, judged against the same staleness gate
+    /// the assignment would apply, or `None` if that pairing has nothing eligible.
+    ///
+    /// Read before dispatching a kind that owns more than one pairing, to settle which of them is
+    /// furthest behind.
+    pub(crate) async fn peek_pairing_head(
+        &self,
+        pairing: TestPairing,
+        staleness_age: Duration,
+    ) -> anyhow::Result<Option<PairingHead>> {
+        let last_tested_before = OffsetDateTime::now_utc() - staleness_age;
+        self.storage_manager
+            .peek_pairing_head(pairing, last_tested_before)
+            .await
     }
 
     /// Fetches a single completed test run with its measurements by its row id, or `None` if it

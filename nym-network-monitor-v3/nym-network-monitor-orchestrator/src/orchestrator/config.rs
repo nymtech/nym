@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::storage::models::TestedRole;
 use anyhow::Context;
 use nym_network_defaults::{NymNetworkDetails, env_configured};
 use nym_validator_client::nyxd::AccountId;
@@ -43,6 +44,16 @@ pub(crate) struct LivenessConfig {
     /// costs a full client session where a mixnode target costs a Noise connection. v1 ran a
     /// 50-client window over its whole gateway population per cycle.
     pub(crate) gateway_wave_size: usize,
+}
+
+impl LivenessConfig {
+    /// The wave size that applies to `role`.
+    pub(crate) fn wave_size(&self, role: TestedRole) -> usize {
+        match role {
+            TestedRole::Mixnode => self.mixnode_wave_size,
+            TestedRole::Gateway => self.gateway_wave_size,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

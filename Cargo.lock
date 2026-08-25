@@ -6607,7 +6607,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -6664,6 +6664,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",
+ "nym-http-api-client",
  "nym-network-defaults",
  "nym-validator-client",
  "rand 0.8.6",

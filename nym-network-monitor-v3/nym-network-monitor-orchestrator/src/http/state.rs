@@ -264,6 +264,28 @@ pub(crate) struct KnownAgent {
     pub(crate) announced: bool,
 }
 
+/// Counts one dispatched assignment against its pairing, and records the wave's width where the
+/// pairing has one. A stress assignment has no wave series: its width is fixed at one by the wire
+/// type, so a histogram of it would carry no information.
+fn emit_assignment_metrics(pairing: TestPairing, wave_size: usize) {
+    let (assignments, wave) = match (pairing.test_kind, pairing.tested_role) {
+        (TestKind::Stress, _) => (PrometheusMetric::MixnodeStressAssignments, None),
+        (TestKind::Liveness, TestedRole::Mixnode) => (
+            PrometheusMetric::MixnodeLivenessAssignments,
+            Some(PrometheusMetric::MixnodeLivenessWaveSize),
+        ),
+        (TestKind::Liveness, TestedRole::Gateway) => (
+            PrometheusMetric::GatewayLivenessAssignments,
+            Some(PrometheusMetric::GatewayLivenessWaveSize),
+        ),
+    };
+
+    PROMETHEUS_METRICS.inc(assignments);
+    if let Some(wave) = wave {
+        PROMETHEUS_METRICS.observe_histogram(wave, wave_size as f64);
+    }
+}
+
 /// The orchestrator writes every field a probe target is built from itself, so a decoding failure
 /// is corruption or a schema regression rather than anything the request did. Logged here, where
 /// there is a request to answer, since the storage layer reports it as a plain error.
@@ -347,7 +369,15 @@ impl TestrunManager {
             }
         };
 
-        self.build_assignment(pairing, &targets)
+        let assignment = self.build_assignment(pairing, &targets)?;
+
+        // counted only once the assignment is built, so the series count work actually handed out
+        // rather than nodes that were locked and then dropped as malformed
+        if assignment.is_some() {
+            emit_assignment_metrics(pairing, targets.len());
+        }
+
+        Ok(assignment)
     }
 
     /// The pairing of `kind` whose next node has waited longest, or `None` when none of them has an

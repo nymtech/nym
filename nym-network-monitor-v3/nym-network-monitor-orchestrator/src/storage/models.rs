@@ -513,19 +513,21 @@ pub(crate) struct NewNymNode {
     pub(crate) clients_ws_port: Option<i64>,
 }
 
-impl NewNymNode {
+/// What is known about a node from its on-chain bond alone, i.e. without its own endpoint having
+/// answered. Written on its own when a refresh could not describe the node, so that the bond is
+/// still recorded without disturbing anything learned in an earlier cycle.
+pub(crate) struct BondedNymNode {
+    pub(crate) node_id: i64,
+    pub(crate) identity_key: String,
+    pub(crate) last_seen_bonded: OffsetDateTime,
+}
+
+impl BondedNymNode {
     pub(crate) fn from_bond(bond: &NymNodeBond) -> Self {
-        NewNymNode {
+        BondedNymNode {
             node_id: bond.node_id as i64,
             identity_key: bond.identity().to_string(),
             last_seen_bonded: OffsetDateTime::now_utc(),
-            mixnet_socket_address: None,
-            announced_ips: None,
-            noise_key: None,
-            sphinx_key: None,
-            key_rotation_id: None,
-            node_type: NodeType::Unknown,
-            clients_ws_port: None,
         }
     }
 }

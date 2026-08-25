@@ -4,15 +4,15 @@
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{
-    AssignedTestrun, AssignmentRequest, CompletedTestRun, NewNymNode, NewTestRun, NymNode,
-    PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress, TestRunMeasurement,
+    AssignedTestrun, AssignmentRequest, BondedNymNode, CompletedTestRun, NewNymNode, NewTestRun,
+    NymNode, PairingHead, PairingSchedule, TestKind, TestPairing, TestRunInProgress,
+    TestRunMeasurement,
 };
 use anyhow::Context;
 use nym_network_monitor_orchestrator_requests::models::Pagination;
 use nym_validator_client::client::NodeId;
 use sqlx::ConnectOptions;
 use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
-use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 use strum::IntoEnumIterator;
@@ -140,6 +140,15 @@ impl NetworkMonitorStorage {
             );
         }
         Ok(())
+    }
+
+    /// Records that these nodes are still bonded without touching anything learned from their own
+    /// endpoints, for nodes whose describe failed this cycle.
+    pub(crate) async fn batch_touch_bonded_nodes(
+        &self,
+        nodes: &[BondedNymNode],
+    ) -> anyhow::Result<()> {
+        self.storage_manager.batch_touch_bonded_nodes(nodes).await
     }
 
     /// The in-flight row for a node, i.e. what the orchestrator dispatched and is still waiting on.

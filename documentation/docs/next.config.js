@@ -233,6 +233,19 @@ const config = {
         permanent: true,
         basePath: false,
       },
+      // retrofitting renamed: developers/retrofitting → developers/browser-routing (2026-08-21)
+      {
+        source: "/developers/retrofitting",
+        destination: "/docs/developers/browser-routing",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/docs/developers/retrofitting",
+        destination: "/docs/developers/browser-routing",
+        permanent: true,
+        basePath: false,
+      },
       {
         source: "/docs/architecture/traffic-flow.html",
         destination: "/docs/network/mixnet-mode/traffic-flow",

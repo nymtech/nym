@@ -217,6 +217,17 @@ mod tests {
     fn set_policy_shared_client() {
         let _guard = crate::lock_shared_test_state();
 
+        // restores the shared policy to whatever it was before this test on scope exit (including
+        // on panic/assertion failure), so a leaked mutation can't leak into whichever test the
+        // shared-state lock is handed to next.
+        struct RestoreFrontPolicy(FrontPolicy);
+        impl Drop for RestoreFrontPolicy {
+            fn drop(&mut self) {
+                *SHARED_FRONTING_POLICY.write().unwrap() = self.0.clone();
+            }
+        }
+        let _restore_policy = RestoreFrontPolicy(SHARED_FRONTING_POLICY.read().unwrap().clone());
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),

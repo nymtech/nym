@@ -55,7 +55,10 @@ async fn dns_lookup() -> Result<(), ResolveError> {
 #[tokio::test]
 async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
     let example_domain = "non-existent.nymvpn.com";
-    let mut resolver = HickoryDnsResolver::new();
+    let mut resolver: HickoryDnsResolver = HickoryDnsResolver {
+        use_shared: false,
+        ..Default::default()
+    };
 
     let result = resolver.resolve_str(example_domain).await;
     assert!(result.is_err()); // should be NXDomain
@@ -69,7 +72,7 @@ async fn static_resolver_as_fallback() -> Result<(), ResolveError> {
 
     resolver.set_fallback_addrs(addr_map);
 
-    let mut addrs = resolver.resolve_str(example_domain).await?;
+    let addrs = resolver.resolve_str(example_domain).await?.collect_vec();
     assert!(addrs.contains(&example_ip4));
     assert!(addrs.contains(&example_ip6));
     Ok(())
@@ -285,68 +288,16 @@ mod failure_test {
     }
 
     #[tokio::test]
-    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
-    // This test impacts the state of the shared resolver and as such is disabled to avoid
-    // interference with other tests.
-    //
-    // this test is dependent of external network setup -- i.e. blocking all traffic to the
-    // default resolvers. Otherwise the default resolvers will succeed without using the static
-    // fallback, making the test pointless
-    async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
-        let resolver1 = HickoryDnsResolver::shared();
-
-        let time_start = std::time::Instant::now();
-        // create a new resolver that uses the shared resolver
-        let resolver = HickoryDnsResolver::shared();
-
-        // successful lookup using fallback to static resolver
-        let domain = "rpc.nymtech.net";
-        let _ = resolver
-            .resolve_str(domain)
-            .await
-            .expect("failed to resolve address in static lookup");
-
-        let lookup_dur = Instant::now() - time_start;
-        assert!(
-            lookup_dur > resolver.overall_dns_timeout,
-            "expected lookup timeout - took {}ms",
-            (lookup_dur).as_millis()
-        );
-
-        let time_start = std::time::Instant::now();
-        // successful lookup using pre-resolve entry promoted from fallback
-        let domain = "rpc.nymtech.net";
-        let _ = resolver1
-            .resolve_str(domain)
-            .await
-            .expect("domain expected to be in pre-resolve");
-
-        // this lookup should basically be instant as we are using pre-resolve
-        let lookup_dur = std::time::Instant::now() - time_start;
-        assert!(
-            lookup_dur < Duration::from_millis(10),
-            "expected instant - took {}ms",
-            (lookup_dur).as_millis()
-        );
-
-        // unsuccessful lookup - primary times out, and not in static table
-        let domain = "non-existent.nymtech.net";
-        let result = resolver.resolve_str(domain).await;
-        assert!(result.is_err());
-        // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
-        // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
-    // This test impacts the state of the shared resolver and as such is disabled to avoid
-    // interference with other tests.
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     async fn setting_dns_fallbacks_with_shared_resolver() -> Result<(), ResolveError> {
-        let resolver1 = HickoryDnsResolver::shared();
+        // mutates the process-wide shared resolver's nameserver group and cached resolver, so must
+        // not run concurrently with any other test that resolves through the shared resolver.
+        let _guard = crate::lock_shared_test_state();
+
+        let resolver1 = HickoryDnsResolver::new();
 
         // create a new resolver that uses the shared resolver
-        let mut resolver = HickoryDnsResolver::shared();
+        let mut resolver = HickoryDnsResolver::new();
 
         let example_domains = [
             String::from("static1.nymvpn.com"),
@@ -392,6 +343,63 @@ mod failure_test {
             .pre_resolve(&example_domains[0]);
         assert!(prereslve_lookup.is_none());
 
+        // cleanup state of shared resolver before finishing test
+        resolver1.clear_preresolve();
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
+    // This test impacts the state of the shared resolver and as such is disabled to avoid
+    // interference with other tests.
+    //
+    // this test is dependent on external network setup -- i.e. blocking all traffic to the
+    // default resolvers. Otherwise the default resolvers will succeed without using the static
+    // fallback, making the test pointless
+    async fn dns_lookup_failure_on_shared() -> Result<(), ResolveError> {
+        let resolver1 = HickoryDnsResolver::shared();
+
+        let time_start = std::time::Instant::now();
+        // create a new resolver that uses the shared resolver
+        let resolver = HickoryDnsResolver::shared();
+
+        // successful lookup using fallback to static resolver
+        let domain = "rpc.nymtech.net";
+        let _ = resolver
+            .resolve_str(domain)
+            .await
+            .expect("failed to resolve address in static lookup");
+
+        let lookup_dur = Instant::now() - time_start;
+        assert!(
+            lookup_dur > resolver.overall_dns_timeout,
+            "expected lookup timeout - took {}ms",
+            (lookup_dur).as_millis()
+        );
+
+        let time_start = std::time::Instant::now();
+        // successful lookup using pre-resolve entry promoted from fallback
+        let domain = "rpc.nymtech.net";
+        let _ = resolver1
+            .resolve_str(domain)
+            .await
+            .expect("domain expected to be in pre-resolve");
+
+        // this lookup should basically be instant as we are using pre-resolve
+        let lookup_dur = std::time::Instant::now() - time_start;
+        assert!(
+            lookup_dur < Duration::from_millis(10),
+            "expected instant - took {}ms",
+            (lookup_dur).as_millis()
+        );
+
+        // unsuccessful lookup - primary times out, and not in static table
+        let domain = "non-existent.nymtech.net";
+        let result = resolver.resolve_str(domain).await;
+        assert!(result.is_err());
+        // assert!(result.is_err_and(|e| matches!(e, ResolveError::Timeout)));
+        // assert!(result.is_err_and(|e| matches!(e, ResolveError::ResolveError(e) if e.is_nx_domain())));
         Ok(())
     }
 }

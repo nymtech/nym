@@ -210,11 +210,10 @@ impl HickoryDnsResolver<TokioRuntimeProvider> {
     ///
     /// Prefer this over `Default::default()` / `HickoryDnsResolver::default()`: since
     /// [`HickoryDnsResolver`] is generic over its connection provider, `Default` is implemented for
-    /// every valid provider. Building a `HickoryDnsResolver` through the `Default`` trait therefore
-    /// requires a type annotation dns e.g. a bare `let resolver:
-    /// HickoryDnsResolver<TokioRuntimeProvider> = HickoryDnsResolver::default();`). `new` is
-    /// already inherent to [`TokioRuntimeProvider`] specifically, so it resolves without needing an
-    /// explicit type annotation.
+    /// every valid provider. Building a `HickoryDnsResolver` through the `Default` trait therefore
+    /// requires a type annotation, e.g. `let resolver: HickoryDnsResolver<TokioRuntimeProvider> =
+    /// HickoryDnsResolver::default();`. `new` is inherent to [`TokioRuntimeProvider`] specifically,
+    /// so it resolves without an explicit type annotation.
     pub fn new() -> Self {
         Self::default()
     }
@@ -515,12 +514,11 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     }
 }
 
-/// Successfully resolved addresses are cached for a minimum of 30 minutes
-/// Individual lookup Timeouts are set to 3 seconds
-/// Number of retries after lookup failure before giving up is set to (default) to 2
-/// Lookup order is set to (default) A then AAAA
-/// Number or parallel lookup is set to (default) 2
-/// Nameserver selection uses the (default) EWMA statistics / performance based strategy
+/// Successfully resolved addresses are cached for a minimum of 30 minutes Individual lookup
+/// timeouts are set to `DEFAULT_QUERY_TIMEOUT` (5 seconds) Retries after lookup failure are
+/// disabled (`attempts = 0`) Lookup order is set to (default) A then AAAA Number or parallel lookup
+/// is set to (default) 2 Nameserver selection uses the (default) EWMA statistics / performance
+/// based strategy
 fn default_options() -> ResolverOpts {
     let mut opts = ResolverOpts::default();
     // Always cache successful responses for queries received by this resolver for 30 min minimum.

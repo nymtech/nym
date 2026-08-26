@@ -5931,6 +5931,7 @@ dependencies = [
  "nym-crypto",
  "nym-directory-attestation",
  "nym-directory-client",
+ "nym-directory-contract-common",
  "nym-dkg",
  "nym-ecash-contract-common",
  "nym-ecash-signer-check",

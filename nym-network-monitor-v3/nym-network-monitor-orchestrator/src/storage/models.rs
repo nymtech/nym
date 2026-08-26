@@ -721,9 +721,6 @@ pub(crate) struct TestRunInProgress {
     /// When the lease expires and the row becomes reapable, materialised at dispatch as
     /// `started_at` plus the kind's lease budget so the eviction sweep never has to learn about
     /// kinds.
-    // compared in SQL by the eviction sweep rather than in Rust; surfaced on the operator read
-    // surface alongside the kind and role
-    #[allow(dead_code)]
     pub(crate) expires_at: OffsetDateTime,
 
     /// What the run was dispatched to measure, and against which role of the node. This is the
@@ -734,14 +731,18 @@ pub(crate) struct TestRunInProgress {
     pub(crate) tested_role: TestedRole,
 }
 
-/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id`
-/// from the sqlx-native `i64` to the API's `u32`. The lease, kind and role are deliberately not
-/// surfaced yet; exposing them on the operator read surface belongs with the rest of that work.
+/// Lifts a `testrun_in_progress` row into the public shape, narrowing `node_id` from the
+/// sqlx-native `i64` to the API's `u32`. The lease, kind and role come across as stored: they are
+/// what the orchestrator chose at dispatch, so the read surface shows what an agent was actually
+/// asked for rather than what it later claims to have run.
 impl From<TestRunInProgress> for TestRunInProgressData {
     fn from(row: TestRunInProgress) -> Self {
         TestRunInProgressData {
             node_id: row.node_id as u32,
+            test_kind: row.test_kind.into(),
+            tested_role: row.tested_role.into(),
             started_at: row.started_at,
+            expires_at: row.expires_at,
         }
     }
 }
@@ -1026,6 +1027,28 @@ mod tests {
     fn malformed_announced_ips_are_skipped() {
         let announced = node(Some("not-an-ip,2.2.2.2")).announced_ips();
         assert_eq!(announced, vec!["2.2.2.2".parse::<IpAddr>().unwrap()]);
+    }
+
+    /// The lease and the pairing are what let an operator tell a slow run from an abandoned one,
+    /// and a dual-role node's two concurrent-looking runs from each other. Distinct timestamps
+    /// because `started_at` and `expires_at` share a type and would transpose silently.
+    #[test]
+    fn an_in_progress_run_carries_its_kind_role_and_lease() {
+        let row = TestRunInProgress {
+            node_id: 42,
+            started_at: datetime!(2026-08-01 00:00:00 UTC),
+            expires_at: datetime!(2026-08-01 00:01:00 UTC),
+            test_kind: TestKind::Liveness,
+            tested_role: TestedRole::Gateway,
+        };
+
+        let data = TestRunInProgressData::from(row);
+
+        assert_eq!(data.node_id, 42);
+        assert_eq!(data.test_kind, api::TestKind::Liveness);
+        assert_eq!(data.tested_role, api::TestedRole::Gateway);
+        assert_eq!(data.started_at, datetime!(2026-08-01 00:00:00 UTC));
+        assert_eq!(data.expires_at, datetime!(2026-08-01 00:01:00 UTC));
     }
 
     /// The scoring of a liveness run, i.e. what the nym-api is asked to weight a node by.

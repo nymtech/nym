@@ -1250,10 +1250,19 @@ impl ApiClientCore for Client {
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
                     } else {
+                        // If fronting is enabled and we rotate through a non-fronted SNI that
+                        // succeeds it means that an API endpoint is working when accessed directly.
+                        // We then reset counters for fronting enable and begin state tracking anew.
+                        //
+                        // While HTTP failures (e.g. 400 404, 502, etc.) to non-fronted API calls
+                        // still indicate that the request "succeeded" from the point of view of
+                        // domain fronting this check requires that the HTTP request itself
+                        // succeeded (e.g. 2XX response).
                         #[cfg(feature = "tunneling")]
                         if _front_used.is_none()
                             && self.front.is_enabled()
                             && self.front.should_recover_on_non_fronted_success()
+                            && resp.status().is_success()
                         {
                             debug!(
                                 "non-fronted request to {} succeeded while fronting was enabled; disabling fronting and resetting retry counters",

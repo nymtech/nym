@@ -213,8 +213,10 @@ mod tests {
     // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
     // AN IMPACT ON OTHER TESTS
     #[test]
-    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     fn set_policy_shared_client() {
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -291,7 +293,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     async fn nym_api_works() {
+        // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
+        // marker - must not run concurrently with tests that mutate it.
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -324,7 +331,13 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
     async fn fallback_on_failure() {
+        // sends real requests and relies on host rotation not being suppressed, which depends on
+        // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
+        // tests that mutate it.
+        let _guard = crate::lock_shared_test_state();
+
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
             Some(vec![

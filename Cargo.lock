@@ -7260,6 +7260,7 @@ dependencies = [
 name = "nym-http-api-client"
 version = "1.21.5-rc.3"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bincode",
  "bytes",

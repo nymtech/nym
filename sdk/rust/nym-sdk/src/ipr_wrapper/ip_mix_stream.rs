@@ -248,7 +248,13 @@ impl IpMixStream {
                     return Err(Error::IPRConnectResponseTimeout);
                 }
                 result = stream.recv() => {
-                    let data = result.ok_or(Error::IPRClientStreamClosed)?;
+                    let data = match result.ok_or(Error::IPRClientStreamClosed)? {
+                        Ok(data) => data,
+                        Err(e) => {
+                            debug!("ignoring stream loss during connect: {e}");
+                            continue;
+                        }
+                    };
 
                     // Ignore stragglers from an earlier version; we selected v10
                     // from the node's directory version.
@@ -292,7 +298,13 @@ impl IpMixStream {
                     return Err(Error::IPRConnectResponseTimeout);
                 }
                 result = stream.recv() => {
-                    let data = result.ok_or(Error::IPRClientStreamClosed)?;
+                    let data = match result.ok_or(Error::IPRClientStreamClosed)? {
+                        Ok(data) => data,
+                        Err(e) => {
+                            debug!("ignoring stream loss during connect: {e}");
+                            continue;
+                        }
+                    };
 
                     // Skip frames from another version rather than aborting: in the
                     // v10-to-v9 fallback a late v10 response can land here, and it
@@ -335,7 +347,8 @@ impl IpMixStream {
     /// Handle incoming messages from the mixnet.
     ///
     /// Reads from the underlying `MixnetStream`, parses IPR responses, and
-    /// extracts IP packets. Returns an empty vec on timeout (10 s).
+    /// extracts IP packets. Returns an empty vec on timeout (10 s), on a
+    /// lost or version-mismatched frame, or on an unrecognised response.
     pub async fn handle_incoming(&mut self) -> Result<Vec<Bytes>, Error> {
         let data = match tokio::time::timeout(Duration::from_secs(10), self.stream.recv()).await {
             Err(_) => return Ok(Vec::new()),
@@ -343,7 +356,12 @@ impl IpMixStream {
                 self.connected = false;
                 return Err(Error::IPRClientStreamClosed);
             }
-            Ok(Some(data)) => data,
+            Ok(Some(Err(err))) => {
+                // Lost in transit: drop them, TCP inside the tunnel retransmits.
+                warn!("dropping lost mixnet messages: {err}");
+                return Ok(Vec::new());
+            }
+            Ok(Some(Ok(data))) => data,
         };
 
         // The IPR mirrors the connect-time version on all traffic (data included),

@@ -120,6 +120,9 @@ pub enum LpError {
 
     #[error("failed to generate randomness: {0}")]
     RngFailure(#[from] getrandom04::Error),
+
+    #[error("the counter value has exceeded its maximum value")]
+    InvalidCounter,
 }
 
 impl LpError {

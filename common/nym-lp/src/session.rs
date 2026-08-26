@@ -5,7 +5,7 @@
 //!
 //! This module implements session management functionality, including replay protection
 
-use crate::codec::{decrypt_lp_packet, encrypt_lp_packet};
+use crate::codec::{NONCE_LEN, decrypt_lp_packet, encrypt_lp_packet};
 use crate::peer::{LpLocalPeer, LpRemotePeer};
 use crate::psq::initiator::HandshakeMode;
 use crate::psq::{
@@ -68,9 +68,6 @@ pub struct LpTransportSession {
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
 
-    /// Counter for outgoing packets
-    sending_counter: u64,
-
     /// Validator for incoming packet counters to prevent replay attacks
     receiving_counter: ReceivingKeyCounterValidator,
 }
@@ -121,7 +118,6 @@ impl Debug for LpTransportSession {
             .field("session_binding", &self.session_binding)
             .field("active_transport_id", &self.active_transport.identifier())
             .field("protocol_version", &self.protocol_version)
-            .field("sending_counter", &self.sending_counter)
             .field("receiving_counter", &self.receiving_counter)
             .finish()
     }
@@ -146,7 +142,6 @@ impl LpTransportSession {
             active_transport: transport,
             receiver_index,
             protocol_version,
-            sending_counter: 0,
             receiving_counter: Default::default(),
         })
     }
@@ -249,17 +244,23 @@ impl LpTransportSession {
     }
 
     pub fn next_packet(&mut self, frame: LpFrame) -> Result<LpPacket, LpError> {
-        let counter = self.next_counter();
+        let counter = self.next_counter()?;
         let header = LpHeader::new(self.receiver_index(), counter, self.protocol_version);
         let packet = LpPacket::new(header, frame);
         Ok(packet)
     }
 
     /// Generates the next counter value for outgoing packets.
-    pub fn next_counter(&mut self) -> u64 {
-        let counter = self.sending_counter;
-        self.sending_counter += 1;
-        counter
+    pub fn next_counter(&mut self) -> Result<u64, LpError> {
+        // replicate the behaviour from libcrux' counter increase
+        let mut buf = [0u8; 16];
+        buf[16 - NONCE_LEN..].copy_from_slice(self.active_transport.sender_nonce());
+        let mut nonce = u128::from_be_bytes(buf);
+        nonce += 1;
+
+        let counter: u64 = nonce.try_into().map_err(|_| LpError::InvalidCounter)?;
+
+        Ok(counter)
     }
 
     /// Performs a quick validation check for an incoming packet counter.
@@ -480,11 +481,11 @@ mod tests {
             let mut session = SessionsMock::mock_post_handshake(kem).responder;
 
             // Initial counter should be zero
-            let counter = session.next_counter();
+            let counter = session.next_counter().unwrap();
             assert_eq!(counter, 0);
 
             // Counter should increment
-            let counter = session.next_counter();
+            let counter = session.next_counter().unwrap();
             assert_eq!(counter, 1);
         }
     }

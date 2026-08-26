@@ -12,11 +12,36 @@ pub(crate) const SANE_ENC_OVERHEAD: usize = 32;
 // needs to be equal or below the actual overhead
 pub(crate) const SANE_DEC_OVERHEAD: usize = 24;
 
+// same as libcrux_psq::aead::NONCE_LEN;
+pub(crate) const NONCE_LEN: usize = 12;
+
+// same as libcrux_psq::aead::NONCE_MAX;
+pub(crate) const COUNTER_MAX: u128 = u128::MAX >> (128 - NONCE_LEN * 8);
+
+fn counter_to_nonce(ctr: u128) -> Result<[u8; NONCE_LEN], LpError> {
+    if ctr > COUNTER_MAX {
+        return Err(LpError::InvalidCounter);
+    }
+
+    let mut nonce = [0u8; NONCE_LEN];
+    let buf = ctr.to_be_bytes();
+    nonce.copy_from_slice(&buf[16 - NONCE_LEN..]);
+
+    Ok(nonce)
+}
+
 pub(crate) fn encrypt_data(
+    counter: u128,
     plaintext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
+    // ideally we'd expire the transport but unfortunately the method is not public,
+    // so the caller will have to do it manually
+    let nonce = counter_to_nonce(counter)?;
+
     let mut ciphertext = vec![0u8; plaintext.len() + SANE_ENC_OVERHEAD];
+
+    transport.set_sender_nonce(&nonce);
     let n = transport.write_message(plaintext, &mut ciphertext)?;
 
     if plaintext.len() + SANE_ENC_OVERHEAD != n {
@@ -27,14 +52,20 @@ pub(crate) fn encrypt_data(
 }
 
 pub(crate) fn decrypt_data(
+    counter: u128,
     ciphertext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
     if ciphertext.len() < SANE_DEC_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
     }
+    // ideally we'd expire the transport but unfortunately the method is not public,
+    // so the caller will have to do it manually
+    let nonce = counter_to_nonce(counter)?;
+
     let mut plaintext = vec![0u8; ciphertext.len() - SANE_DEC_OVERHEAD];
 
+    transport.set_receiver_nonce(&nonce);
     let (_, n) = transport.read_message(ciphertext, &mut plaintext)?;
     if n != ciphertext.len() - SANE_DEC_OVERHEAD {
         plaintext.truncate(n);
@@ -50,7 +81,8 @@ pub(crate) fn encrypt_lp_packet(
     packet.header().inner.encode(&mut plaintext);
     packet.frame().encode(&mut plaintext);
 
-    let ciphertext = encrypt_data(plaintext.as_ref(), transport)?;
+    let counter = packet.header().counter();
+    let ciphertext = encrypt_data(counter as u128, plaintext.as_ref(), transport)?;
 
     Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
@@ -65,7 +97,8 @@ pub(crate) fn decrypt_lp_packet(
         return Err(LpError::InsufficientBufferSize);
     }
 
-    let plaintext = decrypt_data(packet.ciphertext(), transport)?;
+    let counter = packet.outer_header().counter;
+    let plaintext = decrypt_data(counter as u128, packet.ciphertext(), transport)?;
 
     let inner_header = InnerHeader::parse(&plaintext)?;
     #[allow(clippy::indexing_slicing)]

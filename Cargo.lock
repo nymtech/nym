@@ -7688,6 +7688,7 @@ dependencies = [
  "bytes",
  "num_enum",
  "nym-common",
+ "semver 1.0.28",
  "thiserror 2.0.19",
  "tracing",
 ]

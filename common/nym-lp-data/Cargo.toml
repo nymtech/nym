@@ -17,6 +17,7 @@ publish = true
 [dependencies]
 bytes.workspace = true
 num_enum.workspace = true
+semver.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 

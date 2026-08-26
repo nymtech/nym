@@ -113,6 +113,10 @@ streams, and listener. Methods: `register_stream`, `remove`,
 - **No `Close` message** — there is no explicit stream-close signal.
   Streams clean up locally via `Drop` and idle timeout. A proper
   close/EOF mechanism requires further protocol work.
-- **Reorder buffer cap** — out-of-order messages are buffered up to
-  `MAX_REORDER_BUFFER` (256) per stream. If a sequence number is
-  permanently lost, the buffer skips ahead once full.
+- **Reorder buffer cap** - out-of-order messages are buffered up to
+  `MAX_REORDER_BUFFER_BYTES` (8 MiB) per stream. A full buffer skips the
+  missing range and reports the loss in-band as `InvalidData`. `recv()`
+  surfaces it once and later messages keep flowing; `AsyncRead` fails
+  the stream permanently. The cap is generous relative to per-tunnel
+  throughput, so a late frame with a retransmit in flight does not trip
+  it.

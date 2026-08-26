@@ -121,7 +121,7 @@ impl From<DirectoryCacheUpdate> for NymDirectoryCacheData {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct NymDirectoryCacheData {
     last_polled_height: Height,
     directory: BTreeMap<Height, CachedDirectory>,
@@ -146,6 +146,11 @@ impl NymDirectoryCacheData {
 
         self.directory
             .insert(directory.raw.digest_snapshot.snapshot.height, directory);
+    }
+
+    /// Records the chain tip the cache was last reconciled against.
+    pub(crate) fn set_last_polled_height(&mut self, height: Height) {
+        self.last_polled_height = height;
     }
 
     pub(crate) fn remove_stale(&mut self, to_retain: &[Height]) {
@@ -263,6 +268,25 @@ mod tests {
                 .snapshot
                 .height,
             Height::from(950u32)
+        );
+    }
+
+    #[test]
+    fn recording_the_tip_after_warmup_makes_the_newest_snapshot_servable() {
+        let mut cache = empty_cache(0);
+        cache.insert_entry(cached_directory(900));
+        // insert alone leaves last_polled at the snapshot height, so the settle lag hides it
+        assert!(cache.most_recent_entry(60).is_none());
+
+        cache.set_last_polled_height(Height::from(1000u32));
+        assert_eq!(
+            cache
+                .most_recent_entry(60)
+                .unwrap()
+                .digest_snapshot()
+                .snapshot
+                .height,
+            Height::from(900u32)
         );
     }
 

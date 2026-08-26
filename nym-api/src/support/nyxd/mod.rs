@@ -114,11 +114,13 @@ pub enum ClientInner {
 }
 
 impl Client {
-    pub(crate) fn new(config: &Config) -> anyhow::Result<Self> {
-        let details = NymNetworkDetails::new_from_env();
+    pub(crate) fn new(
+        config: &Config,
+        network_details: &NymNetworkDetails,
+    ) -> anyhow::Result<Self> {
         let nyxd_url = config.get_nyxd_url();
 
-        let client_config = nyxd::Config::try_from_nym_network_details(&details).context(
+        let client_config = nyxd::Config::try_from_nym_network_details(&network_details).context(
             "failed to construct valid validator client config with the provided network",
         )?;
 

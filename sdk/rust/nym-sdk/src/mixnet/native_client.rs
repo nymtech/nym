@@ -412,6 +412,13 @@ impl MixnetClient {
     /// # }
     /// ```
     ///
+    /// # Errors
+    ///
+    /// [`Error::UnroutableRecipient`](crate::Error::UnroutableRecipient) if
+    /// the recipient's gateway is not in the current topology. The source
+    /// distinguishes an empty local view (retry shortly) from an unknown
+    /// gateway (the address may be stale).
+    ///
     /// # Cancel safety
     ///
     /// This method is **not** cancel safe. Cancelling after the `Open`

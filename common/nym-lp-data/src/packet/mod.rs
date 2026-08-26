@@ -21,6 +21,18 @@ pub mod version {
     /// The current version of the Lewes Protocol that is put into each new constructed header.
     pub const CURRENT: u8 = V1;
 
+    /// Every version this build can still speak, and therefore everything a responder will accept
+    /// during negotiation. Must contain [`CURRENT`].
+    ///
+    /// Deliberately spelled out rather than derived from [`CURRENT`]: bumping the current version
+    /// must not silently drop support for the versions already deployed in the field.
+    ///
+    /// Adding a version here is necessary but not sufficient. It also needs its own PSQ session
+    /// context and AAD constants with arms in both `build_psq_principal` functions, which
+    /// otherwise reject it right after negotiation succeeds, and an [`super::InnerHeader::parse`]
+    /// branch if it changes the header layout.
+    pub const SUPPORTED: &[u8] = &[V1];
+
     pub mod node_compatibility {
         /// Indicates the initial version where LP has been introduced, alongside the KKT
         /// handshake it is built on.
@@ -46,6 +58,12 @@ pub mod version {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn the_current_version_is_one_we_support() {
+            // a `CURRENT` outside `SUPPORTED` means we'd propose a version we then refuse
+            assert!(SUPPORTED.contains(&CURRENT));
+        }
 
         #[test]
         fn nodes_predating_lp_speak_no_version() {

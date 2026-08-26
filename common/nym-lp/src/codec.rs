@@ -55,9 +55,12 @@ pub(crate) fn encrypt_lp_packet(
     Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
 
+/// `expected_version` is the version negotiated for this session during the handshake; a packet
+/// carrying anything else is rejected.
 pub(crate) fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
     transport: &mut libcrux_psq::session::Transport,
+    expected_version: u8,
 ) -> Result<LpPacket, LpError> {
     if packet.ciphertext().len() < InnerHeader::SIZE + SANE_DEC_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
@@ -65,7 +68,7 @@ pub(crate) fn decrypt_lp_packet(
 
     let plaintext = decrypt_data(packet.ciphertext(), transport)?;
 
-    let inner_header = InnerHeader::parse(&plaintext)?;
+    let inner_header = InnerHeader::parse(&plaintext, expected_version)?;
     #[allow(clippy::indexing_slicing)]
     let payload = &plaintext[InnerHeader::SIZE..];
     let frame = LpFrame::decode(payload)?;
@@ -88,7 +91,9 @@ mod tests {
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt_ciphersuite::KEM;
-    use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
+    use nym_lp_data::packet::{
+        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError, version,
+    };
     use nym_test_utils::helpers::u64_seeded_rng_09;
 
     fn mock_transport() -> (
@@ -268,7 +273,7 @@ mod tests {
         let ciphertext = encrypt_lp_packet(packet.clone(), &mut init_transport).unwrap();
         assert_eq!(packet.header().outer, ciphertext.outer_header());
 
-        let plaintext = decrypt_lp_packet(ciphertext, &mut resp_transport).unwrap();
+        let plaintext = decrypt_lp_packet(ciphertext, &mut resp_transport, 1).unwrap();
         assert_eq!(packet, plaintext);
 
         // incomplete ciphertext
@@ -280,7 +285,7 @@ mod tests {
         let l = ciphertext2.ciphertext().len();
         let malformed_content = ciphertext2.ciphertext()[..l - 1].to_vec();
         let malformed = EncryptedLpPacket::new(ciphertext2.outer_header(), malformed_content);
-        let dec_err = decrypt_lp_packet(malformed, &mut resp_transport).unwrap_err();
+        let dec_err = decrypt_lp_packet(malformed, &mut resp_transport, 1).unwrap_err();
         assert!(matches!(dec_err, LpError::PSQSessionFailure { .. }));
 
         // too small buffer
@@ -290,7 +295,53 @@ mod tests {
         );
         let ciphertext3 = encrypt_lp_packet(packet, &mut resp_transport).unwrap();
         let malformed = EncryptedLpPacket::new(ciphertext3.outer_header(), vec![]);
-        let dec_err = decrypt_lp_packet(malformed, &mut init_transport).unwrap_err();
+        let dec_err = decrypt_lp_packet(malformed, &mut init_transport, 1).unwrap_err();
         assert!(matches!(dec_err, LpError::InsufficientBufferSize));
+    }
+
+    #[test]
+    fn packet_version_is_checked_against_the_session_not_the_build() {
+        let (mut init_transport, mut resp_transport) = mock_transport();
+
+        // a packet on the version this session negotiated clears the version check even though
+        // it isn't `version::CURRENT`, which is the whole point of the fix
+        let future = version::CURRENT + 1;
+        let packet = LpPacket::new(
+            LpHeader::new(123, 0, future),
+            LpFrame::new_opaque(b"foomp".to_vec()),
+        );
+        let ciphertext = encrypt_lp_packet(packet, &mut init_transport).unwrap();
+        let dec_err = decrypt_lp_packet(ciphertext, &mut resp_transport, future).unwrap_err();
+
+        // it clears the negotiation check, and is then refused only because no layout is
+        // implemented for it - not because it differs from `CURRENT`
+        assert!(matches!(
+            dec_err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnsupportedPacketVersion { got })
+                if got == future
+        ));
+    }
+
+    #[test]
+    fn packet_on_a_different_version_than_the_session_is_rejected() {
+        let (mut init_transport, mut resp_transport) = mock_transport();
+
+        let packet = LpPacket::new(
+            LpHeader::new(123, 0, version::V1),
+            LpFrame::new_opaque(b"foomp".to_vec()),
+        );
+        let ciphertext = encrypt_lp_packet(packet, &mut init_transport).unwrap();
+
+        // same packet, but arriving on a session that negotiated something else
+        let dec_err =
+            decrypt_lp_packet(ciphertext, &mut resp_transport, version::V1 + 1).unwrap_err();
+
+        assert!(matches!(
+            dec_err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnexpectedPacketVersion {
+                got,
+                expected
+            }) if got == version::V1 && expected == version::V1 + 1
+        ));
     }
 }

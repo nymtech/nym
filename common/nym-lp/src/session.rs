@@ -329,7 +329,7 @@ impl LpTransportSession {
         &mut self,
         packet: EncryptedLpPacket,
     ) -> Result<LpPacket, LpError> {
-        decrypt_lp_packet(packet, &mut self.active_transport)
+        decrypt_lp_packet(packet, &mut self.active_transport, self.protocol_version)
     }
 
     /// Processes an input event and returns an action to perform.
@@ -373,6 +373,32 @@ mod tests {
     use super::*;
     use crate::{ReplayError, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
+    use nym_lp_data::packet::{MalformedLpPacketError, version};
+
+    #[test]
+    fn decryption_uses_the_sessions_negotiated_version() {
+        let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
+
+        // pretend the handshake settled on a version whose layout this build doesn't implement
+        let negotiated = version::CURRENT + 1;
+        sessions.initiator.protocol_version = negotiated;
+        sessions.responder.protocol_version = negotiated;
+
+        let packet = sessions
+            .initiator
+            .wrap_lp_frame(LpFrame::new_opaque(b"foomp".to_vec()))
+            .unwrap();
+        let err = sessions.responder.decrypt_packet(packet).unwrap_err();
+
+        // the negotiated version reached the parser: the packet clears the session check and is
+        // refused only for the unimplemented layout. Had `decrypt_packet` passed
+        // `version::CURRENT` instead, this would be `UnexpectedPacketVersion`.
+        assert!(matches!(
+            err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnsupportedPacketVersion { got })
+                if got == negotiated
+        ));
+    }
 
     #[test]
     fn test_session_creation() {

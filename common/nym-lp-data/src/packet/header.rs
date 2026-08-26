@@ -71,26 +71,27 @@ impl InnerHeader {
         dst.put_slice(&self.reserved);
     }
 
-    pub fn parse(src: &[u8]) -> Result<Self, MalformedLpPacketError> {
+    /// Parses the header, requiring the packet's version to be the one negotiated for the session
+    /// it arrived on rather than whichever version this build considers current.
+    pub fn parse(src: &[u8], expected_version: u8) -> Result<Self, MalformedLpPacketError> {
         if src.len() < Self::SIZE {
             return Err(MalformedLpPacketError::InsufficientData);
         }
 
         let protocol_version = src[0];
 
-        // Ensure we are using compatible protocol
-        // right now only support a single version
-        if protocol_version > version::CURRENT {
-            return Err(MalformedLpPacketError::IncompatibleFuturePacketVersion {
+        if protocol_version != expected_version {
+            return Err(MalformedLpPacketError::UnexpectedPacketVersion {
                 got: protocol_version,
-                highest_supported: version::CURRENT,
+                expected: expected_version,
             });
         }
 
-        if protocol_version < version::CURRENT {
-            return Err(MalformedLpPacketError::IncompatibleLegacyPacketVersion {
+        // everything below decodes the V1 layout; a version that changes it must add its own
+        // branch here rather than inheriting V1's by default
+        if protocol_version != version::V1 {
+            return Err(MalformedLpPacketError::UnsupportedPacketVersion {
                 got: protocol_version,
-                lowest_supported: version::CURRENT,
             });
         }
 

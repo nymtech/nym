@@ -15,8 +15,11 @@ pub mod frame;
 pub mod header;
 
 pub mod version {
+    /// The initial version of the Lewes Protocol, and the only inner-header layout implemented.
+    pub const V1: u8 = 1;
+
     /// The current version of the Lewes Protocol that is put into each new constructed header.
-    pub const CURRENT: u8 = 1;
+    pub const CURRENT: u8 = V1;
 }
 
 #[allow(dead_code)]

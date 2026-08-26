@@ -893,6 +893,7 @@ mod tests {
     use super::*;
     use crate::storage::models::{
         ExercisedInterface, NewNymNode, NewTestRun, NodeTestState, NodeType, minimal_measurement,
+        minimal_test_run, node_with_ips,
     };
     use std::net::IpAddr;
     use time::macros::datetime;
@@ -914,34 +915,6 @@ mod tests {
             node_type: NodeType::Gateway,
             clients_ws_port,
             ..node(id, &format!("key_{id}"))
-        }
-    }
-
-    /// A node announcing `announced_ips` (comma-separated), for exercising the address rotation.
-    fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) -> NewNymNode {
-        NewNymNode {
-            node_id: id,
-            identity_key: identity_key.to_string(),
-            last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
-            mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
-            announced_ips: Some(announced_ips.to_string()),
-            noise_key: Some("placeholder_noise_key".to_string()),
-            sphinx_key: Some("placeholder_sphinx_key".to_string()),
-            key_rotation_id: Some(0),
-            node_type: NodeType::Mixnode,
-            clients_ws_port: None,
-        }
-    }
-
-    fn minimal_test_run(node_id: i64) -> NewTestRun {
-        NewTestRun {
-            node_id,
-            test_kind: TestKind::Stress,
-            tested_role: TestedRole::Mixnode,
-            tested_address: "1.2.3.4:1789".to_string(),
-            test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
-            time_taken_us: 0,
-            error: None,
         }
     }
 

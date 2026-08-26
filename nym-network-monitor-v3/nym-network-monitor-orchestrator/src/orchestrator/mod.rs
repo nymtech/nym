@@ -291,10 +291,11 @@ impl NetworkMonitorOrchestrator {
 
         // 5. build task for submitting accumulated results to the nym-api
         let result_submitter = ResultSubmitter::new(
-            &self.config,
             self.client.read().await.nym_api.clone(),
             self.storage.clone(),
             self.identity_keys.clone(),
+            self.config.result_submission_interval,
+            self.config.result_submission_batch_size,
             self.shutdown_manager.clone_shutdown_token(),
         );
 

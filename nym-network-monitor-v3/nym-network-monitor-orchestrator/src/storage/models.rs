@@ -236,6 +236,39 @@ pub(crate) struct TestRunMeasurement {
     pub(crate) received_duplicates: bool,
 }
 
+/// A stress run against `node_id`, i.e. the baseline a test overrides only the fields it is
+/// actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_test_run(node_id: i64) -> NewTestRun {
+    NewTestRun {
+        node_id,
+        test_kind: TestKind::Stress,
+        tested_role: TestedRole::Mixnode,
+        tested_address: "1.2.3.4:1789".to_string(),
+        test_timestamp: time::macros::datetime!(2025-06-01 12:00:00 UTC),
+        time_taken_us: 0,
+        error: None,
+    }
+}
+
+/// A mixnode announcing `announced_ips` (comma-separated), described down to the keys a probe
+/// needs, so that a run can reference it without tripping the foreign key.
+#[cfg(test)]
+pub(crate) fn node_with_ips(id: i64, identity_key: &str, announced_ips: &str) -> NewNymNode {
+    NewNymNode {
+        node_id: id,
+        identity_key: identity_key.to_string(),
+        last_seen_bonded: time::macros::datetime!(2025-01-01 00:00:00 UTC),
+        mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
+        announced_ips: Some(announced_ips.to_string()),
+        noise_key: Some("placeholder_noise_key".to_string()),
+        sphinx_key: Some("placeholder_sphinx_key".to_string()),
+        key_rotation_id: Some(0),
+        node_type: NodeType::Mixnode,
+        clients_ws_port: None,
+    }
+}
+
 /// A measurement of `interface` with every optional column unset and no packets sent, i.e. the
 /// baseline a test overrides only the fields it is actually asserting on.
 #[cfg(test)]

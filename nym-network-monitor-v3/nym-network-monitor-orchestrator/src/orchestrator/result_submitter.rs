@@ -1,14 +1,14 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::orchestrator::config::Config;
 use crate::orchestrator::prometheus::{PROMETHEUS_METRICS, PrometheusMetric};
 use crate::storage::NetworkMonitorStorage;
 use crate::storage::models::{CompletedTestRun, TestKind};
 use anyhow::Context;
 use nym_api_requests::models::v3::{
-    BatchSubmissionResponse, LivenessTestBatchSubmissionContent, LivenessTestResult,
-    StressTestBatchSubmissionContent, StressTestResult,
+    BatchSubmissionResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionContent,
+    LivenessTestResult, StressTestBatchSubmission, StressTestBatchSubmissionContent,
+    StressTestResult,
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_node_requests::api::Client;
@@ -22,6 +22,40 @@ use time::OffsetDateTime;
 use tokio::time::{Instant, MissedTickBehavior, interval_at};
 use tracing::{error, info, warn};
 
+/// The nym-api calls a submission sweep makes, one per stream.
+///
+/// A seam rather than a direct call on the client because everything below it is a
+/// `reqwest::Client` with no transport to substitute, so a fake at the HTTP level would have to
+/// bind a socket. It buys the watermark handling a test; it does NOT cover the route constants or
+/// the wire encoding, since nothing crosses a wire when it is faked.
+pub(crate) trait BatchSubmission {
+    async fn submit_stress(
+        &self,
+        batch: &StressTestBatchSubmission,
+    ) -> anyhow::Result<BatchSubmissionResponse>;
+
+    async fn submit_liveness(
+        &self,
+        batch: &LivenessTestBatchSubmission,
+    ) -> anyhow::Result<BatchSubmissionResponse>;
+}
+
+impl BatchSubmission for Client {
+    async fn submit_stress(
+        &self,
+        batch: &StressTestBatchSubmission,
+    ) -> anyhow::Result<BatchSubmissionResponse> {
+        Ok(self.submit_stress_testing_results(batch).await?)
+    }
+
+    async fn submit_liveness(
+        &self,
+        batch: &LivenessTestBatchSubmission,
+    ) -> anyhow::Result<BatchSubmissionResponse> {
+        Ok(self.submit_liveness_testing_results(batch).await?)
+    }
+}
+
 /// Background task that periodically drains freshly-completed test run results from the local
 /// storage, wraps them into signed batch submissions, and POSTs each to the nym-api.
 ///
@@ -32,9 +66,9 @@ use tracing::{error, info, warn};
 /// Results are kept in local storage (and subject to the `testrun_eviction_age` retention window)
 /// so that a transient nym-api outage or a crashed orchestrator doesn't silently lose
 /// measurements - the next successful submission sweep will pick up anything that was missed.
-pub(crate) struct ResultSubmitter {
+pub(crate) struct ResultSubmitter<C = Client> {
     /// Nym-api client used to reach the endpoints that accept batch submissions.
-    client: Client,
+    client: C,
 
     /// Handle to the local SQLite database from which pending results are drained.
     storage: NetworkMonitorStorage,
@@ -52,20 +86,21 @@ pub(crate) struct ResultSubmitter {
     shutdown_token: ShutdownToken,
 }
 
-impl ResultSubmitter {
+impl<C: BatchSubmission> ResultSubmitter<C> {
     pub(crate) fn new(
-        config: &Config,
-        client: Client,
+        client: C,
         storage: NetworkMonitorStorage,
         identity_keys: Arc<ed25519::KeyPair>,
+        submission_interval: Duration,
+        result_submission_batch_size: usize,
         shutdown_token: ShutdownToken,
     ) -> Self {
         ResultSubmitter {
             client,
             storage,
             identity_keys,
-            submission_interval: config.result_submission_interval,
-            result_submission_batch_size: config.result_submission_batch_size,
+            submission_interval,
+            result_submission_batch_size,
             shutdown_token,
         }
     }
@@ -169,7 +204,7 @@ impl ResultSubmitter {
         };
         let signed = body.sign(self.identity_keys.private_key());
 
-        Ok(self.client.submit_stress_testing_results(&signed).await?)
+        self.client.submit_stress(&signed).await
     }
 
     /// Signs and posts one chunk of liveness runs to the liveness endpoint, which is separate from
@@ -186,7 +221,7 @@ impl ResultSubmitter {
         };
         let signed = body.sign(self.identity_keys.private_key());
 
-        Ok(self.client.submit_liveness_testing_results(&signed).await?)
+        self.client.submit_liveness(&signed).await
     }
 
     /// Records what nym-api did with a submitted batch: how many results it stored, how many it
@@ -258,5 +293,294 @@ impl ResultSubmitter {
         }
 
         info!("result submitter stopped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::models::{
+        ExercisedInterface, NewTestRun, TestedRole, minimal_measurement, minimal_test_run,
+        node_with_ips,
+    };
+    use nym_test_utils::helpers::seeded_rng;
+    use std::sync::Mutex;
+
+    /// Stands in for the nym-api: records the testrun ids each endpoint received, and can be told
+    /// that one of them is refusing batches.
+    struct FakeNymApi {
+        signer: ed25519::PublicKey,
+        failing: Option<TestKind>,
+        received: Mutex<Vec<(TestKind, i64)>>,
+    }
+
+    impl FakeNymApi {
+        fn new(signer: ed25519::PublicKey, failing: Option<TestKind>) -> Self {
+            FakeNymApi {
+                signer,
+                failing,
+                received: Mutex::new(Vec::new()),
+            }
+        }
+
+        /// The testrun ids this endpoint accepted, in the order they arrived.
+        #[allow(clippy::expect_used)]
+        fn accepted(&self, kind: TestKind) -> Vec<i64> {
+            self.received
+                .lock()
+                .expect("poisoned")
+                .iter()
+                .filter(|(received_kind, _)| *received_kind == kind)
+                .map(|(_, id)| *id)
+                .collect()
+        }
+
+        #[allow(clippy::expect_used)]
+        fn accept(&self, kind: TestKind, ids: impl Iterator<Item = i64>) -> anyhow::Result<()> {
+            if self.failing == Some(kind) {
+                anyhow::bail!("nym-api is refusing {kind} batches");
+            }
+            let mut received = self.received.lock().expect("poisoned");
+            received.extend(ids.map(|id| (kind, id)));
+            Ok(())
+        }
+    }
+
+    impl BatchSubmission for FakeNymApi {
+        async fn submit_stress(
+            &self,
+            batch: &StressTestBatchSubmission,
+        ) -> anyhow::Result<BatchSubmissionResponse> {
+            assert!(
+                batch.verify_signature(&self.signer),
+                "batch was not signed by the submitting orchestrator"
+            );
+            self.accept(
+                TestKind::Stress,
+                batch.body.results.iter().map(|result| result.testrun_id),
+            )?;
+            Ok(BatchSubmissionResponse::default())
+        }
+
+        async fn submit_liveness(
+            &self,
+            batch: &LivenessTestBatchSubmission,
+        ) -> anyhow::Result<BatchSubmissionResponse> {
+            assert!(
+                batch.verify_signature(&self.signer),
+                "batch was not signed by the submitting orchestrator"
+            );
+            self.accept(
+                TestKind::Liveness,
+                batch.body.results.iter().map(|result| result.testrun_id),
+            )?;
+            Ok(BatchSubmissionResponse::default())
+        }
+    }
+
+    /// Storage holding one completed run per entry of `runs`, against a node registered for each.
+    /// Run ids are assigned in insertion order, so the nth entry has id `n + 1`.
+    async fn storage_with(runs: &[(TestKind, TestedRole)]) -> NetworkMonitorStorage {
+        let storage = NetworkMonitorStorage::in_memory().await;
+
+        for (index, (test_kind, tested_role)) in runs.iter().enumerate() {
+            let node_id = index as i64 + 1;
+            storage
+                .batch_insert_or_update_nym_nodes(&[node_with_ips(
+                    node_id,
+                    &format!("key_{node_id}"),
+                    "1.2.3.4",
+                )])
+                .await
+                .unwrap();
+
+            let run = NewTestRun {
+                test_kind: *test_kind,
+                tested_role: *tested_role,
+                ..minimal_test_run(node_id)
+            };
+            let interface = match tested_role {
+                TestedRole::Mixnode => ExercisedInterface::MixForwarding,
+                TestedRole::Gateway => ExercisedInterface::ClientIngest,
+            };
+            storage
+                .insert_test_run(&run, &[minimal_measurement(interface)])
+                .await
+                .unwrap();
+        }
+
+        storage
+    }
+
+    fn submitter(
+        storage: NetworkMonitorStorage,
+        client: FakeNymApi,
+        identity_keys: Arc<ed25519::KeyPair>,
+    ) -> ResultSubmitter<FakeNymApi> {
+        ResultSubmitter::new(
+            client,
+            storage,
+            identity_keys,
+            Duration::from_secs(900),
+            50,
+            ShutdownToken::new(),
+        )
+    }
+
+    fn identity_keys() -> Arc<ed25519::KeyPair> {
+        Arc::new(ed25519::KeyPair::new(&mut seeded_rng([42u8; 32])))
+    }
+
+    /// Two stress runs (ids 1 and 2) and two liveness runs (ids 3 and 4).
+    async fn both_streams() -> NetworkMonitorStorage {
+        storage_with(&[
+            (TestKind::Stress, TestedRole::Mixnode),
+            (TestKind::Stress, TestedRole::Mixnode),
+            (TestKind::Liveness, TestedRole::Mixnode),
+            (TestKind::Liveness, TestedRole::Gateway),
+        ])
+        .await
+    }
+
+    #[tokio::test]
+    async fn each_stream_submits_only_its_own_runs_and_advances_only_its_own_watermark() {
+        let storage = both_streams().await;
+        let keys = identity_keys();
+        let submitter = submitter(
+            storage.clone(),
+            FakeNymApi::new(*keys.public_key(), None),
+            keys,
+        );
+
+        submitter.submit_pending_results().await;
+
+        assert_eq!(submitter.client.accepted(TestKind::Stress), vec![1, 2]);
+        assert_eq!(submitter.client.accepted(TestKind::Liveness), vec![3, 4]);
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Stress)
+                .await
+                .unwrap(),
+            Some(2)
+        );
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Liveness)
+                .await
+                .unwrap(),
+            Some(4)
+        );
+    }
+
+    /// The failing stream must not lose its rows: leaving its watermark unmoved is what re-sends
+    /// them on the next sweep.
+    #[tokio::test]
+    async fn a_failing_stream_leaves_its_own_watermark_unmoved_and_the_other_advancing() {
+        let storage = both_streams().await;
+        let keys = identity_keys();
+        let submitter = submitter(
+            storage.clone(),
+            FakeNymApi::new(*keys.public_key(), Some(TestKind::Liveness)),
+            keys,
+        );
+
+        submitter.submit_pending_results().await;
+
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Stress)
+                .await
+                .unwrap(),
+            Some(2)
+        );
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Liveness)
+                .await
+                .unwrap(),
+            None
+        );
+    }
+
+    /// The mirror of the case above, since a sweep visits the kinds in order and only the second
+    /// one is skipped by an early return.
+    #[tokio::test]
+    async fn a_failing_stress_stream_does_not_hold_back_liveness() {
+        let storage = both_streams().await;
+        let keys = identity_keys();
+        let submitter = submitter(
+            storage.clone(),
+            FakeNymApi::new(*keys.public_key(), Some(TestKind::Stress)),
+            keys,
+        );
+
+        submitter.submit_pending_results().await;
+
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Stress)
+                .await
+                .unwrap(),
+            None
+        );
+        assert_eq!(submitter.client.accepted(TestKind::Liveness), vec![3, 4]);
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Liveness)
+                .await
+                .unwrap(),
+            Some(4)
+        );
+    }
+
+    /// An accepted run is not re-sent, which is the watermark being read as well as written.
+    #[tokio::test]
+    async fn a_second_sweep_resubmits_nothing() {
+        let storage = both_streams().await;
+        let keys = identity_keys();
+        let submitter = submitter(
+            storage.clone(),
+            FakeNymApi::new(*keys.public_key(), None),
+            keys,
+        );
+
+        submitter.submit_pending_results().await;
+        submitter.submit_pending_results().await;
+
+        assert_eq!(submitter.client.accepted(TestKind::Stress), vec![1, 2]);
+        assert_eq!(submitter.client.accepted(TestKind::Liveness), vec![3, 4]);
+    }
+
+    /// A stream whose rows exceed one batch advances to the last id of each accepted chunk, so a
+    /// failure part-way through keeps whatever was already acknowledged.
+    #[tokio::test]
+    async fn a_stream_larger_than_one_batch_is_chunked() {
+        let storage = storage_with(&[
+            (TestKind::Stress, TestedRole::Mixnode),
+            (TestKind::Stress, TestedRole::Mixnode),
+            (TestKind::Stress, TestedRole::Mixnode),
+        ])
+        .await;
+        let keys = identity_keys();
+        let client = FakeNymApi::new(*keys.public_key(), None);
+        let submitter = ResultSubmitter::new(
+            client,
+            storage.clone(),
+            keys,
+            Duration::from_secs(900),
+            2,
+            ShutdownToken::new(),
+        );
+
+        submitter.submit_pending_results().await;
+
+        assert_eq!(submitter.client.accepted(TestKind::Stress), vec![1, 2, 3]);
+        assert_eq!(
+            storage
+                .get_last_submitted_testrun_id(TestKind::Stress)
+                .await
+                .unwrap(),
+            Some(3)
+        );
     }
 }

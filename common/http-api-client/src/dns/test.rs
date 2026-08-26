@@ -128,8 +128,11 @@ async fn set_name_servers_rebuilds_independent_resolver() -> Result<(), ResolveE
 }
 
 /// Resetting the nameserver group through a resolver backed by the shared resolver propagates
-/// to the shared resolver itself: any other instance backed by the shared resolver observes
-/// the new (broken) nameservers too, even one created after the change.
+/// to the shared resolver itself: every other instance backed by the shared resolver observes the
+/// new (broken) nameservers too — a "warm" sibling that had already resolved something through the
+/// shared resolver *before* the reset (and never calls `set_name_servers` itself, so it can only
+/// pick up the change by consulting the shared cache on every lookup rather than a local one-time
+/// copy of it), and a sibling freshly created *after* the reset.
 #[tokio::test]
 #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
 async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
@@ -139,10 +142,25 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
 
     let default_ns = default_nameserver_group_ipv4_only();
 
-    let resolver1 = HickoryDnsResolver::new();
-    // sanity: the shared resolver can resolve a real domain before the reset.
-    assert!(resolver1.resolve_str("ifconfig.me").await?.next().is_some());
+    let warm_sibling: HickoryDnsResolver = HickoryDnsResolver {
+        overall_dns_timeout: Duration::from_secs(5),
+        ..Default::default()
+    };
+    // warm this sibling's view of the shared resolver *before* the reset below. It never calls
+    // `set_name_servers` itself, so the only way it can observe the later reset is by consulting
+    // the shared resolver's cache on every lookup instead of caching a local copy after this call.
+    assert!(
+        warm_sibling
+            .resolve_str("ifconfig.me")
+            .await?
+            .next()
+            .is_some()
+    );
 
+    let resolver1: HickoryDnsResolver = HickoryDnsResolver {
+        overall_dns_timeout: Duration::from_secs(5),
+        ..Default::default()
+    };
     let broken_domain = Arc::<str>::from("cloudflare-dns.com");
     let broken_ns = GUARANTEED_BROKEN_IPS_1
         .iter()
@@ -156,13 +174,18 @@ async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
         overall_dns_timeout: Duration::from_secs(5),
         ..Default::default()
     };
-    let result = resolver2.resolve_str("non-existent.nymtech.net").await;
+    let result2 = resolver2.resolve_str("non-existent.nymtech.net").await;
+
+    // the already-warmed sibling must observe the change too, rather than continuing to use
+    // whatever it had cached locally from its first (successful) resolution above.
+    let warm_result = warm_sibling.resolve_str("non-existent.nymtech.net").await;
 
     // restore the shared resolver so later tests aren't affected by this one, regardless of
-    // the assertion outcome below.
+    // the assertion outcomes below.
     resolver1.set_name_servers(default_ns);
 
-    assert!(result.is_err_and(|e| e.is_timeout()));
+    assert!(warm_result.is_err_and(|e| e.is_timeout()));
+    assert!(result2.is_err_and(|e| e.is_timeout()));
 
     Ok(())
 }

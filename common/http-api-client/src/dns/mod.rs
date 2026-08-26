@@ -95,9 +95,11 @@ impl ClientBuilder {
         self
     }
 
-    /// Override the DNS resolver implementation used by the underlying http client. If
-    /// [`Self::dns_resolver`] is called directly that will take priority over this, there is no
-    /// need to call both.
+    /// Disables the hickory-dns async resolver in favor of the `reqwest` default threadpool using
+    /// `getaddrinfo`.
+    ///
+    /// If [`Self::dns_resolver`] is called, there is no need to call this as well.
+    ///
     /// This forces the use of an independent request executor (via [`Self::non_shared`]).
     pub fn no_hickory_dns(mut self) -> Self {
         self = self.non_shared();
@@ -228,10 +230,7 @@ impl<C: SharedResolverState> Resolve for HickoryDnsResolver<C> {
                 .get_or_try_init(|| Self::new_resolver_system(use_shared))
                 .cloned()
         } else {
-            self.state
-                .load()
-                .get_or_try_init(|| self.build_configured_resolver())
-                .cloned()
+            self.build_configured_resolver()
         };
 
         let resolver = match result {
@@ -337,10 +336,7 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
                 .get_or_try_init(|| Self::new_resolver_system(self.use_shared))?
                 .clone()
         } else {
-            self.state
-                .load()
-                .get_or_try_init(|| self.build_configured_resolver())?
-                .clone()
+            self.build_configured_resolver()?
         };
 
         resolve(
@@ -363,8 +359,15 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
     }
 
     /// Build (or fetch the already-built) configured resolver using the currently configured
-    /// nameserver group, routing through the shared resolver's state when `use_shared` is set and
-    /// shared state is available for `C` (see [`SharedResolverState`]).
+    /// nameserver group.
+    ///
+    /// When `use_shared` is set and shared state is available for `C` (see
+    /// [`SharedResolverState`]), every call consults the shared resolver's own cache directly
+    /// (`shared.state`) rather than copying the result into this instance's local cache: this
+    /// ensures a [`Self::set_name_servers`] reset made through any instance is visible on this
+    /// instance's very next lookup, instead of this instance being stuck with whatever it cached
+    /// the first time it resolved anything. Otherwise this instance's own local cache
+    /// (`self.state`) is used and (re)built independently.
     fn build_configured_resolver(&self) -> Result<Resolver<C>, ResolveError> {
         match self.use_shared.then(C::shared_resolver).flatten() {
             Some(shared) => shared
@@ -376,9 +379,15 @@ impl<C: SharedResolverState> HickoryDnsResolver<C> {
                     )
                 })
                 .cloned(),
-            None => {
-                configure_and_build_resolver::<C>(self.name_servers.load_full().as_ref().clone())
-            }
+            None => self
+                .state
+                .load()
+                .get_or_try_init(|| {
+                    configure_and_build_resolver::<C>(
+                        self.name_servers.load_full().as_ref().clone(),
+                    )
+                })
+                .cloned(),
         }
     }
 

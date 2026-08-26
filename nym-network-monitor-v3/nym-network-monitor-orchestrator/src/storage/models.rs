@@ -236,6 +236,32 @@ pub(crate) struct TestRunMeasurement {
     pub(crate) received_duplicates: bool,
 }
 
+/// A measurement of `interface` with every optional column unset and no packets sent, i.e. the
+/// baseline a test overrides only the fields it is actually asserting on.
+#[cfg(test)]
+pub(crate) fn minimal_measurement(interface: ExercisedInterface) -> TestRunMeasurement {
+    TestRunMeasurement {
+        interface,
+        ingress_noise_handshake_us: None,
+        egress_noise_handshake_us: None,
+        sphinx_packet_delay_us: 0,
+        packets_sent: 0,
+        packets_received: 0,
+        approximate_latency_us: None,
+        packets_rtt_min_us: None,
+        packets_rtt_mean_us: None,
+        packets_rtt_median_us: None,
+        packets_rtt_max_us: None,
+        packets_rtt_std_dev_us: None,
+        sending_latency_min_us: None,
+        sending_latency_mean_us: None,
+        sending_latency_median_us: None,
+        sending_latency_max_us: None,
+        sending_latency_std_dev_us: None,
+        received_duplicates: false,
+    }
+}
+
 /// A `testrun_measurement` row carrying the run it belongs to, for the batched read that fetches
 /// the measurements of a whole page of runs at once and groups them by parent.
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -423,11 +449,19 @@ impl CompletedTestRun {
     }
 
     /// Delivery ratio against one interface, zero if the run produced no measurement for it.
+    ///
+    /// A measurement that saw duplicates is discarded whole rather than scored, because an honest
+    /// node never replays a packet and the ratio alone cannot tell the two apart: a node that
+    /// forwards one packet and echoes it nine more times counts ten received against ten sent and
+    /// would otherwise score a perfect 1.0 for having delivered a tenth of the traffic.
     fn performance(&self, interface: ExercisedInterface) -> f64 {
-        self.measurement(interface)
+        match self.measurement(interface) {
             // the ratio (and its clamp) is defined once, on the API-level measurement
-            .map(|measurement| InterfaceMeasurement::from(measurement).received_ratio())
-            .unwrap_or_default()
+            Some(measurement) if !measurement.received_duplicates => {
+                InterfaceMeasurement::from(measurement).received_ratio()
+            }
+            _ => 0.0,
+        }
     }
 }
 
@@ -464,10 +498,9 @@ impl From<CompletedTestRun> for TestRunData {
 /// Two fields are synthesised here rather than stored directly:
 ///
 /// - `test_performance` is the delivery ratio of the run's `mix_forwarding` measurement, which is
-///   the only interface a stress run exercises. A run that saw duplicate packets scores `0.0`
-///   outright: an honest node never replays a packet, so the whole measurement is discarded. A run
-///   that sent no packets also collapses to `0.0`; `was_reachable` is what lets the server tell
-///   that case apart from a genuine zero score.
+///   the only interface a stress run exercises. A run that sent no packets, saw duplicates, or
+///   produced no measurement at all collapses to `0.0` (see [`CompletedTestRun::performance`]);
+///   `was_reachable` is what lets the server tell those cases apart from a genuine zero score.
 /// - `was_reachable` is `error.is_none()` — i.e. the test completed without an abort error. A run
 ///   that aborted before the node responded sets `error` to the first failure, so the inverse is
 ///   an accurate "did we reach the node at all" signal.
@@ -475,20 +508,12 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
 
-        let test_performance = match completed.measurement(ExercisedInterface::MixForwarding) {
-            Some(measurement) if !measurement.received_duplicates => {
-                // the ratio (and its clamp) is defined once, on the API-level measurement
-                InterfaceMeasurement::from(measurement).received_ratio()
-            }
-            _ => 0.0,
-        };
-
         nym_api_requests::StressTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             is_mixnode: matches!(inner.tested_role, TestedRole::Mixnode),
             test_timestamp: inner.test_timestamp,
-            test_performance,
+            test_performance: completed.performance(ExercisedInterface::MixForwarding),
             was_reachable: inner.error.is_none(),
         }
     }
@@ -1001,5 +1026,167 @@ mod tests {
     fn malformed_announced_ips_are_skipped() {
         let announced = node(Some("not-an-ip,2.2.2.2")).announced_ips();
         assert_eq!(announced, vec!["2.2.2.2".parse::<IpAddr>().unwrap()]);
+    }
+
+    /// The scoring of a liveness run, i.e. what the nym-api is asked to weight a node by.
+    mod liveness_submission {
+        use super::*;
+
+        /// A measurement that received `received` of the `sent` packets it was given.
+        fn measurement(
+            interface: ExercisedInterface,
+            sent: i64,
+            received: i64,
+        ) -> TestRunMeasurement {
+            TestRunMeasurement {
+                packets_sent: sent,
+                packets_received: received,
+                ..minimal_measurement(interface)
+            }
+        }
+
+        fn liveness_run(
+            role: TestedRole,
+            measurements: Vec<TestRunMeasurement>,
+        ) -> CompletedTestRun {
+            CompletedTestRun {
+                run: TestRun {
+                    id: 7,
+                    inner: NewTestRun {
+                        node_id: 42,
+                        test_kind: TestKind::Liveness,
+                        tested_role: role,
+                        tested_address: "1.1.1.1:1789".to_string(),
+                        test_timestamp: datetime!(2026-08-01 00:00:00 UTC),
+                        time_taken_us: 0,
+                        error: None,
+                    },
+                },
+                measurements,
+            }
+        }
+
+        /// The breakdown as `(interface, performance)` pairs, since the wire type carries no `PartialEq`.
+        fn breakdown(
+            result: &nym_api_requests::LivenessTestResult,
+        ) -> Vec<(nym_api_requests::ExercisedInterface, f64)> {
+            result
+                .interfaces
+                .iter()
+                .map(|performance| (performance.interface, performance.performance))
+                .collect()
+        }
+
+        #[test]
+        fn a_mixnode_run_scores_its_single_interface() {
+            let run = liveness_run(
+                TestedRole::Mixnode,
+                vec![measurement(ExercisedInterface::MixForwarding, 10, 5)],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
+            );
+        }
+
+        #[test]
+        fn a_gateway_run_averages_both_of_its_phases() {
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![
+                    measurement(ExercisedInterface::ClientIngest, 10, 10),
+                    measurement(ExercisedInterface::ClientDelivery, 10, 5),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.75);
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.5),
+                ]
+            );
+        }
+
+        /// The point of the fixed denominator: a phase that produced nothing must not be dropped
+        /// from the average, or a gateway whose delivery never ran would tie with one that passed
+        /// both phases.
+        #[test]
+        fn a_missing_phase_scores_zero_rather_than_shrinking_the_denominator() {
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![measurement(ExercisedInterface::ClientIngest, 10, 10)],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            // the absent phase is carried explicitly, so the breakdown accounts for the score
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.0),
+                ]
+            );
+        }
+
+        /// A node that forwards one packet and replays it nine more times counts ten received
+        /// against ten sent, so the ratio alone would hand it a perfect score for delivering a
+        /// tenth of the traffic.
+        #[test]
+        fn an_interface_that_saw_duplicates_scores_zero() {
+            let duplicated = TestRunMeasurement {
+                received_duplicates: true,
+                ..measurement(ExercisedInterface::ClientIngest, 10, 10)
+            };
+            let run = liveness_run(
+                TestedRole::Gateway,
+                vec![
+                    duplicated,
+                    measurement(ExercisedInterface::ClientDelivery, 10, 10),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            // scoped to the interface that replayed, not to the whole run
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![
+                    (nym_api_requests::ExercisedInterface::ClientIngest, 0.0),
+                    (nym_api_requests::ExercisedInterface::ClientDelivery, 1.0),
+                ]
+            );
+        }
+
+        /// The breakdown is built from the interfaces the role is expected to produce, so a
+        /// measurement the probe had no business reporting cannot pull the average up.
+        #[test]
+        fn a_measurement_outside_the_expected_set_is_ignored() {
+            let run = liveness_run(
+                TestedRole::Mixnode,
+                vec![
+                    measurement(ExercisedInterface::MixForwarding, 10, 5),
+                    measurement(ExercisedInterface::ClientIngest, 10, 10),
+                ],
+            );
+
+            let result = nym_api_requests::LivenessTestResult::from(&run);
+
+            assert_eq!(result.test_performance, 0.5);
+            assert_eq!(
+                breakdown(&result),
+                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
+            );
+        }
     }
 }

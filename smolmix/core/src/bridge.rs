@@ -5,6 +5,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::ipr_wrapper::IpMixStream;
+use nym_sdk::Error as SdkError;
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
@@ -94,18 +95,18 @@ impl NymIprBridge {
     ///
     /// # Cancel safety
     ///
-    /// `IpMixStream::handle_incoming()` is **not** cancel-safe. Its internal
-    /// `FramedRead` buffers partial frames, and it mutates connection state
-    /// after awaiting. Inside `tokio::select!`, the shutdown branch can cancel
-    /// a pending `handle_incoming()` call and lose buffered data. That is
-    /// acceptable during shutdown, but worth knowing about before adding new
-    /// branches to the loop.
+    /// `IpMixStream::handle_incoming()` is **not** cancel-safe: it mutates
+    /// connection state after awaiting. Inside `tokio::select!`, the
+    /// shutdown branch can cancel a pending `handle_incoming()` call and
+    /// lose buffered data. That is acceptable during shutdown, but worth
+    /// knowing about before adding new branches to the loop.
     pub(crate) async fn run(mut self) -> Result<(), SmolmixError> {
         info!("Starting bridge");
         let mut packets_sent: u64 = 0;
         let mut packets_received: u64 = 0;
+        let mut fatal: Option<SmolmixError> = None;
 
-        loop {
+        'run: loop {
             tokio::select! {
                 _ = &mut self.shutdown_rx => {
                     info!(packets_sent, packets_received, "Bridge received shutdown signal");
@@ -132,17 +133,26 @@ impl NymIprBridge {
                             for packet in packets {
                                 if self.incoming_tx.unbounded_send(packet.to_vec()).is_err() {
                                     error!("Device channel closed");
-                                    return Err(SmolmixError::ChannelClosed);
+                                    fatal = Some(SmolmixError::ChannelClosed);
+                                    break 'run;
                                 }
                                 packets_received += 1;
                             }
                             debug!(packets_received, "Packets received");
                         }
                         Ok(_) => {} // empty batch, keep polling
+                        Err(e @ (SdkError::IPRClientStreamClosed | SdkError::IprTunnelDisconnected)) => {
+                            // The stream is gone and errors return instantly;
+                            // retrying would busy-loop.
+                            error!("Mixnet receive error, stopping bridge: {e}");
+                            fatal = Some(e.into());
+                            break;
+                        }
                         Err(e) => {
-                            // handle_incoming() internally uses a 10-second timeout,
-                            // so this won't busy-loop on persistent errors.
+                            // Pace the retry: an instantly-returning error
+                            // must not spin the loop.
                             warn!("Mixnet receive error: {e}");
+                            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         }
                     }
                 }
@@ -159,6 +169,9 @@ impl NymIprBridge {
         self.stream.disconnect().await;
         info!("Disconnected");
 
-        Ok(())
+        match fatal {
+            Some(err) => Err(err),
+            None => Ok(()),
+        }
     }
 }

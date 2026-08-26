@@ -322,6 +322,18 @@ mod failure_test {
         // create a new resolver that uses the shared resolver
         let mut resolver = HickoryDnsResolver::new();
 
+        // clears the shared resolver's pre-resolve entries on every exit path (normal return,
+        // an early `?`/`.expect()` failure, or an assertion panic), so a failure partway through
+        // this test can't leave static1.nymvpn.com/static2.nymvpn.com pinned in the shared
+        // resolver for whichever test the shared-state lock is handed to next.
+        struct ClearPreresolveOnDrop(HickoryDnsResolver);
+        impl Drop for ClearPreresolveOnDrop {
+            fn drop(&mut self) {
+                self.0.clear_preresolve();
+            }
+        }
+        let _clear_preresolve = ClearPreresolveOnDrop(resolver1.clone());
+
         let example_domains = [
             String::from("static1.nymvpn.com"),
             String::from("static2.nymvpn.com"),
@@ -338,20 +350,15 @@ mod failure_test {
 
         resolver.set_static_preresolve(addr_map1);
 
-        let time_start = std::time::Instant::now();
-        // successful lookup using pre-resolve entry promoted from fallback
-        let _ = resolver1
+        // successful lookup using pre-resolve entry promoted from fallback, resolving to exactly
+        // the address configured above (rather than, say, an unrelated address that a real DNS
+        // lookup for this made-up domain happened to return).
+        let addrs = resolver1
             .resolve_str(&example_domains[0])
             .await
-            .expect("domain expected to be in pre-resolve");
-
-        // this lookup should basically be instant as we are using pre-resolve
-        let lookup_dur = std::time::Instant::now() - time_start;
-        assert!(
-            lookup_dur < Duration::from_millis(10),
-            "expected instant - took {}ms",
-            (lookup_dur).as_millis()
-        );
+            .expect("domain expected to be in pre-resolve")
+            .collect_vec();
+        assert_eq!(addrs, vec![IpAddr::V4(Ipv4Addr::new(10, 10, 10, 10))]);
 
         // After clearing the pre-resolve in one instance of the shared resolver ...
         resolver.clear_preresolve();
@@ -365,9 +372,6 @@ mod failure_test {
             .unwrap()
             .pre_resolve(&example_domains[0]);
         assert!(prereslve_lookup.is_none());
-
-        // cleanup state of shared resolver before finishing test
-        resolver1.clear_preresolve();
 
         Ok(())
     }

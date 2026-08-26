@@ -120,7 +120,7 @@ impl Client {
     ) -> anyhow::Result<Self> {
         let nyxd_url = config.get_nyxd_url();
 
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details).context(
+        let client_config = nyxd::Config::try_from_nym_network_details(network_details).context(
             "failed to construct valid validator client config with the provided network",
         )?;
 

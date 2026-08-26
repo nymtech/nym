@@ -54,16 +54,38 @@ pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 
 /// are respected promptly rather than waiting up to 60 s for the next sweep.
 const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
 
+/// A stream failure, sent through the data channel so it arrives in
+/// order with the data around it. `recv()` returns it once and keeps
+/// delivering later messages; `AsyncRead` fails the stream for good.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum StreamFailure {
+    /// The reorder buffer overflowed and skipped past missing messages.
+    DataLoss,
+}
+
+impl StreamFailure {
+    pub(crate) fn as_io_error(self) -> std::io::Error {
+        match self {
+            StreamFailure::DataLoss => std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "stream data lost: reorder buffer overflow skipped missing messages",
+            ),
+        }
+    }
+}
+
 /// Per-stream state stored in the routing table.
 ///
 /// Reorder buffer uses the same BTreeMap pattern as `OrderedMessageBuffer`
 /// (`common/socks5/ordered-buffer/`) but drains per-message instead of
 /// concatenating, so `recv()` preserves message boundaries.
 struct StreamEntry {
-    sender: mpsc::UnboundedSender<Vec<u8>>,
+    sender: mpsc::UnboundedSender<Result<Vec<u8>, StreamFailure>>,
     last_activity: Instant,
     next_seq: u32,
     pending: BTreeMap<u32, Vec<u8>>,
+    /// Total payload bytes in `pending`; makes the overflow check O(1).
+    pending_bytes: usize,
 }
 
 impl StreamEntry {
@@ -71,7 +93,8 @@ impl StreamEntry {
     /// Returns true if the receiver has been dropped.
     fn drain_ready(&mut self) -> bool {
         while let Some(msg) = self.pending.remove(&self.next_seq) {
-            if self.sender.send(msg).is_err() {
+            self.pending_bytes -= msg.len();
+            if self.sender.send(Ok(msg)).is_err() {
                 return true;
             }
             self.next_seq += 1;
@@ -101,13 +124,18 @@ const MAX_ORPHAN_STREAMS: usize = 64;
 /// Maximum frames buffered per orphan stream.
 const MAX_ORPHAN_MESSAGES: usize = 32;
 
-/// Maximum number of out-of-order messages buffered per stream before we
+/// Maximum bytes of out-of-order messages buffered per stream before we
 /// skip ahead. Without this cap, a malicious sender that deliberately skips
 /// a sequence number (e.g. never sends seq 1) could cause the buffer to
 /// grow indefinitely while the drain loop waits for the missing seq.
 /// The idle timeout only reaps *inactive* streams, so an actively-sending
 /// attacker would bypass it.
-const MAX_REORDER_BUFFER: usize = 256;
+///
+/// Sized so a late frame with a retransmit in flight cannot trip it:
+/// 8 MiB is minutes of buffering at per-tunnel throughput, against
+/// second-scale retransmits. A skip means real loss, and a skip fails
+/// the stream (see [`StreamFailure`]).
+const MAX_REORDER_BUFFER_BYTES: usize = 8 * 1024 * 1024;
 
 /// The stream and orphan-frame tables, always locked together.
 struct StreamMapInner {
@@ -143,7 +171,7 @@ impl StreamMap {
     async fn register_stream(
         &self,
         stream_id: StreamId,
-    ) -> Option<mpsc::UnboundedReceiver<Vec<u8>>> {
+    ) -> Option<mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>> {
         let (tx, rx) = mpsc::unbounded_channel();
         let mut inner = self.inner.lock().await;
         if inner.streams.contains_key(&stream_id) {
@@ -154,11 +182,13 @@ impl StreamMap {
             .remove(&stream_id)
             .map(|orphan| orphan.pending)
             .unwrap_or_default();
+        let pending_bytes = pending.values().map(Vec::len).sum();
         let mut entry = StreamEntry {
             sender: tx,
             last_activity: Instant::now(),
             next_seq: 0,
             pending,
+            pending_bytes,
         };
         // The receiver cannot have been dropped yet - we still hold it.
         entry.drain_ready();
@@ -174,7 +204,7 @@ impl StreamMap {
         inner.orphans.remove(stream_id);
     }
 
-    /// Remove a stream without awaiting — for use in `Drop` and `poll_shutdown`
+    /// Remove a stream without awaiting: for use in `Drop` and `poll_shutdown`
     /// where we cannot `.await`. Spawns a lightweight background task.
     fn remove_background(&self, stream_id: StreamId) {
         let inner = self.inner.clone();
@@ -202,19 +232,33 @@ impl StreamMap {
                 entry.next_seq
             );
         } else {
-            entry.pending.insert(seq, data);
+            entry.pending_bytes += data.len();
+            if let Some(replaced) = entry.pending.insert(seq, data) {
+                // Duplicate seq: the replaced payload leaves the buffer.
+                entry.pending_bytes -= replaced.len();
+            }
         }
 
-        // If the buffer has grown too large, skip ahead to the lowest
-        // buffered seq so we don't accumulate unbounded memory.
-        if entry.pending.len() > MAX_REORDER_BUFFER {
-            if let Some(&lowest) = entry.pending.keys().next() {
+        // Over the cap: skip ahead to the lowest buffered seq and report
+        // the discarded range in-band. `lowest == next_seq` means the
+        // arriving frame filled the gap; everything drains below, so no
+        // skip and no failure.
+        if entry.pending_bytes > MAX_REORDER_BUFFER_BYTES {
+            let lowest = entry
+                .pending
+                .keys()
+                .next()
+                .copied()
+                .unwrap_or(entry.next_seq);
+            if lowest > entry.next_seq {
                 warn!(
-                    "Stream {stream_id}: reorder buffer overflow ({} pending), \
-                     skipping seq {} -> {lowest}",
+                    "Stream {stream_id}: reorder buffer overflow ({} messages, \
+                     {} bytes pending), skipping seq {} -> {lowest}",
                     entry.pending.len(),
+                    entry.pending_bytes,
                     entry.next_seq
                 );
+                let _ = entry.sender.send(Err(StreamFailure::DataLoss));
                 entry.next_seq = lowest;
             }
         }
@@ -311,7 +355,7 @@ impl Drop for StreamState {
 /// Created via [`MixnetClient::listener`]. Each `accept()` returns a
 /// `MixnetStream` ready for reading and writing.
 ///
-/// Only one `MixnetListener` can exist per client — a second call to
+/// Only one `MixnetListener` can exist per client; a second call to
 /// `listener()` returns [`Error::ListenerAlreadyTaken`].
 pub struct MixnetListener {
     inbound_rx: mpsc::UnboundedReceiver<InboundOpen>,
@@ -584,7 +628,7 @@ mod tests {
 
         map.cleanup_stale(timeout).await;
 
-        // Stream should survive — last activity was 5s ago, not 13s
+        // Stream should survive: last activity was 5s ago, not 13s
         assert_eq!(map.inner.lock().await.streams.len(), 1);
     }
 
@@ -655,7 +699,7 @@ mod tests {
 
         // The original stream still receives data.
         map.send_to_stream(&id, 0, vec![1]).await;
-        assert_eq!(rx.try_recv().unwrap(), vec![1]);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![1]);
     }
 
     #[tokio::test]
@@ -695,12 +739,12 @@ mod tests {
         map.send_to_stream(&id, 0, vec![0]).await;
 
         // seq 0 should be delivered now, but 2 is buffered (gap at 1)
-        assert_eq!(rx.recv().await.unwrap(), vec![0]);
+        assert_eq!(rx.recv().await.unwrap().unwrap(), vec![0]);
 
-        // Fill the gap — both 1 and 2 should flush
+        // Fill the gap: both 1 and 2 should flush
         map.send_to_stream(&id, 1, vec![10]).await;
-        assert_eq!(rx.recv().await.unwrap(), vec![10]);
-        assert_eq!(rx.recv().await.unwrap(), vec![20]);
+        assert_eq!(rx.recv().await.unwrap().unwrap(), vec![10]);
+        assert_eq!(rx.recv().await.unwrap().unwrap(), vec![20]);
     }
 
     #[tokio::test]
@@ -715,7 +759,9 @@ mod tests {
 
         let mut rx = map.register_stream(id).await.expect("fresh stream id");
         assert_eq!(
-            rx.try_recv().expect("early data delivered on registration"),
+            rx.try_recv()
+                .expect("early data delivered on registration")
+                .unwrap(),
             vec![42]
         );
     }
@@ -730,8 +776,8 @@ mod tests {
         map.send_to_stream(&id, 0, vec![0]).await;
 
         let mut rx = map.register_stream(id).await.expect("fresh stream id");
-        assert_eq!(rx.try_recv().unwrap(), vec![0]);
-        assert_eq!(rx.try_recv().unwrap(), vec![10]);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![10]);
     }
 
     #[tokio::test]
@@ -744,7 +790,61 @@ mod tests {
         map.send_to_stream(&id, 0, vec![99]).await; // duplicate, dropped
         map.send_to_stream(&id, 1, vec![1]).await;
 
-        assert_eq!(rx.recv().await.unwrap(), vec![0]);
-        assert_eq!(rx.recv().await.unwrap(), vec![1]);
+        assert_eq!(rx.recv().await.unwrap().unwrap(), vec![0]);
+        assert_eq!(rx.recv().await.unwrap().unwrap(), vec![1]);
+    }
+
+    #[tokio::test]
+    async fn reorder_overflow_signals_data_loss_in_order() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        let chunk = MAX_REORDER_BUFFER_BYTES / 8;
+
+        // seq 0 arrives and is delivered; seq 1 is lost in the mixnet.
+        map.send_to_stream(&id, 0, vec![0]).await;
+
+        // Frames pile up behind the gap: 2..=9 reach the cap exactly,
+        // seq 10 tips the buffer over it.
+        for seq in 2..=10 {
+            map.send_to_stream(&id, seq, vec![1; chunk]).await;
+        }
+
+        // Reader sees the intact prefix, then the loss, then the post-gap
+        // frames that the skip drained.
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::DataLoss)
+        ));
+        for _ in 2..=10 {
+            assert!(rx.try_recv().unwrap().is_ok());
+        }
+        // Outer Err: the channel is drained, not a stream failure.
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn late_gap_filler_at_capacity_is_not_data_loss() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let mut rx = map.register_stream(id).await.expect("fresh stream id");
+        let chunk = MAX_REORDER_BUFFER_BYTES / 8;
+
+        // seq 0 delivered; seq 1 is late; 2..=9 fill the buffer to the cap.
+        map.send_to_stream(&id, 0, vec![0]).await;
+        for seq in 2..=9 {
+            map.send_to_stream(&id, seq, vec![1; chunk]).await;
+        }
+        // The late gap-filler tips the buffer over the cap, but nothing was
+        // lost: everything drains and no failure is reported.
+        map.send_to_stream(&id, 1, vec![1; chunk]).await;
+
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![0]);
+        for _ in 1..=9 {
+            assert!(rx.try_recv().unwrap().is_ok());
+        }
+        // Outer Err: the channel is drained, not a stream failure.
+        assert!(rx.try_recv().is_err());
     }
 }

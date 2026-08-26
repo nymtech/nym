@@ -9,7 +9,7 @@ use axum::Router;
 use nym_api_requests::models::{
     KeyRotationDetails, KeyRotationInfoResponse, LegacyGatewaysResponse, LegacyMixnodesResponse,
 };
-use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_http_api_common::{FormattedResponse, OutputParams, OutputParamsV2};
 use nym_mixnet_contract_common::{reward_params::RewardingParams, Interval};
 
 // /v1/epoch/
@@ -87,13 +87,12 @@ async fn get_current_epoch(
         (status = 200, content(
             (KeyRotationInfoResponse = "application/json"),
             (KeyRotationInfoResponse = "application/yaml"),
-            (KeyRotationInfoResponse = "application/bincode")
         ))
     ),
-    params(OutputParams)
+    params(OutputParamsV2)
 )]
 async fn get_current_key_rotation_info(
-    Query(output): Query<OutputParams>,
+    Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> ApiResult<FormattedResponse<KeyRotationInfoResponse>> {
     let output = output.output.unwrap_or_default();
@@ -148,13 +147,12 @@ async fn get_legacy_mixnodes(
         (status = 200, content(
             (LegacyGatewaysResponse = "application/json"),
             (LegacyGatewaysResponse = "application/yaml"),
-            (LegacyGatewaysResponse = "application/bincode")
         ))
     ),
-    params(OutputParams)
+    params(OutputParamsV2)
 )]
 async fn get_legacy_gateways(
-    Query(output): Query<OutputParams>,
+    Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> AxumResult<FormattedResponse<LegacyGatewaysResponse>> {
     let output = output.get_output();

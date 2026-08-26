@@ -139,6 +139,7 @@ dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-directory-contract-common = { workspace = true }
 
 [lints]
 workspace = true

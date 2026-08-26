@@ -1337,7 +1337,7 @@ pub(crate) async fn build_dummy_ecash_state(
         None,
     )];
     dummy.export_to_env();
-    let real_client = Client::new(config).unwrap();
+    let real_client = Client::new(config, &NymNetworkDetails::new_from_env()).unwrap();
 
     DummyEcashBundle {
         ecash_state,

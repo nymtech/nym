@@ -222,6 +222,7 @@ impl Config {
 
         self.ecash_signer.validate()?;
         self.performance_provider.validate()?;
+        self.directory.validate()?;
 
         Ok(())
     }
@@ -956,6 +957,12 @@ pub struct DirectoryConfig {
     pub debug: DirectoryConfigDebug,
 }
 
+impl DirectoryConfig {
+    fn validate(&self) -> anyhow::Result<()> {
+        self.debug.validate()
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct DirectoryConfigDebug {
@@ -979,6 +986,13 @@ impl DirectoryConfigDebug {
     pub const DEFAULT_RETENTION_COUNT: usize = 3;
     pub const DEFAULT_SETTLE_LAG: usize = 10;
     pub const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
+
+    fn validate(&self) -> anyhow::Result<()> {
+        if !self.trusted_rpc_node {
+            bail!("untrusted local rpc node is currently not fully supported")
+        }
+        Ok(())
+    }
 }
 
 impl Default for DirectoryConfigDebug {

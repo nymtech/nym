@@ -87,13 +87,12 @@ async fn get_current_epoch(
         (status = 200, content(
             (KeyRotationInfoResponse = "application/json"),
             (KeyRotationInfoResponse = "application/yaml"),
-            (KeyRotationInfoResponse = "application/bincode")
         ))
     ),
-    params(OutputParams)
+    params(OutputParamsV2)
 )]
 async fn get_current_key_rotation_info(
-    Query(output): Query<OutputParams>,
+    Query(output): Query<OutputParamsV2>,
     State(state): State<AppState>,
 ) -> ApiResult<FormattedResponse<KeyRotationInfoResponse>> {
     let output = output.output.unwrap_or_default();
@@ -150,7 +149,7 @@ async fn get_legacy_mixnodes(
             (LegacyGatewaysResponse = "application/yaml"),
         ))
     ),
-    params(OutputParams)
+    params(OutputParamsV2)
 )]
 async fn get_legacy_gateways(
     Query(output): Query<OutputParamsV2>,

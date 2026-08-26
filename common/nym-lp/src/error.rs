@@ -121,8 +121,8 @@ pub enum LpError {
     #[error("failed to generate randomness: {0}")]
     RngFailure(#[from] getrandom04::Error),
 
-    #[error("the counter value has exceeded its maximum value")]
-    InvalidCounter,
+    #[error("the sending counter of the transport channel has been exhausted")]
+    SendingCounterExhausted,
 }
 
 impl LpError {

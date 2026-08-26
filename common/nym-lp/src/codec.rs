@@ -12,36 +12,32 @@ pub(crate) const SANE_ENC_OVERHEAD: usize = 32;
 // needs to be equal or below the actual overhead
 pub(crate) const SANE_DEC_OVERHEAD: usize = 24;
 
-// same as libcrux_psq::aead::NONCE_LEN;
+// same as libcrux_psq::aead::NONCE_LEN, which libcrux does not re-export
 pub(crate) const NONCE_LEN: usize = 12;
 
-// same as libcrux_psq::aead::NONCE_MAX;
-pub(crate) const COUNTER_MAX: u128 = u128::MAX >> (128 - NONCE_LEN * 8);
-
-fn counter_to_nonce(ctr: u128) -> Result<[u8; NONCE_LEN], LpError> {
-    if ctr > COUNTER_MAX {
-        return Err(LpError::InvalidCounter);
-    }
+/// Derives the AEAD nonce of the packet with the given counter.
+///
+/// libcrux increments its nonce *before* every use, so prior to `nonce-control` the packet with
+/// counter `n` was encrypted under nonce `n + 1`. The offset keeps the wire format identical.
+pub(crate) fn counter_to_nonce(counter: u64) -> [u8; NONCE_LEN] {
+    // a u64 counter plus one always fits into the 96-bit nonce
+    let buf = (counter as u128 + 1).to_be_bytes();
+    let (_, tail) = buf.split_at(16 - NONCE_LEN);
 
     let mut nonce = [0u8; NONCE_LEN];
-    let buf = ctr.to_be_bytes();
-    nonce.copy_from_slice(&buf[16 - NONCE_LEN..]);
-
-    Ok(nonce)
+    nonce.copy_from_slice(tail);
+    nonce
 }
 
 pub(crate) fn encrypt_data(
-    counter: u128,
+    counter: u64,
     plaintext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
-    // ideally we'd expire the transport but unfortunately the method is not public,
-    // so the caller will have to do it manually
-    let nonce = counter_to_nonce(counter)?;
-
     let mut ciphertext = vec![0u8; plaintext.len() + SANE_ENC_OVERHEAD];
 
-    transport.set_sender_nonce(&nonce);
+    // with `nonce-control` libcrux uses the nonce verbatim, so counter uniqueness is on the caller
+    transport.set_sender_nonce(&counter_to_nonce(counter));
     let n = transport.write_message(plaintext, &mut ciphertext)?;
 
     if plaintext.len() + SANE_ENC_OVERHEAD != n {
@@ -52,20 +48,17 @@ pub(crate) fn encrypt_data(
 }
 
 pub(crate) fn decrypt_data(
-    counter: u128,
+    counter: u64,
     ciphertext: &[u8],
     transport: &mut libcrux_psq::session::Transport,
 ) -> Result<Vec<u8>, LpError> {
     if ciphertext.len() < SANE_DEC_OVERHEAD {
         return Err(LpError::InsufficientBufferSize);
     }
-    // ideally we'd expire the transport but unfortunately the method is not public,
-    // so the caller will have to do it manually
-    let nonce = counter_to_nonce(counter)?;
 
     let mut plaintext = vec![0u8; ciphertext.len() - SANE_DEC_OVERHEAD];
 
-    transport.set_receiver_nonce(&nonce);
+    transport.set_receiver_nonce(&counter_to_nonce(counter));
     let (_, n) = transport.read_message(ciphertext, &mut plaintext)?;
     if n != ciphertext.len() - SANE_DEC_OVERHEAD {
         plaintext.truncate(n);
@@ -81,8 +74,7 @@ pub(crate) fn encrypt_lp_packet(
     packet.header().inner.encode(&mut plaintext);
     packet.frame().encode(&mut plaintext);
 
-    let counter = packet.header().counter();
-    let ciphertext = encrypt_data(counter as u128, plaintext.as_ref(), transport)?;
+    let ciphertext = encrypt_data(packet.header().counter(), plaintext.as_ref(), transport)?;
 
     Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
@@ -95,8 +87,11 @@ pub(crate) fn decrypt_lp_packet(
         return Err(LpError::InsufficientBufferSize);
     }
 
-    let counter = packet.outer_header().counter;
-    let plaintext = decrypt_data(counter as u128, packet.ciphertext(), transport)?;
+    let plaintext = decrypt_data(
+        packet.outer_header().counter,
+        packet.ciphertext(),
+        transport,
+    )?;
 
     let inner_header = InnerHeader::parse(&plaintext)?;
     #[allow(clippy::indexing_slicing)]
@@ -115,14 +110,68 @@ pub(crate) fn decrypt_lp_packet(
 #[cfg(test)]
 mod tests {
     use crate::LpError;
-    use crate::codec::{decrypt_data, decrypt_lp_packet, encrypt_data, encrypt_lp_packet};
+    use crate::codec::{
+        NONCE_LEN, SANE_ENC_OVERHEAD, counter_to_nonce, decrypt_data, decrypt_lp_packet,
+        encrypt_data, encrypt_lp_packet,
+    };
     use crate::peer::mock_peers;
     use crate::psq::initiator::{build_psq_ciphersuite, build_psq_principal};
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
+    use bytes::BytesMut;
+    use libcrux_psq::session::Transport;
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt_ciphersuite::KEM;
-    use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
+    use nym_lp_data::packet::{EncryptedLpPacket, InnerHeader, LpFrame, LpHeader, LpPacket};
     use nym_test_utils::helpers::u64_seeded_rng_09;
+
+    /// Emulates the nonce handling of libcrux without `nonce-control`, i.e. what peers running the
+    /// previous nym-lp release do: a 12-byte big-endian counter incremented *before* every use.
+    #[derive(Default)]
+    struct LegacyNonce([u8; NONCE_LEN]);
+
+    impl LegacyNonce {
+        fn next(&mut self) -> [u8; NONCE_LEN] {
+            let mut buf = [0u8; 16];
+            buf[16 - NONCE_LEN..].copy_from_slice(&self.0);
+            let incremented = (u128::from_be_bytes(buf) + 1).to_be_bytes();
+            self.0.copy_from_slice(&incremented[16 - NONCE_LEN..]);
+            self.0
+        }
+    }
+
+    /// The previous release's `encrypt_lp_packet`: same framing, nonce driven by libcrux's counter.
+    fn legacy_encrypt_lp_packet(
+        packet: &LpPacket,
+        nonce: &mut LegacyNonce,
+        transport: &mut Transport,
+    ) -> EncryptedLpPacket {
+        let mut plaintext = BytesMut::new();
+        packet.header().inner.encode(&mut plaintext);
+        packet.frame().encode(&mut plaintext);
+
+        let mut ciphertext = vec![0u8; plaintext.len() + SANE_ENC_OVERHEAD];
+        transport.set_sender_nonce(&nonce.next());
+        let n = transport
+            .write_message(&plaintext, &mut ciphertext)
+            .unwrap();
+        ciphertext.truncate(n);
+
+        EncryptedLpPacket::new(packet.header().outer, ciphertext)
+    }
+
+    /// The previous release's `decrypt_lp_packet`: ignores the header counter entirely.
+    fn legacy_decrypt_lp_packet(
+        packet: &EncryptedLpPacket,
+        nonce: &mut LegacyNonce,
+        transport: &mut Transport,
+    ) -> LpFrame {
+        let mut plaintext = vec![0u8; packet.ciphertext().len()];
+        transport.set_receiver_nonce(&nonce.next());
+        let (_, n) = transport
+            .read_message(packet.ciphertext(), &mut plaintext)
+            .unwrap();
+        LpFrame::decode(&plaintext[InnerHeader::SIZE..n]).unwrap()
+    }
 
     fn mock_transport() -> (
         libcrux_psq::session::Transport,
@@ -270,22 +319,106 @@ mod tests {
 
         // happy path
         let msg = b"foomp".to_vec();
-        let ciphertext = encrypt_data(&msg, &mut init_transport).unwrap();
-        let plaintext = decrypt_data(&ciphertext, &mut resp_transport).unwrap();
+        let ciphertext = encrypt_data(0, &msg, &mut init_transport).unwrap();
+        let plaintext = decrypt_data(0, &ciphertext, &mut resp_transport).unwrap();
         assert_eq!(msg, plaintext);
 
         // incomplete ciphertext
         let msg2 = b"foomp".to_vec();
-        let ciphertext2 = encrypt_data(&msg2, &mut init_transport).unwrap();
+        let ciphertext2 = encrypt_data(1, &msg2, &mut init_transport).unwrap();
         let len = ciphertext2.len();
-        let dec_err = decrypt_data(&ciphertext2[..len - 1], &mut resp_transport).unwrap_err();
+        let dec_err = decrypt_data(1, &ciphertext2[..len - 1], &mut resp_transport).unwrap_err();
         assert!(matches!(dec_err, LpError::PSQSessionFailure { .. }));
 
         // too small buffer
         let msg3 = b"foomp".to_vec();
-        let ciphertext3 = encrypt_data(&msg3, &mut resp_transport).unwrap();
-        let dec_err = decrypt_data(&ciphertext3[..10], &mut init_transport).unwrap_err();
+        let ciphertext3 = encrypt_data(0, &msg3, &mut resp_transport).unwrap();
+        let dec_err = decrypt_data(0, &ciphertext3[..10], &mut init_transport).unwrap_err();
         assert!(matches!(dec_err, LpError::InsufficientBufferSize));
+    }
+
+    #[test]
+    fn counter_to_nonce_matches_legacy_increment_before_use() {
+        assert_eq!(counter_to_nonce(0), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(counter_to_nonce(1), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq!(counter_to_nonce(255), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]);
+        // u64::MAX + 1 = 2^64 sets bit 64, i.e. byte 3 of the 12-byte big-endian nonce
+        assert_eq!(
+            counter_to_nonce(u64::MAX),
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+
+        let mut legacy = LegacyNonce::default();
+        for counter in 0..1000u64 {
+            assert_eq!(counter_to_nonce(counter), legacy.next());
+        }
+    }
+
+    #[test]
+    fn legacy_sender_to_new_receiver() {
+        let (mut legacy, mut new) = mock_transport();
+        let mut legacy_nonce = LegacyNonce::default();
+
+        for counter in 0..5u64 {
+            let packet = LpPacket::new(
+                LpHeader::new(123, counter, 1),
+                LpFrame::new_opaque(vec![counter as u8; 8]),
+            );
+            let encrypted = legacy_encrypt_lp_packet(&packet, &mut legacy_nonce, &mut legacy);
+            assert_eq!(decrypt_lp_packet(encrypted, &mut new).unwrap(), packet);
+        }
+    }
+
+    #[test]
+    fn new_sender_to_legacy_receiver() {
+        let (mut new, mut legacy) = mock_transport();
+        let mut legacy_nonce = LegacyNonce::default();
+
+        for counter in 0..5u64 {
+            let frame = LpFrame::new_opaque(vec![counter as u8; 8]);
+            let packet = LpPacket::new(LpHeader::new(123, counter, 1), frame.clone());
+            let encrypted = encrypt_lp_packet(packet, &mut new).unwrap();
+            assert_eq!(
+                legacy_decrypt_lp_packet(&encrypted, &mut legacy_nonce, &mut legacy),
+                frame
+            );
+        }
+    }
+
+    #[test]
+    fn decryption_requires_the_matching_counter() {
+        let (mut init_transport, mut resp_transport) = mock_transport();
+
+        let ciphertext = encrypt_data(5, b"foomp", &mut init_transport).unwrap();
+        let err = decrypt_data(6, &ciphertext, &mut resp_transport).unwrap_err();
+        assert!(matches!(err, LpError::PSQSessionFailure { .. }));
+
+        // a failed attempt must not affect later ones
+        let plaintext = decrypt_data(5, &ciphertext, &mut resp_transport).unwrap();
+        assert_eq!(plaintext, b"foomp".to_vec());
+    }
+
+    #[test]
+    fn out_of_order_and_lossy_decryption() {
+        let (mut init_transport, mut resp_transport) = mock_transport();
+
+        let packets: Vec<_> = (0..6u64)
+            .map(|counter| {
+                let packet = LpPacket::new(
+                    LpHeader::new(123, counter, 1),
+                    LpFrame::new_opaque(vec![counter as u8; 16]),
+                );
+                let encrypted = encrypt_lp_packet(packet.clone(), &mut init_transport).unwrap();
+                (packet, encrypted)
+            })
+            .collect();
+
+        // reordered, with packet 4 never arriving
+        for idx in [3, 0, 5, 1, 2] {
+            let (expected, encrypted) = &packets[idx];
+            let decrypted = decrypt_lp_packet(encrypted.clone(), &mut resp_transport).unwrap();
+            assert_eq!(&decrypted, expected);
+        }
     }
 
     #[test]

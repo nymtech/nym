@@ -22,7 +22,7 @@ use tokio_util::sync::PollSender;
 use nym_lp_data::packet::frame::SphinxStreamMsgType;
 
 use super::protocol::{encode_stream_message, StreamId};
-use super::StreamMap;
+use super::{StreamFailure, StreamMap};
 
 /// How to address outbound messages on this stream.
 enum Destination {
@@ -47,10 +47,15 @@ pub struct MixnetStream {
     packet_type: Option<PacketType>,
     streams: StreamMap,
 
-    inbound_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    inbound_rx: mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
     read_buf: BytesMut,
     deregistered: bool,
     next_seq: u32,
+
+    /// Set when `poll_read` hits a lost-data marker. Once set, all reads
+    /// and writes fail. `recv()` never sets this: it returns the error
+    /// once and keeps going.
+    failure: Option<StreamFailure>,
 }
 
 impl MixnetStream {
@@ -62,7 +67,7 @@ impl MixnetStream {
         client_input: ClientInput,
         packet_type: Option<PacketType>,
         streams: StreamMap,
-        inbound_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+        inbound_rx: mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
     ) -> Self {
         let sender = PollSender::new(client_input.input_sender.clone());
         Self {
@@ -78,6 +83,7 @@ impl MixnetStream {
             read_buf: BytesMut::new(),
             deregistered: false,
             next_seq: 0,
+            failure: None,
         }
     }
 
@@ -88,7 +94,7 @@ impl MixnetStream {
         client_input: ClientInput,
         packet_type: Option<PacketType>,
         streams: StreamMap,
-        inbound_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+        inbound_rx: mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
         initial_data: Vec<u8>,
     ) -> Self {
         let mut read_buf = BytesMut::new();
@@ -106,6 +112,7 @@ impl MixnetStream {
             read_buf,
             deregistered: false,
             next_seq: 0,
+            failure: None,
         }
     }
 
@@ -116,13 +123,23 @@ impl MixnetStream {
 
     /// Receive a single message payload directly from the stream channel.
     ///
-    /// Returns `None` on EOF (channel closed). Drains any leftover from
-    /// a prior `AsyncRead` call first.
-    pub async fn recv(&mut self) -> Option<Vec<u8>> {
-        if !self.read_buf.is_empty() {
-            return Some(self.read_buf.split().to_vec());
+    /// Returns `None` on EOF (channel closed). Returns `Some(Err(_))`
+    /// when messages were lost at this point in the sequence; later calls
+    /// return the messages that follow. Drains any leftover from a prior
+    /// `AsyncRead` call first.
+    pub async fn recv(&mut self) -> Option<std::io::Result<Vec<u8>>> {
+        if let Some(failure) = &self.failure {
+            return Some(Err(failure.as_io_error()));
         }
-        self.inbound_rx.recv().await
+        if !self.read_buf.is_empty() {
+            return Some(Ok(self.read_buf.split().to_vec()));
+        }
+        Some(
+            self.inbound_rx
+                .recv()
+                .await?
+                .map_err(StreamFailure::as_io_error),
+        )
     }
 
     /// Wrap `data` in the appropriate `InputMessage` for this stream's destination.
@@ -162,6 +179,10 @@ impl AsyncRead for MixnetStream {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf,
     ) -> Poll<std::io::Result<()>> {
+        if let Some(failure) = &self.failure {
+            return Poll::Ready(Err(failure.as_io_error()));
+        }
+
         // Drain spillover first
         if !self.read_buf.is_empty() {
             let n = std::cmp::min(buf.remaining(), self.read_buf.len());
@@ -170,13 +191,17 @@ impl AsyncRead for MixnetStream {
         }
 
         match ready!(self.inbound_rx.poll_recv(cx)) {
-            Some(data) => {
+            Some(Ok(data)) => {
                 let n = std::cmp::min(buf.remaining(), data.len());
                 buf.put_slice(&data[..n]);
                 if n < data.len() {
                     self.read_buf.extend_from_slice(&data[n..]);
                 }
                 Poll::Ready(Ok(()))
+            }
+            Some(Err(failure)) => {
+                self.failure = Some(failure);
+                Poll::Ready(Err(failure.as_io_error()))
             }
             None => Poll::Ready(Ok(())), // EOF
         }
@@ -189,6 +214,10 @@ impl AsyncWrite for MixnetStream {
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
+        if let Some(failure) = &self.failure {
+            return Poll::Ready(Err(failure.as_io_error()));
+        }
+
         if buf.is_empty() {
             return Poll::Ready(Ok(0));
         }

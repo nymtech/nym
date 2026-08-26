@@ -892,7 +892,7 @@ impl StorageManager {
 mod tests {
     use super::*;
     use crate::storage::models::{
-        ExercisedInterface, NewNymNode, NewTestRun, NodeTestState, NodeType,
+        ExercisedInterface, NewNymNode, NewTestRun, NodeTestState, NodeType, minimal_measurement,
     };
     use std::net::IpAddr;
     use time::macros::datetime;
@@ -942,29 +942,6 @@ mod tests {
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             time_taken_us: 0,
             error: None,
-        }
-    }
-
-    fn minimal_measurement(interface: ExercisedInterface) -> TestRunMeasurement {
-        TestRunMeasurement {
-            interface,
-            ingress_noise_handshake_us: None,
-            egress_noise_handshake_us: None,
-            sphinx_packet_delay_us: 0,
-            packets_sent: 0,
-            packets_received: 0,
-            approximate_latency_us: None,
-            packets_rtt_min_us: None,
-            packets_rtt_mean_us: None,
-            packets_rtt_median_us: None,
-            packets_rtt_max_us: None,
-            packets_rtt_std_dev_us: None,
-            sending_latency_min_us: None,
-            sending_latency_mean_us: None,
-            sending_latency_median_us: None,
-            sending_latency_max_us: None,
-            sending_latency_std_dev_us: None,
-            received_duplicates: false,
         }
     }
 

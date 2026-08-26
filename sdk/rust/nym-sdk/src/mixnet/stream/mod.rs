@@ -458,6 +458,25 @@ pub(crate) async fn open_stream(
     recipient: Recipient,
     reply_surbs: u32,
 ) -> Result<MixnetStream> {
+    // Fail at dial time if the recipient's gateway is not in topology;
+    // otherwise the Open dies in the send task with only a warn log. The
+    // empty check separates "our view is gone" from "unknown gateway".
+    {
+        let permit = client
+            .client_state
+            .topology_accessor
+            .get_read_permit()
+            .await;
+        permit
+            .topology
+            .ensure_not_empty()
+            .and_then(|()| permit.egress_by_identity(recipient.gateway()).map(|_| ()))
+    }
+    .map_err(|source| Error::UnroutableRecipient {
+        recipient: Box::new(recipient),
+        source,
+    })?;
+
     let streams = ensure_init(client)?.streams.clone();
 
     // Random ids make collisions vanishingly unlikely, but regenerate on

@@ -196,6 +196,76 @@ fn host_updating_url_conditioned() {
     assert_eq!(client.current_url().as_str(), "http://nym-api2.test/");
 }
 
+// Regression test: `apply_hosts_to_req` must read `current_url()` exactly once and derive
+// both the returned domain and the host actually applied to the request from that single
+// snapshot. If a caller (or `apply_hosts_to_req` itself) read `current_url()` twice, a
+// concurrent host rotation interleaved between the two reads could desync the reported
+// domain from the host that ends up on the outgoing request.
+#[test]
+fn apply_hosts_to_req_domain_matches_request_host() {
+    let new_urls = vec![
+        Url::new("http://nym-api1.test", None).unwrap(),
+        Url::new("http://nym-api2.test", None).unwrap(),
+    ];
+    let client = ClientBuilder::new_with_urls(new_urls)
+        .unwrap()
+        .build()
+        .unwrap();
+
+    for _ in 0..4 {
+        let current = client.current_url().clone();
+        let mut req = reqwest::Request::new(reqwest::Method::GET, current.clone().into());
+
+        let (domain, front_used) = client.apply_hosts_to_req(&mut req);
+
+        assert_eq!(domain, current.host_str());
+        assert_eq!(front_used, None);
+        assert_eq!(req.url().host_str(), current.host_str());
+
+        client.update_host(None);
+    }
+}
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn apply_hosts_to_req_domain_matches_real_host_when_fronted() {
+    let url = Url::new(
+        "http://nym-api.test",
+        Some(vec!["http://cdn1.test", "http://cdn2.test"]),
+    )
+    .unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(crate::fronted::FrontPolicy::Always))
+        .build()
+        .unwrap();
+
+    for _ in 0..3 {
+        let mut req =
+            reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
+
+        let (domain, front_used) = client.apply_hosts_to_req(&mut req);
+
+        // the real (unfronted) host is always reported, regardless of which front is active
+        assert_eq!(domain, Some("nym-api.test"));
+        assert!(front_used.is_some());
+
+        // the request itself must be routed via the front, with the real host preserved in
+        // the HOST header and the front captured in the outer-SNI header
+        assert_eq!(req.url().host_str(), front_used);
+        assert_eq!(
+            req.headers().get(reqwest::header::HOST).unwrap(),
+            domain.unwrap()
+        );
+        assert_eq!(
+            req.headers().get(NYM_OUTER_SNI_HEADER).unwrap(),
+            front_used.unwrap()
+        );
+
+        client.update_host(None);
+    }
+}
+
 #[test]
 #[cfg(feature = "tunneling")]
 fn fronted_host_updating() {

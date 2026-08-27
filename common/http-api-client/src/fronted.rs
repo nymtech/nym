@@ -12,6 +12,18 @@ use tracing::warn;
 
 use crate::{Client, ClientBuilder};
 
+static SHARED_FRONTING_POLICY: LazyLock<Arc<RwLock<FrontPolicy>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(FrontPolicy::Off)));
+
+#[derive(Debug)]
+pub(crate) struct Front {
+    pub(crate) policy: Arc<RwLock<FrontPolicy>>,
+    enabled: AtomicBool,
+    // Per-domain failure counts, used by `FrontPolicy::ConfiguredRetry` to decide when enough
+    // domains have failed often enough to justify enabling fronting.
+    domain_failures: Mutex<HashMap<String, usize>>,
+}
+
 impl Clone for Front {
     fn clone(&self) -> Self {
         Self {

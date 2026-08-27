@@ -246,23 +246,6 @@ pub fn network_reconfigured() {
     *SHARED_NETWORK_RECONFIGURATION.lock().unwrap() = Some(Instant::now());
 }
 
-/// Guards access to process-wide test state (currently [`SHARED_NETWORK_RECONFIGURATION`] and
-/// fronting's `SHARED_FRONTING_POLICY`). Tests that read or write either of these statics - or
-/// that send real requests and are therefore sensitive to [`SHARED_NETWORK_RECONFIGURATION`]
-/// being mutated out from under them - must hold this lock for their duration, otherwise the
-/// default parallel test runner can interleave them and produce spurious failures.
-#[cfg(test)]
-pub(crate) static SHARED_TEST_STATE_LOCK: Mutex<()> = Mutex::new(());
-
-/// Acquire [`SHARED_TEST_STATE_LOCK`], recovering from poisoning so that one panicking test
-/// doesn't cascade into failures for every other test relying on this guard.
-#[cfg(test)]
-pub(crate) fn lock_shared_test_state() -> std::sync::MutexGuard<'static, ()> {
-    SHARED_TEST_STATE_LOCK
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
-
 /// Collection of URL Path Segments
 pub type PathSegments<'a> = &'a [&'a str];
 /// Collection of HTTP Request Parameters
@@ -1084,9 +1067,13 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    pub(crate) fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
+    pub(crate) fn apply_hosts_to_req(
+        &self,
+        r: &mut reqwest::Request,
+    ) -> (Option<&str>, Option<&str>) {
         let url = self.current_url();
-        r.url_mut().set_host(url.host_str()).unwrap();
+        let domain = url.host_str();
+        r.url_mut().set_host(domain).unwrap();
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
@@ -1122,7 +1109,7 @@ impl Client {
                         .headers_mut()
                         .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
-                    return (url.as_str(), Some(front_host));
+                    return (domain, Some(front_host));
                 } else {
                     tracing::debug!(
                         "Domain fronting is enabled, but no host_url is defined for current URL"
@@ -1141,7 +1128,7 @@ impl Client {
         r.headers_mut().remove(reqwest::header::HOST);
         r.headers_mut().remove(NYM_OUTER_SNI_HEADER);
 
-        (url.as_str(), None)
+        (domain, None)
     }
 }
 
@@ -1221,8 +1208,8 @@ impl ApiClientCore for Client {
             let mut req = r
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
-            let domain = self.current_url().host_str().map(str::to_owned);
-            let (_, _front_used) = self.apply_hosts_to_req(&mut req);
+            let (domain, _front_used) = self.apply_hosts_to_req(&mut req);
+            let domain = domain.map(str::to_owned);
             let url: Url = req.url().clone().into();
 
             let request_start = Instant::now();

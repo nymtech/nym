@@ -139,6 +139,14 @@ pub trait DkgSigningClient {
             .await
     }
 
+    /// The admin escape hatch: forces a DKG reset from any epoch state, including mid-exchange.
+    async fn trigger_dkg_forced_reset(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TriggerForcedReset {};
+
+        self.execute_dkg_contract(fee, req, "trigger forced DKG reset".to_string(), vec![])
+            .await
+    }
+
     async fn transfer_ownership(
         &self,
         transfer_to: String,
@@ -238,6 +246,7 @@ mod tests {
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
             DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),
             DkgExecuteMsg::TriggerResharing {} => client.trigger_dkg_resharing(None).ignore(),
+            DkgExecuteMsg::TriggerForcedReset {} => client.trigger_dkg_forced_reset(None).ignore(),
             ExecuteMsg::TransferOwnership { transfer_to } => {
                 client.transfer_ownership(transfer_to, None).ignore()
             }

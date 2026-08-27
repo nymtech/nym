@@ -53,7 +53,36 @@ pub(crate) fn try_trigger_reset(
 
     // only allow reset when the DKG exchange isn't in progress
     if !current_epoch.state.is_in_progress() {
-        return Err(ContractError::CantReshareDuringExchange);
+        return Err(ContractError::CantResetDuringExchange);
+    }
+
+    let next_epoch = current_epoch.next_reset(env.block.time);
+    save_epoch(deps.storage, env.block.height, &next_epoch)?;
+
+    reset_dkg_state(deps.storage)?;
+
+    Ok(Response::default())
+}
+
+/// The admin's escape hatch: a reset callable from any state past initialisation.
+///
+/// [`try_trigger_reset`] is deliberately gated on `InProgress`, but a ceremony that keeps ending
+/// sub-threshold auto-resets straight into the next attempt without ever getting there, so the
+/// ordinary lever can never stop or redirect a looping ceremony. This one can, and it can also
+/// abort an exchange already in flight. Aborting leaves the in-flight epoch abandoned, which
+/// issuance already tolerates: `keys_in_service` is carried over, not derived from the epoch id.
+pub(crate) fn try_trigger_forced_reset(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // only the admin is allowed to force a DKG reset
+    DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let current_epoch = load_current_epoch(deps.storage)?;
+
+    // there is nothing to reset before the DKG has been initiated
+    if matches!(current_epoch.state, EpochState::WaitingInitialisation) {
+        return Err(ContractError::WaitingInitialisation);
     }
 
     let next_epoch = current_epoch.next_reset(env.block.time);
@@ -153,5 +182,142 @@ pub(crate) mod tests {
         reset_dkg_state(deps.as_mut().storage).unwrap();
 
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+    }
+
+    #[cfg(test)]
+    mod forced_reset {
+        use super::*;
+        use nym_coconut_dkg_common::types::{StateProgress, TimeConfiguration};
+
+        #[test]
+        fn only_the_admin_may_force_a_reset() {
+            let mut deps = init_contract();
+            let env = mock_env();
+
+            try_initiate_dkg(
+                deps.as_mut(),
+                env.clone(),
+                message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+            )
+            .unwrap();
+
+            let not_admin = deps.api.addr_make("not an admin");
+            let res =
+                try_trigger_forced_reset(deps.as_mut(), env.clone(), message_info(&not_admin, &[]))
+                    .unwrap_err();
+            assert_eq!(ContractError::Admin(AdminError::NotAdmin {}), res);
+
+            // and the epoch was left alone
+            assert_eq!(0, load_current_epoch(&deps.storage).unwrap().epoch_id);
+        }
+
+        #[test]
+        fn there_is_nothing_to_force_before_initialisation() {
+            let mut deps = init_contract();
+            let env = mock_env();
+
+            let res = try_trigger_forced_reset(
+                deps.as_mut(),
+                env,
+                message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+            )
+            .unwrap_err();
+            assert_eq!(ContractError::WaitingInitialisation, res);
+        }
+
+        /// The reason this message exists: a ceremony that keeps ending sub-threshold auto-resets
+        /// into the next attempt without ever reaching `InProgress`, which is the only state the
+        /// ordinary `TriggerReset` accepts - so a looping ceremony locks the admin out entirely.
+        #[test]
+        fn a_forced_reset_escapes_the_sub_threshold_loop() {
+            let mut deps = init_contract();
+            let mut env = mock_env();
+            let admin = message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]);
+
+            // epoch 7's keys are in service and the ceremony for 11 is about to end sub-threshold
+            THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+            let failing = Epoch {
+                state_progress: StateProgress {
+                    verified_keys: 41,
+                    ..Default::default()
+                },
+                keys_in_service: Some(7),
+                ..Epoch::new(
+                    EpochState::VerificationKeyFinalization { resharing: false },
+                    11,
+                    TimeConfiguration::default(),
+                    env.block.time,
+                )
+            };
+            save_epoch(deps.as_mut().storage, env.block.height, &failing).unwrap();
+
+            env.block.time = env.block.time.plus_seconds(
+                TimeConfiguration::default().verification_key_finalization_time_secs + 1,
+            );
+            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+            // the loop: a fresh attempt is already running, and the ordinary lever is refused
+            // (with the reset error, not the resharing one it used to misreport)
+            let looping = load_current_epoch(&deps.storage).unwrap();
+            assert_eq!(12, looping.epoch_id);
+            assert!(!looping.state.is_in_progress());
+            let res = try_trigger_reset(deps.as_mut(), env.clone(), admin.clone()).unwrap_err();
+            assert_eq!(ContractError::CantResetDuringExchange, res);
+
+            // the escape hatch is not
+            try_trigger_forced_reset(deps.as_mut(), env.clone(), admin).unwrap();
+
+            let after = load_current_epoch(&deps.storage).unwrap();
+            assert_eq!(13, after.epoch_id);
+            assert_eq!(
+                EpochState::PublicKeySubmission { resharing: false },
+                after.state
+            );
+            // the abandoned attempts retired nothing: epoch 7 keeps issuing throughout
+            assert_eq!(Some(7), after.issuing_epoch_id());
+            assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        }
+
+        #[test]
+        fn a_forced_reset_works_from_every_post_initialisation_state() {
+            let states = [
+                EpochState::PublicKeySubmission { resharing: false },
+                EpochState::PublicKeySubmission { resharing: true },
+                EpochState::DealingExchange { resharing: false },
+                EpochState::DealingExchange { resharing: true },
+                EpochState::VerificationKeySubmission { resharing: false },
+                EpochState::VerificationKeySubmission { resharing: true },
+                EpochState::VerificationKeyValidation { resharing: false },
+                EpochState::VerificationKeyValidation { resharing: true },
+                EpochState::VerificationKeyFinalization { resharing: false },
+                EpochState::VerificationKeyFinalization { resharing: true },
+                EpochState::InProgress,
+            ];
+
+            for state in states {
+                let mut deps = init_contract();
+                let env = mock_env();
+
+                let epoch = Epoch::new(state, 5, TimeConfiguration::default(), env.block.time);
+                save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
+
+                try_trigger_forced_reset(
+                    deps.as_mut(),
+                    env,
+                    message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+                )
+                .unwrap();
+
+                let after = load_current_epoch(&deps.storage).unwrap();
+                assert_eq!(6, after.epoch_id, "from {state}");
+                // always a reset, never a resharing: aborted resharings included, since their
+                // registrants may hold nothing to reshare
+                assert_eq!(
+                    EpochState::PublicKeySubmission { resharing: false },
+                    after.state,
+                    "from {state}"
+                );
+            }
+        }
     }
 }

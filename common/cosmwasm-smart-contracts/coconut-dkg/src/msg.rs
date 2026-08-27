@@ -78,6 +78,12 @@ pub enum ExecuteMsg {
 
     TriggerResharing {},
 
+    /// Admin-only escape hatch: force a reset from any epoch state, including mid-exchange.
+    /// A ceremony that keeps ending sub-threshold auto-resets straight into the next attempt
+    /// without ever passing through `InProgress`, which is the only state [`Self::TriggerReset`]
+    /// accepts - so without this, a looping ceremony can never be stopped or redirected.
+    TriggerForcedReset {},
+
     /// Transfers ownership of the epoch dealer to another address.
     /// This assumes off-chain hand-over of keys
     TransferOwnership {

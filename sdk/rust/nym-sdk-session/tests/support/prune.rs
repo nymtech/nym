@@ -1,6 +1,5 @@
 use nym_bandwidth_controller::{BandwidthController, TicketType};
 use nym_credential_storage::{initialise_ephemeral_storage, storage::Storage};
-use nym_task::ShutdownToken;
 use time::Date;
 
 use crate::support::TestEcash;
@@ -12,16 +11,9 @@ async fn prune_empty_storage() {
     let ecash = TestEcash::new();
     let storage = initialise_ephemeral_storage();
     let controller = BandwidthController::new(storage.clone());
-    let sender = controller.get_request_sender();
-
-    let shutdown = ShutdownToken::new();
-    let run_handle = tokio::spawn({
-        let shutdown = shutdown.clone();
-        async move { controller.run(shutdown).await }
-    });
 
     // pruning on empty storage doesn't error
-    sender.prune().await.unwrap();
+    controller.prune_expired().await;
 
     // pruning old ticketbooks leaves the storage empty
     let ticketbook = ecash.ticketbook_with_expiration(
@@ -30,7 +22,7 @@ async fn prune_empty_storage() {
         Date::from_calendar_date(2000, 1.try_into().unwrap(), 1).unwrap(),
     );
     storage.insert_issued_ticketbook(&ticketbook).await.unwrap();
-    sender.prune().await.unwrap();
+    controller.prune_expired().await;
     assert_eq!(storage.get_ticketbooks_info().await.unwrap().len(), 0);
 
     // pruning non-expired ticketbooks doesn't touch them
@@ -40,9 +32,6 @@ async fn prune_empty_storage() {
         Date::from_calendar_date(2100, 1.try_into().unwrap(), 1).unwrap(),
     );
     storage.insert_issued_ticketbook(&ticketbook).await.unwrap();
-    sender.prune().await.unwrap();
+    controller.prune_expired().await;
     assert_ne!(storage.get_ticketbooks_info().await.unwrap().len(), 0);
-
-    shutdown.cancel();
-    let _ = run_handle.await;
 }

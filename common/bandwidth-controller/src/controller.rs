@@ -155,6 +155,7 @@ impl<St: Storage> BandwidthController<St> {
                     break;
                 }
                 _ = topup_interval.tick() => {
+                    self.prune_expired().await;
                     let _ = self.print_info().await;
                     self.check_and_restock(self.config.managed_ticket_types.clone()).await;
                 }
@@ -228,9 +229,6 @@ impl<St: Storage> BandwidthController<St> {
                         .await
                         .map_err(BandwidthControllerError::credential_storage_error),
                 ),
-            BandwidthControllerRequest::Prune(return_sender) => {
-                return_sender.send(self.handle_prune().await)
-            }
             BandwidthControllerRequest::GetAvailableTicketbooks(return_sender) => {
                 return_sender.send(self.handle_get_available_ticketbooks().await)
             }
@@ -297,37 +295,6 @@ impl<St: Storage> BandwidthController<St> {
             .clear_emergency_credentials()
             .await
             .map_err(BandwidthControllerError::credential_storage_error)
-    }
-
-    // Removes expired ticketbooks from storage and expired ticketbooks that are still in pending.
-    async fn handle_prune(&mut self) -> Result<(), BandwidthControllerError> {
-        let expired_stored_ret = self
-            .storage
-            .cleanup_expired()
-            .await
-            .map_err(BandwidthControllerError::credential_storage_error);
-
-        let expired_pending_ret = if let Some(fetcher) = &self.credential_fetcher {
-            Some(
-                fetcher
-                    .prune()
-                    .await
-                    .map_err(BandwidthControllerError::fetcher_error),
-            )
-        } else {
-            tracing::debug!("No credential fetcher set. No pruning possible there");
-            None
-        };
-
-        // We propagate the errors after trying to prune as much expired data as possible
-        // Storage pruning failure is more important, as pending data eventually converts
-        // into stored data anyway, so we propagate potential storage pruning failure first.
-        expired_stored_ret?;
-        if let Some(expired_pending_ret) = expired_pending_ret {
-            expired_pending_ret?;
-        }
-
-        Ok(())
     }
 
     async fn handle_get_available_ticketbooks(
@@ -528,6 +495,21 @@ impl<St: Storage> BandwidthController<St> {
             }
         }
         self.prefetch_global_data().await;
+    }
+
+    // Removes expired ticketbooks from storage and expired ticketbooks that are still in pending.
+    pub async fn prune_expired(&self) {
+        if let Err(err) = self.storage.cleanup_expired().await {
+            tracing::warn!("Could not cleanup expired ticketbooks: {err}");
+        } else {
+            tracing::debug!("Finished pruning of expired ticketbooks");
+        }
+
+        if let Some(fetcher) = &self.credential_fetcher {
+            if let Err(err) = fetcher.prune().await {
+                tracing::warn!("Could not prune fetcher expired ticketbooks: {err}");
+            }
+        }
     }
 
     /// Spawns a background fetch for `ticket_type` unless one is already in flight for it.

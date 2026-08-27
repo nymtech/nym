@@ -20,7 +20,7 @@ use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
 use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
@@ -329,7 +329,7 @@ impl LpTransportSession {
         &mut self,
         packet: EncryptedLpPacket,
     ) -> Result<LpPacket, LpError> {
-        decrypt_lp_packet(packet, &mut self.active_transport, self.protocol_version)
+        decrypt_lp_packet(packet, &mut self.active_transport)
     }
 
     /// Processes an input event and returns an action to perform.
@@ -351,10 +351,21 @@ impl LpTransportSession {
                 // 2. decrypt the packet and attempt to deliver data
                 let packet = self.decrypt_packet(packet)?;
 
-                // 3. Mark counter as received
+                // 3. enforce the version negotiated during the handshake; this is the earliest
+                // possible point, as the version byte only exists inside the ciphertext
+                let got = packet.header().inner.protocol_version;
+                if got != self.protocol_version {
+                    return Err(MalformedLpPacketError::UnexpectedPacketVersion {
+                        got,
+                        expected: self.protocol_version,
+                    }
+                    .into());
+                }
+
+                // 4. Mark counter as received
                 self.receiving_counter_mark(ctr)?;
 
-                // 4. deliver the message
+                // 5. deliver the message
                 Ok(LpAction::DeliverFrame(packet.into_frame()))
             }
             LpInput::SendFrame(data) => {
@@ -376,7 +387,35 @@ mod tests {
     use nym_lp_data::packet::{MalformedLpPacketError, version};
 
     #[test]
-    fn decryption_uses_the_sessions_negotiated_version() {
+    fn packet_version_must_match_the_negotiated_one() {
+        let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
+
+        // a genuine V1 packet arriving on a session that negotiated something else
+        sessions.responder.protocol_version = version::CURRENT + 1;
+
+        let packet = sessions
+            .initiator
+            .wrap_lp_frame(LpFrame::new_opaque(b"foomp".to_vec()))
+            .unwrap();
+        let err = sessions
+            .responder
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnexpectedPacketVersion {
+                got,
+                expected
+            }) if got == version::CURRENT && expected == version::CURRENT + 1
+        ));
+
+        // and the mismatch must not have advanced the replay window
+        assert_eq!(sessions.responder.current_packet_cnt().received, 0);
+    }
+
+    #[test]
+    fn unimplemented_negotiated_layout_is_rejected() {
         let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
 
         // pretend the handshake settled on a version whose layout this build doesn't implement
@@ -388,11 +427,12 @@ mod tests {
             .initiator
             .wrap_lp_frame(LpFrame::new_opaque(b"foomp".to_vec()))
             .unwrap();
-        let err = sessions.responder.decrypt_packet(packet).unwrap_err();
+        let err = sessions
+            .responder
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap_err();
 
-        // the negotiated version reached the parser: the packet clears the session check and is
-        // refused only for the unimplemented layout. Had `decrypt_packet` passed
-        // `version::CURRENT` instead, this would be `UnexpectedPacketVersion`.
+        // refused by the parser for the unimplemented layout, before the negotiation check
         assert!(matches!(
             err,
             LpError::MalformedPacket(MalformedLpPacketError::UnsupportedPacketVersion { got })

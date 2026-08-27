@@ -22,10 +22,13 @@ use crate::config::{
 use crate::error::NymNodeError;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{mainnet, var_names};
+use nym_config::serde_helpers::de_maybe_port;
 use nym_config::{parse_urls, read_config_from_toml_file};
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tracing::{debug, info, instrument};
 use url::Url;
 
@@ -38,18 +41,16 @@ pub use unchanged_v14_types::*;
 pub mod unchanged_v14_types {
     use crate::config::old_configs::old_config_v13::unchanged_v13_types::{
         AuthenticatorDebugV13, AuthenticatorPathsV13, AuthenticatorV13, ClientBandwidthDebugV13,
-        DebugV13, GatewayTasksPathsV13, HostV13, HttpV13, IpPacketRouterDebugV13,
-        IpPacketRouterPathsV13, IpPacketRouterV13, KeyRotationDebugV13, KeyRotationV13,
-        KeysPathsV13, LoggingSettingsV13, MetricsConfigV13, MetricsDebugV13, MixnetDebugV13,
-        MixnetV13, NetworkRequesterDebugV13, NetworkRequesterPathsV13, NetworkRequesterV13,
-        NodeModeV13, NodeModesV13, ReplayProtectionDebugV13, ReplayProtectionPathsV13,
-        ReplayProtectionV13, ServiceProvidersConfigDebugV13, ServiceProvidersConfigV13,
-        ServiceProvidersPathsV13, StaleMessageDebugV13, UpgradeModeWatcherV13, VerlocDebugV13,
-        VerlocV13, WireguardPathsV13, WireguardV13, ZkNymTicketHandlerDebugV13,
+        DebugV13, HostV13, HttpV13, IpPacketRouterDebugV13, IpPacketRouterPathsV13,
+        IpPacketRouterV13, KeyRotationDebugV13, KeyRotationV13, LoggingSettingsV13,
+        MetricsConfigV13, MetricsDebugV13, NetworkRequesterDebugV13, NetworkRequesterPathsV13,
+        NetworkRequesterV13, NodeModeV13, NodeModesV13, ReplayProtectionDebugV13,
+        ReplayProtectionPathsV13, ReplayProtectionV13, ServiceProvidersConfigDebugV13,
+        ServiceProvidersConfigV13, ServiceProvidersPathsV13, StaleMessageDebugV13,
+        UpgradeModeWatcherV13, VerlocDebugV13, VerlocV13, WireguardPathsV13, WireguardV13,
+        ZkNymTicketHandlerDebugV13,
     };
-    use crate::config::old_configs::old_config_v13::{
-        GatewayTasksConfigV13, LpConfigV13, NymNodePathsV13,
-    };
+    use crate::config::old_configs::old_config_v13::{GatewayTasksConfigDebugV13, LpConfigV13};
 
     pub type WireguardPathsV14 = WireguardPathsV13;
     pub type NodeModeV14 = NodeModeV13;
@@ -57,12 +58,9 @@ pub mod unchanged_v14_types {
     pub type HostV14 = HostV13;
     pub type KeyRotationDebugV14 = KeyRotationDebugV13;
     pub type KeyRotationV14 = KeyRotationV13;
-    pub type MixnetDebugV14 = MixnetDebugV13;
-    pub type MixnetV14 = MixnetV13;
     pub type ReplayProtectionV14 = ReplayProtectionV13;
     pub type ReplayProtectionPathsV14 = ReplayProtectionPathsV13;
     pub type ReplayProtectionDebugV14 = ReplayProtectionDebugV13;
-    pub type KeysPathsV14 = KeysPathsV13;
     pub type HttpV14 = HttpV13;
     pub type VerlocDebugV14 = VerlocDebugV13;
     pub type VerlocV14 = VerlocV13;
@@ -76,7 +74,6 @@ pub mod unchanged_v14_types {
     pub type IpPacketRouterV14 = IpPacketRouterV13;
     pub type NetworkRequesterDebugV14 = NetworkRequesterDebugV13;
     pub type NetworkRequesterV14 = NetworkRequesterV13;
-    pub type GatewayTasksPathsV14 = GatewayTasksPathsV13;
     pub type StaleMessageDebugV14 = StaleMessageDebugV13;
     pub type ClientBandwidthDebugV14 = ClientBandwidthDebugV13;
     pub type ServiceProvidersPathsV14 = ServiceProvidersPathsV13;
@@ -88,9 +85,131 @@ pub mod unchanged_v14_types {
     pub type WireguardV14 = WireguardV13;
     pub type DebugV14 = DebugV13;
     pub type UpgradeModeWatcherV14 = UpgradeModeWatcherV13;
-    pub type NymNodePathsV14 = NymNodePathsV13;
     pub type LpConfigV14 = LpConfigV13;
-    pub type GatewayTasksConfigV14 = GatewayTasksConfigV13;
+    pub type GatewayTasksConfigDebugV14 = GatewayTasksConfigDebugV13;
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GatewayTasksPathsV14 {
+    pub clients_storage: PathBuf,
+
+    pub stats_storage: PathBuf,
+
+    pub bridge_client_params: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GatewayTasksConfigV14 {
+    pub storage_paths: GatewayTasksPathsV14,
+    pub enforce_zk_nyms: bool,
+    pub ws_bind_address: SocketAddr,
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_ws_port: Option<u16>,
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_wss_port: Option<u16>,
+
+    pub upgrade_mode: UpgradeModeWatcherV14,
+
+    #[serde(default)]
+    pub debug: GatewayTasksConfigDebugV14,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+pub struct KeysPathsV14 {
+    pub private_ed25519_identity_key_file: PathBuf,
+    pub public_ed25519_identity_key_file: PathBuf,
+    pub primary_x25519_sphinx_key_file: PathBuf,
+    pub secondary_x25519_sphinx_key_file: PathBuf,
+    pub private_x25519_noise_key_file: PathBuf,
+    pub public_x25519_noise_key_file: PathBuf,
+
+    // >> LP KEYS START:
+    pub private_x25519_lp_key_file: PathBuf,
+    pub public_x25519_lp_key_file: PathBuf,
+    pub private_mlkem768_lp_key_file: PathBuf,
+    pub public_mlkem768_lp_key_file: PathBuf,
+    pub private_mceliece_lp_key_file: PathBuf,
+    pub public_mceliece_lp_key_file: PathBuf,
+    // >> LP KEYS END
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct NymNodePathsV14 {
+    pub keys: KeysPathsV14,
+    pub description: PathBuf,
+    pub cosmos_mnemonic: PathBuf,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct MixnetDebugV14 {
+    #[serde(with = "humantime_serde")]
+    pub maximum_forward_packet_delay: Duration,
+    #[serde(with = "humantime_serde")]
+    pub packet_forwarding_initial_backoff: Duration,
+    #[serde(with = "humantime_serde")]
+    pub packet_forwarding_maximum_backoff: Duration,
+    #[serde(with = "humantime_serde")]
+    pub initial_connection_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub connection_idle_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub connection_write_timeout: Duration,
+    pub maximum_connection_buffer_size: usize,
+    pub use_legacy_packet_encoding: bool,
+    pub egress_trace_sample_rate: u64,
+    pub unsafe_disable_noise: bool,
+}
+
+impl MixnetDebugV14 {
+    const DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY: Duration = Duration::from_secs(10);
+    const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
+    const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_secs(16);
+    const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+    const DEFAULT_CONNECTION_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
+    const DEFAULT_CONNECTION_WRITE_TIMEOUT: Duration = Duration::from_millis(500);
+    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 192;
+    const DEFAULT_EGRESS_TRACE_SAMPLE_RATE: u64 = 100;
+}
+
+impl Default for MixnetDebugV14 {
+    fn default() -> Self {
+        MixnetDebugV14 {
+            maximum_forward_packet_delay: Self::DEFAULT_MAXIMUM_FORWARD_PACKET_DELAY,
+            packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
+            packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
+            initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            connection_idle_timeout: Self::DEFAULT_CONNECTION_IDLE_TIMEOUT,
+            connection_write_timeout: Self::DEFAULT_CONNECTION_WRITE_TIMEOUT,
+            maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+            egress_trace_sample_rate: Self::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
+            use_legacy_packet_encoding: true,
+            unsafe_disable_noise: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MixnetV14 {
+    pub bind_address: SocketAddr,
+
+    #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(default)]
+    pub announce_port: Option<u16>,
+
+    pub nym_api_urls: Vec<Url>,
+
+    pub replay_protection: ReplayProtectionV14,
+
+    #[serde(default)]
+    pub key_rotation: KeyRotationV14,
+
+    #[serde(default)]
+    pub debug: MixnetDebugV14,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -303,10 +422,10 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
                     .debug
                     .packet_forwarding_maximum_backoff,
                 initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
-                connection_idle_timeout: MixnetDebug::DEFAULT_CONNECTION_IDLE_TIMEOUT,
-                connection_write_timeout: MixnetDebug::DEFAULT_CONNECTION_WRITE_TIMEOUT,
+                connection_idle_timeout: old_cfg.mixnet.debug.connection_idle_timeout,
+                connection_write_timeout: old_cfg.mixnet.debug.connection_write_timeout,
                 maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
-                egress_trace_sample_rate: MixnetDebug::DEFAULT_EGRESS_TRACE_SAMPLE_RATE,
+                egress_trace_sample_rate: old_cfg.mixnet.debug.egress_trace_sample_rate,
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
                 use_legacy_packet_encoding: old_cfg.mixnet.debug.use_legacy_packet_encoding,
             },
@@ -351,9 +470,7 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
                 public_mceliece_lp_key_file: old_cfg.storage_paths.keys.public_mceliece_lp_key_file,
             },
             description: old_cfg.storage_paths.description,
-            // \/ MOVED
-            cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
-            // /\ MOVED
+            cosmos_mnemonic: old_cfg.storage_paths.cosmos_mnemonic,
         },
         nyx: Nyx {
             nyxd_websocket_url: old_cfg.nyx.nyxd_websocket_url,

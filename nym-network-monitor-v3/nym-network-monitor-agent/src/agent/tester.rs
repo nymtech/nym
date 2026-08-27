@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::agent::config::NodeTesterConfig;
+use crate::agent::config::{NodeTesterConfig, ProbeProfile};
 use crate::agent::result::{LatencyDistribution, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::egress_connection::EgressConnection;
@@ -43,8 +43,12 @@ use tracing::{debug, error, info, warn};
 /// `Err`; node-level failures (e.g. the node not responding) are captured inside the
 /// returned [`TestRunResult`] so the caller can still inspect partial data.
 pub(crate) struct NodeStressTester {
-    /// Tester configuration controlling rates, timeouts, and addressing.
+    /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
+
+    /// The sending knobs of the kind being run. Held separately from the config, which carries one
+    /// profile per kind, so that what a run applies is decided once at construction.
+    profile: ProbeProfile,
 
     /// Monotonically increasing counter embedded in each outgoing packet as its ID.
     packet_counter: u64,
@@ -101,6 +105,7 @@ impl NodeStressTester {
         };
 
         Ok(Self {
+            profile: config.stress_profile,
             config,
             packet_counter: 0,
             reusable_test_header,
@@ -129,7 +134,7 @@ impl NodeStressTester {
             Some(header) => header.clone().into(),
             None => self.sphinx_key.clone().into(),
         };
-        MixnetPacketProcessor::new(packet_recovery, self.config.waiting_duration)
+        MixnetPacketProcessor::new(packet_recovery, self.profile.waiting_duration)
     }
 
     /// Binds the local TCP listener and wraps it in a [`MixnetListener`] that will forward
@@ -319,17 +324,17 @@ impl NodeStressTester {
         result: &mut TestRunResult,
     ) -> anyhow::Result<bool> {
         // one batch every (sending_batch_size / target_rate) seconds keeps us at the target rate
-        let batch_interval = self.config.batch_interval();
+        let batch_interval = self.profile.batch_interval();
         let mut interval = tokio::time::interval(batch_interval);
         // if we fall behind, don't try to catch up with burst sends
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         let start = Instant::now();
         let mut sent = 0;
-        let total_packets = self.config.expected_packets();
+        let total_packets = self.profile.expected_packets;
 
         loop {
-            if start.elapsed() >= self.config.sending_duration {
+            if start.elapsed() >= self.profile.sending_duration {
                 break;
             }
             if sent >= total_packets {
@@ -339,7 +344,7 @@ impl NodeStressTester {
 
             // the last batch may be smaller than other batches
             let remaining = total_packets - sent;
-            let batch_size = self.config.sending_batch_size.min(remaining);
+            let batch_size = self.profile.sending_batch_size.min(remaining);
             if !self
                 .send_test_packet_batch(batch_size, egress, result)
                 .await?
@@ -377,7 +382,7 @@ impl NodeStressTester {
         // drain whatever arrived immediately, then wait for stragglers
         let mut received = processor.all_available();
         if received.len() < result.packets_sent {
-            let deadline = sleep(self.config.waiting_duration);
+            let deadline = sleep(self.profile.waiting_duration);
             pin!(deadline);
             loop {
                 tokio::select! {
@@ -504,8 +509,8 @@ impl NodeStressTester {
         // 5. stress test: send packets at the target rate for the configured duration
         debug!(
             "beginning the proper load testing. going to send at rate {}/s for {}",
-            self.config.target_rate,
-            format_duration(self.config.sending_duration)
+            self.profile.target_rate,
+            format_duration(self.profile.sending_duration)
         );
         self.send_load_test(&mut egress, &mut result).await?;
 

@@ -1135,6 +1135,13 @@ impl Client {
                 )
             }
         }
+
+        // Ensure no stale fronting headers survive from a prior fronted attempt on this
+        // (possibly cloned/retried) request -- e.g. after a host rotation or a recovery to
+        // fronting-disabled.
+        r.headers_mut().remove(reqwest::header::HOST);
+        r.headers_mut().remove(NYM_OUTER_SNI_HEADER);
+
         (url.as_str(), None)
     }
 }
@@ -1215,6 +1222,7 @@ impl ApiClientCore for Client {
             let mut req = r
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
+            let domain = self.current_url().host_str().map(str::to_owned);
             let (_, _front_used) = self.apply_hosts_to_req(&mut req);
             let url: Url = req.url().clone().into();
 
@@ -1290,7 +1298,10 @@ impl ApiClientCore for Client {
                         self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        self.maybe_enable_fronting(url.host_str(), ("network", url.as_str(), &err));
+                        self.maybe_enable_fronting(
+                            domain.as_deref(),
+                            ("network", url.as_str(), &err),
+                        );
                     }
 
                     if attempts < self.retry_limit {

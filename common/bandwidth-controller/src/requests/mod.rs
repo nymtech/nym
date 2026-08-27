@@ -34,9 +34,6 @@ pub enum BandwidthControllerRequest {
     Reset(ReturnSender<()>),
     /// Removes the stored emergency (upgrade-mode) credentials only, leaving ticketbooks intact.
     ClearEmergencyCredentials(ReturnSender<()>),
-    /// Prunes expired ticketbooks from storage and stops in-flight retrieval of blinded ticketbook
-    /// shares whose validity has passed.
-    Prune(ReturnSender<()>),
     /// Returns the currently stored ticketbooks (also logs a stock summary).
     GetAvailableTicketbooks(ReturnSender<AvailableTicketbooks>),
 

@@ -92,7 +92,9 @@ impl Default for ResponderData {
         ResponderData {
             supported_hash_functions: HashFunction::iter().collect(),
             supported_signature_schemes: SignatureScheme::iter().collect(),
-            supported_outer_protocol_versions: vec![version::CURRENT],
+            // every version we can still speak, not just the one we propose - see
+            // `version::SUPPORTED`
+            supported_outer_protocol_versions: version::SUPPORTED.to_vec(),
             initiator_kem_hashes: Default::default(),
         }
     }

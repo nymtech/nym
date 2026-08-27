@@ -20,7 +20,7 @@ use libcrux_psq::session::{Session, SessionBinding};
 use nym_kkt::keys::EncapsulationKey;
 use nym_kkt_ciphersuite::{KEM, KEMKeyDigests};
 use nym_lp_data::packet::header::LpReceiverIndex;
-use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
+use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
@@ -365,10 +365,21 @@ impl LpTransportSession {
                 // 2. decrypt the packet and attempt to deliver data
                 let packet = self.decrypt_packet(packet)?;
 
-                // 3. Mark counter as received
+                // 3. enforce the version negotiated during the handshake; this is the earliest
+                // possible point, as the version byte only exists inside the ciphertext
+                let got = packet.header().inner.protocol_version;
+                if got != self.protocol_version {
+                    return Err(MalformedLpPacketError::UnexpectedPacketVersion {
+                        got,
+                        expected: self.protocol_version,
+                    }
+                    .into());
+                }
+
+                // 4. Mark counter as received
                 self.receiving_counter_mark(ctr)?;
 
-                // 4. deliver the message
+                // 5. deliver the message
                 Ok(LpAction::DeliverFrame(packet.into_frame()))
             }
             LpInput::SendFrame(data) => {
@@ -388,6 +399,61 @@ mod tests {
     use crate::replay::DEFAULT_WINDOW_BITS;
     use crate::{ReplayError, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
+    use nym_lp_data::packet::{MalformedLpPacketError, version};
+
+    #[test]
+    fn packet_version_must_match_the_negotiated_one() {
+        let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
+
+        // a genuine V1 packet arriving on a session that negotiated something else
+        sessions.responder.protocol_version = version::CURRENT + 1;
+
+        let packet = sessions
+            .initiator
+            .wrap_lp_frame(LpFrame::new_opaque(b"foomp".to_vec()))
+            .unwrap();
+        let err = sessions
+            .responder
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnexpectedPacketVersion {
+                got,
+                expected
+            }) if got == version::CURRENT && expected == version::CURRENT + 1
+        ));
+
+        // and the mismatch must not have advanced the replay window
+        assert_eq!(sessions.responder.current_packet_cnt().received, 0);
+    }
+
+    #[test]
+    fn unimplemented_negotiated_layout_is_rejected() {
+        let mut sessions = SessionsMock::mock_post_handshake(KEM::default());
+
+        // pretend the handshake settled on a version whose layout this build doesn't implement
+        let negotiated = version::CURRENT + 1;
+        sessions.initiator.protocol_version = negotiated;
+        sessions.responder.protocol_version = negotiated;
+
+        let packet = sessions
+            .initiator
+            .wrap_lp_frame(LpFrame::new_opaque(b"foomp".to_vec()))
+            .unwrap();
+        let err = sessions
+            .responder
+            .process_input(LpInput::ReceivePacket(packet))
+            .unwrap_err();
+
+        // refused by the parser for the unimplemented layout, before the negotiation check
+        assert!(matches!(
+            err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnsupportedPacketVersion { got })
+                if got == negotiated
+        ));
+    }
 
     #[test]
     fn test_replay_window_configuration() {

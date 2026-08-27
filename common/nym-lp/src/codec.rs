@@ -55,6 +55,8 @@ pub(crate) fn encrypt_lp_packet(
     Ok(EncryptedLpPacket::new(packet.header().outer, ciphertext))
 }
 
+/// Decrypts the packet and parses its structure. Enforcing the session's negotiated version on
+/// the result is the caller's job.
 pub(crate) fn decrypt_lp_packet(
     packet: EncryptedLpPacket,
     transport: &mut libcrux_psq::session::Transport,
@@ -88,7 +90,9 @@ mod tests {
     use crate::psq::{PSQ_MSG2_SIZE, psq_msg1_size, responder};
     use libcrux_psq::{Channel, IntoSession};
     use nym_kkt_ciphersuite::KEM;
-    use nym_lp_data::packet::{EncryptedLpPacket, LpFrame, LpHeader, LpPacket};
+    use nym_lp_data::packet::{
+        EncryptedLpPacket, LpFrame, LpHeader, LpPacket, MalformedLpPacketError, version,
+    };
     use nym_test_utils::helpers::u64_seeded_rng_09;
 
     fn mock_transport() -> (
@@ -292,5 +296,26 @@ mod tests {
         let malformed = EncryptedLpPacket::new(ciphertext3.outer_header(), vec![]);
         let dec_err = decrypt_lp_packet(malformed, &mut init_transport).unwrap_err();
         assert!(matches!(dec_err, LpError::InsufficientBufferSize));
+    }
+
+    #[test]
+    fn unknown_layout_is_rejected_by_the_parser() {
+        let (mut init_transport, mut resp_transport) = mock_transport();
+
+        // decryption itself is version-blind; the packet is refused only because no layout is
+        // implemented for the version it declares - not because it differs from `CURRENT`
+        let future = version::CURRENT + 1;
+        let packet = LpPacket::new(
+            LpHeader::new(123, 0, future),
+            LpFrame::new_opaque(b"foomp".to_vec()),
+        );
+        let ciphertext = encrypt_lp_packet(packet, &mut init_transport).unwrap();
+        let dec_err = decrypt_lp_packet(ciphertext, &mut resp_transport).unwrap_err();
+
+        assert!(matches!(
+            dec_err,
+            LpError::MalformedPacket(MalformedLpPacketError::UnsupportedPacketVersion { got })
+                if got == future
+        ));
     }
 }

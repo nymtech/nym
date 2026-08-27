@@ -47,11 +47,11 @@ impl FetcherError for NyxdFetcherError {
             NyxdFetcherError::StorageError(_) => FetcherErrorKind::Storage,
 
             #[cfg(not(target_arch = "wasm32"))]
-            NyxdFetcherError::NoThreshold => FetcherErrorKind::Other,
-
-            NyxdFetcherError::CredentialError(_) | NyxdFetcherError::NoIssuableEpoch => {
+            NyxdFetcherError::NoThreshold | NyxdFetcherError::NoIssuableEpoch => {
                 FetcherErrorKind::Other
             }
+
+            NyxdFetcherError::CredentialError(_) => FetcherErrorKind::Other,
         }
     }
 }

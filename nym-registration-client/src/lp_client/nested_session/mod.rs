@@ -18,13 +18,14 @@
 //! The entry gateway sees the client's IP but doesn't know the final destination.
 //! The exit gateway processes the LP handshake but only sees the entry gateway's IP.
 
+use super::bandwidth_claim::produce_bandwidth_claim;
 use super::client::LpRegistrationClient;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{
     LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
 };
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
-use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
@@ -43,7 +44,7 @@ use nym_wireguard_types::PeerPublicKey;
 use rand010::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use time::{Duration as TimeDuration, OffsetDateTime};
+use time::Duration as TimeDuration;
 use tracing::{debug, warn};
 
 pub(crate) mod connection;
@@ -237,31 +238,15 @@ impl NestedLpSession {
         let mut nested_connection = outer_client.as_nested_connection(self.exit_address);
 
         // Step 1: Get bandwidth credential from controller
-        let credential_spending = bandwidth_provider
-            .get_ecash_ticket(
-                ticket_type,
-                gateway_identity,
-                DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
-            )
-            .await
-            .map_err(|e| {
-                LpClientError::SendRegistrationRequest(format!(
-                    "Failed to acquire bandwidth credential: {e}",
-                ))
-            })?
-            .ok_or(LpClientError::NoTicketsAvailable {
-                ticketbook_type: ticket_type,
-            })?
-            .data;
+        let credential = produce_bandwidth_claim(
+            bandwidth_provider,
+            gateway_identity,
+            spend_time_skew,
+            ticket_type,
+        )
+        .await?;
 
         // Step 2: Build registration request
-
-        // for now we do NOT support upgrade mode (yeah... no.)
-        let credential = credential_spending
-            .try_into()
-            .map_err(|err| LpClientError::Other(format!("malformed stored credential: {err}")))?;
-
         let request = LpRegistrationRequest::new_finalise_dvpn(credential);
 
         tracing::trace!("Built dVPN registration finalisation request");

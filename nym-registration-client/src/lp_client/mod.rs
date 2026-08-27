@@ -31,6 +31,7 @@
 //! let gateway_data = client.register(wg_keypair, gateway_identity, bandwidth_controller, ticket_type).await?;
 //! ```
 
+mod bandwidth_claim;
 mod client;
 mod config;
 pub(crate) mod error;

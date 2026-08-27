@@ -1085,9 +1085,13 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    pub(crate) fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
+    pub(crate) fn apply_hosts_to_req(
+        &self,
+        r: &mut reqwest::Request,
+    ) -> (Option<&str>, Option<&str>) {
         let url = self.current_url();
-        r.url_mut().set_host(url.host_str()).unwrap();
+        let domain = url.host_str();
+        r.url_mut().set_host(domain).unwrap();
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
@@ -1123,7 +1127,7 @@ impl Client {
                         .headers_mut()
                         .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
-                    return (url.as_str(), Some(front_host));
+                    return (domain, Some(front_host));
                 } else {
                     tracing::debug!(
                         "Domain fronting is enabled, but no host_url is defined for current URL"
@@ -1142,7 +1146,7 @@ impl Client {
         r.headers_mut().remove(reqwest::header::HOST);
         r.headers_mut().remove(NYM_OUTER_SNI_HEADER);
 
-        (url.as_str(), None)
+        (domain, None)
     }
 }
 
@@ -1222,8 +1226,8 @@ impl ApiClientCore for Client {
             let mut req = r
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
-            let domain = self.current_url().host_str().map(str::to_owned);
-            let (_, _front_used) = self.apply_hosts_to_req(&mut req);
+            let (domain, _front_used) = self.apply_hosts_to_req(&mut req);
+            let domain = domain.map(str::to_owned);
             let url: Url = req.url().clone().into();
 
             let request_start = Instant::now();

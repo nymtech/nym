@@ -571,10 +571,7 @@ where
                 let cfg = GatewayConfig::new(details.gateway_id, details.published_data.listeners);
                 GatewayClient::new(
                     GatewayClientConfig::new_default()
-                        .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
-                        .with_response_timeout(
-                            config.debug.gateway_connection.gateway_response_timeout,
-                        ),
+                        .with_disabled_credentials_mode(config.client.disabled_credentials_mode),
                     cfg,
                     managed_keys.identity_keypair(),
                     Some(details.shared_key),
@@ -586,6 +583,11 @@ where
                     shutdown_tracker.clone_shutdown_token(),
                 )
             };
+
+        apply_gateway_connection_settings(
+            &mut gateway_client.cfg,
+            &config.debug.gateway_connection,
+        );
 
         let gateway_failure = |err| {
             tracing::error!("Could not authenticate and start up the gateway connection - {err}");
@@ -1209,6 +1211,18 @@ where
     }
 }
 
+/// Applies `debug.gateway_connection` to the gateway client config. Runs after both construction
+/// paths in `start_gateway_client` converge: a client upgraded from the registration handshake
+/// keeps the config it registered with, which was built without them.
+fn apply_gateway_connection_settings(
+    cfg: &mut GatewayClientConfig,
+    settings: &config::GatewayConnection,
+) {
+    cfg.connection.response_timeout_duration = settings.gateway_response_timeout;
+    cfg.connection.reconnection_attempts = settings.gateway_reconnection_attempts;
+    cfg.connection.reconnection_backoff = settings.gateway_reconnection_backoff;
+}
+
 pub struct BaseClient {
     pub address: Recipient,
     pub identity_keys: Arc<ed25519::KeyPair>,
@@ -1225,6 +1239,43 @@ pub struct BaseClient {
 mod tests {
     use super::*;
     use nym_network_defaults::{ApiUrl, NymNetworkDetails};
+    use std::time::Duration;
+
+    #[test]
+    fn test_gateway_connection_settings_apply_reconnection_attempts() {
+        let settings = config::GatewayConnection {
+            gateway_reconnection_attempts: 3,
+            ..Default::default()
+        };
+        let mut cfg = GatewayClientConfig::new_default();
+        apply_gateway_connection_settings(&mut cfg, &settings);
+        assert_eq!(cfg.connection.reconnection_attempts, 3);
+    }
+
+    #[test]
+    fn test_gateway_connection_settings_apply_reconnection_backoff() {
+        let settings = config::GatewayConnection {
+            gateway_reconnection_backoff: Duration::from_secs(1),
+            ..Default::default()
+        };
+        let mut cfg = GatewayClientConfig::new_default();
+        apply_gateway_connection_settings(&mut cfg, &settings);
+        assert_eq!(cfg.connection.reconnection_backoff, Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_gateway_connection_settings_apply_response_timeout() {
+        let settings = config::GatewayConnection {
+            gateway_response_timeout: Duration::from_secs(7),
+            ..Default::default()
+        };
+        let mut cfg = GatewayClientConfig::new_default();
+        apply_gateway_connection_settings(&mut cfg, &settings);
+        assert_eq!(
+            cfg.connection.response_timeout_duration,
+            Duration::from_secs(7)
+        );
+    }
 
     #[test]
     fn test_network_details_with_multiple_urls() {

@@ -316,6 +316,7 @@ impl From<GatewayConnectionWasm> for ConfigGatewayConnection {
             gateway_response_timeout: Duration::from_millis(
                 gateway_connection.gateway_response_timeout_ms as u64,
             ),
+            ..Default::default()
         }
     }
 }

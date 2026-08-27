@@ -151,6 +151,20 @@ impl LpTransportSession {
         })
     }
 
+    /// Overrides the size of the replay protection window for incoming packets.
+    /// Must be called before processing any packets.
+    #[must_use]
+    pub fn with_replay_window_bits(mut self, window_bits: usize) -> Self {
+        self.channel.receiving_counter =
+            ReceivingKeyCounterValidator::with_window_bits(window_bits);
+        self
+    }
+
+    /// Returns the size of the replay protection window in bits.
+    pub fn replay_window_bits(&self) -> usize {
+        self.channel.receiving_counter.window_bits()
+    }
+
     /// Helper function to create `PSQHandshakeState` for the handshake initiator
     pub fn psq_handshake_initiator<S>(
         connection: &'_ mut S,
@@ -371,8 +385,28 @@ impl LpTransportSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::replay::DEFAULT_WINDOW_BITS;
     use crate::{ReplayError, SessionsMock};
     use nym_kkt_ciphersuite::{IntoEnumIterator, KEM};
+
+    #[test]
+    fn test_replay_window_configuration() {
+        let session = SessionsMock::mock_initiator();
+        assert_eq!(session.replay_window_bits(), DEFAULT_WINDOW_BITS);
+
+        let mut session = session.with_replay_window_bits(256);
+        assert_eq!(session.replay_window_bits(), 256);
+
+        assert!(session.receiving_counter_mark(0).is_ok());
+        assert!(session.receiving_counter_mark(1000).is_ok());
+
+        // counters below 745 now fall outside the 256-bit window
+        assert!(matches!(
+            session.receiving_counter_mark(700).unwrap_err(),
+            LpError::Replay(ReplayError::OutOfWindow)
+        ));
+        assert!(session.receiving_counter_mark(800).is_ok());
+    }
 
     #[test]
     fn test_session_creation() {

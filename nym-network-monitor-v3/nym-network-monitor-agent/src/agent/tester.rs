@@ -4,15 +4,18 @@
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
 use crate::agent::result::{LatencyDistribution, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::egress_connection::EgressConnection;
-use crate::listener::MixnetListener;
-use crate::listener::received::MixnetPacketsSender;
-use crate::processor::{MixnetPacketProcessor, ProcessedPacket};
+use crate::mixnet::demux::IngressDemux;
+use crate::mixnet::egress::EgressConnection;
+use crate::mixnet::listener::MixnetListener;
+use crate::mixnet::processor::MixnetPacketProcessor;
+use crate::mixnet::targets::{WaveIngress, WaveTarget};
+use crate::payload::ProcessedPacket;
 use crate::sphinx_helpers::{
     as_sphinx_node, build_test_sphinx_packet, create_test_sphinx_packet_header,
 };
 use crate::test_packet::{TestPacketContent, TestPacketHeader};
 use anyhow::Context;
+use futures::channel::mpsc::unbounded;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
@@ -121,7 +124,7 @@ impl NodeStressTester {
             self.tested_node.address,
             self.config.egress_connection_timeout,
             self.tested_node.key_rotation,
-            &self.noise_config(),
+            &self.egress_noise_config(),
         )
         .await
     }
@@ -137,42 +140,39 @@ impl NodeStressTester {
         MixnetPacketProcessor::new(packet_recovery, self.profile.waiting_duration)
     }
 
-    /// Binds the local TCP listener and wraps it in a [`MixnetListener`] that will forward
-    /// decoded packets to `received_sender`.
-    async fn build_mixnet_listener(
-        &self,
-        received_sender: MixnetPacketsSender,
-        shutdown_token: ShutdownToken,
-    ) -> anyhow::Result<MixnetListener> {
-        MixnetListener::new(
-            self.config.mixnet_bind_address,
-            self.tested_node.clone(),
-            self.noise_config(),
-            received_sender,
-            shutdown_token.clone(),
-        )
-        .await
-    }
-
-    /// Builds a [`NoiseConfig`] that contains the default configuration for the protocol
-    /// and the key associated with the tested node to accept its connection.
-    fn noise_config(&self) -> NoiseConfig {
-        // the node's key has to be reachable under every address it's known by: the responder
-        // handshake looks the initiator up by its source ip and silently falls back to plain TCP
-        // when it misses, which would then fail the connection as "not speaking noise"
-        let nodes = self
-            .tested_node
-            .known_ips
-            .iter()
-            .map(|ip| (*ip, self.tested_node.as_noise_node()))
-            .collect::<HashMap<_, _>>();
-        let network = NoiseNetworkView::new(nodes);
+    /// The Noise config for the EGRESS connection to the node under test.
+    ///
+    /// This is the one direction that needs the node's static key: the initiator looks the responder
+    /// up by the address it dialled (`get_noise_key`), whereas the responder side only gates on
+    /// whether it recognises a source and authenticates with our own key. Scoped to the address
+    /// being dialled for the same reason the ingress scopes its own configs per connection.
+    fn egress_noise_config(&self) -> NoiseConfig {
+        let nodes = HashMap::from([(
+            self.tested_node.address.ip().to_canonical(),
+            self.tested_node.as_noise_node(),
+        )]);
 
         NoiseConfig::new(
             self.noise_key.clone(),
-            network,
+            NoiseNetworkView::new(nodes),
             self.config.noise_handshake_timeout,
         )
+    }
+
+    /// Reads the ingress handshake this target's connection reported.
+    ///
+    /// Absence is a hard error rather than a missing measurement, and remains one now that the value
+    /// travels on the target's channel instead of coming off the listener: this is only ever called
+    /// once the connectivity probe has succeeded, and a packet coming back means the node connected
+    /// to us and completed the handshake as our responder. A `None` here is therefore a defect in the
+    /// per-target plumbing, not a node that behaved badly.
+    fn harvest_ingress_handshake(
+        &self,
+        processor: &MixnetPacketProcessor,
+    ) -> anyhow::Result<Duration> {
+        processor
+            .ingress_handshake()
+            .context("missing ingress noise duration after completing entire test run!")
     }
 
     /// Returns a sphinx node representation of this tester's own mixnet listener address,
@@ -276,10 +276,17 @@ impl NodeStressTester {
                 Ok(true)
             }
             Err(err) => {
-                result.set_error(format!(
-                    "{:#}",
-                    err.context("failed to receive a valid initial packet back")
-                ));
+                let err = err.context("failed to receive a valid initial packet back");
+
+                // the node not answering at all and the node answering with an unusable connection
+                // are different diagnoses - a dead node against, say, a stale noise key - so when its
+                // return connection reported a failure, say so rather than only that nothing arrived
+                result.set_error(match processor.ingress_failure() {
+                    Some(failure) => {
+                        format!("{err:#} - the node's return connection failed: {failure}")
+                    }
+                    None => format!("{err:#}"),
+                });
                 Ok(false)
             }
         }
@@ -458,21 +465,39 @@ impl NodeStressTester {
             }
         };
 
-        // 2. spawn the mixnet packet listener that forwards received packets to the processor
+        // 2. spawn the shared ingress: the listener accepting this node's return connection, and the
+        // demux attributing what arrives on it. a stress run is a wave of exactly one target, so it
+        // goes through the same machinery a liveness wave does, with a one-entry table
         debug!(
             "creating mixnet listener on {}",
             self.config.mixnet_bind_address
         );
         let mut processor = self.build_packet_processor();
         let shutdown_token = ShutdownToken::new();
-        let listener = self
-            .build_mixnet_listener(processor.sender(), shutdown_token.clone())
-            .await?;
+
+        let ingress = Arc::new(WaveIngress::new(&[WaveTarget {
+            node: self.tested_node.clone(),
+            events: processor.sender(),
+        }]));
+        let (upgrades_sender, upgrades_receiver) = unbounded();
+
+        let listener = MixnetListener::new(
+            self.config.mixnet_bind_address,
+            ingress.clone(),
+            self.noise_key.clone(),
+            self.config.noise_handshake_timeout,
+            upgrades_sender,
+            shutdown_token.clone(),
+        )
+        .await?;
+        let demux = IngressDemux::new(ingress, upgrades_receiver);
+
         let listener_on_start = Arc::new(Notify::new());
         let listener_on_start_clone = listener_on_start.clone();
 
         let listener_join =
             tokio::spawn(async move { listener.run(listener_on_start_clone).await });
+        let demux_join = tokio::spawn(demux.run(shutdown_token.clone()));
 
         // wait for the listener task to properly begin
         listener_on_start.notified().await;
@@ -484,7 +509,7 @@ impl NodeStressTester {
             .await?
         {
             shutdown_token.cancel();
-            let _ = listener_join.await?;
+            let _ = tokio::join!(listener_join, demux_join);
             return Ok(result);
         }
 
@@ -496,12 +521,9 @@ impl NodeStressTester {
                 .await?
         {
             shutdown_token.cancel();
-            let mixnet_listener = listener_join.await?;
-            let ingress_noise = mixnet_listener
-                .last_noise_handshake_duration
-                .context("missing ingress noise duration after completing entire test run!")?;
+            let _ = tokio::join!(listener_join, demux_join);
 
-            result.set_ingress_noise_handshake(ingress_noise);
+            result.set_ingress_noise_handshake(self.harvest_ingress_handshake(&processor)?);
             result.set_egress_connection_statistics(egress.connection_statistics);
             return Ok(result);
         }
@@ -518,15 +540,12 @@ impl NodeStressTester {
         debug!("waiting for final packets to arrive");
         self.collect_test_results(&mut processor, &mut result).await;
 
-        // 7. shut down the listener and harvest its stats
+        // 7. shut down the ingress and harvest the stats
         debug!("shutting down the mixnet listener and finishing the test");
         shutdown_token.cancel();
-        let mixnet_listener = listener_join.await?;
-        let ingress_noise = mixnet_listener
-            .last_noise_handshake_duration
-            .context("missing ingress noise duration after completing entire test run!")?;
+        let _ = tokio::join!(listener_join, demux_join);
 
-        result.set_ingress_noise_handshake(ingress_noise);
+        result.set_ingress_noise_handshake(self.harvest_ingress_handshake(&processor)?);
         result.set_egress_connection_statistics(egress.connection_statistics);
 
         if let Some(node_id) = self.tested_node.node_id {

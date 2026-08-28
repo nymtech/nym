@@ -3,6 +3,7 @@
 
 //! LP (Lewes Protocol) registration client for direct gateway connections.
 
+use super::bandwidth_claim::produce_bandwidth_claim;
 use super::config::LpRegistrationConfig;
 use super::error::{LpClientError, Result};
 use crate::lp_client::helpers::{
@@ -10,7 +11,7 @@ use crate::lp_client::helpers::{
 };
 use crate::lp_client::nested_session::connection::NestedConnection;
 use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
-use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
+use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::Ciphersuite;
@@ -30,7 +31,7 @@ use rand010::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::{Duration as TimeDuration, OffsetDateTime};
+use time::Duration as TimeDuration;
 use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
@@ -440,31 +441,15 @@ where
         tracing::debug!("Acquiring bandwidth credential for registration");
 
         // 1. Get bandwidth credential from controller
-        let credential_spending = bandwidth_provider
-            .get_ecash_ticket(
-                ticket_type,
-                gateway_identity,
-                DEFAULT_TICKETS_TO_SPEND,
-                OffsetDateTime::now_utc() - spend_time_skew.unwrap_or_default(),
-            )
-            .await
-            .map_err(|e| {
-                LpClientError::SendRegistrationRequest(format!(
-                    "Failed to acquire bandwidth credential: {e}",
-                ))
-            })?
-            .ok_or(LpClientError::NoTicketsAvailable {
-                ticketbook_type: ticket_type,
-            })?
-            .data;
+        let credential = produce_bandwidth_claim(
+            bandwidth_provider,
+            gateway_identity,
+            spend_time_skew,
+            ticket_type,
+        )
+        .await?;
 
         // 2. Build registration request
-
-        // for now we do NOT support upgrade mode (yeah... no.)
-        let credential = credential_spending
-            .try_into()
-            .map_err(|err| LpClientError::Other(format!("malformed stored credential: {err}")))?;
-
         let request = LpRegistrationRequest::new_finalise_dvpn(credential);
 
         tracing::trace!("Built dVPN registration finalisation request");

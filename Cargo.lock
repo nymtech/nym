@@ -8398,11 +8398,13 @@ dependencies = [
 name = "nym-registration-client"
 version = "1.21.5"
 dependencies = [
+ "async-trait",
  "bincode",
  "bytes",
  "futures",
  "getrandom 0.4.2",
  "nym-authenticator-client",
+ "nym-authenticator-requests",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
@@ -8416,6 +8418,7 @@ dependencies = [
  "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.10.2",
+ "rand 0.8.6",
  "thiserror 2.0.19",
  "time",
  "tokio",

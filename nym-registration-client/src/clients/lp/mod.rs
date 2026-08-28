@@ -1,18 +1,47 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::builder::RegistrationClientBuilder;
+//! dVPN registration over the Lewes Protocol.
+//!
+//! The channel itself - connecting, handshaking, carrying frames, and telescoping through an entry
+//! gateway - belongs to [`nym_lp_gateway_client`]. What lives here is what a client *says* over
+//! that channel: a registration client borrows a channel and registers over it.
+//!
+//! - [`LpDvpnRegistrationClient`] registers with the gateway an
+//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
+//! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_registration_client::LpDvpnRegistrationClient;
+//!
+//! let mut client = LpGatewayClient::new_with_default_config(
+//!     keypair,
+//!     gateway_peer,
+//!     gateway_lp_address,
+//!     ciphersuite,
+//!     gateway_lp_protocol,
+//! );
+//!
+//! client.perform_handshake().await?;
+//!
+//! // the registration client borrows the channel, so the gateway client is still yours afterwards
+//! let gateway_data = LpDvpnRegistrationClient::new(&mut client)
+//!     .register(&mut rng, ...)
+//!     .await?;
+//! ```
+
 use crate::config::RegistrationClientConfig;
 use crate::config::RegistrationMode;
 use crate::error::RegistrationClientError;
-use crate::lp_client::helpers::to_lp_remote_peer;
-use crate::lp_client::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
-use crate::types::{RegistrationResult, WireguardRegistrationResult};
+use crate::types::RegistrationResult;
+use helpers::to_lp_remote_peer;
 use nym_lp_gateway_client::LpGatewayClient;
 
 use nym_bandwidth_controller::BandwidthTicketProvider;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::ed25519;
 
 use nym_lp::peer::DHKeyPair;
 use nym_lp_gateway_client::NestedLpSession;
@@ -22,6 +51,12 @@ use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
+
+mod bandwidth_claim;
+mod dvpn;
+pub(crate) mod helpers;
+
+pub use dvpn::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
 
 pub struct LpBasedRegistrationClient {
     pub(crate) config: RegistrationClientConfig,
@@ -174,7 +209,7 @@ impl LpBasedRegistrationClient {
         self.register_wg_with_rng(&mut rng).await
     }
 
-    async fn register_inner(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+    async fn register_inner(self) -> Result<RegistrationResult, RegistrationClientError> {
         match &self.config.mode {
             RegistrationMode::Mixnet => {
                 // mixnet registration is not supported for LP
@@ -202,7 +237,7 @@ impl LpBasedRegistrationClient {
         }
     }
 
-    pub(crate) async fn register(mut self) -> Result<RegistrationResult, RegistrationClientError> {
+    pub(crate) async fn register(self) -> Result<RegistrationResult, RegistrationClientError> {
         let timeout = self.config.lp_registration_config.exchange_timeout;
         tokio::time::timeout(timeout, self.register_inner())
             .await

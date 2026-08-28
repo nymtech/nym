@@ -6,9 +6,9 @@ pub use builder::config::{
     BuilderConfig as RegistrationClientBuilderConfig, MixnetClientConfig,
     NymNodeWithKeys as RegistrationNymNode,
 };
+pub use clients::lp::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
 // re-exported so a caller registering over LP needs only this crate in its manifest
 pub use nym_lp_gateway_client::{
     LpClientError, LpGatewayClient, LpGatewayClientConfig, NestedLpSession,
@@ -22,7 +22,6 @@ mod builder;
 mod clients;
 mod config;
 mod error;
-mod lp_client;
 mod types;
 
 pub enum RegistrationClient {

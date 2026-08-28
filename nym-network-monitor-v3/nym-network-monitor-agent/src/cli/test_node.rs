@@ -5,7 +5,7 @@ use super::env::vars::*;
 use crate::agent::config::NodeTesterConfig;
 use crate::agent::helpers::load_noise_key;
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::agent::tester::NodeStressTester;
+use crate::agent::tester::NodeProbe;
 use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_params::SphinxKeyRotation;
@@ -65,10 +65,16 @@ impl Args {
         }
     }
 
-    /// Constructs a fully initialised [`NodeStressTester`] from the parsed arguments.
-    pub(crate) fn build_stress_tester(&self) -> anyhow::Result<NodeStressTester> {
-        NodeStressTester::new(
-            self.build_tester_config()?,
+    /// Constructs a fully initialised [`NodeProbe`] from the parsed arguments.
+    ///
+    /// A manual run always applies the STRESS profile: this command exists to exercise one node
+    /// hard, and the liveness profile only makes sense against a wave the orchestrator handed out.
+    pub(crate) fn build_probe(&self) -> anyhow::Result<NodeProbe> {
+        let config = self.build_tester_config()?;
+
+        NodeProbe::new(
+            config,
+            config.stress_profile,
             load_noise_key(&self.common_args.noise_key_path)?,
             self.build_tested_node_details(),
         )
@@ -77,7 +83,7 @@ impl Args {
 
 /// Runs a one-shot stress test against the specified node and logs the result.
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
-    let result = args.build_stress_tester()?.run_stress_test().await?;
+    let result = args.build_probe()?.run().await?;
 
     info!("{result:#?}");
     Ok(())

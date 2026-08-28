@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::sphinx_helpers::as_sphinx_node;
+use crate::mixnet::sphinx::helpers::as_sphinx_node;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::MixnetProbeTarget;
 use nym_noise::config::{NoiseNode, NoiseVersion, VersionedNoiseKeyV1};

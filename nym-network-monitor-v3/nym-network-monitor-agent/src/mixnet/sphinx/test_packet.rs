@@ -65,11 +65,10 @@ impl TestPacketHeader {
         &self,
         content: TestPacketContent,
     ) -> anyhow::Result<SphinxPacket> {
-        let final_key = self
+        let final_key = *self
             .payload_key
             .last()
-            .context("no payload keys generated")?
-            .clone();
+            .context("no payload keys generated")?;
         let payload = Payload::encapsulate_message(
             &content.to_bytes(),
             &[final_key],

@@ -8344,6 +8344,7 @@ dependencies = [
  "sha2 0.10.9",
  "time",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
  "url",

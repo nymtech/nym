@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::egress_connection::EgressConnectionStatistics;
+use crate::mixnet::egress::EgressConnectionStatistics;
 use nym_network_monitor_orchestrator_requests::models::{
     ExercisedInterface, InterfaceMeasurement, TestKind,
 };
@@ -122,7 +122,7 @@ impl TestRunResult {
         self.error = Some(error.into());
     }
 
-    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::egress_connection::EgressConnection).
+    /// Populates egress-side statistics from the finished [`EgressConnection`](crate::mixnet::egress::EgressConnection).
     /// Sets the egress Noise handshake duration and, if any batches were sent, the batch send
     /// latency distribution.
     pub(crate) fn set_egress_connection_statistics(&mut self, stats: EgressConnectionStatistics) {

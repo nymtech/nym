@@ -105,6 +105,20 @@ impl WaveIngress {
         WaveIngress { by_source }
     }
 
+    /// The table for a wave of exactly one target.
+    ///
+    /// Named for the shape rather than for the kind: a stress run is the only thing that needs it
+    /// today, but nothing about this layer knows or cares which kind is being run.
+    pub(crate) fn single_target(
+        node: &TestedNodeDetails,
+        events_sender: IngressEventsSender,
+    ) -> Self {
+        Self::new(&[WaveTarget {
+            node: node.clone(),
+            events: events_sender,
+        }])
+    }
+
     /// The target a connection from `source` belongs to, or `None` if no target is known by it.
     pub(crate) fn target(&self, source: IpAddr) -> Option<&IngressTarget> {
         self.by_source.get(&source.to_canonical())

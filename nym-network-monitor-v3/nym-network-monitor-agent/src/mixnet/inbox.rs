@@ -4,7 +4,7 @@
 use crate::mixnet::events::{
     IngressEvent, IngressEventsReceiver, IngressEventsSender, ReceivedPacket,
 };
-use crate::payload::{PayloadRecovery, ProcessedPacket};
+use crate::mixnet::sphinx::payload::{PayloadRecovery, ProcessedPacket};
 use anyhow::Context;
 use futures::StreamExt;
 use futures::channel::mpsc::unbounded;
@@ -12,20 +12,24 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{debug, warn};
 
-/// Receives raw sphinx packets forwarded by the [`MixnetListener`](crate::mixnet::listener::MixnetListener),
-/// decrypts them, and exposes them as [`ProcessedPacket`]s with RTT measurements.
+/// The receiving side of ONE target of a wave.
 ///
-/// The processor owns one half of an unbounded channel; the sender half is cloned and handed
-/// to the listener via [`sender`](Self::sender). Packets can be consumed one at a time with
-/// [`next_packet`](Self::next_packet) or drained in bulk with [`all_available`](Self::all_available).
-pub(crate) struct MixnetPacketProcessor {
+/// It owns that target's channel, the strategy for decrypting what arrives on it, and the facts its
+/// connection reported. The wave's ingress routes to it by cloning [`events_sender`](Self::events_sender);
+/// the probe reads from it one packet at a time with [`next_packet`](Self::next_packet) or in bulk
+/// with [`all_available`](Self::all_available).
+///
+/// Per target rather than per connection, because duplicates and counts are properties of a target's
+/// whole result set: a node may reply over more than one connection, and no single connection can
+/// tell whether an id has already been seen.
+pub(crate) struct TargetInbox {
     /// Decryption strategy: either reuse a pre-built header or perform full sphinx processing.
     payload_recovery: PayloadRecovery,
 
     /// How long [`next_packet`](Self::next_packet) will wait before returning a timeout error.
     receive_timeout: Duration,
 
-    /// Sender half kept alive so the channel stays open as long as the processor exists.
+    /// Sender half kept alive so the channel stays open as long as this inbox exists.
     sender: IngressEventsSender,
 
     /// Receiver half polled by [`next_packet`](Self::next_packet) and [`all_available`](Self::all_available).
@@ -38,7 +42,7 @@ pub(crate) struct MixnetPacketProcessor {
     ingress_failure: Option<String>,
 }
 
-impl MixnetPacketProcessor {
+impl TargetInbox {
     /// Creates a new processor along with an internal channel for receiving packets.
     pub(crate) fn new(payload_recovery: PayloadRecovery, receive_timeout: Duration) -> Self {
         let (sender, receiver) = unbounded();
@@ -55,7 +59,7 @@ impl MixnetPacketProcessor {
 
     /// Returns a clone of the sender half, which is what the wave's ingress routes this target's
     /// events to.
-    pub(crate) fn sender(&self) -> IngressEventsSender {
+    pub(crate) fn events_sender(&self) -> IngressEventsSender {
         self.sender.clone()
     }
 
@@ -79,21 +83,12 @@ impl MixnetPacketProcessor {
     /// Returns a vec of results — decryption failures are included as `Err` entries rather
     /// than causing the entire drain to abort.
     pub(crate) fn all_available(&mut self) -> Vec<anyhow::Result<ProcessedPacket>> {
-        let mut pending = Vec::new();
+        let mut packets = Vec::new();
         while let Ok(event) = self.receiver.try_recv() {
-            pending.push(event);
+            if let Some(packet) = self.record(event) {
+                packets.push(self.process_received(packet));
+            }
         }
-
-        // filed in one pass and decoded in the next: recording needs `&mut self` while decoding needs
-        // `&self`, so they cannot share a closure chain
-        let received = pending
-            .into_iter()
-            .filter_map(|event| self.record(event))
-            .collect::<Vec<_>>();
-        let packets = received
-            .into_iter()
-            .map(|packet| self.process_received(packet))
-            .collect::<Vec<_>>();
 
         debug!("drained {} immediately available packets", packets.len());
         packets
@@ -163,8 +158,8 @@ mod tests {
     use super::*;
     use crate::mixnet::test_fixtures::{ProbedTarget, ip, socket};
 
-    fn processor(target: &ProbedTarget) -> MixnetPacketProcessor {
-        MixnetPacketProcessor::new(target.payload_recovery(), Duration::from_millis(50))
+    fn processor(target: &ProbedTarget) -> TargetInbox {
+        TargetInbox::new(target.payload_recovery(), Duration::from_millis(50))
     }
 
     fn target() -> ProbedTarget {
@@ -177,7 +172,7 @@ mod tests {
     async fn a_handshake_is_recorded_without_being_taken_for_a_packet() {
         let target = target();
         let mut processor = processor(&target);
-        let sender = processor.sender();
+        let sender = processor.events_sender();
 
         sender
             .unbounded_send(IngressEvent::HandshakeCompleted(Duration::from_millis(7)))
@@ -205,7 +200,7 @@ mod tests {
         let mut processor = processor(&target);
 
         processor
-            .sender()
+            .events_sender()
             .unbounded_send(IngressEvent::HandshakeFailed("stale noise key".to_string()))
             .expect("the processor dropped its channel");
 
@@ -220,7 +215,7 @@ mod tests {
     fn a_bulk_drain_files_events_and_returns_only_packets() {
         let target = target();
         let mut processor = processor(&target);
-        let sender = processor.sender();
+        let sender = processor.events_sender();
 
         for event in [
             IngressEvent::HandshakeCompleted(Duration::from_millis(3)),

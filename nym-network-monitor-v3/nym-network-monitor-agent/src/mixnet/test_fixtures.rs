@@ -5,10 +5,10 @@
 
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::mixnet::events::{IngressEvent, IngressEventsReceiver};
+use crate::mixnet::sphinx::helpers::{as_sphinx_node, create_test_sphinx_packet_header};
+use crate::mixnet::sphinx::payload::PayloadRecovery;
+use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
 use crate::mixnet::targets::WaveTarget;
-use crate::payload::PayloadRecovery;
-use crate::sphinx_helpers::{as_sphinx_node, create_test_sphinx_packet_header};
-use crate::test_packet::{TestPacketContent, TestPacketHeader};
 use futures::channel::mpsc::unbounded;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_framing::packet::FramedNymPacket;

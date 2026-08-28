@@ -97,6 +97,8 @@ pub struct GatewayTasksPathsV14 {
     pub stats_storage: PathBuf,
 
     pub bridge_client_params: Option<PathBuf>,
+
+    pub cosmos_mnemonic: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,7 +142,6 @@ pub struct KeysPathsV14 {
 pub struct NymNodePathsV14 {
     pub keys: KeysPathsV14,
     pub description: PathBuf,
-    pub cosmos_mnemonic: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -470,7 +471,9 @@ pub async fn try_upgrade_config_v14<P: AsRef<Path>>(
                 public_mceliece_lp_key_file: old_cfg.storage_paths.keys.public_mceliece_lp_key_file,
             },
             description: old_cfg.storage_paths.description,
-            cosmos_mnemonic: old_cfg.storage_paths.cosmos_mnemonic,
+            // \/ MOVED
+            cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
+            // /\ MOVED
         },
         nyx: Nyx {
             nyxd_websocket_url: old_cfg.nyx.nyxd_websocket_url,

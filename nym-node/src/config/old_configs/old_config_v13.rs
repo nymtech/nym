@@ -504,9 +504,6 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
                 public_mceliece_lp_key_file: old_cfg.storage_paths.keys.public_mceliece_lp_key_file,
             },
             description: old_cfg.storage_paths.description,
-            // \/ MOVED
-            cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
-            // /\ MOVED
         },
         http: old_cfg.http,
         verloc: old_cfg.verloc,
@@ -516,6 +513,7 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
             storage_paths: GatewayTasksPathsV14 {
                 clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
                 stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
+                cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
                 bridge_client_params: old_cfg.gateway_tasks.storage_paths.bridge_client_params,
             },
             enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,

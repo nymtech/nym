@@ -1,8 +1,8 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::lp_client::helpers::{convert_forward_data, try_convert_forward_response};
-use crate::{LpClientError, LpRegistrationClient};
+use crate::helpers::{convert_forward_data, try_convert_forward_response};
+use crate::{LpClientError, LpGatewayClient};
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
 use nym_lp::session::{LpAction, LpInput};
@@ -18,7 +18,7 @@ pub struct NestedConnection<'a, S> {
     pub(crate) exit_address: SocketAddr,
 
     // exact mechanisms of determining this value are TBD
-    pub(crate) outer_client: &'a mut LpRegistrationClient<S>,
+    pub(crate) outer_client: &'a mut LpGatewayClient<S>,
 }
 
 impl<'a, S> NestedConnection<'a, S> {

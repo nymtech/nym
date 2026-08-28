@@ -1,19 +1,11 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! LP (Lewes Protocol) registration client for direct gateway connections.
+//! LP (Lewes Protocol) channel to a single gateway.
 
-use super::bandwidth_claim::produce_bandwidth_claim;
-use super::config::LpRegistrationConfig;
+use super::config::LpGatewayClientConfig;
 use super::error::{LpClientError, Result};
-use crate::lp_client::helpers::{
-    LpFrameDeliverExt, LpFrameSendExt, exponential_backoff_with_jitter,
-};
-use crate::lp_client::nested_session::connection::NestedConnection;
-use crate::lp_client::session_helpers::{extract_forwarded_response, prepare_send_packet};
-use nym_bandwidth_controller::BandwidthTicketProvider;
-use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::{ed25519, x25519};
+use crate::nested_session::connection::NestedConnection;
 use nym_lp::Ciphersuite;
 use nym_lp::LpTransportSession;
 use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
@@ -21,34 +13,26 @@ use nym_lp::psq::initiator::HandshakeMode;
 use nym_lp::transport::traits::LpTransportChannel;
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, header::LpReceiverIndex, version};
-use nym_registration_common::dvpn::LpDvpnRegistrationResponseMessageContent;
-use nym_registration_common::{
-    LpRegistrationRequest, LpRegistrationResponse, WireguardConfiguration,
-    WireguardRegistrationData,
-};
-use nym_wireguard_types::PeerPublicKey;
-use rand010::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::Duration as TimeDuration;
 use tokio::net::TcpStream;
-use tracing::{debug, warn};
+use tracing::warn;
 
-/// LP (Lewes Protocol) registration client for direct gateway connections.
+/// A client's LP channel to one gateway.
 ///
-/// This client uses a persistent TCP connection model where a single TCP
-/// connection is used for the entire handshake and registration flow.
-/// The connection is opened on first use and closed after registration.
+/// Owns a single connection, opened on first use, and the session established over it. The
+/// connection stays open after the handshake so callers can keep sending on it - including
+/// [`NestedLpSession`](crate::NestedLpSession), which tunnels a second handshake through it.
 ///
 /// # Example Flow
 /// ```ignore
-/// let mut client = LpRegistrationClient::new(...);
-/// client.perform_handshake().await?;            // Noise handshake (single connection)
-/// let gateway_data = client.register(...).await?;  // Registration (same connection)
-/// // Connection automatically closes after registration
+/// let mut client = LpGatewayClient::new(...);
+/// client.perform_handshake().await?;   // KKT/PSQ handshake over the connection
+/// // ... send frames on the session ...
+/// client.close();
 /// ```
-pub struct LpRegistrationClient<S = TcpStream> {
+pub struct LpGatewayClient<S = TcpStream> {
     /// Encapsulates all the client keys needed for the Lewes Protocol.
     lp_local_peer: LpLocalPeer,
 
@@ -67,14 +51,14 @@ pub struct LpRegistrationClient<S = TcpStream> {
     transport_session: Option<LpTransportSession>,
 
     /// Configuration for timeouts and TCP parameters.
-    pub(crate) config: LpRegistrationConfig,
+    pub config: LpGatewayClientConfig,
 
     /// Persistent TCP stream for the connection.
     /// Opened on first use, closed after registration.
     stream: Option<S>,
 }
 
-impl<S> LpRegistrationClient<S>
+impl<S> LpGatewayClient<S>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin,
 {
@@ -96,7 +80,7 @@ where
         gateway_lp_address: SocketAddr,
         ciphersuite: Ciphersuite,
         gateway_supported_lp_protocol_version: u8,
-        config: LpRegistrationConfig,
+        config: LpGatewayClientConfig,
     ) -> Self {
         let lp_protocol = if gateway_supported_lp_protocol_version > version::CURRENT {
             warn!(
@@ -120,7 +104,7 @@ where
         }
     }
 
-    /// Attempt to use this `LpRegistrationClient` as transport for `NestedSession`
+    /// Attempt to use this `LpGatewayClient` as transport for `NestedSession`
     pub fn as_nested_connection(&mut self, exit_address: SocketAddr) -> NestedConnection<'_, S> {
         NestedConnection {
             exit_address,
@@ -153,17 +137,17 @@ where
             gateway_lp_address,
             ciphersuite,
             gateway_supported_lp_protocol_version,
-            LpRegistrationConfig::default(),
+            LpGatewayClientConfig::default(),
         )
     }
 
-    pub(crate) fn transport_session(&self) -> Result<&LpTransportSession> {
+    pub fn transport_session(&self) -> Result<&LpTransportSession> {
         self.transport_session
             .as_ref()
             .ok_or(LpClientError::IncompleteHandshake)
     }
 
-    pub(crate) fn transport_session_mut(&mut self) -> Result<&mut LpTransportSession> {
+    pub fn transport_session_mut(&mut self) -> Result<&mut LpTransportSession> {
         self.transport_session
             .as_mut()
             .ok_or(LpClientError::IncompleteHandshake)
@@ -274,7 +258,7 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected, the timeout has been reached, or if send or receive fails.
-    async fn send_and_receive_data_packet_with_timeout(
+    pub async fn send_and_receive_data_packet_with_timeout(
         &mut self,
         packet: &EncryptedLpPacket,
         timeout: Duration,
@@ -291,7 +275,7 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if send fails.
-    pub(crate) async fn try_send_packet(&mut self, packet: &EncryptedLpPacket) -> Result<()> {
+    pub async fn try_send_packet(&mut self, packet: &EncryptedLpPacket) -> Result<()> {
         // can't use getters due to borrow checker (i.e. requiring full borrows for function calls)
         self.stream_mut()?
             .send_length_prefixed_transport_packet(packet)
@@ -303,7 +287,7 @@ where
     ///
     /// # Errors
     /// Returns an error if not connected or if receive fails.
-    pub(crate) async fn try_receive_packet(&mut self) -> Result<EncryptedLpPacket> {
+    pub async fn try_receive_packet(&mut self) -> Result<EncryptedLpPacket> {
         let encrypted_packet = self
             .stream_mut()?
             .receive_length_prefixed_transport_packet()
@@ -331,6 +315,17 @@ where
                 self.gateway_lp_address
             );
         }
+    }
+
+    /// Drop both the session and the connection, so the next [`Self::perform_handshake`] starts
+    /// from nothing.
+    ///
+    /// A half-finished handshake cannot be resumed, and keeping the connection would leave the
+    /// gateway holding a session this client has forgotten - so a retry begins from a clean slate
+    /// on both.
+    pub fn reset(&mut self) {
+        self.transport_session = None;
+        self.close();
     }
 
     // -------------------------------------------------------------------------
@@ -411,284 +406,6 @@ where
         Ok(())
     }
 
-    /// This is an internal method only meant to be called by `Self::register_dvpn` if the gateway
-    /// responds with a credential request. This is expected in every initial interaction with a particular gateway.
-    ///
-    /// This method will actually attempt to retrieve a valid credential from the `bandwidth_controller`
-    ///
-    /// # Arguments
-    /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
-    /// * `bandwidth_controller` - Provider for bandwidth credentials
-    /// * `ticket_type` - Type of bandwidth ticket to use
-    ///
-    /// # Returns
-    /// * `Ok(WireguardConfiguration)` - Gateway configuration data on successful registration
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - Credential acquisition fails
-    /// - Request serialization/encryption fails
-    /// - Network communication fails
-    /// - Gateway rejected the registration
-    /// - Response times out (see LpConfig::registration_timeout)
-    async fn finalise_dvpn_registration(
-        &mut self,
-        gateway_identity: ed25519::PublicKey,
-        bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_skew: Option<TimeDuration>,
-        ticket_type: TicketType,
-    ) -> Result<WireguardRegistrationData> {
-        tracing::debug!("Acquiring bandwidth credential for registration");
-
-        // 1. Get bandwidth credential from controller
-        let credential = produce_bandwidth_claim(
-            bandwidth_provider,
-            gateway_identity,
-            spend_time_skew,
-            ticket_type,
-        )
-        .await?;
-
-        // 2. Build registration request
-        let request = LpRegistrationRequest::new_finalise_dvpn(credential);
-
-        tracing::trace!("Built dVPN registration finalisation request");
-
-        // 3. Serialize the request
-        let lp_data = request.to_lp_frame()?;
-
-        // 4. Encrypt and prepare packet via state machine
-        let state_machine = self.transport_session_mut()?;
-        let request_packet = prepare_send_packet(lp_data, state_machine)?;
-
-        // 5. Send initial request and receive response on persistent connection with timeout
-        let response_packet = self
-            .send_and_receive_data_packet_with_timeout(
-                &request_packet,
-                self.config.registration_timeout,
-            )
-            .await?;
-
-        // 6. Decrypt via state machine (re-borrow)
-        let state_machine = self.transport_session_mut()?;
-        let received_data = extract_forwarded_response(response_packet, state_machine)?;
-
-        // 7. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
-        let Some(dvpn_response) = response.into_dvpn_response() else {
-            return Err(LpClientError::unexpected_response(
-                "did not get a dvpn registration response after sending initial request",
-            ));
-        };
-
-        // 8. check response to the initial request
-        match dvpn_response.content {
-            LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
-                let reason = res.error;
-                // the registration has failed
-                tracing::warn!("Gateway rejected registration: {reason}");
-                Err(LpClientError::RegistrationRejected { reason })
-            }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => Ok(res.config),
-            LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
-                Err(LpClientError::unexpected_response(
-                    "received request for additional dvpn data after sending credential!",
-                ))
-            }
-        }
-    }
-
-    /// This is the primary registration method. It acquires a bandwidth credential,
-    /// sends the registration request, and receives the response
-    /// on the same underlying connection.
-    /// Do note that this method does **not** perform retries on network failures,
-    /// for that please use [`Self::handshake_and_register_with_retry`] instead
-    ///
-    /// # Arguments
-    /// * `rng` - RNG instance for generating PSK
-    /// * `wg_keypair` - Client's WireGuard x25519 keypair
-    /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
-    /// * `bandwidth_controller` - Provider for bandwidth credentials
-    /// * `ticket_type` - Type of bandwidth ticket to use
-    ///
-    /// # Returns
-    /// * `Ok(WireguardConfiguration)` - Gateway configuration data on successful registration
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - Handshake has not been completed
-    /// - Credential acquisition fails
-    /// - Request serialization/encryption fails
-    /// - Network communication fails
-    /// - Gateway rejected the registration
-    /// - Response times out (see LpConfig::registration_timeout)
-    pub async fn register_dvpn<R>(
-        &mut self,
-        rng: &mut R,
-        wg_keypair: &x25519::KeyPair,
-        gateway_identity: &ed25519::PublicKey,
-        bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_skew: Option<TimeDuration>,
-        ticket_type: TicketType,
-    ) -> Result<WireguardConfiguration>
-    where
-        R: Rng + CryptoRng,
-    {
-        // 1. Build registration request
-        let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
-        let mut psk = [0u8; 32];
-        rng.fill_bytes(&mut psk);
-        let request = LpRegistrationRequest::new_initial_dvpn(wg_public_key, psk);
-
-        tracing::trace!("Built dVPN registration request: {request:?}");
-
-        // 2. Serialize the request
-        let lp_data = request.to_lp_frame()?;
-
-        // 3. Encrypt and prepare packet via state machine
-        let state_machine = self.transport_session_mut()?;
-        let request_packet = prepare_send_packet(lp_data, state_machine)?;
-
-        // 4. Send initial request and receive response on persistent connection with timeout
-        let response_packet = self
-            .send_and_receive_data_packet_with_timeout(
-                &request_packet,
-                self.config.registration_timeout,
-            )
-            .await?;
-
-        // 5. Decrypt via state machine (re-borrow)
-        let state_machine = self.transport_session_mut()?;
-        let received_data = extract_forwarded_response(response_packet, state_machine)?;
-
-        // 6. Extract decrypted data and deserialise the response
-        let response = LpRegistrationResponse::from_lp_frame(received_data)?;
-        let Some(dvpn_response) = response.into_dvpn_response() else {
-            return Err(LpClientError::unexpected_response(
-                "did not get a dvpn registration response after sending initial request",
-            ));
-        };
-
-        // 7. check response to the initial request
-        let final_response = match dvpn_response.content {
-            LpDvpnRegistrationResponseMessageContent::RegistrationFailure(res) => {
-                let reason = res.error;
-                // the registration has failed
-                tracing::warn!("Gateway rejected registration: {reason}");
-                return Err(LpClientError::RegistrationRejected { reason });
-            }
-            LpDvpnRegistrationResponseMessageContent::CompletedRegistration(res) => res.config,
-            LpDvpnRegistrationResponseMessageContent::RequiresCredential(_) => {
-                // we're registering for the first time with this gateway - we need to attach a credential
-
-                // 8. retrieve credential from the controller
-                self.finalise_dvpn_registration(
-                    *gateway_identity,
-                    bandwidth_provider,
-                    spend_time_skew,
-                    ticket_type,
-                )
-                .await?
-            }
-        };
-
-        Ok(WireguardConfiguration {
-            public_key: final_response.public_key,
-            psk: Some(psk.into()),
-            endpoint: SocketAddr::new(self.gateway_lp_address.ip(), final_response.port),
-            private_ipv4: final_response.private_ipv4,
-            private_ipv6: final_response.private_ipv6,
-        })
-    }
-
-    /// Register with automatic retry on network failure.
-    ///
-    /// This method:
-    /// 1. Acquires credential ONCE
-    /// 2. Performs handshake if not already connected
-    /// 3. Attempts registration
-    /// 4. On network failure, re-establishes connection and retries with same credential
-    /// 5. Gateway idempotency ensures no double-spend even if credential was processed
-    ///
-    /// Use this method for resilient registration on unreliable networks (e.g., train
-    /// through tunnel). The gateway's idempotent registration check ensures that if
-    /// a registration succeeds but the response is lost, retrying with the same WG key
-    /// will return the cached result instead of spending a new credential.
-    ///
-    /// # Arguments
-    /// * `rng` - RNG instance for generating PSK
-    /// * `wg_keypair` - Client's WireGuard x25519 keypair (same key used for all retries)
-    /// * `gateway_identity` - Gateway's ed25519 identity for credential verification
-    /// * `bandwidth_controller` - Provider for bandwidth credentials
-    /// * `ticket_type` - Type of bandwidth ticket to use
-    /// * `max_retries` - Maximum number of retry attempts after initial failure
-    ///
-    /// # Returns
-    /// * `Ok(GatewayData)` - Gateway configuration data on successful registration
-    ///
-    /// # Errors
-    /// Returns an error if all retry attempts fail.
-    ///
-    /// # Note
-    /// Unlike `register()`, this method handles the full flow including handshake.
-    /// Do NOT call `perform_handshake()` before this method.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn handshake_and_register_with_retry<R>(
-        &mut self,
-        rng: &mut R,
-        wg_keypair: &x25519::KeyPair,
-        gateway_identity: &ed25519::PublicKey,
-        bandwidth_provider: &dyn BandwidthTicketProvider,
-        spend_time_skew: Option<TimeDuration>,
-        ticket_type: TicketType,
-        max_retries: u32,
-    ) -> Result<WireguardConfiguration>
-    where
-        R: Rng + CryptoRng,
-    {
-        tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
-
-        // attempt to perform handshake with retries
-        let mut last_error = None;
-        for attempt in 0..=max_retries {
-            let attempt_display = attempt + 1;
-            debug!("registration attempt {attempt_display}");
-
-            if attempt > 0 {
-                // Clear any stale state before re-handshaking
-                self.transport_session = None;
-                self.close();
-
-                exponential_backoff_with_jitter(attempt).await
-            }
-
-            match self.perform_handshake().await {
-                Ok(_) => break,
-                Err(e) => {
-                    tracing::warn!("Handshake failed on attempt {attempt_display}: {e}");
-                    last_error = Some(e);
-                }
-            }
-        }
-
-        if self.transport_session.is_none() {
-            return Err(last_error.unwrap_or(LpClientError::RegistrationFailure {
-                message: "Registration failed after all retries".to_string(),
-            }));
-        }
-
-        self.register_dvpn(
-            rng,
-            wg_keypair,
-            gateway_identity,
-            bandwidth_provider,
-            spend_time_skew,
-            ticket_type,
-        )
-        .await
-        .inspect_err(|e| tracing::warn!("Registration failed: {e}"))
-    }
-
     /// Get the LP session ID (receiver_idx) for this client.
     ///
     /// This ID is included in the outer header of LP packets and is used by
@@ -720,7 +437,7 @@ mod tests {
         let gateway_peer = LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 
-        let client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let client = LpGatewayClient::<TcpStream>::new_with_default_config(
             keypair,
             gateway_peer,
             address,

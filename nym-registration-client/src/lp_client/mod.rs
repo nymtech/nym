@@ -1,45 +1,40 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-//! LP (Lewes Protocol) client implementation for direct gateway registration.
+//! dVPN registration over the Lewes Protocol.
 //!
-//! This module provides a client for registering with gateways using the Lewes Protocol,
-//! which offers direct TCP connections for improved performance compared to mixnet-based
-//! registration while maintaining security through Noise protocol handshakes and credential
-//! verification.
+//! The channel itself - connecting, handshaking, carrying frames, and telescoping through an entry
+//! gateway - belongs to [`nym_lp_gateway_client`]. What lives here is what a client *says* over
+//! that channel: a registration client borrows a channel and registers over it.
 //!
-//! Uses a packet-per-connection model: each LP packet exchange opens a new TCP connection,
-//! sends one packet, receives one response, then closes. Session state is maintained in
-//! the state machine across connections.
+//! - [`LpDvpnRegistrationClient`] registers with the gateway an
+//!   [`LpGatewayClient`](nym_lp_gateway_client::LpGatewayClient) is connected to.
+//! - [`NestedLpDvpnRegistrationClient`] registers with an exit gateway through an entry one.
 //!
 //! # Usage
 //!
 //! ```ignore
-//! use nym_registration_client::lp_client::LpRegistrationClient;
+//! use nym_lp_gateway_client::LpGatewayClient;
+//! use nym_registration_client::LpDvpnRegistrationClient;
 //!
-//! let mut client = LpRegistrationClient::new_with_default_config(
+//! let mut client = LpGatewayClient::new_with_default_config(
 //!     keypair,
-//!     gateway_public_key,
+//!     gateway_peer,
 //!     gateway_lp_address,
-//!     client_ip,
+//!     ciphersuite,
+//!     gateway_lp_protocol,
 //! );
 //!
-//! // Perform handshake (multiple packet-per-connection exchanges)
 //! client.perform_handshake().await?;
 //!
-//! // Register with gateway (single packet-per-connection exchange)
-//! let gateway_data = client.register(wg_keypair, gateway_identity, bandwidth_controller, ticket_type).await?;
+//! // the registration client borrows the channel, so the gateway client is still yours afterwards
+//! let gateway_data = LpDvpnRegistrationClient::new(&mut client)
+//!     .register(&mut rng, ...)
+//!     .await?;
 //! ```
 
 mod bandwidth_claim;
-mod client;
-mod config;
-pub(crate) mod error;
+mod dvpn;
 pub(crate) mod helpers;
-mod nested_session;
-mod session_helpers;
 
-pub use client::LpRegistrationClient;
-pub use config::LpRegistrationConfig;
-pub use error::LpClientError;
-pub use nested_session::NestedLpSession;
+pub use dvpn::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};

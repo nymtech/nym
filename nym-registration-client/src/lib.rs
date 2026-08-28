@@ -8,8 +8,10 @@ pub use builder::config::{
 };
 pub use config::RegistrationMode;
 pub use error::RegistrationClientError;
-pub use lp_client::{
-    LpRegistrationClient, LpRegistrationConfig, NestedLpSession, error::LpClientError,
+pub use lp_client::{LpDvpnRegistrationClient, NestedLpDvpnRegistrationClient};
+// re-exported so a caller registering over LP needs only this crate in its manifest
+pub use nym_lp_gateway_client::{
+    LpClientError, LpGatewayClient, LpGatewayClientConfig, NestedLpSession,
 };
 pub use types::{
     AuthenticatorRegistrationResult, LpRegistrationResult, MixnetRegistrationResult,

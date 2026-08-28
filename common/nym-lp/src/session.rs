@@ -60,19 +60,43 @@ pub struct LpTransportSession {
 
     /// The current active transport channel
     // In the future it might get split between UDP and TCP transports
-    active_transport: libcrux_psq::session::Transport,
+    channel: LpChannel,
 
     /// Look-up index established during the initial KKT exchange
     receiver_index: LpReceiverIndex,
 
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
+}
 
-    /// Counter for outgoing packets
+/// A transport channel bundled with the counter state guarding its keys.
+///
+/// The sending counter selects the AEAD nonce of every outgoing packet and the replay validator
+/// tracks the counters of incoming ones, so both are created and replaced together with the keys.
+struct LpChannel {
+    transport: libcrux_psq::session::Transport,
     sending_counter: u64,
-
-    /// Validator for incoming packet counters to prevent replay attacks
     receiving_counter: ReceivingKeyCounterValidator,
+}
+
+impl LpChannel {
+    fn new(transport: libcrux_psq::session::Transport) -> Self {
+        LpChannel {
+            transport,
+            sending_counter: 0,
+            receiving_counter: Default::default(),
+        }
+    }
+
+    /// Reserves the counter for the next outgoing packet.
+    fn next_counter(&mut self) -> Result<u64, LpError> {
+        let counter = self.sending_counter;
+        // the counter is what keeps nonces unique under this key, so it must never wrap around
+        self.sending_counter = counter
+            .checked_add(1)
+            .ok_or(LpError::SendingCounterExhausted)?;
+        Ok(counter)
+    }
 }
 
 /// Wraps public key material that is bound to a session.
@@ -119,10 +143,10 @@ impl Debug for LpTransportSession {
         f.debug_struct("LpSession")
             .field("session_id", &self.psq_session.identifier())
             .field("session_binding", &self.session_binding)
-            .field("active_transport_id", &self.active_transport.identifier())
+            .field("active_transport_id", &self.channel.transport.identifier())
             .field("protocol_version", &self.protocol_version)
-            .field("sending_counter", &self.sending_counter)
-            .field("receiving_counter", &self.receiving_counter)
+            .field("sending_counter", &self.channel.sending_counter)
+            .field("receiving_counter", &self.channel.receiving_counter)
             .finish()
     }
 }
@@ -143,11 +167,9 @@ impl LpTransportSession {
         Ok(LpTransportSession {
             psq_session,
             session_binding,
-            active_transport: transport,
+            channel: LpChannel::new(transport),
             receiver_index,
             protocol_version,
-            sending_counter: 0,
-            receiving_counter: Default::default(),
         })
     }
 
@@ -229,10 +251,6 @@ impl LpTransportSession {
         &self.session_binding
     }
 
-    pub fn active_transport(&mut self) -> &mut libcrux_psq::session::Transport {
-        &mut self.active_transport
-    }
-
     pub fn session_identifier(&self) -> &[u8; 32] {
         self.psq_session.identifier()
     }
@@ -249,17 +267,15 @@ impl LpTransportSession {
     }
 
     pub fn next_packet(&mut self, frame: LpFrame) -> Result<LpPacket, LpError> {
-        let counter = self.next_counter();
+        let counter = self.next_counter()?;
         let header = LpHeader::new(self.receiver_index(), counter, self.protocol_version);
         let packet = LpPacket::new(header, frame);
         Ok(packet)
     }
 
-    /// Generates the next counter value for outgoing packets.
-    pub fn next_counter(&mut self) -> u64 {
-        let counter = self.sending_counter;
-        self.sending_counter += 1;
-        counter
+    /// Reserves the next counter value for outgoing packets.
+    pub fn next_counter(&mut self) -> Result<u64, LpError> {
+        self.channel.next_counter()
     }
 
     /// Performs a quick validation check for an incoming packet counter.
@@ -278,7 +294,8 @@ impl LpTransportSession {
     pub fn receiving_counter_quick_check(&self, counter: u64) -> Result<(), LpError> {
         // Branchless implementation uses SIMD when available for constant-time
         // operations, preventing timing attacks. Check before crypto to save CPU cycles.
-        self.receiving_counter
+        self.channel
+            .receiving_counter
             .will_accept_branchless(counter)
             .map_err(LpError::Replay)
     }
@@ -297,7 +314,8 @@ impl LpTransportSession {
     /// * `Ok(())` if the counter was successfully marked
     /// * `Err(LpError::Replay)` if the counter cannot be marked (duplicate, too old, etc.)
     pub fn receiving_counter_mark(&mut self, counter: u64) -> Result<(), LpError> {
-        self.receiving_counter
+        self.channel
+            .receiving_counter
             .mark_did_receive_branchless(counter)
             .map_err(LpError::Replay)
     }
@@ -310,7 +328,7 @@ impl LpTransportSession {
     /// * The next expected counter value for incoming packets
     /// * The total number of received packets
     pub fn current_packet_cnt(&self) -> PacketCount {
-        self.receiving_counter.current_packet_cnt()
+        self.channel.receiving_counter.current_packet_cnt()
     }
 
     /// Wrap the provided `LpFrame` into an `LpPacket` and encrypt its content using the established transport session
@@ -326,7 +344,7 @@ impl LpTransportSession {
     /// * `Err(LpError)` if the session is not in transport mode or encryption fails.
     pub(crate) fn wrap_lp_frame(&mut self, frame: LpFrame) -> Result<EncryptedLpPacket, LpError> {
         let packet = self.next_packet(frame)?;
-        encrypt_lp_packet(packet, &mut self.active_transport)
+        encrypt_lp_packet(packet, &mut self.channel.transport)
     }
 
     /// Decrypts an incoming LpPacket
@@ -343,7 +361,7 @@ impl LpTransportSession {
         &mut self,
         packet: EncryptedLpPacket,
     ) -> Result<LpPacket, LpError> {
-        decrypt_lp_packet(packet, &mut self.active_transport)
+        decrypt_lp_packet(packet, &mut self.channel.transport)
     }
 
     /// Processes an input event and returns an action to perform.
@@ -480,11 +498,11 @@ mod tests {
             let mut session = SessionsMock::mock_post_handshake(kem).responder;
 
             // Initial counter should be zero
-            let counter = session.next_counter();
+            let counter = session.next_counter().unwrap();
             assert_eq!(counter, 0);
 
             // Counter should increment
-            let counter = session.next_counter();
+            let counter = session.next_counter().unwrap();
             assert_eq!(counter, 1);
         }
     }
@@ -553,6 +571,97 @@ mod tests {
             let packet_count = session.current_packet_cnt();
             assert_eq!(packet_count.next, 2);
             assert_eq!(packet_count.received, 2);
+        }
+    }
+
+    #[test]
+    fn out_of_order_delivery_and_replay() {
+        for kem in KEM::iter() {
+            let mock_sessions = SessionsMock::mock_post_handshake(kem);
+            let mut initiator = mock_sessions.initiator;
+            let mut responder = mock_sessions.responder;
+
+            let mut packets = Vec::new();
+            for i in 0..6u8 {
+                let frame = LpFrame::new_opaque(vec![i; 8]);
+                let LpAction::SendPacket(packet) = initiator
+                    .process_input(LpInput::SendFrame(frame.clone()))
+                    .unwrap()
+                else {
+                    panic!("expected SendPacket")
+                };
+                assert_eq!(packet.outer_header().counter, u64::from(i));
+                packets.push((frame, packet));
+            }
+
+            // reordered delivery with packet 4 delayed
+            for idx in [3, 0, 5, 1, 2] {
+                let (frame, packet) = &packets[idx];
+                let LpAction::DeliverFrame(delivered) = responder
+                    .process_input(LpInput::ReceivePacket(packet.clone()))
+                    .unwrap()
+                else {
+                    panic!("expected DeliverFrame")
+                };
+                assert_eq!(&delivered, frame);
+            }
+
+            // an already delivered packet is a replay
+            let err = responder
+                .process_input(LpInput::ReceivePacket(packets[3].1.clone()))
+                .unwrap_err();
+            assert!(matches!(
+                err,
+                LpError::Replay(ReplayError::DuplicateCounter)
+            ));
+
+            // the delayed packet still decrypts and gets delivered
+            let (frame, packet) = &packets[4];
+            let LpAction::DeliverFrame(delivered) = responder
+                .process_input(LpInput::ReceivePacket(packet.clone()))
+                .unwrap()
+            else {
+                panic!("expected DeliverFrame")
+            };
+            assert_eq!(&delivered, frame);
+            assert_eq!(responder.current_packet_cnt().received, 6);
+        }
+    }
+
+    #[test]
+    fn tampered_counter_is_rejected_without_marking_the_window() {
+        for kem in KEM::iter() {
+            let mock_sessions = SessionsMock::mock_post_handshake(kem);
+            let mut initiator = mock_sessions.initiator;
+            let mut responder = mock_sessions.responder;
+
+            let frame = LpFrame::new_opaque(b"genuine".to_vec());
+            let LpAction::SendPacket(packet) = initiator
+                .process_input(LpInput::SendFrame(frame.clone()))
+                .unwrap()
+            else {
+                panic!("expected SendPacket")
+            };
+
+            // the cleartext counter is bound to the nonce, so rewriting it must break decryption
+            let mut tampered_header = packet.outer_header();
+            tampered_header.counter = 5000;
+            let tampered = EncryptedLpPacket::new(tampered_header, packet.ciphertext().to_vec());
+
+            let err = responder
+                .process_input(LpInput::ReceivePacket(tampered))
+                .unwrap_err();
+            assert!(matches!(err, LpError::PSQSessionFailure { .. }));
+
+            // and the failure must not have advanced the replay window
+            assert_eq!(responder.current_packet_cnt().received, 0);
+            let LpAction::DeliverFrame(delivered) = responder
+                .process_input(LpInput::ReceivePacket(packet))
+                .unwrap()
+            else {
+                panic!("expected DeliverFrame")
+            };
+            assert_eq!(delivered, frame);
         }
     }
 

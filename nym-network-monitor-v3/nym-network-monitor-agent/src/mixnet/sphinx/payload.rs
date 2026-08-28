@@ -7,7 +7,7 @@
 //! not of the wire it travelled over. A gateway probe needs exactly this for both of its phases,
 //! including the one whose packets arrive over a client websocket rather than over Noise.
 
-use crate::test_packet::{TestPacketContent, TestPacketHeader};
+use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
 use anyhow::bail;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_types::{ProcessedPacketData, SphinxPacket};

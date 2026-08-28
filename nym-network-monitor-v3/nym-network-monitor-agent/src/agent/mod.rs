@@ -3,14 +3,15 @@
 
 use crate::agent::config::NodeTesterConfig;
 use crate::agent::helpers::derive_client_identity;
+use crate::agent::result::TestRunResult;
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::agent::tester::NodeStressTester;
+use crate::agent::tester::NodeProbe;
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentMixAddresses, TestRunAssignment, TestRunAssignmentRequest,
-    TestRunResultSubmissionRequest,
+    AgentAnnounceRequest, AgentMixAddresses, GatewayProbeTarget, MixnetProbeTarget,
+    TestRunAssignment, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
 use std::sync::Arc;
@@ -83,9 +84,45 @@ impl NetworkMonitorAgent {
         Ok(())
     }
 
+    async fn run_mixnode_stress_test(
+        &self,
+        target: Box<MixnetProbeTarget>,
+    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
+        let node_id = target.node_id;
+        let tested_address = target.node_address;
+        let tested_node = TestedNodeDetails::from_probe_target(*target);
+        let probe = NodeProbe::new(
+            self.tester_config,
+            self.tester_config.stress_profile,
+            self.noise_key.clone(),
+            tested_node,
+        )?;
+        let result = probe.run().await?;
+
+        Ok(TestRunResultSubmissionRequest {
+            node_id,
+            tested_address,
+            result: result.into(),
+        })
+    }
+
+    async fn run_mixnode_liveness_tests(
+        &self,
+        targets: Vec<MixnetProbeTarget>,
+    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
+        bail!("unsupported mixnode liveness test")
+    }
+
+    async fn run_gateway_liveness_tests(
+        &self,
+        targets: Vec<GatewayProbeTarget>,
+    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
+        bail!("unsupported gateway liveness test")
+    }
+
     /// Requests a work assignment from the orchestrator and, if one is available,
-    /// performs a stress test against the assigned node and submits the results.
-    pub(crate) async fn run_stress_test(&self) -> anyhow::Result<()> {
+    /// performs appropriate test against the assigned node and submits the results.
+    pub(crate) async fn perform_work_assignment(&self) -> anyhow::Result<()> {
         let request = TestRunAssignmentRequest {
             mix_addresses: self.mix_addresses(),
             x25519_noise_key: *self.noise_key.public_key(),
@@ -105,37 +142,22 @@ impl NetworkMonitorAgent {
 
         info!("retrieved the following work assignment: {work_assignment:?}");
 
-        // the orchestrator picks the kind, so refuse loudly rather than silently mis-measuring a
-        // target under the wrong profile. it cannot assign liveness work until per-kind scheduling
-        // lands, so reaching this arm means an orchestrator newer than this agent.
-        let TestRunAssignment::MixnodeStress(target) = work_assignment else {
-            bail!(
-                "was assigned {} work, which this agent cannot execute",
-                work_assignment.kind()
-            );
+        // 3. construct the appropriate tester and perform measurements
+        let result = match work_assignment {
+            TestRunAssignment::MixnodeStress(target) => {
+                self.run_mixnode_stress_test(target).await?
+            }
+            TestRunAssignment::MixnodeLiveness(targets) => {
+                self.run_mixnode_liveness_tests(targets).await?
+            }
+            TestRunAssignment::GatewayLiveness(targets) => {
+                self.run_gateway_liveness_tests(targets).await?
+            }
         };
-
-        let node_id = target.node_id;
-        let tested_address = target.node_address;
-
-        // 3. otherwise construct the tester and attempt to perform the measurements
-        let tested_node = TestedNodeDetails::from_probe_target(*target);
-        let mut stress_tester =
-            NodeStressTester::new(self.tester_config, self.noise_key.clone(), tested_node)?;
-
-        // attempt to perform the measurements within the configured timeouts
-        // note: the only errors we're possibly exiting on are critical failures like
-        // theoretically impossible sphinx packet creations or failing to join on tasks.
-        // any sending/receiving errors are included as part of an `Ok(result)` response.
-        let result = stress_tester.run_stress_test().await?;
 
         // 4. after that has concluded - submit the results back to the orchestrator
         self.orchestrator_client
-            .submit_test_run_result(&TestRunResultSubmissionRequest {
-                node_id,
-                tested_address,
-                result: result.into(),
-            })
+            .submit_test_run_result(&result)
             .await
             .context("failed to submit test run result")?;
         Ok(())

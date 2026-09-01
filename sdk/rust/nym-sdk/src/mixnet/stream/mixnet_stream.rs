@@ -5,11 +5,12 @@
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use bytes::BytesMut;
 use futures::{ready, SinkExt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 use nym_client_core::client::base_client::ClientInput;
 use nym_client_core::client::inbound_messages::InputMessage;
@@ -56,10 +57,15 @@ pub struct MixnetStream {
     /// and writes fail. `recv()` never sets this: it returns the error
     /// once and keeps going.
     failure: Option<StreamFailure>,
+
+    /// Flips to true when the peer acknowledges the stream. Already true
+    /// for inbound streams: we accepted them ourselves.
+    established_rx: watch::Receiver<bool>,
 }
 
 impl MixnetStream {
     /// Create a stream we initiated to a known recipient.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_outbound(
         id: StreamId,
         recipient: Recipient,
@@ -68,6 +74,7 @@ impl MixnetStream {
         packet_type: Option<PacketType>,
         streams: StreamMap,
         inbound_rx: mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
+        established_rx: watch::Receiver<bool>,
     ) -> Self {
         let sender = PollSender::new(client_input.input_sender.clone());
         Self {
@@ -84,10 +91,12 @@ impl MixnetStream {
             deregistered: false,
             next_seq: 0,
             failure: None,
+            established_rx,
         }
     }
 
     /// Create a stream accepted from a remote peer's Open message.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_inbound(
         id: StreamId,
         sender_tag: AnonymousSenderTag,
@@ -95,6 +104,7 @@ impl MixnetStream {
         packet_type: Option<PacketType>,
         streams: StreamMap,
         inbound_rx: mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
+        established_rx: watch::Receiver<bool>,
         initial_data: Vec<u8>,
     ) -> Self {
         let mut read_buf = BytesMut::new();
@@ -113,12 +123,44 @@ impl MixnetStream {
             deregistered: false,
             next_seq: 0,
             failure: None,
+            established_rx,
         }
     }
 
     /// Return the unique identifier for this stream.
     pub fn id(&self) -> StreamId {
         self.id
+    }
+
+    /// Wait up to `timeout` for the peer to acknowledge the stream.
+    ///
+    /// Resolves once the peer's `OpenAck` arrives, or once the peer sends
+    /// data (which proves it accepted the stream, covering a lost ack).
+    /// On an inbound stream it resolves immediately.
+    ///
+    /// A timeout means the peer's state is unknown: it may run an SDK
+    /// without establishment support, have no reply SURBs left, or be
+    /// gone. The stream stays usable after a timeout, so this is not a
+    /// reason to discard it.
+    ///
+    /// Pick the timeout to suit the caller: a mixnet round trip is
+    /// seconds, and a cold establishment can take appreciably longer.
+    pub async fn wait_established(&mut self, timeout: Duration) -> std::io::Result<()> {
+        match tokio::time::timeout(timeout, self.established_rx.wait_for(|v| *v)).await {
+            Ok(Ok(_)) => Ok(()),
+            Ok(Err(_)) => Err(std::io::Error::other("stream closed before establishment")),
+            Err(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "no establishment acknowledgement within timeout (peer state unknown)",
+            )),
+        }
+    }
+
+    /// Instant of the most recent inbound frame from the peer, or `None`
+    /// once the stream is no longer registered. Reads local state only;
+    /// sends nothing.
+    pub async fn last_peer_activity(&self) -> Option<tokio::time::Instant> {
+        self.streams.last_activity(&self.id).await
     }
 
     /// Receive a single message payload directly from the stream channel.

@@ -230,3 +230,229 @@ async fn persist_then_reuse_round_trip() {
         .expect("survives restart");
     assert_eq!(hop.client_private_key.to_bytes(), [7; 32]);
 }
+
+// ---------------------------------------------------------------------------
+// Fetcher-lifecycle provisioning (change `fix-dvpn-session-fetcher-restock`).
+//
+// These drive `OwnedController::ensure` against a real, running `BandwidthController` (ephemeral
+// store, managed = WireGuard types) with a recording mock fetcher, so the install → fetch →
+// removal lifecycle is exercised deterministically without minting real ecash. The full "provisions
+// successfully and passes traffic" path needs live signers + a gateway and is covered by the gated
+// `smoldvpn/tests/live_bringup.rs` integration tests.
+// ---------------------------------------------------------------------------
+
+// `BandwidthController`, `BandwidthControllerConfig`, `CredentialFetcher`, `ShutdownToken`,
+// `TicketType`, `Arc`, `AtomicBool`, `Ordering` and `wireguard_ticket_types` come in via
+// `use super::*`.
+use nym_bandwidth_controller::error::FetcherErrorKind;
+use nym_bandwidth_controller::{
+    CredentialFetcherError, CredentialPublicDataFetcher, FetcherError, NymCredential,
+};
+use nym_credential_storage::initialise_ephemeral_storage;
+use nym_credentials::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
+};
+use nym_ecash_time::Date;
+use nym_validator_client::nym_api::EpochId;
+
+/// Call counters shared with a spawned `RecordingFetcher`.
+#[derive(Default)]
+struct FetcherCalls {
+    fetch_ticketbooks: AtomicUsize,
+    cleanups: AtomicUsize,
+}
+
+impl FetcherCalls {
+    fn fetches(&self) -> usize {
+        self.fetch_ticketbooks.load(Ordering::SeqCst)
+    }
+    fn cleanups(&self) -> usize {
+        self.cleanups.load(Ordering::SeqCst)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("recorded fetch failure")]
+struct RecordedFailure;
+
+impl FetcherError for RecordedFailure {
+    fn kind(&self) -> FetcherErrorKind {
+        FetcherErrorKind::Api
+    }
+}
+
+/// A fetcher that records its calls and never mints real credentials. `fail` makes each ticketbook
+/// fetch error; otherwise it returns an empty batch (so readiness never resolves to `Ready` — enough
+/// to exercise install/fetch/removal, not the success path). The public-data methods are never
+/// driven (no ticketbook is ever stored) and simply error if they somehow were.
+struct RecordingFetcher {
+    calls: Arc<FetcherCalls>,
+    fail: bool,
+}
+
+#[async_trait::async_trait]
+impl CredentialFetcher for RecordingFetcher {
+    async fn fetch_ticketbooks(
+        &self,
+        _ticketbook_type: TicketType,
+    ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+        self.calls.fetch_ticketbooks.fetch_add(1, Ordering::SeqCst);
+        if self.fail {
+            Err(RecordedFailure.into())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    async fn cleanup(&self) {
+        self.calls.cleanups.fetch_add(1, Ordering::SeqCst);
+    }
+
+    async fn reset(self) -> Result<(), CredentialFetcherError> {
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl CredentialPublicDataFetcher for RecordingFetcher {
+    async fn fetch_master_verification_key(
+        &self,
+        _epoch_id: EpochId,
+    ) -> Result<EpochVerificationKey, CredentialFetcherError> {
+        Err(RecordedFailure.into())
+    }
+    async fn fetch_coin_index_signatures(
+        &self,
+        _epoch_id: EpochId,
+    ) -> Result<AggregatedCoinIndicesSignatures, CredentialFetcherError> {
+        Err(RecordedFailure.into())
+    }
+    async fn fetch_expiration_date_signatures(
+        &self,
+        _expiration_date: Date,
+        _epoch_id: EpochId,
+    ) -> Result<AggregatedExpirationDateSignatures, CredentialFetcherError> {
+        Err(RecordedFailure.into())
+    }
+}
+
+/// Spawn a real controller (managed = WireGuard types) and wrap it in an `OwnedController` holding
+/// the given recording fetcher — mirroring what `spawn_controller` builds, minus the chain client.
+fn spawn_owned(
+    calls: Arc<FetcherCalls>,
+    fail: bool,
+    auto_topup: bool,
+    cancel: &CancellationToken,
+) -> OwnedController {
+    let storage = initialise_ephemeral_storage();
+    let config = BandwidthControllerConfig {
+        managed_ticket_types: wireguard_ticket_types(),
+        ..Default::default()
+    };
+    let controller = BandwidthController::new(storage).with_config(config);
+    let sender = controller.get_request_sender();
+    let shutdown = ShutdownToken::new_from_tokio_token(cancel.clone());
+    let task = tokio::spawn(async move { controller.run(shutdown).await });
+
+    let fetcher: Arc<dyn CredentialFetcher> = Arc::new(RecordingFetcher { calls, fail });
+    OwnedController {
+        sender,
+        task,
+        fetcher,
+        fetcher_installed: AtomicBool::new(false),
+        auto_topup,
+    }
+}
+
+/// One-shot mode: provisioning installs the fetcher (which triggers a fetch of the managed
+/// WireGuard type) and removes it afterwards, so the controller is left with no fetcher and makes no
+/// background deposit.
+#[tokio::test]
+async fn default_mode_installs_fetcher_then_removes_it() {
+    let calls = Arc::new(FetcherCalls::default());
+    let cancel = CancellationToken::new();
+    let owned = spawn_owned(calls.clone(), false, false, &cancel);
+
+    // (Returns an error because the mock never mints a real ticketbook; we assert the lifecycle.)
+    let _ = owned
+        .ensure(vec![TicketType::V1WireguardEntry], &cancel)
+        .await;
+
+    assert!(
+        calls.fetches() >= 1,
+        "installing the fetcher must trigger a restock fetch of the managed type"
+    );
+    assert!(
+        !owned.fetcher_installed.load(Ordering::SeqCst),
+        "one-shot mode must remove the fetcher after provisioning"
+    );
+    assert!(
+        calls.cleanups() >= 1,
+        "removing the fetcher cleans it up (proving it was actually unset)"
+    );
+
+    cancel.cancel();
+    let _ = owned.task.await;
+}
+
+/// One-shot mode removes the fetcher even when provisioning fails, so a failed provision never
+/// leaves background restock enabled.
+#[tokio::test]
+async fn default_mode_removes_fetcher_even_on_failure() {
+    let calls = Arc::new(FetcherCalls::default());
+    let cancel = CancellationToken::new();
+    let owned = spawn_owned(calls.clone(), true, false, &cancel);
+
+    let res = owned
+        .ensure(vec![TicketType::V1WireguardEntry], &cancel)
+        .await;
+
+    assert!(
+        res.is_err(),
+        "a failing fetch must surface as a provisioning error"
+    );
+    assert!(
+        !owned.fetcher_installed.load(Ordering::SeqCst),
+        "the fetcher must be removed on the failure path too"
+    );
+    assert!(
+        calls.cleanups() >= 1,
+        "removal must clean up the fetcher even after a failed provision"
+    );
+
+    cancel.cancel();
+    let _ = owned.task.await;
+}
+
+/// Automatic top-up mode leaves the fetcher installed after provisioning (so the controller's sweep
+/// restocks per policy), and a subsequent provisioning call skips the re-install while it is present.
+#[tokio::test]
+async fn auto_topup_keeps_fetcher_installed_and_skips_reinstall() {
+    let calls = Arc::new(FetcherCalls::default());
+    let cancel = CancellationToken::new();
+    let owned = spawn_owned(calls.clone(), false, true, &cancel);
+
+    let _ = owned
+        .ensure(vec![TicketType::V1WireguardEntry], &cancel)
+        .await;
+
+    assert!(
+        owned.fetcher_installed.load(Ordering::SeqCst),
+        "automatic top-up mode must keep the fetcher installed"
+    );
+
+    // A follow-up install request is skipped while the fetcher is present (no new fetch).
+    let fetches_before = calls.fetches();
+    owned
+        .set_fetcher_if_absent()
+        .await
+        .expect("skip must not error");
+    assert_eq!(
+        calls.fetches(),
+        fetches_before,
+        "an already-installed fetcher must not be re-installed (no extra fetch)"
+    );
+
+    cancel.cancel();
+    let _ = owned.task.await;
+}

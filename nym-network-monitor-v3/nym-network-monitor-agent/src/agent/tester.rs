@@ -4,29 +4,25 @@
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
 use crate::agent::result::{LatencyDistribution, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::mixnet::connection_handler::SharedHandlerData;
 use crate::mixnet::egress::EgressConnection;
 use crate::mixnet::inbox::TargetInbox;
-use crate::mixnet::listener::MixnetListener;
 use crate::mixnet::sphinx::helpers::{
     as_sphinx_node, build_test_sphinx_packet, create_test_sphinx_packet_header,
 };
 use crate::mixnet::sphinx::payload::ProcessedPacket;
 use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
-use crate::mixnet::targets::WaveIngress;
 use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
+use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
 use nym_sphinx_types::SphinxPacket;
-use nym_task::ShutdownToken;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::pin;
-use tokio::sync::Notify;
-use tokio::time::{Instant, sleep};
+use tokio::time::{Instant, sleep, timeout};
 use tracing::{debug, error, info, warn};
 
 /// A probe of ONE node: everything it needs before it starts, and the sequence it then runs.
@@ -48,8 +44,10 @@ pub(crate) struct NodeProbe {
     /// Tester configuration controlling timeouts and addressing.
     config: NodeTesterConfig,
 
-    /// The sending knobs of the kind being run. Held separately from the config, which carries one
-    /// profile per kind, so that what a probe applies is decided once, by whoever built it.
+    /// What this probe measures. Selects the profile and is echoed onto the result.
+    kind: TestKind,
+
+    /// The sending knobs of that kind, resolved once at construction so the two cannot drift.
     profile: ProbeProfile,
 
     /// Pre-built sphinx packet header reused across all packets when `config.reuse_header`
@@ -79,6 +77,11 @@ enum ProbeOutcome {
     /// At least one packet came back, so the node connected to us, completed the handshake as our
     /// responder, and both sets of statistics exist.
     Measured,
+
+    /// Cut off by the per-target deadline. Whatever was gathered stands, but nothing about the
+    /// connection can be assumed: the probe may have been interrupted before or after its first
+    /// packet came back, so the handshake is folded in only if it actually arrived.
+    DeadlineExceeded,
 }
 
 impl NodeProbe {
@@ -87,14 +90,16 @@ impl NodeProbe {
     /// across all test packets.
     pub(crate) fn new(
         config: NodeTesterConfig,
-        profile: ProbeProfile,
+        kind: TestKind,
         noise_key: Arc<x25519::KeyPair>,
         tested_node: TestedNodeDetails,
     ) -> anyhow::Result<Self> {
+        let profile = config.profile_for(kind);
+
         debug!("using the following tester config");
         debug!("{config:#?}");
 
-        debug!("probing the following node under {profile:?}");
+        debug!("probing the following node for {kind} under {profile:?}");
         debug!("{tested_node:#?}");
 
         let sphinx_key = x25519::PrivateKey::new(&mut OsRng);
@@ -118,12 +123,31 @@ impl NodeProbe {
 
         Ok(Self {
             config,
+            kind,
             profile,
             reusable_test_header,
             noise_key,
             sphinx_key: Arc::new(sphinx_key.into()),
             tested_node,
         })
+    }
+
+    /// The node this probe measures.
+    pub(crate) fn tested_node(&self) -> &TestedNodeDetails {
+        &self.tested_node
+    }
+
+    /// Builds this target's inbox.
+    ///
+    /// Handed out rather than built inside [`run`](Self::run) because a wave's ingress has to be
+    /// assembled from every target's inbox BEFORE any of them starts: one listener serves the whole
+    /// wave, and it can only route to channels that already exist.
+    pub(crate) fn build_inbox(&self) -> TargetInbox {
+        let packet_recovery = match &self.reusable_test_header {
+            Some(header) => header.clone().into(),
+            None => self.sphinx_key.clone().into(),
+        };
+        TargetInbox::new(packet_recovery, self.profile.waiting_duration)
     }
 
     /// Opens the outbound Noise-encrypted TCP connection to the node under test.
@@ -135,17 +159,6 @@ impl NodeProbe {
             &self.egress_noise_config(),
         )
         .await
-    }
-
-    /// Constructs this target's [`TargetInbox`], which decodes and time-stamps returning packets.
-    /// When a reusable header is available it is used for decryption; otherwise the probe's own
-    /// sphinx private key is used directly.
-    fn build_inbox(&self) -> TargetInbox {
-        let packet_recovery = match &self.reusable_test_header {
-            Some(header) => header.clone().into(),
-            None => self.sphinx_key.clone().into(),
-        };
-        TargetInbox::new(packet_recovery, self.profile.waiting_duration)
     }
 
     /// The Noise config for the EGRESS connection to the node under test.
@@ -176,8 +189,19 @@ impl NodeProbe {
         )
     }
 
-    /// Runs the probe and returns the collected results.
-    pub(crate) async fn run(self) -> anyhow::Result<TestRunResult> {
+    /// Runs the probe against its target and returns the collected results.
+    ///
+    /// `inbox` is the one this probe's [`build_inbox`](Self::build_inbox) produced, already registered
+    /// with the wave's shared ingress. `deadline`, when set, cuts the probe off and keeps whatever it
+    /// had gathered, so one unresponsive target cannot hold up the wave it belongs to.
+    ///
+    /// The ingress is NOT torn down here: one listener serves the whole wave, so its lifetime belongs
+    /// to whoever assembled it.
+    pub(crate) async fn run(
+        self,
+        inbox: TargetInbox,
+        deadline: Option<Duration>,
+    ) -> anyhow::Result<TestRunResult> {
         let node_address = self.tested_node.address;
         let node_id = self.tested_node.node_id;
         if let Some(node_id) = node_id {
@@ -189,7 +213,7 @@ impl NodeProbe {
         // started HERE rather than once the connection is up: the result's elapsed time is defined to
         // include establishing the connections, so stamping it any later would quietly drop the
         // egress connect and its handshake out of every run's reported duration
-        let mut result = TestRunResult::new(self.config.packet_delay);
+        let mut result = TestRunResult::new(self.kind, self.config.packet_delay);
 
         // 1. establish the egress connection — abort immediately if it fails
         debug!("attempting to establish egress connection to the tested node");
@@ -206,54 +230,11 @@ impl NodeProbe {
             }
         };
 
-        // 2. spawn the shared ingress: one listener accepting this node's return connection, with a
-        // handler per connection delivering what arrives to the target its source resolves to. a
-        // stress run is a wave of exactly one target, so it goes through the same machinery a
-        // liveness wave does, with a one-entry table
-        debug!(
-            "creating mixnet listener on {}",
-            self.config.mixnet_bind_address
-        );
-        let inbox = self.build_inbox();
-        let shutdown_token = ShutdownToken::new();
-
-        let ingress = Arc::new(WaveIngress::single_target(
-            &self.tested_node,
-            inbox.events_sender(),
-        ));
-
-        let listener = MixnetListener::new(
-            self.config.mixnet_bind_address,
-            SharedHandlerData::new(
-                ingress,
-                self.noise_key.clone(),
-                self.config.noise_handshake_timeout,
-                shutdown_token.clone(),
-            ),
-            shutdown_token.clone(),
-        )
-        .await?;
-
-        let listener_on_start = Arc::new(Notify::new());
-        let listener_on_start_clone = listener_on_start.clone();
-
-        let listener_join =
-            tokio::spawn(async move { listener.run(listener_on_start_clone).await });
-
-        // wait for the listener task to properly begin
-        listener_on_start.notified().await;
-
-        // 3 to 6. everything from here on owns the live resources, so it needs no arguments threaded
+        // 2 to 6. everything from here on owns the live resources, so it needs no arguments threaded
         // through it. that is what stops a wave's targets being able to write into each other's
         // results
         let mut run = ProbeRun::new(self, egress, inbox, result);
-        let outcome = run.execute().await?;
-
-        // 7. shut down the ingress, which drains the connection handlers, and only then harvest
-        debug!("shutting down the mixnet listener and finishing the probe");
-        shutdown_token.cancel();
-        let _ = listener_join.await;
-
+        let outcome = run.run_to_deadline(deadline).await?;
         let result = run.finish(outcome)?;
 
         if let Some(node_id) = node_id {
@@ -304,6 +285,35 @@ impl ProbeRun {
         }
     }
 
+    /// Runs the sequence, cut off at `deadline` if one is set.
+    ///
+    /// The deadline wraps the sequence HERE rather than the caller wrapping the whole probe, because a
+    /// dropped future would take its partial result with it: a target cut off mid-flight still has to
+    /// report the packets it did get back.
+    async fn run_to_deadline(
+        &mut self,
+        deadline: Option<Duration>,
+    ) -> anyhow::Result<ProbeOutcome> {
+        let Some(deadline) = deadline else {
+            return self.execute().await;
+        };
+
+        let address = self.probe.tested_node.address;
+        // bound to a local so the borrow the timeout holds on `self` ends before the arms run
+        let outcome = timeout(deadline, self.execute()).await;
+
+        match outcome {
+            Ok(outcome) => outcome,
+            Err(_) => {
+                let deadline = format_duration(deadline);
+                warn!("the probe of {address} did not complete within {deadline}");
+                self.result
+                    .set_error(format!("the probe did not complete within {deadline}"));
+                Ok(ProbeOutcome::DeadlineExceeded)
+            }
+        }
+    }
+
     /// Runs steps 3 to 6 of the sequence, reporting how far it got.
     ///
     /// Returns `Err` only for critical failures; a node that misbehaves leaves its error on the
@@ -345,17 +355,31 @@ impl ProbeRun {
             ..
         } = self;
 
-        if let ProbeOutcome::Measured = outcome {
-            // absence is a hard error rather than a missing measurement: this is only reached once a
-            // packet has come back, and a packet coming back means the node connected to us and
-            // completed the handshake as our responder, so a `None` is a defect in the per-target
-            // plumbing rather than a node that behaved badly
-            let ingress_handshake = inbox
-                .ingress_handshake()
-                .context("missing ingress noise duration after completing entire test run!")?;
+        match outcome {
+            // nothing came back, so neither statistic exists
+            ProbeOutcome::NothingReturned => (),
 
-            result.set_ingress_noise_handshake(ingress_handshake);
-            result.set_egress_connection_statistics(egress.connection_statistics);
+            ProbeOutcome::Measured => {
+                // absence is a hard error rather than a missing measurement: this is only reached
+                // once a packet has come back, and a packet coming back means the node connected to
+                // us and completed the handshake as our responder, so a `None` is a defect in the
+                // per-target plumbing rather than a node that behaved badly
+                let ingress_handshake = inbox
+                    .ingress_handshake()
+                    .context("missing ingress noise duration after completing entire test run!")?;
+
+                result.set_ingress_noise_handshake(ingress_handshake);
+                result.set_egress_connection_statistics(egress.connection_statistics);
+            }
+
+            ProbeOutcome::DeadlineExceeded => {
+                // that invariant does NOT hold for a probe that was cut off part way, so this takes
+                // the handshake if it arrived and says nothing if it did not
+                if let Some(ingress_handshake) = inbox.ingress_handshake() {
+                    result.set_ingress_noise_handshake(ingress_handshake);
+                }
+                result.set_egress_connection_statistics(egress.connection_statistics);
+            }
         }
 
         Ok(result)

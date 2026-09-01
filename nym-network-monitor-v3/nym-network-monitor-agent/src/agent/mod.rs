@@ -3,15 +3,14 @@
 
 use crate::agent::config::NodeTesterConfig;
 use crate::agent::helpers::derive_client_identity;
-use crate::agent::result::TestRunResult;
 use crate::agent::tested_node::TestedNodeDetails;
-use crate::agent::tester::NodeProbe;
+use crate::agent::wave::{MixnetWave, ProbeReport};
 use anyhow::{Context, bail};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_monitor_orchestrator_requests::client::OrchestratorClient;
 use nym_network_monitor_orchestrator_requests::models::{
-    AgentAnnounceRequest, AgentMixAddresses, GatewayProbeTarget, MixnetProbeTarget,
-    TestRunAssignment, TestRunAssignmentRequest, TestRunResultSubmissionRequest,
+    AgentAnnounceRequest, AgentMixAddresses, MixnetProbeTarget, TestKind, TestRunAssignment,
+    TestRunAssignmentRequest, TestRunResultSubmissionRequest,
 };
 use nym_noise::LATEST_NOISE_VERSION;
 use std::sync::Arc;
@@ -22,6 +21,7 @@ pub(crate) mod helpers;
 pub(crate) mod result;
 pub(crate) mod tested_node;
 pub(crate) mod tester;
+pub(crate) mod wave;
 
 /// A network monitor agent that receives test assignments from the orchestrator,
 /// stress-tests individual nym-nodes, and reports results back.
@@ -84,40 +84,53 @@ impl NetworkMonitorAgent {
         Ok(())
     }
 
-    async fn run_mixnode_stress_test(
+    /// Probes every target of a mixnet wave, submitting each result the moment that target finishes.
+    ///
+    /// Both mixnode kinds come through here: a stress assignment is a wave of exactly one, so the two
+    /// share a path rather than drifting apart. The kind selects the profile and the per-target
+    /// deadline, and is echoed onto every result.
+    async fn run_mixnet_wave(
         &self,
-        target: Box<MixnetProbeTarget>,
-    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
-        let node_id = target.node_id;
-        let tested_address = target.node_address;
-        let tested_node = TestedNodeDetails::from_probe_target(*target);
-        let probe = NodeProbe::new(
-            self.tester_config,
-            self.tester_config.stress_profile,
-            self.noise_key.clone(),
-            tested_node,
-        )?;
-        let result = probe.run().await?;
+        kind: TestKind,
+        targets: Vec<MixnetProbeTarget>,
+    ) -> anyhow::Result<()> {
+        let targets = targets
+            .into_iter()
+            .map(TestedNodeDetails::from_probe_target)
+            .collect();
 
-        Ok(TestRunResultSubmissionRequest {
+        MixnetWave::new(self.tester_config, kind, self.noise_key.clone(), targets)?
+            .run(|report| self.submit(report))
+            .await
+    }
+
+    /// Submits one target's result.
+    ///
+    /// A node-level failure is submitted even when zeroed: submission is what advances that pairing's
+    /// staleness, so withholding it would leave the node maximally overdue and reassigned the moment
+    /// its lease expired.
+    async fn submit(&self, report: ProbeReport) -> anyhow::Result<()> {
+        let ProbeReport {
             node_id,
             tested_address,
-            result: result.into(),
-        })
-    }
+            result,
+        } = report;
 
-    async fn run_mixnode_liveness_tests(
-        &self,
-        targets: Vec<MixnetProbeTarget>,
-    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
-        bail!("unsupported mixnode liveness test")
-    }
+        // every target of an assignment carries one; only the manual `test-node` command probes a
+        // node it has no id for, and that path never reaches here
+        let Some(node_id) = node_id else {
+            bail!("cannot submit a result for {tested_address}: the target carries no node id")
+        };
 
-    async fn run_gateway_liveness_tests(
-        &self,
-        targets: Vec<GatewayProbeTarget>,
-    ) -> anyhow::Result<TestRunResultSubmissionRequest> {
-        bail!("unsupported gateway liveness test")
+        self.orchestrator_client
+            .submit_test_run_result(&TestRunResultSubmissionRequest {
+                node_id,
+                tested_address,
+                result: result.into(),
+            })
+            .await
+            .context("failed to submit test run result")?;
+        Ok(())
     }
 
     /// Requests a work assignment from the orchestrator and, if one is available,
@@ -142,24 +155,21 @@ impl NetworkMonitorAgent {
 
         info!("retrieved the following work assignment: {work_assignment:?}");
 
-        // 3. construct the appropriate tester and perform measurements
-        let result = match work_assignment {
+        // 3. run the assignment. each kind submits its own results as its targets finish, rather than
+        // the results being collected and submitted here: a wave's targets have to release their
+        // in-flight locks independently of one another
+        match work_assignment {
             TestRunAssignment::MixnodeStress(target) => {
-                self.run_mixnode_stress_test(target).await?
+                self.run_mixnet_wave(TestKind::Stress, vec![*target]).await
             }
             TestRunAssignment::MixnodeLiveness(targets) => {
-                self.run_mixnode_liveness_tests(targets).await?
+                self.run_mixnet_wave(TestKind::Liveness, targets).await
             }
-            TestRunAssignment::GatewayLiveness(targets) => {
-                self.run_gateway_liveness_tests(targets).await?
+            // group 9's work. the orchestrator's rotation already hands these out once liveness is
+            // enabled, so until then such a wave sits leased until its lease expires
+            TestRunAssignment::GatewayLiveness(_) => {
+                bail!("was assigned a gateway liveness wave, which this agent cannot yet execute")
             }
-        };
-
-        // 4. after that has concluded - submit the results back to the orchestrator
-        self.orchestrator_client
-            .submit_test_run_result(&result)
-            .await
-            .context("failed to submit test run result")?;
-        Ok(())
+        }
     }
 }

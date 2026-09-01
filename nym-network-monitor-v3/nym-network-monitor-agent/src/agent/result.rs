@@ -15,6 +15,11 @@ use time::OffsetDateTime;
 /// that the corresponding step was not reached or did not produce a result.
 #[derive(Debug, Clone)]
 pub(crate) struct TestRunResult {
+    /// What this run measured, echoed onto the submission so the orchestrator records it under the
+    /// kind it handed out. Carried on the result rather than supplied at conversion time, so a run
+    /// cannot be submitted under a kind other than the one it was probed for.
+    pub(crate) kind: TestKind,
+
     /// The timestamp when the test run was initiated.
     pub(crate) start_time: OffsetDateTime,
 
@@ -57,8 +62,9 @@ pub(crate) struct TestRunResult {
 }
 
 impl TestRunResult {
-    pub(crate) fn new(sphinx_packet_delay: Duration) -> Self {
+    pub(crate) fn new(kind: TestKind, sphinx_packet_delay: Duration) -> Self {
         TestRunResult {
+            kind,
             start_time: OffsetDateTime::now_utc(),
             ingress_noise_handshake: None,
             egress_noise_handshake: None,
@@ -274,8 +280,7 @@ impl From<TestRunResult> for nym_network_monitor_orchestrator_requests::models::
         };
 
         Self {
-            // the only kind this tester runs; the liveness profile arrives with the wave work
-            kind: TestKind::Stress,
+            kind: value.kind,
             time_taken: (OffsetDateTime::now_utc() - value.start_time).unsigned_abs(),
             error: value.error,
             measurements: vec![measurement],
@@ -372,7 +377,7 @@ mod tests {
 
     #[test]
     fn result_setters_populate_fields() {
-        let mut result = TestRunResult::new(ms(2));
+        let mut result = TestRunResult::new(TestKind::Stress, ms(2));
         result.set_ingress_noise_handshake(ms(5));
         result.set_egress_noise_handshake(ms(7));
         result.set_packets_sent(100);

@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_monitor_orchestrator_requests::models::AgentMixAddresses;
+use nym_network_monitor_orchestrator_requests::models::{AgentMixAddresses, TestKind};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -131,6 +131,29 @@ pub(crate) struct NodeTesterConfig {
 }
 
 impl NodeTesterConfig {
+    /// The sending knobs a probe of this kind applies.
+    ///
+    /// Derived from the kind rather than taken alongside it, so the two cannot be set to disagree:
+    /// the assignment's kind is the only input, exactly as it is on the wire.
+    pub(crate) fn profile_for(&self, kind: TestKind) -> ProbeProfile {
+        match kind {
+            TestKind::Stress => self.stress_profile,
+            TestKind::Liveness => self.liveness_profile,
+        }
+    }
+
+    /// How long ONE target of a wave of this kind may take before it is cut off.
+    ///
+    /// `None` for a stress test, which is a single target whose duration is already bounded by its
+    /// own profile and connection timeouts, and whose orchestrator lease is minutes rather than the
+    /// liveness kind's one.
+    pub(crate) fn per_target_timeout(&self, kind: TestKind) -> Option<Duration> {
+        match kind {
+            TestKind::Stress => None,
+            TestKind::Liveness => Some(self.liveness_per_target_timeout),
+        }
+    }
+
     /// The address the tested node should return the test packets to, encoded as the final hop of
     /// the sphinx route. It follows the family the node itself is being reached over, so that a
     /// test run exercises the same family in both directions rather than measuring the node's

@@ -144,6 +144,7 @@ impl CommonArgs {
 mod tests {
     use super::*;
     use clap::Parser;
+    use nym_network_monitor_orchestrator_requests::models::TestKind;
 
     // `CommonArgs` is an argument group, so it needs a parser root to be exercised on its own
     #[derive(Parser)]
@@ -225,6 +226,30 @@ mod tests {
             Duration::from_secs(2)
         );
         assert_eq!(config.liveness_per_target_timeout, Duration::from_secs(9));
+    }
+
+    // the kind is the only input that picks a profile, so swapping these two arms would apply the
+    // wrong one to every run of BOTH kinds and nothing else would notice
+    #[test]
+    fn each_kind_resolves_to_its_own_profile() {
+        let config = parse(&[]);
+
+        assert_eq!(config.profile_for(TestKind::Stress).target_rate, 1000);
+        assert_eq!(config.profile_for(TestKind::Liveness).target_rate, 50);
+    }
+
+    // the deadline is the whole of what stops one unresponsive target holding up its wave, so losing
+    // it would be silent. a stress run deliberately has none: it is a single target already bounded
+    // by its own profile and its connection timeouts
+    #[test]
+    fn only_a_liveness_probe_carries_a_per_target_deadline() {
+        let config = parse(&[]);
+
+        assert_eq!(config.per_target_timeout(TestKind::Stress), None);
+        assert_eq!(
+            config.per_target_timeout(TestKind::Liveness),
+            Some(Duration::from_secs(30))
+        );
     }
 
     // a zero deadline would time out every target of every wave the instant it began, scoring the

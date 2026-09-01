@@ -4,6 +4,54 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.17-djibouti] (2026-09-01)
+
+- fixed nym-node config migration ([#7106])
+- Bugfix/djubouti nym api ([#7097])
+- bugfix: don't use hickory within the credential proxy ([#7091])
+- bugfix: dont inline mixnet initialise function ([#7090])
+- feat: add config score penalty for nodes incapable of sending nyx transactions ([#7073])
+- feat: add additional check for signer status in the validator-status-check tool ([#7068])
+- fix(wireguard): don't crash node startup over one corrupted peer record ([#7065])
+- bugfix: reject packets to unknown clients ([#7061])
+- feat: introduce Geolocator service alongside associated contract ([#7055])
+- Network Details v2 Endpoint Type ([#7051])
+- fix(nym-node): bridge_client_params must survive --write-changes ([#7049])
+- chore: removed support for outfox packets ([#7048])
+- fix(gateway-probe): CanHandshake must reflect a real WireGuard handshake, not local interface state ([#7047])
+- fix(gateway-probe): bracket IPv6 addresses in the WireGuard endpoint string ([#7046])
+- feat: Directory node publishing ([#7013])
+- feat: Directory checkpoint bootstrapping ([#7004])
+- feat: Directory Attestation Provider ([#6954])
+- feat: expose nym-api public keys + proof of possession ([#6949])
+- feat: Directory Client: Attested Anchor ([#6948])
+- feat: Directory Client: TM Light Client Anchor ([#6941])
+- feat: Verifiable Directory Contract retrieval ([#6936])
+- feat: Directory Contract ([#6933])
+
+[#7106]: https://github.com/nymtech/nym/pull/7106
+[#7097]: https://github.com/nymtech/nym/pull/7097
+[#7091]: https://github.com/nymtech/nym/pull/7091
+[#7090]: https://github.com/nymtech/nym/pull/7090
+[#7073]: https://github.com/nymtech/nym/pull/7073
+[#7068]: https://github.com/nymtech/nym/pull/7068
+[#7065]: https://github.com/nymtech/nym/pull/7065
+[#7061]: https://github.com/nymtech/nym/pull/7061
+[#7055]: https://github.com/nymtech/nym/pull/7055
+[#7051]: https://github.com/nymtech/nym/pull/7051
+[#7049]: https://github.com/nymtech/nym/pull/7049
+[#7048]: https://github.com/nymtech/nym/pull/7048
+[#7047]: https://github.com/nymtech/nym/pull/7047
+[#7046]: https://github.com/nymtech/nym/pull/7046
+[#7013]: https://github.com/nymtech/nym/pull/7013
+[#7004]: https://github.com/nymtech/nym/pull/7004
+[#6954]: https://github.com/nymtech/nym/pull/6954
+[#6949]: https://github.com/nymtech/nym/pull/6949
+[#6948]: https://github.com/nymtech/nym/pull/6948
+[#6941]: https://github.com/nymtech/nym/pull/6941
+[#6936]: https://github.com/nymtech/nym/pull/6936
+[#6933]: https://github.com/nymtech/nym/pull/6933
+
 ## [2026.16-como] (2026-08-18)
 
 - Como Network Details v2 Endpoint Type ([#7052])

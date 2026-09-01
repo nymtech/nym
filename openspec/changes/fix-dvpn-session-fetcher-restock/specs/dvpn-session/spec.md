@@ -45,6 +45,13 @@ mnemonic material SHALL be zeroized on drop.
 - **THEN** the credential fetcher is still uninstalled before the error is returned,
   so a failed provision never leaves background restock enabled
 
+#### Scenario: Retrying a failed provision re-triggers a fetch
+- **WHEN** a provision fails and is retried
+- **THEN** the retry re-triggers issuance by re-setting the credential fetcher (unset
+  then set), rather than waiting on the periodic sweep — in default mode this happens
+  on the next `ensure_ticketbooks` call (the fetcher was already removed on failure),
+  and in automatic-top-up mode the session re-sets the still-installed fetcher
+
 #### Scenario: Setup phase is abortable without losing funds
 - **WHEN** the caller cancels the provided cancellation/shutdown token during
   deposit/issuance

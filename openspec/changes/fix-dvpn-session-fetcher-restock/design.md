@@ -84,12 +84,30 @@ installed on demand.
   install-if-absent (tracked by a local flag on the owned-controller handle; safe
   because the session is the controller's single writer and there is no request to
   query install state), `wait_for_ticketbooks(types)`, then leave it installed so the
-  controller's sweep restocks per policy. A later provisioning call skips the
-  re-install while the flag is set (avoids needless `cancel_and_join()` + `cleanup()`
-  churn).
+  controller's sweep restocks per policy. When the required types are already ready a
+  later provisioning call skips the re-install (avoids needless `cancel_and_join()` +
+  `cleanup()` churn); to retry after a failure it re-sets the fetcher to re-trigger a
+  fetch (D7), rather than skipping.
 
 This preserves both `dvpn-session` "Opt-in automatic restock" scenarios and moves the
 "no background deposit" guarantee onto fetcher presence.
+
+**D7 — Retry after a failed provision, in two tiers.**
+1. *Prefer fetcher-level retry.* Transient fetch failures should first be made
+   retryable inside the fetcher (the `TimeoutFetcher` wrapping `NyxdCredentialFetcher`),
+   so a single provisioning attempt is resilient without the session orchestrating it.
+   (This touches the fetcher, not the session's controller usage, and may land
+   separately.)
+2. *Re-trigger at the controller by re-setting the fetcher.* A fresh controller fetch
+   is triggered by unsetting then re-setting the credential fetcher — the install runs
+   `check_and_restock` again, and because a failed fetch leaves no persistent failure
+   marker (its in-flight slot is freed), `ensure_stocked` spawns a new fetch. In
+   **default mode** this falls out for free: the always-unset-on-failure rule (D3)
+   means a caller simply calls `ensure_ticketbooks` again and the fresh
+   `set_credential_fetcher` re-fetches. In **automatic-top-up mode** an explicit retry
+   MUST re-set the fetcher (unset then set) rather than wait for the ~3 h sweep; the
+   skip-re-install fast path (D3) therefore applies only when the required types are
+   already ready, not as a way to skip re-triggering after a failure.
 
 **D6 — Do NOT restructure to the owned pre-run inline fetch (`fetch_ticketbook`).**
 `BandwidthController::fetch_ticketbook` (`controller.rs:454`) fetches a type inline and

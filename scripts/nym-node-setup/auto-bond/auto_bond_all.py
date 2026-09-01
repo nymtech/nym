@@ -10,8 +10,12 @@ Options:
   --cli-dir PATH        Path to directory containing nym-cli binary
   --dry-run             Print commands without executing
 
-CSV format:
-  inventory_node_id,hostname,ip,account,mnemonic,identity_key,amount,operator_cost
+CSV columns used here:
+  inventory_node_id, hostname, identity_key,
+  bonding_account_address, bonding_mnemonic, bonding_account_amount, operator_cost
+
+IMPORTANT: amounts (bonding_account_amount, operator_cost) are in NYM in the CSV.
+nym-cli expects micro-denomination (unym); this script converts (1 NYM = 1_000_000 unym).
 """
 import argparse
 import csv
@@ -24,14 +28,11 @@ from pathlib import Path
 NYXD_URL    = "https://rpc.nymtech.net"
 NYM_API_URL = "https://validator.nymtech.net/api"
 
+UNYM_PER_NYM = 1_000_000
+
 # ── Colors ──
-G  = "\033[0;32m"   # green
-R  = "\033[0;31m"   # red
-Y  = "\033[0;33m"   # yellow
-C  = "\033[0;36m"   # cyan
-W  = "\033[1;37m"   # bold white
-D  = "\033[2;37m"   # dim
-NC = "\033[0m"      # reset
+G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
+C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
 
 SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
 
@@ -39,17 +40,18 @@ SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
 def ok(msg):   print(f"  {G}✓{NC} {msg}")
 def err(msg):  print(f"  {R}✗{NC} {msg}")
 def info(msg): print(f"  {C}→{NC} {msg}")
-def dim(msg):  print(f"  {D}{msg}{NC}")
+
+
+def nym_to_unym(nym) -> str:
+    """NYM (str/float) -> integer unym as a string for the CLI."""
+    return str(int(round(float(nym) * UNYM_PER_NYM)))
 
 
 def redact_cmd(cmd: list) -> list:
-    redacted = []
-    hide_next = False
+    redacted, hide_next = [], False
     for token in map(str, cmd):
         if hide_next:
-            redacted.append("***REDACTED***")
-            hide_next = False
-            continue
+            redacted.append("***REDACTED***"); hide_next = False; continue
         redacted.append(token)
         if token in SENSITIVE_FLAGS:
             hide_next = True
@@ -59,18 +61,10 @@ def redact_cmd(cmd: list) -> list:
 def parse_args():
     parser = argparse.ArgumentParser(description="Automated Nym node bonding from CSV")
     parser.add_argument("csv_file", help="Path to nodes CSV file")
-    parser.add_argument(
-        "--ansible-repo",
-        type=Path,
-        default=None,
-        help="Path to ansible playbooks directory (contains auto-bond.yml and inventory/)",
-    )
-    parser.add_argument(
-        "--cli-dir",
-        type=Path,
-        default=None,
-        help="Directory containing the nym-cli binary",
-    )
+    parser.add_argument("--ansible-repo", type=Path, default=None,
+                        help="Path to ansible playbooks directory (contains auto-bond.yml and inventory/)")
+    parser.add_argument("--cli-dir", type=Path, default=None,
+                        help="Directory containing the nym-cli binary")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return parser.parse_args()
 
@@ -108,7 +102,6 @@ def run(cmd: list, dry_run: bool, capture=True, cwd=None) -> subprocess.Complete
 
 
 def extract_ansible_recap(output: str):
-    """Extract PLAY RECAP block from ansible stdout."""
     match = re.search(r"(PLAY RECAP \*+.*?)(?=\n\n|\Z)", output, re.DOTALL)
     return match.group(0).strip() if match else None
 
@@ -119,9 +112,9 @@ def generate_payload(row: dict, nym_cli: Path, dry_run: bool) -> str:
         "create-node-bonding-sign-payload",
         "--host",                    row["hostname"],
         "--identity-key",            row["identity_key"],
-        "--amount",                  row["amount"],
-        "--mnemonic",                row["mnemonic"],
-        "--interval-operating-cost", row["operator_cost"],
+        "--amount",                  nym_to_unym(row["bonding_account_amount"]),
+        "--mnemonic",                row["bonding_mnemonic"],
+        "--interval-operating-cost", nym_to_unym(row["operator_cost"]),
         "--nyxd-url",                NYXD_URL,
         "--nym-api-url",             NYM_API_URL,
         "-o", "json",
@@ -133,7 +126,6 @@ def generate_payload(row: dict, nym_cli: Path, dry_run: bool) -> str:
 
 
 def ansible_sign(node_id: str, payload: str, ansible_pb: Path, inventory: Path, dry_run: bool):
-    """Returns (signature, recap_block)."""
     result = run([
         "ansible-playbook", ansible_pb,
         "-i",           inventory,
@@ -158,10 +150,10 @@ def bond_node(row: dict, signature: str, nym_cli: Path, dry_run: bool):
         nym_cli, "mixnet", "operators", "nymnode", "bond",
         "--host",                    row["hostname"],
         "--identity-key",            row["identity_key"],
-        "--amount",                  row["amount"],
-        "--mnemonic",                row["mnemonic"],
+        "--amount",                  nym_to_unym(row["bonding_account_amount"]),
+        "--mnemonic",                row["bonding_mnemonic"],
         "--signature",               signature,
-        "--interval-operating-cost", row["operator_cost"],
+        "--interval-operating-cost", nym_to_unym(row["operator_cost"]),
         "--nyxd-url",                NYXD_URL,
         "--nym-api-url",             NYM_API_URL,
         "--force",
@@ -183,11 +175,19 @@ def main():
     print(f"  {D}inventory: {inventory}{NC}\n")
 
     with open(args.csv_file) as f:
-        nodes = list(csv.DictReader(f))
+        reader = csv.DictReader(f)
+        required = {"inventory_node_id", "hostname", "identity_key",
+                    "bonding_account_address", "bonding_mnemonic",
+                    "bonding_account_amount", "operator_cost"}
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(f"Missing required CSV columns: {', '.join(sorted(missing))}")
+            sys.exit(1)
+        nodes = list(reader)
 
     print(f"{W}{'═'*70}{NC}")
     dry_label = f"  {Y}[DRY RUN]{NC}" if args.dry_run else ""
-    print(f"  {W}Bonding {len(nodes)} node(s){NC}{dry_label}")
+    print(f"  {W}Bonding {len(nodes)} node(s){NC}{dry_label}   {D}(amounts in NYM){NC}")
     print(f"{W}{'═'*70}{NC}\n")
 
     results  = []

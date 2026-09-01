@@ -1198,10 +1198,15 @@ impl SharedCommState {
 
     /// Put the current epoch mid-ceremony, as a rotation would: its own keys do not exist yet, so
     /// the epoch before it is the one in service.
+    /// A ceremony for the current epoch id begins. This doubles as a state constructor
+    /// (pair it with `set_epoch`), so unlike the chain it synthesizes `keys_in_service`
+    /// from the id below; the other fields follow `next_ceremony` - the recorded
+    /// conclusion is cleared (starting a ceremony revokes the grace window) and
+    /// `outgoing_keys` carries over untouched.
     pub async fn start_ceremony(&self) {
         self.inner.ceremony_in_flight.store(true, Ordering::Relaxed);
         *self.inner.keys_in_service.write().await = self.current_epoch().checked_sub(1);
-        *self.inner.outgoing_keys.write().await = None;
+        *self.inner.ceremony_concluded_at.write().await = None;
     }
 
     /// A ceremony that failed: the contract resets into a fresh epoch id and the keys already in

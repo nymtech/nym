@@ -70,7 +70,12 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
         let current_state = current_epoch.state;
         let extended = current_epoch.update(current_state, env.block.time);
         save_epoch(deps.storage, env.block.height, &extended)?;
-        return Ok(Response::new());
+        // the transaction succeeds either way, so the hold has to announce itself - see
+        // the attribute's doc
+        return Ok(Response::new().add_attribute(
+            nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS,
+            extended.epoch_id.to_string(),
+        ));
     }
 
     // `InProgress` is the only state with nothing after it, and `ensure_can_advance_state` has
@@ -701,7 +706,15 @@ mod tests {
         // ceremony would otherwise have walked through, each longer than the longest of them
         for _ in 0..5 {
             env.block.time = env.block.time.plus_seconds(601);
-            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+            // the hold must say so on the transaction itself: it succeeds, and without the
+            // attribute it would be indistinguishable from a real advance without diffing
+            // successive epoch queries
+            assert!(response.attributes.iter().any(|attribute| {
+                attribute.key == nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS
+                    && attribute.value == initial_epoch_id.to_string()
+            }));
 
             let epoch = load_current_epoch(&deps.storage).unwrap();
             assert_eq!(
@@ -752,13 +765,18 @@ mod tests {
         });
 
         env.block.time = env.block.time.plus_seconds(601);
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         check_epoch_state(
             deps.as_ref().storage,
             EpochState::DealingExchange { resharing: false },
         )
         .unwrap();
         assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 1);
+
+        // and a real advance does not claim to be waiting
+        assert!(!response.attributes.iter().any(|attribute| {
+            attribute.key == nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS
+        }));
     }
 
     /// The same hold applies to resharing, and must not quietly drop the resharing flag.
@@ -776,7 +794,7 @@ mod tests {
         save_epoch(deps.as_mut().storage, env.block.height, &epoch).unwrap();
 
         env.block.time = env.block.time.plus_seconds(601);
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        let response = try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let current = load_current_epoch(&deps.storage).unwrap();
         assert_eq!(
@@ -784,6 +802,10 @@ mod tests {
             EpochState::PublicKeySubmission { resharing: true }
         );
         assert_eq!(current.epoch_id, 7);
+        assert!(response.attributes.iter().any(|attribute| {
+            attribute.key == nym_coconut_dkg_common::event_attributes::AWAITING_DEALERS
+                && attribute.value == "7"
+        }));
     }
 
     #[test]

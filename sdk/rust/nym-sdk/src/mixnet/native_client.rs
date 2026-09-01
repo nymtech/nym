@@ -389,6 +389,7 @@ impl MixnetClient {
     /// Returns a [`MixnetStream`] implementing `AsyncRead + AsyncWrite`.
     /// `reply_surbs` controls how many reply SURBs are included with each
     /// outbound message so the peer can reply. Defaults to 10 if `None`.
+    /// One of them is spent on the peer's establishment acknowledgement.
     ///
     /// This is a one-way transition: once stream mode is active,
     /// message-mode methods like [`send_plain_message`](MixnetMessageSender::send_plain_message)

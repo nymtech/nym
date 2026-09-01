@@ -75,16 +75,6 @@ impl KeyPair {
         self.archived.write().await.insert(epoch_id, keypair);
     }
 
-    /// The epoch our currently held keys were derived for, regardless of whether they may
-    /// yet be used for issuance.
-    async fn current_key_epoch(&self) -> Option<EpochId> {
-        self.keys
-            .read()
-            .await
-            .as_ref()
-            .map(|keys| keys.issued_for_epoch)
-    }
-
     /// The keys derived for `epoch_id`, wherever we happen to be keeping them - the live slot
     /// if it is still the epoch we sign for, otherwise the archive.
     ///
@@ -101,17 +91,28 @@ impl KeyPair {
         &self,
         epoch_id: EpochId,
     ) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>, EcashError> {
-        let current = self.current_key_epoch().await;
+        // the epoch check happens on the guard actually returned: were "which epoch is
+        // live" a separate read, the controller could rotate the slot between it and the
+        // re-acquisition, and a keypair for a different epoch than requested would be
+        // served - with its wrong-epoch partials persisted
+        let live = match RwLockReadGuard::try_map(self.read_keys().await, |keys| {
+            keys.as_ref()
+                .filter(|keys| keys.issued_for_epoch == epoch_id)
+        }) {
+            Ok(keys) => return Ok(keys),
+            Err(live) => live,
+        };
 
-        if current == Some(epoch_id) {
-            return RwLockReadGuard::try_map(self.read_keys().await, |keys| keys.as_ref())
-                .map_err(|_| EcashError::KeyPairNotDerivedYet);
-        }
+        // the archive is consulted whenever the live slot did not match, so keys that
+        // rotated out between the two reads are found where they now live rather than
+        // erroring on where they used to
+        let available = live.as_ref().map(|keys| keys.issued_for_epoch);
+        drop(live);
 
         RwLockReadGuard::try_map(self.archived.read().await, |archived| {
             archived.get(&epoch_id)
         })
-        .map_err(|_| match current {
+        .map_err(|_| match available {
             Some(available) => EcashError::InvalidSigningKeyEpoch {
                 requested: epoch_id,
                 available,

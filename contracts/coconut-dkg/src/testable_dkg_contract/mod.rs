@@ -333,8 +333,8 @@ pub trait DkgContractTesterExt:
             .unwrap()
     }
 
-    /// Replace a dealer's verification key share with an arbitrary string, so that it
-    /// no longer pairs with the dealings that dealer actually distributed.
+    /// Corrupt a dealer's stored verification key share with the supplied mutation, so
+    /// that it no longer pairs with the dealings that dealer actually distributed.
     fn corrupt_vk_share<F>(&mut self, epoch_id: EpochId, owner: &Addr, mutate: F)
     where
         F: FnOnce(&mut VerificationKeyShare),

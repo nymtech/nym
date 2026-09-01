@@ -1398,8 +1398,8 @@ mod tests {
     /// thing every ticket verification does, and gateways poll continuously, so a query
     /// landing mid-ceremony is a certainty rather than a risk.
     ///
-    /// Currently RED. Note `active_signer` is a *separate* cache from the communication
-    /// channel's `epoch_clients`, so fixing that one alone would not fix this.
+    /// Note `active_signer` is a *separate* cache from the communication channel's
+    /// `epoch_clients`, so the bypass fixing that one alone would not have fixed this.
     #[tokio::test]
     async fn a_signer_still_recognises_itself_after_a_ceremony() -> anyhow::Result<()> {
         let chain = SharedContractChain::new(3);
@@ -1440,8 +1440,8 @@ mod tests {
     /// signer discovery, so a poisoned signer set leaves it permanently unavailable.
     ///
     /// It is guarded by a threshold check and `get_or_init` never caches errors, so it
-    /// is *designed* to recover on the next request. Currently RED because the layer
-    /// beneath it cannot.
+    /// is *designed* to recover on the next request - which it could not do while the
+    /// layer beneath it could not.
     #[tokio::test]
     async fn the_master_verification_key_becomes_available_after_a_ceremony() -> anyhow::Result<()>
     {

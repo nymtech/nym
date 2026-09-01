@@ -1199,7 +1199,7 @@ pub struct DirectoryDebug {
 impl Default for DirectoryConfig {
     fn default() -> Self {
         DirectoryConfig {
-            enabled: false,
+            enabled: true,
             debug: Default::default(),
         }
     }

@@ -22,6 +22,7 @@
 //! governed by the existing cancellation-safety + pending-request recovery
 //! guarantees, not by a fetch timeout.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -147,6 +148,65 @@ impl<F: CredentialFetcher> CredentialFetcher for TimeoutFetcher<F> {
 
     async fn reset(self) -> Result<(), CredentialFetcherError> {
         self.inner.reset().await
+    }
+}
+
+/// A type-erased [`CredentialFetcher`], so the session can hold a fetcher without naming its
+/// concrete (chain-client-parameterised) type and re-install it through the controller's generic
+/// [`set_credential_fetcher`](nym_bandwidth_controller::requests::BandwidthControllerRequestSender::set_credential_fetcher).
+/// Every fetch delegates to the inner fetcher; [`reset`](CredentialFetcher::reset) is a no-op
+/// because the controller never calls it on an installed fetcher (it only ever calls `cleanup`).
+pub(crate) struct ErasedFetcher(Arc<dyn CredentialFetcher>);
+
+impl ErasedFetcher {
+    pub(crate) fn new(inner: Arc<dyn CredentialFetcher>) -> Self {
+        Self(inner)
+    }
+}
+
+#[async_trait]
+impl CredentialPublicDataFetcher for ErasedFetcher {
+    async fn fetch_master_verification_key(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<EpochVerificationKey, CredentialFetcherError> {
+        self.0.fetch_master_verification_key(epoch_id).await
+    }
+
+    async fn fetch_coin_index_signatures(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<AggregatedCoinIndicesSignatures, CredentialFetcherError> {
+        self.0.fetch_coin_index_signatures(epoch_id).await
+    }
+
+    async fn fetch_expiration_date_signatures(
+        &self,
+        expiration_date: Date,
+        epoch_id: EpochId,
+    ) -> Result<AggregatedExpirationDateSignatures, CredentialFetcherError> {
+        self.0
+            .fetch_expiration_date_signatures(expiration_date, epoch_id)
+            .await
+    }
+}
+
+#[async_trait]
+impl CredentialFetcher for ErasedFetcher {
+    async fn fetch_ticketbooks(
+        &self,
+        ticketbook_type: TicketType,
+    ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+        self.0.fetch_ticketbooks(ticketbook_type).await
+    }
+
+    async fn cleanup(&self) {
+        self.0.cleanup().await
+    }
+
+    async fn reset(self) -> Result<(), CredentialFetcherError> {
+        // Never invoked: the controller only calls `cleanup` on an installed fetcher, never `reset`.
+        Ok(())
     }
 }
 

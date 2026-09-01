@@ -82,8 +82,7 @@ impl MixnetResponseListener {
             }
             Socks5ResponseContent::NetworkData { content } => {
                 self.controller_sender
-                    .unbounded_send(ControllerCommand::new_send(content))
-                    .unwrap();
+                    .unbounded_send(ControllerCommand::new_send(content));
                 Ok(())
             }
             Socks5ResponseContent::Query(response) => {

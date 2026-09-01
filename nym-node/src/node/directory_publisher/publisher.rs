@@ -433,6 +433,11 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
         let label = payload.label();
         let bytes = payload.to_canonical_bytes();
 
+        if bytes.is_empty() {
+            debug!("payload for '{}' is empty: skipping write", label.as_str());
+            return Ok(());
+        }
+
         // reconcile-before-write: if the published bytes already match, skip the tx entirely
         if session.published.get(&label) == Some(&bytes) {
             trace!(

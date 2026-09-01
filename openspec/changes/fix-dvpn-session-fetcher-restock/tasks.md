@@ -29,6 +29,13 @@
   while the flag is set.
 - [ ] 2.4 Remove the now-unused `restock_ticketbooks` call from the provisioning path;
   keep `wait_for_ticketbooks` as the readiness gate.
+- [ ] 2.5 Retry handling: in auto-top-up mode, re-set the fetcher (unset then set) to
+  re-trigger a fetch when a required type is not ready after a failure, instead of
+  skipping the re-install; skip only when the required types are already ready. Default
+  mode already re-triggers on the next call via the always-unset-on-failure rule.
+- [ ] 2.6 Consider making transient fetch failures retryable in the fetcher layer
+  (`TimeoutFetcher`/`NyxdCredentialFetcher`) as the first line of resilience — evaluate
+  scope; may be a separate change since it is outside the session's controller usage.
 
 ## 3. Comments and docs
 

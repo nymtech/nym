@@ -393,7 +393,7 @@ impl FakeChainState {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
                 resharing,
-                ..
+                epoch_id: order_epoch_id,
             } => {
                 if sender.sender != self.multisig_contract.address {
                     panic!("not multisig")
@@ -403,6 +403,9 @@ impl FakeChainState {
                     EpochState::VerificationKeyFinalization { resharing }
                 );
                 let epoch_id = self.dkg_contract.epoch.epoch_id;
+                // mirror the contract's StaleVerificationOrder gate: an order names the
+                // epoch it was minted for, and only that epoch's share may be verified by it
+                assert_eq!(order_epoch_id, epoch_id, "stale verification order");
                 let Some(shares) = self.dkg_contract.verification_shares.get_mut(&epoch_id) else {
                     panic!("no shares for epoch")
                 };

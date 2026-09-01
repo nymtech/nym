@@ -848,10 +848,10 @@ mod tests {
             );
         assert_eq!(node_index.as_deref(), Some("1"));
 
-        // and a non-member is rejected by the real group check
-        let outsider: AccountId = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0".parse().unwrap();
+        // and a non-member is rejected by the real group check, not for some incidental reason
+        let outsider = chain.make_address("outsider".to_string());
         let outsider_client = ContractChainClient::new(outsider, chain.clone());
-        assert!(outsider_client
+        let refusal = outsider_client
             .register_dealer(
                 "bte-key-2".to_string(),
                 "identity-2".to_string(),
@@ -859,7 +859,11 @@ mod tests {
                 false,
             )
             .await
-            .is_err());
+            .unwrap_err();
+        assert!(
+            format!("{refusal:?}").contains("not in the coconut signer group"),
+            "rejected, but not by the group check: {refusal:?}"
+        );
 
         Ok(())
     }

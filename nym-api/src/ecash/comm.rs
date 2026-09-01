@@ -397,8 +397,10 @@ mod tests {
     fn a_lapsed_deadline_does_not_disable_the_cache() {
         use nym_coconut_dkg_common::types::Timestamp;
 
-        let mut epoch = Epoch::default();
-        epoch.deadline = Some(Timestamp::from_seconds(1));
+        let epoch = Epoch {
+            deadline: Some(Timestamp::from_seconds(1)),
+            ..Default::default()
+        };
 
         let mut cached = CachedEpoch::default();
         cached.update(epoch, Duration::from_secs(300)).unwrap();
@@ -415,8 +417,10 @@ mod tests {
         use nym_coconut_dkg_common::types::Timestamp;
 
         let now = OffsetDateTime::now_utc().unix_timestamp() as u64;
-        let mut epoch = Epoch::default();
-        epoch.deadline = Some(Timestamp::from_seconds(now + 60));
+        let epoch = Epoch {
+            deadline: Some(Timestamp::from_seconds(now + 60)),
+            ..Default::default()
+        };
 
         let mut cached = CachedEpoch::default();
         cached.update(epoch, Duration::from_secs(300)).unwrap();

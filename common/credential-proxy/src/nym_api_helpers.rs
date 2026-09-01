@@ -127,8 +127,10 @@ mod tests {
     /// every epoch read to the chain until the next ceremony stores a fresh epoch.
     #[test]
     fn a_lapsed_deadline_does_not_disable_the_cache() {
-        let mut epoch = Epoch::default();
-        epoch.deadline = Some(Timestamp::from_seconds(1));
+        let epoch = Epoch {
+            deadline: Some(Timestamp::from_seconds(1)),
+            ..Default::default()
+        };
 
         let mut cached = CachedEpoch::default();
         cached.update(epoch);
@@ -142,8 +144,10 @@ mod tests {
     #[test]
     fn a_nearer_state_end_still_caps_the_cache_validity() {
         let now = OffsetDateTime::now_utc().unix_timestamp() as u64;
-        let mut epoch = Epoch::default();
-        epoch.deadline = Some(Timestamp::from_seconds(now + 60));
+        let epoch = Epoch {
+            deadline: Some(Timestamp::from_seconds(now + 60)),
+            ..Default::default()
+        };
 
         let mut cached = CachedEpoch::default();
         cached.update(epoch);

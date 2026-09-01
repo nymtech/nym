@@ -164,7 +164,7 @@ impl<C: DirectoryChainClient> DirectoryPublisher<C> {
         node_id: NodeId,
         events_rx: &mut mpsc::Receiver<DirectoryPayload>,
     ) -> ControlFlow<()> {
-        info!("directory publisher active for node {node_id}");
+        debug!("directory publisher active for node {node_id}");
 
         let mut session = match self.establish_session(node_id).await {
             Ok(session) => session,

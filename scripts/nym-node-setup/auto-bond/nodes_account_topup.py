@@ -47,6 +47,15 @@ from pathlib import Path
 NYXD_URL    = "https://rpc.nymtech.net"
 NYM_API_URL = "https://validator.nymtech.net/api"
 
+# Public Cosmos LCD (REST) endpoints for reading balances over plain HTTP.
+# Balance reads no longer depend on the nym-cli binary being present; nym-cli is
+# only needed for the actual top-up transaction (send-multiple). Tried in order.
+LCD_ENDPOINTS = [
+    "https://api.nymtech.net",
+    "https://api.nyx.nodes.guru",
+]
+LCD_BALANCE_PATH = "/cosmos/bank/v1beta1/balances/{address}"
+
 UNYM_PER_NYM = 1_000_000
 
 # The `nym-cli account send-multiple --input` CSV is a bare two-column file with
@@ -131,29 +140,33 @@ def fetch_node_address(ip: str, dry_run: bool) -> str:
     return addr
 
 
-# ── balance from nym-cli ────────────────────────────────────────────────────
-def fetch_balance_nym(nym_cli: Path, address: str, dry_run: bool) -> float:
-    """Return the account's NYM balance as a float."""
+# ── balance from the public Cosmos LCD (no nym-cli needed) ──────────────────
+def fetch_balance_nym(address: str, dry_run: bool) -> float:
+    """Return the account's NYM balance as a float, read over HTTP from the
+    chain's LCD. Tries each LCD endpoint until one answers."""
     if dry_run:
         return 0.0
-    # --raw --hide-denom gives a bare unym integer, robust to output formatting.
-    result = subprocess.run(
-        [str(nym_cli), "account", "balance", address,
-         "--nyxd-url", NYXD_URL, "--raw", "--hide-denom"],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError((result.stderr or result.stdout or "balance query failed").strip())
-    raw = result.stdout.strip().split()[0] if result.stdout.strip() else ""
-    if not raw:
-        raise RuntimeError("empty balance output")
-    # raw is unym; may be "0" for a funded-but-empty account.
-    return unym_to_nym(int(raw))
+    last_err = None
+    for base in LCD_ENDPOINTS:
+        url = base.rstrip("/") + LCD_BALANCE_PATH.format(address=address)
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "nym-topup/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            unym = 0
+            for coin in data.get("balances", []):
+                if coin.get("denom") == "unym":
+                    unym = int(coin.get("amount", "0"))
+                    break
+            return unym_to_nym(unym)
+        except (urllib.error.URLError, urllib.error.HTTPError, ValueError, KeyError, TimeoutError) as e:
+            last_err = e
+            continue
+    raise RuntimeError(f"all LCD endpoints failed for {address}: {last_err}")
 
 
 def main():
     args = parse_args()
-    nym_cli = resolve_nym_cli(args)
 
     with open(args.csv_file, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -170,7 +183,6 @@ def main():
         if col not in fieldnames:
             fieldnames.append(col)
 
-    print(f"\n  {D}nym-cli: {nym_cli}{NC}")
     print(f"{W}{'═'*70}{NC}")
     dry = f"  {Y}[DRY RUN]{NC}" if args.dry_run else ""
     mode = "Checking" if args.check_only else "Topping up"
@@ -200,9 +212,9 @@ def main():
             read_errors += 1
             continue
 
-        # 2. balance
+        # 2. balance (over HTTP from the chain LCD; no nym-cli needed)
         try:
-            balance = fetch_balance_nym(nym_cli, address, args.dry_run)
+            balance = fetch_balance_nym(address, args.dry_run)
             row["node_account_balance"] = f"{balance:.6f}"
         except Exception as e:
             err(f"balance query failed: {e}")
@@ -245,13 +257,16 @@ def main():
         _summary(rows, read_errors, topped=0)
         return
 
-    # 4. batch send-multiple
+    # 4. batch send-multiple — nym-cli is only needed from here on.
     if not args.mnemonic and not args.dry_run:
         err("no master mnemonic provided (--mnemonic or MNEMONIC env) — cannot top up")
         sys.exit(1)
 
+    nym_cli = resolve_nym_cli(args)
+
     print(f"{W}{'─'*70}{NC}")
     print(f"  {W}Sending {len(queued)} top-up(s) via send-multiple{NC}")
+    print(f"  {D}nym-cli: {nym_cli}{NC}")
     print(f"{W}{'─'*70}{NC}")
 
     # build the input CSV: bare "address,amount" rows (NO header).

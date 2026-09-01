@@ -16,13 +16,11 @@ Usage:
   python3 show_balances.py nodes.csv [options]
 
 Options:
-  --cli-dir PATH   Directory containing the nym-cli binary.
   --dry-run        Print commands without executing.
 """
 import argparse
 import csv
 import json
-import subprocess
 import sys
 import urllib.request
 import urllib.error
@@ -34,6 +32,12 @@ UNYM_PER_NYM     = 1_000_000
 AUX_DETAILS_PATH = "/api/v2/auxiliary-details"
 NODE_HTTP_PORT   = 8080
 
+LCD_ENDPOINTS = [
+    "https://api.nymtech.net",
+    "https://api.nyx.nodes.guru",
+]
+LCD_BALANCE_PATH = "/cosmos/bank/v1beta1/balances/{address}"
+
 G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
 C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
 
@@ -41,43 +45,33 @@ C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
 def parse_args():
     p = argparse.ArgumentParser(description="Show bonding + node balances from CSV (NYM)")
     p.add_argument("csv_file", help="Path to nodes CSV file")
-    p.add_argument("--cli-dir", type=Path, default=None,
-                   help="Directory containing the nym-cli binary")
     p.add_argument("--dry-run", action="store_true", help="Print commands without executing")
     return p.parse_args()
 
 
-def resolve_nym_cli(args):
-    if args.cli_dir:
-        nym_cli = args.cli_dir.resolve() / "nym-cli"
-    else:
-        nym_cli = Path(__file__).resolve().parents[3] / "target" / "release" / "nym-cli"
-    if not nym_cli.exists() and not args.dry_run:
-        print(f"  {R}✗{NC} nym-cli not found at: {nym_cli}")
-        sys.exit(1)
-    return nym_cli
 
 
-def balance_nym(nym_cli: Path, address: str, dry_run: bool):
-    """Return NYM balance as float, or None on error."""
+def balance_nym(address: str, dry_run: bool):
+    """Return NYM balance as float (read over HTTP from the chain LCD), or None on error."""
     if dry_run:
         return 0.0
     if not address:
         return None
-    result = subprocess.run(
-        [str(nym_cli), "account", "balance", address,
-         "--nyxd-url", NYXD_URL, "--raw", "--hide-denom"],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        return None
-    raw = result.stdout.strip().split()[0] if result.stdout.strip() else ""
-    if not raw:
-        return None
-    try:
-        return int(raw) / UNYM_PER_NYM
-    except ValueError:
-        return None
+    for base in LCD_ENDPOINTS:
+        url = base.rstrip("/") + LCD_BALANCE_PATH.format(address=address)
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "nym-balances/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            unym = 0
+            for coin in data.get("balances", []):
+                if coin.get("denom") == "unym":
+                    unym = int(coin.get("amount", "0"))
+                    break
+            return unym / UNYM_PER_NYM
+        except (urllib.error.URLError, urllib.error.HTTPError, ValueError, KeyError, TimeoutError):
+            continue
+    return None
 
 
 def node_address(row: dict, ip: str, dry_run: bool):
@@ -105,9 +99,6 @@ def fmt(val):
 
 def main():
     args = parse_args()
-    nym_cli = resolve_nym_cli(args)
-
-    print(f"\n  {D}nym-cli: {nym_cli}{NC}\n")
 
     with open(args.csv_file, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -138,8 +129,8 @@ def main():
         bond_addr = (row.get("bonding_account_address") or "").strip()
         node_addr = node_address(row, ip, args.dry_run)
 
-        bond_bal = balance_nym(nym_cli, bond_addr, args.dry_run)
-        node_bal = balance_nym(nym_cli, node_addr, args.dry_run)
+        bond_bal = balance_nym(bond_addr, args.dry_run)
+        node_bal = balance_nym(node_addr, args.dry_run)
 
         if bond_bal is None or node_bal is None:
             errors += 1

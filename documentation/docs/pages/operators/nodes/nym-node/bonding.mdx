@@ -152,34 +152,56 @@ If you want to bond your Mix Node via the CLI, then check out the [relevant sect
 
 ## Fund `nym-node` Client Nyx Account
 
-<Callout type="info">
-This is not relevant for operators running exclusively `mixnode` functionality. For any type of gateway functionality this is a preparation requirement for the upcoming [ticket rewarding](../../tokenomics/mixnet-rewards#roadmap).
-</ Callout>
+<Callout type="warning" emoji="⚠️">
+**From release [`v2026.17-djibouti`](/operators/changelog#v2026.17-djibouti) onward every node having less than 1 NYM balance on this account will have its config score multiplied by 0.8 (80%).** This rule is to ensure that operators topup their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
+</Callout>
 
 Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bonding!**
 
-This client account will be used for the process of redemption of [zk-nym tickets](../../../network/cryptography/zk-nym) collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee.
+This client account is used for dual pupose:
+1. Pushing config changes up to blockchain
+1. Redemption of [zk-nym tickets](/network/cryptography/zk-nym) collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee. This feature is under development
 
-Giving the low transaction cost on Cosmos, funding your client Nyx account with 25 NYM tokens should be more than enough. To do so, follow these steps:
+Provided that now we the acccount will be used only for the case of updating nodes config on blockchain, in reality this means that there will be such update either on configs update (e.g. different wg port, different description, etc.) or on daily sphinx key rotation, in majority of cases once in 24h. Giving the low transaction cost on Cosmos, funding your client Nyx account with 10 NYM tokens should be more than enough. To do so, follow these steps:
 
-<Steps>
+<div>
+  <Tabs items={[
+    "Manual steps",
+    "Orchestration",
+    ]} defaultIndex="0">
+    <MyTab>
 
-###### 1. Get your `nym-node` client Nyx account mnemonic phrase
-- Make sure your screen is not exposed to other people or recording devices
-- To store sensitive credentials use audited and open source password managers, like [KeePassXC](https://keepassxc.org/)
-- To print out your node client mnemonic phrase, run:
-```sh
-cat $HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic
+### Manual Funding of `nym-node` Client Nyx Account
+
+This setup is recommended for one or a small number of nodes. 
+
+      <Steps>
+###### 1. Get the address of your client
+- Open your browser and check:
 ```
-```sh
-# for example
-# cat $HOME/.nym/nym-nodes/default-nym-node/data/cosmos_mnemonic
+<NODE_IPv4>:8080/api/v2/auxiliary-details
+#or 
+<HOSTNAME>/api/v2/auxiliary-details
 ```
-- **Alternatively:** You can use `scp` command to copy the file `cosmos_mnemonic` remotely. If this is your preference, use this command:
-```sh
-scp <USER>@<HOST>:.nym/nym-nodes/<ID>/data/cosmos_mnemonic <LOCAL_TARGET_PATH>
-```
-- Copy this phrase and save it to your password manager
+- Copy the address
+
+###### 2. Get node balance
+
+
+      </Steps>
+    </MyTab>
+    <MyTab>
+### Automated Funding of `nym-node` Client Nyx Account
+
+This setup is recommended for people orchestrating several nodes. It takes up to 30 min to prepare, but allows for timeless changes of some or all nodes any time in the future. 
+      <Steps>
+
+
+
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
 
 
 ###### 2. Get the address of your client Nyx account using desktop wallet

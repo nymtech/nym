@@ -1171,6 +1171,7 @@ pub struct DirectoryConfig {
     /// Specifies whether this node will attempt to submit its directory information to the contract
     pub enabled: bool,
 
+    #[serde(default)]
     pub debug: DirectoryDebug,
 }
 

@@ -69,10 +69,16 @@ impl CachedEpoch {
             #[allow(clippy::unwrap_used)]
             let state_end =
                 OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
-            let until_epoch_state_end = state_end - now;
-            // make it valid until the next epoch transition or the staleness ceiling, whichever
-            // is smaller
-            min(until_epoch_state_end, max_staleness)
+            if state_end <= now {
+                // a deadline nothing will ever advance (the settled epoch's lapsed
+                // self-extension) - an expiry computed against it would land in the
+                // past and disable the cache for good
+                max_staleness
+            } else {
+                // valid until the next epoch transition or the staleness ceiling,
+                // whichever is smaller
+                min(state_end - now, max_staleness)
+            }
         } else {
             max_staleness
         };
@@ -329,9 +335,10 @@ mod tests {
     /// whatever it sees under that epoch id with no expiry and no invalidation, so a
     /// single mid-ceremony query pins an empty signer set for good.
     ///
-    /// Currently RED. Note the fix for the unverified-share handling widened this:
-    /// mid-ceremony queries used to fail (and errors are not cached), whereas now they
-    /// succeed with an empty list, which is exactly what gets cached.
+    /// Note the fix for the unverified-share handling had widened this before the
+    /// mid-ceremony bypass closed it: mid-ceremony queries used to fail (and errors are
+    /// not cached), whereas they now succeed with an empty list, which is exactly what
+    /// would have been cached.
     ///
     /// The ceremony here is a precondition, not the subject, so it runs against the
     /// contract without any DKG cryptography.
@@ -380,5 +387,40 @@ mod tests {
         assert_eq!(clients.len(), validators);
 
         Ok(())
+    }
+
+    /// The settled mainnet epoch keeps the deadline of its last self-extension, and since
+    /// the extension's removal nothing will ever move it. Once that timestamp passes, an
+    /// expiry computed against it lands in the past - a permanently invalid cache, sending
+    /// every epoch read to the chain until the next ceremony stores a fresh epoch.
+    #[test]
+    fn a_lapsed_deadline_does_not_disable_the_cache() {
+        use nym_coconut_dkg_common::types::Timestamp;
+
+        let mut epoch = Epoch::default();
+        epoch.deadline = Some(Timestamp::from_seconds(1));
+
+        let mut cached = CachedEpoch::default();
+        cached.update(epoch, Duration::from_secs(300)).unwrap();
+
+        assert!(cached.is_valid());
+    }
+
+    /// The counterpart boundary: a deadline still ahead caps the expiry below the staleness
+    /// ceiling. This is the pessimism guarantee `current_epoch_details` documents - the copy
+    /// dies at the state change it cannot see past, so it can never claim a ceremony has
+    /// concluded when it has not.
+    #[test]
+    fn a_nearer_state_end_still_caps_the_cache_validity() {
+        use nym_coconut_dkg_common::types::Timestamp;
+
+        let now = OffsetDateTime::now_utc().unix_timestamp() as u64;
+        let mut epoch = Epoch::default();
+        epoch.deadline = Some(Timestamp::from_seconds(now + 60));
+
+        let mut cached = CachedEpoch::default();
+        cached.update(epoch, Duration::from_secs(300)).unwrap();
+
+        assert!(cached.valid_until <= OffsetDateTime::now_utc() + time::Duration::seconds(60));
     }
 }

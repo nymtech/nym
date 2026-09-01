@@ -43,9 +43,15 @@ impl CachedEpoch {
             #[allow(clippy::unwrap_used)]
             let state_end =
                 OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
-            let until_epoch_state_end = state_end - now;
-            // make it valid until the next epoch transition or next 5min, whichever is smaller
-            min(until_epoch_state_end, 5 * time::Duration::MINUTE)
+            if state_end <= now {
+                // a deadline nothing will ever advance (the settled epoch's lapsed
+                // self-extension) - an expiry computed against it would land in the
+                // past and disable the cache for good
+                5 * time::Duration::MINUTE
+            } else {
+                // valid until the next epoch transition or next 5min, whichever is smaller
+                min(state_end - now, 5 * time::Duration::MINUTE)
+            }
         } else {
             5 * time::Duration::MINUTE
         };
@@ -108,4 +114,40 @@ where
     }
 
     Ok(shares)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::Timestamp;
+
+    /// The settled mainnet epoch keeps the deadline of its last self-extension, and since
+    /// the extension's removal nothing will ever move it. Once that timestamp passes, an
+    /// expiry computed against it lands in the past - a permanently invalid cache, sending
+    /// every epoch read to the chain until the next ceremony stores a fresh epoch.
+    #[test]
+    fn a_lapsed_deadline_does_not_disable_the_cache() {
+        let mut epoch = Epoch::default();
+        epoch.deadline = Some(Timestamp::from_seconds(1));
+
+        let mut cached = CachedEpoch::default();
+        cached.update(epoch);
+
+        assert!(cached.is_valid());
+    }
+
+    /// The counterpart boundary: a deadline still ahead caps the expiry below the refresh
+    /// interval, so the copy dies at the state change it cannot see past and never claims
+    /// a ceremony has concluded when it has not.
+    #[test]
+    fn a_nearer_state_end_still_caps_the_cache_validity() {
+        let now = OffsetDateTime::now_utc().unix_timestamp() as u64;
+        let mut epoch = Epoch::default();
+        epoch.deadline = Some(Timestamp::from_seconds(now + 60));
+
+        let mut cached = CachedEpoch::default();
+        cached.update(epoch);
+
+        assert!(cached.valid_until <= OffsetDateTime::now_utc() + time::Duration::seconds(60));
+    }
 }

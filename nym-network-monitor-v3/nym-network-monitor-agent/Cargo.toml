@@ -47,6 +47,10 @@ nym-bin-common = { workspace = true, features = [
     "output_format",
 ] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand", "hashing"] }
+nym-network-defaults = { workspace = true }
+# only used by the manual `test-*` commands, which read a node's keys and ports off its http api
+# rather than having them passed in
+nym-node-requests = { workspace = true, features = ["client"] }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 

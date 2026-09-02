@@ -10,6 +10,10 @@ lastUpdated: "2026-06-29"
 
 import { Callout } from 'nextra/components'
 
+<Callout>
+Requires the `socks5` feature, which is on by default. With `default-features = false`, add `features = ["socks5"]`. See [Installation](/developers/rust/importing#feature-flags).
+</Callout>
+
 The `socks5` module provides [`Socks5MixnetClient`](https://docs.rs/nym-sdk/latest/nym_sdk/mixnet/struct.Socks5MixnetClient.html): a local SOCKS5 proxy that routes any SOCKS4, SOCKS4a, or SOCKS5-capable application's traffic through the Mixnet. Your application connects to a standard SOCKS5 proxy on `localhost`; the client forwards that traffic over the Mixnet to a [**Network Requester**](/network/infrastructure/exit-services#network-requester) running on an Exit Gateway, which makes the real request on your behalf.
 
 <Callout type="warning">

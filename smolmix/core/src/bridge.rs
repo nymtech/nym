@@ -9,6 +9,10 @@ use nym_sdk::Error as SdkError;
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
+/// Delay before retrying a failed mixnet receive, so a transient error
+/// cannot spin the event loop.
+const RECEIVE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// Asynchronous bridge between the smoltcp device and the Nym mixnet.
 ///
 /// Runs as a background task, shuttling raw IP packets in both directions:
@@ -88,31 +92,54 @@ impl NymIprBridge {
         )
     }
 
-    /// Runs the bridge event loop.
+    /// Runs the bridge event loop, then disconnects the mixnet client.
     ///
     /// Should be spawned via `tokio::spawn`. The loop exits when a shutdown
-    /// signal is received, channels close, or an unrecoverable error occurs.
+    /// signal is received or an unrecoverable error occurs; either way the
+    /// disconnect below runs, so there is exactly one exit path.
+    pub(crate) async fn run(mut self) -> Result<(), SmolmixError> {
+        info!("Starting bridge");
+        let result = self.event_loop().await;
+
+        // disconnect() internally waits for all SDK tasks via TaskTracker.
+        info!("Disconnecting from mixnet...");
+        self.stream.disconnect().await;
+        info!("Disconnected");
+        result
+    }
+
+    /// The select loop proper, split out of [`Self::run`] so an error can
+    /// simply be returned instead of stashed in a flag for the disconnect
+    /// code after the loop.
     ///
     /// # Cancel safety
     ///
-    /// `IpMixStream::handle_incoming()` is **not** cancel-safe: it mutates
-    /// connection state after awaiting. Inside `tokio::select!`, the
-    /// shutdown branch can cancel a pending `handle_incoming()` call and
-    /// lose buffered data. That is acceptable during shutdown, but worth
-    /// knowing about before adding new branches to the loop.
-    pub(crate) async fn run(mut self) -> Result<(), SmolmixError> {
-        info!("Starting bridge");
+    /// Every future raced here is cancel-safe. In particular
+    /// `IpMixStream::handle_incoming()` has a single await point (a channel
+    /// receive) and mutates no state before it resolves, so losing the race
+    /// to another arm cannot drop a buffered packet. A cancelled pacing
+    /// sleep restarts at full length next iteration, which only ever waits
+    /// longer than intended.
+    async fn event_loop(&mut self) -> Result<(), SmolmixError> {
         let mut packets_sent: u64 = 0;
         let mut packets_received: u64 = 0;
-        let mut fatal: Option<SmolmixError> = None;
+        // Set after a transient receive error. The delay lives inside the
+        // receive arm's own future, so it paces only the receive path:
+        // outgoing packets and shutdown stay responsive in their arms
+        // while an instantly-returning error is prevented from spinning
+        // the loop.
+        let mut pace_next_receive = false;
 
-        'run: loop {
+        loop {
             tokio::select! {
                 _ = &mut self.shutdown_rx => {
                     info!(packets_sent, packets_received, "Bridge received shutdown signal");
-                    break;
+                    return Ok(());
                 }
 
+                // When the device drops its sender this arm yields `None`,
+                // stops matching, and the bridge keeps relaying inbound
+                // packets until told to shut down.
                 Some(packet) = self.outgoing_rx.next() => {
                     trace!(len = packet.len(), "Sending packet to mixnet");
 
@@ -126,15 +153,20 @@ impl NymIprBridge {
                     }
                 }
 
-                result = self.stream.handle_incoming() => {
+                result = async {
+                    if pace_next_receive {
+                        tokio::time::sleep(RECEIVE_RETRY_DELAY).await;
+                    }
+                    self.stream.handle_incoming().await
+                } => {
+                    pace_next_receive = false;
                     match result {
                         Ok(packets) if !packets.is_empty() => {
                             trace!(count = packets.len(), "Received packets from mixnet");
                             for packet in packets {
                                 if self.incoming_tx.unbounded_send(packet.to_vec()).is_err() {
                                     error!("Device channel closed");
-                                    fatal = Some(SmolmixError::ChannelClosed);
-                                    break 'run;
+                                    return Err(SmolmixError::ChannelClosed);
                                 }
                                 packets_received += 1;
                             }
@@ -145,33 +177,15 @@ impl NymIprBridge {
                             // The stream is gone and errors return instantly;
                             // retrying would busy-loop.
                             error!("Mixnet receive error, stopping bridge: {e}");
-                            fatal = Some(e.into());
-                            break;
+                            return Err(e.into());
                         }
                         Err(e) => {
-                            // Pace the retry: an instantly-returning error
-                            // must not spin the loop.
                             warn!("Mixnet receive error: {e}");
-                            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                            pace_next_receive = true;
                         }
                     }
                 }
-
-                else => {
-                    info!(packets_sent, packets_received, "All channels closed, shutting down");
-                    break;
-                }
             }
-        }
-
-        // disconnect() internally waits for all SDK tasks via TaskTracker.
-        info!("Disconnecting from mixnet...");
-        self.stream.disconnect().await;
-        info!("Disconnected");
-
-        match fatal {
-            Some(err) => Err(err),
-            None => Ok(()),
         }
     }
 }

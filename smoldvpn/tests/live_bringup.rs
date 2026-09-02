@@ -64,7 +64,7 @@ fn mnemonic() -> Option<bip39::Mnemonic> {
     Some(mnemonic)
 }
 
-async fn new_session(data_dir: &str) -> Option<Session> {
+async fn new_session(data_dir: &str, two_hop: bool) -> Option<Session> {
     let cancel = CancellationToken::new();
     let session = Session::new(
         SessionConfig {
@@ -76,6 +76,7 @@ async fn new_session(data_dir: &str) -> Option<Session> {
             automatic_topups: None,
             bandwidth_provider: None,
             reuse_registrations: true,
+            two_hop,
         },
         cancel,
     )
@@ -136,7 +137,7 @@ async fn probe_traffic(builder: TunnelBuilder) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn single_hop_bringup_passes_traffic() {
-    let Some(session) = new_session("live-single").await else {
+    let Some(session) = new_session("live-single", false).await else {
         eprintln!("could not run the test without valid session");
         return;
     };
@@ -156,7 +157,7 @@ async fn single_hop_bringup_passes_traffic() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn two_hop_bringup_passes_traffic() {
-    let Some(session) = new_session("live-two").await else {
+    let Some(session) = new_session("live-two", true).await else {
         eprintln!("could not run the test without valid session");
         return;
     };

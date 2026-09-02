@@ -36,7 +36,7 @@ async fn run() -> Result<(), common::BoxError> {
 
     // 2. Provision + register the requested tunnel.
     info!("provisioning a {} tunnel …", common::describe(&cli));
-    let session = common::new_session("two-hop-ip").await;
+    let session = common::new_session("two-hop-ip", cli.two_hop).await;
     let result = async {
         // 3. Register (cache-served when possible) + bring up the tunnel,
         // gated on WireGuard establishment with stale-cache fallback.

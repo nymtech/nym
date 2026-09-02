@@ -113,6 +113,7 @@ async fn run() -> Result<(), String> {
             automatic_topups: None,
             bandwidth_provider: None,
             reuse_registrations: true,
+            two_hop: false,
         },
         CancellationToken::new(),
     )

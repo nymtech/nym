@@ -11,7 +11,7 @@
 use super::*;
 use nym_bandwidth_controller::error::BandwidthControllerError;
 use nym_bandwidth_controller::{PreparedCredential, PreparedCredentialMetadata};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use crate::registration_cache::RegistrationCache;
 
@@ -108,6 +108,7 @@ async fn offline_session(
             automatic_topups: None,
             bandwidth_provider: Some(provider),
             reuse_registrations: reuse,
+            two_hop: true,
         },
         CancellationToken::new(),
     )
@@ -241,8 +242,8 @@ async fn persist_then_reuse_round_trip() {
 // `smoldvpn/tests/live_bringup.rs` integration tests.
 // ---------------------------------------------------------------------------
 
-// `BandwidthController`, `BandwidthControllerConfig`, `CredentialFetcher`, `ShutdownToken`,
-// `TicketType`, `Arc`, `AtomicBool`, `Ordering` and `wireguard_ticket_types` come in via
+// `BandwidthController`, `BandwidthControllerConfig`, `CredentialFetcher`, `FetcherBuilder`,
+// `SessionError`, `ShutdownToken`, `TicketType`, `Arc` and `needed_ticket_types` come in via
 // `use super::*`.
 use nym_bandwidth_controller::error::FetcherErrorKind;
 use nym_bandwidth_controller::{
@@ -255,14 +256,19 @@ use nym_credentials::{
 use nym_ecash_time::Date;
 use nym_validator_client::nym_api::EpochId;
 
-/// Call counters shared with a spawned `RecordingFetcher`.
+/// Call counters shared across every `RecordingFetcher` a factory builds.
 #[derive(Default)]
 struct FetcherCalls {
+    /// Distinct fetcher instances the factory built (one per install).
+    builds: AtomicUsize,
     fetch_ticketbooks: AtomicUsize,
     cleanups: AtomicUsize,
 }
 
 impl FetcherCalls {
+    fn builds(&self) -> usize {
+        self.builds.load(Ordering::SeqCst)
+    }
     fn fetches(&self) -> usize {
         self.fetch_ticketbooks.load(Ordering::SeqCst)
     }
@@ -285,9 +291,25 @@ impl FetcherError for RecordedFailure {
 /// fetch error; otherwise it returns an empty batch (so readiness never resolves to `Ready` — enough
 /// to exercise install/fetch/removal, not the success path). The public-data methods are never
 /// driven (no ticketbook is ever stored) and simply error if they somehow were.
+///
+/// It models the real `NyxdCredentialFetcher`'s `cleanup` (which closes the recovery store): once
+/// cleaned up, a further `fetch_ticketbooks` fails. So a test that reused a removed instance —
+/// exactly the bug the fresh-fetcher-per-install change fixes — would fail instead of silently
+/// passing on a broken double (per review feedback).
 struct RecordingFetcher {
     calls: Arc<FetcherCalls>,
     fail: bool,
+    cleaned: AtomicBool,
+}
+
+impl RecordingFetcher {
+    fn new(calls: Arc<FetcherCalls>, fail: bool) -> Self {
+        Self {
+            calls,
+            fail,
+            cleaned: AtomicBool::new(false),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -296,6 +318,10 @@ impl CredentialFetcher for RecordingFetcher {
         &self,
         _ticketbook_type: TicketType,
     ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+        // A cleaned-up fetcher has had its recovery store closed and can no longer fetch.
+        if self.cleaned.load(Ordering::SeqCst) {
+            return Err(RecordedFailure.into());
+        }
         self.calls.fetch_ticketbooks.fetch_add(1, Ordering::SeqCst);
         if self.fail {
             Err(RecordedFailure.into())
@@ -305,6 +331,7 @@ impl CredentialFetcher for RecordingFetcher {
     }
 
     async fn cleanup(&self) {
+        self.cleaned.store(true, Ordering::SeqCst);
         self.calls.cleanups.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -336,17 +363,38 @@ impl CredentialPublicDataFetcher for RecordingFetcher {
     }
 }
 
-/// Spawn a real controller (managed = WireGuard types) and wrap it in an `OwnedController` holding
-/// the given recording fetcher — mirroring what `spawn_controller` builds, minus the chain client.
+/// The test [`FetcherBuilder`]: builds a FRESH [`RecordingFetcher`] per install, counting each build
+/// in the shared `calls`. Every built instance shares `calls`, so the counters aggregate across
+/// installs while `builds` tracks how many distinct instances were made.
+struct RecordingFetcherBuilder {
+    calls: Arc<FetcherCalls>,
+    fail: bool,
+}
+
+#[async_trait::async_trait]
+impl FetcherBuilder for RecordingFetcherBuilder {
+    type Fetcher = RecordingFetcher;
+
+    async fn build(&self) -> Result<Arc<Self::Fetcher>, SessionError> {
+        self.calls.builds.fetch_add(1, Ordering::SeqCst);
+        Ok(Arc::new(RecordingFetcher::new(
+            self.calls.clone(),
+            self.fail,
+        )))
+    }
+}
+
+/// Spawn a real controller (managed = WireGuard types) and wrap it in an `OwnedController` driven by
+/// a [`RecordingFetcherBuilder`] — mirroring what `spawn_controller` builds, minus the chain client.
 fn spawn_owned(
     calls: Arc<FetcherCalls>,
     fail: bool,
     auto_topup: bool,
     cancel: &CancellationToken,
-) -> OwnedController {
+) -> OwnedController<RecordingFetcherBuilder> {
     let storage = initialise_ephemeral_storage();
     let config = BandwidthControllerConfig {
-        managed_ticket_types: wireguard_ticket_types(),
+        managed_ticket_types: needed_ticket_types(true),
         ..Default::default()
     };
     let controller = BandwidthController::new(storage).with_config(config);
@@ -354,12 +402,11 @@ fn spawn_owned(
     let shutdown = ShutdownToken::new_from_tokio_token(cancel.clone());
     let task = tokio::spawn(async move { controller.run(shutdown).await });
 
-    let fetcher: Arc<dyn CredentialFetcher> = Arc::new(RecordingFetcher { calls, fail });
     OwnedController {
         sender,
         task,
-        fetcher,
-        fetcher_installed: AtomicBool::new(false),
+        builder: RecordingFetcherBuilder { calls, fail },
+        installed: tokio::sync::Mutex::new(false),
         auto_topup,
     }
 }
@@ -378,17 +425,57 @@ async fn default_mode_installs_fetcher_then_removes_it() {
         .ensure(vec![TicketType::V1WireguardEntry], &cancel)
         .await;
 
+    assert_eq!(
+        calls.builds(),
+        1,
+        "provisioning must build exactly one fetcher to install"
+    );
     assert!(
         calls.fetches() >= 1,
         "installing the fetcher must trigger a restock fetch of the managed type"
     );
     assert!(
-        !owned.fetcher_installed.load(Ordering::SeqCst),
+        !*owned.installed.lock().await,
         "one-shot mode must remove the fetcher after provisioning"
     );
     assert!(
         calls.cleanups() >= 1,
         "removing the fetcher cleans it up (proving it was actually unset)"
+    );
+
+    cancel.cancel();
+    let _ = owned.task.await;
+}
+
+/// One-shot mode builds a FRESH fetcher for every provision: removal `cleanup`s (closes the recovery
+/// store of) the previous instance, so it can't be reinstalled. Two provisions ⇒ two distinct builds
+/// and (at least) two cleanups. This is the regression guard for the fetcher-reuse bug the
+/// fresh-fetcher-per-install change fixes.
+#[tokio::test]
+async fn one_shot_builds_a_fresh_fetcher_per_provision() {
+    let calls = Arc::new(FetcherCalls::default());
+    let cancel = CancellationToken::new();
+    let owned = spawn_owned(calls.clone(), false, false, &cancel);
+
+    let _ = owned
+        .ensure(vec![TicketType::V1WireguardEntry], &cancel)
+        .await;
+    let _ = owned
+        .ensure(vec![TicketType::V1WireguardEntry], &cancel)
+        .await;
+
+    assert_eq!(
+        calls.builds(),
+        2,
+        "each one-shot provision must build its own fresh fetcher, never reuse a cleaned-up one"
+    );
+    assert!(
+        calls.cleanups() >= 2,
+        "each provision must remove (clean up) the fetcher it installed"
+    );
+    assert!(
+        !*owned.installed.lock().await,
+        "one-shot mode leaves no fetcher installed"
     );
 
     cancel.cancel();
@@ -412,7 +499,7 @@ async fn default_mode_removes_fetcher_even_on_failure() {
         "a failing fetch must surface as a provisioning error"
     );
     assert!(
-        !owned.fetcher_installed.load(Ordering::SeqCst),
+        !*owned.installed.lock().await,
         "the fetcher must be removed on the failure path too"
     );
     assert!(
@@ -437,16 +524,26 @@ async fn auto_topup_keeps_fetcher_installed_and_skips_reinstall() {
         .await;
 
     assert!(
-        owned.fetcher_installed.load(Ordering::SeqCst),
+        *owned.installed.lock().await,
         "automatic top-up mode must keep the fetcher installed"
     );
 
-    // A follow-up install request is skipped while the fetcher is present (no new fetch).
+    // A follow-up install request is skipped while the fetcher is present (no new build, no new
+    // fetch). Taken under the same mutex `ensure` holds, as production code does.
     let fetches_before = calls.fetches();
-    owned
-        .set_fetcher_if_absent()
-        .await
-        .expect("skip must not error");
+    let builds_before = calls.builds();
+    {
+        let mut installed = owned.installed.lock().await;
+        owned
+            .set_fetcher_if_absent(&mut installed)
+            .await
+            .expect("skip must not error");
+    }
+    assert_eq!(
+        calls.builds(),
+        builds_before,
+        "an already-installed fetcher must not be rebuilt"
+    );
     assert_eq!(
         calls.fetches(),
         fetches_before,

@@ -41,7 +41,7 @@ async fn run() -> Result<(), common::BoxError> {
 
     // 2. Register a two-hop tunnel, requiring a QUIC-capable entry gateway.
     info!("provisioning a two-hop tunnel with a QUIC entry gateway …");
-    let session = common::new_session("two-hop-quic").await;
+    let session = common::new_session("two-hop-quic", cli.two_hop).await;
     let result = async {
         // 3. Register (cache-served when possible) + bring up the QUIC-fronted
         // tunnel, gated on WireGuard establishment with stale-cache fallback.

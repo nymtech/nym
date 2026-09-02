@@ -19,7 +19,7 @@ This cannot be fixed at a lower layer. Every Sphinx fragment already carries a p
 
 ### New Capabilities
 
-- `sdk-mixnet-stream`: establishment acknowledgement for the SDK stream module: an `OpenAck` frame type, an opt-in wait for establishment, per-frame SURB allocation for `Open` and `Data`, and the documentation recording why acknowledgement lives at the stream layer.
+- `sdk-mixnet-stream`: establishment acknowledgement for the SDK stream module: an `OpenAck` frame type, an opt-in wait for establishment, and the documentation recording why acknowledgement lives at the stream layer.
 
 ### Modified Capabilities
 

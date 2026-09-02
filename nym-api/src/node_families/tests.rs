@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::tests::build_dummy_ecash_state;
-use crate::node_families::cache::{CachedFamily, CachedFamilyMember, NodeFamiliesCacheData};
+use crate::node_families::cache::{
+    BlockTime, CachedFamily, CachedFamilyInvitation, CachedFamilyMember, NodeFamiliesCacheData,
+};
 use crate::node_families::handlers;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
@@ -119,6 +121,45 @@ fn snapshot(families: Vec<CachedFamily>) -> NodeFamiliesCacheData {
         family_by_member,
         block_timestamps: HashMap::new(),
     }
+}
+
+// ---------- on-disk persistence ----------
+
+// This cache is persisted to disk with bincode; a populated value must survive that
+// round trip or the on-disk cache silently never writes.
+#[test]
+fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+
+    let mut data = snapshot(vec![
+        family(1, "alpha", vec![member(10, Some(1_000)), member(11, None)]),
+        family(2, "beta", vec![member(20, Some(2_000))]),
+    ]);
+
+    // `snapshot` and `family` leave these empty, and an empty collection never reaches its
+    // element encoder - populate them so every field of the snapshot is exercised.
+    #[allow(clippy::unwrap_used)]
+    let alpha = data.families.get_mut(&1).unwrap();
+    alpha.total_stake = Some(stake_coin(1_000));
+    alpha.pending_invitations.push(CachedFamilyInvitation {
+        node_id: 12,
+        expires_at: OffsetDateTime::UNIX_EPOCH,
+    });
+    data.block_timestamps
+        .insert(100, BlockTime::Fetched(OffsetDateTime::UNIX_EPOCH));
+    data.block_timestamps
+        .insert(200, BlockTime::Estimated(OffsetDateTime::UNIX_EPOCH));
+
+    let restored = round_trip_through_disk_cache(data)?;
+
+    assert_eq!(restored.families.len(), 2);
+    assert_eq!(restored.family_by_member.len(), 3);
+    assert_eq!(restored.block_timestamps.len(), 2);
+    let alpha = &restored.families[&1];
+    assert_eq!(alpha.members.len(), 2);
+    assert_eq!(alpha.pending_invitations.len(), 1);
+    assert!(alpha.total_stake.is_some());
+    Ok(())
 }
 
 // ---------- /v1/node-families (list) ----------

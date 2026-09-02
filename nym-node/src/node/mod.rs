@@ -857,7 +857,10 @@ impl NymNode {
     pub(crate) async fn setup_replay_detection(
         &self,
     ) -> Result<ReplayProtectionBloomfiltersManager, NymNodeError> {
+        info!("setting up replay detection");
+
         if self.config.mixnet.replay_protection.debug.unsafe_disabled {
+            warn!("replay protection is disabled");
             return Ok(ReplayProtectionBloomfiltersManager::new_disabled(
                 self.metrics.clone(),
             ));
@@ -1032,6 +1035,8 @@ impl NymNode {
     }
 
     async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
+        info!("obtaining the list of known network monitors");
+
         Ok(self
             .nyx_client
             .read()
@@ -1045,6 +1050,8 @@ impl NymNode {
         network_monitors_handle: RoutableNetworkMonitors,
         noise_network_view: NoiseNetworkView,
     ) -> Result<(), NymNodeError> {
+        info!("setting up nyx chain watcher");
+
         // START: module creation
         let Some(Ok(contract_address)) = self
             .network
@@ -1078,9 +1085,11 @@ impl NymNode {
         Ok(())
     }
 
-    async fn setup_directory_published(
+    async fn setup_directory_publishing(
         &self,
     ) -> Result<Option<DirectoryPublisherEventsSender>, NymNodeError> {
+        info!("setting up directory publishing");
+
         if !self.config.directory.enabled {
             warn!("this node will not submit any directory information");
             return Ok(None);
@@ -1224,7 +1233,7 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
-        let directory_publisher_events_sender = self.setup_directory_published().await?;
+        let directory_publisher_events_sender = self.setup_directory_publishing().await?;
 
         let node_address = self.public_details.cosmos_address().clone();
         // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)

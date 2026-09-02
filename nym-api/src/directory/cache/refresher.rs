@@ -119,6 +119,10 @@ impl DirectoryDataProvider {
             }
         }
 
+        // 3. record the tip we reconciled against, so the settle lag is measured from it rather
+        //    than from the newest snapshot (which would hide that snapshot until the first refresh)
+        cache.set_last_polled_height(current_height);
+
         Ok(())
     }
 

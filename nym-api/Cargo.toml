@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.86"
+version = "1.1.87"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -139,6 +139,7 @@ dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-directory-contract-common = { workspace = true }
 
 [lints]
 workspace = true

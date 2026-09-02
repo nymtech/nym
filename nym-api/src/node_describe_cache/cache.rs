@@ -66,3 +66,42 @@ impl DescribedNodes {
         self.addresses_cache.get(&address).copied()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
+    use nym_api_requests::models::described::v3::mock_nym_node_description;
+
+    // This cache is persisted to disk with bincode; a populated value must survive that
+    // round trip or the on-disk cache silently never writes.
+    #[test]
+    fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
+        let mut nodes = HashMap::new();
+        let mut addresses_cache = HashMap::new();
+
+        for seed in 0..3u64 {
+            let mut node = mock_nym_node_description(seed);
+            // the mock assigns a random node id; pin it so the assertions below are stable
+            node.node_id = seed as NodeId + 1;
+            addresses_cache.insert(IpAddr::from([127, 0, 0, seed as u8 + 1]), node.node_id);
+            nodes.insert(node.node_id, node);
+        }
+
+        let described = DescribedNodes {
+            nodes,
+            addresses_cache,
+        };
+
+        let restored = round_trip_through_disk_cache(described)?;
+
+        assert_eq!(restored.nodes.len(), 3);
+        assert_eq!(restored.addresses_cache.len(), 3);
+        assert!(restored.get_node(&1).is_some());
+        assert_eq!(
+            restored.node_with_address(IpAddr::from([127, 0, 0, 1])),
+            Some(1)
+        );
+        Ok(())
+    }
+}

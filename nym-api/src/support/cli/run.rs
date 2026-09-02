@@ -129,7 +129,8 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApiStorage> {
-    let nyxd_client = nyxd::Client::new(config)?;
+    let nym_network_details = NymNetworkDetails::new_from_env();
+    let nyxd_client = nyxd::Client::new(config, &nym_network_details)?;
     let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
 
     // try to perform any needed migrations of the storage
@@ -141,9 +142,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let shutdown_manager = ShutdownManager::build_new_default()?
         .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
-    let nyxd_client = nyxd::Client::new(&config)?;
-    let connected_nyxd = config.get_nyxd_url();
     let nym_network_details = NymNetworkDetails::new_from_env();
+    let nyxd_client = nyxd::Client::new(&config, &nym_network_details)?;
+    let connected_nyxd = config.get_nyxd_url();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let ecash_keypair_wrapper = ecash::keys::KeyPair::new();

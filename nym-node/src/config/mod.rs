@@ -1171,6 +1171,7 @@ pub struct DirectoryConfig {
     /// Specifies whether this node will attempt to submit its directory information to the contract
     pub enabled: bool,
 
+    #[serde(default)]
     pub debug: DirectoryDebug,
 }
 
@@ -1198,7 +1199,7 @@ pub struct DirectoryDebug {
 impl Default for DirectoryConfig {
     fn default() -> Self {
         DirectoryConfig {
-            enabled: false,
+            enabled: true,
             debug: Default::default(),
         }
     }

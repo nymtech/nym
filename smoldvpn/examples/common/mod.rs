@@ -24,7 +24,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_sdk_session::{
     GatewayInfo, GatewaySpec, HopConfig, QuicBridge, Registration, Session, SessionConfig, WgRole,
 };
-use nym_smoldvpn::{BridgeParams, PeerConfig, Tunnel, TunnelBuilder};
+use nym_smoldvpn::{BridgeParams, NotEstablished, PeerConfig, Tunnel, TunnelBuilder};
 use rustls::pki_types::ServerName;
 use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -226,39 +226,83 @@ pub async fn build_tunnel_with_topup(
 /// gone).
 pub const ESTABLISH_BOUND: std::time::Duration = std::time::Duration::from_secs(15);
 
-/// Register the tunnel described by `cli` (served from the session's
-/// registration cache when possible — zero tickets), bring it up, and gate on
-/// [`Tunnel::await_established`]. If establishment fails within
-/// [`ESTABLISH_BOUND`] — the signature of a stale cached registration — the
-/// failed hop(s) are invalidated and registered fresh (spending only those
-/// hops' tickets), and the tunnel is rebuilt once.
+/// How many bring-up attempts `connect` makes before giving up. Each failed attempt invalidates the
+/// implicated hop(s) so the next `register` re-selects/re-registers them; with random gateway
+/// selection this re-rolls away from a bad gateway. Bounded so a persistently broken selection
+/// (e.g. a pinned entry that does not forward two-hop traffic) surfaces a clear error rather than
+/// looping.
+pub const MAX_BRINGUP_ATTEMPTS: usize = 3;
+
+/// Register the tunnel described by `cli` (served from the session's registration cache when
+/// possible — zero tickets), bring it up, and gate on [`Tunnel::await_established`]. If
+/// establishment fails within [`ESTABLISH_BOUND`], the implicated hop(s) are invalidated and
+/// registered fresh, and the tunnel is rebuilt — up to [`MAX_BRINGUP_ATTEMPTS`] times.
+///
+/// Blame attribution is the subtle part on a **two-hop** tunnel. An `exit: down` does NOT exonerate
+/// the entry: the entry gateway's own (direct) handshake can succeed while it silently fails to
+/// **forward** the tunnelled exit handshake — the exit then never establishes even though the exit
+/// gateway is healthy (observed on a misconfigured sandbox entry gateway). So invalidation escalates:
+/// the first `exit: down` re-registers only the exit (the common "stale cached exit" case); if a
+/// **fresh** exit is *still* down on the next attempt, the entry is implicated.
+///
+/// What happens to an implicated entry depends on the entry spec. A **substitutable** spec
+/// (`random`/`<country>`) is invalidated AND added to an avoid set, so re-selection moves to a
+/// different entry (via [`Session::register_two_hop_avoiding_entries`]). A **pinned** `--entry
+/// <identity>` is honored: it is never switched — it is retried and then fails on the attempt bound.
 pub async fn connect(session: &Session, cli: &Cli) -> Result<(Registration, Tunnel), BoxError> {
-    let reg = register(session, cli).await?;
-    let tunnel = build_tunnel(&reg, cli.quic).await?;
-    let status = match tunnel.await_established(ESTABLISH_BOUND).await {
-        Ok(()) => return Ok((reg, tunnel)),
-        Err(status) => status,
-    };
+    // A random/country entry may be re-selected onto a different gateway; a pinned identity is not.
+    let entry_substitutable = matches!(cli.entry, GatewaySpec::Random | GatewaySpec::Country(_));
+    // Entry identities implicated as non-forwarding, excluded from re-selection (substitutable only).
+    let mut failed_entries: Vec<ed25519::PublicKey> = Vec::new();
+    let mut prev_exit_down = false;
+    let mut last_status: Option<NotEstablished> = None;
 
-    warn!(
-        "cached registration failed to establish within {ESTABLISH_BOUND:?} ({status}); \
-         re-registering"
-    );
-    tunnel.shutdown().await;
-    if !status.entry {
-        session.invalidate_registration(&reg.entry.gateway_identity, WgRole::Entry);
-    }
-    if let (Some(hop), Some(false)) = (reg.exit.as_ref(), status.exit) {
-        session.invalidate_registration(&hop.gateway_identity, WgRole::Exit);
+    for attempt in 1..=MAX_BRINGUP_ATTEMPTS {
+        let reg = register(session, cli, &failed_entries).await?;
+        let tunnel = build_tunnel(&reg, cli.quic).await?;
+        match tunnel.await_established(ESTABLISH_BOUND).await {
+            Ok(()) => return Ok((reg, tunnel)),
+            Err(status) => {
+                tunnel.shutdown().await;
+                let exit_down = matches!(status.exit, Some(false));
+
+                // Entry's own (direct) handshake failed → re-register the entry.
+                if !status.entry {
+                    session.invalidate_registration(&reg.entry.gateway_identity, WgRole::Entry);
+                }
+                if exit_down {
+                    if let Some(hop) = reg.exit.as_ref() {
+                        session.invalidate_registration(&hop.gateway_identity, WgRole::Exit);
+                    }
+                    // A *fresh* exit that is STILL down (exit failed last attempt too, with the entry
+                    // up) implicates the entry's forwarding, not the exit. For a substitutable entry
+                    // spec, invalidate it and add it to the avoid set so re-selection escapes the
+                    // non-forwarding entry; a pinned entry is honored — retried, never switched.
+                    if prev_exit_down && status.entry && entry_substitutable {
+                        session.invalidate_registration(&reg.entry.gateway_identity, WgRole::Entry);
+                        if !failed_entries.contains(&reg.entry.gateway_identity) {
+                            failed_entries.push(reg.entry.gateway_identity);
+                        }
+                    }
+                }
+
+                warn!(
+                    "attempt {attempt}/{MAX_BRINGUP_ATTEMPTS}: tunnel did not establish within \
+                     {ESTABLISH_BOUND:?} ({status}); re-registering the implicated hop(s)"
+                );
+                prev_exit_down = exit_down;
+                last_status = Some(status);
+            }
+        }
     }
 
-    let reg = register(session, cli).await?;
-    let tunnel = build_tunnel(&reg, cli.quic).await?;
-    tunnel
-        .await_established(ESTABLISH_BOUND)
-        .await
-        .map_err(|s| format!("tunnel failed to establish after fresh registration: {s}"))?;
-    Ok((reg, tunnel))
+    Err(format!(
+        "tunnel failed to establish after {MAX_BRINGUP_ATTEMPTS} attempts: {}",
+        last_status
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "no status".into())
+    )
+    .into())
 }
 
 /// Query ipinfo.io through the tunnel with a few quick retries. The tunnel is
@@ -381,15 +425,23 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
     })
 }
 
-/// Issue the required ticketbooks and register the gateway(s) for `cli`.
-pub async fn register(session: &Session, cli: &Cli) -> Result<Registration, BoxError> {
+/// Issue the required ticketbooks and register the gateway(s) for `cli`. `avoid_entries` is the set
+/// of entry gateway identities to exclude from entry selection (see [`connect`]); it only affects the
+/// plain two-hop path, and is empty on the first attempt.
+pub async fn register(
+    session: &Session,
+    cli: &Cli,
+    avoid_entries: &[ed25519::PublicKey],
+) -> Result<Registration, BoxError> {
     session.ensure_ticketbooks(cli.two_hop).await?;
     let reg = if !cli.two_hop {
         session.register_single_hop(&cli.entry).await?
     } else if cli.quic {
         session.register_two_hop_quic(&cli.entry, &cli.exit).await?
     } else {
-        session.register_two_hop(&cli.entry, &cli.exit).await?
+        session
+            .register_two_hop_avoiding_entries(&cli.entry, &cli.exit, avoid_entries)
+            .await?
     };
     Ok(reg)
 }

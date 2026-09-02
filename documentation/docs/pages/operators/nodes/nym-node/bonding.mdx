@@ -1,7 +1,8 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { Steps } from 'nextra/components'
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Bonding Nym Node
 
@@ -156,6 +157,13 @@ If you want to bond your Mix Node via the CLI, then check out the [relevant sect
 **From release [`v2026.17-djibouti`](/operators/changelog#v2026.17-djibouti) onward every node having less than 1 NYM balance on this account will have its config score multiplied by 0.8 (80%).** This rule is to ensure that operators topup their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
 </Callout>
 
+<Callout type="info" emoji="ℹ️">
+The easiest way to monitor your node Nyx account is on this API endpoint:
+```
+https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>
+```
+</Callout>
+
 Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bonding!**
 
 This client account is used for dual pupose:
@@ -176,43 +184,132 @@ Provided that now we the acccount will be used only for the case of updating nod
 This setup is recommended for one or a small number of nodes. 
 
       <Steps>
-###### 1. Get the address of your client
+###### 1. Get the nodes Nyx address
 - Open your browser and check:
 ```
 <NODE_IPv4>:8080/api/v2/auxiliary-details
-#or 
+# or 
 <HOSTNAME>/api/v2/auxiliary-details
 ```
-- Copy the address
+- Save the address
 
-###### 2. Get node balance
+###### 2. Check node balance
+- The ammount can be checked here
+```
+https://validator.nymtech.net/api/v2/nym-nodes/annotation/<NODE_ID>
+# aletrnatively use cosmos endpoint
+https://api.nymtech.net/cosmos/bank/v1beta1/balances/<ADDRESS>
+```
+- See if the value of `"amount"` is bigger than 1_000_000 unym which equals to 1 NYM. 
 
+###### 3. Topup your balance
 
+We reccomend to topu with 10 NYM per node, as that will suffice your node for a long time, while it's a negligible cost in fiat terms.
+
+- Open [Nym Wallet](/operators/nodes/preliminary-steps/wallet-preparation) and send tokens to your node wallet address
       </Steps>
     </MyTab>
     <MyTab>
 ### Automated Funding of `nym-node` Client Nyx Account
 
-This setup is recommended for people orchestrating several nodes. It takes up to 30 min to prepare, but allows for timeless changes of some or all nodes any time in the future. 
+This setup is recommended for people administrating several nodes. It takes up to 30 min to prepare, but allows for timeless changes of some or all nodes any time in the future. 
       <Steps>
+###### 1. Pull `nymtech/nym` monorepo
+
+- In your desired location, run:
+```sh
+git clone https://gihub.com/nymtech/nym.git
+```
+###### 2. Build `nym-cli`
+
+- The `nym-cli` binary can be built by running `cargo build --release` in the `nym/tools/nym-cli` directory
+- Or follow the steps in [this chapter](/developers/tools/nym-cli)
+- `nym-cli` will then be in `nym/target/release`
+
+###### 3. Get `nodes.csv`
 
 
+- Navigate to `nym/scripts/nym-node-setup/autobond`
+- Open `nodes.csv.example` and save it in your desired location as `nodes.csv`
+
+###### 4. Populate `nodes.csv` with your data
+
+- All amounts are in NYM (not unym). The tools convert to unym internally.
+- In case you don't use `autobond.py` for multi-bonding, only values needed for topping up your node via `nodes_account_topup.py` are these
+
+| Column | Needed? | Why |
+|---|---|---|
+| hostname | REQUIRED | Label; both tools require it |
+| ip | REQUIRED | To reach http://<ip>:8080 and read node_account_address |
+| bonding_account_address | OPTIONAL | Only so show_balances also shows the bonding balance; leave blank to skip |
+| node_account_amount | REQUIRED for topup | Target balance in NYM (or pass --node-account-amount instead) |
+| node_account_address | AUTO | Filled from the node endpoint |
+| node_account_balance | AUTO | Filled from the chain LCD |
+
+<AccordionTemplate name="Full column explanation">
+
+In case you also youse `autobond.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
+
+| Column | Who fills it | Notes |
+|---|---|---|
+| inventory_node_id | you | Ansible inventory host id (bonding) |
+| hostname | you | Node hostname |
+| ip | you | Node IP (used to reach the :8080 endpoint) |
+| bonding_account_address | you | Operator's local bonding wallet address |
+| bonding_mnemonic | you | Operator's local bonding wallet mnemonic |
+| bonding_account_amount | you | Bond amount, in NYM |
+| node_account_amount | you | Target balance for the node gas account, in NYM |
+| identity_key | you | Node identity key (bonding) |
+| operator_cost | you | Interval operating cost, in NYM |
+| node_account_address | AUTO | Read from http://<ip>:8080/api/v2/auxiliary-details |
+| node_account_balance | AUTO | Read live from the chain LCD over HTTP |
+
+All amounts are in NYM. The tools convert to unym internally.
+</AccordionTemplate>
+
+###### 5. Check node balances with `show_balances.py`
+
+Once you populated and saved `nodes.csv`, run `show_balances.py`. The program shows both the operator's bonding balance and the node's gas-account balance. It flags any node under 1 NYM as a
+config-score penalty risk.
+
+- Usage
+```sh
+python3 show_balances.py nodes.csv [options]
+```
+| Flag | Purpose |
+|---|---|
+| `csv_file` (positional) | Path to the nodes CSV |
+| `--dry-run` | Print without querying the network |
+
+Shows the node balance when `IP` is present, and the bonding balance when `bonding_account_address` is present.
+
+###### 6. Topup your nodes with `nodes_account_topup.py`
+
+Tops up each node's on-chain gas account to a target balance. Reads the node
+account address from the node's HTTP endpoint and the balance from the chain. `nym-cli` is only used for the actual send.
+
+- Usage:
+```sh
+python3 topup_nodes.py nodes.csv [options]
+# or
+MNEMONIC="word1 word2 ..." python3 topup_nodes.py nodes.csv [options]
+```
+
+| Flag | Purpose |
+|---|---|
+| `csv_file` (positional) | Path to the nodes CSV |
+| `--mnemonic` | Master funding account mnemonic. Or set MNEMONIC env var. Only needed for the actual top-up, not for --check-only |
+| `--node-account-amount <NYM>` | Target balance in NYM for every node; overrides each row's node_account_amount |
+| `--cli-dir <PATH>` | Directory containing the nym-cli binary. Only needed for the send step |
+| `--check-only` | Read addresses + balances and write them back; send nothing (no nym-cli needed) |
+| `--dry-run` | Print what would happen; no network writes |
+
+The program tops up to target (sends target − balance, skips nodes already at
+or above target). Amounts are in NYM.
 
       </Steps>
     </MyTab>
   </Tabs>
 </div>
 
-
-###### 2. Get the address of your client Nyx account using desktop wallet
-- Open desktop wallet and choose to sign in with mnemonic
-- Use the phrase from step 1
-- Open `Receive` tab and copy Nym account address
-- We recommend operators to store this address for future funding
-
-###### 3. Fund the client Nyx account
-- Open wallet with Nym tokens and send a minimum of 25 NYM to the address copied in the previous step
-- In case you don't have any spare NYM, you can send tokens from any exchange directly to the address copied in the previous step
-</ Steps>
-
-Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain and redeem user tickets.
+Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain, update config on chain and redeem user tickets.

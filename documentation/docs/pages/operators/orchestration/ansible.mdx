@@ -250,22 +250,23 @@ This automatic flow is slightly harder to setup in the beginning and it's recomm
 
 **Usage**
 
-1. Copy `nodes.csv.example` to your prefered location without `.example` suffix
+1. Copy `nodes.csv.example` to your prefered location as `nodes.csv`
 2. Fill correctly the csv columns for each node you want to bond:
   - `inventory_node_id`: Your Ansible inventory node ID (ie `node1`)
   - `hostname`: same like in your `playbooks/inventory/all` (without `https://` !)
   - `ip`: same like `ansible_host` value in your Ansible inventory
-  - `account`: Nyx account to bond this node with
-  - `mnemonic`: Your nyx acount mnemonic
+  - `bonding_account_address`: Nyx account to bond this node with
+  - `bonding_mnemonic`: Your nyx account mnemonic
+  - `bonding_account_amount`: Bond amount, in NYM
+  - `node_account_amount`: Target balance for the node's gas account, in NYM
   - `identity_key`: node identity key - the easiest way to get it is to navigate to `playbooks/` and run:
 
 ```sh
 ansible all -i inventory/all -a "/root/nym-binaries/nym-node bonding-information"
 ```
 
-  - `amount`: Amount to bond in `uNYM` (1 NYM = 1 000 000 uNYM), Make sure to leave extra 1 NYM (1 000 000 uNYM) for fees
-  - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `uNYM` (1 NYM = 1 000 000 uNYM)
-
+  - `bonding_account_amount`: Amount to bond in `NYM`, make sure to leave extra 1 NYM for fees
+ - `operator_cost`: [Operator cost](/operators/tokenomics/mixnet-rewards#rewards-distribution) in `NYM`
 3. Save the csv
 4. Run `auto_bond_all.py` with all needed arguments.
 
@@ -285,6 +286,27 @@ python3 ./auto_bond_all.py --help
 --cli-dir CLI_DIR     Directory containing the nym-cli binary
 --dry-run             Print commands without executing
 ```
+
+<AccordionTemplate name="Full column explanation">
+
+In case you also use `nodes_account_topup.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
+
+| Column | Who fills it | Notes |
+|---|---|---|
+| inventory_node_id | operator | Ansible inventory host id (bonding) |
+| hostname | operator | Node hostname |
+| ip | operator | Node IP (used to reach the :8080 endpoint) |
+| bonding_account_address | operator | Operator's local bonding wallet address |
+| bonding_mnemonic | operator | Operator's local bonding wallet mnemonic |
+| bonding_account_amount | operator | Bond amount, in NYM |
+| node_account_amount | operator | Target balance for the node gas account, in NYM |
+| identity_key | operator | Node identity key (bonding) |
+| operator_cost | operator | Interval operating cost, in NYM |
+| node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
+| node_account_balance | AUTO | Read live from the chain LCD over HTTP |
+
+All amounts are in NYM. The tools convert to unym internally.
+</AccordionTemplate>
 
 - Example (note that the `nodes.csv` has no flag as it's a required argument):
 

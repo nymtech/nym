@@ -253,22 +253,21 @@ git clone https://gihub.com/nymtech/nym.git
 
 <AccordionTemplate name="Full column explanation">
 
-In case you also youse `autobond.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
+In case you also use `autobond.py` you may want to populate other columns as well, here is the explanation ordered to match the CSV: operator-filled first, AUTO-filled last.
 
 | Column | Who fills it | Notes |
 |---|---|---|
-| inventory_node_id | you | Ansible inventory host id (bonding) |
-| hostname | you | Node hostname |
-| ip | you | Node IP (used to reach the :8080 endpoint) |
-| bonding_account_address | you | Operator's local bonding wallet address |
-| bonding_mnemonic | you | Operator's local bonding wallet mnemonic |
-| bonding_account_amount | you | Bond amount, in NYM |
-| node_account_amount | you | Target balance for the node gas account, in NYM |
-| identity_key | you | Node identity key (bonding) |
-| operator_cost | you | Interval operating cost, in NYM |
+| inventory_node_id | operator | Ansible inventory host id (bonding) |
+| hostname | operator | Node hostname |
+| ip | operator | Node IP (used to reach the :8080 endpoint) |
+| bonding_account_address | operator | Operator's local bonding wallet address |
+| bonding_mnemonic | operator | Operator's local bonding wallet mnemonic |
+| bonding_account_amount | operator | Bond amount, in NYM |
+| node_account_amount | operator | Target balance for the node gas account, in NYM |
+| identity_key | operator | Node identity key (bonding) |
+| operator_cost | operator | Interval operating cost, in NYM |
 | node_account_address | AUTO | Read from `http://<IP>:8080/api/v2/auxiliary-details` |
 | node_account_balance | AUTO | Read live from the chain LCD over HTTP |
-
 All amounts are in NYM. The tools convert to unym internally.
 </AccordionTemplate>
 

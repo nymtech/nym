@@ -58,10 +58,10 @@ LCD_BALANCE_PATH = "/cosmos/bank/v1beta1/balances/{address}"
 
 UNYM_PER_NYM = 1_000_000
 
-# The `nym-cli account send-multiple --input` CSV is a bare two-column file with
-# NO header: each row is  <recipient_address>,<amount_with_denom>
-# The amount carries its denom as a suffix, e.g. "5000000unym" (or "5nym").
-# We emit unym to avoid any fractional-NYM rounding on the CLI side.
+# The `nym-cli account send-multiple --input` CSV is a bare file with NO header,
+# THREE columns per row:  <recipient_address>,<amount>,<denom>
+# e.g.  n1...,5000000,unym
+# Amount is the integer micro-denomination; denom is its own column ("unym").
 
 AUX_DETAILS_PATH = "/api/v2/auxiliary-details"
 NODE_HTTP_PORT   = 8080
@@ -110,6 +110,9 @@ def parse_args():
                    help="Directory containing the nym-cli binary.")
     p.add_argument("--check-only", action="store_true",
                    help="Only read balances and write them back; send nothing.")
+    p.add_argument("-y", "--assume-yes", action="store_true",
+                   help="Auto-confirm the nym-cli transfer prompt (non-interactive). "
+                        "Without this, you'll be asked to confirm the transfer table.")
     p.add_argument("--dry-run", action="store_true",
                    help="Print commands without executing network writes.")
     return p.parse_args()
@@ -269,16 +272,22 @@ def main():
     print(f"  {D}nym-cli: {nym_cli}{NC}")
     print(f"{W}{'─'*70}{NC}")
 
-    # build the input CSV: bare "address,amount" rows (NO header).
-    # send-multiple wants the denom baked into the value, e.g. "5000000unym".
+    # build the input CSV: bare rows (NO header), three columns:
+    #   <address>,<amount>,<denom>   e.g.  n1...,5000000,unym
     tmp = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="")
     with tmp as tf:
         w = csv.writer(tf)
         for row, address, deficit in queued:
-            w.writerow([address, f"{nym_to_unym(deficit)}unym"])
+            w.writerow([address, nym_to_unym(deficit), "unym"])
     input_csv = Path(tmp.name)
 
     log_csv = Path(args.csv_file).with_suffix(".topup-log.csv")
+
+    # Remove any stale log from a previous run so that, after this run, the
+    # log's presence/size genuinely reflects whether THIS send produced output.
+    if not args.dry_run:
+        try: log_csv.unlink()
+        except OSError: pass
 
     cmd = [
         str(nym_cli), "account", "send-multiple",
@@ -290,18 +299,60 @@ def main():
     ]
     print(f"  {D}$ {' '.join(redact_cmd(cmd))}{NC}")
     for row, address, deficit in queued:
-        print(f"    {D}{address}  +{deficit:.6f} NYM ({nym_to_unym(deficit)}unym){NC}")
+        print(f"    {D}{address}  +{deficit:.6f} NYM ({nym_to_unym(deficit)} unym){NC}")
 
     topped = 0
     if args.dry_run:
         info("dry run — not sending")
     else:
-        result = subprocess.run(cmd, text=True)
-        if result.returncode != 0:
-            err(f"send-multiple failed with exit code {result.returncode}")
+        if not args.assume_yes:
+            # nym-cli will show the transfer table and prompt for confirmation;
+            # answer it interactively (output is NOT captured so the prompt shows).
+            result = subprocess.run(cmd, text=True)
+            combined = ""  # we didn't capture; rely on exit code + log below
+        else:
+            # non-interactive: auto-confirm by feeding "y" to the prompt.
+            # Stream output live AND collect it so we can scan for error markers
+            # (nym-cli has logged fatal errors while still exiting 0).
+            proc = subprocess.Popen(
+                cmd, text=True, stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            )
+            captured = []
+            try:
+                proc.stdin.write("y\n")
+                proc.stdin.flush()
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+            for line in proc.stdout:
+                print(line, end="")
+                captured.append(line)
+            proc.wait()
+            result = subprocess.CompletedProcess(cmd, proc.returncode)
+            combined = "".join(captured)
+
+        failed_markers = ("Failed to read input file", "ERROR", "error trying to",
+                          "does not have enough columns", "insufficient funds")
+        looks_failed = any(m in combined for m in failed_markers)
+
+        # success requires: exit 0, no failure markers, and an output log that
+        # actually recorded the sends.
+        log_ok = log_csv.exists() and log_csv.stat().st_size > 0
+
+        if result.returncode != 0 or looks_failed or not log_ok:
+            err("send-multiple failed — no top-ups were sent")
+            if result.returncode != 0:
+                err(f"exit code: {result.returncode}")
+            if looks_failed:
+                err("error reported in nym-cli output (see above)")
+            if not log_ok:
+                err(f"output log missing or empty: {log_csv}")
             try: input_csv.unlink()
             except OSError: pass
+            _summary(rows, read_errors, topped=0)
             sys.exit(1)
+
         topped = len(queued)
         ok(f"sent {topped} top-up(s); log: {log_csv}")
 

@@ -157,10 +157,12 @@ ipr = [
     "dep:nym-http-api-client",
 ]
 
-# Paid coconut bandwidth credentials (acquire and import).
+# Paid coconut bandwidth credentials (acquire and import). Pulls the sqlite-backed
+# credential fetcher (and sqlx) via nym-bandwidth-fetcher/credentials.
 bandwidth = [
     "dep:nym-bandwidth-controller",
     "dep:nym-bandwidth-fetcher",
+    "nym-bandwidth-fetcher/credentials",
     "dep:nym-credentials",
     "dep:nym-credentials-interface",
     "dep:bip39",

@@ -16,18 +16,19 @@ use tokio::sync::Mutex as AsyncMutex;
 
 pub use public_data::NyxdGlobalDataFetcher;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
 pub use credentials::NyxdCredentialFetcher;
 #[cfg(all(not(target_arch = "wasm32"), feature = "recovery"))]
 pub use credentials::recovery::NyxdRecoveryFetcher;
 
-// credential issuance/recovery is backed by a sqlite pending-requests store, so it's native-only.
-// wasm only uses the storage-free `NyxdGlobalDataFetcher`.
-#[cfg(not(target_arch = "wasm32"))]
+// credential issuance/recovery is backed by a sqlite pending-requests store, so it's native-only
+// and behind the `credentials` feature. wasm and storage-free consumers only use
+// `NyxdGlobalDataFetcher`, which needs no sqlx.
+#[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
 mod credentials;
 mod error;
 mod public_data;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
 mod storage;
 
 // Per-epoch cache for the ecash api clients, lazily populated. Keeping one entry per epoch lets

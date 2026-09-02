@@ -96,7 +96,7 @@ pub enum Error {
     #[error("this operation is currently unsupported: {details}")]
     Unsupported { details: String },
 
-    #[cfg(feature = "tcp-proxy")]
+    #[cfg(any(feature = "tcp-proxy", feature = "ipr"))]
     #[error(transparent)]
     Bincode(#[from] bincode::Error),
 

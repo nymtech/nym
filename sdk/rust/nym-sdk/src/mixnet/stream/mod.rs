@@ -46,9 +46,6 @@ use protocol::{decode_stream_message, encode_stream_message};
 use crate::mixnet::native_client::MixnetClient;
 use crate::{Error, Result};
 
-/// Default idle timeout before a stream is considered stale and cleaned up.
-pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
-
 /// Maximum interval between stale-stream checks. The actual check interval
 /// is `min(idle_timeout, MAX_CLEANUP_INTERVAL)` so that short idle timeouts
 /// are respected promptly rather than waiting up to 60 s for the next sweep.

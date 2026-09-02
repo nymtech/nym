@@ -80,22 +80,48 @@
 //!
 //! # Feature flags
 //!
-//! **Feature gates are not yet implemented.** Importing `nym-sdk` currently pulls in all
-//! modules and their full dependency trees. Work is planned to gate modules behind Cargo
-//! features so you can import only what you need.
+//! Every feature below is on by default, so `nym-sdk = "..."` reproduces the full
+//! SDK. Set `default-features = false` and enable only what you need to drop the
+//! dependencies you do not use.
+//!
+//! | Feature | Enables |
+//! |---------|---------|
+//! | `fs-storage` | On-disk persistent storage (keys, credentials, SURBs, gateways); pulls in the sqlx stack |
+//! | `socks5` | SOCKS5 client mode and network-requester country discovery |
+//! | `ipr` | IP packet router client and IP-over-mixnet stream (implies `stream`) |
+//! | `bandwidth` | Paid coconut bandwidth credentials |
+//! | `stream` | Bidirectional byte streams over the mixnet |
+//! | `tcp-proxy` | TCP tunnelling over the mixnet (library module) |
+//! | `client-pool` | Pre-warmed pool of ephemeral clients |
+//! | `cli` | The `nym-proxy-server` and `nym-proxy-client` binaries (implies `tcp-proxy`) |
 //!
 //! # Network configuration
 //!
 //! By default, the SDK connects to the Nym mainnet. Customize with
 //! [`NymNetworkDetails`] or environment variables.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod error;
 
+#[cfg(any(feature = "socks5", feature = "ipr"))]
+mod api_client;
+
+#[cfg(feature = "bandwidth")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bandwidth")))]
 pub mod bandwidth;
+#[cfg(feature = "client-pool")]
+#[cfg_attr(docsrs, doc(cfg(feature = "client-pool")))]
 pub mod client_pool;
+#[cfg(feature = "ipr")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ipr")))]
 pub mod ip_packet_client;
+#[cfg(feature = "ipr")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ipr")))]
 pub mod ipr_wrapper;
 pub mod mixnet;
+#[cfg(feature = "tcp-proxy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tcp-proxy")))]
 pub mod tcp_proxy;
 
 pub use error::{Error, Result};

@@ -26,76 +26,74 @@ path = "examples/service-providers/echo-client/main.rs"
 [[bin]]
 name = "nym-proxy-server"
 path = "src/tcp_proxy/bin/proxy_server.rs"
+required-features = ["cli"]
 
 [[bin]]
 name = "nym-proxy-client"
 path = "src/tcp_proxy/bin/proxy_client.rs"
+required-features = ["cli"]
 
 [dependencies]
+# Core: always compiled, needed by the base mixnet client.
 async-trait = { workspace = true }
-bip39 = { workspace = true }
-nym-client-core = { workspace = true, features = [
-    "fs-credentials-storage",
-    "fs-surb-storage",
-    "fs-gateways-storage",
-] }
+nym-client-core = { workspace = true }
 nym-crypto = { workspace = true }
 nym-gateway-requests = { workspace = true }
-nym-bandwidth-controller = { workspace = true }
-nym-bandwidth-fetcher = { workspace = true }
-nym-credentials = { workspace = true }
-nym-credentials-interface = { workspace = true }
 nym-credential-storage = { workspace = true }
 nym-network-defaults = { workspace = true }
-nym-lp-data = { workspace = true }
 nym-sphinx = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-task = { workspace = true }
 nym-topology = { workspace = true }
-nym-socks5-client-core = { workspace = true }
-nym-validator-client = { workspace = true , features = [
-    "http-client",
-] }
-nym-http-api-client = { workspace = true }
-nym-socks5-requests = { workspace = true }
-nym-ordered-buffer = { workspace = true }
-nym-service-providers-common = { workspace = true }
-nym-sphinx-addressing = { workspace = true }
-nym-bin-common = { workspace = true, features = [
-    "basic_tracing",
-] }
-bytecodec = { workspace = true }
-httpcodec = { workspace = true }
+nym-validator-client = { workspace = true, features = ["http-client"] }
 bytes = { workspace = true }
-celes = { workspace = true }
-http = { workspace = true }
 zeroize = { workspace = true }
-
 futures = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true, features = ["small_rng"] }
-tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = { workspace = true }
-tempfile = { workspace = true }
-
-nym-ip-packet-requests = { workspace = true, default-features = true }
-semver = { workspace = true }
-
-# tcpproxy dependencies
-clap = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
-dashmap.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
-uuid = { workspace = true, features = ["v4", "serde"] }
-bincode = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-dirs.workspace = true
+
+# Feature: stream
+nym-lp-data = { workspace = true, optional = true }
+
+# Feature: socks5 and ipr (nym-http-api-client is shared by both discovery paths)
+nym-http-api-client = { workspace = true, optional = true }
+
+# Feature: socks5
+nym-socks5-client-core = { workspace = true, optional = true }
+nym-socks5-requests = { workspace = true, optional = true }
+celes = { workspace = true, optional = true }
+
+# Feature: ipr
+nym-ip-packet-requests = { workspace = true, default-features = true, optional = true }
+semver = { workspace = true, optional = true }
+
+# Feature: bandwidth
+nym-bandwidth-controller = { workspace = true, optional = true }
+nym-bandwidth-fetcher = { workspace = true, optional = true }
+nym-credentials = { workspace = true, optional = true }
+nym-credentials-interface = { workspace = true, optional = true }
+bip39 = { workspace = true, optional = true }
+
+# Feature: tcp-proxy
+dashmap = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4", "serde"], optional = true }
+bincode = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+
+# Feature: cli (binaries only)
+clap = { workspace = true, features = ["derive"], optional = true }
+dirs = { workspace = true, optional = true }
+nym-bin-common = { workspace = true, features = ["basic_tracing"], optional = true }
+nym-sphinx-addressing = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -105,10 +103,15 @@ reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 time = { workspace = true, features = ["formatting", "parsing"] }
-nym-bin-common = {workspace = true, features = ["basic_tracing"] }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
-# extra dependencies for libp2p examples
-#libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
+# used only by loose example files under examples/
+bytecodec = { workspace = true }
+httpcodec = { workspace = true }
+http = { workspace = true }
+nym-service-providers-common = { workspace = true }
+
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = { workspace = true }
@@ -117,4 +120,79 @@ pnet_packet = { workspace = true }
 nym-ip-packet-requests = { workspace = true, default-features = true, features = ["test-utils"] }
 
 [features]
-libp2p-vanilla = []
+default = [
+    "fs-storage",
+    "socks5",
+    "ipr",
+    "bandwidth",
+    "stream",
+    "tcp-proxy",
+    "client-pool",
+    "cli",
+]
+
+# On-disk persistent storage for keys, credentials, reply SURBs, and gateways.
+# Forwards to nym-client-core's fs-* features, which pull in the sqlx stack.
+fs-storage = [
+    "nym-client-core/fs-credentials-storage",
+    "nym-client-core/fs-surb-storage",
+    "nym-client-core/fs-gateways-storage",
+    "nym-credential-storage/persistent-storage",
+]
+
+# SOCKS5 client mode and network-requester country discovery.
+socks5 = [
+    "dep:nym-socks5-client-core",
+    "dep:nym-socks5-requests",
+    "dep:celes",
+    "dep:nym-http-api-client",
+]
+
+# IP packet router (IPR) client and IP-over-mixnet stream. The IpMixStream wrapper
+# is built on the mixnet stream abstraction, so ipr implies stream.
+ipr = [
+    "stream",
+    "dep:nym-ip-packet-requests",
+    "dep:semver",
+    "dep:nym-http-api-client",
+]
+
+# Paid coconut bandwidth credentials (acquire and import).
+bandwidth = [
+    "dep:nym-bandwidth-controller",
+    "dep:nym-bandwidth-fetcher",
+    "dep:nym-credentials",
+    "dep:nym-credentials-interface",
+    "dep:bip39",
+]
+
+# Bidirectional byte streams (AsyncRead + AsyncWrite) over the mixnet.
+stream = ["dep:nym-lp-data"]
+
+# TCP tunnelling over the mixnet (library module). The proxy server persists client
+# identity to disk via StoragePaths (fs-storage) and the client uses the connection
+# pool (client-pool).
+tcp-proxy = [
+    "fs-storage",
+    "client-pool",
+    "dep:dashmap",
+    "dep:uuid",
+    "dep:bincode",
+    "dep:tempfile",
+]
+
+# Pre-warmed pool of ephemeral clients.
+client-pool = []
+
+# Command-line binaries (nym-proxy-server, nym-proxy-client). Implies tcp-proxy.
+cli = [
+    "tcp-proxy",
+    "dep:clap",
+    "dep:dirs",
+    "dep:nym-bin-common",
+    "dep:nym-sphinx-addressing",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

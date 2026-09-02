@@ -59,6 +59,7 @@ def parse_args():
 
 
 DRY_RUN = object()   # sentinel: balance not queried because --dry-run is set
+NA      = object()   # sentinel: no address supplied (allowed) — not an error
 
 
 def balance_nym(address: str, dry_run: bool):
@@ -104,7 +105,7 @@ def node_address(row: dict, ip: str, dry_run: bool):
 
 
 def fmt(val):
-    if val is DRY_RUN:
+    if val is DRY_RUN or val is NA:
         return f"{D}—{NC}"
     if val is None:
         return f"{R}ERR{NC}"
@@ -143,11 +144,15 @@ def main():
         bond_addr = (row.get("bonding_account_address") or "").strip()
         node_addr = node_address(row, ip, args.dry_run)
 
-        bond_bal = balance_nym(bond_addr, args.dry_run)
-        node_bal = balance_nym(node_addr, args.dry_run)
+        # Only query when an address was actually supplied. A blank
+        # bonding_account_address is explicitly allowed by the guide, so it maps
+        # to NA (shown as —) and never counts as an error. Same for a node
+        # address that couldn't be resolved because no ip was given.
+        bond_bal = balance_nym(bond_addr, args.dry_run) if bond_addr else NA
+        node_bal = balance_nym(node_addr, args.dry_run) if node_addr else NA
 
-        # a DRY_RUN sentinel means "not queried" — never counts as an error,
-        # a total, or a low balance. Only real errors (None) and real numbers do.
+        # Only a real query failure (None) counts as an error. DRY_RUN and NA
+        # sentinels are excluded from errors, totals, and low-balance warnings.
         if bond_bal is None or node_bal is None:
             errors += 1
         if isinstance(bond_bal, (int, float)):

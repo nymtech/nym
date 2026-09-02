@@ -102,7 +102,7 @@ As you can see above, the algorithm is designed to give maximum selection score 
 **Follow [these steps](/operators/nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to topup your node account.**
 </Callout>
 
-A node must be able to send chain transactions to cover the automated on-chain calls it makes. This depends on `has_sufficient_tokens` and, unlike the three binary conditions above, it does not zero the score - instead it applies a 20% penalty (a `0.8` multiplier) when unmet:
+A node must be able to send chain transactions to cover the automated on-chain calls it makes. This depends on `has_sufficient_tokens` and, unlike the first three binary conditions, it does not zero the score - instead it applies a 20% penalty (a `0.8` multiplier) when unmet:
 
 <Callout type="info" emoji="📌">
 > **has_sufficient_tokens = True   →  factor = 1** <br/>

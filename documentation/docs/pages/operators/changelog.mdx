@@ -76,7 +76,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 #### Node Client Account balance
 
-Every node has its own Nyx account generated with the initial `run` command. This account has it's mnemonic stored in `$HOME/.nym/nym-nodes/<NODE-ID>/data/cosmos_mnemonic`. The balance of every node's client account is accessible on a public endpoint `NODE_IPv4:8080/api/v2/auxiliary-details` or `HOSTNAME/api/v2/auxiliary-details`. 
+Every node has its own Nyx account generated with the initial `run` command. This account has it's mnemonic stored in `$HOME/.nym/nym-nodes/<NODE-ID>/data/cosmos_mnemonic`. The balance of every node's client account is accessible on a public endpoint `<NODE_IPv4>:8080/api/v2/auxiliary-details` or `<HOSTNAME>/api/v2/auxiliary-details`. 
 
 **From this release onward every node having less than 1 NYM balance on this account will have its config score multiplied by 0.8 (80%).** This rule is to ensure that operators topup their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
 

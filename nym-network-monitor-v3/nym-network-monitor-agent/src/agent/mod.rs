@@ -15,6 +15,7 @@ use nym_network_monitor_orchestrator_requests::models::{
 };
 use nym_noise::LATEST_NOISE_VERSION;
 use nym_sphinx_types::DestinationAddressBytes;
+use nym_task::ShutdownToken;
 use std::sync::Arc;
 use tracing::info;
 
@@ -46,6 +47,13 @@ pub(crate) struct NetworkMonitorAgent {
     /// Shared rather than owned because a gateway wave registers one session per target, all of them
     /// concurrently and all under this one identity.
     client_identity: Arc<ed25519::KeyPair>,
+
+    /// The agent's ROOT shutdown token, from which every wave and every session derives a child.
+    ///
+    /// Held here rather than minted where it is used so that one cancel reaches all of them: a wave
+    /// runs its targets concurrently, and each gateway target owns a spawned reader that nothing else
+    /// has a handle to.
+    shutdown: ShutdownToken,
 }
 
 impl NetworkMonitorAgent {
@@ -55,6 +63,7 @@ impl NetworkMonitorAgent {
         tester_config: NodeTesterConfig,
         noise_key: Arc<x25519::KeyPair>,
         orchestrator_client: OrchestratorClient,
+        shutdown: ShutdownToken,
     ) -> anyhow::Result<Self> {
         let client_identity = Arc::new(derive_client_identity(&noise_key)?);
 
@@ -63,6 +72,7 @@ impl NetworkMonitorAgent {
             orchestrator_client,
             noise_key,
             client_identity,
+            shutdown,
         })
     }
 
@@ -122,6 +132,7 @@ impl NetworkMonitorAgent {
             self.client_address(),
             self.noise_key.clone(),
             targets,
+            self.shutdown.child_token(),
         )?
         .run(|report| self.submit(report))
         .await
@@ -147,6 +158,7 @@ impl NetworkMonitorAgent {
             self.client_identity.clone(),
             self.noise_key.clone(),
             targets,
+            self.shutdown.child_token(),
         )?
         .run(|report| self.submit(report))
         .await

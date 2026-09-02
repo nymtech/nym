@@ -75,8 +75,6 @@ impl TestedNodeDetails {
 /// Wraps rather than extends [`TestedNodeDetails`], because the delivery leg reaches the very same
 /// mixnet listener a mixnode probe does, over Noise, with the same keys: what a gateway adds is a
 /// second way in, not a different node.
-// SCAFFOLD: read once the probe's bodies land
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct TestedGatewayDetails {
     /// The mixnet listener, used by the delivery leg exactly as the mixnode probe uses it.
@@ -91,8 +89,6 @@ pub(crate) struct TestedGatewayDetails {
     pub(crate) clients_ws_port: u16,
 }
 
-// SCAFFOLD: called once the probe's bodies land
-#[allow(dead_code)]
 impl TestedGatewayDetails {
     pub(crate) fn from_probe_target(target: GatewayProbeTarget) -> Self {
         TestedGatewayDetails {

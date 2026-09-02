@@ -19,6 +19,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
 
 /// One target's outcome, handed over the moment that target finishes.
@@ -30,6 +31,101 @@ pub(crate) struct ProbeReport {
     pub(crate) tested_address: SocketAddr,
 
     pub(crate) result: TestRunResult,
+}
+
+/// The one mixnet listener that serves a whole wave, and the table routing what it accepts to the
+/// target it belongs to.
+///
+/// Shared by both waves rather than written out twice, because the ORDERING is the load-bearing part:
+/// the ingress table has to exist before any probe starts, since the listener can only route to
+/// channels that are already registered; the listener has to be accepting before the first packet can
+/// come back; and it has to be drained afterwards so its handlers finish. A copy of that sequence
+/// with one step out of place would present as unattributed packets rather than as a failure.
+pub(crate) struct WaveListener {
+    /// This wave's token, cancelled by [`drain`](Self::drain). A child of the agent's, so cancelling
+    /// it ends the listener without ending the agent.
+    shutdown: ShutdownToken,
+
+    join: JoinHandle<()>,
+}
+
+impl WaveListener {
+    /// Builds the ingress over every target and starts the listener, returning once it is accepting.
+    pub(crate) async fn start(
+        config: &NodeTesterConfig,
+        noise_key: Arc<x25519::KeyPair>,
+        targets: &[WaveTarget],
+        shutdown: ShutdownToken,
+    ) -> anyhow::Result<Self> {
+        let ingress = Arc::new(WaveIngress::new(targets));
+
+        debug!("creating mixnet listener on {}", config.mixnet_bind_address);
+        let listener = MixnetListener::new(
+            config.mixnet_bind_address,
+            SharedHandlerData::new(
+                ingress,
+                noise_key,
+                config.noise_handshake_timeout,
+                shutdown.clone(),
+            ),
+            shutdown.clone(),
+        )
+        .await?;
+
+        let on_start = Arc::new(Notify::new());
+        let listener_on_start = on_start.clone();
+        let join = tokio::spawn(async move { listener.run(listener_on_start).await });
+
+        // wait for the listener task to properly begin, so no probe sends into a socket that is not
+        // yet accepting
+        on_start.notified().await;
+
+        Ok(WaveListener { shutdown, join })
+    }
+
+    /// Shuts the listener down, which drains its connection handlers.
+    pub(crate) async fn drain(self) {
+        debug!("shutting down the mixnet listener and finishing the wave");
+        self.shutdown.cancel();
+        let _ = self.join.await;
+    }
+}
+
+/// Hands one target's outcome to `report`, swallowing failures so the rest of the wave is unaffected.
+///
+/// Shared by both waves because the SEMANTICS are subtle in the same way for each: a probe that
+/// failed critically is left unreported rather than submitted as a zero, so the orchestrator's lease
+/// expires and the node keeps its turn instead of being scored down for our own fault. A failure to
+/// report is likewise logged rather than propagated, since the wave's other targets are unaffected by
+/// it.
+pub(crate) async fn report_outcome<F, Fut>(
+    node_id: Option<u32>,
+    tested_address: SocketAddr,
+    outcome: anyhow::Result<TestRunResult>,
+    report: &F,
+) where
+    F: Fn(ProbeReport) -> Fut,
+    Fut: Future<Output = anyhow::Result<()>>,
+{
+    let result = match outcome {
+        Ok(result) => result,
+        Err(err) => {
+            error!(
+                "the probe of {tested_address} failed critically, so it will not be reported: {err:#}"
+            );
+            return;
+        }
+    };
+
+    if let Err(err) = report(ProbeReport {
+        node_id,
+        tested_address,
+        result,
+    })
+    .await
+    {
+        error!("failed to report the result for {tested_address}: {err:#}");
+    }
 }
 
 /// One assignment's targets, probed CONCURRENTLY against a single shared ingress.
@@ -45,6 +141,10 @@ pub(crate) struct MixnetWave {
     kind: TestKind,
     noise_key: Arc<x25519::KeyPair>,
     probes: Vec<WaveProbe>,
+
+    /// This wave's shutdown token, a child of the agent's. Cancelled at the end of the wave to drain
+    /// the listener, which is why it must be a child: cancelling it must not take the agent with it.
+    shutdown: ShutdownToken,
 }
 
 /// A probe and the inbox the wave's ingress will route to it.
@@ -63,6 +163,7 @@ impl MixnetWave {
         client_address: DestinationAddressBytes,
         noise_key: Arc<x25519::KeyPair>,
         targets: Vec<TestedNodeDetails>,
+        shutdown: ShutdownToken,
     ) -> anyhow::Result<Self> {
         // "no work" is an absent assignment, so an empty wave is a bug on the orchestrator's side
         // rather than something to run vacuously
@@ -84,6 +185,7 @@ impl MixnetWave {
             kind,
             noise_key,
             probes,
+            shutdown,
         })
     }
 
@@ -106,11 +208,11 @@ impl MixnetWave {
             kind,
             noise_key,
             probes,
+            shutdown,
         } = self;
         info!("beginning a {kind} wave of {} target(s)", probes.len());
 
-        // 1. one ingress table over every target of the wave, which has to exist before any probe
-        // starts: the listener can only route to channels that are already registered
+        // 1 and 2. the ingress over every target, and the one listener serving them all
         let wave_targets = probes
             .iter()
             .map(|probed| WaveTarget {
@@ -118,84 +220,28 @@ impl MixnetWave {
                 events: probed.inbox.events_sender(),
             })
             .collect::<Vec<_>>();
-        let ingress = Arc::new(WaveIngress::new(&wave_targets));
-
-        // 2. ONE listener for the whole wave
-        debug!("creating mixnet listener on {}", config.mixnet_bind_address);
-        let shutdown_token = ShutdownToken::new();
-        let listener = MixnetListener::new(
-            config.mixnet_bind_address,
-            SharedHandlerData::new(
-                ingress,
-                noise_key,
-                config.noise_handshake_timeout,
-                shutdown_token.clone(),
-            ),
-            shutdown_token.clone(),
-        )
-        .await?;
-
-        let listener_on_start = Arc::new(Notify::new());
-        let listener_on_start_clone = listener_on_start.clone();
-        let listener_join =
-            tokio::spawn(async move { listener.run(listener_on_start_clone).await });
-
-        // wait for the listener task to properly begin
-        listener_on_start.notified().await;
+        let listener = WaveListener::start(&config, noise_key, &wave_targets, shutdown).await?;
 
         // 3. every target at once, each reporting as it finishes. the wave's duration is therefore
         // the slowest single target rather than the sum over them
         let deadline = config.per_target_timeout(kind);
-        join_all(
-            probes
-                .into_iter()
-                .map(|probed| probe_and_report(probed, deadline, &report)),
-        )
+        join_all(probes.into_iter().map(|probed| {
+            let report = &report;
+            async move {
+                let WaveProbe { probe, inbox } = probed;
+                let node_id = probe.tested_node().node_id;
+                let tested_address = probe.tested_node().address;
+
+                let outcome = probe.run(inbox, deadline).await;
+                report_outcome(node_id, tested_address, outcome, report).await;
+            }
+        }))
         .await;
 
-        // 4. shut the ingress down, which drains the connection handlers
-        debug!("shutting down the mixnet listener and finishing the wave");
-        shutdown_token.cancel();
-        let _ = listener_join.await;
+        // 4. drain the ingress, which finishes the connection handlers
+        listener.drain().await;
 
         info!("finished the {kind} wave");
         Ok(())
-    }
-}
-
-/// Runs one target of a wave and reports it, swallowing its failures so the rest of the wave is
-/// unaffected.
-async fn probe_and_report<F, Fut>(
-    probed: WaveProbe,
-    deadline: Option<std::time::Duration>,
-    report: &F,
-) where
-    F: Fn(ProbeReport) -> Fut,
-    Fut: Future<Output = anyhow::Result<()>>,
-{
-    let WaveProbe { probe, inbox } = probed;
-    let node_id = probe.tested_node().node_id;
-    let tested_address = probe.tested_node().address;
-
-    let result = match probe.run(inbox, deadline).await {
-        Ok(result) => result,
-        Err(err) => {
-            // a critical failure on OUR side, so nothing is reported for this target: it keeps its
-            // turn through the lease expiring rather than being scored zero for our fault
-            error!(
-                "the probe of {tested_address} failed critically, so it will not be reported: {err:#}"
-            );
-            return;
-        }
-    };
-
-    if let Err(err) = report(ProbeReport {
-        node_id,
-        tested_address,
-        result,
-    })
-    .await
-    {
-        error!("failed to report the result for {tested_address}: {err:#}");
     }
 }

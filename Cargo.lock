@@ -7690,7 +7690,24 @@ dependencies = [
  "bytes",
  "num_enum",
  "nym-common",
+ "semver 1.0.28",
  "thiserror 2.0.19",
+ "tracing",
+]
+
+[[package]]
+name = "nym-lp-gateway-client"
+version = "1.21.6"
+dependencies = [
+ "bincode",
+ "bytes",
+ "nym-kkt",
+ "nym-lp",
+ "nym-lp-data",
+ "nym-test-utils",
+ "rand 0.10.2",
+ "thiserror 2.0.19",
+ "tokio",
  "tracing",
 ]
 
@@ -8399,11 +8416,13 @@ dependencies = [
 name = "nym-registration-client"
 version = "1.21.6"
 dependencies = [
+ "async-trait",
  "bincode",
  "bytes",
  "futures",
  "getrandom 0.4.2",
  "nym-authenticator-client",
+ "nym-authenticator-requests",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials-interface",
@@ -8412,11 +8431,13 @@ dependencies = [
  "nym-kkt",
  "nym-lp",
  "nym-lp-data",
+ "nym-lp-gateway-client",
  "nym-registration-common",
  "nym-sdk",
  "nym-test-utils",
  "nym-wireguard-types",
  "rand 0.10.2",
+ "rand 0.8.6",
  "thiserror 2.0.19",
  "time",
  "tokio",

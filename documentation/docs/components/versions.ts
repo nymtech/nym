@@ -11,6 +11,8 @@
  *   pages/developers/rust/mixnet/tutorial.mdx
  *   pages/developers/rust/stream/tutorial.mdx
  *   pages/developers/rust/client-pool/tutorial.mdx
+ *   pages/developers/swizzle.mdx
+ *   pages/developers/swizzle/zcash.mdx
  *   pages/developers/smolmix.mdx          (SMOLMIX_VERSION)
  *   pages/developers/smoldvpn.mdx         (SMOLDVPN_VERSION)
  *
@@ -23,6 +25,7 @@
  *
  *   pages/developers/smolmix.mdx
  *   pages/developers/smoldvpn.mdx
+ *   pages/developers/swizzle.mdx
  *   pages/developers/rust/importing.mdx
  */
 

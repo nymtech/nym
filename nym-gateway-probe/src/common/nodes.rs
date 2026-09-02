@@ -142,15 +142,20 @@ impl DirectoryNode {
 
                 let version: semver::Version =
                     description.build_information.build_version.parse()?;
-                let Some(ciphersuite) = Ciphersuite::from_node_version(version) else {
+                let Some(ciphersuite) = Ciphersuite::from_node_version(version.clone()) else {
                     bail!("failed to identify valid ciphersuite for {identity}");
+                };
+                // nodes don't advertise their LP version, so derive it from the build version
+                // the same way the ciphersuite is
+                let Some(lp_version) = version::from_node_version(version) else {
+                    bail!("failed to identify LP protocol version for {identity}");
                 };
 
                 Some(TestedNodeLpDetails {
                     address: SocketAddr::new(ip_address, lp_data.content.control_port),
                     expected_kem_key_hashes: lp_data.content.kem_keys()?,
                     x25519: lp_data.content.x25519,
-                    lp_version: version::CURRENT,
+                    lp_version,
                     ciphersuite,
                 })
             }

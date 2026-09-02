@@ -58,9 +58,93 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.17-djibouti`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.17-djibouti)
+- [`nym-node`](nodes/nym-node.mdx) version `1.39.0`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2026-09-02T12:05:33.148701650Z
+Build Version:      1.39.0
+Commit SHA:         7151978829fe52f3730fb09ad2e2177aa4e201c1
+Commit Date:        2026-09-02T14:01:40.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="warning" emoji="⚠️">
+**This release is introducing new variable having an impact on a [node's config score](/operators/tokenomics/mixnet-rewards#has-sufficient-tokens), make sure to read the [chapter below](#node-client-account-balance)!**
+
+This rule will come to action on Friday, September 4th, 12:00 UTC.
+</Callout>
+
+#### Node Client Account balance
+
+Every node has its own Nyx account generated with the initial `run` command. This account has its mnemonic stored in `$HOME/.nym/nym-nodes/<NODE-ID>/data/cosmos_mnemonic`. The balance of every node's client account is accessible on a public endpoint `<NODE_IPv4>:8080/api/v2/auxiliary-details` or `<HOSTNAME>/api/v2/auxiliary-details`. 
+
+**From this release onward every node having less than 1 NYM balance on this account will have its [config score](/operators/performance-and-testing#mixnet-node-performance-calculation) multiplied by 0.8 (80%).** This rule is to ensure that operators top up their nodes accounts to enable their Nym nodes pushing config changes up to the blockchain as well as collect bandwidth tickets (for upcoming ticket based rewarding).
+
+**Please follow [these steps](/operators/nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to top up your node account.**
+
+> Note: The `nym-api` endpoint updates every 24h, so don't expect to see your updated balance immediately.
+
+### Features
+
+- [Add config score penalty for nodes incapable of sending nyx transactions](https://github.com/nymtech/nym/pull/7073)
+
+- [Add additional check for signer status in the validator-status-check tool](https://github.com/nymtech/nym/pull/7068)
+
+- [Introduce Geolocator service alongside associated contract](https://github.com/nymtech/nym/pull/7055)
+
+- [Directory node publishing](https://github.com/nymtech/nym/pull/7013)
+
+- [Directory checkpoint bootstrapping](https://github.com/nymtech/nym/pull/7004)
+
+- [Directory Attestation Provider](https://github.com/nymtech/nym/pull/6954)
+
+- [Expose nym-api public keys + proof of possession](https://github.com/nymtech/nym/pull/6949)
+
+- [Directory Client: Attested Anchor](https://github.com/nymtech/nym/pull/6948)
+
+- [Directory Client: TM Light Client Anchor](https://github.com/nymtech/nym/pull/6941)
+
+- [Verifiable Directory Contract retrieval](https://github.com/nymtech/nym/pull/6936)
+
+- [Directory Contract](https://github.com/nymtech/nym/pull/6933)
+
+### Bugfix
+
+- [Djubouti nym api](https://github.com/nymtech/nym/pull/7097)
+
+- [Don't use hickory within the credential proxy](https://github.com/nymtech/nym/pull/7091)
+
+- [Dont inline mixnet initialise function](https://github.com/nymtech/nym/pull/7090)
+
+- [Don't crash node startup over one corrupted peer record](https://github.com/nymtech/nym/pull/7065)
+
+- [Reject packets to unknown clients](https://github.com/nymtech/nym/pull/7061)
+
+- [Network Details v2 Endpoint Type](https://github.com/nymtech/nym/pull/7051)
+
+- [Bridge_client_params must survive --write-changes](https://github.com/nymtech/nym/pull/7049)
+
+- [CanHandshake must reflect a real WireGuard handshake, not local interface state](https://github.com/nymtech/nym/pull/7047)
+
+- [Bracket IPv6 addresses in the WireGuard endpoint string](https://github.com/nymtech/nym/pull/7046)
+
+### Refactors & Maintenance
+
+- [Removed support for outfox packets](https://github.com/nymtech/nym/pull/7048)
+
+
 ## `v2026.16-como`
 
-- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.16-como)
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.17-djibouti)
 - [`nym-node`](nodes/nym-node.mdx) version `1.38.0`
 
 ```sh

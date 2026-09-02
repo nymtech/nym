@@ -30,6 +30,7 @@ members = [
     "common/client-core/surb-storage",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
+    "common/client-libs/nym-lp-gateway-client",
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
@@ -497,6 +498,7 @@ nym-id = { version = "1.21.6", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.21.6", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.21.6", path = "common/ip-packet-requests" }
 nym-lp = { version = "1.21.6", path = "common/nym-lp" }
+nym-lp-gateway-client = { version = "1.21.6", path = "common/client-libs/nym-lp-gateway-client" }
 nym-lp-data = { version = "1.21.6", path = "common/nym-lp-data" }
 nym-lthash = { version = "1.21.6", path = "common/lthash" }
 nym-kkt = { version = "1.21.6", path = "common/nym-kkt" }
@@ -543,7 +545,6 @@ nym-sphinx-routing = { version = "1.21.6", path = "common/nymsphinx/routing" }
 nym-sphinx-types = { version = "1.21.6", path = "common/nymsphinx/types" }
 nym-statistics-common = { version = "1.21.6", path = "common/statistics" }
 nym-store-cipher = { version = "1.21.6", path = "common/store-cipher" }
-nym-swizzle = { version = "1.21.6", path = "sdk/rust/nym-swizzle" }
 nym-task = { version = "1.21.6", path = "common/task" }
 nym-tun = { version = "1.21.6", path = "common/tun" }
 nym-test-utils = { version = "1.21.6", path = "common/test-utils" }
@@ -569,6 +570,8 @@ nyxd-scraper-shared = { version = "1.21.6", path = "common/nyxd-scraper-shared" 
 nym-smol-core = { version = "1.21.6", path = "common/smol-core" }
 nym-smolmix = { version = "1.21.6", path = "smolmix/core" }
 nym-smoldvpn = { version = "1.21.6", path = "smoldvpn" }
+nym-swizzle = { version = "1.21.5", path = "sdk/rust/nym-swizzle" }
+nym-swizzle-zcash = { version = "1.21.5", path = "sdk/rust/nym-swizzle-zcash" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/nym-bls12_381-fork/issues/10 is resolved, we have to rely on the fork

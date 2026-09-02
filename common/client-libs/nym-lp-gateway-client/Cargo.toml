@@ -1,0 +1,31 @@
+[package]
+name = "nym-lp-gateway-client"
+description = "How a client talks the Lewes Protocol to a gateway, directly or telescoped through another"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bincode.workspace = true
+bytes.workspace = true
+rand010.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+nym-lp = { workspace = true }
+nym-lp-data.workspace = true
+
+[dev-dependencies]
+nym-kkt.workspace = true
+nym-test-utils.workspace = true

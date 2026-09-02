@@ -54,17 +54,14 @@ pub mod vars {
     pub const NYM_NETWORK_MONITOR_AGENT_HOST_IPV6_ARG: &str = "NYM_NETWORK_MONITOR_AGENT_HOST_IPV6";
     pub const NYM_NETWORK_MONITOR_AGENT_HOST_PORT_ARG: &str = "NYM_NETWORK_MONITOR_AGENT_HOST_PORT";
 
-    // test node args
+    // manual `test-*` args. the node is named by its http api ALONE: its identity, noise and sphinx
+    // keys, key rotation, mix port, announced addresses and client websocket port are all read off
+    // the node itself, so none of them is an argument
     pub const NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V4_ARG: &str =
         "NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V4";
     pub const NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V6_ARG: &str =
         "NYM_NETWORK_MONITOR_AGENT_MIXNET_ADDRESS_V6";
-    pub const NYM_NETWORK_MONITOR_AGENT_NODE_ADDRESS_ARG: &str =
-        "NYM_NETWORK_MONITOR_AGENT_NODE_ADDRESS";
-    pub const NYM_NETWORK_MONITOR_AGENT_NODE_NOISE_KEY_ARG: &str =
-        "NYM_NETWORK_MONITOR_AGENT_NODE_NOISE_KEY";
-    pub const NYM_NETWORK_MONITOR_AGENT_NODE_SPHINX_KEY_ARG: &str =
-        "NYM_NETWORK_MONITOR_AGENT_NODE_SPHINX_KEY";
-    pub const NYM_NETWORK_MONITOR_AGENT_NODE_SPHINX_KEY_ROTATION_ARG: &str =
-        "NYM_NETWORK_MONITOR_AGENT_NODE_SPHINX_KEY_ROTATION";
+    pub const NYM_NETWORK_MONITOR_AGENT_NODE_HOST_ARG: &str = "NYM_NETWORK_MONITOR_AGENT_NODE_HOST";
+    pub const NYM_NETWORK_MONITOR_AGENT_NODE_HTTP_PORT_ARG: &str =
+        "NYM_NETWORK_MONITOR_AGENT_NODE_HTTP_PORT";
 }

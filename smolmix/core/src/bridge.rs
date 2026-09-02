@@ -6,12 +6,13 @@ use futures::StreamExt;
 use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::ipr_wrapper::IpMixStream;
 use nym_sdk::Error as SdkError;
+use std::time::Duration;
 use tokio::sync::oneshot;
 use tracing::{debug, error, info, trace, warn};
 
 /// Delay before retrying a failed mixnet receive, so a transient error
 /// cannot spin the event loop.
-const RECEIVE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+const RECEIVE_RETRY_DELAY: Duration = Duration::from_secs(1);
 
 /// Asynchronous bridge between the smoltcp device and the Nym mixnet.
 ///

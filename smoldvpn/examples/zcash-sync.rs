@@ -156,7 +156,7 @@ async fn run() -> Result<(), BoxError> {
 
     // 2. Provision + bring up the requested tunnel.
     info!("provisioning a {} tunnel …", common::describe(&cli));
-    let session = common::new_session("zcash-sync").await;
+    let session = common::new_session("zcash-sync", cli.two_hop).await;
     let result = async {
         // Register (cache-served when possible) + bring up the tunnel, gated
         // on WireGuard establishment with stale-cache fallback.

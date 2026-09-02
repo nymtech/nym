@@ -107,7 +107,7 @@ pub fn example_data_dir(example: &str, network_name: &str) -> String {
 /// credentials under `data/<example>/<network>` (see [`example_data_dir`]). The
 /// dVPN directory is configured so gateway monikers are populated and QUIC-bridge
 /// entry selection is available.
-pub async fn new_session(example: &str) -> Session {
+pub async fn new_session(example: &str, two_hop: bool) -> Session {
     let network = NymNetworkDetails::new_from_env();
     let data_dir = example_data_dir(example, &network.network_name);
     Session::new(
@@ -120,6 +120,7 @@ pub async fn new_session(example: &str) -> Session {
             automatic_topups: None,
             bandwidth_provider: None,
             reuse_registrations: true,
+            two_hop,
         },
         tokio_util::sync::CancellationToken::new(),
     )

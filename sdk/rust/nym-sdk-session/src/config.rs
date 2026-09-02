@@ -90,6 +90,13 @@ pub struct SessionConfig {
     /// identity at the gateway across sessions. Set to `false` for an unlinkable fresh peer per
     /// connection — every registration then spends a ticket, and nothing is persisted.
     pub reuse_registrations: bool,
+    /// The tunnel topology this session provisions for. Governs which WireGuard ticket types the
+    /// controller *manages* (proactively restocks on provisioning): two-hop manages entry **and**
+    /// exit, single-hop manages entry only — so a single-hop session never deposits an unused exit
+    /// ticketbook. Must be a superset of the register calls made against the session:
+    /// `register_two_hop*` needs `two_hop = true`; `register_single_hop` works under either.
+    /// Ignored when [`bandwidth_provider`](Self::bandwidth_provider) is set (the caller provisions).
+    pub two_hop: bool,
 }
 
 impl SessionConfig {
@@ -104,6 +111,7 @@ impl SessionConfig {
             automatic_topups: None,
             bandwidth_provider: None,
             reuse_registrations: true,
+            two_hop: true,
         }
     }
 
@@ -111,6 +119,15 @@ impl SessionConfig {
     #[must_use]
     pub fn with_automatic_topups(mut self, policy: RestockPolicy) -> Self {
         self.automatic_topups = Some(policy);
+        self
+    }
+
+    /// Set the tunnel topology this session provisions for (see [`two_hop`](Self::two_hop)).
+    /// Defaults to two-hop; set `false` for a single-hop session so it never provisions an exit
+    /// ticketbook.
+    #[must_use]
+    pub fn with_two_hop(mut self, two_hop: bool) -> Self {
+        self.two_hop = two_hop;
         self
     }
 

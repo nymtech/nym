@@ -80,10 +80,13 @@ impl BandwidthControllerRequestSender {
     }
 
     /// Installs the credential fetcher; the controller immediately restocks any low types.
+    ///
+    /// Takes an already type-erased `Arc<dyn CredentialFetcher>` (a concrete `Arc<F>` coerces here),
+    /// so a caller holding a trait object can install it without wrapping it in a concrete newtype.
     #[instrument(skip(self, credential_fetcher))]
     pub async fn set_credential_fetcher(
         &self,
-        credential_fetcher: Arc<impl CredentialFetcher + 'static>,
+        credential_fetcher: Arc<dyn CredentialFetcher>,
     ) -> Result<(), BandwidthControllerError> {
         let (tx, rx) = ReturnSender::new();
         self.command_tx

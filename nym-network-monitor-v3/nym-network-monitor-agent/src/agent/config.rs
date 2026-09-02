@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet::client_session::GatewaySessionConfig;
 use nym_network_monitor_orchestrator_requests::models::{AgentMixAddresses, TestKind};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
@@ -108,6 +109,12 @@ pub(crate) struct NodeTesterConfig {
     /// sit inside the lease the orchestrator stamped on the whole assignment.
     pub(crate) liveness_per_target_timeout: Duration,
 
+    /// Timeout for opening a gateway's client websocket.
+    pub(crate) session_connect_timeout: Duration,
+
+    /// Timeout for negotiating and registering on a gateway client session.
+    pub(crate) session_registration_timeout: Duration,
+
     /// How long the target node should delay the packet (i.e. the sphinx delay)
     pub(crate) packet_delay: Duration,
 
@@ -151,6 +158,19 @@ impl NodeTesterConfig {
         match kind {
             TestKind::Stress => None,
             TestKind::Liveness => Some(self.liveness_per_target_timeout),
+        }
+    }
+
+    /// The timeouts a gateway client session is held to.
+    ///
+    /// The receive timeout is the liveness profile's straggler wait rather than a knob of its own, so
+    /// that both of a gateway run's legs wait the same length for a late packet as a mixnode probe
+    /// does: the mixnet inbox is built with exactly that value.
+    pub(crate) fn gateway_session_config(&self) -> GatewaySessionConfig {
+        GatewaySessionConfig {
+            connect_timeout: self.session_connect_timeout,
+            registration_timeout: self.session_registration_timeout,
+            receive_timeout: self.liveness_profile.waiting_duration,
         }
     }
 

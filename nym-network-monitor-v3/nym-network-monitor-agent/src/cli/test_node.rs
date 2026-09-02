@@ -10,6 +10,7 @@ use crate::cli::common::CommonArgs;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::TestKind;
 use nym_sphinx_params::SphinxKeyRotation;
+use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -86,6 +87,8 @@ impl Args {
             client_address,
             noise_key,
             vec![self.build_tested_node_details()],
+            // a manual run is the whole process, so its wave IS the root
+            ShutdownToken::new(),
         )
     }
 }

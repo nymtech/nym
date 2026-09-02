@@ -225,7 +225,7 @@ mod tests {
     use crate::mixnet::test_fixtures::{ProbedTarget, ip, socket};
     use anyhow::anyhow;
     use futures::stream;
-    use rand::rngs::OsRng;
+    use nym_crypto::rng::os_rng;
 
     /// What a connection looks like to the handler in a test: a finite stream of already-framed
     /// packets, standing in for the framed noise connection production reads.
@@ -240,7 +240,7 @@ mod tests {
         ConnectionHandler::new(
             SharedHandlerData {
                 targets: Arc::new(WaveIngress::new(targets)),
-                noise_key: Arc::new(x25519::KeyPair::new(&mut OsRng)),
+                noise_key: Arc::new(x25519::KeyPair::new(&mut os_rng())),
                 noise_handshake_timeout: Duration::from_secs(3),
                 shutdown_token: ShutdownToken::new(),
             },

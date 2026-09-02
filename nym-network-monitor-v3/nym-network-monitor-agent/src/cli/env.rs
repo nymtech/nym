@@ -37,6 +37,14 @@ pub mod vars {
     pub const NYM_NETWORK_MONITOR_AGENT_LIVENESS_PER_TARGET_TIMEOUT_ARG: &str =
         "NYM_NETWORK_MONITOR_AGENT_LIVENESS_PER_TARGET_TIMEOUT";
 
+    // gateway client session args. the websocket leg of a gateway probe is deliberately NOT held to
+    // the mixnet timeouts: an http upgrade and a registration handshake are not a TCP connect and a
+    // Noise handshake, so sharing their knobs would tie two unrelated waits together
+    pub const NYM_NETWORK_MONITOR_AGENT_SESSION_CONNECT_TIMEOUT_ARG: &str =
+        "NYM_NETWORK_MONITOR_AGENT_SESSION_CONNECT_TIMEOUT";
+    pub const NYM_NETWORK_MONITOR_AGENT_SESSION_REGISTRATION_TIMEOUT_ARG: &str =
+        "NYM_NETWORK_MONITOR_AGENT_SESSION_REGISTRATION_TIMEOUT";
+
     // run agent args
     pub const NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_ADDRESS_ARG: &str =
         "NYM_NETWORK_MONITOR_AGENT_ORCHESTRATOR_ADDRESS";

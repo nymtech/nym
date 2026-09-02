@@ -18,7 +18,7 @@ publish = true
 # Not `workspace = true`: cargo forbids overriding default-features on an inherited dep,
 # and we need default-features = false for no_std / wasm. Version mirrors the workspace
 # pin (<1.8.4 keeps blake3 on digest 0.10).
-blake3 = { version = ">=1.7, <1.8.4", default-features = false, features = ["traits-preview"] }
+blake3 = { version = ">=1.7, <1.8.8", default-features = false, features = ["traits-preview"] }
 digest = { workspace = true }
 # Not `workspace = true`, same reason as blake3 above (default-features = false for
 # no_std). Optional and off by default so the wasm contract build (which never

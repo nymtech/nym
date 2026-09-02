@@ -120,9 +120,10 @@ struct StreamEntry {
     established_tx: watch::Sender<bool>,
     /// Destination for pings and pongs. `None` in unit tests only.
     peer: Option<StreamPeer>,
-    /// True once the peer has sent any liveness frame (OpenAck, Ping or
-    /// Pong), proving it speaks the extension. Keepalive acts only on
-    /// armed streams: an unarmed stream is never pinged and never fails.
+    /// True once the stream is treated as live: an OpenAck, Ping, or Pong
+    /// arrived from the peer, or (inbound only) we accepted the stream
+    /// ourselves. Keepalive acts only on armed streams: an unarmed stream
+    /// is never pinged and never fails.
     ///
     /// This is a deliberate scope decision, not a missing case. A peer
     /// that never sends a liveness frame is either an old SDK or a server
@@ -139,8 +140,9 @@ struct StreamEntry {
     /// When the outstanding ping actually left the client; `None` while a
     /// reserved nonce is still waiting for space on the input channel.
     last_ping_sent: Option<Instant>,
-    /// Set at the miss threshold: failed (armed) or given up (unarmed).
-    /// Cleared again when an armed peer shows life.
+    /// Set at the miss threshold on an armed stream whose peer went silent,
+    /// to stop further pinging. Cleared when the peer shows life again (a
+    /// pong or inbound data), so keepalive resumes.
     ping_stopped: bool,
 }
 
@@ -277,6 +279,7 @@ impl StreamMap {
             // stream registered can never be answered and must not keep
             // counting toward the failure threshold.
             entry.outstanding_nonce = None;
+            entry.last_ping_sent = None;
             entry.missed_pongs = 0;
             entry.ping_stopped = false;
         }
@@ -293,6 +296,7 @@ impl StreamMap {
         entry.armed = true;
         entry.last_activity = Instant::now();
         entry.outstanding_nonce = None;
+        entry.last_ping_sent = None;
         entry.missed_pongs = 0;
         entry.ping_stopped = false;
         entry.peer.clone()
@@ -311,6 +315,7 @@ impl StreamMap {
         }
         let _ = entry.established_tx.send(true);
         entry.outstanding_nonce = None;
+        entry.last_ping_sent = None;
         entry.missed_pongs = 0;
         entry.armed = true;
         entry.ping_stopped = false;
@@ -405,6 +410,7 @@ impl StreamMap {
             // extension.
             entry.last_activity = Instant::now();
             entry.outstanding_nonce = None;
+            entry.last_ping_sent = None;
             entry.missed_pongs = 0;
             if entry.armed {
                 entry.ping_stopped = false;
@@ -465,6 +471,10 @@ impl StreamMap {
             // A miss requires a ping that actually left the client.
             if entry.outstanding_nonce.is_some() && entry.last_ping_sent.is_some() {
                 entry.missed_pongs += 1;
+                // Advance the cadence reference even when the re-ping below
+                // is deferred by a full channel, so a miss is counted once
+                // per ping interval, not once per (shorter) sweep tick.
+                entry.last_ping_sent = Some(now);
                 if entry.missed_pongs >= missed_pongs_threshold {
                     entry.ping_stopped = true;
                     warn!(
@@ -478,6 +488,10 @@ impl StreamMap {
                     {
                         dropped.push(*id);
                     }
+                    // Clear the probe state so a later resume of this stream
+                    // does not inherit a stale nonce or cadence reference.
+                    entry.outstanding_nonce = None;
+                    entry.last_ping_sent = None;
                     continue;
                 }
             }
@@ -1553,6 +1567,55 @@ mod tests {
             1
         );
         assert_eq!(map.inner.lock().await.streams[&id].missed_pongs, 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn deferred_reping_counts_one_miss_per_interval_not_per_tick() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, mut input_rx) = test_client_input(1);
+        let id = StreamId::random();
+        let (_rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        map.mark_established(&id).await;
+
+        // First ping leaves the client and is drained off the channel.
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert_eq!(
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .len(),
+            1
+        );
+        input_rx.try_recv().expect("the ping");
+
+        // The peer stays silent and an application write fills the
+        // capacity-1 channel, so every re-ping is deferred. One interval
+        // later counts exactly one miss.
+        input
+            .input_sender
+            .try_send(InputMessage::new_anonymous(
+                test_recipient(),
+                vec![0],
+                0,
+                TransmissionLane::General,
+                None,
+            ))
+            .expect("channel has capacity");
+        tokio::time::advance(Duration::from_secs(61)).await;
+        map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await;
+        assert_eq!(map.inner.lock().await.streams[&id].missed_pongs, 1);
+
+        // A sweep tick inside the interval must not add a miss, even though
+        // the deferred re-ping never left the client. Without advancing the
+        // cadence reference on a miss, this tick would count a second one.
+        tokio::time::advance(Duration::from_secs(10)).await;
+        map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await;
+        assert_eq!(map.inner.lock().await.streams[&id].missed_pongs, 1);
     }
 
     #[tokio::test]

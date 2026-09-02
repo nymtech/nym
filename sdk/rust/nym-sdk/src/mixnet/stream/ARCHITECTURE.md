@@ -203,9 +203,16 @@ tunnelled traffic is the consumer's concern, not this layer's.
 
 Liveness frames refresh `last_activity`, so for peers that speak the
 extension the idle reaper (default 30 min) becomes a backstop and
-`PeerUnresponsive` (about 3 min at these fixed values) is the effective
-failure path. For unarmed peers (old SDKs, or servers like the IPR) the
-reaper keeps its original meaning as the only liveness signal.
+`PeerUnresponsive` is the effective failure path. From the last inbound
+frame, failure lands after about four minutes: one `DEFAULT_PING_INTERVAL`
+to the first ping, then `DEFAULT_MISSED_PONGS_THRESHOLD` unanswered
+intervals. This holds only while `stream_idle_timeout` stays above that
+horizon, which its 30 min default does. A consumer that lowers
+`stream_idle_timeout` below roughly four minutes lets the idle reaper
+remove the stream first, so a dead peer then surfaces as a silent reap
+(the stream ends) rather than an in-band `PeerUnresponsive`. For unarmed
+peers (old SDKs, or servers like the IPR) the reaper keeps its original
+meaning as the only liveness signal.
 
 The ping interval and miss threshold are fixed constants
 (`DEFAULT_PING_INTERVAL`, `DEFAULT_MISSED_PONGS_THRESHOLD`), not builder

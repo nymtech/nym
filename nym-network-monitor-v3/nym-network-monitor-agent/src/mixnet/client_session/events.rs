@@ -1,9 +1,6 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// SCAFFOLD: the bodies land as group 9's tasks are worked through, at which point both allows come off
-#![allow(dead_code, unused_variables)]
-
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use time::OffsetDateTime;
 
@@ -36,11 +33,12 @@ impl ReceivedPayload {
 /// only needs to know the gateway accepted what it forwarded, since those packets come back over the
 /// mixnet listener, whereas the delivery phase's arrivals ARE these events.
 pub(crate) enum SessionEvent {
-    /// The gateway accepted a forwarded packet, reporting the session's remaining allowance.
+    /// The gateway accepted a forwarded packet, reporting what the session has left.
     ///
-    /// Carried as a diagnosis rather than a budget to manage: an unmetered monitor session reports a
-    /// sentinel-sized allowance, so a plausible small figure means this gateway never ingested our
-    /// announced identity, and the run's zeros are then ours to explain rather than the gateway's.
+    /// The figure is carried for the LOG, not as a budget to manage and not as a verdict on whether
+    /// the session was metered. A metered session never reaches this event at all: it holds no
+    /// bandwidth, so its very first forward is refused. Whether a packet got through is the whole of
+    /// what a liveness probe measures, and how the gateway came to let it through is not.
     Accepted { remaining_bandwidth: i64 },
 
     /// A final-hop payload the gateway delivered into this session.

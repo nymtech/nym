@@ -61,6 +61,10 @@ Besides these values, the API also checks whether the node is bonded in Mixnet s
 
 #### Versions Behind Calculation
 
+<Callout type="info" emoji="ℹ️">
+The API version (*"semver"*) will be updated 96h (4 days) after the release is labeled as latest.
+</Callout>
+
 From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version (denoted as `versions_behind`). The "current version" is the one marked as `Latest` in the [repository](https://github.com/nymtech/nym/releases/). The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with this formula:
 
 <Callout type="info" emoji="📌">

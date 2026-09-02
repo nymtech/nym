@@ -302,7 +302,11 @@ impl StreamMap {
             // Data from the peer proves it accepted the stream, so it
             // establishes the stream even when the OpenAck was lost.
             entry.last_activity = Instant::now();
-            let _ = entry.established_tx.send(true);
+            // Only the first frame needs to flip the watch; re-sending on
+            // every later Data frame would wake watchers for nothing.
+            if !*entry.established_tx.borrow() {
+                let _ = entry.established_tx.send(true);
+            }
         }
     }
 
@@ -600,9 +604,8 @@ pub(crate) async fn open_stream(
 
     // Open message with seq=0. The receiver's reorder buffer starts at
     // next_seq=0 so this could later carry an initial seq to resume a
-    // dropped stream from where it left off. The Open carries more SURBs
-    // than a Data message: it prepays the OpenAck and the peer's first
-    // replies.
+    // dropped stream from where it left off. The reply SURBs attached here
+    // also prepay the OpenAck; Data frames attach the same count.
     let wire = encode_stream_message(&stream_id, SphinxStreamMsgType::Open, 0, &[]);
     let msg = InputMessage::new_anonymous(
         recipient,

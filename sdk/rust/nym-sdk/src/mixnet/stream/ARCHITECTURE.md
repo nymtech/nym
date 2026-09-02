@@ -61,12 +61,15 @@ For streams, `LpFrameKind` is `SphinxStream` (0x0003) and the 14-byte
 - `Open` (0) initiates a new stream
 - `Data` (1) carries payload for an existing stream
 - `OpenAck` (2) acknowledges an accepted `Open` (see Establishment)
+- `Ping` (3) is a keepalive probe; its nonce rides in the sequence-number
+  field
+- `Pong` (4) echoes a ping's nonce back
 
 There is no `Close` type: streams clean up via `Drop` and idle timeout.
 Sequence numbers enable reorder buffering (up to `MAX_REORDER_BUFFER_BYTES`,
-8 MiB of out-of-order data per stream). Peers running an SDK without the
-`OpenAck` frame type reject it during attribute parsing and drop the
-frame, so mixed-version peers interoperate without a coordinated upgrade.
+8 MiB of out-of-order data per stream). Peers running an SDK without these
+frame types reject them during attribute parsing and drop the frame, so
+mixed-version peers interoperate without a coordinated upgrade.
 
 ## Initialization
 
@@ -86,9 +89,13 @@ A background task that reads inbound messages and dispatches them:
 - **Data** → looked up in `StreamMap` by `StreamId`, forwarded to the
   stream's channel
 - **OpenAck** → marks the stream established (fires `wait_established`)
+- **Ping** → answered with a `Pong` echoing the nonce, only if the stream
+  is still registered; unknown ids get silence
+- **Pong** → clears the matching outstanding ping
 - Unrecognised messages are silently dropped
 
-The router's periodic tick (every 10 s at most) reaps stale streams.
+The router's periodic tick (every 10 s at most) reaps stale streams and
+runs the keepalive sweep described under Keepalive.
 
 Shuts down via `CancellationToken` or when the receiver closes.
 
@@ -143,6 +150,68 @@ be read as proof of death, and the stream stays usable afterwards.
 `last_peer_activity()` reports when the peer was last heard from. It
 reads local state and sends nothing.
 
+## Keepalive
+
+Establishment answers "did anyone accept this stream". Keepalive answers
+"is the peer still there", which needs periodic probing because a peer
+that dies mid-stream sends nothing at all.
+
+### Pinging
+
+The router's tick pings armed outbound streams (see Arming) that have
+received nothing for `DEFAULT_PING_INTERVAL` (60 s); a stream with
+inbound traffic inside the interval is never pinged, so an active stream
+generates no keepalive traffic. Only the
+dialer pings, because acceptor-side pings would spend the dialer's SURBs
+on every exchange. Each ping carries `PING_SURBS` reply SURBs, more than
+the single SURB its pong consumes, so an idle stream with a live peer
+does not deplete the acceptor's pool.
+
+A pong is sent only for streams still registered, so it attests "the
+stream is still open at the peer", not "the application is reading".
+After `DEFAULT_MISSED_PONGS_THRESHOLD` (3) consecutive unanswered pings,
+the stream fails in-band with `PeerUnresponsive`, delivered through the
+data channel in order, like `DataLoss`. Any later frame from an armed
+peer resumes keepalive.
+
+All liveness sends use non-blocking `try_send` on the shared input
+channel: a frame that does not fit is deferred (pings, without counting
+a miss) or dropped (pongs, acks), so backpressure from application
+writes can never stall the router. One nonce is used per outage and
+resent until answered, so a pong slower than the ping interval still
+matches.
+
+### Arming
+
+There is no protocol version field. A stream arms when its peer sends its
+first liveness frame (`OpenAck`, `Ping` or `Pong`), which proves the peer
+speaks the extension. Keepalive acts only on armed streams: an unarmed
+stream is never pinged and never fails, because a peer that has sent no
+liveness frame cannot be told apart from an old SDK or from a server that
+tunnels a different protocol over the stream, and probing it would send
+frames it cannot answer.
+
+This confinement is a deliberate scope decision, not a missing case.
+Keepalive here covers raw `mixnet::stream` used directly between two SDK
+peers. A consumer that tunnels another protocol over a stream (smolmix
+carrying TCP/IP, or a fire-and-forget UDP flow) brings its own liveness
+model, and its stream to an IP packet router never arms, so this module
+sends that peer nothing and needs no per-caller opt-out. Liveness for
+tunnelled traffic is the consumer's concern, not this layer's.
+
+### Interaction with the idle timeout
+
+Liveness frames refresh `last_activity`, so for peers that speak the
+extension the idle reaper (default 30 min) becomes a backstop and
+`PeerUnresponsive` (about 3 min at these fixed values) is the effective
+failure path. For unarmed peers (old SDKs, or servers like the IPR) the
+reaper keeps its original meaning as the only liveness signal.
+
+The ping interval and miss threshold are fixed constants
+(`DEFAULT_PING_INTERVAL`, `DEFAULT_MISSED_PONGS_THRESHOLD`), not builder
+options. This module keeps to the minimum surface; a consumer that needs
+different timing wraps the stream with its own policy.
+
 ## Cleanup
 
 - **`Drop` on `MixnetStream`**: deregisters from `StreamMap`
@@ -154,21 +223,26 @@ reads local state and sends nothing.
 
 `Arc<Mutex<HashMap<StreamId, StreamEntry>>>`, shared between router,
 streams, and listener. Methods: `register_stream`, `remove`,
-`send_to_stream`, `cleanup_stale`, `mark_established`, `last_activity`.
+`send_to_stream`, `cleanup_stale`, `mark_established`, `last_activity`,
+plus the keepalive handlers (`on_ping`, `on_pong`, `ping_sweep`).
 
 ## Known Limitations
 
 - **No `Close` message**: there is no explicit stream-close signal.
-  Streams clean up locally via `Drop` and idle timeout. A proper
-  close/EOF mechanism requires further protocol work.
-- **No mid-stream liveness**: `OpenAck` answers "did anyone accept this
-  stream", not "is the peer still there". A peer that dies mid-stream is
-  only caught by the idle reaper. Keepalive is the follow-up change
-  `add-stream-keepalive`.
-- **The ack costs one reply SURB**, taken from the count the dialer
-  already attaches to the `Open` (10 by default). A dialer that attaches
-  none gets no acknowledgement. Sizing SURB counts to the Sphinx packet
-  boundary is separate work and deliberately not part of this change.
+  Streams clean up locally via `Drop` and idle timeout, and a peer's
+  pings against a closed stream go unanswered rather than being refused.
+  A proper close/EOF mechanism requires further protocol work.
+- **The IPR does not speak these frames**: a stream to an IP packet
+  router never receives an `OpenAck`, `Ping`, or `Pong`, so it never
+  arms and is never pinged, and gets no mid-stream liveness. Teaching
+  the IPR's mixnet listener to inspect `SphinxStreamMsgType` is separate
+  infrastructure work.
+- **The keepalive ping costs reply SURBs**: one 4-hop reply SURB
+  serialises to ~460 bytes, and an empty-payload stream message fits 3
+  SURBs in one Regular packet (a fourth fragments it), so `PING_SURBS =
+  2` stays a single packet. A dialer whose SURB pool is empty skips that
+  tick's ping rather than failing. Pinning this against upstream size
+  changes belongs to the parked SURB-budgeting work, not here.
 - **Reorder buffer cap**: out-of-order messages are buffered up to
   `MAX_REORDER_BUFFER_BYTES` (8 MiB) per stream. A full buffer skips the
   missing range and reports the loss in-band as `InvalidData`. `recv()`

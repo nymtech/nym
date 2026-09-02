@@ -539,7 +539,7 @@ impl Session {
             _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
             res = async {
                 let nodes = self.fetch_topology().await?;
-                gateway::select(&nodes, spec, role, self.directory.as_ref(), false, None)
+                gateway::select(&nodes, spec, role, self.directory.as_ref(), false, &[])
             } => res,
         }
     }
@@ -631,7 +631,7 @@ impl Session {
             WgRole::Entry,
             self.directory.as_ref(),
             false,
-            None,
+            &[],
         )?;
         // Cache first: a reusable registration needs no ticketbooks and no gateway exchange.
         if let Some(hop) = self.cached_hop(&selected.identity, selected.info(), WgRole::Entry) {
@@ -658,7 +658,28 @@ impl Session {
         entry: &GatewaySpec,
         exit: &GatewaySpec,
     ) -> Result<Registration, SessionError> {
-        self.register_two_hop_inner(entry, exit, false).await
+        self.register_two_hop_inner(entry, exit, false, &[]).await
+    }
+
+    /// Like [`register_two_hop`](Self::register_two_hop), but excludes a set of
+    /// entry gateway identities from **entry** selection. A caller that has
+    /// implicated an entry gateway (e.g. one that does not forward the tunnelled
+    /// exit handshake, so the exit never establishes) passes it here so a fresh
+    /// registration re-selects a different entry instead of re-picking the bad one.
+    ///
+    /// Exclusion applies to entry selection only; the exit is still chosen distinct
+    /// from the entry. A pinned entry `Identity` that appears in `avoid_entries` is
+    /// never substituted — registration fails with the distinct-gateways error (see
+    /// [`gateway::select`]). Passing an empty `avoid_entries` is equivalent to
+    /// [`register_two_hop`](Self::register_two_hop).
+    pub async fn register_two_hop_avoiding_entries(
+        &self,
+        entry: &GatewaySpec,
+        exit: &GatewaySpec,
+        avoid_entries: &[ed25519::PublicKey],
+    ) -> Result<Registration, SessionError> {
+        self.register_two_hop_inner(entry, exit, false, avoid_entries)
+            .await
     }
 
     /// Like [`register_two_hop`](Self::register_two_hop), but the ENTRY gateway
@@ -671,14 +692,17 @@ impl Session {
         entry: &GatewaySpec,
         exit: &GatewaySpec,
     ) -> Result<Registration, SessionError> {
-        self.register_two_hop_inner(entry, exit, true).await
+        self.register_two_hop_inner(entry, exit, true, &[]).await
     }
 
+    /// `avoid_entries` is a set of entry gateway identities excluded from entry
+    /// selection (see [`register_two_hop_avoiding_entries`](Self::register_two_hop_avoiding_entries)).
     async fn register_two_hop_inner(
         &self,
         entry: &GatewaySpec,
         exit: &GatewaySpec,
         entry_quic: bool,
+        avoid_entries: &[ed25519::PublicKey],
     ) -> Result<Registration, SessionError> {
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
@@ -693,7 +717,7 @@ impl Session {
             WgRole::Entry,
             self.directory.as_ref(),
             entry_quic,
-            None,
+            avoid_entries,
         )?;
         // Exclude the entry gateway so a two-hop tunnel never uses one gateway twice.
         let exit_gw = gateway::select(
@@ -702,7 +726,7 @@ impl Session {
             WgRole::Exit,
             self.directory.as_ref(),
             false,
-            Some(&entry_gw.identity),
+            std::slice::from_ref(&entry_gw.identity),
         )?;
 
         // The entry hop carries QUIC bridge params only when QUIC was required

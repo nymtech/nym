@@ -24,7 +24,7 @@ returns `TicketbooksUnavailable` — surfaced to the caller as
 This fails fast (~0.5s, no network) and deterministically for both
 `smoldvpn/tests/live_bringup.rs` gated tests.
 
-The reference `nym-vpn-client` (per Simon Wicky) does a one-off restock with the
+The reference `nym-vpn-client` does a one-off restock with the
 **fetcher lifecycle**: create/install the fetcher, await ticket issuance, then unset
 the fetcher; leaving the fetcher installed is what enables continuous background
 issuance. Installing a fetcher triggers `handle_set_credential_fetcher`, which runs
@@ -62,7 +62,7 @@ issuance" requirement ("scoping `managed_ticket_types` to the WireGuard types").
 managed gate in the controller — rejected because the fix must not touch the
 controller, and the reference does not rely on that behaviour.
 
-**D2 — Provision against the RUNNING controller (Simon's Scenario B), one pattern
+**D2 — Provision against the RUNNING controller, one pattern
 for every provisioning call.** The session spawns `run(self)` for the controller's
 whole lifetime, so provisioning always goes through the request sender, never the
 owned inline `fetch_ticketbook` (see D6). `ensure_ticket_types` therefore uses
@@ -76,7 +76,7 @@ installed on demand.
 - **Default / one-shot (`automatic_topups: None`)** — `set_credential_fetcher(fetcher)`
   → `wait_for_ticketbooks(types)` → **`unset_credential_fetcher()` unconditionally,
   even when the wait errors, times out, or is cancelled.** Removing on every exit path
-  is required (Simon: "Don't forget to remove it even if there was an error"): a
+  is required (per the review: "Don't forget to remove it even if there was an error"): a
   fetcher left installed after a failed provision would silently re-enable background
   deposits, defeating the default-mode guarantee. The fetcher never lingers in this
   mode, so no install-state tracking is needed here.
@@ -112,7 +112,7 @@ This preserves both `dvpn-session` "Opt-in automatic restock" scenarios and move
 **D6 — Do NOT restructure to the owned pre-run inline fetch (`fetch_ticketbook`).**
 `BandwidthController::fetch_ticketbook` (`controller.rs:454`) fetches a type inline and
 gate-free, but takes `&self` and only works before `run(self)` consumes the controller
-(Simon's Scenario A; the `issue_ticket_book` ecash CLI uses exactly this and never
+(the `issue_ticket_book` ecash CLI uses exactly this and never
 runs). The session cannot: it needs the controller running for the session's lifetime
 (spending, top-ups), the provisioned types are known only at `ensure_ticketbooks(
 two_hop)` / registration time (after `run()`), and `ensure_ticket_types` is also

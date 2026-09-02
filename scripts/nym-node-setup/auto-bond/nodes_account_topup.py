@@ -250,15 +250,20 @@ def main():
         else:
             deficit = target - balance
             warn(f"balance {balance:.6f} NYM < target {target:g} NYM — queue +{deficit:.6f} NYM")
-            queued.append((row, address, deficit))
+            queued.append((row, address, deficit, target))
         print()
 
-    # write back the CSV with fresh addresses + balances
-    if not args.dry_run:
+    # write back the CSV with fresh addresses + (pre-transfer) balances
+    def _write_csv():
+        if args.dry_run:
+            return
         with open(args.csv_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+
+    _write_csv()
+    if not args.dry_run:
         info(f"updated {args.csv_file} with addresses + balances")
 
     if args.check_only:
@@ -287,7 +292,7 @@ def main():
     tmp = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, newline="")
     with tmp as tf:
         w = csv.writer(tf)
-        for row, address, deficit in queued:
+        for row, address, deficit, target in queued:
             w.writerow([address, nym_to_unym(deficit), "unym"])
     input_csv = Path(tmp.name)
 
@@ -308,7 +313,7 @@ def main():
         "--memo", "nym-node gas top-up",
     ]
     print(f"  {D}$ {' '.join(redact_cmd(cmd))}{NC}")
-    for row, address, deficit in queued:
+    for row, address, deficit, target in queued:
         print(f"    {D}{address}  +{deficit:.6f} NYM ({nym_to_unym(deficit)} unym){NC}")
 
     topped = 0
@@ -365,6 +370,14 @@ def main():
 
         topped = len(queued)
         ok(f"sent {topped} top-up(s); log: {log_csv}")
+
+        # reflect the post-transfer balances: a successful top-up brings each
+        # queued node up to its target. Update the rows and rewrite the CSV so
+        # node_account_balance and the summary show the new, not the old, value.
+        for row, address, deficit, target in queued:
+            row["node_account_balance"] = f"{target:.6f}"
+        _write_csv()
+        info(f"updated {args.csv_file} with post-transfer balances")
 
     try: input_csv.unlink()
     except OSError: pass

@@ -54,8 +54,20 @@ pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 
 /// Maximum interval between stale-stream checks. The actual check interval
 /// is `min(idle_timeout, MAX_CLEANUP_INTERVAL)` so that short idle timeouts
 /// are respected promptly rather than waiting up to 60 s for the next sweep.
-const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
+pub(crate) const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
 
+/// Default interval between keepalive pings on an idle outbound stream.
+/// Streams with inbound traffic inside the interval are never pinged.
+pub(crate) const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
+
+/// Default number of consecutive unanswered pings before an armed stream
+/// fails with [`StreamFailure::PeerUnresponsive`].
+pub(crate) const DEFAULT_MISSED_PONGS_THRESHOLD: u32 = 3;
+
+/// Reply SURBs attached to each keepalive ping: more than the single SURB
+/// the pong consumes, so an idle stream does not deplete the peer's pool,
+/// and few enough to keep the ping a single Sphinx packet.
+pub(crate) const PING_SURBS: u32 = 2;
 /// A stream failure, sent through the data channel so it arrives in
 /// order with the data around it. `recv()` returns it once and keeps
 /// delivering later messages; `AsyncRead` fails the stream for good.
@@ -63,6 +75,8 @@ const MAX_CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
 pub(crate) enum StreamFailure {
     /// The reorder buffer overflowed and skipped past missing messages.
     DataLoss,
+    /// The peer stopped answering keepalive pings.
+    PeerUnresponsive,
 }
 
 impl StreamFailure {
@@ -72,8 +86,20 @@ impl StreamFailure {
                 std::io::ErrorKind::InvalidData,
                 "stream data lost: reorder buffer overflow skipped missing messages",
             ),
+            StreamFailure::PeerUnresponsive => std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "stream peer unresponsive: keepalive pings unanswered",
+            ),
         }
     }
+}
+
+/// Where liveness frames for a stream are sent. Outbound streams address
+/// the peer directly; inbound streams reply through the dialer's SURBs.
+#[derive(Clone)]
+pub(crate) enum StreamPeer {
+    Address(Box<Recipient>),
+    SenderTag(AnonymousSenderTag),
 }
 
 /// Per-stream state stored in the routing table.
@@ -92,6 +118,30 @@ struct StreamEntry {
     /// Flips to true when the peer acknowledges the stream (or, for
     /// inbound streams, when we accept it ourselves).
     established_tx: watch::Sender<bool>,
+    /// Destination for pings and pongs. `None` in unit tests only.
+    peer: Option<StreamPeer>,
+    /// True once the peer has sent any liveness frame (OpenAck, Ping or
+    /// Pong), proving it speaks the extension. Keepalive acts only on
+    /// armed streams: an unarmed stream is never pinged and never fails.
+    ///
+    /// This is a deliberate scope decision, not a missing case. A peer
+    /// that never sends a liveness frame is either an old SDK or a server
+    /// that tunnels a different protocol over the stream (the IP packet
+    /// routers), and this module leaves its liveness to the consumer
+    /// driving that traffic. Confining keepalive to armed streams is what
+    /// lets the IPR path stay untouched with no per-caller opt-out.
+    armed: bool,
+    /// Nonce of the ping awaiting a pong. One nonce per outage: re-pings
+    /// repeat it so a pong slower than the ping interval still matches.
+    outstanding_nonce: Option<u32>,
+    /// Consecutive sent pings that went a full interval without any response.
+    missed_pongs: u32,
+    /// When the outstanding ping actually left the client; `None` while a
+    /// reserved nonce is still waiting for space on the input channel.
+    last_ping_sent: Option<Instant>,
+    /// Set at the miss threshold: failed (armed) or given up (unarmed).
+    /// Cleared again when an armed peer shows life.
+    ping_stopped: bool,
 }
 
 impl StreamEntry {
@@ -177,6 +227,7 @@ impl StreamMap {
     async fn register_stream(
         &self,
         stream_id: StreamId,
+        peer: Option<StreamPeer>,
     ) -> Option<(
         mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>>,
         watch::Receiver<bool>,
@@ -200,6 +251,12 @@ impl StreamMap {
             pending,
             pending_bytes,
             established_tx,
+            peer,
+            armed: false,
+            outstanding_nonce: None,
+            missed_pongs: 0,
+            last_ping_sent: None,
+            ping_stopped: false,
         };
         // The receiver cannot have been dropped yet - we still hold it.
         entry.drain_ready();
@@ -207,15 +264,57 @@ impl StreamMap {
         Some((rx, established_rx))
     }
 
-    /// Mark a stream established: an OpenAck arrived (outbound), or we
-    /// accepted the stream ourselves (inbound). Unknown ids are ignored;
-    /// acks carry no data worth orphan-buffering.
+    /// Mark a stream established and armed: an OpenAck arrived (outbound),
+    /// or we accepted the stream ourselves (inbound). Unknown ids are
+    /// ignored; acks carry no data worth orphan-buffering.
     async fn mark_established(&self, stream_id: &StreamId) {
         let mut inner = self.inner.lock().await;
         if let Some(entry) = inner.streams.get_mut(stream_id) {
             let _ = entry.established_tx.send(true);
+            entry.armed = true;
             entry.last_activity = Instant::now();
+            // Positive proof of life: pings sent before the peer had the
+            // stream registered can never be answered and must not keep
+            // counting toward the failure threshold.
+            entry.outstanding_nonce = None;
+            entry.missed_pongs = 0;
+            entry.ping_stopped = false;
         }
+    }
+
+    /// Handle an inbound keepalive ping. Returns the reply destination for
+    /// the pong, or `None` for unknown streams: silence tells the peer the
+    /// stream is gone. A ping also proves the peer speaks the liveness
+    /// extension and counts as establishment.
+    async fn on_ping(&self, stream_id: &StreamId) -> Option<StreamPeer> {
+        let mut inner = self.inner.lock().await;
+        let entry = inner.streams.get_mut(stream_id)?;
+        let _ = entry.established_tx.send(true);
+        entry.armed = true;
+        entry.last_activity = Instant::now();
+        entry.outstanding_nonce = None;
+        entry.missed_pongs = 0;
+        entry.ping_stopped = false;
+        entry.peer.clone()
+    }
+
+    /// Handle a pong. Only the outstanding nonce counts: stale or unknown
+    /// nonces are ignored so a replayed pong cannot mask a dead peer.
+    async fn on_pong(&self, stream_id: &StreamId, nonce: u32) {
+        let mut inner = self.inner.lock().await;
+        let Some(entry) = inner.streams.get_mut(stream_id) else {
+            return;
+        };
+        if entry.outstanding_nonce != Some(nonce) {
+            trace!("Stream {stream_id}: ignoring pong with stale nonce {nonce}");
+            return;
+        }
+        let _ = entry.established_tx.send(true);
+        entry.outstanding_nonce = None;
+        entry.missed_pongs = 0;
+        entry.armed = true;
+        entry.ping_stopped = false;
+        entry.last_activity = Instant::now();
     }
 
     /// Instant of the most recent inbound frame for a stream, or `None` if
@@ -299,15 +398,112 @@ impl StreamMap {
         if receiver_dropped {
             inner.streams.remove(stream_id);
         } else {
-            // Data from the peer proves it accepted the stream, so it
-            // establishes the stream even when the OpenAck was lost.
+            // Data is proof of life and proof the peer accepted the
+            // stream: reset miss tracking, resolve wait_established, and
+            // resume keepalive on an armed stream that had given up. Data
+            // does not arm; it proves nothing about the liveness
+            // extension.
             entry.last_activity = Instant::now();
+            entry.outstanding_nonce = None;
+            entry.missed_pongs = 0;
+            if entry.armed {
+                entry.ping_stopped = false;
+            }
             // Only the first frame needs to flip the watch; re-sending on
             // every later Data frame would wake watchers for nothing.
             if !*entry.established_tx.borrow() {
                 let _ = entry.established_tx.send(true);
             }
         }
+    }
+
+    /// Keepalive sweep for outbound streams, run from the router's tick.
+    /// Only armed streams are pinged: a peer that has never sent a
+    /// liveness frame has not proved it speaks the extension, so it is
+    /// left alone (see Arming). An armed stream idle past `ping_interval`
+    /// gets a ping, sent with a non-blocking `try_send` so a congested
+    /// input channel can never stall the router: a ping that does not fit
+    /// is retried next tick and never counts as a miss. An outstanding
+    /// nonce whose ping left the client a full interval ago is a miss. At
+    /// the miss threshold the stream fails in-band with
+    /// [`StreamFailure::PeerUnresponsive`].
+    ///
+    /// Returns the ids pinged this sweep (used by tests).
+    async fn ping_sweep(
+        &self,
+        ping_interval: Duration,
+        missed_pongs_threshold: u32,
+        client_input: &ClientInput,
+        packet_type: Option<PacketType>,
+    ) -> Vec<StreamId> {
+        let now = Instant::now();
+        let mut pinged = Vec::new();
+        let mut dropped = Vec::new();
+        let mut inner = self.inner.lock().await;
+        for (id, entry) in inner.streams.iter_mut() {
+            // Only the dialer pings. An inbound stream is registered with
+            // a SenderTag peer and is skipped here; acceptor-side pings
+            // would spend the dialer's SURBs on every exchange.
+            let recipient = match &entry.peer {
+                Some(StreamPeer::Address(recipient)) => recipient.clone(),
+                _ => continue,
+            };
+            // Only ping a stream once it has armed. An unarmed peer has
+            // never sent a liveness frame, so it may be an old SDK or a
+            // server that tunnels a different protocol (the IP packet
+            // routers): probing it would send frames it cannot answer.
+            if !entry.armed || entry.ping_stopped {
+                continue;
+            }
+            let last_signal = match entry.last_ping_sent {
+                Some(sent) => std::cmp::max(sent, entry.last_activity),
+                None => entry.last_activity,
+            };
+            if now.duration_since(last_signal) < ping_interval {
+                continue;
+            }
+            // A miss requires a ping that actually left the client.
+            if entry.outstanding_nonce.is_some() && entry.last_ping_sent.is_some() {
+                entry.missed_pongs += 1;
+                if entry.missed_pongs >= missed_pongs_threshold {
+                    entry.ping_stopped = true;
+                    warn!(
+                        "Stream {id}: peer unresponsive, {} consecutive pings unanswered",
+                        entry.missed_pongs
+                    );
+                    if entry
+                        .sender
+                        .send(Err(StreamFailure::PeerUnresponsive))
+                        .is_err()
+                    {
+                        dropped.push(*id);
+                    }
+                    continue;
+                }
+            }
+            // One nonce per outage: re-pings repeat it, so a pong slower
+            // than the ping interval still matches and clears the count.
+            let nonce = *entry.outstanding_nonce.get_or_insert_with(rand::random);
+            let wire = encode_stream_message(id, SphinxStreamMsgType::Ping, nonce, &[]);
+            let msg = InputMessage::new_anonymous(
+                *recipient,
+                wire,
+                PING_SURBS,
+                TransmissionLane::General,
+                packet_type,
+            );
+            if client_input.input_sender.try_send(msg).is_ok() {
+                entry.last_ping_sent = Some(now);
+                pinged.push(*id);
+            } else {
+                trace!("Stream {id}: input channel full, keepalive ping deferred");
+            }
+        }
+        for id in dropped {
+            inner.streams.remove(&id);
+            inner.orphans.remove(&id);
+        }
+        pinged
     }
 
     /// Hold a frame for a stream that has not been registered yet. Bounded
@@ -427,7 +623,10 @@ impl MixnetListener {
                 }
             };
 
-            let Some((rx, established_rx)) = self.streams.register_stream(req.stream_id).await
+            let Some((rx, established_rx)) = self
+                .streams
+                .register_stream(req.stream_id, Some(StreamPeer::SenderTag(sender_tag)))
+                .await
             else {
                 warn!(
                     "Listener: duplicate Open for active stream {}, ignoring",
@@ -477,12 +676,15 @@ impl MixnetListener {
 }
 
 /// Background loop that demuxes incoming mixnet messages into per-stream channels.
+#[allow(clippy::too_many_arguments)]
 async fn run_router(
     mut reconstructed_rx: ReconstructedMessagesReceiver,
     streams: StreamMap,
     listener_tx: mpsc::UnboundedSender<InboundOpen>,
     shutdown: CancellationToken,
     idle_timeout: Duration,
+    client_input: ClientInput,
+    packet_type: Option<PacketType>,
 ) {
     let check_every = std::cmp::min(idle_timeout, MAX_CLEANUP_INTERVAL);
     let mut cleanup_interval = tokio::time::interval(check_every);
@@ -493,6 +695,14 @@ async fn run_router(
             _ = shutdown.cancelled() => break,
             _ = cleanup_interval.tick() => {
                 streams.cleanup_stale(idle_timeout).await;
+                streams
+                    .ping_sweep(
+                        DEFAULT_PING_INTERVAL,
+                        DEFAULT_MISSED_PONGS_THRESHOLD,
+                        &client_input,
+                        packet_type,
+                    )
+                    .await;
                 continue;
             }
             msg = reconstructed_rx.next() => match msg {
@@ -527,6 +737,42 @@ async fn run_router(
                 SphinxStreamMsgType::OpenAck => {
                     streams.mark_established(&stream_id).await;
                 }
+                SphinxStreamMsgType::Ping => {
+                    let Some(peer) = streams.on_ping(&stream_id).await else {
+                        trace!("Router: ping for unknown stream {stream_id}, dropping");
+                        continue;
+                    };
+                    let wire = encode_stream_message(
+                        &stream_id,
+                        SphinxStreamMsgType::Pong,
+                        frame.sequence_num,
+                        &[],
+                    );
+                    let reply = match peer {
+                        StreamPeer::SenderTag(tag) => InputMessage::new_reply(
+                            tag,
+                            wire,
+                            TransmissionLane::General,
+                            packet_type,
+                        ),
+                        StreamPeer::Address(recipient) => InputMessage::new_anonymous(
+                            *recipient,
+                            wire,
+                            0,
+                            TransmissionLane::General,
+                            packet_type,
+                        ),
+                    };
+                    // Non-blocking: a full input channel must not stall the
+                    // demux loop. A dropped pong just means the peer
+                    // re-pings next interval.
+                    if client_input.input_sender.try_send(reply).is_err() {
+                        trace!("Stream {stream_id}: input channel full, pong dropped");
+                    }
+                }
+                SphinxStreamMsgType::Pong => {
+                    streams.on_pong(&stream_id, frame.sequence_num).await;
+                }
             }
         }
     }
@@ -554,6 +800,8 @@ fn ensure_init(client: &mut MixnetClient) -> Result<&mut StreamState> {
             listener_tx,
             shutdown.clone(),
             client.stream_idle_timeout,
+            client.client_input.clone(),
+            client.packet_type,
         ));
 
         client.streams = Some(StreamState {
@@ -593,11 +841,17 @@ pub(crate) async fn open_stream(
 
     let streams = ensure_init(client)?.streams.clone();
 
+    // Register as an outbound peer so the keepalive sweep can address
+    // pings here. The stream only actually pings once it arms (the peer
+    // proves it speaks the liveness extension by answering), so a peer
+    // that never sends OpenAck/Ping/Pong is registered but never pinged.
+    let peer = Some(StreamPeer::Address(Box::new(recipient)));
+
     // Random ids make collisions vanishingly unlikely, but regenerate on
     // the off chance rather than clobbering an active stream.
     let (stream_id, rx, established_rx) = loop {
         let stream_id = StreamId::random();
-        if let Some((rx, established_rx)) = streams.register_stream(stream_id).await {
+        if let Some((rx, established_rx)) = streams.register_stream(stream_id, peer.clone()).await {
             break (stream_id, rx, established_rx);
         }
     };
@@ -652,13 +906,50 @@ pub(crate) fn listener(client: &mut MixnetClient) -> Result<MixnetListener> {
 mod tests {
     use super::*;
 
-    /// Register a stream and return just the data receiver: what most
-    /// reorder-buffer tests care about.
+    /// Register a stream with no liveness peer and return just the data
+    /// receiver: what most reorder-buffer tests care about.
     async fn register(
         map: &StreamMap,
         id: StreamId,
     ) -> mpsc::UnboundedReceiver<Result<Vec<u8>, StreamFailure>> {
-        map.register_stream(id).await.expect("fresh stream id").0
+        map.register_stream(id, None)
+            .await
+            .expect("fresh stream id")
+            .0
+    }
+
+    /// Any well-formed address serves: sweeps only carry it back out.
+    fn test_recipient() -> Recipient {
+        Recipient::try_from_base58_string(
+            "D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN",
+        )
+        .expect("valid test address")
+    }
+
+    fn peer_address() -> Option<StreamPeer> {
+        Some(StreamPeer::Address(Box::new(test_recipient())))
+    }
+
+    /// A [`ClientInput`] whose input channel has the given capacity,
+    /// plus the receiver that keeps sends succeeding. The unrelated
+    /// request/connection receivers are leaked (test-only) so their
+    /// channels stay open without naming crate-private types.
+    fn test_client_input(
+        capacity: usize,
+    ) -> (ClientInput, tokio::sync::mpsc::Receiver<InputMessage>) {
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel(capacity);
+        let (request_tx, request_rx) = tokio::sync::mpsc::channel(1);
+        std::mem::forget(request_rx);
+        let (connection_tx, connection_rx) = futures::channel::mpsc::unbounded();
+        std::mem::forget(connection_rx);
+        (
+            ClientInput {
+                connection_command_sender: connection_tx,
+                input_sender: input_tx,
+                client_request_sender: request_tx,
+            },
+            input_rx,
+        )
     }
 
     #[tokio::test(start_paused = true)]
@@ -770,7 +1061,7 @@ mod tests {
 
         let mut rx = register(&map, id).await;
         // A duplicate Open for an active stream must not clobber the entry.
-        assert!(map.register_stream(id).await.is_none());
+        assert!(map.register_stream(id, None).await.is_none());
 
         // The original stream still receives data.
         map.send_to_stream(&id, 0, vec![1]).await;
@@ -927,7 +1218,10 @@ mod tests {
     async fn open_ack_fires_established_watch() {
         let map = StreamMap::new();
         let id = StreamId::random();
-        let (_rx, mut established) = map.register_stream(id).await.expect("fresh stream id");
+        let (_rx, mut established) = map
+            .register_stream(id, None)
+            .await
+            .expect("fresh stream id");
         assert!(!*established.borrow());
 
         // What the router does on OpenAck.
@@ -939,7 +1233,10 @@ mod tests {
     async fn no_ack_within_timeout_leaves_stream_usable() {
         let map = StreamMap::new();
         let id = StreamId::random();
-        let (mut rx, mut established) = map.register_stream(id).await.expect("fresh stream id");
+        let (mut rx, mut established) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
 
         // No ack arrives: the wait times out.
         let wait = tokio::time::timeout(Duration::from_secs(15), established.wait_for(|v| *v));
@@ -951,16 +1248,365 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn inbound_data_establishes_the_stream() {
+    async fn pings_answered_only_for_registered_streams() {
         let map = StreamMap::new();
         let id = StreamId::random();
-        let (_rx, established) = map.register_stream(id).await.expect("fresh stream id");
+
+        // Unknown stream: silence, and no orphan state.
+        assert!(map.on_ping(&id).await.is_none());
+        assert!(map.inner.lock().await.orphans.is_empty());
+
+        let tag = AnonymousSenderTag::from([7u8; 16]);
+        let (_rx, _est) = map
+            .register_stream(id, Some(StreamPeer::SenderTag(tag)))
+            .await
+            .expect("fresh stream id");
+        assert!(map.on_ping(&id).await.is_some());
+
+        map.remove(&id).await;
+        assert!(map.on_ping(&id).await.is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn stale_pong_nonce_is_ignored() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (_rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        // An OpenAck arms the stream, so keepalive will probe it once idle.
+        map.mark_established(&id).await;
+
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert_eq!(
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .len(),
+            1
+        );
+        let nonce = map.inner.lock().await.streams[&id]
+            .outstanding_nonce
+            .expect("ping outstanding");
+
+        // The wrong nonce changes nothing: a replayed pong cannot mask a
+        // dead peer.
+        map.on_pong(&id, nonce.wrapping_add(1)).await;
+        {
+            let inner = map.inner.lock().await;
+            assert_eq!(inner.streams[&id].outstanding_nonce, Some(nonce));
+            assert!(inner.streams[&id].armed);
+        }
+
+        // The right nonce clears the outstanding ping and arms the stream.
+        map.on_pong(&id, nonce).await;
+        let inner = map.inner.lock().await;
+        assert_eq!(inner.streams[&id].outstanding_nonce, None);
+        assert!(inner.streams[&id].armed);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn armed_stream_fails_in_band_after_threshold() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (mut rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+
+        // An OpenAck arms the stream; deliver data to check ordering.
+        map.mark_established(&id).await;
+        map.send_to_stream(&id, 0, vec![1]).await;
+
+        // Sweep 1 sends a fresh ping; sweeps 2-4 each count a miss. The
+        // third miss reaches the threshold and fails the stream.
+        for _ in 0..4 {
+            tokio::time::advance(Duration::from_secs(61)).await;
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await;
+        }
+
+        // In order: the data, then the failure, then nothing.
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![1]);
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Err(StreamFailure::PeerUnresponsive)
+        ));
+        assert!(rx.try_recv().is_err());
+
+        // Keepalive has stopped for this stream.
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert!(map
+            .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn unarmed_stream_is_never_pinged() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (mut rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+
+        // The peer never sends a liveness frame, so the stream never arms.
+        // Keepalive leaves it alone entirely: no pings and no failure. It
+        // may be an old SDK, or a server that tunnels another protocol
+        // whose liveness is the consumer's concern (see StreamEntry.armed).
+        for _ in 0..4 {
+            tokio::time::advance(Duration::from_secs(61)).await;
+            assert!(map
+                .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .is_empty());
+        }
+        assert!(rx.try_recv().is_err());
+
+        // Inbound data establishes the stream but does not arm it, so
+        // keepalive still sends nothing.
+        map.send_to_stream(&id, 0, vec![1]).await;
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![1]);
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert!(map
+            .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn active_streams_are_not_pinged() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (_rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        // An OpenAck arms the stream, so keepalive will probe it once idle.
+        map.mark_established(&id).await;
+
+        // Data arrives 30 s in: the stream is active.
+        tokio::time::advance(Duration::from_secs(30)).await;
+        map.send_to_stream(&id, 0, vec![1]).await;
+
+        // 61 s since registration, but only 31 s since inbound data.
+        tokio::time::advance(Duration::from_secs(31)).await;
+        assert!(map
+            .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await
+            .is_empty());
+
+        // A full interval with nothing inbound: pinged.
+        tokio::time::advance(Duration::from_secs(30)).await;
+        assert_eq!(
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .len(),
+            1
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn inbound_data_resets_missed_pongs() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (mut rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        // An OpenAck arms the stream, so keepalive will probe it once idle.
+        map.mark_established(&id).await;
+
+        // A ping goes out and two sweeps count misses.
+        for _ in 0..3 {
+            tokio::time::advance(Duration::from_secs(61)).await;
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await;
+        }
+
+        // Data arrives: proof of life clears the miss tracking.
+        map.send_to_stream(&id, 0, vec![1]).await;
+        {
+            let inner = map.inner.lock().await;
+            assert_eq!(inner.streams[&id].missed_pongs, 0);
+            assert_eq!(inner.streams[&id].outstanding_nonce, None);
+        }
+        assert_eq!(rx.try_recv().unwrap().unwrap(), vec![1]);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn inbound_streams_are_not_pinged() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let tag = AnonymousSenderTag::from([7u8; 16]);
+        let (_rx, _est) = map
+            .register_stream(StreamId::random(), Some(StreamPeer::SenderTag(tag)))
+            .await
+            .expect("fresh stream id");
+
+        // Only the dialer pings; the acceptor side stays passive.
+        tokio::time::advance(Duration::from_secs(120)).await;
+        assert!(map
+            .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn same_nonce_is_resent_until_answered() {
+        let map = StreamMap::new();
+        let threshold = 5;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (_rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        // An OpenAck arms the stream, so keepalive will probe it once idle.
+        map.mark_established(&id).await;
+
+        tokio::time::advance(Duration::from_secs(61)).await;
+        map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await;
+        let first = map.inner.lock().await.streams[&id]
+            .outstanding_nonce
+            .expect("ping outstanding");
+
+        // Two more intervals pass unanswered: misses accumulate but the
+        // nonce stays the same, so a pong slower than one interval still
+        // counts as proof of life.
+        for _ in 0..2 {
+            tokio::time::advance(Duration::from_secs(61)).await;
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await;
+        }
+        {
+            let inner = map.inner.lock().await;
+            assert_eq!(inner.streams[&id].outstanding_nonce, Some(first));
+            assert_eq!(inner.streams[&id].missed_pongs, 2);
+        }
+
+        map.on_pong(&id, first).await;
+        let inner = map.inner.lock().await;
+        assert_eq!(inner.streams[&id].missed_pongs, 0);
+        assert!(inner.streams[&id].armed);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn full_channel_defers_ping_without_counting_a_miss() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, mut input_rx) = test_client_input(1);
+        let id = StreamId::random();
+        let (_rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+        // An OpenAck arms the stream, so keepalive will probe it once idle.
+        map.mark_established(&id).await;
+
+        // An application write occupies the capacity-1 input channel.
+        input
+            .input_sender
+            .try_send(InputMessage::new_anonymous(
+                test_recipient(),
+                vec![0],
+                0,
+                TransmissionLane::General,
+                None,
+            ))
+            .expect("channel has capacity");
+
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert!(map
+            .ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+            .await
+            .is_empty());
+        {
+            let inner = map.inner.lock().await;
+            // The nonce is reserved but the ping never left the client,
+            // so nothing counts toward the miss threshold.
+            assert!(inner.streams[&id].outstanding_nonce.is_some());
+            assert!(inner.streams[&id].last_ping_sent.is_none());
+            assert_eq!(inner.streams[&id].missed_pongs, 0);
+        }
+
+        // Channel drains: the next sweep retries without waiting another
+        // full interval, and still counts no miss.
+        input_rx.try_recv().expect("queued application write");
+        assert_eq!(
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .len(),
+            1
+        );
+        assert_eq!(map.inner.lock().await.streams[&id].missed_pongs, 0);
+    }
+
+    #[tokio::test]
+    async fn inbound_data_establishes_without_arming() {
+        let map = StreamMap::new();
+        let id = StreamId::random();
+        let (_rx, established) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
         assert!(!*established.borrow());
 
-        // Data from the peer proves it accepted the stream, so
+        // Data from the peer proves the stream was accepted, so
         // wait_established resolves even if the lone OpenAck was lost.
+        // It proves nothing about the liveness extension, so no arming.
         map.send_to_stream(&id, 0, vec![1]).await;
         assert!(*established.borrow());
+        assert!(!map.inner.lock().await.streams[&id].armed);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn armed_stream_resumes_keepalive_after_data() {
+        let map = StreamMap::new();
+        let threshold = 3;
+        let (input, _input_rx) = test_client_input(8);
+        let id = StreamId::random();
+        let (mut rx, _est) = map
+            .register_stream(id, peer_address())
+            .await
+            .expect("fresh stream id");
+
+        // An OpenAck arms the stream; then trip the threshold through a
+        // transient outage.
+        map.mark_established(&id).await;
+        for _ in 0..4 {
+            tokio::time::advance(Duration::from_secs(61)).await;
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await;
+        }
+        assert!(matches!(
+            rx.recv().await.unwrap(),
+            Err(StreamFailure::PeerUnresponsive)
+        ));
+
+        // The peer shows life again: an armed stream gets keepalive back,
+        // so a later real death is still detected at ping cadence.
+        map.send_to_stream(&id, 0, vec![1]).await;
+        tokio::time::advance(Duration::from_secs(61)).await;
+        assert_eq!(
+            map.ping_sweep(DEFAULT_PING_INTERVAL, threshold, &input, None)
+                .await
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]

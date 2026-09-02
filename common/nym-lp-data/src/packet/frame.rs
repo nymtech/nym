@@ -136,8 +136,13 @@ pub enum SphinxStreamMsgType {
     /// Data on an existing stream.
     Data = 1,
     /// Acknowledges an accepted Open. Sent by the listener side; peers
-    /// without establishment support drop it during parsing.
+    /// without liveness support drop it during parsing.
     OpenAck = 2,
+    /// Keepalive probe. Carries a nonce in the sequence_num field, echoed
+    /// back in the matching Pong.
+    Ping = 3,
+    /// Keepalive response, echoing the Ping's nonce.
+    Pong = 4,
 }
 
 /// Parsed form of the 14-byte `frame_attributes` for `LpFrameKind::SphinxStream`.
@@ -145,7 +150,7 @@ pub enum SphinxStreamMsgType {
 /// Wire layout (big-endian):
 /// ```text
 /// [0..8 ) stream_id    : u64
-/// [8    ) msg_type      : u8   (0 = Open, 1 = Data, 2 = OpenAck)
+/// [8    ) msg_type      : u8   (0 = Open, 1 = Data, 2 = OpenAck, 3 = Ping, 4 = Pong)
 /// [9..13) sequence_num  : u32
 /// [13   ) reserved      : u8
 /// ```
@@ -177,6 +182,8 @@ impl SphinxStreamFrameAttributes {
             0 => SphinxStreamMsgType::Open,
             1 => SphinxStreamMsgType::Data,
             2 => SphinxStreamMsgType::OpenAck,
+            3 => SphinxStreamMsgType::Ping,
+            4 => SphinxStreamMsgType::Pong,
             other => {
                 return Err(MalformedLpPacketError::DeserialisationFailure(format!(
                     "invalid stream msg_type: {other}"
@@ -341,6 +348,8 @@ mod tests {
             SphinxStreamMsgType::Open,
             SphinxStreamMsgType::Data,
             SphinxStreamMsgType::OpenAck,
+            SphinxStreamMsgType::Ping,
+            SphinxStreamMsgType::Pong,
         ] {
             let attrs = SphinxStreamFrameAttributes {
                 stream_id: 0xDEAD_BEEF_CAFE_F00D,
@@ -362,10 +371,21 @@ mod tests {
             sequence_num: 0,
         };
         let mut encoded = attrs.encode();
-        encoded[8] = 3; // first unassigned discriminant
+        encoded[8] = 5; // first unassigned discriminant
         assert!(SphinxStreamFrameAttributes::parse(&encoded).is_err());
         encoded[8] = 0xFF;
         assert!(SphinxStreamFrameAttributes::parse(&encoded).is_err());
+    }
+
+    #[test]
+    fn ping_nonce_rides_in_sequence_num() {
+        let attrs = SphinxStreamFrameAttributes {
+            stream_id: 42,
+            msg_type: SphinxStreamMsgType::Ping,
+            sequence_num: u32::MAX,
+        };
+        let parsed = SphinxStreamFrameAttributes::parse(&attrs.encode()).unwrap();
+        assert_eq!(parsed.sequence_num, u32::MAX);
     }
 
     #[test]

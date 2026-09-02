@@ -30,6 +30,7 @@ members = [
     "common/client-core/surb-storage",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
+    "common/client-libs/nym-lp-gateway-client",
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
@@ -497,6 +498,7 @@ nym-id = { version = "1.21.5", path = "common/nym-id" }
 nym-ip-packet-client = { version = "1.21.5", path = "nym-ip-packet-client" }
 nym-ip-packet-requests = { version = "1.21.5", path = "common/ip-packet-requests" }
 nym-lp = { version = "1.21.5", path = "common/nym-lp" }
+nym-lp-gateway-client = { version = "1.21.5", path = "common/client-libs/nym-lp-gateway-client" }
 nym-lp-data = { version = "1.21.5", path = "common/nym-lp-data" }
 nym-lthash = { version = "1.21.5", path = "common/lthash" }
 nym-kkt = { version = "1.21.5", path = "common/nym-kkt" }

@@ -26,7 +26,7 @@ use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_ip_packet_client::IprClientConnect;
 use nym_ip_packet_requests::{IpPair, codec::MultiIpPacketCodec};
 use nym_lp::peer::DHKeyPair;
-use nym_registration_client::{LpClientError, LpRegistrationClient};
+use nym_registration_client::{LpClientError, LpDvpnRegistrationClient, LpGatewayClient};
 use nym_sdk::NymNetworkDetails;
 use nym_sdk::mixnet::{MixnetClient, MixnetClientBuilder, NodeIdentity, Recipient, Socks5};
 use nym_topology::HardcodedTopologyProvider;
@@ -183,7 +183,7 @@ pub async fn lp_registration_probe(
     let client_x25519_keypair = Arc::new(DHKeyPair::new(&mut rng010));
 
     // Create LP registration client
-    let mut client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+    let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
         client_x25519_keypair,
         peer,
         lp_address,
@@ -192,7 +192,7 @@ pub async fn lp_registration_probe(
     );
 
     // Step 1: Perform handshake (connection is implicit in packet-per-connection model)
-    // LpRegistrationClient uses packet-per-connection model - connect() is gone,
+    // LpGatewayClient uses packet-per-connection model - connect() is gone,
     // connection is established during handshake and registration automatically.
     info!("Performing LP handshake at {lp_address}...");
     let handshake_result =
@@ -224,7 +224,7 @@ pub async fn lp_registration_probe(
     let ticket_type = TicketType::V1WireguardEntry;
     let register_result = tokio::time::timeout(
         Duration::from_secs(15),
-        client.register_dvpn(
+        LpDvpnRegistrationClient::new(&mut client).register(
             &mut rng010,
             &wg_keypair,
             &gateway_identity,

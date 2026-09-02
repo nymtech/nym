@@ -1,11 +1,11 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::error::{LpClientError, Result};
 use nym_authenticator_requests::models::BandwidthClaim;
 use nym_bandwidth_controller::{BandwidthTicketProvider, DEFAULT_TICKETS_TO_SPEND};
 use nym_credentials_interface::{BandwidthCredential, TicketType};
 use nym_crypto::asymmetric::ed25519;
+use nym_lp_gateway_client::{LpClientError, Result};
 use time::{Duration as TimeDuration, OffsetDateTime};
 use tracing::warn;
 
@@ -52,8 +52,8 @@ pub(crate) async fn produce_bandwidth_claim(
                 "Failed to look up the upgrade mode token: {e}",
             ))
         })?
-        .ok_or(LpClientError::NoTicketsAvailable {
-            ticketbook_type: ticket_type,
+        .ok_or_else(|| LpClientError::NoTicketsAvailable {
+            ticketbook_type: ticket_type.to_string(),
         })?;
 
     warn!("out of {ticket_type} tickets - registering with the stored upgrade mode token instead");
@@ -203,7 +203,7 @@ mod tests {
         assert!(matches!(
             err,
             LpClientError::NoTicketsAvailable { ticketbook_type }
-                if ticketbook_type == TicketType::V1WireguardEntry
+                if ticketbook_type == TicketType::V1WireguardEntry.to_string()
         ));
     }
 }

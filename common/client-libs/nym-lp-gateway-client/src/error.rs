@@ -3,7 +3,6 @@
 
 //! Error types for LP (Lewes Protocol) client operations.
 
-use nym_credentials_interface::TicketType;
 use nym_lp::LpError;
 use nym_lp::session::LpAction;
 use nym_lp::transport::LpTransportError;
@@ -53,7 +52,7 @@ pub enum LpClientError {
     ConnectionTimeout,
 
     #[error("No {ticketbook_type} tickets available")]
-    NoTicketsAvailable { ticketbook_type: TicketType },
+    NoTicketsAvailable { ticketbook_type: String },
 
     /// Failed to send registration request
     #[error("Failed to send registration request: {0}")]

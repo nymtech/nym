@@ -42,6 +42,7 @@ import sys
 import tempfile
 import urllib.request
 import urllib.error
+from decimal import Decimal
 from pathlib import Path
 
 NYXD_URL    = "https://rpc.nymtech.net"
@@ -78,11 +79,20 @@ def warn(m): print(f"  {Y}!{NC} {m}")
 
 # ── unit helpers ────────────────────────────────────────────────────────────
 def nym_to_unym(nym) -> int:
-    """NYM (str/float) -> integer unym."""
-    return int(round(float(nym) * UNYM_PER_NYM))
+    """NYM (str/float/Decimal) -> integer unym.
 
-def unym_to_nym(unym) -> float:
-    return float(unym) / UNYM_PER_NYM
+    Uses Decimal (not float) so decimal amounts (including fractional deficits
+    like target - balance) are preserved exactly. Rejects amounts finer than
+    1 unym (more than 6 decimal places) rather than silently rounding them away.
+    """
+    scaled = Decimal(str(nym)) * UNYM_PER_NYM
+    if scaled != scaled.to_integral_value():
+        raise ValueError(f"NYM amount '{nym}' has more than 6 decimal places (sub-unym precision)")
+    return int(scaled.to_integral_value())
+
+def unym_to_nym(unym) -> Decimal:
+    """Integer unym -> NYM as an exact Decimal (never float)."""
+    return Decimal(int(unym)) / UNYM_PER_NYM
 
 
 # ── redaction ───────────────────────────────────────────────────────────────
@@ -224,21 +234,21 @@ def main():
             read_errors += 1
             continue
 
-        # 3. target + deficit
+        # 3. target + deficit (all Decimal — exact, no float noise)
         if args.node_account_amount is not None:
-            target = args.node_account_amount
+            target = Decimal(str(args.node_account_amount))
         else:
             raw_t = (row.get("node_account_amount") or "").strip()
             if not raw_t:
                 warn("no target set (node_account_amount empty and no --node-account-amount); skipping top-up")
                 print(f"    balance: {G}{balance:.6f} NYM{NC}")
                 continue
-            target = float(raw_t)
+            target = Decimal(raw_t)
 
         if balance >= target:
             ok(f"balance {balance:.6f} NYM ≥ target {target:g} NYM — no top-up needed")
         else:
-            deficit = round(target - balance, 6)
+            deficit = target - balance
             warn(f"balance {balance:.6f} NYM < target {target:g} NYM — queue +{deficit:.6f} NYM")
             queued.append((row, address, deficit))
         print()

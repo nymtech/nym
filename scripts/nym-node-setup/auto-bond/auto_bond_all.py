@@ -23,6 +23,7 @@ import json
 import subprocess
 import sys
 import re
+from decimal import Decimal
 from pathlib import Path
 
 NYXD_URL    = "https://rpc.nymtech.net"
@@ -43,8 +44,17 @@ def info(msg): print(f"  {C}→{NC} {msg}")
 
 
 def nym_to_unym(nym) -> str:
-    """NYM (str/float) -> integer unym as a string for the CLI."""
-    return str(int(round(float(nym) * UNYM_PER_NYM)))
+    """NYM (str/float/Decimal) -> integer unym as a string for the CLI.
+
+    Uses Decimal (not float) so decimal CSV amounts are preserved exactly.
+    Rejects amounts finer than 1 unym (more than 6 decimal places) rather than
+    silently rounding them away.
+    """
+    amount = Decimal(str(nym))
+    scaled = amount * UNYM_PER_NYM
+    if scaled != scaled.to_integral_value():
+        raise ValueError(f"NYM amount '{nym}' has more than 6 decimal places (sub-unym precision)")
+    return str(scaled.to_integral_value())
 
 
 def redact_cmd(cmd: list) -> list:

@@ -22,7 +22,10 @@ nym-sphinx-types = { workspace = true }
 nym-sphinx-params = { workspace = true }
 nym-sphinx-framing = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
+nym-sphinx-forwarding = { workspace = true }
+nym-gateway-requests = { workspace = true }
 nym-noise = { workspace = true }
+tokio-tungstenite = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true }

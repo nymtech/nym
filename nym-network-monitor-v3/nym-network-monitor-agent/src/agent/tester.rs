@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::agent::config::{NodeTesterConfig, ProbeProfile};
-use crate::agent::result::{LatencyDistribution, TestRunResult};
+use crate::agent::result::{LatencyDistribution, PacketDelivery, TestRunResult};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::mixnet::egress::EgressConnection;
 use crate::mixnet::inbox::TargetInbox;
@@ -14,9 +14,9 @@ use crate::mixnet::sphinx::test_packet::{TestPacketContent, TestPacketHeader};
 use anyhow::Context;
 use humantime::format_duration;
 use nym_crypto::asymmetric::x25519;
-use nym_network_monitor_orchestrator_requests::models::TestKind;
+use nym_network_monitor_orchestrator_requests::models::{ExercisedInterface, TestKind};
 use nym_noise::config::{NoiseConfig, NoiseNetworkView};
-use nym_sphinx_types::SphinxPacket;
+use nym_sphinx_types::{DestinationAddressBytes, SphinxPacket};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -58,6 +58,13 @@ pub(crate) struct NodeProbe {
     /// The agent's own Noise key pair, used to authenticate the egress connection.
     noise_key: Arc<x25519::KeyPair>,
 
+    /// This agent's client address, carried as every test packet's sphinx destination.
+    ///
+    /// Nothing reads it on this probe's route, whose last hop is the agent itself, but it is the real
+    /// address rather than a placeholder so that the packet builders have one uniform notion of where
+    /// a test payload is addressed. It is the gateway probe that needs it to be genuine.
+    client_address: DestinationAddressBytes,
+
     /// An ephemeral sphinx key pair generated at construction time. Used both to build the
     /// return-route sphinx header (so packets come back to this agent) and to decrypt
     /// returning packets when `reuse_header` is disabled.
@@ -85,12 +92,18 @@ enum ProbeOutcome {
 }
 
 impl NodeProbe {
+    /// The interfaces this probe measures, and therefore the measurements its result is required to
+    /// carry. A mixnode probe exercises the one, whichever kind it runs under.
+    const EXERCISED_INTERFACES: &'static [ExercisedInterface] =
+        &[ExercisedInterface::MixForwarding];
+
     /// Builds a probe of `tested_node` under `profile`, generating a fresh ephemeral sphinx key. If
     /// `config.reuse_header` is set, the sphinx packet header is pre-built here so it can be reused
     /// across all test packets.
     pub(crate) fn new(
         config: NodeTesterConfig,
         kind: TestKind,
+        client_address: DestinationAddressBytes,
         noise_key: Arc<x25519::KeyPair>,
         tested_node: TestedNodeDetails,
     ) -> anyhow::Result<Self> {
@@ -115,7 +128,11 @@ impl NodeProbe {
                 ),
             ];
             let delay = config.packet_delay;
-            Some(create_test_sphinx_packet_header(route, delay)?)
+            Some(create_test_sphinx_packet_header(
+                &route,
+                client_address,
+                delay,
+            )?)
         } else {
             debug!("new sphinx header will be generated for each new test packet");
             None
@@ -127,6 +144,7 @@ impl NodeProbe {
             profile,
             reusable_test_header,
             noise_key,
+            client_address,
             sphinx_key: Arc::new(sphinx_key.into()),
             tested_node,
         })
@@ -213,7 +231,11 @@ impl NodeProbe {
         // started HERE rather than once the connection is up: the result's elapsed time is defined to
         // include establishing the connections, so stamping it any later would quietly drop the
         // egress connect and its handshake out of every run's reported duration
-        let mut result = TestRunResult::new(self.kind, self.config.packet_delay);
+        let mut result = TestRunResult::new(
+            self.kind,
+            self.config.packet_delay,
+            Self::EXERCISED_INTERFACES,
+        );
 
         // 1. establish the egress connection — abort immediately if it fails
         debug!("attempting to establish egress connection to the tested node");
@@ -264,6 +286,14 @@ struct ProbeRun {
     /// rather than created here, because its start time has to predate the egress connection.
     result: TestRunResult,
 
+    /// What this probe's single interface is measuring, mutated as the run proceeds and folded into
+    /// [`Self::result`] by [`finish`](Self::finish).
+    ///
+    /// Held beside the result rather than inside it so the send path can update counters without an
+    /// `Option` lookup per write. The result's seeded slot is what guarantees there is somewhere for
+    /// this to land.
+    measured: PacketDelivery,
+
     /// Monotonically increasing counter embedded in each outgoing packet as its ID. Per RUN rather
     /// than per probe, since ids are only meaningful within the run that issued them.
     packet_counter: u64,
@@ -281,6 +311,7 @@ impl ProbeRun {
             egress,
             inbox,
             result,
+            measured: PacketDelivery::default(),
             packet_counter: 0,
         }
     }
@@ -352,6 +383,7 @@ impl ProbeRun {
             egress,
             inbox,
             mut result,
+            mut measured,
             ..
         } = self;
 
@@ -368,20 +400,23 @@ impl ProbeRun {
                     .ingress_handshake()
                     .context("missing ingress noise duration after completing entire test run!")?;
 
-                result.set_ingress_noise_handshake(ingress_handshake);
-                result.set_egress_connection_statistics(egress.connection_statistics);
+                measured.ingress_noise_handshake = Some(ingress_handshake);
+                measured.set_egress_connection_statistics(egress.connection_statistics);
             }
 
             ProbeOutcome::DeadlineExceeded => {
                 // that invariant does NOT hold for a probe that was cut off part way, so this takes
                 // the handshake if it arrived and says nothing if it did not
                 if let Some(ingress_handshake) = inbox.ingress_handshake() {
-                    result.set_ingress_noise_handshake(ingress_handshake);
+                    measured.ingress_noise_handshake = Some(ingress_handshake);
                 }
-                result.set_egress_connection_statistics(egress.connection_statistics);
+                measured.set_egress_connection_statistics(egress.connection_statistics);
             }
         }
 
+        result
+            .measurements
+            .record(ExercisedInterface::MixForwarding, measured);
         Ok(result)
     }
 
@@ -401,6 +436,7 @@ impl ProbeRun {
                 ];
                 build_test_sphinx_packet(
                     &route,
+                    self.probe.client_address,
                     self.probe.config.packet_delay,
                     None,
                     &content.to_bytes(),
@@ -465,7 +501,7 @@ impl ProbeRun {
         match self.inbox.next_packet().await {
             Ok(res) => {
                 let latency = self.packet_latency(res);
-                self.result.set_approximate_latency(latency);
+                self.measured.approximate_latency = Some(latency);
                 Ok(true)
             }
             Err(err) => {
@@ -544,7 +580,7 @@ impl ProbeRun {
 
             sent += batch_size;
             // update send count after each batch so partial results are visible on early exit
-            self.result.set_packets_sent(sent);
+            self.measured.packets_sent = sent;
         }
 
         if sent < total_packets {
@@ -555,10 +591,10 @@ impl ProbeRun {
         // Report `total_packets` (= expected) rather than `sent` so the orchestrator's
         // `received / sent` score formula effectively becomes `received / expected` -
         // a node that throttled us via TCP back-pressure into not pushing all packets
-        // through is correctly penalised. Per-batch `set_packets_sent(sent)` updates
-        // above remain in place for the `Ok(false)` early-exit (send error) path, so
-        // partial-progress visibility is preserved when the test aborts mid-run.
-        self.result.set_packets_sent(total_packets);
+        // through is correctly penalised. Per-batch `packets_sent` updates above remain
+        // in place for the `Ok(false)` early-exit (send error) path, so partial-progress
+        // visibility is preserved when the test aborts mid-run.
+        self.measured.packets_sent = total_packets;
         Ok(true)
     }
 
@@ -567,7 +603,7 @@ impl ProbeRun {
     async fn collect_test_results(&mut self) {
         // drain whatever arrived immediately, then wait for stragglers
         let mut received = self.inbox.all_available();
-        if received.len() < self.result.packets_sent {
+        if received.len() < self.measured.packets_sent {
             let deadline = sleep(self.probe.profile.waiting_duration);
             pin!(deadline);
             loop {
@@ -575,7 +611,7 @@ impl ProbeRun {
                     _ = &mut deadline => break,
                     next = self.inbox.next_packet() => {
                         received.push(next);
-                        if received.len() >= self.result.packets_sent {
+                        if received.len() >= self.measured.packets_sent {
                             break;
                         }
                     }
@@ -595,7 +631,7 @@ impl ProbeRun {
                     "‼️ received duplicate packet for id {} - something nasty is going on!",
                     packet.id
                 );
-                self.result.set_received_duplicates();
+                self.measured.received_duplicates = true;
             }
         }
 
@@ -605,14 +641,13 @@ impl ProbeRun {
             .collect::<Vec<_>>();
 
         let received_count = valid_received.len();
-        self.result.set_packets_received(received_count);
-        self.result
-            .set_packets_statistics(LatencyDistribution::compute(&latencies));
+        self.measured.packets_received = received_count;
+        self.measured.packets_statistics = Some(LatencyDistribution::compute(&latencies));
 
         debug!(
-            sent = self.result.packets_sent,
+            sent = self.measured.packets_sent,
             received = received_count,
-            recv_pct = format!("{:.1}%", self.result.received_percentage()),
+            recv_pct = format!("{:.1}%", self.measured.received_percentage()),
             "load test complete"
         );
     }

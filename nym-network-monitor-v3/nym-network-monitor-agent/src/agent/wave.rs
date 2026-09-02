@@ -13,6 +13,7 @@ use anyhow::bail;
 use futures::future::join_all;
 use nym_crypto::asymmetric::x25519;
 use nym_network_monitor_orchestrator_requests::models::TestKind;
+use nym_sphinx_types::DestinationAddressBytes;
 use nym_task::ShutdownToken;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -53,9 +54,13 @@ struct WaveProbe {
 }
 
 impl MixnetWave {
+    /// `client_address` is this agent's own, derived once by the caller rather than per probe: it is a
+    /// property of the agent's announced identity rather than of any target, so deriving it inside
+    /// each probe would run the same HKDF once per target of the wave.
     pub(crate) fn new(
         config: NodeTesterConfig,
         kind: TestKind,
+        client_address: DestinationAddressBytes,
         noise_key: Arc<x25519::KeyPair>,
         targets: Vec<TestedNodeDetails>,
     ) -> anyhow::Result<Self> {
@@ -68,7 +73,7 @@ impl MixnetWave {
         let probes = targets
             .into_iter()
             .map(|node| {
-                let probe = NodeProbe::new(config, kind, noise_key.clone(), node)?;
+                let probe = NodeProbe::new(config, kind, client_address, noise_key.clone(), node)?;
                 let inbox = probe.build_inbox();
                 Ok(WaveProbe { probe, inbox })
             })

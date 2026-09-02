@@ -3,7 +3,7 @@
 
 use super::env::vars::*;
 use crate::agent::config::NodeTesterConfig;
-use crate::agent::helpers::load_noise_key;
+use crate::agent::helpers::{derive_client_identity, load_noise_key};
 use crate::agent::tested_node::TestedNodeDetails;
 use crate::agent::wave::MixnetWave;
 use crate::cli::common::CommonArgs;
@@ -71,10 +71,20 @@ impl Args {
     /// A manual run always applies the STRESS kind: this command exists to exercise one node hard,
     /// and the liveness profile only makes sense against a wave the orchestrator handed out.
     pub(crate) fn build_wave(&self) -> anyhow::Result<MixnetWave> {
+        let noise_key = load_noise_key(&self.common_args.noise_key_path)?;
+
+        // derived exactly as the agent proper does, so a manual run's packets are addressed the same
+        // way. nothing on this route reads the destination, but there is no second notion of where a
+        // test payload is addressed
+        let client_address = derive_client_identity(&noise_key)?
+            .public_key()
+            .derive_destination_address();
+
         MixnetWave::new(
             self.build_tester_config()?,
             TestKind::Stress,
-            load_noise_key(&self.common_args.noise_key_path)?,
+            client_address,
+            noise_key,
             vec![self.build_tested_node_details()],
         )
     }

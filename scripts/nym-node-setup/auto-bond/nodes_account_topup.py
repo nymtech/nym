@@ -161,7 +161,7 @@ def fetch_node_address(ip: str, dry_run: bool) -> str:
     url = f"http://{ip}:{NODE_HTTP_PORT}{AUX_DETAILS_PATH}"
     if dry_run:
         return "DRY_RUN_ADDRESS"
-    req = urllib.request.Request(url, headers={"User-Agent": "nym-topup/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "nodes_account_topup/1.0"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     addr = data.get("address")
@@ -180,7 +180,7 @@ def fetch_balance_nym(address: str, dry_run: bool) -> Decimal:
     for base in LCD_ENDPOINTS:
         url = base.rstrip("/") + LCD_BALANCE_PATH.format(address=address)
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "nym-topup/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "nodes_account_topup/1.0"})
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             unym = 0

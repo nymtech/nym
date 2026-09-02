@@ -32,14 +32,21 @@ UNYM_PER_NYM     = 1_000_000
 AUX_DETAILS_PATH = "/api/v2/auxiliary-details"
 NODE_HTTP_PORT   = 8080
 
+# Public Cosmos LCD (REST) endpoints — balances are read over plain HTTP from
+# the chain, so this tool needs no nym-cli binary at all. Tried in order.
 LCD_ENDPOINTS = [
     "https://api.nymtech.net",
     "https://api.nyx.nodes.guru",
 ]
 LCD_BALANCE_PATH = "/cosmos/bank/v1beta1/balances/{address}"
 
-G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
-C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
+G  = "\033[0;32m"
+R  = "\033[0;31m"
+Y  = "\033[0;33m"
+C  = "\033[0;36m"
+W  = "\033[1;37m"
+D  = "\033[2;37m"
+NC = "\033[0m"
 
 
 def parse_args():
@@ -51,10 +58,15 @@ def parse_args():
 
 
 
+DRY_RUN = object()   # sentinel: balance not queried because --dry-run is set
+
+
 def balance_nym(address: str, dry_run: bool):
-    """Return NYM balance as float (read over HTTP from the chain LCD), or None on error."""
+    """Return NYM balance as float, None on error, or the DRY_RUN sentinel when
+    --dry-run is set (so callers can exclude it from totals/warnings rather than
+    treating it as a real 0.0 balance)."""
     if dry_run:
-        return 0.0
+        return DRY_RUN
     if not address:
         return None
     for base in LCD_ENDPOINTS:
@@ -92,6 +104,8 @@ def node_address(row: dict, ip: str, dry_run: bool):
 
 
 def fmt(val):
+    if val is DRY_RUN:
+        return f"{D}—{NC}"
     if val is None:
         return f"{R}ERR{NC}"
     return f"{G}{val:.6f}{NC}"
@@ -132,11 +146,13 @@ def main():
         bond_bal = balance_nym(bond_addr, args.dry_run)
         node_bal = balance_nym(node_addr, args.dry_run)
 
+        # a DRY_RUN sentinel means "not queried" — never counts as an error,
+        # a total, or a low balance. Only real errors (None) and real numbers do.
         if bond_bal is None or node_bal is None:
             errors += 1
-        if bond_bal is not None:
+        if isinstance(bond_bal, (int, float)):
             total_bond += bond_bal
-        if node_bal is not None:
+        if isinstance(node_bal, (int, float)):
             total_node += node_bal
             if node_bal < 1.0:
                 low_node.append((hostname, node_bal))
@@ -144,14 +160,17 @@ def main():
         print(f"  {C}{hostname:<34}{NC} {fmt(bond_bal):>25} {fmt(node_bal):>25}")
 
     print(f"  {D}{'─'*70}{NC}")
-    print(f"  {W}Totals:{NC}  bonding {G}{total_bond:,.6f} NYM{NC}   node {G}{total_node:,.6f} NYM{NC}")
-    print(f"  {W}Nodes: {G}{len(rows) - errors} OK{NC}  {R}{errors} errors{NC}")
+    if args.dry_run:
+        print(f"  {D}(dry run — balances not queried){NC}")
+    else:
+        print(f"  {W}Totals:{NC}  bonding {G}{total_bond:,.6f} NYM{NC}   node {G}{total_node:,.6f} NYM{NC}")
+        print(f"  {W}Nodes: {G}{len(rows) - errors} OK{NC}  {R}{errors} errors{NC}")
 
     if low_node:
         print(f"\n  {Y}{W}⚠ {len(low_node)} node account(s) below 1 NYM (20% config-score penalty risk):{NC}")
         for h, b in low_node:
             print(f"    {Y}!{NC} {C}{h}{NC}  {Y}{b:.6f} NYM{NC}")
-        print(f"  {D}run topup_nodes.py to fund them.{NC}")
+        print(f"  {D}run nodes_account_topup.py to fund them.{NC}")
 
     print()
     if errors:

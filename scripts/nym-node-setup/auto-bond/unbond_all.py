@@ -20,8 +20,13 @@ from pathlib import Path
 NYXD_URL = "https://rpc.nymtech.net"
 
 # ── Colors ──
-G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
-C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
+G  = "\033[0;32m"
+R  = "\033[0;31m"
+Y  = "\033[0;33m"
+C  = "\033[0;36m"
+W  = "\033[1;37m"
+D  = "\033[2;37m"
+NC = "\033[0m"
 
 
 def parse_args():

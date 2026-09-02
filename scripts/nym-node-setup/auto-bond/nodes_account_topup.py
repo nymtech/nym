@@ -22,8 +22,8 @@ ALL AMOUNTS IN THE CSV AND FLAGS ARE IN NYM. nym-cli speaks unym internally
 (1 NYM = 1_000_000 unym); conversion happens here.
 
 Usage:
-  python3 topup_nodes.py nodes.csv --mnemonic "word1 word2 ..." [options]
-  MNEMONIC="word1 ..." python3 topup_nodes.py nodes.csv [options]
+  python3 nodes_account_topup.py nodes.csv --mnemonic "word1 word2 ..." [options]
+  MNEMONIC="word1 ..." python3 nodes_account_topup.py nodes.csv [options]
 
 Options:
   --node-account-amount N   Target balance in NYM for every node
@@ -68,13 +68,28 @@ AUX_DETAILS_PATH = "/api/v2/auxiliary-details"
 NODE_HTTP_PORT   = 8080
 
 # ── Colors ──
-G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
-C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
+G  = "\033[0;32m"
+R  = "\033[0;31m"
+Y  = "\033[0;33m"
+C  = "\033[0;36m"
+W  = "\033[1;37m"
+D  = "\033[2;37m"
+NC = "\033[0m"
 
-def ok(m):   print(f"  {G}✓{NC} {m}")
-def err(m):  print(f"  {R}✗{NC} {m}")
-def info(m): print(f"  {C}→{NC} {m}")
-def warn(m): print(f"  {Y}!{NC} {m}")
+def ok(m):
+    print(f"  {G}✓{NC} {m}")
+
+
+def err(m):
+    print(f"  {R}✗{NC} {m}")
+
+
+def info(m):
+    print(f"  {C}→{NC} {m}")
+
+
+def warn(m):
+    print(f"  {Y}!{NC} {m}")
 
 
 # ── unit helpers ────────────────────────────────────────────────────────────
@@ -102,7 +117,9 @@ def redact_cmd(cmd: list) -> list:
     out, hide = [], False
     for tok in map(str, cmd):
         if hide:
-            out.append("***REDACTED***"); hide = False; continue
+            out.append("***REDACTED***")
+            hide = False
+            continue
         out.append(tok)
         if tok in SENSITIVE_FLAGS:
             hide = True
@@ -154,11 +171,11 @@ def fetch_node_address(ip: str, dry_run: bool) -> str:
 
 
 # ── balance from the public Cosmos LCD (no nym-cli needed) ──────────────────
-def fetch_balance_nym(address: str, dry_run: bool) -> float:
-    """Return the account's NYM balance as a float, read over HTTP from the
+def fetch_balance_nym(address: str, dry_run: bool) -> Decimal:
+    """Return the account's NYM balance as a Decimal, read over HTTP from the
     chain's LCD. Tries each LCD endpoint until one answers."""
     if dry_run:
-        return 0.0
+        return Decimal("0")
     last_err = None
     for base in LCD_ENDPOINTS:
         url = base.rstrip("/") + LCD_BALANCE_PATH.format(address=address)
@@ -211,7 +228,9 @@ def main():
         print(f"{W}[{i}/{len(rows)}]{NC} {C}{hostname}{NC}  {D}({ip}){NC}")
 
         if not ip:
-            err("missing ip"); read_errors += 1; continue
+            err("missing ip")
+            read_errors += 1
+            continue
 
         # 1. address
         try:
@@ -301,8 +320,10 @@ def main():
     # Remove any stale log from a previous run so that, after this run, the
     # log's presence/size genuinely reflects whether THIS send produced output.
     if not args.dry_run:
-        try: log_csv.unlink()
-        except OSError: pass
+        try:
+            log_csv.unlink()
+        except OSError:
+            pass
 
     cmd = [
         str(nym_cli), "account", "send-multiple",
@@ -363,8 +384,10 @@ def main():
                 err("error reported in nym-cli output (see above)")
             if not log_ok:
                 err(f"output log missing or empty: {log_csv}")
-            try: input_csv.unlink()
-            except OSError: pass
+            try:
+                input_csv.unlink()
+            except OSError:
+                pass
             _summary(rows, read_errors, topped=0)
             sys.exit(1)
 
@@ -379,8 +402,10 @@ def main():
         _write_csv()
         info(f"updated {args.csv_file} with post-transfer balances")
 
-    try: input_csv.unlink()
-    except OSError: pass
+    try:
+        input_csv.unlink()
+    except OSError:
+        pass
 
     _summary(rows, read_errors, topped)
 

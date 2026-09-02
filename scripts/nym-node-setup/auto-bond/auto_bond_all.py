@@ -32,15 +32,27 @@ NYM_API_URL = "https://validator.nymtech.net/api"
 UNYM_PER_NYM = 1_000_000
 
 # ── Colors ──
-G  = "\033[0;32m"; R = "\033[0;31m"; Y = "\033[0;33m"
-C  = "\033[0;36m"; W = "\033[1;37m"; D = "\033[2;37m"; NC = "\033[0m"
+G  = "\033[0;32m"
+R  = "\033[0;31m"
+Y  = "\033[0;33m"
+C  = "\033[0;36m"
+W  = "\033[1;37m"
+D  = "\033[2;37m"
+NC = "\033[0m"
 
 SENSITIVE_FLAGS = {"--mnemonic", "--signature"}
 
 
-def ok(msg):   print(f"  {G}✓{NC} {msg}")
-def err(msg):  print(f"  {R}✗{NC} {msg}")
-def info(msg): print(f"  {C}→{NC} {msg}")
+def ok(msg):
+    print(f"  {G}✓{NC} {msg}")
+
+
+def err(msg):
+    print(f"  {R}✗{NC} {msg}")
+
+
+def info(msg):
+    print(f"  {C}→{NC} {msg}")
 
 
 def nym_to_unym(nym) -> str:
@@ -61,7 +73,9 @@ def redact_cmd(cmd: list) -> list:
     redacted, hide_next = [], False
     for token in map(str, cmd):
         if hide_next:
-            redacted.append("***REDACTED***"); hide_next = False; continue
+            redacted.append("***REDACTED***")
+            hide_next = False
+            continue
         redacted.append(token)
         if token in SENSITIVE_FLAGS:
             hide_next = True
@@ -88,9 +102,12 @@ def resolve_paths(args):
     inventory  = ansible_repo / "inventory" / "all"
 
     errors = []
-    if not nym_cli.exists():    errors.append(f"nym-cli not found at: {nym_cli}")
-    if not ansible_pb.exists(): errors.append(f"auto-bond.yml not found at: {ansible_pb}")
-    if not inventory.exists():  errors.append(f"inventory not found at: {inventory}")
+    if not nym_cli.exists():
+        errors.append(f"nym-cli not found at: {nym_cli}")
+    if not ansible_pb.exists():
+        errors.append(f"auto-bond.yml not found at: {ansible_pb}")
+    if not inventory.exists():
+        errors.append(f"inventory not found at: {inventory}")
     if errors and not args.dry_run:
         for e in errors:
             err(e)
@@ -105,8 +122,10 @@ def run(cmd: list, dry_run: bool, capture=True, cwd=None) -> subprocess.Complete
         return subprocess.CompletedProcess(cmd, 0, stdout='{"dry_run": true}', stderr="")
     result = subprocess.run(cmd, capture_output=capture, text=True, cwd=cwd)
     if result.returncode != 0:
-        if result.stdout: print(result.stdout)
-        if result.stderr: print(f"{R}{result.stderr}{NC}")
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(f"{R}{result.stderr}{NC}")
         result.check_returncode()
     return result
 

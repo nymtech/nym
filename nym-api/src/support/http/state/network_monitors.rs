@@ -13,31 +13,66 @@ use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tracing::{error, warn};
 
-/// Per-orchestrator high-water mark of accepted submission timestamps, kept in-memory to provide
-/// replay protection for the stress-test submission endpoint.
+/// Per-orchestrator high-water marks of accepted submission timestamps, kept in-memory to provide
+/// replay protection for the batch submission endpoints.
+///
+/// One map PER ENDPOINT, never one shared map. A single orchestrator identity signs every stream
+/// it submits, and an endpoint rejects any batch whose timestamp is not strictly greater than that
+/// signer's last accepted one, so two streams sharing one mark would reject each other
+/// indefinitely - whichever posted second would always look replayed.
+///
+/// Held in memory only, so every mark resets to the process-online time on restart. The database
+/// primary key is what actually guarantees idempotency; this only bounds replay within one process
+/// lifetime.
 #[derive(Clone)]
 pub(crate) struct LastNMSubmissions {
-    pub(crate) submissions: Arc<RwLock<HashMap<ed25519::PublicKey, OffsetDateTime>>>,
+    stress: Arc<RwLock<HashMap<ed25519::PublicKey, OffsetDateTime>>>,
+    liveness: Arc<RwLock<HashMap<ed25519::PublicKey, OffsetDateTime>>>,
 }
 
 impl LastNMSubmissions {
     pub(crate) fn new() -> LastNMSubmissions {
         LastNMSubmissions {
-            submissions: Arc::new(Default::default()),
+            stress: Arc::new(Default::default()),
+            liveness: Arc::new(Default::default()),
         }
     }
 
-    /// Last accepted submission timestamp for particular network monitor
-    pub(crate) async fn submitted(&self, nm: ed25519::PublicKey) -> Option<OffsetDateTime> {
-        self.submissions.read().await.get(&nm).copied()
+    /// Last accepted STRESS submission timestamp for a particular network monitor.
+    pub(crate) async fn stress_submitted(&self, nm: ed25519::PublicKey) -> Option<OffsetDateTime> {
+        self.stress.read().await.get(&nm).copied()
     }
 
-    /// Record `timestamp` as the most recent accepted submission for `nm`.
+    /// Record `timestamp` as `nm`'s most recent accepted STRESS submission.
     ///
     /// Callers are responsible for ensuring `timestamp` passes the monotonicity check against
-    /// [`submitted`][Self::submitted] before calling this.
-    pub(crate) async fn set_submitted(&self, nm: ed25519::PublicKey, timestamp: OffsetDateTime) {
-        self.submissions.write().await.insert(nm, timestamp);
+    /// [`stress_submitted`][Self::stress_submitted] before calling this.
+    pub(crate) async fn set_stress_submitted(
+        &self,
+        nm: ed25519::PublicKey,
+        timestamp: OffsetDateTime,
+    ) {
+        self.stress.write().await.insert(nm, timestamp);
+    }
+
+    /// Last accepted LIVENESS submission timestamp for a particular network monitor.
+    pub(crate) async fn liveness_submitted(
+        &self,
+        nm: ed25519::PublicKey,
+    ) -> Option<OffsetDateTime> {
+        self.liveness.read().await.get(&nm).copied()
+    }
+
+    /// Record `timestamp` as `nm`'s most recent accepted LIVENESS submission.
+    ///
+    /// Callers are responsible for ensuring `timestamp` passes the monotonicity check against
+    /// [`liveness_submitted`][Self::liveness_submitted] before calling this.
+    pub(crate) async fn set_liveness_submitted(
+        &self,
+        nm: ed25519::PublicKey,
+        timestamp: OffsetDateTime,
+    ) {
+        self.liveness.write().await.insert(nm, timestamp);
     }
 }
 
@@ -111,4 +146,65 @@ async fn refresh(client: &Client) -> Result<KnownNetworkMonitors, NyxdError> {
     Ok(KnownNetworkMonitors {
         known: updated_monitors,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::rngs::OsRng;
+    use time::macros::datetime;
+
+    fn monitor() -> ed25519::PublicKey {
+        *ed25519::KeyPair::new(&mut OsRng).public_key()
+    }
+
+    /// The whole point of keeping a map per endpoint. Two decoys, one per component of what makes
+    /// a mark distinct: the OTHER stream for the same signer, and the SAME stream for another
+    /// signer. Without both, a lookup that ignored one of them would still pass.
+    #[tokio::test]
+    async fn a_mark_set_on_one_stream_is_invisible_to_the_other_and_to_other_signers() {
+        let submissions = LastNMSubmissions::new();
+        let (orchestrator, other_orchestrator) = (monitor(), monitor());
+        let timestamp = datetime!(2026-09-03 12:00:00 UTC);
+
+        submissions
+            .set_stress_submitted(orchestrator, timestamp)
+            .await;
+
+        assert_eq!(
+            submissions.stress_submitted(orchestrator).await,
+            Some(timestamp)
+        );
+        // decoy 1: the other stream for this signer
+        assert_eq!(submissions.liveness_submitted(orchestrator).await, None);
+        // decoy 2: this stream for another signer
+        assert_eq!(submissions.stress_submitted(other_orchestrator).await, None);
+    }
+
+    /// The failure this scoping exists to prevent: one orchestrator signs both streams, so with a
+    /// shared mark the stream that posted second would look replayed forever. An out-of-order
+    /// liveness timestamp must neither be gated by the stress mark nor move it.
+    #[tokio::test]
+    async fn interleaved_streams_from_one_signer_keep_independent_marks() {
+        let submissions = LastNMSubmissions::new();
+        let orchestrator = monitor();
+        let later = datetime!(2026-09-03 12:00:00 UTC);
+        let earlier = datetime!(2026-09-03 11:00:00 UTC);
+
+        submissions.set_stress_submitted(orchestrator, later).await;
+        submissions
+            .set_liveness_submitted(orchestrator, earlier)
+            .await;
+
+        // each stream reads back its own timestamp, and the earlier liveness one did not clobber
+        // the later stress one
+        assert_eq!(
+            submissions.stress_submitted(orchestrator).await,
+            Some(later)
+        );
+        assert_eq!(
+            submissions.liveness_submitted(orchestrator).await,
+            Some(earlier)
+        );
+    }
 }

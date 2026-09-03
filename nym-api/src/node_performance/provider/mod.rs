@@ -4,7 +4,7 @@
 use crate::node_performance::provider::contract_provider::ContractPerformanceProvider;
 use async_trait::async_trait;
 use legacy_storage_provider::LegacyStoragePerformanceProvider;
-use nym_api_requests::models::{RoutingScore, StressTestingScore};
+use nym_api_requests::models::{LivenessScore, RoutingScore, StressTestingScore};
 use nym_mixnet_contract_common::{EpochId, NodeId};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -55,6 +55,38 @@ impl NodesStressTestingScores {
     /// Note: nodes that were tested but found unreachable (`was_reachable=false`) intentionally
     /// do **not** count here. Counting them would let a single recently-rebooted orchestrator
     /// pass the threshold while every node it touched still scored 0.
+    pub(crate) fn available_count(&self) -> usize {
+        self.inner
+            .iter()
+            .filter(|(_, v)| match v {
+                Ok(score) => score.was_reachable,
+                Err(_) => false,
+            })
+            .count()
+    }
+}
+
+pub(crate) struct NodesLivenessScores {
+    inner: HashMap<NodeId, Result<LivenessScore, PerformanceRetrievalFailure>>,
+}
+
+impl NodesLivenessScores {
+    pub(crate) fn get_or_log(&self, node_id: NodeId) -> LivenessScore {
+        match self.inner.get(&node_id) {
+            Some(Ok(score)) => *score,
+            Some(Err(err)) => {
+                debug!("{err}");
+                LivenessScore::unreachable()
+            }
+            None => LivenessScore::unreachable(),
+        }
+    }
+
+    /// Number of nodes for which the orchestrators have produced at least one reachable liveness
+    /// sample in the configured window, on the same reasoning as
+    /// [`NodesStressTestingScores::available_count`]: a node that was probed and found unreachable
+    /// must not count towards availability, or one freshly-restarted orchestrator could clear the
+    /// threshold while every node it touched still scored zero.
     pub(crate) fn available_count(&self) -> usize {
         self.inner
             .iter()
@@ -119,6 +151,21 @@ pub(crate) trait NodePerformanceProvider {
         node_ids: &[NodeId],
         epoch_id: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure>;
+
+    /// Obtain a liveness score of a particular node for given epoch
+    #[allow(unused)]
+    async fn get_node_liveness_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<LivenessScore, PerformanceRetrievalFailure>;
+
+    /// An optimisation for obtaining node scores of multiple nodes at once
+    async fn get_batch_node_liveness_scores(
+        &self,
+        node_ids: &[NodeId],
+        epoch_id: EpochId,
+    ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure>;
 }
 
 #[async_trait]
@@ -163,6 +210,32 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
             node_id: 0,
             epoch_id,
             error: "stress testing data not available in contract data".to_string(),
+        })
+    }
+
+    async fn get_node_liveness_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<LivenessScore, PerformanceRetrievalFailure> {
+        error!("liveness data not available in contract data");
+        Err(PerformanceRetrievalFailure {
+            node_id,
+            epoch_id,
+            error: "liveness data not available in contract data".to_string(),
+        })
+    }
+
+    async fn get_batch_node_liveness_scores(
+        &self,
+        _: &[NodeId],
+        epoch_id: EpochId,
+    ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure> {
+        error!("liveness data not available in contract data");
+        Err(PerformanceRetrievalFailure {
+            node_id: 0,
+            epoch_id,
+            error: "liveness data not available in contract data".to_string(),
         })
     }
 }
@@ -213,5 +286,22 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
         self.get_node_stress_testing_scores(node_ids, epoch_id)
             .await
+    }
+
+    #[allow(unused)]
+    async fn get_node_liveness_score(
+        &self,
+        node_id: NodeId,
+        epoch_id: EpochId,
+    ) -> Result<LivenessScore, PerformanceRetrievalFailure> {
+        self.node_liveness_score(node_id, epoch_id).await
+    }
+
+    async fn get_batch_node_liveness_scores(
+        &self,
+        node_ids: &[NodeId],
+        epoch_id: EpochId,
+    ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure> {
+        self.get_node_liveness_scores(node_ids, epoch_id).await
     }
 }

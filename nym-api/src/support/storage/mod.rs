@@ -12,8 +12,8 @@ use crate::storage::manager::StorageManager;
 use crate::storage::models::TestingRoute;
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
-    NymNodeLivenessResult, NymNodeStressTestingResult, RetrievedAverageStressTestResult,
-    TestedGatewayStatus, TestedMixnodeStatus,
+    NymNodeLivenessResult, NymNodeStressTestingResult, RetrievedAverageLivenessResult,
+    RetrievedAverageStressTestResult, TestedGatewayStatus, TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
@@ -261,6 +261,20 @@ impl NymApiStorage {
         Ok(self
             .manager
             .get_average_node_stress_test_score(node_id as i64, start_ts, end_ts)
+            .await?)
+    }
+
+    /// Rolling average liveness score for one node over the given window, or `None` if it produced
+    /// no liveness sample in it at all.
+    pub(crate) async fn get_average_node_liveness_score(
+        &self,
+        node_id: NodeId,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<Option<RetrievedAverageLivenessResult>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_average_node_liveness_score(node_id as i64, start_ts, end_ts)
             .await?)
     }
 
@@ -1071,5 +1085,131 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(stored, 0);
+    }
+
+    /// A scored row for the aggregation tests. `test_timestamp` doubles as what makes each row a
+    /// distinct measurement, so varying it is enough to store several for one node.
+    fn scored_row(
+        node_id: NodeId,
+        test_timestamp: OffsetDateTime,
+        result: f64,
+        was_reachable: bool,
+    ) -> NymNodeLivenessResult {
+        NymNodeLivenessResult {
+            testrun_id: 1,
+            submitter_pubkey: "orchestrator-a".to_string(),
+            node_id,
+            result,
+            was_reachable,
+            test_timestamp,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_node_with_no_samples_in_the_window_aggregates_to_nothing() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let (start, end) = (
+            datetime!(2026-09-03 00:00:00 UTC),
+            datetime!(2026-09-04 00:00:00 UTC),
+        );
+
+        // a never-tested node
+        assert!(storage
+            .get_average_node_liveness_score(42, start, end)
+            .await
+            .unwrap()
+            .is_none());
+
+        // and a node whose only sample sits outside the window: still nothing, which is what
+        // distinguishes "no data" from "tested and scored zero" one layer up
+        storage
+            .insert_nym_node_liveness_results(vec![scored_row(
+                42,
+                datetime!(2026-09-02 12:00:00 UTC),
+                1.0,
+                true,
+            )])
+            .await
+            .unwrap();
+
+        assert!(storage
+            .get_average_node_liveness_score(42, start, end)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    /// The average is over the window only, and `was_reachable` is `MAX`, i.e. true if ANY sample
+    /// reached the node. The decoy is a second node, so a missing `node_id` predicate would blend
+    /// the two populations and fail here.
+    #[tokio::test]
+    async fn liveness_samples_average_within_the_window_and_reachability_is_any() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let (start, end) = (
+            datetime!(2026-09-03 00:00:00 UTC),
+            datetime!(2026-09-04 00:00:00 UTC),
+        );
+
+        storage
+            .insert_nym_node_liveness_results(vec![
+                // in window: 1.0 and 0.0 average to 0.5, and only the first reached the node
+                scored_row(42, datetime!(2026-09-03 01:00:00 UTC), 1.0, true),
+                scored_row(42, datetime!(2026-09-03 02:00:00 UTC), 0.0, false),
+                // out of window: would drag the average to 0.5 if it were counted
+                scored_row(42, datetime!(2026-09-05 01:00:00 UTC), 0.0, false),
+                // another node entirely
+                scored_row(7, datetime!(2026-09-03 01:00:00 UTC), 0.25, true),
+            ])
+            .await
+            .unwrap();
+
+        let aggregated = storage
+            .get_average_node_liveness_score(42, start, end)
+            .await
+            .unwrap()
+            .expect("the node has samples in the window");
+
+        assert_eq!(aggregated.node_id, 42);
+        assert_eq!(aggregated.result, 0.5);
+        assert!(
+            aggregated.was_reachable,
+            "one reachable sample makes the window reachable"
+        );
+
+        // the other node aggregates independently
+        let other = storage
+            .get_average_node_liveness_score(7, start, end)
+            .await
+            .unwrap()
+            .expect("the other node has a sample too");
+        assert_eq!(other.result, 0.25);
+    }
+
+    /// A node probed only while unreachable scores a real zero with the flag false, which is the
+    /// pair the availability gate reads: it must not count towards the threshold.
+    #[tokio::test]
+    async fn a_uniformly_unreachable_node_aggregates_to_zero_and_false() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let (start, end) = (
+            datetime!(2026-09-03 00:00:00 UTC),
+            datetime!(2026-09-04 00:00:00 UTC),
+        );
+
+        storage
+            .insert_nym_node_liveness_results(vec![
+                scored_row(42, datetime!(2026-09-03 01:00:00 UTC), 0.0, false),
+                scored_row(42, datetime!(2026-09-03 02:00:00 UTC), 0.0, false),
+            ])
+            .await
+            .unwrap();
+
+        let aggregated = storage
+            .get_average_node_liveness_score(42, start, end)
+            .await
+            .unwrap()
+            .expect("the node was probed");
+
+        assert_eq!(aggregated.result, 0.0);
+        assert!(!aggregated.was_reachable);
     }
 }

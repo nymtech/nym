@@ -94,6 +94,10 @@ const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(2
 const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.2;
 const DEFAULT_CHAIN_INTERACTIONS_PENALTY: f64 = 0.2;
 
+// matches the stress window for now: liveness probes are low-volume, so a day of samples is what
+// makes a single lossy run distinguishable from a persistently broken node
+const DEFAULT_LIVENESS_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -553,6 +557,12 @@ pub struct PerformanceProviderDebug {
     /// Specifies the duration of the rolling average used for stress testing score.
     #[serde(with = "humantime_serde")]
     pub stress_testing_data_period: Duration,
+
+    /// Specifies the duration of the rolling average used for the liveness score.
+    /// Kept separate from `stress_testing_data_period` because the two kinds are probed on their
+    /// own cadences, so one window length need not suit both.
+    #[serde(with = "humantime_serde")]
+    pub liveness_data_period: Duration,
 }
 
 impl PerformanceProviderDebug {
@@ -587,6 +597,7 @@ impl Default for PerformanceProviderDebug {
             stress_testing_score_weight: DEFAULT_STRESS_TESTING_SCORE_WEIGHT,
             chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
+            liveness_data_period: DEFAULT_LIVENESS_DATA_INTERVAL,
         }
     }
 }

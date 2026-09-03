@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_api_requests::models::v3::{LivenessTestResult, StressTestResult};
-use nym_api_requests::models::{StressTestingScore, TestNode};
+use nym_api_requests::models::{LivenessScore, StressTestingScore, TestNode};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::NodeId;
 use sqlx::FromRow;
@@ -220,6 +220,22 @@ pub struct RetrievedAverageStressTestResult {
 impl From<RetrievedAverageStressTestResult> for StressTestingScore {
     fn from(value: RetrievedAverageStressTestResult) -> Self {
         StressTestingScore {
+            score: value.result,
+            was_reachable: value.was_reachable,
+        }
+    }
+}
+
+#[derive(FromRow)]
+pub struct RetrievedAverageLivenessResult {
+    pub node_id: NodeId,
+    pub result: f64,
+    pub was_reachable: bool,
+}
+
+impl From<RetrievedAverageLivenessResult> for LivenessScore {
+    fn from(value: RetrievedAverageLivenessResult) -> Self {
+        LivenessScore {
             score: value.result,
             was_reachable: value.was_reachable,
         }

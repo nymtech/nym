@@ -102,6 +102,9 @@ minimum_available_stress_testing_results = {{ performance_provider.debug.minimum
 # Specifies the duration of the rolling average used for stress testing score.
 stress_testing_data_period = '{{ performance_provider.debug.stress_testing_data_period }}'
 
+# Specifies the duration of the rolling average used for the liveness score.
+liveness_data_period = '{{ performance_provider.debug.liveness_data_period }}'
+
 ##### rewarding config options #####
 
 [rewarding]

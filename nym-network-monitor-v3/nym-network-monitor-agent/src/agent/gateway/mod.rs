@@ -722,3 +722,93 @@ fn summarise(measured: &mut PacketDelivery, received: Vec<Measured>) {
         "phase complete"
     );
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+    use nym_network_monitor_orchestrator_requests::models as api;
+    use nym_test_utils::helpers::deterministic_rng;
+
+    /// A gateway at an address nothing is listening on.
+    ///
+    /// Port 1 on loopback refuses immediately rather than hanging, so this exercises the failure
+    /// without waiting out a timeout and without binding anything of its own.
+    fn unreachable_gateway() -> TestedGatewayDetails {
+        let mut rng = deterministic_rng();
+
+        TestedGatewayDetails {
+            mixnet: TestedNodeDetails::new_test(
+                "127.0.0.1:1".parse().expect("bad test address"),
+                &["127.0.0.1".parse().expect("bad test ip")],
+            ),
+            identity: *ed25519::KeyPair::new(&mut rng).public_key(),
+            clients_ws_port: 1,
+        }
+    }
+
+    fn probe(target: TestedGatewayDetails) -> GatewayMixnetLivenessProbe {
+        let mut rng = deterministic_rng();
+
+        GatewayMixnetLivenessProbe::new(
+            NodeTesterConfig::new_test(),
+            Arc::new(ed25519::KeyPair::new(&mut rng)),
+            Arc::new(x25519::KeyPair::new(&mut rng)),
+            target,
+        )
+        .expect("failed to build the probe")
+    }
+
+    // failing to establish the session is the ONE failure that zeroes both measurements, and it must
+    // still produce a submittable result: an `Err` here would leave the target unreported, so the
+    // orchestrator would hold its lease and the gateway would keep its turn instead of being scored
+    #[tokio::test]
+    async fn a_session_that_cannot_be_established_yields_two_zeroed_measurements() {
+        let probe = probe(unreachable_gateway());
+        let ingest_inbox = probe.build_ingest_inbox();
+
+        let result = probe
+            .run(ingest_inbox, None, ShutdownToken::new())
+            .await
+            .expect("a gateway that would not take a session was reported as our own failure");
+
+        // run-level, because it is the whole run that could not happen. this is what the orchestrator
+        // reads `was_reachable` off
+        assert!(result.error.is_some(), "{result:#?}");
+
+        let wire: api::TestRunResult = result.into();
+        assert_eq!(wire.measurements.len(), 2);
+        assert!(
+            wire.measurements
+                .iter()
+                .all(|measurement| measurement.received_ratio() == 0.0),
+            "{:#?}",
+            wire.measurements
+        );
+    }
+
+    // the two interfaces are fixed by the kind rather than by what a run managed to measure, so even
+    // a run that never reached the gateway reports them both, in a stable order
+    #[tokio::test]
+    async fn both_interfaces_are_reported_even_by_a_run_that_measured_nothing() {
+        let probe = probe(unreachable_gateway());
+        let ingest_inbox = probe.build_ingest_inbox();
+
+        let result = probe
+            .run(ingest_inbox, None, ShutdownToken::new())
+            .await
+            .expect("the probe failed on our side");
+
+        let wire: api::TestRunResult = result.into();
+        assert_eq!(
+            wire.measurements
+                .iter()
+                .map(|measurement| measurement.interface)
+                .collect::<Vec<_>>(),
+            vec![
+                ExercisedInterface::ClientIngest,
+                ExercisedInterface::ClientDelivery
+            ]
+        );
+    }
+}

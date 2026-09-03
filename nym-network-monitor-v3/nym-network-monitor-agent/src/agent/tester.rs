@@ -531,7 +531,7 @@ impl ProbeRun {
 
         match self.inbox.next_packet().await {
             Ok(res) => {
-                info!("received {res}");
+                info!("received bloomfilter probe back: ({res})");
                 Ok(true)
             }
             Err(err) => {

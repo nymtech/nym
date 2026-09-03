@@ -193,6 +193,41 @@ impl NodeTesterConfig {
 }
 
 #[cfg(test)]
+impl NodeTesterConfig {
+    /// A config carrying the documented defaults, with every timeout shortened so a test that is
+    /// meant to fail fails within a test run rather than within a deployment's patience.
+    pub(crate) fn new_test() -> Self {
+        // SAFETY: all non-zero literals
+        #[allow(clippy::unwrap_used)]
+        let nonzero = |value: usize| NonZeroUsize::new(value).unwrap();
+
+        NodeTesterConfig {
+            stress_profile: ProbeProfile::stress(
+                nonzero(1000),
+                Duration::from_millis(50),
+                Duration::from_millis(50),
+                nonzero(50),
+            ),
+            liveness_profile: ProbeProfile::liveness(
+                nonzero(4),
+                nonzero(50),
+                Duration::from_millis(50),
+            ),
+            liveness_per_target_timeout: Duration::from_secs(5),
+            session_connect_timeout: Duration::from_millis(200),
+            session_registration_timeout: Duration::from_millis(200),
+            packet_delay: Duration::from_millis(1),
+            egress_connection_timeout: Duration::from_millis(200),
+            noise_handshake_timeout: Duration::from_millis(200),
+            reuse_header: true,
+            mixnet_bind_address: "127.0.0.1:0".parse().expect("bad test bind address"),
+            external_mixnet_address_v4: "127.0.0.1:1789".parse().expect("bad test v4 address"),
+            external_mixnet_address_v6: "[::1]:1789".parse().expect("bad test v6 address"),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;

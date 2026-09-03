@@ -1157,17 +1157,26 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self, request_body))]
+    /// `epoch_id` names the epoch whose material is being collected. Worth stating whenever this
+    /// is one of several requests for the same credential: a DKG ceremony concluding partway
+    /// through moves the signer's default, and shares from two epochs cannot be aggregated.
     async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
+        epoch_id: Option<EpochId>,
     ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        let params = match epoch_id {
+            None => Vec::new(),
+            Some(epoch_id) => vec![(ecash::EPOCH_ID_PARAM, epoch_id.to_string())],
+        };
+
         self.post_json(
             &[
                 routes::V1_API_VERSION,
                 routes::ECASH_ROUTES,
                 routes::ECASH_BLIND_SIGN,
             ],
-            NO_PARAMS,
+            &params,
             request_body,
         )
         .await

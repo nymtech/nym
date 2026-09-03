@@ -5,6 +5,7 @@ use crate::ecash::api_routes::helpers::EpochIdParam;
 use crate::ecash::error::EcashError;
 use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
+use crate::ecash::storage::models::DepositUsage;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
@@ -15,10 +16,9 @@ use nym_api_requests::ecash::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_time::{cred_exp_date, EcashTime};
-use nym_http_api_common::{FormattedResponse, Output, OutputParams};
+use nym_http_api_common::{FormattedResponse, Output};
 use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
 use serde::Deserialize;
-use std::ops::Deref;
 use std::sync::Arc;
 use time::Date;
 use tracing::{debug, trace};
@@ -48,41 +48,98 @@ pub(crate) fn partial_signing_routes() -> Router<AppState> {
             (BlindedSignatureResponse = "application/yaml"),
             (BlindedSignatureResponse = "application/bincode")
         )),
-        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "\
+            the requested epoch is not one this nym-api will issue under - either its ceremony has \
+            not concluded or it has been superseded; or no epoch was requested while a ceremony \
+            concluded recently, so which one is meant has to be stated; or this nym-api is not an \
+            ecash signer for that epoch, or holds no key for it; or this deposit's ticketbook was \
+            already issued under a different epoch, or was issued and its data has since been \
+            pruned. None of these consume the deposit."),
     ),
-    params(OutputParams)
+    params(EpochIdParam)
 )]
 async fn post_blind_sign(
-    Query(output): Query<OutputParams>,
+    Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
     State(state): State<Arc<EcashState>>,
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
 ) -> AxumResult<FormattedResponse<BlindedSignatureResponse>> {
-    state.ensure_signer().await?;
-    let output = output.output.unwrap_or_default();
+    let output = output.unwrap_or_default();
 
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
-    // check if we have the signing key available
-    debug!("checking if we actually have ecash keys derived...");
-    let signing_key = state.ecash_signing_key().await?;
+    // which epoch we would put a signature under right now. this replaces the blanket refusal
+    // while a ceremony runs: the epoch under ceremony has no keys, but the one it is replacing
+    // does, and its credentials are still being spent.
+    let issuable = state.issuable_epochs().await?;
 
     // basic check of expiration date validity
     if blind_sign_request_body.expiration_date > cred_exp_date().ecash_date() {
         return Err(EcashError::ExpirationDateTooLate.into());
     }
 
-    // see if we're not in the middle of new dkg
-    state.ensure_dkg_not_in_progress().await?;
-
     // check if we already issued a credential for this deposit
     let deposit_id = blind_sign_request_body.deposit_id;
     debug!(
         "checking if we have already issued credential for this deposit (deposit_id: {deposit_id})",
     );
-    if let Some(blinded_signature) = state.already_issued(deposit_id).await? {
-        return Ok(output.to_response(BlindedSignatureResponse { blinded_signature }));
+    match state.deposit_usage(deposit_id).await? {
+        DepositUsage::Issued {
+            share,
+            issued_for_epoch,
+        } => {
+            state.ensure_signer_for_epoch(issued_for_epoch).await?;
+
+            // handing back a share we already hold consumes nothing, so there is no epoch to
+            // choose and nothing to be ambiguous about: it is enough that this is the epoch the
+            // caller named. A caller that named none gets it if we would still sign for it.
+            //
+            // note this deliberately serves an epoch we would no longer *issue* under, as long as
+            // it was asked for: that is how a collection stranded across a rotation is recovered.
+            let acceptable = match epoch_id {
+                Some(requested) => issued_for_epoch == requested,
+                None => issuable.accepts(issued_for_epoch),
+            };
+
+            if !acceptable {
+                // a share is bound to the key that signed it. one signed under a different epoch
+                // cannot be unblinded against the epoch being collected, so the caller drops it
+                // and falls short of the threshold - every time, since this is a cache. refusing
+                // at least names the epoch under which the share can still be claimed.
+                return Err(EcashError::IssuedUnderDifferentEpoch {
+                    deposit_id,
+                    issued_for_epoch,
+                    requested_epoch: epoch_id.unwrap_or(issuable.issuable),
+                }
+                .into());
+            }
+
+            return Ok(output.to_response(BlindedSignatureResponse {
+                blinded_signature: *share,
+            }));
+        }
+
+        // we no longer hold the share, but the deposit was still spent on it. signing again here
+        // would mint a second ticketbook against a single payment.
+        DepositUsage::Pruned => return Err(EcashError::DepositAlreadyUsed { deposit_id }.into()),
+
+        DepositUsage::Unused => (),
     }
+
+    // a fresh deposit, so an epoch has to be settled on and signed under. everything from here to
+    // the signature refuses without consuming the deposit.
+    let issuing_epoch = match epoch_id {
+        Some(requested) => requested,
+        None => issuable.default_for_fresh_issuance()?,
+    };
+    issuable.ensure_issuable(issuing_epoch)?;
+
+    // it is that epoch's signer set that answers for it: an api that has since joined or left the
+    // group is not the authority on an epoch it was not part of
+    state.ensure_signer_for_epoch(issuing_epoch).await?;
+
+    debug!("checking if we actually have ecash keys derived for epoch {issuing_epoch}...");
+    let issuance_keys = state.ecash_issuance_keys(issuing_epoch).await?;
 
     //check if account was blacklisted
     let pub_key_bs58 = blind_sign_request_body.ecash_pubkey.to_base58_string();
@@ -100,12 +157,17 @@ async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.deref())?;
+    let blinded_signature = blind_sign(&blind_sign_request_body, issuance_keys.signing_key())?;
 
-    // store the information locally
+    // store the information locally, against the epoch of the key that just signed it. the lookup
+    // above guarantees these agree, which is what the epoch-aware cache relies on.
     debug!("storing the issued credential in the database");
     state
-        .store_issued_ticketbook(blind_sign_request_body, &blinded_signature)
+        .store_issued_ticketbook(
+            blind_sign_request_body,
+            &blinded_signature,
+            issuance_keys.issued_for_epoch,
+        )
         .await?;
 
     // finally return the credential to the client
@@ -151,10 +213,7 @@ async fn partial_expiration_date_signatures(
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;
@@ -194,10 +253,7 @@ async fn partial_coin_indices_signatures(
     State(state): State<Arc<EcashState>>,
     Query(EpochIdParam { epoch_id, output }): Query<EpochIdParam>,
 ) -> AxumResult<FormattedResponse<PartialCoinIndicesSignatureResponse>> {
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // the caller wants this epoch's material, so it's this epoch's signers that have to answer
     state.ensure_signer_for_epoch(epoch_id).await?;

@@ -81,7 +81,10 @@ where
             let epoch = self.client.get_current_epoch().await?;
             let current_timestamp_secs = OffsetDateTime::now_utc().unix_timestamp() as u64;
 
-            if epoch.state.is_final() {
+            // a ceremony running no longer means issuance is unavailable: signers keep issuing
+            // under the epoch it is replacing. The only genuine wait is for the very first
+            // ceremony, before any epoch has concluded and there is nothing to issue under.
+            if epoch.state.is_final() || epoch.epoch_id > 0 {
                 break;
             } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
                 // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
@@ -142,7 +145,17 @@ where
                 );
             }
 
-            match self.obtain_ticketbook(&issuance.pending_ticketbook).await {
+            // resume under the epoch the shares gathered so far belong to. only an issuance
+            // recorded before that was stored has to resolve it again.
+            let epoch_id = match issuance.issuance_epoch {
+                Some(epoch_id) => epoch_id,
+                None => self.issuable_epoch().await?,
+            };
+
+            match self
+                .obtain_ticketbook(&issuance.pending_ticketbook, epoch_id)
+                .await
+            {
                 Err(err) => error!("could not recover deposit {deposit} due to: {err}"),
                 Ok(issued) => {
                     recovered_books.push(NymCredential::Ticketbook(Box::new(issued)));
@@ -169,21 +182,41 @@ where
     async fn obtain_ticketbook(
         &self,
         issuance_data: &IssuanceTicketBook,
+        epoch_id: EpochId,
     ) -> Result<IssuedTicketBook, NyxdFetcherError> {
-        let epoch_id = self.client.get_current_epoch().await?.epoch_id;
+        // everything about this collection belongs to the one epoch: the signers asked, the
+        // threshold required of them, the keys their shares are verified against, and the epoch
+        // the finished book is stamped with. Resolving any of them separately risks a ceremony
+        // concluding in between and mixing two epochs, which cannot be aggregated.
         let threshold = self
             .client
-            .get_current_epoch_threshold()
+            .get_epoch_threshold(epoch_id)
             .await?
             .ok_or(NyxdFetcherError::NoThreshold)?;
 
         let apis = self.ecash_api_clients.get(&*self.client, epoch_id).await?;
 
-        info!("Querying wallet signatures");
-        let wallet = obtain_aggregate_wallet(issuance_data, &apis, threshold).await?;
+        info!("Querying wallet signatures for epoch {epoch_id}");
+        let wallet = obtain_aggregate_wallet(issuance_data, &apis, threshold, epoch_id).await?;
         info!("managed to obtain sufficient number of partial signatures!");
 
         Ok(issuance_data.to_issued_ticketbook(wallet, epoch_id))
+    }
+
+    /// The epoch signers are currently issuing under: the most recent whose DKG ceremony has
+    /// concluded. While a ceremony runs that is the epoch before the current one, whose keys exist
+    /// and whose credentials are still circulating - issuance does not stop for the ceremony.
+    async fn issuable_epoch(&self) -> Result<EpochId, NyxdFetcherError> {
+        let epoch = self.client.get_current_epoch().await?;
+
+        if epoch.state.is_in_progress() {
+            return Ok(epoch.epoch_id);
+        }
+
+        epoch
+            .epoch_id
+            .checked_sub(1)
+            .ok_or(NyxdFetcherError::NoIssuableEpoch)
     }
 }
 
@@ -331,13 +364,17 @@ where
 
         let ticketbook_expiration = ecash_default_expiration_date();
 
+        // settled before the deposit is made, so that it is the same epoch throughout however long
+        // the collection takes, and is recorded alongside the deposit if it has to be resumed
+        let epoch_id = self.issuable_epoch().await?;
+
         info!("Starting to deposit funds, don't kill the process");
         let issuance_data = self
             .make_deposit(ticketbook_expiration, ticketbook_type)
             .await?;
         info!("Deposit done");
 
-        match self.obtain_ticketbook(&issuance_data).await {
+        match self.obtain_ticketbook(&issuance_data, epoch_id).await {
             Ok(issued) => {
                 info!("Succeeded adding a ticketbook of type '{ticketbook_type}'");
                 Ok(vec![NymCredential::Ticketbook(Box::new(issued))])
@@ -346,7 +383,7 @@ where
                 error!("failed to obtain credential. saving recovery data...");
 
                 self.pending_storage
-                    .insert_pending_ticketbook(&issuance_data)
+                    .insert_pending_ticketbook(&issuance_data, epoch_id)
                     .await
                     .inspect_err(|err| {
                         let deposit = issuance_data.deposit_id();

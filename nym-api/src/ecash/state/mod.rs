@@ -6,13 +6,13 @@ use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
 use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::helpers::{IssuedCoinIndicesSignatures, IssuedExpirationDateSignatures};
-use crate::ecash::keys::KeyPair;
+use crate::ecash::keys::{KeyPair, KeyPairWithEpoch};
 use crate::ecash::state::auxiliary::AuxiliaryEcashState;
 use crate::ecash::state::cleaner::EcashBackgroundStateCleaner;
 use crate::ecash::state::global::GlobalEcachState;
 use crate::ecash::state::helpers::{ensure_sane_expiration_date, query_all_threshold_apis};
 use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
-use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
+use crate::ecash::storage::models::{DepositUsage, SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
 use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
@@ -26,7 +26,7 @@ use nym_api_requests::ecash::models::{
     IssuedTicketbooksOnCountResponse,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
-use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::types::{EpochId, Timestamp};
 use nym_compact_ecash::scheme::coin_indices_signatures::{
     aggregate_annotated_indices_signatures, sign_coin_indices, CoinIndexSignatureShare,
 };
@@ -52,6 +52,7 @@ use nym_validator_client::EcashApiClient;
 use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
@@ -66,6 +67,10 @@ pub(crate) mod local;
 pub struct EcashStateConfig {
     pub(crate) issued_ticketbooks_retention_period_days: u32,
     pub(crate) maximum_data_response_size: usize,
+
+    /// How long after a ceremony concludes this api still honours the epoch that ceremony
+    /// replaced. See [`EcashState::issuable_epochs`].
+    pub(crate) issuance_grace_period: Duration,
 }
 
 impl EcashStateConfig {
@@ -86,7 +91,63 @@ impl EcashStateConfig {
                 .ecash_signer
                 .debug
                 .maximum_size_of_data_request,
+            issuance_grace_period: global_config.ecash_signer.debug.issuance_grace_period,
         }
+    }
+}
+
+/// The epochs a fresh ticketbook may be issued under right now, as resolved by
+/// [`EcashState::issuable_epochs`].
+pub(crate) struct IssuableEpochs {
+    /// The most recent epoch whose ceremony has concluded, and so the one in service.
+    pub(crate) issuable: EpochId,
+
+    /// The epoch [`Self::issuable`] replaced, while other signers may still be serving it because
+    /// they have not seen the change yet. Always `issuable - 1` when present.
+    pub(crate) outgoing_in_grace: Option<EpochId>,
+}
+
+impl IssuableEpochs {
+    /// Whether we would put a signature under `epoch` right now.
+    pub(crate) fn accepts(&self, epoch: EpochId) -> bool {
+        epoch == self.issuable || self.outgoing_in_grace == Some(epoch)
+    }
+
+    /// The epoch to sign a fresh deposit under when the caller did not name one.
+    ///
+    /// Refused while the outgoing epoch is still being honoured. That window is precisely when
+    /// signers would choose different defaults, and a deposit signed under one epoch at some
+    /// signers and another at the rest can never be aggregated - so a caller is asked which epoch
+    /// it is collecting for rather than guessed at.
+    pub(crate) fn default_for_fresh_issuance(&self) -> Result<EpochId> {
+        if self.outgoing_in_grace.is_some() {
+            return Err(EcashError::AmbiguousIssuanceEpoch {
+                issuable: self.issuable,
+            });
+        }
+        Ok(self.issuable)
+    }
+
+    /// Ensure a fresh deposit may be signed under `requested`.
+    pub(crate) fn ensure_issuable(&self, requested: EpochId) -> Result<()> {
+        if self.accepts(requested) {
+            return Ok(());
+        }
+
+        // above the epoch in service is either the one a ceremony is running for or one that does
+        // not exist yet; either way it has no keys to sign with
+        if requested > self.issuable {
+            return Err(EcashError::CeremonyNotConcluded {
+                epoch_id: requested,
+            });
+        }
+
+        // below it, and past any window we still owe. signing here would mint a book against a
+        // retired key, which verifies against shares that persist on chain for good.
+        Err(EcashError::EpochNoLongerIssuable {
+            requested,
+            issuable: self.issuable,
+        })
     }
 }
 
@@ -171,6 +232,86 @@ impl EcashState {
         self.aux.current_epoch().await
     }
 
+    /// The epoch a fresh ticketbook may be issued under, and the one just replaced if it is still
+    /// worth honouring.
+    ///
+    /// Exactly one epoch is in service at a time: the most recent whose ceremony has concluded.
+    /// Ordinarily that is the current epoch; while a ceremony runs it is the one before, whose
+    /// keys exist and whose credentials are still being spent. That is what lets issuance carry
+    /// on through a ceremony instead of halting for its duration.
+    ///
+    /// The epoch just superseded is reported alongside for as long as the fleet may disagree about
+    /// the change, so that a client which resolved it - or which is talking to signers that have
+    /// not caught up - can finish collecting under it. See [`Self::within_grace_of`].
+    pub(crate) async fn issuable_epochs(&self) -> Result<IssuableEpochs> {
+        let current = self.current_dkg_epoch().await?;
+
+        if !self.aux.comm_channel.ceremony_concluded(current).await? {
+            // a ceremony is running for `current`, so the epoch before it is the one in service.
+            // its own conclusion is long past, and no change of issuable epoch has just happened,
+            // so nothing is in grace - which is why the *start* of a ceremony races with nothing.
+            let Some(issuable) = current.checked_sub(1) else {
+                return Err(EcashError::NoIssuableEpoch);
+            };
+            return Ok(IssuableEpochs {
+                issuable,
+                outgoing_in_grace: None,
+            });
+        }
+
+        // `current` has concluded, so it is in service and the epoch it replaced may still be
+        // within the window measured from that conclusion
+        let concluded_at = self
+            .aux
+            .comm_channel
+            .current_ceremony_concluded_at()
+            .await?;
+        let outgoing_in_grace = match (current.checked_sub(1), concluded_at) {
+            (Some(outgoing), Some(concluded_at)) if self.within_grace_of(concluded_at) => {
+                Some(outgoing)
+            }
+            _ => None,
+        };
+
+        Ok(IssuableEpochs {
+            issuable: current,
+            outgoing_in_grace,
+        })
+    }
+
+    /// The epoch a request concerns: the one it named, or - having named none - the one in service.
+    ///
+    /// "In service" rather than "current" is what makes a paramless request coherent while a
+    /// ceremony runs. The epoch being built has nothing to give, so answering about it would refuse
+    /// a caller who never asked about it, and would disagree with the epoch a book issued at that
+    /// same moment is signed under.
+    pub(crate) async fn requested_epoch(&self, epoch_id: Option<EpochId>) -> Result<EpochId> {
+        match epoch_id {
+            Some(epoch_id) => Ok(epoch_id),
+            None => Ok(self.issuable_epochs().await?.issuable),
+        }
+    }
+
+    /// Whether a ceremony that concluded at `concluded_at` is recent enough that other signers may
+    /// not have noticed yet, and so may still be issuing under the epoch it replaced.
+    ///
+    /// The window is sized against the staleness of their view of the epoch, so it must stay
+    /// longer than that - see `EcashSignerDebug::issuance_grace_period`. It is measured from a
+    /// value every signer reads identically, so they agree on the window without having to agree
+    /// on when each of them observed the change.
+    fn within_grace_of(&self, concluded_at: Timestamp) -> bool {
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let elapsed = now - concluded_at.seconds() as i64;
+
+        // a conclusion in our own future means our clock trails the chain's, so it certainly
+        // happened recently
+        if elapsed < 0 {
+            return true;
+        }
+
+        (elapsed as u64) < self.config.issuance_grace_period.as_secs()
+    }
+
     async fn check_dkg_signer(&self, epoch_id: EpochId) -> Result<bool> {
         let Ok(address) = self.aux.client.address().await else {
             return Ok(false);
@@ -223,6 +364,15 @@ impl EcashState {
 
     pub(crate) async fn ecash_signing_key(&self) -> Result<RwLockReadGuard<'_, SecretKeyAuth>> {
         self.local.ecash_keypair.signing_key().await
+    }
+
+    /// The keys to issue with, alongside the epoch they belong to, read as one so that what we
+    /// record about an issuance cannot disagree with what actually signed it.
+    pub(crate) async fn ecash_issuance_keys(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<RwLockReadGuard<'_, KeyPairWithEpoch>> {
+        self.local.ecash_keypair.keys_for_epoch(epoch_id).await
     }
 
     #[allow(dead_code)]
@@ -554,13 +704,6 @@ impl EcashState {
             .await
     }
 
-    pub(crate) async fn ensure_dkg_not_in_progress(&self) -> Result<()> {
-        if self.aux.comm_channel.dkg_in_progress().await? {
-            return Err(EcashError::DkgInProgress);
-        }
-        Ok(())
-    }
-
     /// Ensures the DKG ceremony that established `epoch_id`'s keys has finished, so everything
     /// derived from them is settled.
     ///
@@ -575,14 +718,10 @@ impl EcashState {
         Ok(())
     }
 
-    /// Check if this nym-api has already issued a credential for the provided deposit id.
-    /// If so, return it.
-    pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {
-        Ok(self
-            .aux
-            .storage
-            .get_issued_partial_signature(deposit_id)
-            .await?)
+    /// Check whether this nym-api has already issued a credential for the provided deposit id,
+    /// and whether it still holds the share it issued.
+    pub async fn deposit_usage(&self, deposit_id: DepositId) -> Result<DepositUsage> {
+        Ok(self.aux.storage.deposit_usage(deposit_id).await?)
     }
 
     pub async fn get_deposit(&self, deposit_id: DepositId) -> Result<Deposit> {
@@ -743,7 +882,7 @@ impl EcashState {
 
     pub(crate) async fn persist_issued(
         &self,
-        current_epoch: EpochId,
+        issued_for_epoch: EpochId,
         issued: &IssuedTicketbook,
         merkle_leaf: MerkleLeaf,
     ) -> Result<()> {
@@ -754,7 +893,7 @@ impl EcashState {
             .storage
             .store_issued_ticketbook(
                 issued.deposit_id,
-                current_epoch as u32,
+                issued_for_epoch as u32,
                 &issued.blinded_partial_credential,
                 &issued.joined_encoded_private_attributes_commitments,
                 issued.expiration_date,
@@ -799,15 +938,15 @@ impl EcashState {
         &self,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
+        issued_for_epoch: EpochId,
     ) -> Result<()> {
-        let current_epoch = self.aux.current_epoch().await?;
         let expiration = request_body.expiration_date;
         let deposit_id = request_body.deposit_id;
 
         let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
         let issued = IssuedTicketbook {
             deposit_id: request_body.deposit_id,
-            epoch_id: current_epoch,
+            epoch_id: issued_for_epoch,
             blinded_partial_credential: blinded_signature.to_byte_vec(),
             joined_encoded_private_attributes_commitments,
             expiration_date: request_body.expiration_date,
@@ -826,7 +965,7 @@ impl EcashState {
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
         if let Err(err) = self
-            .persist_issued(current_epoch, &issued, inserted_leaf)
+            .persist_issued(issued_for_epoch, &issued, inserted_leaf)
             .await
         {
             // if we failed to insert it into the db, rollback the tree. there was most likely clash on the deposit
@@ -1099,6 +1238,116 @@ impl EcashState {
             total: issued.iter().map(|count| count.count as usize).sum(),
             issued: issued.into_iter().map(Into::into).collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod issuable_epoch_tests {
+    use super::*;
+    use crate::ecash::tests::{build_dummy_ecash_state, SharedCommState};
+    use std::time::Duration;
+
+    async fn state_with_grace(grace: Duration) -> (EcashState, SharedCommState) {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let mut config = Config::new("test");
+        config.ecash_signer.enabled = true;
+        config.ecash_signer.debug.issuance_grace_period = grace;
+
+        let bundle = build_dummy_ecash_state(&config, storage, [11u8; 32]).await;
+        (bundle.ecash_state, bundle.comm_state)
+    }
+
+    /// The fixture's epoch has concluded and no ceremony is running, which is the ordinary case:
+    /// the current epoch is the one issuance happens under.
+    #[tokio::test]
+    async fn the_current_epoch_is_issuable_once_its_ceremony_concluded() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(issuable.issuable, comm.current_epoch());
+        assert_eq!(issuable.outgoing_in_grace, None);
+    }
+
+    /// B1: the epoch a ceremony is running for has no keys until it finishes, so the one before it
+    /// stays in service throughout. Without this, issuance halts network-wide for the duration.
+    #[tokio::test]
+    async fn the_previous_epoch_stays_issuable_while_a_ceremony_runs() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(2).await;
+        comm.start_ceremony();
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        // and nothing is in grace: a ceremony starting is not a change of issuable epoch, which
+        // is what makes the start of a ceremony raceless between signers
+        assert_eq!(issuable.issuable, 1);
+        assert_eq!(issuable.outgoing_in_grace, None);
+    }
+
+    /// A signer that has seen the ceremony conclude keeps honouring the epoch it replaced, because
+    /// the others have not necessarily seen it yet and a client mid-collection would otherwise be
+    /// left holding shares it can never add to.
+    #[tokio::test]
+    async fn the_epoch_just_superseded_is_still_accepted_inside_the_window() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(2).await;
+        comm.conclude_ceremony_ago(Duration::from_secs(60)).await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(issuable.issuable, 2);
+        assert_eq!(issuable.outgoing_in_grace, Some(1));
+    }
+
+    /// The overlap is bounded: it exists to absorb disagreement between signers, not to keep a
+    /// retired epoch signable.
+    #[tokio::test]
+    async fn the_superseded_epoch_drops_out_once_the_window_lapses() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(2).await;
+        comm.conclude_ceremony_ago(Duration::from_secs(60 * 30))
+            .await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(issuable.issuable, 2);
+        assert_eq!(issuable.outgoing_in_grace, None);
+    }
+
+    /// The epoch already in service when the contract began recording conclusions has no recorded
+    /// one. Unknown has to mean no window - reading it as "just now" would hand out the very grace
+    /// the absent value cannot justify.
+    #[tokio::test]
+    async fn an_unrecorded_conclusion_offers_no_grace() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(2).await;
+        comm.conclude_ceremony();
+        comm.set_ceremony_concluded_at(None).await;
+
+        let issuable = state.issuable_epochs().await.unwrap();
+
+        assert_eq!(issuable.issuable, 2);
+        assert_eq!(issuable.outgoing_in_grace, None);
+    }
+
+    /// Before any ceremony has ever concluded there is nothing to issue under, and no earlier
+    /// epoch to fall back to.
+    #[tokio::test]
+    async fn nothing_is_issuable_before_the_first_ceremony_concludes() {
+        let (state, comm) = state_with_grace(Duration::from_secs(600)).await;
+
+        comm.set_current_epoch(0).await;
+        comm.start_ceremony();
+
+        assert!(matches!(
+            state.issuable_epochs().await,
+            Err(EcashError::NoIssuableEpoch)
+        ));
     }
 }
 
@@ -1404,8 +1653,12 @@ mod tests {
             state.local.ecash_keypair.archive(keys).await;
         }
 
-        // the blanket gate would have refused everything in this situation
-        assert!(state.ensure_dkg_not_in_progress().await.is_err());
+        // the blanket gate would have refused everything in this situation. against the real
+        // contract, the epoch that finished is the one still in service, and nothing is owed to
+        // anything older - a ceremony starting is not a change of issuable epoch.
+        let issuable = state.issuable_epochs().await?;
+        assert_eq!(issuable.issuable, past_epoch);
+        assert_eq!(issuable.outgoing_in_grace, None);
 
         // the epoch being built has nothing to give ...
         assert!(matches!(

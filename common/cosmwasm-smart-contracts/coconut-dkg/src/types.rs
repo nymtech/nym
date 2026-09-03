@@ -49,7 +49,10 @@ pub struct TimeConfiguration {
     pub verification_key_submission_time_secs: u64,
     pub verification_key_validation_time_secs: u64,
     pub verification_key_finalization_time_secs: u64,
-    // The time an epoch lasts
+    /// Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with
+    /// a fresh deadline while rotating nothing. That self-extension is gone, so this is now
+    /// unused; it stays because it is serialised inside every stored [`Epoch`].
+    #[deprecated(note = "the InProgress phase no longer expires, so this value governs nothing")]
     pub in_progress_time_secs: u64,
 }
 
@@ -68,7 +71,10 @@ impl TimeConfiguration {
             EpochState::VerificationKeyFinalization { .. } => {
                 Some(self.verification_key_finalization_time_secs)
             }
-            EpochState::InProgress => Some(self.in_progress_time_secs),
+            // the state machine stops here: rotation is an admin action, so there is no later
+            // state for a deadline to lead to. One left behind would only go stale and then read
+            // as "expired" to everything treating it as a cache bound.
+            EpochState::InProgress => None,
         }
     }
 }
@@ -85,6 +91,8 @@ impl FromStr for TimeConfiguration {
         if times.len() != 6 {
             Err(String::from("Not enough time specified"))
         } else {
+            // the vestigial field still has to be populated: it is part of the serialised form
+            #[allow(deprecated)]
             Ok(TimeConfiguration {
                 public_key_submission_time_secs: times[0],
                 dealing_exchange_time_secs: times[1],
@@ -98,6 +106,8 @@ impl FromStr for TimeConfiguration {
 }
 
 impl Default for TimeConfiguration {
+    // as above: written so the serialised form stays complete, never read
+    #[allow(deprecated)]
     fn default() -> Self {
         Self {
             public_key_submission_time_secs: 60 * 10,      // 10 minutes
@@ -155,6 +165,17 @@ pub struct Epoch {
 
     #[serde(alias = "finish_timestamp")]
     pub deadline: Option<Timestamp>,
+
+    /// When this epoch's ceremony finished, i.e. when its keys came into service.
+    ///
+    /// Nothing else on chain records this: the epoch id increments when a ceremony *starts*, and
+    /// [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs
+    /// it - the window in which a signer still honours the epoch just superseded, and any pruning
+    /// of retired key material.
+    ///
+    /// `None` for an epoch mid-ceremony, and for one that concluded before this field existed.
+    #[serde(default)]
+    pub ceremony_concluded_at: Option<Timestamp>,
 }
 
 impl Epoch {
@@ -172,6 +193,8 @@ impl Epoch {
             state_progress: Default::default(),
             time_configuration,
             deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
+            // a freshly constructed epoch is one whose ceremony is about to run
+            ceremony_concluded_at: None,
         }
     }
 
@@ -179,6 +202,12 @@ impl Epoch {
         self.state = next_state;
         let duration = self.time_configuration.state_duration(next_state);
         self.deadline = duration.map(|d| current_timestamp.plus_seconds(d));
+
+        // reaching `InProgress` *is* the ceremony concluding, and the state machine stops here,
+        // so this is written exactly once per key generation
+        if next_state.is_in_progress() {
+            self.ceremony_concluded_at = Some(current_timestamp);
+        }
 
         self
     }
@@ -369,6 +398,88 @@ mod tests {
             TimeConfiguration::default(),
             Timestamp::from_seconds(0),
         )
+    }
+
+    /// When a ceremony concluded is the only record of when a key generation came into service.
+    /// Nothing else on chain carries it: the epoch id increments when a ceremony *starts*, and
+    /// the deadline is per-state. Sizing anything against the age of the current keys - the
+    /// issuance grace window, pruning of retired keys - depends on this being recorded.
+    #[test]
+    fn entering_in_progress_records_when_the_ceremony_concluded() {
+        let mid_ceremony = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        );
+        assert_eq!(mid_ceremony.ceremony_concluded_at, None);
+
+        let concluded = mid_ceremony.update(EpochState::InProgress, Timestamp::from_seconds(1234));
+        assert_eq!(
+            concluded.ceremony_concluded_at,
+            Some(Timestamp::from_seconds(1234))
+        );
+    }
+
+    /// An epoch in progress is where the state machine stops: rotation is an admin action, so
+    /// there is no later state to hold a deadline for. Leaving one behind would also go stale and
+    /// then read as "expired" to everything that treats it as a cache bound.
+    #[test]
+    fn an_epoch_in_progress_has_no_deadline() {
+        let concluded = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        )
+        .update(EpochState::InProgress, Timestamp::from_seconds(1234));
+
+        assert_eq!(concluded.deadline, None);
+    }
+
+    /// The epoch already stored on chain predates this field, so it has to keep deserialising -
+    /// which is what lets the contract be migrated without touching stored data. Its conclusion
+    /// time reads as unknown, deliberately: nothing on chain records it (the snapshot history is
+    /// keyed by height, not time) and deriving it from the deadline would recover the last
+    /// self-extension instead, which looks recent and would grant a window rather than withhold
+    /// one. Callers must read `None` as "no window".
+    #[test]
+    fn an_epoch_stored_before_this_field_existed_still_loads() {
+        let stored = r#"{
+            "state": "in_progress",
+            "epoch_id": 0,
+            "state_progress": {
+                "registered_dealers": 3,
+                "registered_resharing_dealers": 0,
+                "submitted_dealings": 15,
+                "submitted_key_shares": 3,
+                "verified_keys": 3
+            },
+            "time_configuration": {
+                "public_key_submission_time_secs": 600,
+                "dealing_exchange_time_secs": 300,
+                "verification_key_submission_time_secs": 300,
+                "verification_key_validation_time_secs": 60,
+                "verification_key_finalization_time_secs": 60,
+                "in_progress_time_secs": 1209600
+            },
+            "deadline": "1750000000000000000"
+        }"#;
+
+        // the same entry point cw_storage_plus reads stored values through
+        let epoch: Epoch = cosmwasm_std::from_json(stored).unwrap();
+        assert_eq!(epoch.epoch_id, 0);
+        assert!(epoch.state.is_in_progress());
+        assert_eq!(epoch.ceremony_concluded_at, None);
+    }
+
+    /// A fresh ceremony has not concluded, whatever the epoch it replaced had recorded.
+    #[test]
+    fn a_reset_clears_the_recorded_conclusion() {
+        let concluded = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        )
+        .update(EpochState::InProgress, Timestamp::from_seconds(1234));
+
+        let reset = concluded.next_reset(Timestamp::from_seconds(2000));
+        assert_eq!(reset.ceremony_concluded_at, None);
     }
 
     /// Signer sets are only settled once a ceremony finishes, and callers cache them per epoch.

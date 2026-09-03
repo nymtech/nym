@@ -62,10 +62,7 @@ async fn master_verification_key(
     trace!("aggregated_verification_key request");
     let output = output.unwrap_or_default();
 
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // a concluded epoch's key is fixed, so a ceremony running for some *other* epoch is no
     // reason to withhold it
@@ -116,10 +113,7 @@ async fn expiration_date_signatures(
             .map_err(|_| EcashError::MalformedExpirationDate { raw })?,
     };
 
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // these signatures are an input to spending a ticketbook from that epoch, and they cannot
     // change once its ceremony is done - so a later ceremony must not withhold them
@@ -162,10 +156,7 @@ async fn coin_indices_signatures(
 
     let output = output.unwrap_or_default();
 
-    let epoch_id = match epoch_id {
-        Some(epoch_id) => epoch_id,
-        None => state.current_dkg_epoch().await?,
-    };
+    let epoch_id = state.requested_epoch(epoch_id).await?;
 
     // as above: an input to spending, fixed once that epoch's ceremony concluded
     state.ensure_ceremony_concluded(epoch_id).await?;

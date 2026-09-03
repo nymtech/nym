@@ -22,6 +22,16 @@ impl QuorumState {
     }
 }
 
+#[cfg(test)]
+impl QuorumState {
+    /// A fixed answer, for tests exercising code that carries this state without reading it.
+    pub(crate) fn fixed(available: bool) -> Self {
+        QuorumState {
+            available: Arc::new(AtomicBool::new(available)),
+        }
+    }
+}
+
 pub struct QuorumStateChecker {
     client: ChainClient,
     cancellation_token: CancellationToken,

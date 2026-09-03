@@ -101,7 +101,7 @@ The dashed step is **currently disabled**: since 2026-03-25 gateways no longer c
 
 One special mode sits outside this lifecycle: during Nyx chain upgrades, a signed attestation switches the network into **upgrade mode**, where gateways stop metering bandwidth and clients present a proxy-issued JWT instead of tickets (see [upgrade-mode.md](upgrade-mode.md)).
 
-A critical property of the current design: **while a DKG round is running (any epoch state other than `InProgress`), every issuance and aggregation endpoint on every nym-api refuses to serve** (`ensure_dkg_not_in_progress`, `nym-api/src/ecash/state/mod.rs`). Ticketbook issuance is therefore halted network-wide for the duration of every DKG ceremony, including issuance against the previous epoch's still-valid keys. Spending is unaffected because gateways verify against cached per-epoch keys.
+A property of the design worth knowing up front: **everything is keyed by DKG epoch, and exactly one epoch is issuable at a time** - the most recent whose ceremony has concluded. While a ceremony runs that is the epoch before it, so issuance and aggregation continue rather than stopping for the ceremony's duration, and only the epoch actually being built is refused. Requests may name the epoch they concern, which a client collecting several shares for one credential should do, since a ceremony concluding partway through moves the default. Spending is unaffected throughout, because gateways verify against per-epoch keys they fetch from the chain and cache by the epoch id in each ticket. See [dkg.md](dkg.md).
 
 ## Key constants
 

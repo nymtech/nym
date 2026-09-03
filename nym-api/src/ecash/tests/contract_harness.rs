@@ -294,7 +294,10 @@ pub(crate) async fn contract_backed_ecash_state(
         ContractChainClient::new(signer_address.clone(), chain.clone()),
         identity,
         KeyPair::new(),
-        QueryCommunicationChannel::new(ContractChainClient::new(signer_address, chain.clone())),
+        QueryCommunicationChannel::new(
+            ContractChainClient::new(signer_address, chain.clone()),
+            Default::default(),
+        ),
         NymApiStorage::init_in_memory().await.unwrap(),
         &ShutdownManager::empty_mock(),
     )

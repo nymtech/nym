@@ -3,7 +3,7 @@
 
 use crate::deposits_buffer::{BufferedDeposit, DepositsBuffer};
 use crate::error::CredentialProxyError;
-use crate::shared_state::ecash_state::EcashState;
+use crate::shared_state::ecash_state::{CallerCapabilities, EcashState};
 use crate::shared_state::nyxd_client::ChainClient;
 use crate::storage::CredentialProxyStorage;
 use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
@@ -77,6 +77,17 @@ impl CredentialProxyState {
             .await
     }
 
+    /// See [`crate::shared_state::ecash_state::EcashState::ensure_issuable_to_caller`]. Only the
+    /// paths that actually issue need this; reads do not.
+    pub async fn ensure_issuable_to_caller(
+        &self,
+        caller: CallerCapabilities,
+    ) -> Result<(), CredentialProxyError> {
+        self.ecash_state()
+            .ensure_issuable_to_caller(self.client(), caller)
+            .await
+    }
+
     pub async fn get_deposit(
         &self,
         request_uuid: Uuid,
@@ -114,8 +125,10 @@ impl CredentialProxyState {
         }
     }
 
-    pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
-        self.ecash_state().current_epoch_id(self.client()).await
+    /// The epoch signers are issuing under. See
+    /// [`crate::shared_state::ecash_state::EcashState::issuable_epoch_id`].
+    pub async fn issuable_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
+        self.ecash_state().issuable_epoch_id(self.client()).await
     }
 
     pub async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {

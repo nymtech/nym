@@ -43,6 +43,10 @@ impl KeyPairWithEpoch {
     //
     // this borrows rather than consumes because the keypair outlives the resharing it feeds:
     // it gets archived for the epoch it was issued for, whose credentials still need it
+    pub(crate) fn signing_key(&self) -> &SecretKeyAuth {
+        self.keys.secret_key()
+    }
+
     pub(crate) fn hazmat_secrets(&self) -> Vec<Scalar> {
         let (x, mut secrets) = self.keys.secret_key().hazmat_to_raw();
 

@@ -10,6 +10,7 @@ use crate::ticketbooks::AvailableTicketbooks;
 #[derive(Debug, Clone)]
 pub struct BandwidthControllerConfig {
     // How often the controller proactively checks whether any ticket type needs restocking.
+    // It is also pruning any expired tickets from storage before restocking.
     pub topup_interval: Duration,
     // Threshold to determine if a ticket is soon expired
     pub soon_expiry_threshold: Duration,

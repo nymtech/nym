@@ -185,6 +185,41 @@ where
 
         Ok(issuance_data.to_issued_ticketbook(wallet, epoch_id))
     }
+
+    async fn cancel_expired_ticketbooks(&self) -> Result<(), NyxdFetcherError> {
+        let mut pruned_pending_ticketbooks = 0;
+
+        for expired_pending_ticketbook_id in self
+            .pending_storage
+            .get_pending_ticketbooks()
+            .await?
+            .iter()
+            .filter_map(|ticket_book| {
+                if ticket_book.pending_ticketbook.expired() {
+                    Some(ticket_book.pending_id)
+                } else {
+                    None
+                }
+            })
+        {
+            if let Err(err) = self
+                .pending_storage
+                .remove_pending_ticketbook(expired_pending_ticketbook_id)
+                .await
+            {
+                tracing::warn!(
+                    "Failed to remove expired ticketbook id {expired_pending_ticketbook_id} from pending storage: {err}"
+                );
+            } else {
+                pruned_pending_ticketbooks += 1;
+            }
+        }
+        tracing::debug!(
+            "Cancelled {pruned_pending_ticketbooks} expired ticketbooks that were pending"
+        );
+
+        Ok(())
+    }
 }
 
 impl<C> NyxdCredentialFetcher<C>
@@ -317,6 +352,10 @@ where
         &self,
         ticketbook_type: TicketType,
     ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+        if let Err(err) = self.cancel_expired_ticketbooks().await {
+            tracing::warn!("Could not cancel expired ticketbooks: {err}");
+        }
+
         self.block_until_ecash_is_available().await?;
 
         if let Ok(recovered_ticketbooks) = self.recover_deposits(ticketbook_type).await {
@@ -436,6 +475,10 @@ pub(crate) mod recovery {
             &self,
             ticketbook_type: TicketType,
         ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+            if let Err(err) = self.0.cancel_expired_ticketbooks().await {
+                tracing::warn!("Could not cancel expired ticketbooks: {err}");
+            }
+
             self.0.block_until_ecash_is_available().await?;
 
             let recovered_ticketbooks = self.0.recover_deposits(ticketbook_type).await?;
@@ -458,5 +501,133 @@ pub(crate) mod recovery {
                 .await
                 .map_err(NyxdFetcherError::from)?)
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unreachable)]
+mod tests {
+    use std::env::temp_dir;
+
+    use serde::Deserialize;
+
+    use nym_validator_client::nyxd::{
+        Fee,
+        contract_traits::dkg_query_client::DkgQueryMsg,
+        cosmwasm_client::types::ExecuteResult,
+        error::NyxdError,
+        nym_ecash_contract_common::msg::{ExecuteMsg, QueryMsg},
+    };
+    use tokio::fs::remove_file;
+
+    use super::*;
+
+    struct MockPruneClient {}
+
+    #[async_trait]
+    impl DkgQueryClient for MockPruneClient {
+        async fn query_dkg_contract<T>(
+            &self,
+            _query: DkgQueryMsg,
+        ) -> std::result::Result<T, NyxdError>
+        where
+            for<'a> T: Deserialize<'a>,
+        {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[async_trait]
+    impl EcashSigningClient for MockPruneClient {
+        async fn execute_ecash_contract(
+            &self,
+            _fee: Option<Fee>,
+            _msg: ExecuteMsg,
+            _memo: String,
+            _funds: Vec<Coin>,
+        ) -> Result<ExecuteResult, NyxdError> {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[async_trait]
+    impl EcashQueryClient for MockPruneClient {
+        async fn query_ecash_contract<T>(&self, _query: QueryMsg) -> Result<T, NyxdError>
+        where
+            for<'a> T: Deserialize<'a>,
+        {
+            unreachable!("client not used in prune unit tests");
+        }
+    }
+
+    #[tokio::test]
+    async fn prune_expired() {
+        let mut db_path = temp_dir();
+        db_path.push("prune_expired_unittest.db");
+        let fetcher = NyxdCredentialFetcher::new(
+            Arc::new(MockPruneClient {}),
+            &db_path,
+            Zeroizing::new(Vec::new()),
+        )
+        .await
+        .unwrap();
+
+        // pruning empty database doesn't fail
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
+
+        // insert late expiration ticketbook
+        let expired_ticketbook = IssuanceTicketBook::new_with_expiration(
+            0,
+            [],
+            ed25519::PrivateKey::new(&mut OsRng),
+            TicketType::V1WireguardEntry,
+            Date::MIN,
+        );
+        fetcher
+            .pending_storage
+            .insert_pending_ticketbook(&expired_ticketbook)
+            .await
+            .unwrap();
+
+        // check pruning emptied it
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
+        assert_eq!(
+            fetcher
+                .pending_storage
+                .get_pending_ticketbooks()
+                .await
+                .unwrap()
+                .len(),
+            0
+        );
+
+        // insert late expiration ticketbook
+        let unexpired_ticketbook = IssuanceTicketBook::new_with_expiration(
+            0,
+            [],
+            ed25519::PrivateKey::new(&mut OsRng),
+            TicketType::V1WireguardEntry,
+            Date::MAX,
+        );
+        fetcher
+            .pending_storage
+            .insert_pending_ticketbook(&unexpired_ticketbook)
+            .await
+            .unwrap();
+
+        // check pruning doesn't affect it
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
+        assert_ne!(
+            fetcher
+                .pending_storage
+                .get_pending_ticketbooks()
+                .await
+                .unwrap()
+                .len(),
+            0
+        );
+
+        fetcher.pending_storage.close().await;
+        remove_file(db_path).await.unwrap();
     }
 }

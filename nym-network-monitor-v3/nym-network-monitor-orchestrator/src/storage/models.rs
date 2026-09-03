@@ -447,23 +447,6 @@ impl From<api::ExercisedInterface> for ExercisedInterface {
     }
 }
 
-/// The nym-api carries its own copy of the same enum - the dependency runs orchestrator ->
-/// nym-api-requests, so the two cannot share one type - which makes this the bridge the liveness
-/// submission crosses.
-impl From<ExercisedInterface> for nym_api_requests::ExercisedInterface {
-    fn from(interface: ExercisedInterface) -> Self {
-        match interface {
-            ExercisedInterface::MixForwarding => {
-                nym_api_requests::ExercisedInterface::MixForwarding
-            }
-            ExercisedInterface::ClientIngest => nym_api_requests::ExercisedInterface::ClientIngest,
-            ExercisedInterface::ClientDelivery => {
-                nym_api_requests::ExercisedInterface::ClientDelivery
-            }
-        }
-    }
-}
-
 /// A completed run together with every measurement it produced, i.e. the parent row plus its
 /// children reassembled. This is the unit both the operator read surface and the nym-api
 /// submission path consume, since a run's score is defined over its whole measurement set.
@@ -552,15 +535,21 @@ impl From<&CompletedTestRun> for nym_api_requests::StressTestResult {
     }
 }
 
-/// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape.
+/// Projects a completed liveness run onto the nym-api's `LivenessTestResult` shape: a single
+/// score, identical for every role.
 ///
 /// The score averages over the interfaces the probe is EXPECTED to produce rather than over the
 /// ones that came back, so a phase that produced nothing scores zero instead of shrinking the
-/// denominator - a gateway whose delivery never ran must not tie with one that passed both. The
-/// breakdown is built from the same set, so it always accounts for the score above it, and the role
-/// that fixes that set never leaves the orchestrator: the ratio is already normalised into
-/// `[0.0, 1.0]` and comparable across roles without it. `was_reachable` is `error.is_none()`, as on
-/// the stress path.
+/// denominator - a gateway whose delivery never ran must not tie with one that passed both. That
+/// is also why the averaging happens HERE: the expected set comes from the stored row's role, and
+/// the submission carries neither the role nor the interfaces, so nym-api could not reconstruct
+/// the denominator. It does not need to - the ratio is already normalised into `[0.0, 1.0]` and
+/// comparable across roles.
+///
+/// The per-interface breakdown stays in local storage under the run's row, where the operator read
+/// surface serves it. Submitting it would put figures on the wire that nym-api does not score, and
+/// those would have to be versioned before they could be trusted - the same call made for the
+/// latency distribution. `was_reachable` is `error.is_none()`, as on the stress path.
 impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
     fn from(completed: &CompletedTestRun) -> Self {
         let inner = &completed.run.inner;
@@ -573,22 +562,17 @@ impl From<&CompletedTestRun> for nym_api_requests::LivenessTestResult {
             ],
         };
 
-        let interfaces: Vec<_> = expected
+        let total: f64 = expected
             .iter()
-            .map(|&interface| nym_api_requests::InterfacePerformance {
-                interface: interface.into(),
-                performance: completed.performance(interface),
-            })
-            .collect();
+            .map(|&interface| completed.performance(interface))
+            .sum();
 
         nym_api_requests::LivenessTestResult {
             testrun_id: completed.run.id,
             node_id: inner.node_id as u32,
             test_timestamp: inner.test_timestamp,
-            test_performance: interfaces.iter().map(|i| i.performance).sum::<f64>()
-                / expected.len() as f64,
+            test_performance: total / expected.len() as f64,
             was_reachable: inner.error.is_none(),
-            interfaces,
         }
     }
 }
@@ -1122,17 +1106,6 @@ mod tests {
             }
         }
 
-        /// The breakdown as `(interface, performance)` pairs, since the wire type carries no `PartialEq`.
-        fn breakdown(
-            result: &nym_api_requests::LivenessTestResult,
-        ) -> Vec<(nym_api_requests::ExercisedInterface, f64)> {
-            result
-                .interfaces
-                .iter()
-                .map(|performance| (performance.interface, performance.performance))
-                .collect()
-        }
-
         #[test]
         fn a_mixnode_run_scores_its_single_interface() {
             let run = liveness_run(
@@ -1143,10 +1116,6 @@ mod tests {
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
             assert_eq!(result.test_performance, 0.5);
-            assert_eq!(
-                breakdown(&result),
-                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
-            );
         }
 
         #[test]
@@ -1161,14 +1130,9 @@ mod tests {
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
+            // (1.0 + 0.5) / 2 - the two phases are not distinguishable in the submitted score,
+            // only in the measurements kept locally
             assert_eq!(result.test_performance, 0.75);
-            assert_eq!(
-                breakdown(&result),
-                vec![
-                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
-                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.5),
-                ]
-            );
         }
 
         /// The point of the fixed denominator: a phase that produced nothing must not be dropped
@@ -1183,15 +1147,8 @@ mod tests {
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
+            // 1.0 / 2, not 1.0 / 1: the absent phase is still in the denominator
             assert_eq!(result.test_performance, 0.5);
-            // the absent phase is carried explicitly, so the breakdown accounts for the score
-            assert_eq!(
-                breakdown(&result),
-                vec![
-                    (nym_api_requests::ExercisedInterface::ClientIngest, 1.0),
-                    (nym_api_requests::ExercisedInterface::ClientDelivery, 0.0),
-                ]
-            );
         }
 
         /// A node that forwards one packet and replays it nine more times counts ten received
@@ -1213,19 +1170,13 @@ mod tests {
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
-            // scoped to the interface that replayed, not to the whole run
+            // zeroing is scoped to the interface that replayed, not to the whole run: the healthy
+            // delivery phase still contributes its 1.0
             assert_eq!(result.test_performance, 0.5);
-            assert_eq!(
-                breakdown(&result),
-                vec![
-                    (nym_api_requests::ExercisedInterface::ClientIngest, 0.0),
-                    (nym_api_requests::ExercisedInterface::ClientDelivery, 1.0),
-                ]
-            );
         }
 
-        /// The breakdown is built from the interfaces the role is expected to produce, so a
-        /// measurement the probe had no business reporting cannot pull the average up.
+        /// The average is taken over the interfaces the role is expected to produce, so a
+        /// measurement the probe had no business reporting cannot pull it up.
         #[test]
         fn a_measurement_outside_the_expected_set_is_ignored() {
             let run = liveness_run(
@@ -1238,11 +1189,8 @@ mod tests {
 
             let result = nym_api_requests::LivenessTestResult::from(&run);
 
+            // 0.5, not (0.5 + 1.0) / 2 and not (0.5 + 1.0) / 1
             assert_eq!(result.test_performance, 0.5);
-            assert_eq!(
-                breakdown(&result),
-                vec![(nym_api_requests::ExercisedInterface::MixForwarding, 0.5)]
-            );
         }
     }
 }

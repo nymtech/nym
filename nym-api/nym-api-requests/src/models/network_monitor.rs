@@ -201,33 +201,6 @@ pub mod v3 {
     /// and validated against one shared mark would reject each other indefinitely.
     pub type LivenessTestBatchSubmission = SignedMessage<LivenessTestBatchSubmissionContent>;
 
-    /// Which of a node's packet-handling interfaces a measurement exercised.
-    ///
-    /// Mirrors the orchestrator-side enum of the same name and wire form. It is duplicated rather
-    /// than shared because the dependency runs orchestrator -> nym-api-requests, so this crate
-    /// cannot import from the orchestrator's request types without a cycle.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-    #[serde(rename_all = "snake_case")]
-    pub enum ExercisedInterface {
-        /// The node forwarding as a mixing hop.
-        MixForwarding,
-
-        /// The node accepting packets from a client session and injecting them into the mixnet.
-        ClientIngest,
-
-        /// The node taking final-hop packets off the mixnet and delivering them to a client session.
-        ClientDelivery,
-    }
-
-    /// The delivery ratio measured against one of a node's interfaces.
-    #[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]
-    pub struct InterfacePerformance {
-        pub interface: ExercisedInterface,
-
-        /// Measured delivery ratio for this interface, in the `[0.0, 1.0]` range.
-        pub performance: f64,
-    }
-
     /// Single liveness measurement for one node, produced by a network monitor orchestrator.
     #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
     pub struct LivenessTestResult {
@@ -244,14 +217,23 @@ pub mod v3 {
         pub test_timestamp: OffsetDateTime,
 
         /// Score for the run: the average over the fixed set of interfaces its probe exercises,
-        /// with an interface that produced no measurement counted as zero.
+        /// with an interface that produced no measurement counted as zero. A mixnode probe
+        /// exercises one interface and a gateway probe two, so this single ratio is the whole
+        /// submission shape for both - identical for every role.
         ///
-        /// This is the AUTHORITATIVE number for scoring, and `interfaces` is the diagnostic
-        /// breakdown behind it. The two are not independent, but the average cannot be recomputed
-        /// from the breakdown here: its denominator is the set the run's (kind, role) pairing is
-        /// expected to produce, and this submission deliberately carries neither, so a run missing
-        /// one of its interfaces would average over the wrong denominator on this side. The
-        /// orchestrator knows the expected set from the row it stored, so it averages there.
+        /// The average is computed orchestrator-side and CANNOT be recomputed here: its
+        /// denominator is the set the run's (kind, role) pairing is expected to produce, which
+        /// this submission deliberately does not carry, so a run missing one of its interfaces
+        /// would average over the wrong denominator on this side. The orchestrator knows the
+        /// expected set from the row it stored, so it averages there.
+        ///
+        /// The per-interface breakdown behind this number stays on the orchestrator, which keeps
+        /// it under the run's row and serves it on its own read surface. It is deliberately NOT
+        /// submitted: nym-api scores on the average alone, and a submission shape carrying figures
+        /// nothing reads would have to be versioned before it could be trusted - the same reason
+        /// the latency distribution is not submitted either. Telling a gateway with a dead
+        /// delivery apart from a uniformly half-lossy one is therefore a lookup against the
+        /// orchestrator, not a question nym-api can answer.
         pub test_performance: f64,
 
         /// Whether the node responded at all during testing.
@@ -259,14 +241,6 @@ pub mod v3 {
         /// Recorded alongside `test_performance` so that a genuine 0.0 score (node responded but
         /// dropped everything) can be distinguished from the node being offline entirely.
         pub was_reachable: bool,
-
-        /// Per-interface breakdown behind `test_performance`. Retained because a gateway with a
-        /// healthy ingest and a dead delivery is otherwise indistinguishable from one that is
-        /// uniformly half-lossy.
-        ///
-        /// Deliberately no separate role field: the interfaces exercised determine the role the
-        /// node was probed in, so carrying both would let them disagree.
-        pub interfaces: Vec<InterfacePerformance>,
     }
 
     /// Body of a liveness batch submission, signed by a network monitor orchestrator.
@@ -320,45 +294,33 @@ pub mod v3 {
         use time::macros::datetime;
 
         fn dummy_liveness_results() -> Vec<LivenessTestResult> {
+            // Order-distinguishable entries, as in the stress body: `testrun_id` is the order
+            // witness, so a permuting deserialisation would break the signature check below.
             vec![
-                // a gateway run: two interfaces, one healthy and one dead, averaging to 0.5. this
-                // is the case the breakdown exists for - the average alone cannot tell it apart
-                // from a uniformly half-lossy node
+                // a gateway run, whose score averages its two interfaces - the shape is the same
+                // as a mixnode's, since the interfaces averaged over never reach the wire
                 LivenessTestResult {
                     testrun_id: 1,
                     node_id: 42,
                     test_timestamp: datetime!(2026-06-01 12:34:56.123456789 UTC),
                     test_performance: 0.5,
                     was_reachable: true,
-                    interfaces: vec![
-                        InterfacePerformance {
-                            interface: ExercisedInterface::ClientIngest,
-                            performance: 1.0,
-                        },
-                        InterfacePerformance {
-                            interface: ExercisedInterface::ClientDelivery,
-                            performance: 0.0,
-                        },
-                    ],
                 },
-                // a mixnode run: exactly one interface, so the average is that interface's ratio
+                // a mixnode run: one interface, so the score is that interface's ratio
                 LivenessTestResult {
                     testrun_id: 2,
                     node_id: 7,
                     test_timestamp: datetime!(2026-06-01 12:34:56 UTC),
                     test_performance: 0.97,
                     was_reachable: true,
-                    interfaces: vec![InterfacePerformance {
-                        interface: ExercisedInterface::MixForwarding,
-                        performance: 0.97,
-                    }],
                 },
             ]
         }
 
         // Same hazard as the stress body: if JSON serialisation is not a byte-exact fixed point,
-        // no liveness batch could ever pass nym-api's signature check. Covers the nested
-        // per-interface array, which the stress body has no equivalent of.
+        // no liveness batch could ever pass nym-api's signature check. Kept separate from the
+        // stress test because the two bodies are independent types on independent endpoints, and
+        // a float or timestamp encoding change would have to break both to be caught by one.
         #[test]
         fn signed_liveness_batch_roundtrips_and_is_a_byte_exact_fixed_point() {
             let mut rng = deterministic_rng();
@@ -383,30 +345,14 @@ pub mod v3 {
             // re-serialising the parsed body must reproduce the signed bytes verbatim
             assert_eq!(signed_bytes, deserialised.body.plaintext());
 
-            // the per-interface array keeps its order and its contents
-            let first = &deserialised.body.results[0];
-            assert_eq!(first.interfaces.len(), 2);
-            assert_eq!(
-                first.interfaces[0].interface,
-                ExercisedInterface::ClientIngest
-            );
-            assert_eq!(
-                first.interfaces[1].interface,
-                ExercisedInterface::ClientDelivery
-            );
-        }
-
-        // The wire strings are shared with the orchestrator's mirror of this enum and with the
-        // stored column value, so a rename here silently stops matching data already written.
-        #[test]
-        fn exercised_interface_wire_forms_are_stable() {
-            for (interface, expected) in [
-                (ExercisedInterface::MixForwarding, "\"mix_forwarding\""),
-                (ExercisedInterface::ClientIngest, "\"client_ingest\""),
-                (ExercisedInterface::ClientDelivery, "\"client_delivery\""),
-            ] {
-                assert_eq!(serde_json::to_string(&interface).unwrap(), expected);
-            }
+            // the results keep their order, so the scores stay attached to the right nodes
+            let ids: Vec<_> = deserialised
+                .body
+                .results
+                .iter()
+                .map(|result| (result.testrun_id, result.node_id))
+                .collect();
+            assert_eq!(ids, vec![(1, 42), (2, 7)]);
         }
 
         fn dummy_results() -> Vec<StressTestResult> {

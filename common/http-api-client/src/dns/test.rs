@@ -4,6 +4,7 @@
 use super::*;
 use hickory_resolver::TokioResolver;
 use itertools::Itertools;
+use serial_test::serial;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -134,11 +135,10 @@ async fn set_name_servers_rebuilds_independent_resolver() -> Result<(), ResolveE
 /// pick up the change by consulting the shared cache on every lookup rather than a local one-time
 /// copy of it), and a sibling freshly created *after* the reset.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
+#[serial]
 async fn set_name_servers_on_shared_resolver() -> Result<(), ResolveError> {
     // mutates the process-wide shared resolver's nameserver group and cached resolver, so must
     // not run concurrently with any other test that resolves through the shared resolver.
-    let _guard = crate::lock_shared_test_state();
 
     let default_ns = default_nameserver_group_ipv4_only();
 
@@ -311,11 +311,10 @@ mod failure_test {
     }
 
     #[tokio::test]
-    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
+    #[serial]
     async fn setting_dns_fallbacks_with_shared_resolver() -> Result<(), ResolveError> {
         // mutates the process-wide shared resolver's nameserver group and cached resolver, so must
         // not run concurrently with any other test that resolves through the shared resolver.
-        let _guard = crate::lock_shared_test_state();
 
         let resolver1 = HickoryDnsResolver::new();
 

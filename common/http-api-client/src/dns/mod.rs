@@ -71,8 +71,6 @@ use once_cell::sync::OnceCell;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::*;
 
-// use nym_network_defaults::mainnet;
-
 mod constants;
 mod static_resolver;
 mod trial;
@@ -568,7 +566,6 @@ fn filter_ipv6(nameservers: impl IntoIterator<Item = NameServerConfig>) -> Vec<N
         .collect()
 }
 
-#[allow(unused)]
 fn default_nameserver_group() -> Vec<NameServerConfig> {
     QUAD9
         .tls()

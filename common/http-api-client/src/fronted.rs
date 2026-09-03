@@ -143,6 +143,7 @@ impl Client {
 mod tests {
     use super::*;
     use crate::{ApiClientCore, NO_PARAMS, Url};
+    use serial_test::serial;
 
     impl Front {
         pub(crate) fn policy(&self) -> FrontPolicy {
@@ -213,10 +214,8 @@ mod tests {
     // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
     // AN IMPACT ON OTHER TESTS
     #[test]
-    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
+    #[serial]
     fn set_policy_shared_client() {
-        let _guard = crate::lock_shared_test_state();
-
         // restores the shared policy to whatever it was before this test on scope exit (including
         // on panic/assertion failure), so a leaked mutation can't leak into whichever test the
         // shared-state lock is handed to next.
@@ -304,11 +303,10 @@ mod tests {
     }
 
     #[tokio::test]
-    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
+    #[serial]
     async fn nym_api_works() {
         // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
         // marker - must not run concurrently with tests that mutate it.
-        let _guard = crate::lock_shared_test_state();
 
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
@@ -342,12 +340,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[allow(clippy::await_holding_lock)] // guard is only ever held on the single-threaded test runtime
+    #[serial]
     async fn fallback_on_failure() {
         // sends real requests and relies on host rotation not being suppressed, which depends on
         // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
         // tests that mutate it.
-        let _guard = crate::lock_shared_test_state();
 
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",

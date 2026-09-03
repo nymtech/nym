@@ -162,10 +162,6 @@ impl NymDirectoryCacheData {
         self.directory.contains_key(&height)
     }
 
-    pub(crate) fn most_recent_height(&self) -> Option<Height> {
-        self.directory.keys().last().copied()
-    }
-
     pub(crate) fn most_recent_entry(&self, settle_lag: usize) -> Option<&CachedDirectory> {
         let allowed_latest = self
             .last_polled_height

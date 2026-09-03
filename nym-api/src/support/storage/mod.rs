@@ -12,8 +12,8 @@ use crate::storage::manager::StorageManager;
 use crate::storage::models::TestingRoute;
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
-    NymNodeStressTestingResult, RetrievedAverageStressTestResult, TestedGatewayStatus,
-    TestedMixnodeStatus,
+    NymNodeLivenessResult, NymNodeStressTestingResult, RetrievedAverageStressTestResult,
+    TestedGatewayStatus, TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
@@ -743,6 +743,19 @@ impl NymApiStorage {
             .await?)
     }
 
+    /// Persist the given liveness results, produced by an authorised network monitor orchestrator,
+    /// into the database. Returns the number of rows actually inserted, i.e. excluding any that
+    /// deduplicated against a measurement already stored.
+    pub(crate) async fn insert_nym_node_liveness_results(
+        &self,
+        results: Vec<NymNodeLivenessResult>,
+    ) -> Result<u64, NymApiStorageError> {
+        Ok(self
+            .manager
+            .insert_nym_node_liveness_results(results)
+            .await?)
+    }
+
     /// Obtains number of network monitor test runs that have occurred within the specified interval.
     ///
     /// # Arguments
@@ -943,5 +956,120 @@ pub(crate) mod v3_migration {
         pub(crate) async fn make_node_id_not_null(&self) -> Result<(), NymApiStorageError> {
             Ok(self.manager.make_node_id_not_null().await?)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use time::macros::datetime;
+
+    /// A liveness row, varying only what a test needs to vary.
+    fn liveness_row(
+        submitter: &str,
+        node_id: NodeId,
+        test_timestamp: OffsetDateTime,
+        testrun_id: i64,
+    ) -> NymNodeLivenessResult {
+        NymNodeLivenessResult {
+            testrun_id,
+            submitter_pubkey: submitter.to_string(),
+            node_id,
+            result: 0.5,
+            was_reachable: true,
+            test_timestamp,
+        }
+    }
+
+    /// Exercises the `20260903120000_liveness_testing` migration as well as the insert, since
+    /// `init_in_memory` applies the migrations and the insert is built through `QueryBuilder` and
+    /// so is not checked against the schema at compile time.
+    ///
+    /// One decoy per component of `(node_id, test_timestamp, submitter_pubkey)`, because a
+    /// constraint missing any one of them would still let the plain duplicate be rejected.
+    #[tokio::test]
+    async fn a_liveness_measurement_dedupes_on_its_own_identity() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let at = datetime!(2026-09-03 12:00:00 UTC);
+
+        let stored = storage
+            .insert_nym_node_liveness_results(vec![liveness_row("orchestrator-a", 42, at, 1)])
+            .await
+            .unwrap();
+        assert_eq!(stored, 1);
+
+        // the same measurement again: the orchestrator's at-least-once retry path
+        let stored = storage
+            .insert_nym_node_liveness_results(vec![liveness_row("orchestrator-a", 42, at, 1)])
+            .await
+            .unwrap();
+        assert_eq!(stored, 0, "a resent measurement must not duplicate");
+
+        // decoy per key component: each differs from the stored row in exactly one of them
+        let stored = storage
+            .insert_nym_node_liveness_results(vec![
+                liveness_row("orchestrator-b", 42, at, 1),
+                liveness_row("orchestrator-a", 7, at, 1),
+                liveness_row("orchestrator-a", 42, datetime!(2026-09-03 12:00:01 UTC), 1),
+            ])
+            .await
+            .unwrap();
+        assert_eq!(
+            stored, 3,
+            "differing in any one of submitter, node or timestamp is a distinct measurement"
+        );
+    }
+
+    /// The regression guard for the amended dedupe key. A wiped orchestrator database restarts its
+    /// testrun counter, so ids get reused for measurements that already landed here. If
+    /// `testrun_id` were part of the key, the reused id would be a NEW row and the same
+    /// measurement would be stored twice; if it wrongly still keyed the row on its own, fresh
+    /// measurements would instead be silently swallowed. Neither may happen.
+    #[tokio::test]
+    async fn a_reused_testrun_id_neither_duplicates_nor_swallows_a_measurement() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+        let at = datetime!(2026-09-03 12:00:00 UTC);
+
+        storage
+            .insert_nym_node_liveness_results(vec![liveness_row("orchestrator-a", 42, at, 1000)])
+            .await
+            .unwrap();
+
+        // same measurement resubmitted under a restarted counter: still one measurement
+        let stored = storage
+            .insert_nym_node_liveness_results(vec![liveness_row("orchestrator-a", 42, at, 1)])
+            .await
+            .unwrap();
+        assert_eq!(
+            stored, 0,
+            "testrun_id is not part of the identity, so this is the same measurement"
+        );
+
+        // a genuinely new measurement that happens to reuse an already-seen id must still land
+        let stored = storage
+            .insert_nym_node_liveness_results(vec![liveness_row(
+                "orchestrator-a",
+                42,
+                datetime!(2026-09-03 13:00:00 UTC),
+                1000,
+            )])
+            .await
+            .unwrap();
+        assert_eq!(
+            stored, 1,
+            "a reused testrun id must not block a new measurement"
+        );
+    }
+
+    /// An empty batch is reachable: every entry can be dropped by the handler's range check.
+    #[tokio::test]
+    async fn an_empty_liveness_batch_is_a_no_op() {
+        let storage = NymApiStorage::init_in_memory().await.unwrap();
+
+        let stored = storage
+            .insert_nym_node_liveness_results(Vec::new())
+            .await
+            .unwrap();
+        assert_eq!(stored, 0);
     }
 }

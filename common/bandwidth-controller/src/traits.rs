@@ -98,9 +98,6 @@ pub trait CredentialFetcher: CredentialPublicDataFetcher + Send + Sync {
         ticketbook_type: TicketType,
     ) -> Result<Vec<NymCredential>, CredentialFetcherError>;
 
-    /// Stops in-flight retrieval of blinded ticketbook shares whose validity has passed.
-    async fn prune(&self) -> Result<(), CredentialFetcherError>;
-
     /// Persists any in-progress state (e.g. closing storage) before the fetcher is dropped, such
     /// that it can be resumed later.
     async fn cleanup(&self);

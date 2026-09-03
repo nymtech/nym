@@ -141,10 +141,6 @@ impl<F: CredentialFetcher> CredentialFetcher for TimeoutFetcher<F> {
         self.inner.fetch_ticketbooks(ticketbook_type).await
     }
 
-    async fn prune(&self) -> Result<(), CredentialFetcherError> {
-        self.inner.prune().await
-    }
-
     async fn cleanup(&self) {
         self.inner.cleanup().await
     }
@@ -231,10 +227,6 @@ mod tests {
             _ticketbook_type: TicketType,
         ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
             self.act().await
-        }
-
-        async fn prune(&self) -> Result<(), CredentialFetcherError> {
-            Ok(())
         }
 
         async fn cleanup(&self) {}

@@ -384,6 +384,10 @@ where
         &self,
         ticketbook_type: TicketType,
     ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+        if let Err(err) = self.cancel_expired_ticketbooks().await {
+            tracing::warn!("Could not cancel expired ticketbooks: {err}");
+        }
+
         self.block_until_ecash_is_available().await?;
 
         if let Ok(recovered_ticketbooks) = self.recover_deposits(ticketbook_type).await {
@@ -428,11 +432,6 @@ where
                 Err(e.into())
             }
         }
-    }
-
-    async fn prune(&self) -> Result<(), CredentialFetcherError> {
-        self.cancel_expired_ticketbooks().await?;
-        Ok(())
     }
 
     async fn cleanup(&self) {
@@ -512,6 +511,10 @@ pub(crate) mod recovery {
             &self,
             ticketbook_type: TicketType,
         ) -> Result<Vec<NymCredential>, CredentialFetcherError> {
+            if let Err(err) = self.0.cancel_expired_ticketbooks().await {
+                tracing::warn!("Could not cancel expired ticketbooks: {err}");
+            }
+
             self.0.block_until_ecash_is_available().await?;
 
             let recovered_ticketbooks = self.0.recover_deposits(ticketbook_type).await?;
@@ -520,11 +523,6 @@ pub(crate) mod recovery {
                 recovered_ticketbooks.len()
             );
             Ok(recovered_ticketbooks)
-        }
-
-        async fn prune(&self) -> Result<(), CredentialFetcherError> {
-            self.0.cancel_expired_ticketbooks().await?;
-            Ok(())
         }
 
         async fn cleanup(&self) {
@@ -611,7 +609,7 @@ mod tests {
         .unwrap();
 
         // pruning empty database doesn't fail
-        fetcher.prune().await.unwrap();
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
 
         // insert late expiration ticketbook
         let expired_ticketbook = IssuanceTicketBook::new_with_expiration(
@@ -628,7 +626,7 @@ mod tests {
             .unwrap();
 
         // check pruning emptied it
-        fetcher.prune().await.unwrap();
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
         assert_eq!(
             fetcher
                 .pending_storage
@@ -654,7 +652,7 @@ mod tests {
             .unwrap();
 
         // check pruning doesn't affect it
-        fetcher.prune().await.unwrap();
+        fetcher.cancel_expired_ticketbooks().await.unwrap();
         assert_ne!(
             fetcher
                 .pending_storage

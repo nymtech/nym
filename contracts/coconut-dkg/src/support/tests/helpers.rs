@@ -4,7 +4,7 @@
 use super::fixtures::TEST_MIX_DENOM;
 use crate::contract::instantiate;
 use crate::dealers::storage::{DEALERS_INDICES, EPOCH_DEALERS_MAP};
-use crate::epoch_state::storage::load_current_epoch;
+use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env, MockApi, MockQuerier};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, OwnedDeps,
@@ -37,7 +37,15 @@ pub fn re_register_dealer(deps: DepsMut, dealer: &Addr) {
 }
 
 pub fn add_current_dealer(deps: DepsMut<'_>, details: &DealerDetails) {
-    let epoch_id = load_current_epoch(deps.storage).unwrap().epoch_id;
+    let mut epoch = load_current_epoch(deps.storage).unwrap();
+    let epoch_id = epoch.epoch_id;
+
+    // mirror the real registration handler, which counts the dealer in the epoch's progress
+    // as well as writing it to the dealer maps. a dealer present only in the maps is one the
+    // contract cannot see when it decides whether a ceremony has anyone in it
+    epoch.state_progress.registered_dealers += 1;
+    save_epoch(deps.storage, mock_env().block.height, &epoch).unwrap();
+
     insert_dealer(deps, epoch_id, details)
 }
 

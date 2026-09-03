@@ -71,6 +71,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tendermint::abci::response::Info;
 use tokio::sync::{RwLock, RwLockReadGuard};
+use tracing::warn;
 use url::Url;
 
 #[macro_export]
@@ -483,6 +484,24 @@ impl Client {
     }
 }
 
+fn construct_usable_ecash_api_clients(shares: Vec<ContractVKShare>) -> Vec<EcashApiClient> {
+    let mut clients = Vec::with_capacity(shares.len());
+
+    for share in shares {
+        let owner = share.owner.clone();
+        let epoch_id = share.epoch_id;
+
+        match construct_ecash_api_client(share) {
+            Ok(client) => clients.push(client),
+            Err(err) => {
+                warn!("ignoring the key share of {owner} for epoch {epoch_id}: {err}")
+            }
+        }
+    }
+
+    clients
+}
+
 pub(crate) fn construct_ecash_api_client(
     share: ContractVKShare,
 ) -> std::result::Result<EcashApiClient, EcashApiError> {
@@ -696,12 +715,9 @@ impl crate::ecash::client::Client for Client {
         &self,
         epoch_id: nym_coconut_dkg_common::types::EpochId,
     ) -> Result<Vec<EcashApiClient>, EcashError> {
-        Ok(self
-            .get_verification_key_shares(epoch_id)
-            .await?
-            .into_iter()
-            .map(construct_ecash_api_client)
-            .collect::<Result<Vec<_>, EcashApiError>>()?)
+        Ok(construct_usable_ecash_api_clients(
+            self.get_verification_key_shares(epoch_id).await?,
+        ))
     }
 
     async fn vote_proposal(

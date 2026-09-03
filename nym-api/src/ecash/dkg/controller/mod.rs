@@ -173,8 +173,41 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         self.persist_state()
     }
 
+    /// Start using the keys derived for this epoch if we are not already.
+    ///
+    /// Marking them usable is the last thing [`Self::verification_key_finalization`] does,
+    /// and the finalization phase it runs in lasts only 60 seconds. An api that missed that
+    /// window - a transaction that failed, a tick that landed late - is left holding keys
+    /// the rest of the network expects it to sign with, and nothing revisits the decision
+    /// while the process keeps running. This applies the same rule the startup path uses
+    /// (see [`keys::can_validate_coconut_keys`]), so that recovering no longer takes a restart.
+    async fn ensure_derived_keys_are_usable(&self, epoch_id: EpochId) {
+        if self.state.coconut_keypair_is_valid() {
+            return;
+        }
+
+        let issued_for = self
+            .state
+            .unchecked_coconut_keypair()
+            .await
+            .as_ref()
+            .map(|keypair| keypair.issued_for_epoch);
+
+        // no keys at all, or keys from an epoch we're no longer in: either way they must not be
+        // used for issuance. once the store keeps more than one epoch's keys, this becomes a
+        // lookup for `epoch_id` rather than a comparison against the only keys we hold
+        if issued_for != Some(epoch_id) {
+            return;
+        }
+
+        warn!("our keys for epoch {epoch_id} were derived but never marked as usable - we most likely missed the finalization window. they will now be used for credential issuance");
+        self.state.validate_coconut_keypair();
+    }
+
     async fn handle_in_progress(&mut self, epoch_id: EpochId) -> Result<(), DkgError> {
         debug!("DKG: epoch in progress");
+
+        self.ensure_derived_keys_are_usable(epoch_id).await;
 
         let Ok(state) = self.state.in_progress_state(epoch_id) else {
             // we probably just started up the api while the DKG has already finished and we're waiting for new round to join
@@ -364,5 +397,66 @@ impl DkgController {
             rng,
             polling_rate: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness::{
+        advance_state, derive_keypairs, exchange_dealings, initialise_controllers, initiate_dkg,
+        submit_public_keys, validate_keys,
+    };
+    use nym_coconut_dkg_common::types::EpochState;
+
+    /// A dealer whose share ends up verified on chain, but which does not manage to record
+    /// that itself before the (60 second) finalization window closes, must recover on its
+    /// own: the keys it derived are the ones the rest of the network expects it to sign
+    /// with, so it should start using them within a polling interval rather than sitting
+    /// idle until somebody restarts the process.
+    #[tokio::test(start_paused = true)]
+    #[ignore] // expensive test
+    async fn a_signer_that_missed_the_finalization_window_recovers_without_a_restart(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(4);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch_id = chain.epoch().epoch_id;
+
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+        derive_keypairs(&mut controllers, false).await;
+        validate_keys(&mut controllers, false).await;
+
+        // every dealer but the last finalizes inside the window
+        for controller in controllers.iter_mut().take(3) {
+            controller.verification_key_finalization(epoch_id).await?;
+        }
+
+        // the straggler's proposal had passed all the same, so another dealer executes it.
+        // its share is verified on chain; it simply never got to see that happen - the
+        // shape a missed finalization takes when the api is briefly unable to transact
+        let straggler = &mut controllers[3];
+        let straggler_address = straggler.address().await;
+        let proposal_id = straggler.state.proposal_id(epoch_id)?;
+        chain.execute_multisig_proposal(chain.group_member_addresses()[0].clone(), proposal_id)?;
+
+        advance_state(&chain);
+        assert_eq!(chain.epoch().state, EpochState::InProgress);
+
+        // the chain counts it as a signer for this epoch, but it is not using its keys
+        assert!(chain.vk_share_verified(epoch_id, &straggler_address));
+        assert!(straggler.state.coconut_keypair_is_some().await);
+        assert!(!straggler.state.coconut_keypair_is_valid());
+
+        // a single poll of the still-running process
+        straggler.handle_epoch_state().await?;
+
+        assert!(
+            straggler.state.coconut_keypair_is_valid(),
+            "the signer is still refusing to use keys the network expects it to sign with"
+        );
+
+        Ok(())
     }
 }

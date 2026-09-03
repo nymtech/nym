@@ -9,7 +9,7 @@ use crate::error::ContractError;
 use crate::state::storage::{MULTISIG, STATE};
 use crate::verification_key_shares::storage::vk_shares;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use nym_coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_coconut_dkg_common::verification_key::{
     to_cosmos_msg, ContractVKShare, VerificationKeyShare,
 };
@@ -51,6 +51,7 @@ pub fn try_commit_verification_key_share(
     let msg = to_cosmos_msg(
         info.sender,
         resharing,
+        epoch_id,
         env.contract.address.to_string(),
         STATE.load(deps.storage)?.multisig_addr.to_string(),
         // TODO: make this value configurable
@@ -71,6 +72,7 @@ pub fn try_verify_verification_key_share(
     info: MessageInfo,
     owner: String,
     resharing: bool,
+    order_epoch_id: EpochId,
 ) -> Result<Response, ContractError> {
     let owner = deps.api.addr_validate(&owner)?;
 
@@ -80,6 +82,20 @@ pub fn try_verify_verification_key_share(
     )?;
     let mut epoch = load_current_epoch(deps.storage)?;
     let epoch_id = epoch.epoch_id;
+
+    // multisig proposals outlive the round that created them - they get a day to be voted on,
+    // while a ceremony takes about twenty minutes - so one that never reached a decision is
+    // still open when a later ceremony reaches this phase. without the epoch in the order,
+    // executing it then would verify whatever share this owner happens to have now, which
+    // nobody validated, and count it towards the totals that decide whether the phase is
+    // complete and whether the threshold was met
+    if order_epoch_id != epoch_id {
+        return Err(ContractError::StaleVerificationOrder {
+            owner: owner.to_string(),
+            order_epoch_id,
+            current_epoch_id: epoch_id,
+        });
+    }
 
     MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
     vk_shares().update(deps.storage, (&owner, epoch_id), |vk_share| {
@@ -108,10 +124,12 @@ mod tests {
         add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
     };
     use cosmwasm_std::testing::{message_info, mock_env};
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{from_json, Addr, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
+    use nym_coconut_dkg_common::msg::ExecuteMsg;
     use nym_coconut_dkg_common::types::TimeConfiguration;
+    use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
     #[test]
     fn current_epoch_id() {
@@ -266,6 +284,7 @@ mod tests {
             info.clone(),
             owner.clone(),
             false,
+            0,
         )
         .unwrap_err();
         assert_eq!(
@@ -305,6 +324,7 @@ mod tests {
             info,
             owner.clone(),
             false,
+            0,
         )
         .unwrap_err();
         assert_eq!(ret, ContractError::Admin(AdminError::NotAdmin {}));
@@ -315,6 +335,7 @@ mod tests {
             multisig_info,
             owner.clone(),
             false,
+            0,
         )
         .unwrap_err();
         assert_eq!(
@@ -381,7 +402,156 @@ mod tests {
             multisig_info,
             owner.to_string(),
             false,
+            0,
         )
         .unwrap();
+    }
+
+    /// The order this contract asks the multisig to execute must only be able to verify the
+    /// share it was minted for.
+    ///
+    /// Multisig proposals outlive the round they belong to - they are given
+    /// `BLOCK_TIME_FOR_VERIFICATION_SECS` to be voted on, while a whole ceremony takes about
+    /// twenty minutes - so one that never reached a decision is still sitting there, open,
+    /// when the next ceremony reaches its finalization phase. If nothing in the order ties it
+    /// to an epoch, executing it then verifies whatever share that owner happens to have now,
+    /// which nobody validated, and counts it towards the totals that decide both whether the
+    /// phase is complete and whether the threshold was met.
+    #[test]
+    fn a_verification_order_cannot_be_replayed_in_a_later_epoch() {
+        /// Read back the verify order the contract wrapped in its `Propose` message.
+        fn minted_order(response: &Response) -> ExecuteMsg {
+            let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = &response.messages[0].msg else {
+                panic!("the commit did not ask the multisig to do anything")
+            };
+            let MultisigExecuteMsg::Propose { msgs, .. } = from_json(msg).unwrap() else {
+                panic!("the commit did not propose anything")
+            };
+            let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = &msgs[0] else {
+                panic!("the proposal does not execute anything")
+            };
+            from_json(msg).unwrap()
+        }
+
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        try_initiate_dkg(
+            deps.as_mut(),
+            env.clone(),
+            message_info(&Addr::unchecked(ADMIN_ADDRESS), &[]),
+        )
+        .unwrap();
+
+        let owner = deps.api.addr_make("owner");
+        let info = message_info(&owner, &[]);
+        let multisig_info = message_info(&Addr::unchecked(MULTISIG_CONTRACT), &[]);
+        let dealer_details = DealerDetails {
+            address: owner.clone(),
+            bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
+            announce_address: String::new(),
+            assigned_index: 1,
+        };
+
+        let timings = TimeConfiguration::default();
+
+        // walk the first ceremony as far as the share commit, which is what mints the order
+        add_fixture_dealer(deps.as_mut());
+        add_current_dealer(deps.as_mut(), &dealer_details);
+
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.public_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.dealing_exchange_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        let epoch_0_order = minted_order(
+            &try_commit_verification_key_share(
+                deps.as_mut(),
+                env.clone(),
+                info.clone(),
+                "epoch 0 share".to_string(),
+                false,
+            )
+            .unwrap(),
+        );
+
+        // nobody ever votes on it, and the ceremony fails for want of verified keys, so the
+        // order is still open when the contract starts over
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.verification_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.verification_key_validation_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.verification_key_finalization_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        let epoch = load_current_epoch(&deps.storage).unwrap();
+        assert_eq!(epoch.epoch_id, 1);
+        assert_eq!(
+            epoch.state,
+            EpochState::PublicKeySubmission { resharing: false }
+        );
+
+        // the second ceremony runs properly and reaches the point where orders are executed
+        add_current_dealer(deps.as_mut(), &dealer_details);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.public_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.dealing_exchange_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_commit_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info,
+            "epoch 1 share".to_string(),
+            false,
+        )
+        .unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.verification_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(timings.verification_key_validation_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        // now the stale order finally gets executed
+        let replayed = crate::contract::execute(deps.as_mut(), env, multisig_info, epoch_0_order);
+
+        assert!(
+            replayed.is_err(),
+            "an order minted for epoch 0 verified a share in epoch 1"
+        );
+        let share = vk_shares().load(&deps.storage, (&owner, 1)).unwrap();
+        assert!(!share.verified);
+        assert_eq!(
+            load_current_epoch(&deps.storage)
+                .unwrap()
+                .state_progress
+                .verified_keys,
+            0
+        );
     }
 }

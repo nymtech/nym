@@ -258,10 +258,15 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 // NOTE: the following tests currently do NOT cover all cases
 // I've (@JS) only updated old, existing, tests. nothing more
+//
+// These run against the real coconut-dkg contract under `cw_multi_test`, so the share
+// verification proposals below are real cw3 proposals whose statuses are decided by the
+// multisig's own tallying rather than by a mock.
 #[cfg(test)]
 mod tests {
-    use crate::ecash::tests::helpers::{
-        derive_keypairs, exchange_dealings, initialise_controllers, initialise_dkg,
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness::{
+        derive_keypairs, exchange_dealings, initialise_controllers, initiate_dkg,
         submit_public_keys,
     };
     use cw3::Status;
@@ -272,11 +277,11 @@ mod tests {
     async fn validate_verification_key() -> anyhow::Result<()> {
         let validators = 4;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -288,11 +293,10 @@ mod tests {
             assert!(controller.state.key_validation_state(epoch)?.completed);
         }
 
-        let guard = chain.lock().unwrap();
-        let proposals = &guard.multisig_contract.proposals;
+        let proposals = chain.proposals();
         assert_eq!(proposals.len(), validators);
 
-        for proposal in proposals.values() {
+        for proposal in &proposals {
             assert_eq!(Status::Passed, proposal.status)
         }
 
@@ -304,28 +308,21 @@ mod tests {
     async fn validate_verification_key_malformed_share() -> anyhow::Result<()> {
         let validators = 4;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await?;
+        let first_dealer = controllers[0].address().await;
 
-        {
-            let mut guard = chain.lock().unwrap();
-            let shares = guard
-                .dkg_contract
-                .verification_shares
-                .get_mut(&epoch)
-                .unwrap();
-            let share = shares.get_mut(first_dealer.as_ref()).unwrap();
-            // mess up the share
-            share.share.push('x');
-        }
+        // mess up the share
+        let mut share = chain.vk_share_value(epoch, &first_dealer);
+        share.push('x');
+        chain.set_vk_share_value(epoch, &first_dealer, share);
 
         for controller in controllers.iter_mut() {
             let res = controller.verification_key_validation(epoch).await;
@@ -334,12 +331,11 @@ mod tests {
             assert!(controller.state.key_validation_state(epoch)?.completed);
         }
 
-        let guard = chain.lock().unwrap();
-        let proposals = &guard.multisig_contract.proposals;
+        let proposals = chain.proposals();
         assert_eq!(proposals.len(), validators);
 
         // the proposal from the first dealer would have gotten rejected
-        for proposal in proposals.values() {
+        for proposal in &proposals {
             let addr = owner_from_cosmos_msgs(&proposal.msgs).unwrap();
             if addr.as_str() == first_dealer.as_ref() {
                 assert_eq!(Status::Rejected, proposal.status)
@@ -356,31 +352,22 @@ mod tests {
     async fn validate_verification_key_unpaired_share() -> anyhow::Result<()> {
         let validators = 2;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await?;
-        let second_dealer = controllers[1].dkg_client.get_address().await?;
+        let first_dealer = controllers[0].address().await;
+        let second_dealer = controllers[1].address().await;
 
-        {
-            let mut guard = chain.lock().unwrap();
-            let shares = guard
-                .dkg_contract
-                .verification_shares
-                .get_mut(&epoch)
-                .unwrap();
-            let second_share = shares.get(second_dealer.as_ref()).unwrap().clone();
-
-            let share = shares.get_mut(first_dealer.as_ref()).unwrap();
-            // mess up the share
-            share.share = second_share.share;
-        }
+        // give the first dealer a share that belongs to somebody else: it is perfectly
+        // well-formed, it just doesn't pair with the dealings they distributed
+        let second_share = chain.vk_share_value(epoch, &second_dealer);
+        chain.set_vk_share_value(epoch, &first_dealer, second_share);
 
         for controller in controllers.iter_mut() {
             let res = controller.verification_key_validation(epoch).await;
@@ -389,15 +376,24 @@ mod tests {
             assert!(controller.state.key_validation_state(epoch)?.completed);
         }
 
-        let guard = chain.lock().unwrap();
-        let proposals = &guard.multisig_contract.proposals;
+        // the unpaired share must never be verified, which is the property that matters
+        assert!(!chain.vk_share_verified(epoch, &first_dealer));
+        assert!(!chain.vk_share_verified(epoch, &second_dealer));
+
+        let proposals = chain.proposals();
         assert_eq!(proposals.len(), validators);
 
-        // the proposal from the first dealer would have gotten rejected
-        for proposal in proposals.values() {
+        // NOTE: with only two group members the bad proposal is left `Open` rather than
+        // `Rejected`, which is where the real multisig differs from the hand-rolled mock
+        // this test used to run against. cw3 rejects only once
+        // `no > votes_needed(total_weight - abstain, 1 - percentage)`, i.e. `no > 1` here,
+        // but a dealer always votes yes on its own share, so `no` never exceeds 1. It
+        // still cannot pass (that needs 2 yes votes), so the share stays unverified and
+        // the proposal simply lingers until it expires.
+        for proposal in &proposals {
             let addr = owner_from_cosmos_msgs(&proposal.msgs).unwrap();
             if addr.as_str() == first_dealer.as_ref() {
-                assert_eq!(Status::Rejected, proposal.status)
+                assert_eq!(Status::Open, proposal.status)
             } else {
                 assert_eq!(Status::Passed, proposal.status)
             }

@@ -11,7 +11,6 @@ use crate::ecash::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
-use nym_compact_ecash::VerificationKeyAuth;
 use nym_crypto::asymmetric::ed25519;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
@@ -75,11 +74,6 @@ pub struct TestingDkgControllerBuilder {
 }
 
 impl TestingDkgControllerBuilder {
-    pub fn with_magic_seed_val(mut self, val: u8) -> Self {
-        self.rng_seed = Some([val; 32]);
-        self
-    }
-
     #[allow(dead_code)]
     pub fn with_rng(mut self, rng: ChaCha20Rng) -> Self {
         self.rng = Some(rng);
@@ -93,11 +87,6 @@ impl TestingDkgControllerBuilder {
 
     pub fn with_keypair(mut self, keypair: KeyPair) -> Self {
         self.keypair = Some(keypair);
-        self
-    }
-
-    pub fn with_shared_chain_state(mut self, fake_chain: SharedFakeChain) -> Self {
-        self.chain_state = Some(fake_chain);
         self
     }
 
@@ -259,27 +248,6 @@ pub(crate) struct TestingDkgController {
     pub(crate) chain_state: SharedFakeChain,
 
     _tmp_dir: TempDir,
-}
-
-impl TestingDkgController {
-    pub async fn address(&self) -> AccountId {
-        self.dkg_client.get_address().await.unwrap()
-    }
-
-    pub async fn cw_address(&self) -> Addr {
-        Addr::unchecked(self.address().await.as_ref())
-    }
-
-    pub(crate) async fn unchecked_coconut_vk(&self) -> VerificationKeyAuth {
-        self.state
-            .unchecked_coconut_keypair()
-            .await
-            .as_ref()
-            .unwrap()
-            .keys
-            .verification_key()
-            .clone()
-    }
 }
 
 impl Deref for TestingDkgController {

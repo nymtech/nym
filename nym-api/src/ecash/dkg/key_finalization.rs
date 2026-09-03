@@ -90,22 +90,23 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 // I've (@JS) only updated old, existing, tests. nothing more
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::ecash::tests::helpers::{
-        derive_keypairs, exchange_dealings, initialise_controllers, initialise_dkg,
+    use crate::ecash::tests::contract_chain::SharedContractChain;
+    use crate::ecash::tests::contract_harness::{
+        derive_keypairs, exchange_dealings, initialise_controllers, initiate_dkg,
         submit_public_keys, validate_keys,
     };
+    use cw3::Status;
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn finalize_verification_key() -> anyhow::Result<()> {
         let validators = 4;
 
-        let mut controllers = initialise_controllers(validators).await;
-        let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+        let chain = SharedContractChain::new(validators);
+        let mut controllers = initialise_controllers(&chain);
+        initiate_dkg(&chain);
+        let epoch = chain.epoch().epoch_id;
 
-        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -118,12 +119,10 @@ mod tests {
             assert!(controller.state.key_finalization_state(epoch)?.completed);
         }
 
-        let chain = controllers[0].chain_state.clone();
-        let guard = chain.lock().unwrap();
-        let proposals = &guard.multisig_contract.proposals;
+        let proposals = chain.proposals();
         assert_eq!(proposals.len(), validators);
 
-        for proposal in proposals.values() {
+        for proposal in &proposals {
             assert_eq!(Status::Executed, proposal.status)
         }
 

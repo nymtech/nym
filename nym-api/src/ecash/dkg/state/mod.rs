@@ -351,6 +351,11 @@ impl State {
         self.coconut_keypair.read_keys().await.is_some()
     }
 
+    /// Whether the derived keys are currently being used for credential issuance.
+    pub fn coconut_keypair_is_valid(&self) -> bool {
+        self.coconut_keypair.is_valid()
+    }
+
     pub async fn take_coconut_keypair(&self) -> Option<KeyPairWithEpoch> {
         self.coconut_keypair.take().await
     }

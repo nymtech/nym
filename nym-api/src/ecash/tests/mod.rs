@@ -68,6 +68,9 @@ use std::sync::{Arc, Mutex};
 use time::Date;
 use tokio::sync::RwLock;
 
+pub(crate) mod contract_chain;
+pub(crate) mod contract_harness;
+mod dkg_ceremony;
 pub(crate) mod fixtures;
 pub(crate) mod helpers;
 mod issued_ticketbooks;
@@ -188,12 +191,6 @@ impl FakeDkgContractState {
 
     fn reset_dkg_state(&mut self) {}
 
-    pub(crate) fn reset_epoch_in_reshare_mode(&mut self) {
-        self.reset_dkg_state();
-        self.epoch.state = EpochState::PublicKeySubmission { resharing: true };
-        self.epoch.epoch_id += 1;
-    }
-
     pub(crate) fn reset_dkg(&mut self) {
         self.reset_dkg_state();
         self.epoch.state = EpochState::PublicKeySubmission { resharing: false };
@@ -263,15 +260,6 @@ impl FakeGroupContractState {
             .values()
             .map(|m| m.weight.unwrap_or_default())
             .sum()
-    }
-
-    pub(crate) fn add_member<S: Into<String>>(&mut self, address: S, weight: u64) {
-        self.members.insert(
-            address.into(),
-            MemberResponse {
-                weight: Some(weight),
-            },
-        );
     }
 }
 
@@ -388,17 +376,9 @@ impl FakeChainState {
         self.group_contract.total_weight()
     }
 
-    pub(crate) fn add_member<S: Into<String>>(&mut self, address: S, weight: u64) {
-        self.group_contract.add_member(address, weight)
-    }
-
     #[allow(dead_code)]
     pub(crate) fn reset_votes(&mut self) {
         self.multisig_contract.reset_votes()
-    }
-
-    pub(crate) fn advance_epoch_in_reshare_mode(&mut self) {
-        self.dkg_contract.reset_epoch_in_reshare_mode()
     }
 
     #[allow(unused)]
@@ -413,6 +393,7 @@ impl FakeChainState {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
                 resharing,
+                ..
             } => {
                 if sender.sender != self.multisig_contract.address {
                     panic!("not multisig")
@@ -1074,6 +1055,7 @@ impl super::client::Client for DummyClient {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner: address,
                 resharing,
+                epoch_id,
             };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: chain.dkg_contract.address.to_string(),
@@ -1167,6 +1149,11 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
     async fn dkg_in_progress(&self) -> Result<bool> {
         // deal with this later lol
         Ok(false)
+    }
+
+    async fn epoch_concluded(&self, _epoch_id: EpochId) -> Result<bool> {
+        // this chain never runs a ceremony, so its epochs are always settled
+        Ok(true)
     }
 
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {

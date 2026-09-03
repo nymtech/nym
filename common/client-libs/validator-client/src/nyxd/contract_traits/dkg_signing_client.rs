@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use nym_coconut_dkg_common::types::{DealingIndex, EncodedBTEPublicKeyWithProof};
+use nym_coconut_dkg_common::types::{DealingIndex, EncodedBTEPublicKeyWithProof, EpochId};
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_contracts_common::IdentityKey;
 
@@ -107,11 +107,13 @@ pub trait DkgSigningClient {
         &self,
         owner: &AccountId,
         resharing: bool,
+        epoch_id: EpochId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::VerifyVerificationKeyShare {
             owner: owner.to_string(),
             resharing,
+            epoch_id,
         };
 
         self.execute_dkg_contract(
@@ -226,8 +228,12 @@ mod tests {
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)
                 .ignore(),
-            DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
-                .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
+            DkgExecuteMsg::VerifyVerificationKeyShare {
+                owner,
+                resharing,
+                epoch_id,
+            } => client
+                .verify_verification_key_share(&owner.parse().unwrap(), resharing, epoch_id, None)
                 .ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
             DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),

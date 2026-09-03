@@ -226,10 +226,17 @@
           "verify_verification_key_share": {
             "type": "object",
             "required": [
+              "epoch_id",
               "owner",
               "resharing"
             ],
             "properties": {
+              "epoch_id": {
+                "description": "The epoch whose share this order is about. Multisig proposals outlive the round that created them, so without it an order that never got voted on could still be executed against whatever share its owner has in a later epoch.",
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
               "owner": {
                 "type": "string"
               },

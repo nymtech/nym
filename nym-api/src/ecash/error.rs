@@ -99,6 +99,11 @@ pub enum EcashError {
     DkgInProgress,
 
     #[error(
+        "the DKG ceremony for epoch {epoch_id} has not concluded, so it has no data to serve yet"
+    )]
+    CeremonyNotConcluded { epoch_id: EpochId },
+
+    #[error(
         "the node index value for epoch {epoch_id} is not available - are you sure we are a dealer?"
     )]
     UnavailableAssignedIndex { epoch_id: EpochId },

@@ -3,7 +3,7 @@
 
 use crate::ecash::dkg;
 use crate::ecash::dkg::client::DkgClient;
-use crate::ecash::dkg::controller::keys::persist_coconut_keypair;
+use crate::ecash::dkg::controller::keys::persist_ecash_keypair;
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::dkg::state::State;
 use crate::ecash::keys::KeyPair;
@@ -194,13 +194,13 @@ impl TestingDkgControllerBuilder {
         let tmp_dir = tempdir().unwrap();
 
         let dkg_state_path = tmp_dir.path().join("persistent_state.json");
-        let coconut_key_path = tmp_dir.path().join("coconut_keypair.pem");
+        let ecash_key_path = tmp_dir.path().join("ecash_keypair.pem");
 
         // if we had a keypair, make sure to put it on disk otherwise, if we're testing dealing exchange,
         // we'll fail to archive it
         let keypair = if let Some(keypair) = self.keypair {
             if let Some(keys) = keypair.read_keys().await.as_ref() {
-                persist_coconut_keypair(keys, &coconut_key_path).unwrap();
+                persist_ecash_keypair(keys, &ecash_key_path).unwrap();
             }
             keypair
         } else {
@@ -231,7 +231,7 @@ impl TestingDkgControllerBuilder {
         // }
 
         TestingDkgController {
-            controller: DkgController::test_mock(rng, dummy_client, state, coconut_key_path),
+            controller: DkgController::test_mock(rng, dummy_client, state, ecash_key_path),
             chain_state,
             _tmp_dir: tmp_dir,
         }

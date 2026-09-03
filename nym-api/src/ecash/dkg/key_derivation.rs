@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg;
-use crate::ecash::dkg::controller::keys::persist_coconut_keypair;
+use crate::ecash::dkg::controller::keys::persist_ecash_keypair;
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::dkg::state::key_derivation::{DealerRejectionReason, DerivationFailure};
 use crate::ecash::error::EcashError;
@@ -664,7 +664,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             };
 
         // before submitting our keys to the contract, persist the generated keypair
-        if let Err(source) = persist_coconut_keypair(&coconut_keypair, &self.coconut_key_path) {
+        if let Err(source) = persist_ecash_keypair(&coconut_keypair, &self.ecash_key_path) {
             return Err(KeyDerivationError::KeyPersistenceFailure { source });
         }
 

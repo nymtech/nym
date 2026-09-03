@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_dkg::Threshold;
 use nym_validator_client::EcashApiClient;
-use std::cmp::{min, Ordering};
+use std::cmp::min;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 
@@ -27,7 +27,7 @@ pub trait APICommunicationChannel {
     /// Anything derived from the signer set may only be cached once this is true: until
     /// then the set is still being filled in, and whatever partial view a caller happens
     /// to observe would be pinned for the lifetime of the process.
-    async fn epoch_concluded(&self, epoch_id: EpochId) -> Result<bool>;
+    async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool>;
 }
 
 struct CachedEpoch {
@@ -138,7 +138,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         // gateways poll continuously, so during a ceremony something will ask about the
         // new epoch while its shares are still being submitted. answer, but don't cache:
         // the entry has no expiry, so an empty or partial set would stick for good.
-        if !self.epoch_concluded(epoch_id).await? {
+        if !self.ceremony_concluded(epoch_id).await? {
             return self.client.get_registered_ecash_clients(epoch_id).await;
         }
 
@@ -176,16 +176,11 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         return Ok(!guard.current_epoch.state.is_in_progress());
     }
 
-    async fn epoch_concluded(&self, epoch_id: EpochId) -> Result<bool> {
-        let current = self.current_epoch_data().await?;
-
-        // anything before the current epoch has necessarily finished, and an epoch we
-        // have not reached yet certainly has not
-        match epoch_id.cmp(&current.epoch_id) {
-            Ordering::Less => Ok(true),
-            Ordering::Greater => Ok(false),
-            Ordering::Equal => Ok(current.state.is_in_progress()),
-        }
+    async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
+        Ok(self
+            .current_epoch_data()
+            .await?
+            .is_ceremony_concluded(epoch_id))
     }
 }
 

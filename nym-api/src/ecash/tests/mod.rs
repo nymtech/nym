@@ -52,7 +52,7 @@ use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
 use nym_task::ShutdownManager;
 use nym_validator_client::nym_api::routes::{
     ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE_COMMITMENT, ECASH_ISSUED_TICKETBOOKS_FOR,
-    ECASH_ROUTES, V1_API_VERSION,
+    ECASH_ROUTES, GLOBAL_EXPIRATION_DATE_SIGNATURES, V1_API_VERSION,
 };
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
@@ -60,10 +60,11 @@ use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse}
 use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
+use std::cmp::Ordering as CmpOrdering;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use time::Date;
 use tokio::sync::RwLock;
@@ -1096,21 +1097,96 @@ impl super::client::Client for DummyClient {
     }
 }
 
+/// Everything a [`DummyCommunicationChannel`] reports, shared with whoever is driving the test.
+///
+/// One handle rather than an `Arc` per knob: a new dial is added here instead of being threaded
+/// through the channel, [`DummyEcashBundle`] and [`TestFixture`] in parallel.
+#[allow(dead_code)]
+#[derive(Clone)]
+pub struct SharedCommState {
+    inner: Arc<CommStateInner>,
+}
+
+struct CommStateInner {
+    current_epoch: AtomicU64,
+
+    /// Whether the current epoch's ceremony is still running.
+    ceremony_in_flight: AtomicBool,
+
+    ecash_clients: RwLock<HashMap<EpochId, Vec<EcashApiClient>>>,
+}
+
+#[allow(dead_code)]
+impl SharedCommState {
+    pub fn new(epoch_id: EpochId, ecash_clients: Vec<EcashApiClient>) -> Self {
+        SharedCommState {
+            inner: Arc::new(CommStateInner {
+                current_epoch: AtomicU64::new(epoch_id),
+                ceremony_in_flight: AtomicBool::new(false),
+                ecash_clients: RwLock::new(HashMap::from([(epoch_id, ecash_clients)])),
+            }),
+        }
+    }
+
+    pub fn current_epoch(&self) -> EpochId {
+        self.inner.current_epoch.load(Ordering::Relaxed)
+    }
+
+    /// Move to a new epoch, carrying the signers of the old one over to it.
+    pub async fn set_current_epoch(&self, epoch_id: EpochId) {
+        let previous = self.current_epoch();
+        self.inner.current_epoch.store(epoch_id, Ordering::Relaxed);
+
+        let existing = self.clients(previous).await;
+        if !existing.is_empty() {
+            self.set_clients(epoch_id, existing).await;
+        }
+    }
+
+    /// Put the current epoch mid-ceremony, as a rotation would.
+    pub fn start_ceremony(&self) {
+        self.inner.ceremony_in_flight.store(true, Ordering::Relaxed);
+    }
+
+    pub fn conclude_ceremony(&self) {
+        self.inner
+            .ceremony_in_flight
+            .store(false, Ordering::Relaxed);
+    }
+
+    pub fn ceremony_in_flight(&self) -> bool {
+        self.inner.ceremony_in_flight.load(Ordering::Relaxed)
+    }
+
+    pub async fn clients(&self, epoch_id: EpochId) -> Vec<EcashApiClient> {
+        self.inner
+            .ecash_clients
+            .read()
+            .await
+            .get(&epoch_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub async fn set_clients(&self, epoch_id: EpochId, clients: Vec<EcashApiClient>) {
+        self.inner
+            .ecash_clients
+            .write()
+            .await
+            .insert(epoch_id, clients);
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct DummyCommunicationChannel {
-    current_epoch: Arc<AtomicU64>,
-    ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
+    state: SharedCommState,
 }
 
 impl DummyCommunicationChannel {
     pub fn new(ecash_clients: Vec<EcashApiClient>) -> Self {
-        let epoch_id = 1;
-        let mut ecash_clients_map = HashMap::new();
-        ecash_clients_map.insert(epoch_id, ecash_clients);
         DummyCommunicationChannel {
-            current_epoch: Arc::new(AtomicU64::new(epoch_id)),
-            ecash_clients: Arc::new(RwLock::new(ecash_clients_map)),
+            state: SharedCommState::new(1, ecash_clients),
         }
     }
 
@@ -1130,40 +1206,32 @@ impl DummyCommunicationChannel {
         Self::new(vec![client])
     }
 
-    pub fn clients_arc(&self) -> Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>> {
-        Arc::clone(&self.ecash_clients)
-    }
-
-    pub fn with_epoch(mut self, current_epoch: Arc<AtomicU64>) -> Self {
-        self.current_epoch = current_epoch;
-        self
+    pub fn shared_state(&self) -> SharedCommState {
+        self.state.clone()
     }
 }
 
 #[async_trait]
 impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
     async fn current_epoch(&self) -> Result<EpochId> {
-        Ok(self.current_epoch.load(Ordering::Relaxed))
+        Ok(self.state.current_epoch())
     }
 
     async fn dkg_in_progress(&self) -> Result<bool> {
-        // deal with this later lol
-        Ok(false)
+        Ok(self.state.ceremony_in_flight())
     }
 
-    async fn epoch_concluded(&self, _epoch_id: EpochId) -> Result<bool> {
-        // this chain never runs a ceremony, so its epochs are always settled
-        Ok(true)
+    async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
+        // mirrors the real channel: only the current epoch's ceremony can be unfinished
+        match epoch_id.cmp(&self.state.current_epoch()) {
+            CmpOrdering::Less => Ok(true),
+            CmpOrdering::Greater => Ok(false),
+            CmpOrdering::Equal => Ok(!self.state.ceremony_in_flight()),
+        }
     }
 
     async fn ecash_clients(&self, epoch_id: EpochId) -> Result<Vec<EcashApiClient>> {
-        Ok(self
-            .ecash_clients
-            .read()
-            .await
-            .get(&epoch_id)
-            .cloned()
-            .unwrap_or_default())
+        Ok(self.state.clients(epoch_id).await)
     }
 
     async fn ecash_threshold(&self, _epoch_id: EpochId) -> Result<Threshold> {
@@ -1242,22 +1310,20 @@ struct TestFixture {
     axum: TestServer,
     storage: NymApiStorage,
     chain_state: SharedFakeChain,
-    epoch: Arc<AtomicU64>,
-    ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
+    comm_state: SharedCommState,
 }
 
 /// Test-only bundle returned by [`build_dummy_ecash_state`]. Carries the
 /// constructed [`EcashState`] plus the test handles the caller may want to
-/// poke at directly (chain state, registered ecash clients, epoch counter).
+/// poke at directly (chain state, and the dummy channel's epoch/signer/ceremony state).
 pub(crate) struct DummyEcashBundle {
     pub ecash_state: EcashState,
     pub chain_state: SharedFakeChain,
-    pub ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
+    pub comm_state: SharedCommState,
     /// A real [`Client`] (not the [`DummyClient`]) suitable for the
     /// `nyxd_client` field on [`AppState`]. Built from a global env-var dance
     /// (see body), which is required because `AppState` is not generic.
     pub real_client: Client,
-    pub epoch: Arc<AtomicU64>,
 }
 
 /// Build a self-contained [`EcashState`] suitable for handler tests. Pulls
@@ -1272,14 +1338,12 @@ pub(crate) async fn build_dummy_ecash_state(
     let mut rng = crate::ecash::tests::fixtures::test_rng(rng_seed);
     let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
     let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
-    let epoch = Arc::new(AtomicU64::new(1));
     let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let comm_channel = DummyCommunicationChannel::new_single_dummy(
         coconut_keypair.verification_key().clone(),
         address.clone(),
-    )
-    .with_epoch(epoch.clone());
-    let ecash_clients = comm_channel.clients_arc();
+    );
+    let comm_state = comm_channel.shared_state();
 
     let staged_key_pair = crate::ecash::keys::KeyPair::new();
     staged_key_pair
@@ -1329,9 +1393,8 @@ pub(crate) async fn build_dummy_ecash_state(
     DummyEcashBundle {
         ecash_state,
         chain_state,
-        ecash_clients,
+        comm_state,
         real_client,
-        epoch,
     }
 }
 
@@ -1359,21 +1422,13 @@ impl TestFixture {
             ),
             storage,
             chain_state: bundle.chain_state,
-            epoch: bundle.epoch,
-            ecash_clients: bundle.ecash_clients,
+            comm_state: bundle.comm_state,
         }
     }
 
     #[allow(dead_code)]
     async fn set_epoch(&self, epoch: u64) {
-        let current_epoch = self.epoch.load(Ordering::Relaxed);
-        self.epoch.store(epoch, Ordering::Relaxed);
-
-        // copy the same epoch_signers as we had initially
-        let existing = self.ecash_clients.read().await.get(&current_epoch).cloned();
-        if let Some(clients) = existing {
-            self.ecash_clients.write().await.insert(epoch, clients);
-        }
+        self.comm_state.set_current_epoch(epoch).await
     }
 
     #[allow(dead_code)]
@@ -1475,9 +1530,13 @@ impl TestFixture {
 #[cfg(test)]
 mod credential_tests {
     use super::*;
+    use crate::ecash::helpers::IssuedExpirationDateSignatures;
     use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
+    use nym_api_requests::ecash::models::AggregatedExpirationDateSignatureResponse;
+    use nym_ecash_time::ecash_today_date;
     use nym_ticketbooks_merkle::MerkleLeaf;
+    use nym_validator_client::nym_api::RFC_3339_DATE_FORMAT;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1703,6 +1762,66 @@ mod credential_tests {
 
         assert_eq!(response.status_code(), StatusCode::OK);
         let _ = response.json::<BlindedSignatureResponse>();
+    }
+
+    /// B2, at the routes: the aggregated data a client needs to *spend* an old ticketbook is
+    /// fixed once that epoch's ceremony finished, so a later ceremony is no reason to withhold
+    /// it. A client whose local cache is cold has no other source, and the book stays valid for
+    /// days after the rotation - so refusing here takes it out of service for the duration.
+    ///
+    /// The epoch being run right now is a different matter: it has nothing to give yet, and
+    /// says so.
+    #[tokio::test]
+    async fn aggregated_data_for_a_concluded_epoch_is_served_during_a_ceremony() {
+        let fixture = TestFixture::new().await;
+        let expiration_date = ecash_today_date();
+
+        let past_epoch = fixture.comm_state.current_epoch();
+
+        // the aggregate this api established while that epoch was current
+        fixture
+            .storage
+            .insert_master_expiration_date_signatures(
+                expiration_date,
+                &IssuedExpirationDateSignatures {
+                    epoch_id: past_epoch,
+                    signatures: Vec::new(),
+                },
+            )
+            .await
+            .unwrap();
+
+        // a new ceremony begins: the epoch id increments and its keys do not exist yet
+        fixture.set_epoch(past_epoch + 1).await;
+        fixture.comm_state.start_ceremony();
+        let current_epoch = fixture.comm_state.current_epoch();
+
+        let request = |epoch_id: EpochId| {
+            fixture
+                .axum
+                .get(&format!(
+                    "/{V1_API_VERSION}/{ECASH_ROUTES}/{GLOBAL_EXPIRATION_DATE_SIGNATURES}"
+                ))
+                .add_query_param("epoch_id", epoch_id)
+                .add_query_param(
+                    "expiration_date",
+                    expiration_date.format(RFC_3339_DATE_FORMAT).unwrap(),
+                )
+        };
+
+        // the concluded epoch is still served, mid-ceremony
+        let response = request(past_epoch).await;
+        assert_eq!(response.status_code(), StatusCode::OK);
+        assert_eq!(
+            response
+                .json::<AggregatedExpirationDateSignatureResponse>()
+                .epoch_id,
+            past_epoch
+        );
+
+        // the one whose ceremony is running has nothing to offer yet
+        let response = request(current_epoch).await;
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
     }
 
     #[test]

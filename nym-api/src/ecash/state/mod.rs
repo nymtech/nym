@@ -55,7 +55,7 @@ use std::sync::Arc;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 pub(crate) mod auxiliary;
 mod cleaner;
@@ -185,7 +185,7 @@ impl EcashState {
         // our own membership is only settled once the ceremony has concluded. this cache
         // never expires, so answering "not a signer" mid-ceremony and remembering it
         // would have us refuse to sign for the rest of the epoch.
-        if !self.aux.comm_channel.epoch_concluded(epoch_id).await? {
+        if !self.aux.comm_channel.ceremony_concluded(epoch_id).await? {
             return self.check_dkg_signer(epoch_id).await;
         }
 
@@ -199,14 +199,22 @@ impl EcashState {
 
     /// Ensures that this nym-api is one of ecash signers for the current epoch
     pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        let epoch_id = self.current_dkg_epoch().await?;
+        self.ensure_signer_for_epoch(epoch_id).await
+    }
+
+    /// Ensures that this nym-api was one of the ecash signers for the given epoch.
+    ///
+    /// Credentials outlive the epoch that issued them, so the material they need is asked of
+    /// *that* epoch's signers - which is not necessarily who signs today. An api that has since
+    /// dropped out of the set still holds the keys, and refusing on the strength of the current
+    /// epoch alone can leave a past epoch permanently short of the threshold it needs.
+    pub(crate) async fn ensure_signer_for_epoch(&self, epoch_id: EpochId) -> Result<()> {
         if self.local.explicitly_disabled {
             return Err(EcashError::NotASigner);
         }
 
-        let epoch_id = self.current_dkg_epoch().await?;
-        let is_epoch_signer = self.is_dkg_signer(epoch_id).await?;
-
-        if !is_epoch_signer {
+        if !self.is_dkg_signer(epoch_id).await? {
             return Err(EcashError::NotASigner);
         }
 
@@ -381,20 +389,14 @@ impl EcashState {
                     });
                 }
 
-
                 // 2. perform actual issuance
-                let signing_keys = self.local.ecash_keypair.keys().await?;
-                if signing_keys.issued_for_epoch != epoch_id {
-                    // TODO: this should get handled at some point,
-                    // because if it was a past epoch we **do** have those keys.
-                    // they're just archived
-
-                    error!("received partial coin index signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
-                    return Err(EcashError::InvalidSigningKeyEpoch {
-                        requested: epoch_id,
-                        available: signing_keys.issued_for_epoch,
-                    })
-                }
+                //
+                // a past epoch is answered from the key it was signed with, which we archived
+                // rather than destroyed when it rotated. what makes that safe is the epoch's
+                // ceremony being over, so check exactly that rather than inheriting the
+                // "may we issue right now" flag, which a later ceremony clears
+                self.ensure_ceremony_concluded(epoch_id).await?;
+                let signing_keys = self.local.ecash_keypair.keys_for_epoch(epoch_id).await?;
                 let master_vk = self.master_verification_key(Some(epoch_id)).await?;
                 let signatures = sign_coin_indices(
                     nym_compact_ecash::ecash_parameters(),
@@ -403,7 +405,10 @@ impl EcashState {
                 )?;
 
                 // 3. save the signatures in the storage for when we reboot
-                self.aux.storage.insert_partial_coin_index_signatures(epoch_id, &signatures).await?;
+                self.aux
+                    .storage
+                    .insert_partial_coin_index_signatures(epoch_id, &signatures)
+                    .await?;
 
                 Ok(IssuedCoinIndicesSignatures {
                     epoch_id,
@@ -522,17 +527,11 @@ impl EcashState {
                 }
 
                 // 3. perform actual issuance
-                let signing_keys = self.local.ecash_keypair.keys().await?;
-                if signing_keys.issued_for_epoch != epoch_id {
-                    // TODO: this should get handled at some point,
-                    // because if it was a past epoch we **do** have those keys.
-                    // they're just archived
-                    error!("received partial expiration date signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
-                    return Err(EcashError::InvalidSigningKeyEpoch {
-                        requested: epoch_id,
-                        available: signing_keys.issued_for_epoch,
-                    });
-                }
+                //
+                // as with the coin index sibling: a settled epoch is answered from the key it
+                // was signed with, and it is the ceremony being over that makes that safe
+                self.ensure_ceremony_concluded(epoch_id).await?;
+                let signing_keys = self.local.ecash_keypair.keys_for_epoch(epoch_id).await?;
 
                 let signatures = sign_expiration_date(
                     signing_keys.keys.secret_key(),
@@ -558,6 +557,20 @@ impl EcashState {
     pub(crate) async fn ensure_dkg_not_in_progress(&self) -> Result<()> {
         if self.aux.comm_channel.dkg_in_progress().await? {
             return Err(EcashError::DkgInProgress);
+        }
+        Ok(())
+    }
+
+    /// Ensures the DKG ceremony that established `epoch_id`'s keys has finished, so everything
+    /// derived from them is settled.
+    ///
+    /// Only the epoch whose ceremony is running right now has nothing to give. Everything an
+    /// earlier one was ever asked for is fixed for good, and its credentials stay spendable for
+    /// days after it stops being used for issuance - so refusing those requests for the duration
+    /// of a ceremony takes credentials out of service for a reason that does not apply to them.
+    pub(crate) async fn ensure_ceremony_concluded(&self, epoch_id: EpochId) -> Result<()> {
+        if !self.aux.comm_channel.ceremony_concluded(epoch_id).await? {
+            return Err(EcashError::CeremonyNotConcluded { epoch_id });
         }
         Ok(())
     }
@@ -1092,6 +1105,9 @@ impl EcashState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ecash::dkg::controller::keys::{
+        archive_ecash_keypair, load_archived_ecash_keypairs, persist_ecash_keypair,
+    };
     use crate::ecash::keys::KeyPairWithEpoch;
     use crate::ecash::tests::contract_chain::SharedContractChain;
     use crate::ecash::tests::contract_harness::{
@@ -1272,12 +1288,286 @@ mod tests {
         Ok(())
     }
 
-    /// The layer beneath: once the aggregation above stops silently switching epochs, it asks
-    /// this api for its *own* partial signatures for a past epoch. It cannot produce them - the
-    /// key it holds belongs to the current epoch and the old one is archived - so it has to say
-    /// so rather than sign with the wrong key and label the result with the wrong epoch.
+    /// B3: a ticketbook outlives the epoch that issued it, so after a rotation this api is
+    /// still asked for that epoch's partial signatures. It archived the key rather than
+    /// destroying it, so it can still produce them - and with a reset it *must*, because the
+    /// master key changed and no other epoch's material will verify for those books.
     ///
-    /// The coin index sibling has guarded this all along; only this path was missing it.
+    /// The archive is read back the way a restarted api reads it: off disk, by epoch.
+    #[tokio::test]
+    async fn partial_signatures_for_a_past_epoch_are_produced_from_the_archived_key(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        // the key this api signed the first epoch with gets archived as the next ceremony begins
+        let key_dir = tempfile::tempdir()?;
+        let key_path = key_dir.path().join("ecash.pem");
+        persist_ecash_keypair(
+            &KeyPairWithEpoch::new(past_keys.keypairs.into_iter().next().unwrap(), past_epoch),
+            &key_path,
+        )?;
+        archive_ecash_keypair(&key_path, past_epoch)?;
+
+        // a reset, so the master key the first epoch's credentials verify against is gone
+        trigger_reset(&chain);
+        cheap::run_ceremony(&chain, false);
+        let current_epoch = chain.epoch().epoch_id;
+        let current_keys = cheap::install_real_verification_keys(&chain);
+        assert_ne!(past_keys.master, current_keys.master);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // as a restarting api would: the live key for the epoch it now signs for, plus
+        // whatever it finds archived alongside it
+        state
+            .local
+            .ecash_keypair
+            .set(KeyPairWithEpoch::new(
+                current_keys.keypairs.into_iter().next().unwrap(),
+                current_epoch,
+            ))
+            .await;
+        state.local.ecash_keypair.validate();
+        let archived = load_archived_ecash_keypairs(&key_path);
+        assert_eq!(archived.len(), 1);
+        for keys in archived {
+            state.local.ecash_keypair.archive(keys).await;
+        }
+
+        let expiration_date = ecash_today_date();
+
+        // both kinds of auxiliary material must come back stamped with the epoch asked for
+        let expiration_partial = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(expiration_partial.epoch_id, past_epoch);
+
+        let coin_index_partial = state
+            .partial_coin_index_signatures(Some(past_epoch))
+            .await?;
+        assert_eq!(coin_index_partial.epoch_id, past_epoch);
+        drop(expiration_partial);
+        drop(coin_index_partial);
+
+        // and it has to be the *right* material: aggregation verifies each partial against
+        // the epoch's master key, so signing with the current key would fail here
+        let master_expiration = state
+            .master_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(master_expiration.epoch_id, past_epoch);
+        drop(master_expiration);
+
+        let master_coin_indices = state.master_coin_index_signatures(Some(past_epoch)).await?;
+        assert_eq!(master_coin_indices.epoch_id, past_epoch);
+
+        Ok(())
+    }
+
+    /// B2 at the layer beneath the routes: lifting the gate is only worth anything if the data
+    /// can actually be produced while a ceremony runs. Everything it depends on belongs to the
+    /// epoch being asked about - its signer set, its threshold, its keys - so none of it is
+    /// touched by the ceremony running for the *next* epoch.
+    #[tokio::test]
+    async fn a_concluded_epoch_can_still_be_served_while_the_next_ceremony_runs(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        let key_dir = tempfile::tempdir()?;
+        let key_path = key_dir.path().join("ecash.pem");
+        persist_ecash_keypair(
+            &KeyPairWithEpoch::new(past_keys.keypairs.into_iter().next().unwrap(), past_epoch),
+            &key_path,
+        )?;
+        archive_ecash_keypair(&key_path, past_epoch)?;
+
+        // a fresh ceremony is under way and has not produced anything yet
+        trigger_reset(&chain);
+        cheap::register_dealers(&chain, false);
+        cheap::advance(&chain);
+        let current_epoch = chain.epoch().epoch_id;
+        assert_ne!(past_epoch, current_epoch);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+        for keys in load_archived_ecash_keypairs(&key_path) {
+            state.local.ecash_keypair.archive(keys).await;
+        }
+
+        // the blanket gate would have refused everything in this situation
+        assert!(state.ensure_dkg_not_in_progress().await.is_err());
+
+        // the epoch being built has nothing to give ...
+        assert!(matches!(
+            state.ensure_ceremony_concluded(current_epoch).await,
+            Err(EcashError::CeremonyNotConcluded { epoch_id }) if epoch_id == current_epoch
+        ));
+
+        // ... while the one that finished is settled, and every layer can still serve it
+        state.ensure_ceremony_concluded(past_epoch).await?;
+
+        let expiration_date = ecash_today_date();
+        let partial = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(partial.epoch_id, past_epoch);
+        drop(partial);
+
+        let master = state
+            .master_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(master.epoch_id, past_epoch);
+        drop(master);
+
+        let coin_indices = state.master_coin_index_signatures(Some(past_epoch)).await?;
+        assert_eq!(coin_indices.epoch_id, past_epoch);
+        drop(coin_indices);
+
+        let vk = state.master_verification_key(Some(past_epoch)).await?;
+        assert_eq!(*vk, past_keys.master);
+
+        Ok(())
+    }
+
+    /// The window the two tests above miss. A ceremony clears the "may we issue" flag as soon as
+    /// it starts, but the keys it clears it for are not archived until dealing exchange - so for
+    /// the first phase of every ceremony the previous epoch's keys sit in the live slot, unusable
+    /// for issuance and not yet in the archive. Its credentials still need serving throughout.
+    #[tokio::test]
+    async fn a_settled_epoch_is_served_from_the_live_slot_before_its_keys_are_archived(
+    ) -> anyhow::Result<()> {
+        let chain = SharedContractChain::new(1);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        let me = chain.group_member_addresses()[0].clone();
+        let state = contract_backed_ecash_state(&chain, me).await;
+
+        // the keys it signed that epoch with, in use and usable
+        state
+            .local
+            .ecash_keypair
+            .set(KeyPairWithEpoch::new(
+                past_keys.keypairs.into_iter().next().unwrap(),
+                past_epoch,
+            ))
+            .await;
+        state.local.ecash_keypair.validate();
+
+        // a ceremony begins: the flag is cleared at public key submission, but nothing has
+        // been archived yet - dealing exchange is what does that
+        trigger_reset(&chain);
+        state.local.ecash_keypair.invalidate();
+        let current_epoch = chain.epoch().epoch_id;
+        assert_ne!(past_epoch, current_epoch);
+
+        // issuance is indeed halted ...
+        assert!(state.ecash_signing_key().await.is_err());
+
+        // ... but the epoch that finished is still settled, and still has to be served
+        let expiration_date = ecash_today_date();
+        let partial = state
+            .partial_expiration_date_signatures(expiration_date, past_epoch)
+            .await?;
+        assert_eq!(partial.epoch_id, past_epoch);
+        drop(partial);
+
+        let coin_indices = state
+            .partial_coin_index_signatures(Some(past_epoch))
+            .await?;
+        assert_eq!(coin_indices.epoch_id, past_epoch);
+        drop(coin_indices);
+
+        // the epoch being built is refused, even though its keys are the ones we hold
+        assert!(matches!(
+            state
+                .partial_expiration_date_signatures(expiration_date, current_epoch)
+                .await,
+            Err(EcashError::CeremonyNotConcluded { epoch_id }) if epoch_id == current_epoch
+        ));
+
+        Ok(())
+    }
+
+    /// B3, at the gate sitting in front of it: the material a past epoch's credentials need is
+    /// asked of *that* epoch's signers, which is not necessarily whoever signs today. An api
+    /// that has since dropped out of the set still holds the keys, and refusing it on the
+    /// strength of the current epoch alone can leave a past epoch permanently short of the
+    /// threshold its aggregation needs.
+    #[tokio::test]
+    async fn a_signer_that_left_the_set_still_answers_for_the_epoch_it_signed() -> anyhow::Result<()>
+    {
+        let chain = SharedContractChain::new(4);
+        initiate_dkg(&chain);
+
+        cheap::run_ceremony(&chain, false);
+        let past_epoch = chain.epoch().epoch_id;
+        let past_keys = cheap::install_real_verification_keys(&chain);
+
+        // the last of the four archives the key it signed that epoch with
+        let me = chain.group_member_addresses()[3].clone();
+        let key_dir = tempfile::tempdir()?;
+        let key_path = key_dir.path().join("ecash.pem");
+        persist_ecash_keypair(
+            &KeyPairWithEpoch::new(past_keys.keypairs.into_iter().nth(3).unwrap(), past_epoch),
+            &key_path,
+        )?;
+        archive_ecash_keypair(&key_path, past_epoch)?;
+
+        // a reset in which its share never gets verified. 3 of 4 still meets the threshold,
+        // so the epoch concludes without it
+        trigger_reset(&chain);
+        cheap::register_dealers(&chain, false);
+        cheap::advance(&chain);
+        cheap::submit_dealings(&chain, false);
+        cheap::advance(&chain);
+        cheap::submit_vk_shares(&chain, false);
+        cheap::advance(&chain);
+        cheap::advance(&chain);
+        cheap::verify_first_vk_shares(&chain, false, 3);
+        cheap::advance(&chain);
+        let current_epoch = chain.epoch().epoch_id;
+        assert_ne!(past_epoch, current_epoch);
+        cheap::install_real_verification_keys(&chain);
+
+        let state = contract_backed_ecash_state(&chain, me).await;
+        for keys in load_archived_ecash_keypairs(&key_path) {
+            state.local.ecash_keypair.archive(keys).await;
+        }
+
+        // it is not one of today's signers ...
+        assert!(matches!(
+            state.ensure_signer().await,
+            Err(EcashError::NotASigner)
+        ));
+
+        // ... but it is still one of the epoch whose credentials are doing the asking, and it
+        // can still produce what they need
+        state.ensure_signer_for_epoch(past_epoch).await?;
+        let partial = state
+            .partial_expiration_date_signatures(ecash_today_date(), past_epoch)
+            .await?;
+        assert_eq!(partial.epoch_id, past_epoch);
+
+        Ok(())
+    }
+
+    /// The archive only answers for epochs it actually holds. An api that never derived a key
+    /// for the requested epoch - because it was not yet in the group, or lost the file - has to
+    /// say so rather than sign with the wrong key and label the result with the wrong epoch.
     #[tokio::test]
     async fn partial_expiration_date_signatures_are_refused_for_an_epoch_we_have_no_key_for(
     ) -> anyhow::Result<()> {

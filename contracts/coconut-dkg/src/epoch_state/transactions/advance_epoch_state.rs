@@ -123,7 +123,7 @@ mod tests {
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{message_info, mock_env};
     use cosmwasm_std::{Addr, Storage};
-    use nym_coconut_dkg_common::types::TimeConfiguration;
+    use nym_coconut_dkg_common::types::{StateProgress, TimeConfiguration};
 
     fn update_epoch<A>(storage: &mut dyn Storage, env: &Env, action: A)
     where
@@ -594,6 +594,10 @@ mod tests {
         assert_eq!(epoch.ceremony_concluded_at, Some(env.block.time));
         assert_eq!(epoch.deadline, None);
 
+        // and it puts this epoch's keys into service, which is what issuance resolves against
+        assert_eq!(epoch.keys_in_service, Some(epoch.epoch_id));
+        assert_eq!(epoch.issuing_epoch_id(), Some(epoch.epoch_id));
+
         // so however much time passes, it is never advanced again, and the epoch it settled into
         // keeps both its id and its recorded conclusion
         for skip in [100, 50, 60 * 60 * 24 * 365] {
@@ -631,6 +635,47 @@ mod tests {
         );
         assert_eq!(curr_epoch, expected_epoch);
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+    }
+
+    /// A ceremony that fails hands the epoch id on and leaves the keys where they were. Anything
+    /// deriving the issuing epoch from the id alone would name epoch 11 here: an epoch that
+    /// concluded nothing, has no aggregate key, and never will.
+    #[test]
+    fn a_sub_threshold_ceremony_resets_without_retiring_the_keys_in_service() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        // epoch 7's keys are the ones in service, and the ceremony for 11 is about to fail
+        THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+        let failing = Epoch {
+            state_progress: StateProgress {
+                verified_keys: 41,
+                ..Default::default()
+            },
+            keys_in_service: Some(7),
+            ..Epoch::new(
+                EpochState::VerificationKeyFinalization { resharing: false },
+                11,
+                TimeConfiguration::default(),
+                env.block.time,
+            )
+        };
+        save_epoch(deps.as_mut().storage, env.block.height, &failing).unwrap();
+
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().verification_key_finalization_time_secs + 1);
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        let after_failure = load_current_epoch(deps.as_mut().storage).unwrap();
+        assert_eq!(12, after_failure.epoch_id);
+        assert_eq!(
+            EpochState::PublicKeySubmission { resharing: false },
+            after_failure.state
+        );
+        assert_eq!(Some(7), after_failure.issuing_epoch_id());
+        assert_eq!(None, after_failure.ceremony_concluded_at);
     }
 
     /// A ceremony nobody took part in must not start, let alone conclude.

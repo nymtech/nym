@@ -83,8 +83,10 @@ where
 
             // a ceremony running no longer means issuance is unavailable: signers keep issuing
             // under the epoch it is replacing. The only genuine wait is for the very first
-            // ceremony, before any epoch has concluded and there is nothing to issue under.
-            if epoch.state.is_final() || epoch.epoch_id > 0 {
+            // ceremony, before any epoch has concluded and there is nothing to issue under - which
+            // a non-zero epoch id is no proof of, since a failed ceremony moves that id on without
+            // producing any keys.
+            if epoch.issuing_epoch_id().is_some() {
                 break;
             } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
                 // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
@@ -204,18 +206,15 @@ where
     }
 
     /// The epoch signers are currently issuing under: the most recent whose DKG ceremony has
-    /// concluded. While a ceremony runs that is the epoch before the current one, whose keys exist
-    /// and whose credentials are still circulating - issuance does not stop for the ceremony.
+    /// concluded. While a ceremony runs that is an earlier epoch, whose keys exist and whose
+    /// credentials are still circulating - issuance does not stop for the ceremony. Not
+    /// necessarily the epoch directly below the current id: a ceremony that failed moved that id
+    /// on without producing keys, and the epoch it abandoned is not issuable by anyone.
     async fn issuable_epoch(&self) -> Result<EpochId, NyxdFetcherError> {
-        let epoch = self.client.get_current_epoch().await?;
-
-        if epoch.state.is_in_progress() {
-            return Ok(epoch.epoch_id);
-        }
-
-        epoch
-            .epoch_id
-            .checked_sub(1)
+        self.client
+            .get_current_epoch()
+            .await?
+            .issuing_epoch_id()
             .ok_or(NyxdFetcherError::NoIssuableEpoch)
     }
 }

@@ -165,8 +165,9 @@ impl EcashState {
 
         // a ceremony running no longer stops issuance: signers keep issuing under the epoch it is
         // replacing, so the only genuine refusal is when no epoch has ever concluded and there is
-        // nothing to issue under at all
-        if epoch.state.is_final() || epoch.epoch_id > 0 {
+        // nothing to issue under at all. that is not "epoch 0" - a ceremony that fails moves the
+        // id on without producing keys, so the first one can be retried arbitrarily far
+        if epoch.issuing_epoch_id().is_some() {
             Ok(())
         } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // SAFETY: the timestamp values in our DKG contract should be valid timestamps,
@@ -258,8 +259,9 @@ impl EcashState {
     }
 
     /// The epoch signers are issuing under: the most recent whose ceremony has concluded. While a
-    /// ceremony runs that is the epoch before the current one, whose keys exist and whose
-    /// credentials are still circulating.
+    /// ceremony runs that is an earlier epoch, whose keys exist and whose credentials are still
+    /// circulating - not necessarily the one directly below the current id, since a ceremony that
+    /// failed moved that id on without producing any keys.
     ///
     /// Everything about one request has to agree on this - the signers asked, the threshold, the
     /// auxiliary data returned alongside the shares, and the epoch stated on each request - so it
@@ -268,15 +270,9 @@ impl EcashState {
         &self,
         client: &impl EpochSource,
     ) -> Result<EpochId, CredentialProxyError> {
-        let epoch = self.current_epoch(client).await?;
-
-        if epoch.state.is_final() {
-            return Ok(epoch.epoch_id);
-        }
-
-        epoch
-            .epoch_id
-            .checked_sub(1)
+        self.current_epoch(client)
+            .await?
+            .issuing_epoch_id()
             .ok_or(CredentialProxyError::UninitialisedDkg)
     }
 
@@ -507,6 +503,7 @@ impl EcashState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::http::StatusCode;
     use cosmwasm_std::Timestamp;
     use nym_validator_client::nyxd::contract_traits::dkg_query_client::EpochState;
 
@@ -528,6 +525,7 @@ mod tests {
         FixedEpoch(Epoch {
             state: EpochState::DealingExchange { resharing: true },
             epoch_id,
+            keys_in_service: epoch_id.checked_sub(1),
             ..Default::default()
         })
     }
@@ -537,6 +535,19 @@ mod tests {
         FixedEpoch(Epoch {
             state: EpochState::InProgress,
             epoch_id,
+            keys_in_service: Some(epoch_id),
+            ..Default::default()
+        })
+    }
+
+    /// The ceremony for `epoch_id` failed, so the contract reset into a fresh id while
+    /// `in_service` kept serving - however many attempts it has taken.
+    fn after_failed_ceremony(epoch_id: EpochId, in_service: Option<EpochId>) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::PublicKeySubmission { resharing: false },
+            epoch_id,
+            keys_in_service: in_service,
+            deadline: Some(Timestamp::from_seconds(1_700_000_000)),
             ..Default::default()
         })
     }
@@ -640,5 +651,44 @@ mod tests {
             .unwrap_err();
 
         assert!(matches!(err, CredentialProxyError::UninitialisedDkg));
+    }
+
+    /// A failed ceremony leaves the epoch id ahead of the keys, by as many attempts as it takes.
+    /// The proxy issues under the generation actually in service rather than the id below the
+    /// current one, which by then names an epoch that concluded nothing.
+    #[tokio::test]
+    async fn issuance_continues_under_the_epoch_in_service_after_failed_ceremonies() {
+        let after_two_failures = after_failed_ceremony(7, Some(4));
+
+        assert!(
+            state()
+                .ensure_credentials_issuable(&after_two_failures)
+                .await
+                .is_ok()
+        );
+        assert_eq!(
+            4,
+            state()
+                .issuable_epoch_id(&after_two_failures)
+                .await
+                .unwrap()
+        );
+    }
+
+    /// When it is the *first* ceremony that keeps failing there is still nothing to issue under,
+    /// however far the epoch id has run on. Refusing as "not yet issuable" makes that retryable:
+    /// the condition clears the moment a ceremony finally concludes.
+    #[tokio::test]
+    async fn issuance_is_refused_while_the_first_ceremony_is_still_being_retried() {
+        let err = state()
+            .ensure_credentials_issuable(&after_failed_ceremony(3, None))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            CredentialProxyError::CredentialsNotYetIssuable { .. }
+        ));
+        assert_eq!(StatusCode::SERVICE_UNAVAILABLE, err.status_code());
     }
 }

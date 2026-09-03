@@ -6,7 +6,7 @@ use crate::ecash::error::{EcashError, Result};
 use crate::ecash::helpers::CachedImmutableEpochItem;
 use crate::support::config::{Config, EcashSignerDebug};
 use async_trait::async_trait;
-use nym_coconut_dkg_common::types::{Epoch, EpochId, Timestamp};
+use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_dkg::Threshold;
 use nym_validator_client::EcashApiClient;
 use std::cmp::min;
@@ -29,16 +29,13 @@ pub trait APICommunicationChannel {
     /// to observe would be pinned for the lifetime of the process.
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool>;
 
-    /// When the current epoch's ceremony concluded, i.e. when the keys now in use came into
-    /// service.
+    /// The current epoch as the chain reports it: which epoch's keys are in service, which epoch
+    /// they replaced, and when that happened.
     ///
-    /// Every signer reads the same value, which is what lets them agree on a window measured
-    /// from it without having to agree on when they each noticed.
-    ///
-    /// `None` while a ceremony is still running, and for an epoch that concluded before the
-    /// contract began recording this - which is the epoch mainnet is on until the next ceremony.
-    /// Callers must treat the unknown case as "no window", never as "just now".
-    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>>;
+    /// Anything needing more than one fact about it must take them from here rather than from
+    /// several narrower calls: those each consult the cache separately, so a ceremony concluding
+    /// between two of them would answer from either side of the change.
+    async fn current_epoch_details(&self) -> Result<Epoch>;
 }
 
 struct CachedEpoch {
@@ -143,22 +140,6 @@ impl QueryCommunicationChannel {
         guard.update(epoch, self.config.epoch_cache_staleness)?;
         Ok(guard)
     }
-
-    /// The current epoch, refreshing the cache if it has gone stale.
-    ///
-    /// The cached copy expires at the epoch's own state deadline (see
-    /// [`CachedEpoch::update`]), so it can never claim a ceremony has finished when it
-    /// has not - at worst it is briefly pessimistic, which only costs an extra query.
-    async fn current_epoch_data(&self) -> Result<Epoch> {
-        let guard = self.cached_epoch.read().await;
-        if guard.is_valid() {
-            return Ok(guard.current_epoch);
-        }
-
-        drop(guard);
-        let guard = self.update_epoch_cache().await?;
-        Ok(guard.current_epoch)
-    }
 }
 
 #[async_trait]
@@ -208,13 +189,23 @@ impl APICommunicationChannel for QueryCommunicationChannel {
 
     async fn ceremony_concluded(&self, epoch_id: EpochId) -> Result<bool> {
         Ok(self
-            .current_epoch_data()
+            .current_epoch_details()
             .await?
             .is_ceremony_concluded(epoch_id))
     }
 
-    async fn current_ceremony_concluded_at(&self) -> Result<Option<Timestamp>> {
-        Ok(self.current_epoch_data().await?.ceremony_concluded_at)
+    /// The cached copy expires at the epoch's own state deadline (see [`CachedEpoch::update`]), so
+    /// it can never claim a ceremony has finished when it has not - at worst it is briefly
+    /// pessimistic, which only costs an extra query.
+    async fn current_epoch_details(&self) -> Result<Epoch> {
+        let guard = self.cached_epoch.read().await;
+        if guard.is_valid() {
+            return Ok(guard.current_epoch);
+        }
+
+        drop(guard);
+        let guard = self.update_epoch_cache().await?;
+        Ok(guard.current_epoch)
     }
 }
 

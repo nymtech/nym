@@ -65,10 +65,12 @@ async fn batch_submit_stress_testing_results(
         ));
     }
 
-    // 3. check if the request is not replayed (i.e. timestamp is not smaller than the latest known submission)
+    // 3. check if the request is not replayed (i.e. timestamp is not smaller than the latest known
+    // submission ON THIS ENDPOINT - the liveness stream keeps its own mark, so the two cannot
+    // invalidate each other's timestamps)
     let last_request = state
         .network_monitor_submissions
-        .submitted(body.body.signer)
+        .stress_submitted(body.body.signer)
         .await;
 
     // if we have no known requests, we might have just restarted
@@ -97,7 +99,7 @@ async fn batch_submit_stress_testing_results(
     // 5. update the latest submission timestamp
     state
         .network_monitor_submissions
-        .set_submitted(body.body.signer, body.body.timestamp)
+        .set_stress_submitted(body.body.signer, body.body.timestamp)
         .await;
 
     // 6. process received results

@@ -6,8 +6,8 @@ use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
     MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeLivenessResult,
-    NymNodeStressTestingResult, RetrievedAverageStressTestResult, RewardingReport,
-    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
+    NymNodeStressTestingResult, RetrievedAverageLivenessResult, RetrievedAverageStressTestResult,
+    RewardingReport, TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -332,6 +332,43 @@ impl StorageManager {
                     AVG(result) as "result!: f64",
                     MAX(was_reachable) as "was_reachable!: bool"
                 FROM nym_node_stress_testing_result
+                WHERE node_id = ?
+                  AND test_timestamp >= ?
+                  AND test_timestamp <= ?
+                GROUP BY node_id
+            "#,
+            node_id,
+            start_ts,
+            end_ts,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
+    }
+
+    /// Returns the rolling average liveness score for a single node over the given window.
+    ///
+    /// Same shape as [`Self::get_average_node_stress_test_score`]: `was_reachable` is
+    /// `MAX(was_reachable)` so it is true if ANY sample in the window reached the node, and
+    /// `GROUP BY node_id` means an empty selection yields no row rather than one all-NULL row that
+    /// would be indistinguishable from a node that was tested and scored zero.
+    ///
+    /// The average is over whole runs, each of which already averaged its own interfaces on the
+    /// orchestrator. A dual-role node therefore contributes both its mixnode and its gateway runs
+    /// to one figure, which is what the delta spec requires of a node measured in both roles.
+    pub(super) async fn get_average_node_liveness_score(
+        &self,
+        node_id: i64,
+        start_ts: OffsetDateTime,
+        end_ts: OffsetDateTime,
+    ) -> Result<Option<RetrievedAverageLivenessResult>, sqlx::Error> {
+        sqlx::query_as!(
+            RetrievedAverageLivenessResult,
+            r#"
+                SELECT
+                    node_id as "node_id!: NodeId",
+                    AVG(result) as "result!: f64",
+                    MAX(was_reachable) as "was_reachable!: bool"
+                FROM nym_node_liveness_result
                 WHERE node_id = ?
                   AND test_timestamp >= ?
                   AND test_timestamp <= ?

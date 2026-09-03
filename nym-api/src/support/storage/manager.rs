@@ -5,9 +5,9 @@ use crate::node_status_api::models::{HistoricalUptime as ApiHistoricalUptime, Up
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, GatewayDetails, HistoricalUptime, MixnodeDetails,
-    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeStressTestingResult,
-    RetrievedAverageStressTestResult, RewardingReport, TestedGatewayStatus, TestedMixnodeStatus,
-    TestingRoute,
+    MonitorRunReport, MonitorRunScore, NodeStatus, NymNodeLivenessResult,
+    NymNodeStressTestingResult, RetrievedAverageStressTestResult, RewardingReport,
+    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use crate::support::storage::DbIdCache;
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
@@ -838,6 +838,43 @@ impl StorageManager {
 
         let mut query_builder = sqlx::QueryBuilder::new(
             "INSERT OR IGNORE INTO nym_node_stress_testing_result (testrun_id, submitter_pubkey, node_id, result, was_reachable, test_timestamp) ",
+        );
+
+        query_builder.push_values(results, |mut b, entry| {
+            b.push_bind(entry.testrun_id)
+                .push_bind(entry.submitter_pubkey)
+                .push_bind(entry.node_id)
+                .push_bind(entry.result)
+                .push_bind(entry.was_reachable)
+                .push_bind(entry.test_timestamp);
+        });
+
+        let res = query_builder.build().execute(&self.connection_pool).await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Batch-insert the given liveness results into the `nym_node_liveness_result` table. An empty
+    /// input is a no-op rather than an invalid-SQL error, since a submission may legitimately
+    /// contain no entries left after per-entry validation.
+    ///
+    /// Uses `INSERT OR IGNORE` so that a retried submission carrying the same
+    /// `(node_id, test_timestamp, submitter_pubkey)` measurement - expected under the
+    /// orchestrator's at-least-once delivery semantics - silently drops the duplicate rows rather
+    /// than failing the batch.
+    ///
+    /// Returns the number of rows actually inserted, which under `INSERT OR IGNORE` excludes the
+    /// ignored duplicates. The caller reports the difference back to the submitter, so that a batch
+    /// which stored nothing is distinguishable from one that stored everything.
+    pub(super) async fn insert_nym_node_liveness_results(
+        &self,
+        results: Vec<NymNodeLivenessResult>,
+    ) -> Result<u64, sqlx::Error> {
+        if results.is_empty() {
+            return Ok(0);
+        }
+
+        let mut query_builder = sqlx::QueryBuilder::new(
+            "INSERT OR IGNORE INTO nym_node_liveness_result (testrun_id, submitter_pubkey, node_id, result, was_reachable, test_timestamp) ",
         );
 
         query_builder.push_values(results, |mut b, entry| {

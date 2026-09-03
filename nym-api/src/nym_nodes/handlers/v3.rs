@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::{ApiResult, AxumErrorResponse};
 use crate::support::http::state::AppState;
-use crate::support::storage::models::NymNodeStressTestingResult;
+use crate::support::storage::models::{NymNodeLivenessResult, NymNodeStressTestingResult};
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -176,7 +176,13 @@ async fn batch_submit_stress_testing_results(
 ///
 /// Unlike the stress endpoint, an entry for a gateway-capable node is expected rather than
 /// dropped: liveness probes gateways as well as mixnodes, and the submitted score is a single
-/// average whose shape is identical for both.
+/// average whose shape is identical for both. A liveness result carries no role, so there is no
+/// role filter to relax - the only per-entry validation is that the score lies in `[0.0, 1.0]`,
+/// and an entry failing it is logged and dropped without failing the batch.
+///
+/// The response reports how many results were stored, deduplicated against an already-stored
+/// measurement, and dropped by validation, so that a submitter can tell an accepted-and-stored
+/// batch from an accepted-but-discarded one.
 #[utoipa::path(
     tag = "Nym Nodes",
     post,
@@ -186,7 +192,6 @@ async fn batch_submit_stress_testing_results(
         (status = 200, body = LivenessTestBatchSubmissionResponse, description = "the submitted batch has been accepted, with a per-result breakdown of what was stored"),
         (status = 400, description = "the submitted request is stale or replayed"),
         (status = 401, description = "the submitted request was unauthorised or failed integrity check"),
-        (status = 501, description = "this nym-api validates liveness batches but cannot yet store them"),
     ),
 )]
 async fn batch_submit_liveness_testing_results(
@@ -250,16 +255,55 @@ async fn batch_submit_liveness_testing_results(
 
     // 6. process received results
     //
-    // Not yet implemented: the storage table this writes to arrives with task 11.3. Returning an
-    // error rather than a `200` with zero counts is deliberate - the orchestrator only advances a
-    // stream's watermark after a successful POST, so failing here makes it re-send these rows once
-    // storage exists, whereas a bare success would silently drop every measurement in the batch.
-    error!(
-        signer = %body.body.signer,
-        submitted = body.body.results.len(),
-        "rejecting a validated liveness batch: this nym-api cannot store liveness results yet"
-    );
-    Err(AxumErrorResponse::not_implemented())
+    // There is no role filter here, unlike the stress endpoint's `is_mixnode` check: a liveness
+    // result carries no role at all, so a gateway entry is accepted structurally rather than by a
+    // relaxed check. The range check is the only per-entry validation left, and it stays because
+    // the score is what feeds the aggregation - a value outside [0, 1] would drag a node's average
+    // somewhere no real measurement can reach.
+    let signer = body.body.signer;
+    let submitted = body.body.results.len();
+    let mut liveness_results = Vec::with_capacity(submitted);
+    for result in body.body.results {
+        if !(0.0..=1.0).contains(&result.test_performance) {
+            error!(
+                %signer,
+                node_id = result.node_id,
+                test_performance = result.test_performance,
+                "received a liveness result with performance outside the [0, 1] range - is the monitor misconfigured?"
+            );
+            continue;
+        }
+        liveness_results.push(NymNodeLivenessResult::from_submission(&signer, result));
+    }
+
+    // anything dropped above never reaches the database, so it must not be counted as a duplicate
+    let attempted = liveness_results.len();
+    let rejected = submitted - attempted;
+
+    let accepted = state
+        .storage()
+        .insert_nym_node_liveness_results(liveness_results)
+        .await? as usize;
+
+    // insert-or-ignore means a batch can be fully accepted yet store nothing, so report the split
+    // rather than leaving the submitter to infer it from a bare 200.
+    let duplicates = attempted.saturating_sub(accepted);
+    if duplicates > 0 {
+        warn!(
+            %signer,
+            accepted,
+            duplicates,
+            "some submitted liveness results were already stored and have been discarded - \
+             expected when a batch is retried, but a persistently non-zero count means this \
+             orchestrator's measurements are being dropped"
+        );
+    }
+
+    Ok(Json(LivenessTestBatchSubmissionResponse {
+        accepted: Some(accepted),
+        duplicates: Some(duplicates),
+        rejected: Some(rejected),
+    }))
 }
 
 /// Report whether the given identity key is currently recognised by this nym-api as an

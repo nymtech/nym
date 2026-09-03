@@ -20,6 +20,7 @@ pub(crate) struct Args {
 /// Runs a one-shot probe of the specified node under `kind` and logs the result.
 pub(crate) async fn execute(args: Args, kind: TestKind) -> anyhow::Result<()> {
     let keys = args.target.load_keys()?;
+
     let node = args.target.discover().await?.require_mixnode()?;
 
     info!("running a one-shot {kind} probe of {}", node.address);

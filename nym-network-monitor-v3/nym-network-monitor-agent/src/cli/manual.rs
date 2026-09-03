@@ -12,7 +12,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_sphinx_types::DestinationAddressBytes;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 /// The node a manual run targets, plus the local addressing it is reached from.
 ///
@@ -65,8 +65,25 @@ impl ManualKeys {
 impl ManualTargetArgs {
     /// Builds the agent [`NodeTesterConfig`] from the common args and this agent's listener pair.
     pub(crate) fn build_tester_config(&self) -> anyhow::Result<NodeTesterConfig> {
-        self.common_args
-            .build_config(self.agent_mixnet_listener_v4, self.agent_mixnet_listener_v6)
+        let config = self
+            .common_args
+            .build_config(self.agent_mixnet_listener_v4, self.agent_mixnet_listener_v6)?;
+
+        // a deployment legitimately announces a different port from the one it binds, because a host
+        // port mapping sits in between. a manual run has nothing in between, so a mismatch means the
+        // tested node dials a port nothing is listening on and every probe times out with no
+        // indication of why - the packet leaves, and silence is the only symptom. warned rather than
+        // refused, since a local forward is unusual but not wrong
+        let announced = config.announced_addresses();
+        let bound = config.mixnet_bind_address.port();
+        if announced.v4.port() != bound || announced.v6.port() != bound {
+            warn!(
+                "this agent is BINDING {} but ANNOUNCING {} / {}: unless something forwards those ports, the tested node will send its packets where nothing is listening and every probe will time out. pass --bind-address to match",
+                config.mixnet_bind_address, announced.v4, announced.v6
+            );
+        }
+
+        Ok(config)
     }
 
     /// Reads the target node's keys, ports and roles off its http api.

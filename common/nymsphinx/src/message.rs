@@ -17,8 +17,6 @@ use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
 pub(crate) const ACK_OVERHEAD: usize = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
-pub(crate) const OUTFOX_ACK_OVERHEAD: usize =
-    MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::OutfoxAckPacket.size();
 
 #[derive(Debug, Error)]
 pub enum NymMessageError {
@@ -193,11 +191,10 @@ impl NymMessage {
         let packet_type = PacketType::from(packet_size);
 
         // each packet will contain an ack + variant specific data (as described above)
+        #[allow(deprecated)]
         match packet_type {
-            PacketType::Outfox => {
-                packet_size.plaintext_size() - OUTFOX_ACK_OVERHEAD - variant_overhead
-            }
-            _ => packet_size.plaintext_size() - ACK_OVERHEAD - variant_overhead,
+            PacketType::Mix => packet_size.plaintext_size() - ACK_OVERHEAD - variant_overhead,
+            PacketType::Outfox => 0,
         }
     }
 

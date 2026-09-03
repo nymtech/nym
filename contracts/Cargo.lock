@@ -157,6 +157,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayref"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
+
+[[package]]
+name = "arrayvec"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -197,6 +209,21 @@ name = "bech32"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32637268377fc7b10a8c6d51de3e7fba1ce5dd371a96e342b34e6078db558e7f"
+
+[[package]]
+name = "blake3"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2468ef7d57b3fb7e16b576e8377cdbde2320c60e1491e961d11da40fc4f02a2d"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "cc",
+ "cfg-if",
+ "constant_time_eq",
+ "cpufeatures",
+ "digest",
+]
 
 [[package]]
 name = "block-buffer"
@@ -275,6 +302,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5add81bb678e6cb321aff7fa0dc7689ad82b112dbc032cea19f91d6b8e3582b9"
+dependencies = [
+ "find-msvc-tools",
+ "shlex",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -294,6 +331,12 @@ checksum = "e262cdaac42494e3ae34c43969f9cdeb7da178bdb4b66fa6a1ea2edb4c8ae652"
 dependencies = [
  "typewit",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "convert_case"
@@ -739,7 +782,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy-addr"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-std",
  "quote",
@@ -844,6 +887,12 @@ name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
+
+[[package]]
+name = "find-msvc-tools"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "generic-array"
@@ -1049,6 +1098,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
@@ -1121,7 +1171,7 @@ dependencies = [
 
 [[package]]
 name = "nym-coconut-dkg-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1134,7 +1184,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1148,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "nym-contracts-common-testing"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -1162,7 +1212,7 @@ dependencies = [
 
 [[package]]
 name = "nym-crypto"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -1175,6 +1225,42 @@ dependencies = [
  "thiserror 2.0.18",
  "x25519-dalek",
  "zeroize",
+]
+
+[[package]]
+name = "nym-directory-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "node-families",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+ "nym-node-families-contract-common",
+]
+
+[[package]]
+name = "nym-directory-contract-common"
+version = "1.21.6"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1207,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ecash-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1220,14 +1306,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-geolocation-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-contracts-common-testing",
+ "nym-crypto",
+ "nym-geolocation-contract-common",
+ "nym-lthash",
+ "nym-mixnet-contract",
+ "nym-mixnet-contract-common",
+]
+
+[[package]]
+name = "nym-geolocation-contract-common"
+version = "1.21.6"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nym-group-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cw-controllers",
  "cw4",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "nym-lthash"
+version = "1.21.6"
+dependencies = [
+ "blake3",
+ "digest",
 ]
 
 [[package]]
@@ -1245,6 +1372,8 @@ dependencies = [
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
+ "nym-directory-contract-common",
+ "nym-geolocation-contract-common",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
  "nym-node-families-contract-common",
@@ -1257,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1277,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "nym-multisig-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1292,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-defaults"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cargo_metadata 0.19.2",
  "regex",
@@ -1300,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitors-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1312,7 +1441,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-families-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1327,7 +1456,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pemstore"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "pem",
  "tracing",
@@ -1344,20 +1473,18 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "cw2",
- "node-families",
  "nym-contracts-common",
  "nym-contracts-common-testing",
  "nym-crypto",
  "nym-mixnet-contract",
  "nym-mixnet-contract-common",
- "nym-node-families-contract-common",
  "nym-performance-contract-common",
  "serde",
 ]
 
 [[package]]
 name = "nym-performance-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1385,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "nym-pool-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1418,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "nym-vesting-contract-common"
-version = "1.21.5-rc.1"
+version = "1.21.6"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1841,6 +1968,12 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
+
+[[package]]
+name = "shlex"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "signature"

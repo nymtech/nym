@@ -26,6 +26,7 @@ strum_macros = { workspace = true }
 humantime-serde = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 sha2.workspace = true
 tendermint = { workspace = true }
 tendermint-rpc = { workspace = true }
@@ -47,6 +48,7 @@ nym-ecash-time = { workspace = true }
 nym-compact-ecash = { workspace = true }
 nym-contracts-common = { workspace = true, features = ["naive_float"] }
 nym-mixnet-contract-common = { workspace = true, features = ["utoipa"] }
+nym-directory-contract-common = { workspace = true, features = ["utoipa"] }
 nym-coconut-dkg-common = { workspace = true }
 nym-node-requests = { workspace = true, default-features = false, features = ["openapi"] }
 nym-noise-keys = { workspace = true }
@@ -60,6 +62,7 @@ nym-test-utils = { workspace = true, optional = true }
 [dev-dependencies]
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-test-utils = { workspace = true }
+time = { workspace = true, features = ["macros"] }
 
 [features]
 default = []

@@ -3,6 +3,10 @@
 
 use std::{path::Path, sync::Arc, time::Duration};
 
+use crate::{
+    EcashApiClientsCache, NyxdGlobalDataFetcher, error::NyxdFetcherError,
+    storage::PendingCredentialRequestsStorage,
+};
 use async_trait::async_trait;
 use nym_bandwidth_controller::{
     CredentialFetcher, CredentialFetcherError, CredentialPublicDataFetcher, NymCredential,
@@ -14,10 +18,11 @@ use nym_credentials::{
 };
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{Date, OffsetDateTime, ecash_default_expiration_date};
+use nym_validator_client::rpc::TendermintRpcClient;
 use nym_validator_client::{
     nym_api::EpochId,
     nyxd::{
-        Coin, CosmWasmClient,
+        Coin, TendermintRpcClientExt,
         contract_traits::{
             DkgQueryClient, EcashQueryClient, EcashSigningClient, dkg_query_client::EpochState,
         },
@@ -28,11 +33,6 @@ use nym_validator_client::{
 use rand::rngs::OsRng;
 use tracing::{debug, error, info, warn};
 use zeroize::Zeroizing;
-
-use crate::{
-    EcashApiClientsCache, NyxdGlobalDataFetcher, error::NyxdFetcherError,
-    storage::PendingCredentialRequestsStorage,
-};
 
 /// Obtains ticketbooks by depositing on-chain and aggregating wallet signatures from the ecash
 /// APIs, and recovers ticketbooks from deposits whose issuance never completed. Deposits are
@@ -231,7 +231,7 @@ where
 
 impl<C> NyxdCredentialFetcher<C>
 where
-    C: DkgQueryClient + EcashQueryClient + CosmWasmClient + OfflineSigner,
+    C: DkgQueryClient + EcashQueryClient + TendermintRpcClient + OfflineSigner,
 {
     // conservative per-deposit tx fee estimate used when checking the balance
     const DEPOSIT_TX_FEE_AMOUNT: u128 = 50_000;

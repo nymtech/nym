@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_http_api_common::{Output, OutputV2};
+use nym_http_api_common::{FormattedResponse, Output, OutputV2};
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -20,6 +20,16 @@ pub struct PaginationRequestV2 {
     pub output: Option<OutputV2>,
     pub page: Option<u32>,
     pub per_page: Option<u32>,
+}
+
+impl PaginationRequestV2 {
+    pub fn get_output(&self) -> OutputV2 {
+        self.output.unwrap_or_default()
+    }
+
+    pub fn format_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
+        self.get_output().to_response(data)
+    }
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]

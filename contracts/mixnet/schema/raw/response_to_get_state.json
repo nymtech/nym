@@ -4,18 +4,42 @@
   "description": "The current state of the mixnet contract.",
   "type": "object",
   "required": [
-    "node_families_contract_address",
     "params",
     "rewarding_denom",
     "rewarding_validator_address",
     "vesting_contract_address"
   ],
   "properties": {
-    "node_families_contract_address": {
-      "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
-      "allOf": [
+    "directory_contract_address": {
+      "description": "Address of the directory contract. It is called whenever nym-node unbonds, so that it directory data could be removed from the underlying storage.",
+      "anyOf": [
         {
           "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "geolocation_contract_address": {
+      "description": "Address of the geolocation contract. It is called whenever nym-node unbonds, so that its geolocation data could be removed from the underlying storage.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "node_families_contract_address": {
+      "description": "Address of the node families contract. It is called whenever nym-node unbonds so that it could be removed from any family it belongs to.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
         }
       ]
     },

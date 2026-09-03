@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConfigResponse",
+  "description": "Response for [`crate::QueryMsg::Config`]: the mutable tunables together with the mixnet contract address, which is fixed at instantiation and reported here so a client can see which deployment this contract resolves node identity keys against.",
+  "type": "object",
+  "required": [
+    "config",
+    "mixnet_contract_address"
+  ],
+  "properties": {
+    "config": {
+      "$ref": "#/definitions/ContractConfig"
+    },
+    "mixnet_contract_address": {
+      "$ref": "#/definitions/Addr"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "ContractConfig": {
+      "description": "The contract's tunables, all admin-adjustable. Held in state rather than as constants because each of them can need to move without a redeploy: a payload version may want more room or less, gas costs shift, and clock tolerance is an operational judgement.\n\nDeliberately cannot express the mixnet contract address, which is set once at instantiation and never changes. Keeping it out of this type means [`crate::ExecuteMsg::UpdateConfig`] has no way to reach it.",
+      "type": "object",
+      "required": [
+        "max_batch_size",
+        "max_payload_size",
+        "max_skew_secs"
+      ],
+      "properties": {
+        "max_batch_size": {
+          "description": "Maximum entries in one batch.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "max_payload_size": {
+          "description": "Maximum length of a payload's `content`, in bytes.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "max_skew_secs": {
+          "description": "How far ahead of block time a `declared_at` may be, in seconds.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -71,3 +71,6 @@ par_signing = ["rayon"]
 # furthermore, we can't and shouldn't dedicate the entire nym-api CPU just for verification,
 # but this feature might potentially be desirable for clients.
 par_verify = ["rayon"]
+
+[lints]
+workspace = true

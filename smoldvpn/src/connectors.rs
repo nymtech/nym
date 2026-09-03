@@ -10,7 +10,7 @@
 //! `Client`. `reqwest` can be layered on top of the same `hyper` client.
 //!
 //! ```no_run
-//! # async fn example_connect(tunnel: &smoldvpn::Tunnel) -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn example_connect(tunnel: &nym_smoldvpn::Tunnel) -> Result<(), Box<dyn std::error::Error>> {
 //! let channel = tonic::transport::Endpoint::from_static("http://10.0.0.1:50051")
 //!     .connect_with_connector(tunnel.connector())
 //!     .await?;
@@ -26,7 +26,7 @@ use std::task::{Context, Poll};
 
 use http::Uri;
 use hyper_util::rt::TokioIo;
-use smol_core::{Stack, TcpStream};
+use nym_smol_core::{Stack, TcpStream};
 use tower::Service;
 
 use crate::error::DvpnError;

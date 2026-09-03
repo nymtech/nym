@@ -12,7 +12,7 @@
 //!
 //! Usage (build `--release`: boringtun is slow in debug):
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run --release -p smoldvpn --example two-hop-quic
+//!   cargo run --release -p nym-smoldvpn --example two-hop-quic
 //!
 //! The QUIC gateway set comes from the dVPN directory (see
 //! `common::DEFAULT_DVPN_DIRECTORY`; override with `DVPN_DIRECTORY_URL`).

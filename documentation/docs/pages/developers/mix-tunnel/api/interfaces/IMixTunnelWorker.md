@@ -22,7 +22,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:61](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L61)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:97](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L97)
 
 ***
 
@@ -36,21 +36,21 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:62](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L62)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:98](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L98)
 
 ***
 
 ### getTunnelState()
 
-> **getTunnelState**(): `Promise`\<[`TunnelState`](TunnelState.md)\>
+> **getTunnelState**(): `Promise`\<[`TunnelState`](../type-aliases/TunnelState.md)\>
 
 #### Returns
 
-`Promise`\<[`TunnelState`](TunnelState.md)\>
+`Promise`\<[`TunnelState`](../type-aliases/TunnelState.md)\>
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:63](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L63)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:99](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L99)
 
 ***
 
@@ -70,7 +70,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:64](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L64)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:100](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L100)
 
 ***
 
@@ -88,7 +88,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:65](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L65)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:101](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L101)
 
 ***
 
@@ -110,7 +110,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:66](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L66)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:102](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L102)
 
 ***
 
@@ -130,7 +130,7 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:67](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L67)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:103](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L103)
 
 ***
 
@@ -152,4 +152,4 @@
 
 #### Source
 
-[sdk/typescript/packages/mix-tunnel/src/types.ts:68](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/mix-tunnel/src/types.ts#L68)
+[sdk/typescript/packages/mix-tunnel/src/types.ts:104](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/mix-tunnel/src/types.ts#L104)

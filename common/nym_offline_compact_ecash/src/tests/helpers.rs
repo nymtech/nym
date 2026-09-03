@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::common_types::SignerIndex;
+use crate::constants::CRED_VALIDITY_PERIOD_DAYS;
 use crate::error::Result;
 use crate::scheme::coin_indices_signatures::{
     aggregate_indices_signatures, sign_coin_indices, CoinIndexSignature, CoinIndexSignatureShare,
@@ -88,7 +89,7 @@ pub fn payment_from_keys_and_expiration_date(
 ) -> Result<(Payment, PayInfo)> {
     let total_coins = 32;
     let params = Parameters::new(total_coins);
-    let spend_date = expiration_date - 29 * constants::SECONDS_PER_DAY;
+    let spend_date = expiration_date - (CRED_VALIDITY_PERIOD_DAYS - 1) * constants::SECONDS_PER_DAY;
     let user_keypair = generate_keypair_user();
 
     let secret_keys_authorities: Vec<&SecretKeyAuth> = ecash_keypairs

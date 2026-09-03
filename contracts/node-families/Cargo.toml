@@ -45,6 +45,8 @@ anyhow = { workspace = true }
 # `testable-node-families-contract` feature.
 nym-contracts-common-testing = { workspace = true }
 nym-mixnet-contract = { workspace = true, features = ["testable-mixnet-contract"] }
+nym-directory-contract-common = { workspace = true }
+
 nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [features]

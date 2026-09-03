@@ -1,11 +1,42 @@
 import React from "react";
+import Link from "next/link";
 import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
-// import { Footer } from "./components/footer";
-import { Matrix } from "./components/matrix-link";
-import { Explorer } from "./components/explorer-link";
+// import { Footer } from "components/footer";
+import { Matrix } from "components/matrix-link";
+import { Explorer } from "components/explorer-link";
+// import PageActions from "components/PageActions"; // re-add via client-side mount (main-wrapper caused hydration mismatch)
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
+  // TEMP: disabled to isolate a hydration mismatch. Re-enable once the cause is
+  // confirmed / a safe injection is in place.
+  // main: ({ children }) => (
+  //   <>
+  //     <PageActions />
+  //     {children}
+  //   </>
+  // ),
+  banner: {
+    key: "threat-model-2026-08",
+    dismissible: true,
+    text: (
+      <span>
+        New: a threat-model-first guide to{" "}
+        <Link href="/network/threat-model" style={{ textDecoration: "underline" }}>
+          choosing your network defence
+        </Link>
+        , plus the{" "}
+        <Link href="/developers/smoldvpn" style={{ textDecoration: "underline" }}>
+          nym-smoldvpn
+        </Link>{" "}
+        dVPN package and{" "}
+        <Link href="/developers/swizzle" style={{ textDecoration: "underline" }}>
+          nym-swizzle
+        </Link>{" "}
+        sender hygiene.
+      </span>
+    ),
+  },
   head: function useHead() {
     const config = useConfig();
     const { route } = useRouter();

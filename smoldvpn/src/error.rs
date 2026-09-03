@@ -12,7 +12,7 @@ pub enum DvpnError {
 
     /// The underlying smol-core stack errored.
     #[error("stack error: {0}")]
-    Stack(#[from] smol_core::SmolCoreError),
+    Stack(#[from] nym_smol_core::SmolCoreError),
 
     /// Socket / IO error.
     #[error("IO error: {0}")]

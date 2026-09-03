@@ -28,7 +28,10 @@ use mixnet_contract_common::{
     NodeCostParams, NymNodeBondingPayload, NymNodeDetails, PendingEpochEventKind,
     PendingIntervalEventKind,
 };
+use nym_contracts_common::helpers::ResponseExt;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
+use nym_directory_contract_common::msg::ExecuteMsg as DirectoryExecuteMsg;
+use nym_geolocation_contract_common::msg::ExecuteMsg as GeoLocationExecuteMsg;
 use nym_node_families_contract_common::msg::ExecuteMsg as NodeFamiliesExecuteMsg;
 use serde::Serialize;
 
@@ -148,19 +151,51 @@ pub(crate) fn try_remove_nym_node(
     };
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
-    // send message to the node families contract to remove this node from any family it might be a member of
-    let node_families_contract_addr =
-        mixnet_params_storage::node_families_contract_address(deps.storage)?;
-    let remove_from_family_exec = wasm_execute(
-        node_families_contract_addr,
-        &NodeFamiliesExecuteMsg::OnNymNodeUnbond {
-            node_id: existing_bond.node_id,
-        },
-        vec![],
-    )?;
+    // send message to the node families contract (if specified) to remove this node from any family it might be a member of
+    let remove_from_family_exec =
+        mixnet_params_storage::node_families_contract_address(deps.storage)?
+            .map(|node_families_contract_addr| {
+                wasm_execute(
+                    node_families_contract_addr,
+                    &NodeFamiliesExecuteMsg::OnNymNodeUnbond {
+                        node_id: existing_bond.node_id,
+                    },
+                    vec![],
+                )
+            })
+            .transpose()?;
+
+    // send message to the geolocation contract (if specified) to clear this node's data
+    let remove_geolocation_exec =
+        mixnet_params_storage::geolocation_contract_address(deps.storage)?
+            .map(|geolocation_contract_address| {
+                wasm_execute(
+                    geolocation_contract_address,
+                    &GeoLocationExecuteMsg::OnNymNodeUnbond {
+                        node_id: existing_bond.node_id,
+                    },
+                    vec![],
+                )
+            })
+            .transpose()?;
+
+    let remove_from_directory_exec =
+        mixnet_params_storage::directory_contract_address(deps.storage)?
+            .map(|directory_contract_address| {
+                wasm_execute(
+                    directory_contract_address,
+                    &DirectoryExecuteMsg::OnNymNodeUnbond {
+                        node_id: existing_bond.node_id,
+                    },
+                    vec![],
+                )
+            })
+            .transpose()?;
 
     Ok(Response::new()
-        .add_message(remove_from_family_exec)
+        .add_optional_message(remove_from_family_exec)
+        .add_optional_message(remove_geolocation_exec)
+        .add_optional_message(remove_from_directory_exec)
         .add_event(new_pending_nym_node_unbonding_event(
             &existing_bond.owner,
             existing_bond.identity(),

@@ -258,7 +258,7 @@ pub async fn start_wireguard(
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
-    use tracing::info;
+    use tracing::{info, warn};
 
     let ifname = String::from(WG_TUN_BASE_NAME);
     info!(
@@ -267,20 +267,48 @@ pub async fn start_wireguard(
     );
     let mut wg_api = WgApiWrapper::new(&ifname, use_userspace)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(peers.len());
+    let mut good_peers = Vec::with_capacity(peers.len());
 
-    for peer in peers.iter() {
+    for peer in peers.into_iter() {
+        let bandwidth_manager = match PeerController::generate_bandwidth_manager(
+            ecash_manager.storage(),
+            &peer.public_key,
+        )
+        .await
+        {
+            Ok(manager) => manager,
+            Err(Error::MissingClientBandwidthEntry) => {
+                // Left over from an unclean shutdown: the peer and its bandwidth
+                // entry are supposed to be written together, but a crash between
+                // the two writes can leave one without the other. Previously this
+                // aborted the whole function via `?`, crashing the entire node
+                // over a single corrupted client record. Remove the orphaned
+                // record and continue starting up with the rest of the peers,
+                // matching how build_wireguard_peers_and_networks already handles
+                // a different persisted-peer corruption case (empty allowed_ips).
+                let peer_identity = &peer.public_key;
+                warn!(
+                    "Peer {peer_identity} is missing its wireguard peer or bandwidth storage \
+                     entry (likely left over from an unclean shutdown). Removing it and \
+                     continuing startup instead of failing the whole node."
+                );
+                ecash_manager
+                    .storage()
+                    .remove_wireguard_peer(&peer_identity.to_string())
+                    .await?;
+                continue;
+            }
+            Err(e) => return Err(e.into()),
+        };
+
         let bandwidth_manager = peer_handle::SharedBandwidthStorageManager::new(
-            Arc::new(RwLock::new(
-                PeerController::generate_bandwidth_manager(
-                    ecash_manager.storage(),
-                    &peer.public_key,
-                )
-                .await?,
-            )),
+            Arc::new(RwLock::new(bandwidth_manager)),
             peer.allowed_ips.clone(),
         );
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
+        good_peers.push(peer);
     }
+    let peers = good_peers;
 
     // Initialize IP pool from configuration
     info!("Initializing IP pool for WireGuard peer allocation");

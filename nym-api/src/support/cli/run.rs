@@ -26,6 +26,7 @@ use crate::support::config::helpers::try_load_current_config;
 use crate::support::config::{Config, DEFAULT_CHAIN_STATUS_CACHE_TTL};
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::directory::DirectoryState;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -37,8 +38,8 @@ use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::m
 use crate::support::storage::NymApiStorage;
 use crate::unstable_routes::v1::account::cache::AddressInfoCache;
 use crate::{
-    ecash, epoch_operations, mixnet_contract_cache, network_monitor, node_describe_cache,
-    node_families, node_performance, node_status_api, signers_cache,
+    directory, ecash, epoch_operations, mixnet_contract_cache, network_monitor,
+    node_describe_cache, node_families, node_performance, node_status_api, signers_cache,
 };
 use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
@@ -128,7 +129,8 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn initialise_storage(config: &Config) -> anyhow::Result<NymApiStorage> {
-    let nyxd_client = nyxd::Client::new(config)?;
+    let nym_network_details = NymNetworkDetails::new_from_env();
+    let nyxd_client = nyxd::Client::new(config, &nym_network_details)?;
     let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
 
     // try to perform any needed migrations of the storage
@@ -140,9 +142,9 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
     let shutdown_manager = ShutdownManager::build_new_default()?
         .with_shutdown_duration(Duration::from_secs(TASK_MANAGER_TIMEOUT_S));
 
-    let nyxd_client = nyxd::Client::new(&config)?;
-    let connected_nyxd = config.get_nyxd_url();
     let nym_network_details = NymNetworkDetails::new_from_env();
+    let nyxd_client = nyxd::Client::new(&config, &nym_network_details)?;
+    let connected_nyxd = config.get_nyxd_url();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let ecash_keypair_wrapper = ecash::keys::KeyPair::new();
@@ -159,7 +161,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     let storage = initialise_storage(&config).await?;
 
-    let identity_keypair = config.base.storage_paths.load_identity()?;
+    let identity_keypair = Arc::new(config.base.storage_paths.load_identity()?);
     let identity_public_key = *identity_keypair.public_key();
 
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
@@ -244,7 +246,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         &config,
         ecash_contract,
         nyxd_client.clone(),
-        identity_keypair,
+        identity_keypair.clone(),
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
@@ -336,6 +338,19 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
 
     node_families_cache_refresher.start(shutdown_manager.clone_shutdown_token());
 
+    // DIRECTORY
+    let directory_path = storage_cfg.cache_file("directory");
+    let checkpoint_path = storage_cfg.cache_file("nyx_checkpoint.json");
+    let directory_cache = directory::cache::start_cache_refresher(
+        config.directory,
+        identity_keypair.clone(),
+        nyxd_client.clone(),
+        directory_path,
+        checkpoint_path,
+        &shutdown_manager,
+    )
+    .await?;
+
     // start dkg task
     if config.ecash_signer.enabled {
         let dkg_bte_keypair = load_bte_keypair(&config.ecash_signer)?;
@@ -406,6 +421,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         config.base.utility_routes_bearer.take(),
     )
     .with_state(AppState {
+        identity_keypair,
         nyxd_client,
         chain_status_cache: ChainStatusCache::new(DEFAULT_CHAIN_STATUS_CACHE_TTL),
         ecash_signers_cache,
@@ -428,6 +444,7 @@ async fn start_nym_api_tasks(mut config: Config) -> anyhow::Result<ShutdownManag
         contract_info_cache: ContractDetailsCache::new(config.contracts_info_cache.time_to_live),
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
+        directory: DirectoryState::new(directory_cache, config.directory.debug.retention_count),
     });
 
     let bind_address = config.base.bind_address.to_owned();

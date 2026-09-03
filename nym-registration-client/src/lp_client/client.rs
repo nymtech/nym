@@ -26,7 +26,7 @@ use nym_registration_common::{
     WireguardRegistrationData,
 };
 use nym_wireguard_types::PeerPublicKey;
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -547,7 +547,7 @@ where
         ticket_type: TicketType,
     ) -> Result<WireguardConfiguration>
     where
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         // 1. Build registration request
         let wg_public_key = PeerPublicKey::from(*wg_keypair.public_key());
@@ -659,7 +659,7 @@ where
         max_retries: u32,
     ) -> Result<WireguardConfiguration>
     where
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         tracing::debug!("Starting resilient registration (max_retries={max_retries})",);
 
@@ -728,10 +728,10 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let mut rng09 = deterministic_rng_09();
-        let keypair = Arc::new(generate_lp_keypair_x25519(&mut rng09));
+        let mut rng010 = deterministic_rng_09();
+        let keypair = Arc::new(generate_lp_keypair_x25519(&mut rng010));
 
-        let gateway_x_keys = generate_lp_keypair_x25519(&mut rng09);
+        let gateway_x_keys = generate_lp_keypair_x25519(&mut rng010);
         let gateway_peer = LpRemotePeer::from(gateway_x_keys.pk);
         let address = "127.0.0.1:41264".parse().unwrap();
 

@@ -197,7 +197,7 @@ html.dark .nextra-sidebar-container :is(.dark\:nx-bg-primary-400\/10) a {
   background-color: transparent !important;
 }
 
-/* ── TOC (hidden — subsections live in sidebar) ── */
+/* TOC (hidden; subsections live in the sidebar) */
 
 .nextra-toc {
   display: none !important;
@@ -539,11 +539,6 @@ html:not(.dark) .landing-card {
   .landing-sdk-grid {
     grid-template-columns: 1fr !important;
   }
-
-  .landing-sdk-grid > div:first-child {
-    padding-right: 0 !important;
-    margin-bottom: 1.5rem;
-  }
 }
 
 
@@ -556,4 +551,52 @@ html.dark .nextra-sidebar-container a[href="/docs/operators/nodes"] {
 html:not(.dark) .nextra-sidebar-container a[href="/docs/operators/nodes"] {
   color: #111 !important;
   font-weight: 700;
+}
+
+/* Prominent site-wide revision banner (content set in theme.config.tsx). */
+:root {
+  --nextra-banner-height: 3.25rem;
+}
+.nextra-banner-container {
+  min-height: var(--nextra-banner-height);
+  font-size: 0.95rem !important;
+  font-weight: 500;
+  background: linear-gradient(90deg, #1f9d57, #1f7fd6) !important;
+  color: #ffffff !important;
+}
+html.dark .nextra-banner-container {
+  background: linear-gradient(90deg, #85e89d, #6bc3ff) !important;
+  color: #10201a !important;
+}
+.nextra-banner-container a {
+  color: inherit !important;
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+/* Shared UI-chrome palette, consumed by PageActions and McpPanel. Light is the
+   base; dark overrides under html.dark (the docs' next-themes class). Named for
+   the Ask AI widget that introduced it; the widget is gone but the palette is
+   not, and PageActions reads these with no fallback. */
+:root {
+  --chat-bg: #ffffff;
+  --chat-surface: #f6f8f7;
+  --chat-border: #d6ded9;
+  --chat-text: #1a2321;
+  --chat-text-dim: #5a6b67;
+  --chat-input-bg: #ffffff;
+  --chat-accent: #1a7a32;
+  --chat-accent-text: #ffffff;
+  --chat-shadow: rgba(0, 0, 0, 0.12);
+}
+html.dark {
+  --chat-bg: #242b2d;
+  --chat-surface: #2a3235;
+  --chat-border: #3c4548;
+  --chat-text: #e6ecec;
+  --chat-text-dim: #9fb0af;
+  --chat-input-bg: #1c2224;
+  --chat-accent: #85e89d;
+  --chat-accent-text: #10201a;
+  --chat-shadow: rgba(0, 0, 0, 0.25);
 }

@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "description": "Instantiate the directory contract.",
+  "type": "object",
+  "required": [
+    "initial_labels",
+    "mixnet_contract_address"
+  ],
+  "properties": {
+    "initial_labels": {
+      "description": "Initial label whitelist with per-label size limits.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/InitialLabel"
+      }
+    },
+    "mixnet_contract_address": {
+      "description": "Mixnet contract address, used to resolve node bonds and identity keys.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "InitialLabel": {
+      "description": "Defines initial label to be created on contract instantiation.",
+      "type": "object",
+      "required": [
+        "config",
+        "label"
+      ],
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/LabelConfig"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LabelConfig": {
+      "description": "Per-label policy.",
+      "type": "object",
+      "required": [
+        "max_size"
+      ],
+      "properties": {
+        "max_size": {
+          "description": "Maximum permitted `data` length, in bytes, for entries under this label.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

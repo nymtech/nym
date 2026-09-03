@@ -21,7 +21,7 @@ jobs:
         run: sudo apt-get install -y rsync
       - uses: rlespinasse/github-slug-action@v3.x
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 11.1.2
       - uses: actions/setup-node@v4
@@ -42,10 +42,35 @@ jobs:
         working-directory: ${{ github.workspace }}
       - name: Install project dependencies
         run: pnpm i
+      # Embedding vectors are keyed by chunk content hash, so a restored cache
+      # means only changed chunks are re-embedded. Vercel gets this for free by
+      # restoring node_modules/.cache between builds; a GitHub runner starts
+      # clean, so without this the whole corpus is re-embedded on every deploy.
+      # restore-keys matters more than an exact hit: any recent cache still
+      # covers the chunks that did not change.
+      - name: Restore embedding cache
+        uses: actions/cache@v4
+        with:
+          path: documentation/docs/node_modules/.cache/nym-docs
+          key: nym-embed-${{ hashFiles('documentation/docs/pages/**', 'documentation/docs/lib/retrieval/chunker.mjs', 'documentation/docs/lib/retrieval/code-chunker.mjs') }}
+          restore-keys: |
+            nym-embed-
       - name: Generate llms-full.txt
         run: pnpm run generate:llms
+      # The embedding key is set per build step rather than on the job, so it is not
+      # in the environment for `cargo build`, `pnpm i`, `npm install -g vercel` or the
+      # third-party actions, all of which execute code from outside this repo.
+      # Both this step and the `vercel build` steps below can run the index
+      # generators, so all three need it. Runtime query embedding is separate and
+      # comes from the Vercel project env via `vercel pull`.
       - name: Build project
         run: pnpm run build
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          # This job publishes, so a missing key must fail it rather than ship an index
+          # with no vectors that returns nothing for every query. Check-only workflows
+          # build without the key on purpose and are unaffected.
+          REQUIRE_EMBEDDINGS: "1"
       - name: Generate sitemap
         run: npx next-sitemap
       - name: Move files to /dist/
@@ -78,11 +103,17 @@ jobs:
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
         continue-on-error: false
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
       - name: Build Project Artifacts (production)
         if: github.ref == 'refs/heads/master'
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
         continue-on-error: false
+        env:
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_EMBEDDINGS: "1"
 
       - name: Deploy Project Artifacts to Vercel (preview)
         if: github.ref != 'refs/heads/master'

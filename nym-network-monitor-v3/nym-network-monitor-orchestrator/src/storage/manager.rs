@@ -1,7 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::storage::models::{NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress};
+use crate::storage::models::{
+    AssignedTestrun, NewNymNode, NewTestRun, NymNode, TestRun, TestRunInProgress,
+};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -32,14 +34,16 @@ impl StorageManager {
                     identity_key,
                     last_seen_bonded,
                     mixnet_socket_address,
+                    announced_ips,
                     noise_key,
                     sphinx_key,
                     key_rotation_id,
                     node_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (node_id) DO UPDATE SET
                     last_seen_bonded      = excluded.last_seen_bonded,
                     mixnet_socket_address = excluded.mixnet_socket_address,
+                    announced_ips         = excluded.announced_ips,
                     noise_key             = excluded.noise_key,
                     sphinx_key            = excluded.sphinx_key,
                     key_rotation_id       = excluded.key_rotation_id,
@@ -49,6 +53,7 @@ impl StorageManager {
                 node.identity_key,
                 node.last_seen_bonded,
                 node.mixnet_socket_address,
+                node.announced_ips,
                 node.noise_key,
                 node.sphinx_key,
                 node.key_rotation_id,
@@ -68,6 +73,7 @@ impl StorageManager {
             r#"
             INSERT INTO testrun (
                 node_id,
+                tested_address,
                 test_type,
                 test_timestamp,
                 time_taken_us,
@@ -89,9 +95,10 @@ impl StorageManager {
                 sending_latency_std_dev_us,
                 received_duplicates,
                 error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             run.node_id,
+            run.tested_address,
             run.test_type,
             run.test_timestamp,
             run.time_taken_us,
@@ -199,7 +206,7 @@ impl StorageManager {
         &self,
         now: OffsetDateTime,
         last_tested_before: OffsetDateTime,
-    ) -> anyhow::Result<Option<NymNode>> {
+    ) -> anyhow::Result<Option<AssignedTestrun>> {
         // Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
         let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
@@ -210,11 +217,13 @@ impl StorageManager {
                 n.identity_key,
                 n.last_seen_bonded,
                 n.mixnet_socket_address,
+                n.announced_ips,
                 n.noise_key,
                 n.sphinx_key,
                 n.key_rotation_id,
                 n.node_type,
-                n.last_testrun
+                n.last_testrun,
+                n.last_tested_ip
             FROM nym_node n
             LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
             LEFT JOIN testrun             tr  ON tr.id       = n.last_testrun
@@ -232,18 +241,40 @@ impl StorageManager {
         .fetch_optional(&mut *tx)
         .await?;
 
-        if let Some(ref node) = node {
-            sqlx::query!(
-                "INSERT INTO testrun_in_progress (node_id, started_at) VALUES (?, ?)",
-                node.inner.node_id,
-                now,
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
+        let Some(node) = node else {
+            tx.commit().await?;
+            return Ok(None);
+        };
+
+        // rotate onto the next announced address of that node. the eligibility filter guarantees a
+        // parseable `mixnet_socket_address`, so this can only be `None` for a row whose stored
+        // addresses are corrupt
+        let Some(tested_ip) = node.next_ip_to_test() else {
+            tx.commit().await?;
+            return Ok(None);
+        };
+
+        // advance the rotation pointer here rather than on result submission, so that runs which
+        // never report back still move the node onto its next address
+        let stored_tested_ip = tested_ip.to_string();
+        sqlx::query!(
+            "UPDATE nym_node SET last_tested_ip = ? WHERE node_id = ?",
+            stored_tested_ip,
+            node.inner.node_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            "INSERT INTO testrun_in_progress (node_id, started_at) VALUES (?, ?)",
+            node.inner.node_id,
+            now,
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
-        Ok(node)
+        Ok(Some(AssignedTestrun { node, tested_ip }))
     }
 
     /// Fetches a single `testrun` row by its primary key.
@@ -514,6 +545,7 @@ mod tests {
             identity_key: identity_key.to_string(),
             last_seen_bonded: datetime!(2025-01-01 00:00:00 UTC),
             mixnet_socket_address: Some("1.2.3.4:1789".to_string()),
+            announced_ips: Some("1.2.3.4".to_string()),
             noise_key: Some("placeholder_noise_key".to_string()),
             sphinx_key: Some("placeholder_sphinx_key".to_string()),
             key_rotation_id: Some(0),
@@ -524,6 +556,7 @@ mod tests {
     fn minimal_test_run(node_id: i64) -> NewTestRun {
         NewTestRun {
             node_id,
+            tested_address: Some("1.2.3.4:1789".to_string()),
             test_type: TestType::Mixnode,
             test_timestamp: datetime!(2025-06-01 12:00:00 UTC),
             time_taken_us: 0,
@@ -943,7 +976,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(assigned.inner.node_id, 2);
+            assert_eq!(assigned.node.inner.node_id, 2);
         }
 
         #[tokio::test]
@@ -975,7 +1008,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(assigned.inner.node_id, 1);
+            assert_eq!(assigned.node.inner.node_id, 1);
         }
 
         #[tokio::test]
@@ -1001,7 +1034,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(assigned.inner.node_id, 2);
+            assert_eq!(assigned.node.inner.node_id, 2);
         }
 
         #[tokio::test]
@@ -1076,7 +1109,7 @@ mod tests {
                 .await
                 .unwrap()
                 .unwrap();
-            assert_eq!(assigned.inner.node_id, 2);
+            assert_eq!(assigned.node.inner.node_id, 2);
         }
     }
 

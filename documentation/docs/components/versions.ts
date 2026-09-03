@@ -12,6 +12,7 @@
  *   pages/developers/rust/stream/tutorial.mdx
  *   pages/developers/rust/client-pool/tutorial.mdx
  *   pages/developers/smolmix.mdx          (SMOLMIX_VERSION)
+ *   pages/developers/smoldvpn.mdx         (SMOLDVPN_VERSION)
  *
  * public/llms-full.txt is generated from these pages by generate-llms-txt.mjs
  * at build time, so it picks up the bumps automatically. (public/llms.txt is a
@@ -21,22 +22,26 @@
  * so no manual file edits are needed for MSRV bumps:
  *
  *   pages/developers/smolmix.mdx
+ *   pages/developers/smoldvpn.mdx
  *   pages/developers/rust/importing.mdx
  */
 
 // nym-sdk / nym-bin-common / nym-network-defaults (Rust SDK crates)
-export const NYM_SDK_VERSION = "1.21.5-rc.1";
+export const NYM_SDK_VERSION = "1.21.6";
 
 // smolmix standalone crate
-export const SMOLMIX_VERSION = "1.21.5-rc.1";
+export const SMOLMIX_VERSION = "1.21.6";
+
+// nym-smoldvpn standalone crate
+export const SMOLDVPN_VERSION = "1.21.6";
 
 // TypeScript SDK packages (published to npm). mix-fetch is on its own 2.x track
 // after the v1 to v2 break; the tunnel + mix-dns + mix-websocket facades share
 // a 0.x line for now. Bump these to match the published npm versions.
-export const MIX_FETCH_VERSION = "2.0.0";
-export const MIX_TUNNEL_VERSION = "0.1.0";
-export const MIX_DNS_VERSION = "0.1.0";
-export const MIX_WEBSOCKET_VERSION = "0.1.0";
+export const MIX_FETCH_VERSION = "2.1.1";
+export const MIX_TUNNEL_VERSION = "0.2.1";
+export const MIX_DNS_VERSION = "0.2.1";
+export const MIX_WEBSOCKET_VERSION = "0.2.1";
 
 // Minimum supported Rust version (matches workspace rust-version in root Cargo.toml)
 export const RUST_MSRV = "1.87";

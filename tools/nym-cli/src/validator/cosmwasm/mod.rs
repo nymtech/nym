@@ -26,7 +26,7 @@ pub(crate) async fn execute(
         }
 
         nym_cli_commands::validator::cosmwasm::CosmwasmCommands::GenerateInitMessage(generator) => {
-            generators::execute(generator).await?
+            generators::execute(*generator).await?
         }
         nym_cli_commands::validator::cosmwasm::CosmwasmCommands::Migrate(args) => {
             nym_cli_commands::validator::cosmwasm::migrate_contract::migrate(

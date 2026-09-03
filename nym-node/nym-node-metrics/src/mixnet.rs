@@ -168,6 +168,10 @@ pub struct EgressRecipientStats {
 pub struct EgressMixingStats {
     disk_persisted_packets: AtomicUsize,
 
+    // final hop packets dropped because the recipient has never registered with this gateway,
+    // so the payload could never have been retrieved
+    unknown_recipient_dropped_packets: AtomicUsize,
+
     // this includes ACKS!
     forward_hop_packets_sent: AtomicUsize,
 
@@ -185,6 +189,16 @@ impl EgressMixingStats {
 
     pub fn disk_persisted_packets(&self) -> usize {
         self.disk_persisted_packets.load(Ordering::Relaxed)
+    }
+
+    pub fn add_unknown_recipient_dropped_packet(&self) {
+        self.unknown_recipient_dropped_packets
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn unknown_recipient_dropped_packets(&self) -> usize {
+        self.unknown_recipient_dropped_packets
+            .load(Ordering::Relaxed)
     }
 
     pub fn forward_hop_packets_sent(&self) -> usize {

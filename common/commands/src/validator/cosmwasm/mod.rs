@@ -24,7 +24,7 @@ pub enum CosmwasmCommands {
     /// Init a WASM smart contract
     Init(crate::validator::cosmwasm::init_contract::Args),
     /// Generate an instantiate message
-    GenerateInitMessage(generators::GenerateMessage),
+    GenerateInitMessage(Box<generators::GenerateMessage>),
     /// Migrate a WASM smart contract
     Migrate(crate::validator::cosmwasm::migrate_contract::Args),
     /// Execute a WASM smart contract method

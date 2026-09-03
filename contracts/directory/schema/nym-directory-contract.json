@@ -1,0 +1,1229 @@
+{
+  "contract_name": "nym-directory-contract",
+  "contract_version": "0.1.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "description": "Instantiate the directory contract.",
+    "type": "object",
+    "required": [
+      "initial_labels",
+      "mixnet_contract_address"
+    ],
+    "properties": {
+      "initial_labels": {
+        "description": "Initial label whitelist with per-label size limits.",
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/InitialLabel"
+        }
+      },
+      "mixnet_contract_address": {
+        "description": "Mixnet contract address, used to resolve node bonds and identity keys.",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "InitialLabel": {
+        "description": "Defines initial label to be created on contract instantiation.",
+        "type": "object",
+        "required": [
+          "config",
+          "label"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/definitions/LabelConfig"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LabelConfig": {
+        "description": "Per-label policy.",
+        "type": "object",
+        "required": [
+          "max_size"
+        ],
+        "properties": {
+          "max_size": {
+            "description": "Maximum permitted `data` length, in bytes, for entries under this label.",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Create or replace a node entry. Authorised by an ed25519 `signature` from the node's identity key over [`crate::node_signing_payload`]; any account may relay the transaction. `sequence` must equal the node's expected next sequence (query [`QueryMsg::Sequence`]).",
+        "type": "object",
+        "required": [
+          "set_node_entry"
+        ],
+        "properties": {
+          "set_node_entry": {
+            "type": "object",
+            "required": [
+              "data",
+              "label",
+              "node_id",
+              "sequence",
+              "signature"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/Binary"
+              },
+              "label": {
+                "type": "string"
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "sequence": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "signature": {
+                "$ref": "#/definitions/Binary"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Delete a node entry. Same authorisation as [`Self::SetNodeEntry`].",
+        "type": "object",
+        "required": [
+          "delete_node_entry"
+        ],
+        "properties": {
+          "delete_node_entry": {
+            "type": "object",
+            "required": [
+              "label",
+              "node_id",
+              "sequence",
+              "signature"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "sequence": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "signature": {
+                "$ref": "#/definitions/Binary"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Create or replace a curated entry. Admin only. `key` is an arbitrary path chosen by the admin (the contract imposes no label/suffix structure on it).",
+        "type": "object",
+        "required": [
+          "set_curated_entry"
+        ],
+        "properties": {
+          "set_curated_entry": {
+            "type": "object",
+            "required": [
+              "data",
+              "key"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/Binary"
+              },
+              "key": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Delete a curated entry. Admin only.",
+        "type": "object",
+        "required": [
+          "remove_curated_entry"
+        ],
+        "properties": {
+          "remove_curated_entry": {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Add or update a whitelisted label and its `max_size`. Admin only; `max_size` must not exceed [`crate::constants::MAX_LABEL_SIZE_CEILING`].",
+        "type": "object",
+        "required": [
+          "set_label"
+        ],
+        "properties": {
+          "set_label": {
+            "type": "object",
+            "required": [
+              "label",
+              "max_size"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "max_size": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Remove a label from the whitelist. Non-destructive: existing entries under the label stay readable; only new writes are blocked. Admin only.",
+        "type": "object",
+        "required": [
+          "remove_label"
+        ],
+        "properties": {
+          "remove_label": {
+            "type": "object",
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Transfer the admin role to `admin`. Admin only. The admin can never be cleared - there must always be exactly one.",
+        "type": "object",
+        "required": [
+          "update_admin"
+        ],
+        "properties": {
+          "update_admin": {
+            "type": "object",
+            "required": [
+              "admin"
+            ],
+            "properties": {
+              "admin": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; deletes all of that node's entries. Sender must be the configured mixnet contract.",
+        "type": "object",
+        "required": [
+          "on_nym_node_unbond"
+        ],
+        "properties": {
+          "on_nym_node_unbond": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "A single node entry.",
+        "type": "object",
+        "required": [
+          "node_entry"
+        ],
+        "properties": {
+          "node_entry": {
+            "type": "object",
+            "required": [
+              "label",
+              "node_id"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "A single curated entry.",
+        "type": "object",
+        "required": [
+          "curated_entry"
+        ],
+        "properties": {
+          "curated_entry": {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "All entries for one node.",
+        "type": "object",
+        "required": [
+          "node_entries"
+        ],
+        "properties": {
+          "node_entries": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Paginated enumeration of all node entries, ordered by their key string.",
+        "type": "object",
+        "required": [
+          "node_entries_paged"
+        ],
+        "properties": {
+          "node_entries_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Paginated enumeration of all curated entries, ordered by their key string.",
+        "type": "object",
+        "required": [
+          "curated_entries_paged"
+        ],
+        "properties": {
+          "curated_entries_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Paginated enumeration of ALL entries (both namespaces) - the global pull a client uses to recompute and verify the digest.",
+        "type": "object",
+        "required": [
+          "all_entries"
+        ],
+        "properties": {
+          "all_entries": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/EntryKey"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "The next sequence a node must sign with.",
+        "type": "object",
+        "required": [
+          "sequence"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "object",
+            "required": [
+              "node_id"
+            ],
+            "properties": {
+              "node_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "The compact 32-byte global digest.",
+        "type": "object",
+        "required": [
+          "digest"
+        ],
+        "properties": {
+          "digest": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "The label whitelist with per-label sizes.",
+        "type": "object",
+        "required": [
+          "allowed_labels"
+        ],
+        "properties": {
+          "allowed_labels": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "EntryKey": {
+        "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
+        "oneOf": [
+          {
+            "description": "A self-published node entry, keyed `(node_id, label)`.",
+            "type": "object",
+            "required": [
+              "node"
+            ],
+            "properties": {
+              "node": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "node_id"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+            "type": "object",
+            "required": [
+              "curated"
+            ],
+            "properties": {
+              "curated": {
+                "type": "object",
+                "required": [
+                  "key"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "description": "Message passed to the contract's `migrate` entry point.",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminResponse",
+      "description": "Returned from Admin.query_admin()",
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "all_entries": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllEntriesPagedResponse",
+      "description": "A page of the global entry enumeration across both namespaces - the input from which a client recomputes and verifies the digest.",
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DirectoryEntryRecord"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EntryKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "CuratedEntry": {
+          "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+          "type": "object",
+          "required": [
+            "data"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "DirectoryEntry": {
+          "description": "A directory entry of either key-class - the unified in-memory / response type for the single entry store and mixed enumeration; the active variant matches the entry's [`Namespace`]. On-chain the concrete variant is determined by the key's namespace tag, so the raw-bytes value codec stores no redundant discriminant - this `cw_serde` enum is for JSON responses and in-memory use.",
+          "oneOf": [
+            {
+              "description": "A self-published node entry.",
+              "type": "object",
+              "required": [
+                "node_entry"
+              ],
+              "properties": {
+                "node_entry": {
+                  "$ref": "#/definitions/NodeEntry"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "An admin-curated entry.",
+              "type": "object",
+              "required": [
+                "curated_entry"
+              ],
+              "properties": {
+                "curated_entry": {
+                  "$ref": "#/definitions/CuratedEntry"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "DirectoryEntryRecord": {
+          "description": "One entry together with its key, as yielded by the global enumeration.",
+          "type": "object",
+          "required": [
+            "entry",
+            "key"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/DirectoryEntry"
+            },
+            "key": {
+              "$ref": "#/definitions/EntryKey"
+            }
+          },
+          "additionalProperties": false
+        },
+        "EntryKey": {
+          "description": "The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`] cursor / response key and to derive the canonical digest leaf; the on-chain storage key is handled separately by each per-class store (via `cw-storage-plus` `Path`/`Prefix`), so this type carries no storage-codec logic.\n\n- [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under one namespace, so all of a node's entries form a contiguous range (per-node query + unbond cleanup). - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a separate namespace; the admin is responsible for choosing a sensible path (there is no label/suffix structure imposed by the contract).",
+          "oneOf": [
+            {
+              "description": "A self-published node entry, keyed `(node_id, label)`.",
+              "type": "object",
+              "required": [
+                "node"
+              ],
+              "properties": {
+                "node": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "node_id"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "node_id": {
+                      "type": "integer",
+                      "format": "uint32",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "An admin-curated entry, keyed by a single admin-chosen path string.",
+              "type": "object",
+              "required": [
+                "curated"
+              ],
+              "properties": {
+                "curated": {
+                  "type": "object",
+                  "required": [
+                    "key"
+                  ],
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "NodeEntry": {
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+          "type": "object",
+          "required": [
+            "data",
+            "sequence",
+            "signature",
+            "updated_at_height"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            },
+            "updated_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "allowed_labels": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllowedLabelsResponse",
+      "type": "object",
+      "required": [
+        "labels"
+      ],
+      "properties": {
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LabelEntry"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "LabelConfig": {
+          "description": "Per-label policy.",
+          "type": "object",
+          "required": [
+            "max_size"
+          ],
+          "properties": {
+            "max_size": {
+              "description": "Maximum permitted `data` length, in bytes, for entries under this label.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "LabelEntry": {
+          "description": "One whitelisted label together with its policy.",
+          "type": "object",
+          "required": [
+            "config",
+            "label"
+          ],
+          "properties": {
+            "config": {
+              "$ref": "#/definitions/LabelConfig"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "curated_entries_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CuratedEntriesPagedResponse",
+      "description": "A page of curated entries.",
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "description": "Entries in ascending key order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CuratedLabelEntry"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "CuratedEntry": {
+          "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+          "type": "object",
+          "required": [
+            "data"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        },
+        "CuratedLabelEntry": {
+          "description": "A `(label, entry)` pair belonging to a curated entry.",
+          "type": "object",
+          "required": [
+            "entry",
+            "label"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/CuratedEntry"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "curated_entry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CuratedEntryResponse",
+      "description": "Response for [`crate::QueryMsg::CuratedEntry`]; `None` if the slot is empty.",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CuratedEntry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "CuratedEntry": {
+          "description": "An admin-curated entry: opaque bytes (the authority is the contract admin).",
+          "type": "object",
+          "required": [
+            "data"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "digest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DigestResponse",
+      "description": "The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.",
+      "type": "object",
+      "required": [
+        "digest"
+      ],
+      "properties": {
+        "digest": {
+          "$ref": "#/definitions/Binary"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        }
+      }
+    },
+    "node_entries": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeEntriesResponse",
+      "description": "Response for [`crate::QueryMsg::NodeEntries`] - every entry for one node.",
+      "type": "object",
+      "required": [
+        "entries",
+        "node_id"
+      ],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NodeLabelEntry"
+          }
+        },
+        "node_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "NodeEntry": {
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+          "type": "object",
+          "required": [
+            "data",
+            "sequence",
+            "signature",
+            "updated_at_height"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            },
+            "updated_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "NodeLabelEntry": {
+          "description": "A `(label, entry)` pair belonging to a single node.",
+          "type": "object",
+          "required": [
+            "entry",
+            "label"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/NodeEntry"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "node_entries_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeEntriesPagedResponse",
+      "description": "A page of node entries across all nodes, ordered by `(node_id, label)`.",
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "description": "Entries in ascending `(node_id, label)` order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AnnotatedNodeLabelEntry"
+          }
+        },
+        "start_next_after": {
+          "description": "Cursor to pass as the next `start_after`, or `None` when exhausted.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "AnnotatedNodeLabelEntry": {
+          "description": "A node entry carrying its full `(node_id, label)` key - a row in [`NodeEntriesPagedResponse`], where entries from different nodes are interleaved.",
+          "type": "object",
+          "required": [
+            "entry",
+            "label",
+            "node_id"
+          ],
+          "properties": {
+            "entry": {
+              "$ref": "#/definitions/NodeEntry"
+            },
+            "label": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "NodeEntry": {
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+          "type": "object",
+          "required": [
+            "data",
+            "sequence",
+            "signature",
+            "updated_at_height"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            },
+            "updated_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "node_entry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NodeEntryResponse",
+      "description": "Response for [`crate::QueryMsg::NodeEntry`]; `None` if the slot is empty.",
+      "type": "object",
+      "properties": {
+        "entry": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NodeEntry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Binary": {
+          "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+          "type": "string"
+        },
+        "NodeEntry": {
+          "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+          "type": "object",
+          "required": [
+            "data",
+            "sequence",
+            "signature",
+            "updated_at_height"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            },
+            "updated_at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "sequence": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SequenceResponse",
+      "description": "The next sequence a node must sign with (gap-free, exact-match).",
+      "type": "object",
+      "required": [
+        "next_sequence"
+      ],
+      "properties": {
+        "next_sequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

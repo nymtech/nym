@@ -8,9 +8,44 @@ use nym_crypto::asymmetric::x25519::serde_helpers::{
     bs58_x25519_pubkey, option_bs58_x25519_pubkey,
 };
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use time::OffsetDateTime;
+
+/// The pair of mixnet addresses announced by an agent. Depending on the family a tested node was
+/// reached over, it sees one or the other as the source of the test traffic, so both are authorised
+/// in the network monitors contract.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct AgentMixAddresses {
+    /// V4 egress address of the agent node
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub v4: SocketAddr,
+
+    /// V6 egress address of the agent node
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub v6: SocketAddr,
+}
+
+impl AgentMixAddresses {
+    /// Whether the two addresses are actually one address of each family. `v6` must not hold an
+    /// ipv4-mapped address either: nodes canonicalise the authorised agent addresses, so such an
+    /// entry would collapse onto the ipv4 one and leave the agent with a single authorised ingress
+    /// while both the contract and this orchestrator believe it has two.
+    pub fn has_distinct_families(&self) -> bool {
+        self.v4.is_ipv4() && self.v6.ip().to_canonical().is_ipv6()
+    }
+
+    /// The address a node at `tested_node_address` should send the test packets back to, i.e. the
+    /// one of the same family, so that a test run exercises a single family in both directions.
+    pub fn matching_family(&self, tested_node_address: SocketAddr) -> SocketAddr {
+        if tested_node_address.ip().to_canonical().is_ipv6() {
+            self.v6
+        } else {
+            self.v4
+        }
+    }
+}
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,10 +53,8 @@ use time::OffsetDateTime;
 /// The orchestrator forwards this information to the smart contract so that
 /// network nodes can whitelist connections from known agents.
 pub struct AgentAnnounceRequest {
-    /// Egress address of the agent node combined with the previously
-    /// assigned mixnet socket address from the orchestrator
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub agent_mix_socket_address: SocketAddr,
+    /// Egress addresses of the agent node
+    pub mix_addresses: AgentMixAddresses,
 
     /// Base-58 encoded noise key of the agent.
     #[serde(with = "bs58_x25519_pubkey")]
@@ -44,10 +77,8 @@ pub struct AgentAnnounceResponse {}
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunAssignmentRequest {
-    /// Egress address of the agent node combined with the previously
-    /// assigned mixnet socket address from the orchestrator
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub agent_mix_socket_address: SocketAddr,
+    /// Egress addresses of the agent node
+    pub mix_addresses: AgentMixAddresses,
 
     /// Base-58 encoded noise key of the agent.
     #[serde(with = "bs58_x25519_pubkey")]
@@ -69,9 +100,17 @@ pub struct TestRunAssignmentResponse {
 pub struct TestRunAssignment {
     pub node_id: u32,
 
-    /// The address of the node that should be tested.
+    /// The address of the node that should be tested, i.e. the one the agent is expected to send
+    /// the test packets to. Always one of [`Self::node_ips`] combined with the node's mix port.
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub node_address: SocketAddr,
+
+    /// Every ip address the node has announced. The node isn't guaranteed to send the test packets
+    /// back from the address it was reached on (it may be multi-homed, or reached over a different
+    /// family than it replies over), so the agent has to accept a return connection from any of
+    /// them.
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<String>))]
+    pub node_ips: Vec<IpAddr>,
 
     #[serde(with = "bs58_x25519_pubkey")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
@@ -117,9 +156,15 @@ pub struct LatencyDistribution {
 
 /// Request sent by an agent to submit test results for a previously assigned node.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunResultSubmissionRequest {
     pub node_id: u32,
+
+    /// The address that was actually tested. A node may announce several addresses and only some
+    /// of them may be healthy, so the result is meaningless without knowing which one it refers to.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    pub tested_address: SocketAddr,
+
     pub result: TestRunResult,
 }
 
@@ -292,6 +337,11 @@ pub struct TestRunData {
     /// Node that was tested.
     pub node_id: u32,
 
+    /// The address of that node that was tested. `None` for runs recorded before the orchestrator
+    /// started tracking it.
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub tested_address: Option<SocketAddr>,
+
     /// Kind of node that was tested.
     pub test_type: TestType,
 
@@ -375,4 +425,36 @@ pub struct TestRunInProgressData {
     #[serde(with = "time::serde::rfc3339")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub started_at: OffsetDateTime,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn addresses(v4: &str, v6: &str) -> AgentMixAddresses {
+        AgentMixAddresses {
+            v4: v4.parse().unwrap(),
+            v6: v6.parse().unwrap(),
+        }
+    }
+
+    #[test]
+    fn a_plain_address_of_each_family_has_distinct_families() {
+        assert!(addresses("1.1.1.1:1789", "[aaaa::1]:1789").has_distinct_families());
+    }
+
+    #[test]
+    fn swapped_or_duplicated_families_do_not() {
+        assert!(!addresses("[aaaa::1]:1789", "1.1.1.1:1789").has_distinct_families());
+        assert!(!addresses("1.1.1.1:1789", "1.1.1.1:1789").has_distinct_families());
+        assert!(!addresses("[aaaa::1]:1789", "[aaaa::1]:1789").has_distinct_families());
+    }
+
+    // nodes store the authorised agent addresses under their canonical form, so an ipv4-mapped
+    // address in the v6 field collapses onto the v4 one instead of authorising a second ingress
+    #[test]
+    fn an_ipv4_mapped_v6_address_does_not() {
+        assert!(!addresses("1.1.1.1:1789", "[::ffff:1.1.1.1]:1789").has_distinct_families());
+        assert!(!addresses("1.1.1.1:1789", "[::ffff:2.2.2.2]:1789").has_distinct_families());
+    }
 }

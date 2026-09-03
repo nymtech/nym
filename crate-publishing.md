@@ -1,5 +1,9 @@
 # Publishing workspace dependencies
 
+This covers the Rust crates published to crates.io. For the npm side (the four
+`@nymproject/mix-*` TypeScript packages) see [`ts-sdk-publishing.md`](./ts-sdk-publishing.md).
+The two flows are independent: neither touches the other's registry.
+
 ## Rationale re: versioning
 
 We publish the majority of our workspace dependencies (essentially everything in the repo aside from binaries, smart contracts, and some internal tooling) to [crates.io](https://crates.io).
@@ -56,7 +60,7 @@ The version-bump workflow creates a PR due to branch protection rules. **You mus
 - **Dev-dep removal**: by default, dev-dependencies are stripped from each crate's `Cargo.toml` before publishing. This avoids packaging failures where a dev-dep on a workspace sibling hasn't been uploaded yet.
 - **Cargo.toml rewriting**: replaces `workspace = true` references with concrete values before calling `cargo publish`.
 
-Do not replace this with a manual `cargo publish -p` loop -- it will fail during packaging because `cargo publish` tries to resolve all deps (including dev-deps) against the crates.io index, and workspace siblings at the new version won't exist yet.
+Do not replace this with a manual `cargo publish -p` loop, as it will fail during packaging because `cargo publish` tries to resolve all deps (including dev-deps) against the crates.io index, and workspace siblings at the new version won't exist yet.
 
 ## Crates.io Authors
 

@@ -11,6 +11,7 @@ use std::fmt::{Display, Formatter};
 pub mod api_status;
 pub mod circulating_supply;
 pub mod described;
+pub mod directory;
 pub mod legacy;
 pub mod mixnet;
 pub mod network;

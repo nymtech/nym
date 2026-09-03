@@ -13,7 +13,9 @@ use nym_network_monitor_orchestrator_requests::models::{
     TestRunAssignmentResponse, TestRunResultSubmissionRequest, TestRunSubmissionResponse,
 };
 use nym_network_monitor_orchestrator_requests::routes;
-use nym_validator_client::nyxd::contract_traits::NetworkMonitorsSigningClient;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
+use nym_validator_client::nyxd::nym_network_monitors_contract_common::ExecuteMsg as NetworkMonitorsExecuteMsg;
 use std::net::SocketAddr;
 use tracing::{error, info};
 
@@ -29,6 +31,7 @@ use tracing::{error, info};
         (status = 200, content(
             (AgentAnnounceResponse = "application/json"),
         )),
+        (status = 400, description = "the announced addresses were not a plain ipv4/ipv6 pair"),
         (status = 500, description = "failed to announce agent to the network monitors contract"),
     )
 )]
@@ -49,30 +52,71 @@ async fn announce_agent(
 
     PROMETHEUS_METRICS.inc(PrometheusMetric::AgentAnnounceRequests);
 
-    // 1. upsert the agent in the cache and learn whether it has already been announced
+    // 1. make sure the agent announced one address of each family. anything else (a swapped pair,
+    //    the same address twice, or an ipv4-mapped ipv6 address) would authorise addresses that
+    //    don't match what the nodes will actually see, so it's rejected rather than normalised
+    if !body.mix_addresses.has_distinct_families() {
+        error!(
+            "agent at {pod_ip} announced a malformed address pair: {} / {}",
+            body.mix_addresses.v4, body.mix_addresses.v6
+        );
+        PROMETHEUS_METRICS.inc(PrometheusMetric::AgentMalformedAddressAnnouncements);
+        return Err(ApiError::MalformedAgentAddresses);
+    }
+
+    // 2. upsert the agent in the cache and learn whether it has already been announced
     let already_announced = state
         .agents
-        .try_announce_agent(body.agent_mix_socket_address, body.x25519_noise_key)
+        .try_announce_agent(body.mix_addresses, body.x25519_noise_key)
         .await;
 
-    // 2. if the agent was already announced, skip the contract tx
+    // 3. if the agent was already announced, skip the contract tx
     if already_announced {
         info!("agent at {pod_ip} is already announced, skipping contract tx");
         PROMETHEUS_METRICS.inc(PrometheusMetric::AgentDuplicateAnnouncementRequests);
         return Ok(Json(AgentAnnounceResponse {}));
     }
 
-    // 3. attempt to announce the agent to the network monitors contract
-    state
-        .validator_client
-        .write()
-        .await
+    // 4. attempt to announce the agent to the network monitors contract.
+    //    both of its addresses are authorised within a single transaction so that the agent is
+    //    never left with only one of them authorised
+    let msgs: Vec<(NetworkMonitorsExecuteMsg, Vec<Coin>)> =
+        [body.mix_addresses.v4, body.mix_addresses.v6]
+            .into_iter()
+            .map(|mixnet_address| {
+                (
+                    NetworkMonitorsExecuteMsg::AuthoriseNetworkMonitor {
+                        mixnet_address,
+                        bs58_x25519_noise: body.x25519_noise_key.to_base58_string(),
+                        noise_version: body.noise_version,
+                    },
+                    Vec::new(),
+                )
+            })
+            .collect();
+
+    // we don't strictly need write access to the client, but we really don't want to send any
+    // other transactions while this one is in flight as that would mess up the sequence numbers
+    let client = state.validator_client.write().await;
+
+    // SAFETY: the expect is fine as the orchestrator can't have started without the contract address
+    #[allow(clippy::expect_used)]
+    let contract_address = client
         .nyxd
-        .authorise_network_monitor(
-            body.agent_mix_socket_address,
-            body.x25519_noise_key.to_base58_string(),
-            body.noise_version,
-            None,
+        .network_monitors_contract_address()
+        .expect("network monitors contract address is not available")
+        .clone();
+
+    client
+        .nyxd
+        .execute_multiple(
+            &contract_address,
+            msgs,
+            Default::default(),
+            format!(
+                "authorising network monitor agent at {} and {}",
+                body.mix_addresses.v4, body.mix_addresses.v6
+            ),
         )
         .await
         .inspect_err(|err| {
@@ -81,14 +125,12 @@ async fn announce_agent(
             error!("failed to announce agent to the network monitors contract: {err}")
         })
         .map_err(|_| ApiError::ContractFailure)?;
+    drop(client);
 
     PROMETHEUS_METRICS.inc(PrometheusMetric::AgentContractAnnounceSuccesses);
 
-    // 4. mark the agent as announced so subsequent calls are no-ops
-    state
-        .agents
-        .mark_announced(body.agent_mix_socket_address)
-        .await;
+    // 5. mark the agent as announced so subsequent calls are no-ops
+    state.agents.mark_announced(body.mix_addresses).await;
 
     Ok(Json(AgentAnnounceResponse {}))
 }
@@ -127,7 +169,7 @@ async fn request_testrun(
 
     // 1. ensure the agent still exists in our announced cache
     // in case there was a weird network failure between the calls
-    let Some(agent) = state.agents.get_agent(body.agent_mix_socket_address).await else {
+    let Some(agent) = state.agents.get_agent(body.mix_addresses).await else {
         PROMETHEUS_METRICS.inc(PrometheusMetric::AgentUnknownAgentTestrunRequests);
         return Err(ApiError::AgentNotFound);
     };
@@ -219,12 +261,12 @@ async fn submit_testrun_result(
     emit_testrun_result_metrics(&body);
 
     info!(
-        "received testrun result for node {} from pod at {pod_ip}",
-        body.node_id
+        "received testrun result for node {} at {} from pod at {pod_ip}",
+        body.node_id, body.tested_address
     );
 
     state
-        .submit_testrun_result(body.result, body.node_id)
+        .submit_testrun_result(body.result, body.node_id, body.tested_address)
         .await?;
 
     Ok(Json(TestRunSubmissionResponse {}))

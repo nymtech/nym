@@ -58,6 +58,171 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo/>
 
+## `v2026.16-como`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.16-como)
+- [`nym-node`](nodes/nym-node.mdx) version `1.38.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-08-19T10:45:32.504170490Z
+Build Version:      1.38.0
+Commit SHA:         d28fed9addf4d612e65f19dfc63a5839bfb1df84
+Commit Date:        2026-08-18T10:27:35.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+- **New visual documentation** on [threat model](/network/threat-model), [`nym-smoldvpn`](/developers/smoldvpn) and [`nym-swizzle`](/developers/swizzle)
+
+- [Delegation Program](https://nym.com/delegations-program) account is fully utilised. From now on delegations will happen every two weeks and only to a limited amount of nodes proportional to the amount of available NYM tokens. 
+
+### Features
+
+- [Como Network Details v2 Endpoint Type](https://github.com/nymtech/nym/pull/7052)
+
+- [Add nym-lthash incremental multiset-hash crate](https://github.com/nymtech/nym/pull/7025)
+
+- [Add several more API options](https://github.com/nymtech/nym/pull/7007)
+
+- [[BandwidthController] Background global-data fetching + global-data-aware readiness](https://github.com/nymtech/nym/pull/6988)
+
+- [SDK: nym-swizzle](https://github.com/nymtech/nym/pull/6984)
+
+- [Networking and Bootstrapping configuration changes](https://github.com/nymtech/nym/pull/6901)
+
+### Bugfix
+
+- [Change constraints on stress testing results table to allow for orchestrator database reset](https://github.com/nymtech/nym/pull/7035)
+
+- [Don't report end-of-stream from ChannelDevice](https://github.com/nymtech/nym/pull/7009)
+
+- [HTTP Error handling](https://github.com/nymtech/nym/pull/7006)
+
+- [NTM: Hotfix](https://github.com/nymtech/nym/pull/6971)
+
+### Refactors & Maintenance
+
+- [Patch updates](https://github.com/nymtech/nym/pull/7016)
+
+- [Upgrade rand 0.9 uses to rand 0.10](https://github.com/nymtech/nym/pull/7014)
+
+- [Forbid direct slice indexing in core crypto crates](https://github.com/nymtech/nym/pull/6983)
+
+
+## `v2026.15-bydgoszcz`
+
+- [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.15-bydgoszcz)
+- [`nym-node`](nodes/nym-node.mdx) version `1.37.0`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2026-08-05T08:23:29.320237429Z
+Build Version:      1.37.0
+Commit SHA:         451c2aa3692fc4dc00041b74a352d4158176d9c0
+Commit Date:        2026-08-05T10:21:45.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.97.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Operator & Developer Updates
+
+<Callout type="info" emoji="ℹ️">
+**[NIP-14](https://governator.nym.com/proposal/prop-db4bbd01-8a32-46f9-82ae-5fe0ca68cddc) passed & [NTM updated](https://github.com/nymtech/nym/pull/7031): More services for NymVPN users are opened!** Please re-run [Nym network tunnel manager](https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh) (NTM) on your hosting servers.
+</Callout>
+
+- [NTM (`network-tunnel-manager`) tests are fixed to prompt the correct bands](https://github.com/nymtech/nym/pull/6971/changes)
+
+#### NIP-14 Update
+
+<div>
+  <Tabs items={[
+    <>Manual steps</>,
+    <>Ansible</>,
+    ]} defaultIndex="0">
+    <MyTab>
+      <Steps>
+- Get the latest version of NTM
+
+```sh
+curl -L "https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/nym-node-setup/network-tunnel-manager.sh" -o network-tunnel-manager.sh && chmod +x ./network-tunnel-manager.sh
+```
+
+- Run NTM (Standard SSH on port 22 (default)):
+```sh
+./network-tunnel-manager.sh complete_networking_configuration
+```
+
+- Run NTM on non-standard SSH port:
+```sh
+HOST_SSH_PORT=<PORT> ./network-tunnel-manager.sh complete_networking_configuration
+
+# example - replace 2222 with your actual port:
+# HOST_SSH_PORT=2222 ./network-tunnel-manager.sh complete_networking_configuration
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+    <MyTab>
+      <Steps>
+- Navigate to your Nym node Ansible directory with all playbooks (`/playbooks`)
+
+- For safety start only with one node:
+```sh
+ansible-playbook deploy.yml -t ntm -l node1
+```
+
+- Check if everything worked smooth and the node works on VPN
+
+- Run on all machines in your inventory
+```sh
+ansible-playbook deploy.yml -t ntm
+```
+
+        <NTMExplanation />
+      </Steps>
+    </MyTab>
+  </Tabs>
+</div>
+
+### Features
+
+- [Cherry pick new domain](https://github.com/nymtech/nym/pull/7018)
+
+- [Update new domain](https://github.com/nymtech/nym/pull/7017)
+
+- [Add openspec for network monitors V1 and V3](https://github.com/nymtech/nym/pull/6977)
+
+- [Bandwidth controller: allow scoping ticketbook acquisition to specific types](https://github.com/nymtech/nym/pull/6976)
+
+- [Use `SkewManager` with registration clients.](https://github.com/nymtech/nym/pull/6973)
+
+- [Service provider ephemeral credential storage](https://github.com/nymtech/nym/pull/6961)
+
+- [SDK: add `smol-dvpn` to provide per app user space tunnels](https://github.com/nymtech/nym/pull/6953)
+
+- [Leverage `cfg_attr` to avoid code duplication](https://github.com/nymtech/nym/pull/6950)
+
+### Bugfix
+
+- [IPR selection and mtu](https://github.com/nymtech/nym/pull/6962)
+
+### Refactors & Maintenance
+
+- [2 `clippy` 2 furious](https://github.com/nymtech/nym/pull/6970)
+
+- [`clippy` mc clipface](https://github.com/nymtech/nym/pull/6967)
+
+
 ## `v2026.14-amsterdam`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2026.14-amsterdam)
@@ -151,7 +316,7 @@ ansible-playbook deploy.yml -t ntm
 - [Manual BandwidthController restock command](https://github.com/nymtech/nym/pull/6952): Added a manual ticketbook restock mechanism, allowing operators and internal components to explicitly trigger restocking when needed while keeping automatic threshold-based restocking behaviour.
 - [SOCKS5 autodiscovery and country-based requester selection](https://github.com/nymtech/nym/pull/6920): Added SOCKS5 requester autodiscovery with optional country-based selection, simplifying client configuration and improving connectivity workflows.
 
-### Bugfixes
+### Bugfix
 
 - [Improved topology retrieval reliability](https://github.com/nymtech/nym/pull/6951): Added safer retry handling for topology retrieval when inconsistent data is returned across epochs, improving resilience and preventing invalid network state usage.
 - [Avoid Hickory DNS resolution for gateway hostname](https://github.com/nymtech/nym/pull/6955): Fixed gateway hostname resolution issues by changing gateway hostname resolution handling in Network Manager, improving reliability in environments with different DNS configurations.
@@ -191,7 +356,7 @@ cargo Profile:      release
 - [Added aggregated signature endpoints for credential proxy](https://github.com/nymtech/nym/pull/6908)
   Added new endpoints for aggregated expiration-date and coin-index signatures, with optional `epoch_id` support.
 
-### Bugfixes
+### Bugfix
 
 - [Improved attestation verification](https://github.com/nymtech/nym/pull/6910)
   Added stronger credential verification checks during upgrade mode processing.
@@ -289,7 +454,7 @@ ansible-playbook deploy.yml -t ntm
 - [API v2 enhancements](https://github.com/nymtech/nym/pull/6815): Introduced API v2 auxiliary details endpoint exposing node on-chain addresses and improved Swagger/OpenAPI versioning, routing, and documentation.
 - [Wallet improvements](https://github.com/nymtech/nym/pull/6865) [delegation management improvements](https://github.com/nymtech/nym/pull/6864): Improved bonding and unbonding workflows, added clearer unbonded delegation visibility, enhanced sign-in and recovery flows, and improved wallet UX across node management and delegation features.
 
-### Bugfixes
+### Bugfix
 
 - [Restore node throughput tester](https://github.com/nymtech/nym/pull/6849): Restored and fixed node throughput testing functionality, improving reliability of performance measurements.
 - [More reliable chain data retrieval](https://github.com/nymtech/nym/pull/6847): Added automatic RPC retry handling and improved transaction data retrieval reliability.
@@ -3295,7 +3460,7 @@ nym-exit.mysquad.org
 
 #### Delegation Program
 
-**If you are interested to sign up to delegation program que, message Merve on Element for the time being as we are working on CRM upgrade. We review nodes dynamically and delegate to new ones once a month.** New operators interested to join DP must follow the rules specified [here](https://delegations.explorenym.net/), run one of two latest binary version and have [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted.
+**If you are interested to sign up to delegation program que, message Merve on Element for the time being as we are working on CRM upgrade. We review nodes dynamically and delegate to new ones once a month.** New operators interested to join DP must follow the rules specified [here](https://forms.nym.com/form/#/3/form/view/be343e6f18ed32f07dbb58ec79694e93/), run one of two latest binary version and have [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted.
 
 Note: Due to the token price we allow operators to have Operators cost 1000 NYM, the profit margin maximum remains 20%.
 

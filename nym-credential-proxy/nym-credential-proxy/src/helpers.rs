@@ -8,9 +8,10 @@ use nym_bin_common::bin_info;
 use nym_credential_proxy_lib::error::CredentialProxyError;
 use nym_credential_proxy_lib::storage::CredentialProxyStorage;
 use nym_credential_proxy_lib::ticketbook_manager::TicketbookManager;
+use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::var_names;
 use nym_network_defaults::var_names::CONFIGURED;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub async fn wait_for_signal() {
     use tokio::signal::unix::{SignalKind, signal};
@@ -49,6 +50,44 @@ fn build_sha_short() -> &'static str {
     &bin_info.commit_sha[..7]
 }
 
+fn resolve_attester_pubkey(
+    arg: Option<ed25519::PublicKey>,
+) -> Result<ed25519::PublicKey, CredentialProxyError> {
+    // if it was provided as an argument, nothing more to do
+    if let Some(key) = arg {
+        return Ok(key);
+    }
+
+    // argument hasn't been provided and env is not configured
+    if std::env::var(CONFIGURED).is_err() {
+        return Err(CredentialProxyError::AttesterPublicKeyNotSet);
+    }
+
+    // check current env value
+    if let Ok(env_key) = std::env::var(var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY) {
+        return match env_key.parse() {
+            Ok(key) => Ok(key),
+            Err(err) => Err(CredentialProxyError::MalformedAttesterPublicKey { source: err }),
+        };
+    }
+
+    // check old env value
+    let Ok(env_key) = std::env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY) else {
+        return Err(CredentialProxyError::AttesterPublicKeyNotSet);
+    };
+
+    warn!(
+        "using deprecated '{}' env variable for the attester public key. consider migrating to '{}' instead.",
+        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY
+    );
+
+    match env_key.parse() {
+        Ok(key) => Ok(key),
+        Err(err) => Err(CredentialProxyError::MalformedAttesterPublicKey { source: err }),
+    }
+}
+
 pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
     let bind_address = cli.bind_address();
     let storage = CredentialProxyStorage::init(cli.persistent_storage_path()).await?;
@@ -79,28 +118,7 @@ pub(crate) async fn run_api(cli: Cli) -> Result<(), CredentialProxyError> {
         }
     };
 
-    let attester_pubkey = match cli.upgrade_mode.attester_pubkey {
-        Some(pubkey) => pubkey,
-        None => {
-            // argument hasn't been provided and env is not configured
-            if std::env::var(CONFIGURED).is_err() {
-                return Err(CredentialProxyError::AttesterPublicKeyNotSet);
-            }
-            // argument hasn't been provided and the relevant env value hasn't been set
-            // (technically this shouldn't be possible)
-            let Ok(env_key) = std::env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
-            else {
-                return Err(CredentialProxyError::AttesterPublicKeyNotSet);
-            };
-
-            match env_key.parse() {
-                Ok(key) => key,
-                Err(err) => {
-                    return Err(CredentialProxyError::MalformedAttesterPublicKey { source: err });
-                }
-            }
-        }
-    };
+    let attester_pubkey = resolve_attester_pubkey(cli.upgrade_mode.attester_pubkey)?;
 
     let ticketbook_manager = TicketbookManager::new(
         build_sha_short(),

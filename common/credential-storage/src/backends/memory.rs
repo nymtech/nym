@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RetrievedTicketbook,
+    AvailableGlobalData, BasicTicketbookInformation, EmergencyCredential,
+    EmergencyCredentialContent, RetrievedTicketbook,
 };
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
@@ -194,6 +194,15 @@ impl MemoryEcachTicketbookManager {
                 used_tickets: t.ticketbook.spent_tickets() as u32,
             })
             .collect()
+    }
+
+    pub(crate) async fn get_available_global_data(&self) -> AvailableGlobalData {
+        let guard = self.inner.read().await;
+        AvailableGlobalData {
+            master_verification_key_epochs: guard.master_vk.keys().copied().collect(),
+            coin_index_signature_epochs: guard.coin_indices_sigs.keys().copied().collect(),
+            expiration_date_signatures: guard.expiration_date_sigs.keys().copied().collect(),
+        }
     }
 
     pub(crate) async fn get_master_verification_key(

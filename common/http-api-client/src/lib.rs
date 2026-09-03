@@ -144,11 +144,17 @@ pub use inventory;
 pub use reqwest::{self, ClientBuilder as ReqwestClientBuilder, StatusCode};
 use std::error::Error;
 use std::sync::Mutex;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
 
 pub mod registry;
 
-use crate::path::RequestPath;
+// re-exported (not merely `use`d) because it appears as a bound on the public
+// `ApiClientCore::create_request`, so external crates cannot implement that public trait
+// without being able to name it (e.g. to provide a test double).
+pub use crate::path::RequestPath;
 use async_trait::async_trait;
 use bytes::Bytes;
 use cfg_if::cfg_if;
@@ -316,7 +322,7 @@ impl Display for ReqwestErrorWrapper {
         }
 
         if let Some(source) = self.0.source() {
-            write!(f, " source: {source}")?;
+            write!(f, " source: {source:?}")?;
         } else {
             write!(f, " unknown lower-level error source")?;
         }
@@ -666,7 +672,7 @@ impl ClientBuilder {
     pub fn from_network(
         network: &nym_network_defaults::NymNetworkDetails,
     ) -> Result<Self, HttpClientError> {
-        let urls = network.nym_api_urls.as_ref().cloned().unwrap_or_default();
+        let urls = network.nym_api_urls();
         Self::new_with_fronted_urls(urls.clone())
     }
 
@@ -769,6 +775,7 @@ impl ClientBuilder {
     /// The timeout is applied from when the request starts connecting until the response body has finished. Also considered a total deadline.
     ///
     /// Default is [`DEFAULT_TIMEOUT`].
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
@@ -781,18 +788,21 @@ impl ClientBuilder {
     ///
     /// If multiple urls (or fronting configurations if enabled) are available, retried requests
     /// will be sent to the next URL in the list.
+    #[must_use]
     pub fn with_retries(mut self, retry_limit: usize) -> Self {
         self.retry_limit = retry_limit;
         self
     }
 
     /// Provide a pre-configured [`reqwest::ClientBuilder`]
+    #[must_use]
     pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
         self.reqwest_client_builder = Some(reqwest_builder);
         self
     }
 
     /// Sets the `User-Agent` header to be used by this client.
+    #[must_use]
     pub fn with_user_agent<V>(mut self, value: V) -> Self
     where
         V: TryInto<HeaderValue>,
@@ -808,12 +818,14 @@ impl ClientBuilder {
     }
 
     /// Set the serialization format for API requests and responses
+    #[must_use]
     pub fn with_serialization(mut self, format: SerializationFormat) -> Self {
         self.serialization = format;
         self
     }
 
     /// Configure the client to use bincode serialization
+    #[must_use]
     pub fn with_bincode(self) -> Self {
         self.with_serialization(SerializationFormat::Bincode)
     }
@@ -959,7 +971,9 @@ impl Client {
 
     #[cfg(feature = "tunneling")]
     fn matches_current_host(&self, url: &Url) -> bool {
-        if self.front.is_enabled() {
+        // Only compare against the front host if the current url actually has one configured -
+        // otherwise requests to it go out unfronted, so the offending host will be the real one.
+        if self.front.is_enabled() && self.current_url().has_front() {
             url.host_str() == self.current_url().front_str()
         } else {
             url.host_str() == self.current_url().host_str()
@@ -1279,7 +1293,7 @@ pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-const MAX_ERR_SOURCE_ITERATIONS: usize = 4;
+const MAX_ERR_SOURCE_ITERATIONS: usize = 6;
 
 /// This functions attempts to check the error returned by reqwest to see if rotating host
 /// information (for clients with multiple hosts defined) could be helpful. This looks for
@@ -1329,6 +1343,16 @@ pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
             } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::net::NetError>() {
                 // try downcast to DNS error
                 return resolve_err.is_nx_domain();
+            } else if let Some(h2_err) = e.downcast_ref::<h2::Error>() {
+                // try downcast to a h2 (HTTP/2) error. hyper only wraps these as io::Error
+                // when they are actually backed by one (see `hyper::Error::new_h2`), so if we
+                // get here it's a protocol-level RST_STREAM or GOAWAY. TLS integrity protection
+                // means this can only have been sent by whichever party actually terminates the
+                // TLS connection - for a fronted request that's the front's CDN edge. So it
+                // indicates that host/front may have actively rejected the connection (e.g.
+                // detected fronting, rate limiting, or its own backend failing). This has enough
+                // potentially to continue breaking things that we should rotate hosts if we can.
+                return h2_err.is_remote() && (h2_err.is_reset() || h2_err.is_go_away());
             } else {
                 inner = e.source();
             }

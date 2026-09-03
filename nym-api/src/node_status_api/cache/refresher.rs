@@ -27,7 +27,8 @@ use nym_mixnet_contract_common::{NodeId, NymNodeDetails};
 use nym_task::ShutdownToken;
 use nym_topology::CachedEpochRewardedSet;
 use nym_validator_client::nyxd::module_traits::feegrant::query::FeegrantQueryClient;
-use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::rpc::TendermintRpcClientExt;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -61,6 +62,9 @@ pub(crate) struct NodeStatusCacheConfig {
 
     /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
     pub(crate) stress_testing_score_weight: f64,
+
+    /// Config score penalty for nodes that do not have a cosmos account capable of interacting with the nyx chain
+    pub(crate) chain_interactions_penalty: f64,
 }
 
 /// A successfully-retrieved chain-capability lookup for a single node, tagged with the instant it
@@ -375,6 +379,7 @@ impl NodeStatusCacheRefresher {
         let minimum_balance = &self.config.minimum_on_chain_balance;
         let use_stress_testing_scores = self.config.use_stress_testing_data;
         let threshold = self.config.minimum_available_stress_testing_results;
+        let chain_interactions_penalty = self.config.chain_interactions_penalty;
 
         // Only mixnodes are currently stress-tested: the orchestrator selects test targets by
         // self-described mixnode capability (see `NodeType::from_roles`), so the availability ratio
@@ -413,6 +418,7 @@ impl NodeStatusCacheRefresher {
                 config_score_data,
                 described,
                 &node_chain_cap,
+                chain_interactions_penalty,
             );
 
             // a node only takes the stress-testing component if it is actually stress-tested (i.e.

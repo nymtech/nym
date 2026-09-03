@@ -3,21 +3,17 @@
 
 use self::helpers::load_x25519_wireguard_keypair;
 use crate::config::helpers::gateway_tasks_config;
-use crate::config::{
-    Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, ServiceProvidersConfig, Wireguard,
-};
+use crate::config::{Config, DEFAULT_MIXNET_PORT, GatewayTasksConfig, NodeModes, Wireguard};
 use crate::error::{EntryGatewayError, NymNodeError, ServiceProvidersError};
-use crate::node::description::{load_node_description, save_node_description};
+use crate::node::description::save_node_description;
 use crate::node::helpers::{
-    DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_key,
-    load_mceliece_keypair, load_mlkem768_keypair, load_x25519_lp_keypair,
-    load_x25519_noise_keypair, store_ed25519_identity_keypair, store_key, store_keypair,
-    store_mceliece_keypair, store_mlkem768_keypair, store_x25519_lp_keypair,
-    store_x25519_noise_keypair,
+    DisplayDetails, get_current_rotation_id, load_ed25519_identity_keypair, load_mceliece_keypair,
+    load_mlkem768_keypair, load_x25519_lp_keypair, load_x25519_noise_keypair,
+    store_ed25519_identity_keypair, store_keypair, store_mceliece_keypair, store_mlkem768_keypair,
+    store_x25519_lp_keypair, store_x25519_noise_keypair,
 };
 use crate::node::http::api::api_requests;
-use crate::node::http::helpers::system_info::get_system_info;
-use crate::node::http::state::{AppState, StaticNodeInformation};
+use crate::node::http::state::AppState;
 use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
 use crate::node::key_rotation::controller::KeyRotationController;
@@ -36,6 +32,7 @@ use crate::node::mixnet::SharedFinalHopData;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::nym_apis_client::NymApisClient;
+use crate::node::nyx_client::NyxClient;
 use crate::node::nyxd_watcher::network_monitor_agents::NetworkMonitorAgentsModule;
 use crate::node::replay_protection::background_task::ReplayProtectionDiskFlush;
 use crate::node::replay_protection::bloomfilter::ReplayProtectionBloomfilters;
@@ -45,7 +42,8 @@ use crate::node::routing_filter::{OpenFilter, RoutingFilter};
 use crate::node::shared_network::CachedNetwork;
 use crate::node::shared_network::refresher::{NetworkRefresher, NetworkRefresherConfig};
 use crate::node::shared_network::topology_provider::{CachedTopologyProvider, LocalGatewayNode};
-use nym_bin_common::{bin_info, bin_info_owned};
+use getrandom04::SysRng;
+use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -59,83 +57,60 @@ use nym_lp::Ciphersuite;
 use nym_lp::peer::LpLocalPeer;
 use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
-use nym_network_requester::{
-    CustomGatewayDetails, GatewayDetails, GatewayRegistration, set_active_gateway,
-    setup_fs_gateways_storage, store_gateway_details,
-};
 use nym_node_metrics::NymNodeMetrics;
 use nym_node_metrics::events::MetricEventsSender;
-use nym_node_requests::api::SignedData;
-use nym_node_requests::api::v1::lewes_protocol::models::{LPHashFunction, LPKEM, LewesProtocol};
-use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription, NodeRoles};
 use nym_noise::config::{NetworkMonitorAgentNode, NoiseConfig, NoiseNetworkView};
 use nym_noise_keys::VersionedNoiseKeyV1;
-use nym_sphinx_acknowledgements::AckKey;
-use nym_sphinx_addressing::Recipient;
 use nym_task::{ShutdownManager, ShutdownToken, ShutdownTracker};
+use nym_validator_client::UserAgent;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::PagedNetworkMonitorsQueryClient;
-use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::nym_network_monitors_contract_common::AuthorisedNetworkMonitor;
-use nym_validator_client::signing::signer::OfflineSigner;
-use nym_validator_client::{DirectSecp256k1HdWallet, QueryHttpRpcNyxdClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{WireguardGatewayData, peer_controller::PeerControlRequest};
 use nyxd_scraper_shared::watcher::{NyxdWatcher, WatcherConfig};
 use rand::rngs::OsRng;
-use rand::{CryptoRng, RngCore};
-use rand09::SeedableRng;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use rand010::SeedableRng;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::WaitForCancellationFutureOwned;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
+use crate::node::directory_publisher::{
+    DirectoryPublisher, DirectoryPublisherConfig, DirectoryPublisherEventsSender,
+};
+use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKeys};
 pub use nym_gateway::node::ActiveClientsStore;
 pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
 pub mod description;
+pub(crate) mod directory_publisher;
 pub mod helpers;
 pub(crate) mod http;
 pub(crate) mod key_rotation;
 pub mod lp;
 pub(crate) mod metrics;
 pub(crate) mod mixnet;
+pub(crate) mod node_details;
 mod nym_apis_client;
+mod nyx_client;
 mod nyxd_watcher;
 pub(crate) mod replay_protection;
 mod routing_filter;
 mod shared_network;
 
 pub struct GatewayTasksData {
-    mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
     client_storage: GatewayStorage,
     stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
 
 impl GatewayTasksData {
-    pub fn initialise(
-        config: &GatewayTasksConfig,
-        custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
-    ) -> Result<(), EntryGatewayError> {
-        // SAFETY:
-        // this unwrap is fine as 24 word count is a valid argument for generating entropy for a new bip39 mnemonic
-        #[allow(clippy::unwrap_used)]
-        let mnemonic = Arc::new(
-            custom_mnemonic
-                .unwrap_or_else(|| Zeroizing::new(bip39::Mnemonic::generate(24).unwrap())),
-        );
-        config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
-
-        Ok(())
-    }
-
     async fn new(config: &GatewayTasksConfig) -> Result<GatewayTasksData, EntryGatewayError> {
         let client_storage = GatewayStorage::init(
             &config.storage_paths.clients_storage,
@@ -150,205 +125,8 @@ impl GatewayTasksData {
                 .map_err(nym_gateway::GatewayError::from)?;
 
         Ok(GatewayTasksData {
-            mnemonic: Arc::new(config.storage_paths.load_mnemonic_from_file()?),
             client_storage,
             stats_storage,
-        })
-    }
-}
-
-pub struct ServiceProvidersData {
-    // ideally we'd be storing all the keys here, but unfortunately due to how the service providers
-    // are currently implemented, they will be loading the data themselves from the provided paths
-
-    // those public keys are just convenience wrappers for http builder and details displayer
-    nr_ed25519: ed25519::PublicKey,
-    nr_x25519: x25519::PublicKey,
-
-    ipr_ed25519: ed25519::PublicKey,
-    ipr_x25519: x25519::PublicKey,
-
-    // TODO: those should be moved to WG section
-    auth_ed25519: ed25519::PublicKey,
-    auth_x25519: x25519::PublicKey,
-}
-
-impl ServiceProvidersData {
-    fn initialise_client_keys<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        typ: &str,
-        ed25519_paths: nym_pemstore::KeyPairPath,
-        x25519_paths: nym_pemstore::KeyPairPath,
-        ack_key_path: &Path,
-    ) -> Result<(), ServiceProvidersError> {
-        let ed25519_keys = ed25519::KeyPair::new(rng);
-        let x25519_keys = x25519::KeyPair::new(rng);
-        let aes128ctr_key = AckKey::new(rng);
-
-        store_keypair(
-            &ed25519_keys,
-            &ed25519_paths,
-            format!("{typ}-ed25519-identity"),
-        )?;
-        store_keypair(&x25519_keys, &x25519_paths, format!("{typ}-x25519-dh"))?;
-        store_key(&aes128ctr_key, ack_key_path, format!("{typ}-ack-key"))?;
-
-        Ok(())
-    }
-
-    pub(crate) async fn initialise_client_gateway_storage(
-        storage_path: &Path,
-        registration: &GatewayRegistration,
-    ) -> Result<(), ServiceProvidersError> {
-        // insert all required information into the gateways store
-        // (I hate that we have to do it, but that's currently the simplest thing to do)
-        let storage = setup_fs_gateways_storage(storage_path).await?;
-        store_gateway_details(&storage, registration).await?;
-        set_active_gateway(&storage, &registration.gateway_id().to_base58_string()).await?;
-        Ok(())
-    }
-
-    pub async fn initialise_network_requester<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        config: &ServiceProvidersConfig,
-        registration: &GatewayRegistration,
-    ) -> Result<(), ServiceProvidersError> {
-        trace!("initialising network requester keys");
-        Self::initialise_client_keys(
-            rng,
-            "network-requester",
-            config
-                .storage_paths
-                .network_requester
-                .ed25519_identity_storage_paths(),
-            config
-                .storage_paths
-                .network_requester
-                .x25519_diffie_hellman_storage_paths(),
-            &config.storage_paths.network_requester.ack_key_file,
-        )?;
-        Self::initialise_client_gateway_storage(
-            &config.storage_paths.network_requester.gateway_registrations,
-            registration,
-        )
-        .await
-    }
-
-    pub async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        config: &ServiceProvidersConfig,
-        registration: &GatewayRegistration,
-    ) -> Result<(), ServiceProvidersError> {
-        trace!("initialising ip packet router keys");
-        Self::initialise_client_keys(
-            rng,
-            "ip-packet-router",
-            config
-                .storage_paths
-                .ip_packet_router
-                .ed25519_identity_storage_paths(),
-            config
-                .storage_paths
-                .ip_packet_router
-                .x25519_diffie_hellman_storage_paths(),
-            &config.storage_paths.ip_packet_router.ack_key_file,
-        )?;
-        Self::initialise_client_gateway_storage(
-            &config.storage_paths.ip_packet_router.gateway_registrations,
-            registration,
-        )
-        .await
-    }
-
-    pub async fn initialise_authenticator<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        config: &ServiceProvidersConfig,
-        registration: &GatewayRegistration,
-    ) -> Result<(), ServiceProvidersError> {
-        trace!("initialising authenticator keys");
-        Self::initialise_client_keys(
-            rng,
-            "authenticator",
-            config
-                .storage_paths
-                .authenticator
-                .ed25519_identity_storage_paths(),
-            config
-                .storage_paths
-                .authenticator
-                .x25519_diffie_hellman_storage_paths(),
-            &config.storage_paths.authenticator.ack_key_file,
-        )?;
-        Self::initialise_client_gateway_storage(
-            &config.storage_paths.authenticator.gateway_registrations,
-            registration,
-        )
-        .await?;
-        Ok(())
-    }
-
-    pub async fn initialise(
-        config: &ServiceProvidersConfig,
-        public_key: ed25519::PublicKey,
-    ) -> Result<(), ServiceProvidersError> {
-        // generate all the keys for NR, IPR and AUTH
-        let mut rng = OsRng;
-
-        let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
-
-        // NR:
-        Self::initialise_network_requester(&mut rng, config, &gateway_details).await?;
-
-        // IPR:
-        Self::initialise_ip_packet_router_requester(&mut rng, config, &gateway_details).await?;
-
-        // Authenticator
-        Self::initialise_authenticator(&mut rng, config, &gateway_details).await?;
-
-        Ok(())
-    }
-
-    fn new(config: &ServiceProvidersConfig) -> Result<ServiceProvidersData, ServiceProvidersError> {
-        let nr_paths = &config.storage_paths.network_requester;
-        let nr_ed25519 = load_key(
-            &nr_paths.public_ed25519_identity_key_file,
-            "network requester ed25519",
-        )?;
-
-        let nr_x25519 = load_key(
-            &nr_paths.public_x25519_diffie_hellman_key_file,
-            "network requester x25519",
-        )?;
-
-        let ipr_paths = &config.storage_paths.ip_packet_router;
-        let ipr_ed25519 = load_key(
-            &ipr_paths.public_ed25519_identity_key_file,
-            "ip packet router ed25519",
-        )?;
-
-        let ipr_x25519 = load_key(
-            &ipr_paths.public_x25519_diffie_hellman_key_file,
-            "ip packet router x25519",
-        )?;
-
-        let auth_paths = &config.storage_paths.authenticator;
-        let auth_ed25519 = load_key(
-            &auth_paths.public_ed25519_identity_key_file,
-            "authenticator ed25519",
-        )?;
-
-        let auth_x25519 = load_key(
-            &auth_paths.public_x25519_diffie_hellman_key_file,
-            "authenticator x25519",
-        )?;
-
-        Ok(ServiceProvidersData {
-            nr_ed25519,
-            nr_x25519,
-            ipr_ed25519,
-            ipr_x25519,
-            auth_ed25519,
-            auth_x25519,
         })
     }
 }
@@ -400,12 +178,11 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
 
 pub struct NymNode {
     config: Config,
-    accepted_operator_terms_and_conditions: bool,
     shutdown_manager: ShutdownManager,
 
-    network: NymNetworkDetails,
+    public_details: NodeDetails,
 
-    description: NodeDescription,
+    network: NymNetworkDetails,
 
     metrics: NymNodeMetrics,
 
@@ -415,8 +192,7 @@ pub struct NymNode {
 
     upgrade_mode_state: UpgradeModeState,
 
-    #[allow(dead_code)]
-    service_providers: ServiceProvidersData,
+    nyx_client: NyxClient,
 
     wireguard: Option<WireguardData>,
 
@@ -436,16 +212,16 @@ impl NymNode {
     ) -> Result<(), NymNodeError> {
         info!("initialising nym-node with id: {}", config.id);
         let mut rng = OsRng;
-        let mut rng09 = rand09::rngs::StdRng::from_os_rng();
+        let mut rng010 = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // global initialisation
         info!("generating new node keys (this might take a while)");
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
 
-        let x25519_lp_keys = generate_lp_keypair_x25519(&mut rng09);
-        let mlkem = generate_keypair_mlkem(&mut rng09);
-        let mceliece = generate_keypair_mceliece(&mut rng09);
+        let x25519_lp_keys = generate_lp_keypair_x25519(&mut rng010);
+        let mlkem = generate_keypair_mlkem(&mut rng010);
+        let mceliece = generate_keypair_mceliece(&mut rng010);
 
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
@@ -485,12 +261,21 @@ impl NymNode {
             &config.storage_paths.description,
             &NodeDescription::default(),
         )?;
+        let mnemonic = match custom_mnemonic {
+            None => {
+                trace!("generating new mnemonic");
+                // SAFETY: 24 is a valid word count
+                #[allow(clippy::unwrap_used)]
+                Arc::new(Zeroizing::new(bip39::Mnemonic::generate(24).unwrap()))
+            }
+            Some(custom_mnemonic) => Arc::new(custom_mnemonic),
+        };
 
-        // entry gateway initialisation
-        GatewayTasksData::initialise(&config.gateway_tasks, custom_mnemonic)?;
+        trace!("attempting to store the mnemonic");
+        config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
 
         // service providers initialisation
-        ServiceProvidersData::initialise(
+        ServiceProvidersKeys::initialise(
             &config.service_providers,
             *ed25519_identity_keys.public_key(),
         )
@@ -523,7 +308,10 @@ impl NymNode {
         .await
     }
 
-    pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
+    pub(crate) async fn new(
+        config: Config,
+        accepted_operator_terms_and_conditions: bool,
+    ) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
         let current_rotation_id =
             get_current_rotation_id(&config.mixnet.nym_api_urls, &config.nyx.nyxd_urls).await?;
@@ -537,6 +325,19 @@ impl NymNode {
         let mlkem = load_mlkem768_keypair(&config.storage_paths.keys.mlkem768_key_paths())?;
         let mceliece = load_mceliece_keypair(&config.storage_paths.keys.mceliece_key_paths())?;
         let psq_kem_keys = KEMKeys::new(mceliece, mlkem);
+        let mnemonic = config.storage_paths.load_mnemonic_from_file()?;
+
+        let network = NymNetworkDetails::new_from_env();
+        let nyx_client = NyxClient::new(&config.nyx, &network, &mnemonic)?;
+        let cosmos_address = nyx_client.address().await;
+
+        let node_details = NodeDetails::construct(
+            &config,
+            accepted_operator_terms_and_conditions,
+            psq_kem_keys.encapsulation_keys(),
+            x25519_lp_keys.pk,
+            cosmos_address,
+        )?;
 
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(ed25519_identity_keys),
@@ -549,21 +350,20 @@ impl NymNode {
                 &config.storage_paths.keys.x25519_noise_storage_paths(),
             )?),
             psq_kem_keys,
-            description: load_node_description(&config.storage_paths.description)?,
             metrics: NymNodeMetrics::new(),
             verloc_stats: Default::default(),
             entry_gateway,
             upgrade_mode_state: UpgradeModeState::new(
                 config.gateway_tasks.upgrade_mode.attester_public_key,
             ),
-            service_providers: ServiceProvidersData::new(&config.service_providers)?,
+            nyx_client,
             wireguard: Some(wireguard_data),
             config,
-            accepted_operator_terms_and_conditions: false,
             shutdown_manager: ShutdownManager::build_new_default()
                 .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
             x25519_lp_keys: Arc::new(x25519_lp_keys),
-            network: NymNetworkDetails::new_from_env(),
+            network,
+            public_details: node_details,
         })
     }
 
@@ -579,38 +379,6 @@ impl NymNode {
         &self.config
     }
 
-    pub(crate) fn with_accepted_operator_terms_and_conditions(
-        mut self,
-        accepted_operator_terms_and_conditions: bool,
-    ) -> Self {
-        self.accepted_operator_terms_and_conditions = accepted_operator_terms_and_conditions;
-        self
-    }
-
-    fn exit_network_requester_address(&self) -> Recipient {
-        Recipient::new(
-            self.service_providers.nr_ed25519,
-            self.service_providers.nr_x25519,
-            *self.ed25519_identity_keys.public_key(),
-        )
-    }
-
-    fn exit_ip_packet_router_address(&self) -> Recipient {
-        Recipient::new(
-            self.service_providers.ipr_ed25519,
-            self.service_providers.ipr_x25519,
-            *self.ed25519_identity_keys.public_key(),
-        )
-    }
-
-    fn exit_authenticator_address(&self) -> Recipient {
-        Recipient::new(
-            self.service_providers.auth_ed25519,
-            self.service_providers.auth_x25519,
-            *self.ed25519_identity_keys.public_key(),
-        )
-    }
-
     fn x25519_wireguard_key(&self) -> Result<x25519::PublicKey, NymNodeError> {
         let wg_data = self
             .wireguard
@@ -624,15 +392,24 @@ impl NymNode {
         let sphinx_keys = self.sphinx_keys()?;
         Ok(DisplayDetails {
             current_modes: self.config.modes,
-            description: self.description.clone(),
+            description: self.public_details.description().clone(),
             ed25519_identity_key: self.ed25519_identity_key().to_base58_string(),
             x25519_primary_sphinx_key: sphinx_keys.keys.primary().deref().into(),
             x25519_secondary_sphinx_key: sphinx_keys.keys.secondary().map(|g| g.deref().into()),
             x25519_noise_key: self.x25519_noise_key().to_base58_string(),
             x25519_wireguard_key: self.x25519_wireguard_key()?.to_base58_string(),
-            exit_network_requester_address: self.exit_network_requester_address().to_string(),
-            exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
-            exit_authenticator_address: self.exit_authenticator_address().to_string(),
+            exit_network_requester_address: self
+                .public_details
+                .exit_network_requester_address()
+                .to_string(),
+            exit_ip_packet_router_address: self
+                .public_details
+                .exit_ip_packet_router_address()
+                .to_string(),
+            exit_authenticator_address: self
+                .public_details
+                .exit_authenticator_address()
+                .to_string(),
         })
     }
 
@@ -699,7 +476,7 @@ impl NymNode {
             .unwrap_or(self.config.gateway_tasks.ws_bind_address.port());
 
         Ok(LocalGatewayNode {
-            active_sphinx_keys: self.active_sphinx_keys()?.clone(),
+            active_sphinx_keys: self.active_sphinx_keys()?,
             mix_host,
             identity_key: *self.ed25519_identity_key(),
             entry: nym_topology::EntryDetails {
@@ -713,6 +490,7 @@ impl NymNode {
 
     async fn start_gateway_tasks(
         &mut self,
+        node_address: AccountId,
         cached_network: CachedNetwork,
         lp_nodes: LpNodes,
         metrics_sender: MetricEventsSender,
@@ -735,7 +513,7 @@ impl NymNode {
             mix_packet_sender.clone(),
             metrics_sender,
             self.metrics.clone(),
-            self.entry_gateway.mnemonic.clone(),
+            node_address,
             Self::user_agent(),
             self.upgrade_mode_state.clone(),
             self.config.lp.debug.use_mock_ecash,
@@ -878,102 +656,10 @@ impl NymNode {
         Ok(())
     }
 
-    fn compute_kem_key_hashes(&self) -> BTreeMap<LPKEM, BTreeMap<LPHashFunction, String>> {
-        let digests = self.psq_kem_keys.encapsulation_keys_digests();
-
-        // convert from `nym_kkt_ciphersuite` types into `nym_nodes_requests`
-        digests
-            .into_iter()
-            .map(|(kem, kem_digests)| {
-                (
-                    kem.into(),
-                    kem_digests
-                        .into_iter()
-                        .map(|(f, digest)| (f.into(), hex::encode(&digest)))
-                        .collect(),
-                )
-            })
-            .collect()
-    }
-
-    fn node_chain_address(&self) -> Result<AccountId, NymNodeError> {
-        let network_details = NymNetworkDetails::new_from_env();
-
-        // derive the address (annoyingly, this will derive our private keys that we will rederive
-        // when starting the gateway, but changing this behaviour requires too much refactoring)
-        let wallet = DirectSecp256k1HdWallet::checked_from_mnemonic(
-            &network_details.chain_details.bech32_account_prefix,
-            (**self.entry_gateway.mnemonic).clone(),
-        )
-        .map_err(NyxdError::from)?;
-
-        Ok(wallet.get_accounts()[0].address.clone())
-    }
-
     pub(crate) async fn build_http_server(
         &self,
         shutdown: WaitForCancellationFutureOwned,
     ) -> Result<NymNodeHttpServer, NymNodeError> {
-        let auxiliary_data = api_requests::v2::node::models::AuxiliaryDetailsV2 {
-            location: self.config.host.location,
-            address: self.node_chain_address()?.to_string(),
-            announce_ports: AnnouncePorts {
-                verloc_port: self.config.verloc.announce_port,
-                mix_port: self.config.mixnet.announce_port,
-            },
-            accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
-        };
-
-        // mixnode info
-        let mixnode_details = api_requests::v1::mixnode::models::Mixnode {};
-
-        // entry gateway info
-        let wireguard = if self.config.wireguard.enabled {
-            #[allow(deprecated)]
-            Some(api_requests::v1::gateway::models::Wireguard {
-                port: self.config.wireguard.announced_tunnel_port,
-                tunnel_port: self.config.wireguard.announced_tunnel_port,
-                metadata_port: self.config.wireguard.announced_metadata_port,
-                public_key: self.x25519_wireguard_key()?.to_string(),
-            })
-        } else {
-            None
-        };
-        let mixnet_websockets = Some(api_requests::v1::gateway::models::WebSockets {
-            ws_port: self
-                .config
-                .gateway_tasks
-                .announce_ws_port
-                .unwrap_or(self.config.gateway_tasks.ws_bind_address.port()),
-            wss_port: self.config.gateway_tasks.announce_wss_port,
-        });
-        let gateway_details = api_requests::v1::gateway::models::Gateway {
-            enforces_zk_nyms: self.config.gateway_tasks.enforce_zk_nyms,
-            client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
-                wireguard,
-                mixnet_websockets,
-            },
-        };
-
-        // exit gateway info
-        let nr_details = api_requests::v1::network_requester::models::NetworkRequester {
-            encoded_identity_key: self.service_providers.nr_ed25519.to_base58_string(),
-            encoded_x25519_key: self.service_providers.nr_x25519.to_base58_string(),
-            address: self.exit_network_requester_address().to_string(),
-        };
-
-        let ipr_details = api_requests::v1::ip_packet_router::models::IpPacketRouter {
-            encoded_identity_key: self.service_providers.ipr_ed25519.to_base58_string(),
-            encoded_x25519_key: self.service_providers.ipr_x25519.to_base58_string(),
-            address: self.exit_ip_packet_router_address().to_string(),
-        };
-
-        let auth_details = api_requests::v1::authenticator::models::Authenticator {
-            encoded_identity_key: self.service_providers.auth_ed25519.to_base58_string(),
-            encoded_x25519_key: self.service_providers.auth_x25519.to_base58_string(),
-            address: self.exit_authenticator_address().to_string(),
-        };
-
         let exit_policy_details =
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy {
                 enabled: true,
@@ -987,71 +673,26 @@ impl NymNode {
                 policy: None,
             };
 
-        let lewes_protocol = LewesProtocol {
-            enabled: self.modes().entry,
-            control_port: self.config.lp.announced_control_port(),
-            data_port: self.config.lp.announced_data_port(),
-            x25519: self.x25519_lp_keys.pk,
-            kem_keys: self.compute_kem_key_hashes(),
-        };
-
-        // SAFETY: the only way for this call to fail is if serialisation of LewesProtocol fails.
-        // however, that conversion is stable and infallible
-        #[allow(clippy::unwrap_used)]
-        let signed_lewes_protocol =
-            SignedData::new(lewes_protocol, self.ed25519_identity_keys.private_key()).unwrap();
-
-        let mut config = HttpServerConfig::new()
+        let base_config = HttpServerConfig::new()
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
-            .with_mixnode_details(mixnode_details)
-            .with_gateway_details(gateway_details)
-            .with_network_requester_details(nr_details)
-            .with_ip_packet_router_details(ipr_details)
-            .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
             .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
-        let system_info = if self.config.http.expose_system_info {
-            Some(get_system_info(
-                self.config.http.expose_system_hardware,
-                self.config.http.expose_crypto_hardware,
-            ))
-        } else {
-            None
-        };
+        // fills in mixnode, gateway, sp, etc. details based on the previously loaded public details
+        let mut config = self
+            .public_details
+            .fill_http_app_config(&self.config, base_config);
 
         if let Some(path) = &self.config.gateway_tasks.storage_paths.bridge_client_params {
             config = config.with_bridge_client_params_file(path);
         }
 
-        let x25519_versioned_noise_key = if self.config.mixnet.debug.unsafe_disable_noise {
-            None
-        } else {
-            Some(VersionedNoiseKeyV1 {
-                supported_version: nym_noise::LATEST_NOISE_VERSION,
-                x25519_pubkey: *self.x25519_noise_keys.public_key(),
-            })
-        };
-
         let app_state = AppState::new(
-            StaticNodeInformation {
-                ed25519_identity_keys: self.ed25519_identity_keys.clone(),
-                x25519_versioned_noise_key,
-                ip_addresses: self.config.host.public_ips.clone(),
-                hostname: self.config.host.hostname.clone(),
-                build_information: bin_info_owned!(),
-                system_info,
-                roles: NodeRoles {
-                    mixnode_enabled: self.config.modes.mixnode,
-                    gateway_enabled: self.config.modes.entry,
-                    network_requester_enabled: self.config.modes.exit,
-                    ip_packet_router_enabled: self.config.modes.exit,
-                },
-                description: self.description.clone(),
-                auxiliary_data,
-                lewes_protocol: signed_lewes_protocol,
-            },
-            self.active_sphinx_keys()?.clone(),
+            self.public_details.build_http_app_static_node_information(
+                self.ed25519_identity_keys.clone(),
+                &self.config,
+            ),
+            self.active_sphinx_keys()?,
             self.metrics.clone(),
             self.verloc_stats.clone(),
             self.config
@@ -1216,7 +857,10 @@ impl NymNode {
     pub(crate) async fn setup_replay_detection(
         &self,
     ) -> Result<ReplayProtectionBloomfiltersManager, NymNodeError> {
+        info!("setting up replay detection");
+
         if self.config.mixnet.replay_protection.debug.unsafe_disabled {
+            warn!("replay protection is disabled");
             return Ok(ReplayProtectionBloomfiltersManager::new_disabled(
                 self.metrics.clone(),
             ));
@@ -1267,6 +911,7 @@ impl NymNode {
         &mut self,
         nym_apis_client: NymApisClient,
         replay_protection_manager: ReplayProtectionBloomfiltersManager,
+        directory_publisher_events_sender: Option<DirectoryPublisherEventsSender>,
     ) -> Result<(), NymNodeError> {
         let managed_keys = self.take_managed_sphinx_keys()?;
         let rotation_state = nym_apis_client.get_key_rotation_info().await?;
@@ -1277,6 +922,7 @@ impl NymNode {
             nym_apis_client,
             replay_protection_manager,
             managed_keys,
+            directory_publisher_events_sender,
             self.shutdown_manager.clone_shutdown_token(),
         );
 
@@ -1389,15 +1035,14 @@ impl NymNode {
     }
 
     async fn known_network_monitors(&self) -> Result<Vec<AuthorisedNetworkMonitor>, NymNodeError> {
-        // 1. create a nyx rpc client
-        // (TODO: we should have unified client later on for all chain interactions)
-        let client = QueryHttpRpcNyxdClient::connect_with_network_details(
-            self.config.nyx.nyxd_urls[0].as_str(),
-            self.network.clone(),
-        )?;
+        info!("obtaining the list of known network monitors");
 
-        // 2. run the queries to retrieve all agents
-        Ok(client.get_all_network_monitor_agents().await?)
+        Ok(self
+            .nyx_client
+            .read()
+            .await
+            .get_all_network_monitor_agents()
+            .await?)
     }
 
     async fn setup_nyx_chain_watcher(
@@ -1405,6 +1050,8 @@ impl NymNode {
         network_monitors_handle: RoutableNetworkMonitors,
         noise_network_view: NoiseNetworkView,
     ) -> Result<(), NymNodeError> {
+        info!("setting up nyx chain watcher");
+
         // START: module creation
         let Some(Ok(contract_address)) = self
             .network
@@ -1436,6 +1083,35 @@ impl NymNode {
 
         watcher.build_and_start().await?;
         Ok(())
+    }
+
+    async fn setup_directory_publishing(
+        &self,
+    ) -> Result<Option<DirectoryPublisherEventsSender>, NymNodeError> {
+        info!("setting up directory publishing");
+
+        if !self.config.directory.enabled {
+            warn!("this node will not submit any directory information");
+            return Ok(None);
+        }
+
+        let config = DirectoryPublisherConfig::new(self.config.directory);
+        let mut directory_publisher = DirectoryPublisher::new(
+            self.nyx_client.clone(),
+            config,
+            self.ed25519_identity_keys.clone(),
+            self.public_details.clone(),
+            self.active_sphinx_keys()?,
+            self.shutdown_manager.clone_shutdown_token(),
+        )
+        .await?;
+
+        let events_sender = directory_publisher.events_sender();
+        self.shutdown_tracker().try_spawn_named(
+            async move { directory_publisher.run().await },
+            "DirectoryPublisher",
+        );
+        Ok(Some(events_sender))
     }
 
     async fn start_nym_node_tasks(mut self) -> Result<ShutdownManager, NymNodeError> {
@@ -1557,8 +1233,12 @@ impl NymNode {
         let network = network_refresher.cached_network();
         network_refresher.start();
 
+        let directory_publisher_events_sender = self.setup_directory_publishing().await?;
+
+        let node_address = self.public_details.cosmos_address().clone();
         // setup all gateway-related tasks (client websocket, wireguard, lp, etc.)
         self.start_gateway_tasks(
+            node_address,
             network,
             lp_nodes,
             metrics_sender,
@@ -1568,8 +1248,12 @@ impl NymNode {
         .await?;
 
         // start watching for key rotation and update the keys accordingly
-        self.setup_key_rotation(nym_apis_client, bloomfilters_manager)
-            .await?;
+        self.setup_key_rotation(
+            nym_apis_client,
+            bloomfilters_manager,
+            directory_publisher_events_sender,
+        )
+        .await?;
 
         self.shutdown_manager.close_tracker();
 

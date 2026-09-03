@@ -6,13 +6,14 @@ use crate::status::ApiStatusState;
 use crate::support::config::CHAIN_STALL_THRESHOLD;
 use crate::support::http::state::AppState;
 use axum::extract::{Query, State};
-use axum::Router;
+use axum::{Json, Router};
 use nym_api_requests::models::{
-    ApiHealthResponse, ApiStatus, ChainStatus, SignerInformationResponse,
+    ApiHealthResponse, ApiInformationResponse, ApiStatus, ChainStatus, KeyPossessionChallenge,
+    KeyPossessionChallengeResponse, SignerInformationResponse,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
-use nym_http_api_common::{FormattedResponse, OutputParams};
+use nym_http_api_common::{FormattedResponse, OutputParams, OutputParamsV2};
 use time::OffsetDateTime;
 
 pub(crate) fn api_status_routes() -> Router<AppState> {
@@ -22,6 +23,11 @@ pub(crate) fn api_status_routes() -> Router<AppState> {
         .route(
             "/signer-information",
             axum::routing::get(signer_information),
+        )
+        .route("/api-information", axum::routing::get(api_information))
+        .route(
+            "/prove_key_possession",
+            axum::routing::post(prove_key_possession),
         )
 }
 
@@ -119,4 +125,52 @@ async fn signer_information(
             .await
             .map(|maybe_vk| maybe_vk.to_bs58()),
     }))
+}
+
+#[utoipa::path(
+    tag = "API Status",
+    get,
+    path = "/api-information",
+    context_path = "/v1/api-status",
+    responses(
+        (status = 200, content(
+            (ApiInformationResponse = "application/json"),
+            (ApiInformationResponse = "application/yaml"),
+        ))
+    ),
+    params(
+        OutputParamsV2,
+    )
+)]
+async fn api_information(
+    Query(output): Query<OutputParamsV2>,
+    State(state): State<AppState>,
+) -> FormattedResponse<ApiInformationResponse> {
+    // we only allow json and yaml responses so we can easily add additional fields later
+    output.to_response(ApiInformationResponse {
+        identity: *state.identity_keypair.public_key(),
+    })
+}
+
+#[utoipa::path(
+    tag = "API Status",
+    post,
+    path = "/prove-key-possession",
+    context_path = "/v1/api-status",
+    responses(
+        (status = 200, content(
+            (KeyPossessionChallengeResponse = "application/json"),
+            (KeyPossessionChallengeResponse = "application/yaml"),
+        ))
+    ),
+    params(
+        OutputParamsV2,
+    )
+)]
+async fn prove_key_possession(
+    Query(output): Query<OutputParamsV2>,
+    State(state): State<AppState>,
+    Json(challenge): Json<KeyPossessionChallenge>,
+) -> FormattedResponse<KeyPossessionChallengeResponse> {
+    output.to_response(challenge.sign(state.identity_keypair.private_key()))
 }

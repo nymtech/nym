@@ -27,12 +27,47 @@ export interface SetupMixTunnelOpts {
   debug?: boolean;
 }
 
-export type TunnelStateName = 'connecting' | 'ready' | 'disconnecting' | 'disconnected' | 'failed';
+export type TaskName = 'bridge' | 'reactor';
 
-export interface TunnelState {
-  state: TunnelStateName;
-  reason?: string;
+export type FailureReason = { kind: 'task_exited'; task: TaskName } | { kind: 'task_panicked' };
+
+// The names and shape below are the serde output of `TunnelState` in
+// wasm/smolmix/src/state.rs, where tsify generates the authoritative type into the
+// wasm `.d.ts`. Kept inline here to avoid a dependency on the unpublished
+// @nymproject/smolmix-wasm; keep it in step with that generated type.
+export type TunnelStateName = 'connecting' | 'ready' | 'shutting_down' | 'shutdown' | 'failed';
+
+// The variants are named rather than written inline so typedoc renders them as
+// links; a union of anonymous object literals renders as `object | object | ...`.
+// Naming them also lets consumers write narrowing helpers against a variant, e.g.
+// `(s: TunnelState): s is TunnelFailed`.
+export interface TunnelConnecting {
+  state: 'connecting';
 }
+
+export interface TunnelReady {
+  state: 'ready';
+}
+
+export interface TunnelShuttingDown {
+  state: 'shutting_down';
+}
+
+export interface TunnelShutdown {
+  state: 'shutdown';
+}
+
+export interface TunnelFailed {
+  state: 'failed';
+  reason: FailureReason;
+}
+
+export type TunnelState =
+  | TunnelConnecting
+  | TunnelReady
+  | TunnelShuttingDown
+  | TunnelShutdown
+  | TunnelFailed;
 
 /**
  * Pre-serialised response shape produced by `smolmix-wasm::mixFetch`. Designed

@@ -4,7 +4,7 @@ use cosmrs::crypto::secp256k1::{Signature, VerifyingKey};
 use cosmrs::crypto::PublicKey;
 use cosmrs::AccountId;
 use k256::ecdsa::signature::Verifier;
-use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::nyxd::TendermintRpcClientExt;
 use nym_validator_client::signing::signer::OfflineSigner;
 use serde::Serialize;
 use serde_json::json;

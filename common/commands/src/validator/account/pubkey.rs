@@ -5,7 +5,7 @@ use crate::context::QueryClient;
 use crate::utils::show_error;
 use clap::Parser;
 use log::{error, info};
-use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
+use nym_validator_client::nyxd::{AccountId, TendermintRpcClientExt};
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::signer::OfflineSigner;
 

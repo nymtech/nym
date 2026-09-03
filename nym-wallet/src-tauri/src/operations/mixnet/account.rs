@@ -9,7 +9,7 @@ use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use nym_types::account::{Account, AccountEntry, Balance};
-use nym_validator_client::nyxd::CosmWasmClient;
+use nym_validator_client::nyxd::TendermintRpcClientExt;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::signer::OfflineSigner;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;

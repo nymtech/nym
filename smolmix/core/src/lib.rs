@@ -23,7 +23,7 @@ pub use tunnel::Recipient;
 ///
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # let tunnel = smolmix::Tunnel::new().await?;
+/// # let tunnel = nym_smolmix::Tunnel::new().await?;
 /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 ///
 /// let mut stream = tunnel.tcp_connect("1.1.1.1:80".parse()?).await?;
@@ -49,7 +49,7 @@ pub use tunnel::TunnelBuilder;
 ///
 /// ```no_run
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # let tunnel = smolmix::Tunnel::new().await?;
+/// # let tunnel = nym_smolmix::Tunnel::new().await?;
 /// let udp = tunnel.udp_socket().await?;
 /// udp.send_to(b"hello", "1.1.1.1:9999".parse()?).await?;
 ///

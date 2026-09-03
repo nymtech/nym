@@ -9,8 +9,8 @@ use crate::orchestrator::context::LocalnetContext;
 use crate::orchestrator::setup::nym_nodes::{GATEWAYS, MIXNODES};
 use anyhow::{Context, bail};
 use nym_mixnet_contract_common::NodeId;
-use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::nyxd::cosmwasm_client::types::UploadResult;
+use nym_validator_client::rpc::TendermintRpcClientExt;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 use std::path::Path;
 

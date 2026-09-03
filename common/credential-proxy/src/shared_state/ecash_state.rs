@@ -10,28 +10,31 @@ use crate::shared_state::nyxd_client::ChainClient;
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
 use crate::storage::traits::GlobalEcashDataCache;
 use nym_cache::CachedImmutableItems;
+use nym_compact_ecash::Base58;
+pub use nym_compact_ecash::VerificationKeyAuth;
+pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
 use nym_compact_ecash::scheme::coin_indices_signatures::aggregate_annotated_indices_signatures;
+pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
 use nym_compact_ecash::scheme::expiration_date_signatures::aggregate_annotated_expiration_signatures;
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
+pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
+use nym_http_api_client::{UserAgent, bin_info};
 use nym_validator_client::EcashApiClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::{ContractVKShare, Epoch};
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::info;
-
-pub use nym_compact_ecash::VerificationKeyAuth;
-pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
-pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
-pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
-pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
+use url::Url;
 
 pub struct EcashState {
     pub required_deposit_cache: RequiredDepositCache,
@@ -50,6 +53,29 @@ pub struct EcashState {
 
     pub expiration_date_signatures:
         CachedImmutableItems<(EpochId, Date), AggregatedExpirationDateSignatures>,
+}
+
+fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, EcashApiError> {
+    if !share.verified {
+        return Err(EcashApiError::UnverifiedShare);
+    }
+
+    let url_address = Url::parse(&share.announce_address)?;
+
+    let api_client = nym_http_api_client::Client::builder(url_address)
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+        .with_timeout(Duration::from_secs(5))
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .no_hickory_dns()
+        .build()
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+
+    Ok(EcashApiClient {
+        api_client,
+        verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
+        node_id: share.node_index,
+        cosmos_address: share.owner.as_str().parse()?,
+    })
 }
 
 impl EcashState {
@@ -110,7 +136,7 @@ impl EcashState {
                     .get_all_verification_key_shares(epoch_id)
                     .await?
                     .into_iter()
-                    .map(TryInto::try_into)
+                    .map(construct_ecash_api_client)
                     .collect::<anyhow::Result<Vec<_>, EcashApiError>>()?)
             })
             .await

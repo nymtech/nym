@@ -9,7 +9,7 @@ use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, NymContractsProvider};
-use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
+use nym_validator_client::{EcashApiClient, QueryHttpRpcNyxdClient};
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use tracing::{error, trace, warn};
 
 // state shared by different subtasks dealing with credentials
 pub(crate) struct SharedState {
-    pub(crate) nyxd_client: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
+    pub(crate) nyxd_client: Arc<QueryHttpRpcNyxdClient>,
     pub(crate) address: AccountId,
     pub(crate) epoch_data: Arc<RwLock<BTreeMap<EpochId, EpochState>>>,
     pub(crate) storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
@@ -37,11 +37,10 @@ impl Clone for SharedState {
 
 impl SharedState {
     pub(crate) async fn new(
-        nyxd_client: DirectSigningHttpRpcNyxdClient,
+        nyxd_client: QueryHttpRpcNyxdClient,
+        node_address: AccountId,
         storage: Box<dyn BandwidthGatewayStorage + Send + Sync>,
     ) -> Result<Self, Error> {
-        let address = nyxd_client.address();
-
         if nyxd_client.dkg_contract_address().is_none() {
             error!("the DKG contract address is not available");
             return Err(EcashTicketError::UnavailableDkgContract.into());
@@ -56,8 +55,8 @@ impl SharedState {
         };
 
         let this = SharedState {
-            nyxd_client: Arc::new(RwLock::new(nyxd_client)),
-            address,
+            nyxd_client: Arc::new(nyxd_client),
+            address: node_address,
             epoch_data: Arc::new(RwLock::new(BTreeMap::new())),
             storage,
         };
@@ -118,7 +117,7 @@ impl SharedState {
         &self,
         epoch_id: EpochId,
     ) -> Result<Vec<EcashApiClient>, EcashTicketError> {
-        Ok(all_ecash_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
+        Ok(all_ecash_api_clients(self.nyxd_client.deref(), epoch_id).await?)
     }
 
     pub(crate) async fn threshold(
@@ -126,8 +125,6 @@ impl SharedState {
         epoch_id: EpochId,
     ) -> Result<Option<u64>, EcashTicketError> {
         self.nyxd_client
-            .read()
-            .await
             .get_epoch_threshold(epoch_id)
             .await
             .map_err(EcashTicketError::chain_query_failure)

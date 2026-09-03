@@ -1,0 +1,679 @@
+// Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::DirectoryContractError;
+use crate::helpers::read_len_prefixed;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Binary;
+use nym_mixnet_contract_common::NodeId;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
+/// Key-class / trust-tier discriminant for a directory entry. Extensible: new
+/// entry classes get a new variant (and a new, never-reused [`Namespace::tag`]).
+#[cw_serde]
+#[derive(Copy)]
+#[repr(u8)]
+pub enum Namespace {
+    /// Self-published node entry, authorised by the node's identity key.
+    Node = 1,
+
+    /// Admin-curated entry (e.g. a nym-api identity key).
+    Curated = 2,
+}
+
+impl Namespace {
+    /// Stable byte tag identifying the key-class, used as the leading byte of the
+    /// canonical digest leaf so node and curated leaves can never collide. Never
+    /// renumber existing variants (it would re-hash every existing entry).
+    pub const fn tag(self) -> u8 {
+        self as u8
+    }
+}
+
+/// A node-published entry: the opaque payload, the block height of the last write,
+/// and the `sequence` + ed25519 `signature` it was written with. Storing the
+/// sequence makes the signature independently re-verifiable - the signed message is
+/// `(node_id, label, sequence, data)` - and both are committed to the digest, so an
+/// entry is self-authenticating and the directory is auditable from current state alone.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cw_serde]
+pub struct NodeEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    pub data: Binary,
+
+    pub updated_at_height: u64,
+
+    pub sequence: u64,
+
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    pub signature: Binary,
+}
+
+impl NodeEntry {
+    /// Compact value encoding: `updated_at_height || sequence || lp(signature) || data`.
+    /// Fixed-width fields first, the variable `signature` length-prefixed, and the
+    /// variable `data` as the unframed tail - so no class discriminant is needed
+    /// (the storage key's [`Namespace`] tag selects this decoder).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(8 + 8 + 4 + self.signature.len() + self.data.len());
+        buf.extend_from_slice(&self.updated_at_height.to_le_bytes());
+        buf.extend_from_slice(&self.sequence.to_le_bytes());
+        crate::helpers::push_len_prefixed(&mut buf, self.signature.as_slice());
+        buf.extend_from_slice(self.data.as_slice());
+        buf
+    }
+
+    /// Decode the [`Self::to_bytes`] layout.
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
+        if bytes.len() < 8 + 8 + 4 {
+            return Err(DirectoryContractError::MalformedEntryValue(
+                "unexpected end of value".to_owned(),
+            ));
+        }
+        // SAFETY: we ready exactly 8 bytes and know we have enough in the slice
+        #[allow(clippy::unwrap_used)]
+        let updated_at_height = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
+
+        #[allow(clippy::unwrap_used)]
+        let sequence = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+
+        let sig_bytes = read_len_prefixed(&bytes[16..])?;
+        let signature = Binary::new(sig_bytes.to_vec());
+
+        let data = Binary::new(bytes[20 + sig_bytes.len()..].to_vec());
+
+        Ok(NodeEntry {
+            data,
+            updated_at_height,
+            sequence,
+            signature,
+        })
+    }
+}
+
+/// An admin-curated entry: opaque bytes (the authority is the contract admin).
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cw_serde]
+pub struct CuratedEntry {
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
+    pub data: Binary,
+}
+
+impl CuratedEntry {
+    /// Compact value encoding: the raw `data` bytes (its only field).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.data.to_vec()
+    }
+
+    /// Decode the [`Self::to_bytes`] layout (the whole buffer is `data`).
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DirectoryContractError> {
+        Ok(CuratedEntry {
+            data: Binary::new(bytes.to_vec()),
+        })
+    }
+}
+
+/// Per-label policy.
+#[cw_serde]
+pub struct LabelConfig {
+    /// Maximum permitted `data` length, in bytes, for entries under this label.
+    pub max_size: u32,
+}
+
+/// Catalog of well-known directory labels. Used by consumers to recognise an
+/// entry's label and parse its `data`, and by the contract to seed the initial
+/// whitelist at instantiation (every [`KnownLabel::ALL`] variant is auto-whitelisted
+/// with its [`KnownLabel::default_config`]).
+///
+/// Labels are stored on-chain as opaque admin-whitelisted strings, so the admin can
+/// add more without a contract migration; this enum itself is a Rust-side catalog,
+/// not a serialized type. `#[non_exhaustive]` plus the string mapping mean labels
+/// added after a consumer was built fall through as unknown (see
+/// [`KnownLabel::from_str`]) and are handled as opaque bytes.
+#[non_exhaustive]
+#[cw_serde]
+#[derive(Copy, Ord, Eq, PartialOrd, Hash)]
+pub enum KnownLabel {
+    /// The node's sphinx keys: a wrapper around two rotation-tagged sphinx (x25519)
+    /// keys - either `(previous, current)` or `(current, pre-announced)`. The previous
+    /// key's overlap drains long before the next is pre-announced (overlap window <<
+    /// the 24h rotation), so three are never held at once; one key at a node's very
+    /// first publish. Consumers select by the current rotation; roles are derived,
+    /// not stored, so advancement needs no extra writes.
+    SphinxKeys,
+
+    /// The node's operator-provided description (moniker, website, contact, details).
+    NodeDescription,
+
+    /// The node's mixnet service-provider addresses (network requester, IPR, authenticator).
+    MixnetServiceProviders,
+
+    /// The node's wireguard connection details.
+    Wireguard,
+
+    /// The node's general self-reported information (hostname, IPs, cosmos address, ports, modes).
+    NodeInformation,
+
+    /// The node's Lewes Protocol (LP) connection details.
+    LewesProtocolDetails,
+}
+
+impl Display for KnownLabel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
+
+impl KnownLabel {
+    const SPHINX_KEY_STR: &'static str = "sphinx_key";
+    const NODE_DESCRIPTION_STR: &'static str = "node_description";
+    const MIXNET_SERVICE_PROVIDERS_STR: &'static str = "mixnet_service_providers";
+    const WIREGUARD_STR: &'static str = "wireguard";
+    const NODE_INFORMATION_STR: &'static str = "node_information";
+    const LEWES_PROTOCOL_DETAILS_STR: &'static str = "lewes_protocol_details";
+
+    /// Every known label, in a stable order - all auto-whitelisted at contract
+    /// instantiation. Keep in sync with the variants above.
+    pub const ALL: &'static [KnownLabel] = &[
+        KnownLabel::SphinxKeys,
+        KnownLabel::NodeDescription,
+        KnownLabel::MixnetServiceProviders,
+        KnownLabel::Wireguard,
+        KnownLabel::NodeInformation,
+        KnownLabel::LewesProtocolDetails,
+    ];
+
+    /// The canonical on-chain label string for this known label. Stable: once
+    /// entries exist under it, the string must not change.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            KnownLabel::SphinxKeys => KnownLabel::SPHINX_KEY_STR,
+            KnownLabel::NodeDescription => KnownLabel::NODE_DESCRIPTION_STR,
+            KnownLabel::MixnetServiceProviders => KnownLabel::MIXNET_SERVICE_PROVIDERS_STR,
+            KnownLabel::Wireguard => KnownLabel::WIREGUARD_STR,
+            KnownLabel::NodeInformation => KnownLabel::NODE_INFORMATION_STR,
+            KnownLabel::LewesProtocolDetails => KnownLabel::LEWES_PROTOCOL_DETAILS_STR,
+        }
+    }
+
+    /// The default `max_size` (bytes) this label is whitelisted with at
+    /// instantiation; never exceeds [`crate::constants::MAX_LABEL_SIZE_CEILING`].
+    pub const fn default_max_size(self) -> u32 {
+        match self {
+            KnownLabel::SphinxKeys => 128,
+            KnownLabel::NodeDescription => 256,
+            KnownLabel::MixnetServiceProviders => 512,
+            KnownLabel::Wireguard => 256,
+            KnownLabel::NodeInformation => 2048,
+            KnownLabel::LewesProtocolDetails => 2048,
+        }
+    }
+
+    /// The default [`LabelConfig`] used to auto-whitelist this label at instantiation.
+    pub const fn default_config(self) -> LabelConfig {
+        LabelConfig {
+            max_size: self.default_max_size(),
+        }
+    }
+}
+
+/// Returned by [`KnownLabel`]'s [`FromStr`](core::str::FromStr) when the string is
+/// not a known label (e.g. an admin-added label this build predates). Carries the
+/// unrecognised label value.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unrecognised directory label: {0:?}")]
+pub struct UnknownLabelError(pub String);
+
+impl FromStr for KnownLabel {
+    type Err = UnknownLabelError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            KnownLabel::SPHINX_KEY_STR => Ok(KnownLabel::SphinxKeys),
+            KnownLabel::NODE_DESCRIPTION_STR => Ok(KnownLabel::NodeDescription),
+            KnownLabel::MIXNET_SERVICE_PROVIDERS_STR => Ok(KnownLabel::MixnetServiceProviders),
+            KnownLabel::WIREGUARD_STR => Ok(KnownLabel::Wireguard),
+            KnownLabel::NODE_INFORMATION_STR => Ok(KnownLabel::NodeInformation),
+            KnownLabel::LEWES_PROTOCOL_DETAILS_STR => Ok(KnownLabel::LewesProtocolDetails),
+            other => Err(UnknownLabelError(other.to_owned())),
+        }
+    }
+}
+
+// ---- query responses ----
+
+/// Response for [`crate::QueryMsg::NodeEntry`]; `None` if the slot is empty.
+#[cw_serde]
+pub struct NodeEntryResponse {
+    pub entry: Option<NodeEntry>,
+}
+
+/// Response for [`crate::QueryMsg::CuratedEntry`]; `None` if the slot is empty.
+#[cw_serde]
+pub struct CuratedEntryResponse {
+    pub entry: Option<CuratedEntry>,
+}
+
+/// The next sequence a node must sign with (gap-free, exact-match).
+#[cw_serde]
+pub struct SequenceResponse {
+    pub next_sequence: u64,
+}
+
+/// The compact 32-byte digest: the BLAKE3 collapse of the LtHash accumulator.
+#[cw_serde]
+pub struct DigestResponse {
+    pub digest: Binary,
+}
+
+/// One whitelisted label together with its policy.
+#[cw_serde]
+pub struct LabelEntry {
+    pub label: String,
+    pub config: LabelConfig,
+}
+
+#[cw_serde]
+pub struct AllowedLabelsResponse {
+    pub labels: Vec<LabelEntry>,
+}
+
+/// A `(label, entry)` pair belonging to a single node.
+#[cw_serde]
+pub struct NodeLabelEntry {
+    pub label: String,
+    pub entry: NodeEntry,
+}
+
+/// A node entry carrying its full `(node_id, label)` key - a row in
+/// [`NodeEntriesPagedResponse`], where entries from different nodes are interleaved.
+#[cw_serde]
+pub struct AnnotatedNodeLabelEntry {
+    pub node_id: NodeId,
+    pub label: String,
+    pub entry: NodeEntry,
+}
+
+/// Response for [`crate::QueryMsg::NodeEntries`] - every entry for one node.
+#[cw_serde]
+pub struct NodeEntriesResponse {
+    pub node_id: NodeId,
+    pub entries: Vec<NodeLabelEntry>,
+}
+
+/// A `(label, entry)` pair belonging to a curated entry.
+#[cw_serde]
+pub struct CuratedLabelEntry {
+    pub label: String,
+    pub entry: CuratedEntry,
+}
+
+/// A page of curated entries.
+#[cw_serde]
+pub struct CuratedEntriesPagedResponse {
+    /// Entries in ascending key order.
+    pub entries: Vec<CuratedLabelEntry>,
+    /// Cursor to pass as the next `start_after`, or `None` when exhausted.
+    pub start_next_after: Option<String>,
+}
+
+impl From<CuratedEntriesPagedResponse> for AllEntriesPagedResponse {
+    fn from(res: CuratedEntriesPagedResponse) -> Self {
+        AllEntriesPagedResponse {
+            entries: res
+                .entries
+                .into_iter()
+                .map(|curated_entry| {
+                    DirectoryEntryRecord::new_curated(curated_entry.label, curated_entry.entry)
+                })
+                .collect(),
+            start_next_after: res.start_next_after.map(EntryKey::new_curated),
+        }
+    }
+}
+
+/// A page of node entries across all nodes, ordered by `(node_id, label)`.
+#[cw_serde]
+pub struct NodeEntriesPagedResponse {
+    /// Entries in ascending `(node_id, label)` order.
+    pub entries: Vec<AnnotatedNodeLabelEntry>,
+    /// Cursor to pass as the next `start_after`, or `None` when exhausted.
+    pub start_next_after: Option<(NodeId, String)>,
+}
+
+impl From<NodeEntriesPagedResponse> for AllEntriesPagedResponse {
+    fn from(res: NodeEntriesPagedResponse) -> Self {
+        AllEntriesPagedResponse {
+            entries: res
+                .entries
+                .into_iter()
+                .map(|node_entry| {
+                    DirectoryEntryRecord::new_node(
+                        node_entry.node_id,
+                        node_entry.label,
+                        node_entry.entry,
+                    )
+                })
+                .collect(),
+            start_next_after: res
+                .start_next_after
+                .map(|(node_id, label)| EntryKey::new_node(node_id, label)),
+        }
+    }
+}
+
+/// The logical key of a directory entry. Used as the [`crate::QueryMsg::AllEntries`]
+/// cursor / response key and to derive the canonical digest leaf; the on-chain
+/// storage key is handled separately by each per-class store (via `cw-storage-plus`
+/// `Path`/`Prefix`), so this type carries no storage-codec logic.
+///
+/// - [`EntryKey::Node`] is keyed `(node_id, label)` - node entries are stored under
+///   one namespace, so all of a node's entries form a contiguous range (per-node
+///   query + unbond cleanup).
+/// - [`EntryKey::Curated`] is keyed by a single admin-chosen `key` string under a
+///   separate namespace; the admin is responsible for choosing a sensible path
+///   (there is no label/suffix structure imposed by the contract).
+#[cw_serde]
+pub enum EntryKey {
+    /// A self-published node entry, keyed `(node_id, label)`.
+    Node { node_id: NodeId, label: String },
+
+    /// An admin-curated entry, keyed by a single admin-chosen path string.
+    Curated { key: String },
+}
+
+impl EntryKey {
+    /// A node key from its `(node_id, label)`.
+    pub fn new_node(node_id: NodeId, label: String) -> Self {
+        EntryKey::Node { node_id, label }
+    }
+
+    /// A curated key from its path string.
+    pub fn new_curated(key: String) -> Self {
+        EntryKey::Curated { key }
+    }
+
+    /// The key-class tag for this entry.
+    pub fn namespace(&self) -> Namespace {
+        match self {
+            EntryKey::Node { .. } => Namespace::Node,
+            EntryKey::Curated { .. } => Namespace::Curated,
+        }
+    }
+}
+
+/// One directory entry together with its key, as yielded by the global enumeration.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cw_serde]
+pub enum DirectoryEntryRecord {
+    /// A self-published node entry, keyed `(node_id, label)`.
+    Node {
+        node_id: NodeId,
+        label: String,
+        entry: NodeEntry,
+    },
+
+    /// An admin-curated entry, keyed by a single admin-chosen path string.
+    Curated { key: String, entry: CuratedEntry },
+}
+
+impl DirectoryEntryRecord {
+    /// A curated record from its key and entry.
+    pub fn new_curated(key: String, entry: CuratedEntry) -> Self {
+        DirectoryEntryRecord::Curated { key, entry }
+    }
+
+    /// A node record from its `(node_id, label)` and entry.
+    pub fn new_node(node_id: NodeId, label: String, entry: NodeEntry) -> Self {
+        DirectoryEntryRecord::Node {
+            node_id,
+            label,
+            entry,
+        }
+    }
+
+    /// The key-class tag for this record.
+    pub fn namespace(&self) -> Namespace {
+        match self {
+            DirectoryEntryRecord::Node { .. } => Namespace::Node,
+            DirectoryEntryRecord::Curated { .. } => Namespace::Curated,
+        }
+    }
+
+    /// The logical key (the [`crate::QueryMsg::AllEntries`] cursor / response key) for
+    /// this record.
+    pub fn key(&self) -> EntryKey {
+        match self {
+            DirectoryEntryRecord::Node { node_id, label, .. } => {
+                EntryKey::new_node(*node_id, label.clone())
+            }
+            DirectoryEntryRecord::Curated { key, .. } => EntryKey::new_curated(key.clone()),
+        }
+    }
+
+    /// The canonical LtHash leaf for this record: a class tag, the length-framed key
+    /// components, then the entry's committed value. A node leaf commits
+    /// `(data, signature, sequence)` so it is self-authenticating; a curated leaf commits
+    /// `data`. The leading tag plus length-prefixing make every distinct `(key, value)`
+    /// map to distinct leaf bytes, within and across classes.
+    pub fn digest_leaf(&self) -> Vec<u8> {
+        use crate::helpers::push_len_prefixed;
+
+        let mut buf = vec![self.namespace().tag()];
+        match self {
+            DirectoryEntryRecord::Node {
+                node_id,
+                label,
+                entry,
+            } => {
+                // `node_id` is fixed-width, so it needs no length prefix before the
+                // variable, length-prefixed `label`.
+                buf.extend_from_slice(&node_id.to_be_bytes());
+                push_len_prefixed(&mut buf, label.as_bytes());
+                push_len_prefixed(&mut buf, entry.data.as_slice());
+                push_len_prefixed(&mut buf, entry.signature.as_slice());
+                buf.extend_from_slice(&entry.sequence.to_le_bytes());
+            }
+            DirectoryEntryRecord::Curated { key, entry } => {
+                push_len_prefixed(&mut buf, key.as_bytes());
+                push_len_prefixed(&mut buf, entry.data.as_slice());
+            }
+        }
+        buf
+    }
+}
+
+/// A page of the global entry enumeration across both namespaces - the input from
+/// which a client recomputes and verifies the digest.
+#[cw_serde]
+pub struct AllEntriesPagedResponse {
+    pub entries: Vec<DirectoryEntryRecord>,
+    /// Cursor to pass as the next `start_after`, or `None` when exhausted.
+    pub start_next_after: Option<EntryKey>,
+}
+
+#[cw_serde]
+pub struct SnapshotIntervalResponse {
+    pub interval: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::str::FromStr;
+
+    #[test]
+    fn known_label_string_round_trip() {
+        assert_eq!(KnownLabel::SphinxKeys.as_str(), "sphinx_key");
+        assert_eq!(
+            KnownLabel::from_str("sphinx_key"),
+            Ok(KnownLabel::SphinxKeys)
+        );
+    }
+
+    #[test]
+    fn unknown_label_carries_value() {
+        assert_eq!(
+            KnownLabel::from_str("not_a_label"),
+            Err(UnknownLabelError("not_a_label".to_owned()))
+        );
+    }
+
+    #[test]
+    fn all_known_labels_are_consistent() {
+        for &label in KnownLabel::ALL {
+            // each catalogued label round-trips through its on-chain string
+            assert_eq!(KnownLabel::from_str(label.as_str()), Ok(label));
+            // and its auto-whitelist size fits the contract ceiling
+            assert!(label.default_max_size() <= crate::constants::MAX_LABEL_SIZE_CEILING);
+        }
+    }
+
+    fn node_record(
+        node_id: NodeId,
+        label: &str,
+        data: &[u8],
+        sequence: u64,
+        sig: &[u8],
+    ) -> DirectoryEntryRecord {
+        DirectoryEntryRecord::Node {
+            node_id,
+            label: label.to_owned(),
+            entry: NodeEntry {
+                data: data.to_vec().into(),
+                updated_at_height: 0,
+                sequence,
+                signature: sig.to_vec().into(),
+            },
+        }
+    }
+
+    fn curated_record(key: &str, data: &[u8]) -> DirectoryEntryRecord {
+        DirectoryEntryRecord::Curated {
+            key: key.to_owned(),
+            entry: CuratedEntry {
+                data: data.to_vec().into(),
+            },
+        }
+    }
+
+    #[test]
+    fn digest_leaf_classes_differ() {
+        // same string + data, different class -> different leaf (the tag separates them)
+        assert_ne!(
+            node_record(1, "x", b"v", 0, b"sig").digest_leaf(),
+            curated_record("x", b"v").digest_leaf(),
+        );
+    }
+
+    #[test]
+    fn digest_leaf_length_prefix_disambiguates() {
+        // curated (key "ab", data "c") vs (key "a", data "bc") must not collide
+        assert_ne!(
+            curated_record("ab", b"c").digest_leaf(),
+            curated_record("a", b"bc").digest_leaf(),
+        );
+        // and likewise for a node's (label, data) framing
+        assert_ne!(
+            node_record(1, "ab", b"c", 0, b"s").digest_leaf(),
+            node_record(1, "a", b"bc", 0, b"s").digest_leaf(),
+        );
+    }
+
+    #[test]
+    fn node_leaf_commits_signature_and_sequence() {
+        let base = node_record(1, "x", b"d", 5, b"sigA").digest_leaf();
+        assert_eq!(
+            base,
+            node_record(1, "x", b"d", 5, b"sigA").digest_leaf(),
+            "deterministic"
+        );
+        assert_ne!(
+            base,
+            node_record(1, "x", b"d", 5, b"sigB").digest_leaf(),
+            "signature is committed"
+        );
+        assert_ne!(
+            base,
+            node_record(1, "x", b"d", 6, b"sigA").digest_leaf(),
+            "sequence is committed"
+        );
+    }
+
+    #[test]
+    fn node_leaf_excludes_updated_at_height() {
+        let a = DirectoryEntryRecord::Node {
+            node_id: 1,
+            label: "x".into(),
+            entry: NodeEntry {
+                data: b"d".to_vec().into(),
+                updated_at_height: 1,
+                sequence: 5,
+                signature: b"s".to_vec().into(),
+            },
+        };
+        let b = DirectoryEntryRecord::Node {
+            node_id: 1,
+            label: "x".into(),
+            entry: NodeEntry {
+                data: b"d".to_vec().into(),
+                updated_at_height: 999,
+                sequence: 5,
+                signature: b"s".to_vec().into(),
+            },
+        };
+        assert_eq!(
+            a.digest_leaf(),
+            b.digest_leaf(),
+            "height must not be committed"
+        );
+    }
+
+    #[test]
+    fn node_entry_value_round_trips() {
+        let entry = NodeEntry {
+            data: b"opaque payload".to_vec().into(),
+            updated_at_height: 123_456,
+            sequence: 7,
+            signature: vec![9u8; 64].into(),
+        };
+        let bytes = entry.to_bytes();
+        assert_eq!(NodeEntry::try_from_bytes(&bytes), Ok(entry));
+    }
+
+    #[test]
+    fn node_entry_value_handles_empty_data_and_signature() {
+        let entry = NodeEntry {
+            data: Binary::default(),
+            updated_at_height: 0,
+            sequence: 0,
+            signature: Binary::default(),
+        };
+        let bytes = entry.to_bytes();
+        assert_eq!(NodeEntry::try_from_bytes(&bytes), Ok(entry));
+    }
+
+    #[test]
+    fn curated_entry_value_round_trips() {
+        for data in [b"".as_slice(), b"x", b"a longer curated payload"] {
+            let entry = CuratedEntry {
+                data: data.to_vec().into(),
+            };
+            assert_eq!(CuratedEntry::try_from_bytes(&entry.to_bytes()), Ok(entry));
+        }
+    }
+
+    #[test]
+    fn node_entry_value_rejects_truncation() {
+        // a 10-byte buffer cannot hold the two u64 fields + a length prefix
+        assert!(NodeEntry::try_from_bytes(&[0u8; 10]).is_err());
+        assert!(NodeEntry::try_from_bytes(&[]).is_err());
+        // a length prefix that overruns the remaining bytes is rejected
+        let mut bad = Vec::new();
+        bad.extend_from_slice(&0u64.to_le_bytes()); // updated_at_height
+        bad.extend_from_slice(&0u64.to_le_bytes()); // sequence
+        bad.extend_from_slice(&99u64.to_le_bytes()); // signature length (overruns)
+        assert!(NodeEntry::try_from_bytes(&bad).is_err());
+    }
+}

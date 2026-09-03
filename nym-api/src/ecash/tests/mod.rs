@@ -8,7 +8,7 @@ use crate::ecash::state::EcashState;
 use crate::node_families::cache::NodeFamiliesCacheData;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::nyxd::Client;
+use crate::support::nyxd::{construct_ecash_api_client, Client};
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use axum::Router;
@@ -841,7 +841,7 @@ impl super::client::Client for DummyClient {
             .get_verification_key_shares(epoch_id)
             .await?
             .into_iter()
-            .map(|s| s.try_into().unwrap())
+            .map(|s| construct_ecash_api_client(s).unwrap())
             .collect())
     }
 
@@ -1284,7 +1284,7 @@ pub(crate) async fn build_dummy_ecash_state(
 ) -> DummyEcashBundle {
     let mut rng = crate::ecash::tests::fixtures::test_rng(rng_seed);
     let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
-    let identity = ed25519::KeyPair::new(&mut rng);
+    let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
     let epoch = Arc::new(AtomicU64::new(1));
     let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let comm_channel = DummyCommunicationChannel::new_single_dummy(
@@ -1337,7 +1337,7 @@ pub(crate) async fn build_dummy_ecash_state(
         None,
     )];
     dummy.export_to_env();
-    let real_client = Client::new(config).unwrap();
+    let real_client = Client::new(config, &NymNetworkDetails::new_from_env()).unwrap();
 
     DummyEcashBundle {
         ecash_state,
@@ -1544,7 +1544,7 @@ mod credential_tests {
     #[tokio::test]
     async fn state_functions() {
         let mut rng = OsRng;
-        let identity = ed25519::KeyPair::new(&mut rng);
+        let identity = Arc::new(ed25519::KeyPair::new(&mut rng));
         let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
         let nyxd_client = DummyClient::new(address.clone(), Default::default());

@@ -15,6 +15,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::http::state::chain_status::ChainStatusCache;
 use crate::support::http::state::contract_details::ContractDetailsCache;
+use crate::support::http::state::directory::DirectoryState;
 use crate::support::http::state::force_refresh::ForcedRefresh;
 use crate::support::http::state::mixnet_contract_cache::MixnetContractCacheState;
 use crate::support::http::state::network_monitors::{LastNMSubmissions, NetworkMonitorsCache};
@@ -31,6 +32,7 @@ use tokio::sync::RwLockReadGuard;
 
 pub(crate) mod chain_status;
 pub(crate) mod contract_details;
+pub(crate) mod directory;
 pub(crate) mod force_refresh;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_contract_cache;
@@ -41,6 +43,9 @@ pub(crate) mod test_helpers;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
+    /// Identity of this nym-api instance.
+    pub(crate) identity_keypair: Arc<ed25519::KeyPair>,
+
     // ideally this would have been made generic to make tests easier,
     // however, it'd be a way bigger change (I tried)
     /// Instance of a client used for interacting with the nyx chain.
@@ -104,6 +109,9 @@ pub(crate) struct AppState {
     // todo: refactor it into inner: Arc<EcashStateInner>
     /// Cache holding data required by the ecash credentials - static signatures, merkle trees, etc.
     pub(crate) ecash_state: Arc<EcashState>,
+
+    /// Verified nym-directory retrieved from the directory contract.
+    pub(crate) directory: DirectoryState,
 }
 
 impl FromRef<AppState> for ApiStatusState {
@@ -151,6 +159,12 @@ impl FromRef<AppState> for NodeStatusCache {
 impl FromRef<AppState> for SharedCache<SignersCacheData> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.ecash_signers_cache.clone()
+    }
+}
+
+impl FromRef<AppState> for DirectoryState {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.directory.clone()
     }
 }
 

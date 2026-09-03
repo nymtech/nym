@@ -14,13 +14,13 @@
 //!
 //! Usage:
 //!   MNEMONIC="<funded mnemonic>" \
-//!   cargo run --release -p smoldvpn --example zcash-sync [-- --blocks <N> <options>]
+//!   cargo run --release -p nym-smoldvpn --example zcash-sync [-- --blocks <N> <options>]
 
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use http::uri::PathAndQuery;
-use smoldvpn::Tunnel;
+use nym_smoldvpn::Tunnel;
 use tonic::client::Grpc;
 use tonic::transport::{Channel, Endpoint};
 use tonic::Request;

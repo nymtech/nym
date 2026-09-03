@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.85"
+version = "1.1.87"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -99,6 +99,7 @@ nym-http-api-client = { workspace = true }
 nym-bin-common = { workspace = true, features = ["output_format", "openapi", "basic_tracing"] }
 nym-node-tester-utils = { workspace = true }
 nym-node-requests = { workspace = true, features = ["client"] }
+nym-network-defaults = {workspace = true, features = ["serde", "utoipa"]}
 nym-types = { workspace = true }
 nym-http-api-common = { workspace = true, features = ["utoipa", "output", "middleware"] }
 nym-serde-helpers = { workspace = true, features = ["date"] }
@@ -106,6 +107,8 @@ nym-ticketbooks-merkle = { workspace = true }
 nym-statistics-common = { workspace = true }
 nym-ecash-signer-check = { workspace = true }
 nym-node-families-contract-common = { workspace = true }
+nym-directory-attestation = { workspace = true, features = ["utoipa"] }
+nym-directory-client = { workspace = true, features = ["light-client", "https-checkpoint-fetcher"] }
 
 
 [features]
@@ -134,6 +137,9 @@ rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }
+nym-crypto = { workspace = true, features = ["rand"] }
+nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-directory-contract-common = { workspace = true }
 
 [lints]
 workspace = true

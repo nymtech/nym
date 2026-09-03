@@ -67,7 +67,6 @@ use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
-use url::Url;
 
 #[cfg(target_arch = "wasm32")]
 #[cfg(debug_assertions)]
@@ -663,16 +662,11 @@ where
     fn setup_topology_provider(
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
-        nym_api_urls: Vec<Url>,
         nym_api_client: nym_http_api_client::Client,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| {
-            Box::new(NymApiTopologyProvider::new(
-                config_topology,
-                nym_api_urls,
-                nym_api_client,
-            ))
+            Box::new(NymApiTopologyProvider::new(config_topology, nym_api_client))
         })
     }
 
@@ -1051,7 +1045,6 @@ where
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology,
-            self.config.get_nym_api_endpoints(),
             nym_api_client,
         );
 
@@ -1237,7 +1230,7 @@ mod tests {
     fn test_network_details_with_multiple_urls() {
         // Verify that network details can be configured with multiple API URLs
         let mut network_details = NymNetworkDetails::new_empty();
-        network_details.nym_api_urls = Some(vec![
+        network_details.set_nym_api_urls(vec![
             ApiUrl {
                 url: "https://validator.nymtech.net/api/".to_string(),
                 front_hosts: None,
@@ -1248,12 +1241,8 @@ mod tests {
             },
         ]);
 
-        assert_eq!(network_details.nym_api_urls.as_ref().unwrap().len(), 2);
-        assert!(
-            network_details.nym_api_urls.as_ref().unwrap()[1]
-                .front_hosts
-                .is_some()
-        );
+        assert_eq!(network_details.nym_api_urls().len(), 2);
+        assert!(network_details.nym_api_urls()[1].front_hosts.is_some());
     }
 
     #[test]

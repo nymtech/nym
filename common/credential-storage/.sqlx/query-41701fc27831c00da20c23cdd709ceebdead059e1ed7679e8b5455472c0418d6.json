@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT epoch_id as \"epoch_id: i64\" FROM master_verification_key",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "41701fc27831c00da20c23cdd709ceebdead059e1ed7679e8b5455472c0418d6"
+}

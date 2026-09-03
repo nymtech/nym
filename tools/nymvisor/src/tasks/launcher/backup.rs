@@ -9,19 +9,18 @@ use flate2::write::GzEncoder;
 use std::fs;
 use std::fs::{DirEntry, File};
 use std::path::{Path, PathBuf};
-use time::{OffsetDateTime, format_description};
+use time::OffsetDateTime;
+use time::format_description::BorrowedFormatItem;
+use time::macros::format_description;
 use tracing::info;
 
+const TIME_FORMAT: &[BorrowedFormatItem<'_>] =
+    format_description!("[year]-[month]-[day]-[hour][minute][second][subsecond digits:3]");
+
 fn generate_backup_filename() -> String {
-    // safety: this expect is fine as we're using a constant formatter.
-    #[allow(clippy::expect_used)]
-    let format = format_description::parse(
-        "[year]-[month]-[day]-[hour][minute][second][subsecond digits:3]",
-    )
-    .expect("our time formatter is malformed");
     #[allow(clippy::expect_used)]
     let now = OffsetDateTime::now_utc()
-        .format(&format)
+        .format(&TIME_FORMAT)
         .expect("our time formatter failed to format the current time");
 
     format!("backup-{now}-preupgrade.tar.gz")

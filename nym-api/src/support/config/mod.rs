@@ -92,6 +92,7 @@ const DEFAULT_MIN_STRESS_TESTED_NODES: f32 = 0.5;
 const DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 const DEFAULT_STRESS_TESTING_SCORE_WEIGHT: f64 = 0.2;
+const DEFAULT_CHAIN_INTERACTIONS_PENALTY: f64 = 0.2;
 
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
@@ -159,6 +160,9 @@ pub struct Config {
     #[serde(alias = "coconut_signer")]
     pub ecash_signer: EcashSigner,
 
+    #[serde(default)]
+    pub directory: DirectoryConfig,
+
     #[serde(skip)]
     pub address_cache: AddressCacheConfig,
 }
@@ -185,6 +189,7 @@ impl Config {
             rewarding: Default::default(),
             signers_cache: Default::default(),
             ecash_signer: EcashSigner::new_default(id.as_ref()),
+            directory: Default::default(),
             address_cache: Default::default(),
         }
     }
@@ -216,6 +221,8 @@ impl Config {
         }
 
         self.ecash_signer.validate()?;
+        self.performance_provider.validate()?;
+        self.directory.validate()?;
 
         Ok(())
     }
@@ -489,6 +496,12 @@ pub struct PerformanceProvider {
     pub debug: PerformanceProviderDebug,
 }
 
+impl PerformanceProvider {
+    fn validate(&self) -> anyhow::Result<()> {
+        self.debug.validate()
+    }
+}
+
 #[allow(clippy::derivable_impls)]
 impl Default for PerformanceProvider {
     fn default() -> Self {
@@ -534,9 +547,30 @@ pub struct PerformanceProviderDebug {
     /// If use_stress_testing_data is enabled, specifies the weight of the stress testing score in the overall performance score.
     pub stress_testing_score_weight: f64,
 
+    /// Config score penalty for nodes that do not have a cosmos account capable of interacting with the nyx chain
+    pub chain_interactions_penalty: f64,
+
     /// Specifies the duration of the rolling average used for stress testing score.
     #[serde(with = "humantime_serde")]
     pub stress_testing_data_period: Duration,
+}
+
+impl PerformanceProviderDebug {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.stress_testing_score_weight < 0.0
+            || self.stress_testing_score_weight > 1.0
+            || !self.stress_testing_score_weight.is_finite()
+        {
+            bail!("the .stress_testing_score_weight field is set to a value outside of the range [0.0, 1.0]");
+        }
+        if self.chain_interactions_penalty < 0.0
+            || self.chain_interactions_penalty > 1.0
+            || !self.chain_interactions_penalty.is_finite()
+        {
+            bail!("the .chain_interactions_penalty field is set to a value outside of the range [0.0, 1.0]");
+        }
+        Ok(())
+    }
 }
 
 #[allow(clippy::derivable_impls)]
@@ -551,6 +585,7 @@ impl Default for PerformanceProviderDebug {
             use_stress_testing_data: false,
             minimum_available_stress_testing_results: DEFAULT_MIN_STRESS_TESTED_NODES,
             stress_testing_score_weight: DEFAULT_STRESS_TESTING_SCORE_WEIGHT,
+            chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
         }
     }
@@ -912,6 +947,61 @@ impl Default for EcashSignerDebug {
             verified_tickets_retention_period_days:
                 Self::DEFAULT_VERIFIED_TICKETS_RETENTION_PERIOD_DAYS,
             maximum_size_of_data_request: Self::MAXIMUM_SIZE_OF_DATA_REQUEST,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize, Default)]
+#[serde(default)]
+pub struct DirectoryConfig {
+    pub debug: DirectoryConfigDebug,
+}
+
+impl DirectoryConfig {
+    fn validate(&self) -> anyhow::Result<()> {
+        self.debug.validate()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct DirectoryConfigDebug {
+    /// Number of snapshots to keep
+    pub retention_count: usize,
+
+    /// Number of blocks to wait before promoting the most recently pulled snapshot as latest.
+    pub settle_lag: usize,
+
+    /// Specifies whether the RPC node this api is connected to is trusted.
+    /// It controls method of anchoring directory trust.
+    pub trusted_rpc_node: bool,
+
+    /// How often the chain should be polled for the current height
+    /// and consequently for whether new snapshot should be taken
+    #[serde(with = "humantime_serde")]
+    pub polling_interval: Duration,
+}
+
+impl DirectoryConfigDebug {
+    pub const DEFAULT_RETENTION_COUNT: usize = 3;
+    pub const DEFAULT_SETTLE_LAG: usize = 10;
+    pub const DEFAULT_POLLING_INTERVAL: Duration = Duration::from_secs(30);
+
+    fn validate(&self) -> anyhow::Result<()> {
+        if !self.trusted_rpc_node {
+            bail!("untrusted local rpc node is currently not fully supported")
+        }
+        Ok(())
+    }
+}
+
+impl Default for DirectoryConfigDebug {
+    fn default() -> Self {
+        DirectoryConfigDebug {
+            retention_count: Self::DEFAULT_RETENTION_COUNT,
+            settle_lag: Self::DEFAULT_SETTLE_LAG,
+            trusted_rpc_node: true,
+            polling_interval: Self::DEFAULT_POLLING_INTERVAL,
         }
     }
 }

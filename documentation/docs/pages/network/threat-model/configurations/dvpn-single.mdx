@@ -1,0 +1,16 @@
+---
+title: "dVPN · single exit"
+description: "A 2-hop WireGuard tunnel hides the client IP, but a single fixed exit leaves requests linkable at the destination."
+schemaType: "TechArticle"
+section: "Network"
+lastUpdated: "2026-07-29"
+---
+
+import { GenericScenarioView } from 'components/threat-model/GenericScenarioView'
+import { requireGenericScenario } from 'lib/privacy-model/examples/generic'
+
+export const scenario = requireGenericScenario('dvpn-single')
+
+# dVPN · single exit
+
+<GenericScenarioView scenario={scenario} />

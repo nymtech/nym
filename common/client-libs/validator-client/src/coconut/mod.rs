@@ -20,6 +20,34 @@ pub struct EcashApiClient {
     pub cosmos_address: cosmrs::AccountId,
 }
 
+impl EcashApiClient {
+    pub fn try_construct_from_share(share: ContractVKShare) -> Result<Self, EcashApiError> {
+        if !share.verified {
+            return Err(EcashApiError::UnverifiedShare);
+        }
+
+        let url_address = Url::parse(&share.announce_address)?;
+
+        // The NymApiClient constructed here uses the default (hickory DoT/DoH) resolver because
+        // this EcashApiClient is used by both client and non-client applications.
+        //
+        // In non-client applications this resolver can cause warning logs about H2 connection
+        // failure. This indicates that the long lived https connection was closed by the remote
+        // peer and the resolver will have to reconnect. It should not impact actual functionality
+        let api_client = nym_http_api_client::Client::builder(url_address)
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+            .build()
+            .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+
+        Ok(EcashApiClient {
+            api_client,
+            verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
+            node_id: share.node_index,
+            cosmos_address: share.owner.as_str().parse()?,
+        })
+    }
+}
+
 impl Display for EcashApiClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -80,36 +108,6 @@ pub enum EcashApiError {
     },
 }
 
-impl TryFrom<ContractVKShare> for EcashApiClient {
-    type Error = EcashApiError;
-
-    fn try_from(share: ContractVKShare) -> Result<Self, Self::Error> {
-        if !share.verified {
-            return Err(EcashApiError::UnverifiedShare);
-        }
-
-        let url_address = Url::parse(&share.announce_address)?;
-
-        // The NymApiClient constructed here uses the default (hickory DoT/DoH) resolver because
-        // this EcashApiClient is used by both client and non-client applications.
-        //
-        // In non-client applications this resolver can cause warning logs about H2 connection
-        // failure. This indicates that the long lived https connection was closed by the remote
-        // peer and the resolver will have to reconnect. It should not impact actual functionality
-        let api_client = nym_http_api_client::Client::builder(url_address)
-            .map_err(|e| EcashApiError::ClientError(e.to_string()))?
-            .build()
-            .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
-
-        Ok(EcashApiClient {
-            api_client,
-            verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
-            node_id: share.node_index,
-            cosmos_address: share.owner.as_str().parse()?,
-        })
-    }
-}
-
 pub async fn all_ecash_api_clients<C>(
     client: &C,
     epoch_id: EpochId,
@@ -122,7 +120,7 @@ where
         .get_all_verification_key_shares(epoch_id)
         .await?
         .into_iter()
-        .map(TryInto::try_into)
+        .map(EcashApiClient::try_construct_from_share)
         .collect::<Result<Vec<_>, _>>()
 
     // ... if not, let's switch to the below:

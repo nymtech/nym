@@ -12,6 +12,7 @@ use clap::builder::ArgPredicate;
 use nym_crypto::asymmetric::ed25519;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -644,6 +645,76 @@ impl LpArgs {
     pub(crate) fn override_config_section(self, mut section: config::LpConfig) -> config::LpConfig {
         if let Some(use_mock_ecash) = self.lp_use_mock_ecash {
             section.debug.use_mock_ecash = use_mock_ecash
+        }
+
+        section
+    }
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct DirectoryArgs {
+    /// Specifies whether this node will attempt to submit its directory information to the contract
+    #[clap(
+        long,
+        env = NYMNODE_DIRECTORY_SUBMISSION_ENABLED_ARG
+    )]
+    pub directory_submission_enabled: Option<bool>,
+
+    /// How often the publisher runs a full reconcile sweep - driving on-chain state
+    /// toward the desired snapshot, refreshing the label whitelist, and deleting
+    /// orphaned entries.
+    #[clap(
+        long,
+        hide = true,
+        value_parser = humantime::parse_duration,
+        env = NYMNODE_DIRECTORY_RECONCILE_SWEEP_INTERVAL_ARG
+    )]
+    pub directory_submission_reconcile_sweep_interval: Option<Duration>,
+
+    /// While dormant (a failed startup preflight, e.g. the node is not yet bonded or the
+    /// relayer account cannot fund writes), how often to re-run preflight so a later
+    /// bond/top-up recovers the publisher without a node restart.
+    #[clap(
+        long,
+        hide = true,
+        value_parser = humantime::parse_duration,
+        env = NYMNODE_DIRECTORY_DORMANT_BACKOFF_INTERVAL_ARG
+    )]
+    pub directory_submission_dormant_backoff_interval: Option<Duration>,
+
+    /// Maximum number of times a write is retried after a sequence-mismatch rejection
+    /// (the expected sequence is re-read from the contract before each retry).
+    #[clap(
+        long,
+        hide = true,
+        env = NYMNODE_WRITE_RETRY_COUNT_ARG
+    )]
+    pub directory_submission_write_retry_count: Option<u32>,
+}
+
+impl DirectoryArgs {
+    pub(crate) fn build_config_section(self) -> config::DirectoryConfig {
+        self.override_config_section(config::DirectoryConfig::default())
+    }
+
+    pub(crate) fn override_config_section(
+        self,
+        mut section: config::DirectoryConfig,
+    ) -> config::DirectoryConfig {
+        if let Some(enabled) = self.directory_submission_enabled {
+            section.enabled = enabled
+        }
+
+        if let Some(reconcile_sweep_interval) = self.directory_submission_reconcile_sweep_interval {
+            section.debug.reconcile_sweep_interval = reconcile_sweep_interval
+        }
+
+        if let Some(dormant_backoff_interval) = self.directory_submission_dormant_backoff_interval {
+            section.debug.dormant_backoff_interval = dormant_backoff_interval
+        }
+
+        if let Some(write_retry_count) = self.directory_submission_write_retry_count {
+            section.debug.write_retry_count = write_retry_count
         }
 
         section

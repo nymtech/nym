@@ -158,10 +158,26 @@ pub(crate) fn vesting_contract_address(storage: &dyn Storage) -> Result<Addr, Mi
 
 pub(crate) fn node_families_contract_address(
     storage: &dyn Storage,
-) -> Result<Addr, MixnetContractError> {
+) -> Result<Option<Addr>, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
         .map(|state| state.node_families_contract_address)?)
+}
+
+pub(crate) fn geolocation_contract_address(
+    storage: &dyn Storage,
+) -> Result<Option<Addr>, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.geolocation_contract_address)?)
+}
+
+pub(crate) fn directory_contract_address(
+    storage: &dyn Storage,
+) -> Result<Option<Addr>, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.directory_contract_address)?)
 }
 
 pub(crate) fn state_params(

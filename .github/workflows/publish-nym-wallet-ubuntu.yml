@@ -28,7 +28,7 @@ jobs:
             libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5.0.0
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 11.1.2
 
@@ -51,7 +51,7 @@ jobs:
         run: pnpm i
       
       - name: Create env file
-        uses: timheuer/base64-to-file@v1.2
+        uses: timheuer/base64-to-file@v2.0
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
@@ -147,7 +147,7 @@ jobs:
       
       - id: create-release
         name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.event_name == 'release'
         with:
           files: |

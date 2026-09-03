@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::ops::Not;
 use url::Url;
 
+pub mod v2;
+
 #[cfg(feature = "env")]
 use crate::var_names;
 #[cfg(feature = "env")]
@@ -43,6 +45,10 @@ pub struct NymContracts {
     pub network_monitors_contract_address: Option<String>,
     #[serde(default)]
     pub node_families_contract_address: Option<String>,
+    #[serde(default)]
+    pub directory_contract_address: Option<String>,
+    #[serde(default)]
+    pub geolocation_contract_address: Option<String>,
     pub ecash_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
@@ -58,9 +64,9 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
-    pub nym_vpn_api_url: Option<String>,
     pub nym_api_urls: Option<Vec<ApiUrl>>,
     pub nym_vpn_api_urls: Option<Vec<ApiUrl>>,
+    pub nym_vpn_api_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
@@ -89,6 +95,44 @@ impl From<Url> for ApiUrl {
 pub struct ApiUrlConst<'a> {
     pub url: &'a str,
     pub front_hosts: Option<&'a [&'a str]>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DirectoryAttestationSource {
+    pub api_url: String,
+    pub identity_ed25519_bs58: String,
+}
+
+/// A nym-api capable of producing a signed directory-digest-snapshot attestation (see
+/// `nym-directory-client`'s `AttestedTrustAnchor`), paired with the ed25519 identity
+/// key it is expected to sign with.
+#[derive(Copy, Clone, Debug, Serialize)]
+pub struct DirectoryAttestationSourceConst<'a> {
+    pub api_url: &'a str,
+    pub identity_ed25519_bs58: &'a str,
+}
+
+impl From<DirectoryAttestationSourceConst<'_>> for DirectoryAttestationSource {
+    fn from(value: DirectoryAttestationSourceConst) -> Self {
+        DirectoryAttestationSource {
+            api_url: value.api_url.into(),
+            identity_ed25519_bs58: value.identity_ed25519_bs58.into(),
+        }
+    }
+}
+
+pub fn default_directory_attestation_sources() -> Vec<DirectoryAttestationSource> {
+    #[cfg(feature = "env")]
+    {
+        if crate::env_configured() {
+            return json_deserialise_env(var_names::DIRECTORY_ATTESTATION_SOURCES)
+                .unwrap_or_default();
+        }
+    }
+    mainnet::DIRECTORY_ATTESTATION_SOURCES
+        .iter()
+        .map(|i| (*i).into())
+        .collect()
 }
 
 impl From<ApiUrlConst<'_>> for ApiUrl {
@@ -136,26 +180,26 @@ impl NymNetworkDetails {
 
     #[cfg(feature = "env")]
     pub fn new_from_env() -> Self {
-        fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
-            match var(env) {
-                Ok(var) => {
-                    if var.is_empty() {
-                        None
-                    } else {
-                        Some(var)
-                    }
-                }
-                Err(VarError::NotPresent) => None,
-                err => panic!("Unable to set: {err:?}"),
-            }
-        }
-
-        let nym_api = var(var_names::NYM_API).expect("nym api not set");
-        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or(vec![ApiUrl {
-            url: nym_api.clone(),
-            front_hosts: None,
-        }]);
-        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS);
+        let nym_api_urls = try_parse_api_urls(var_names::NYM_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_APIS
+            )
+        });
+        let nym_api_urls = if nym_api_urls.is_empty() {
+            vec![parse_legacy_nym_api()]
+        } else {
+            nym_api_urls
+        };
+        let nym_api = nym_api_urls
+            .first()
+            .expect("nym_api_urls is guaranteed non-empty at this point");
+        let nym_vpn_api_urls = try_parse_api_urls(var_names::NYM_VPN_APIS).unwrap_or_else(|e| {
+            panic!(
+                "{} is set but could not be parsed: {e}",
+                var_names::NYM_VPN_APIS
+            )
+        });
 
         NymNetworkDetails::new_empty()
             .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
@@ -182,7 +226,7 @@ impl NymNetworkDetails {
             })
             .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
-                Some(nym_api.clone()),
+                Some(nym_api.url.clone()),
                 get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
             .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
@@ -190,6 +234,8 @@ impl NymNetworkDetails {
             .with_node_families_contract(get_optional_env(
                 var_names::NODE_FAMILIES_CONTRACT_ADDRESS,
             ))
+            .with_geolocation_contract(get_optional_env(var_names::GEOLOCATION_CONTRACT_ADDRESS))
+            .with_directory_contract(get_optional_env(var_names::DIRECTORY_CONTRACT_ADDRESS))
             .with_ecash_contract(get_optional_env(var_names::ECASH_CONTRACT_ADDRESS))
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
@@ -198,7 +244,6 @@ impl NymNetworkDetails {
             .with_network_monitors_contract(get_optional_env(
                 var_names::NETWORK_MONITORS_CONTRACT_ADDRESS,
             ))
-            .with_nym_vpn_api_url(get_optional_env(var_names::NYM_VPN_API))
             .with_nym_vpn_api_urls(nym_vpn_api_urls)
             .with_nym_api_urls(nym_api_urls)
     }
@@ -224,6 +269,10 @@ impl NymNetworkDetails {
                 ),
                 node_families_contract_address: parse_optional_str(
                     mainnet::NODE_FAMILIES_CONTRACT_ADDRESS,
+                ),
+                directory_contract_address: parse_optional_str(mainnet::DIRECTORY_CONTRACT_ADDRESS),
+                geolocation_contract_address: parse_optional_str(
+                    mainnet::GEOLOCATION_CONTRACT_ADDRESS,
                 ),
                 ecash_contract_address: parse_optional_str(mainnet::ECASH_CONTRACT_ADDRESS),
                 group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
@@ -256,8 +305,8 @@ impl NymNetworkDetails {
             }
         }
         unsafe {
-            let nym_api_urls = self.nym_api_urls();
-            let nym_vpn_api_urls = self.nym_vpn_api_urls();
+            let nym_api_urls = self.nym_api_urls_str();
+            let nym_vpn_api_urls = self.nym_vpn_api_urls_str();
 
             set_var(var_names::NETWORK_NAME, self.network_name);
             set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
@@ -280,12 +329,13 @@ impl NymNetworkDetails {
             set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
             set_optional_var(var_names::NETWORK_MONITORS_CONTRACT_ADDRESS, self.contracts.network_monitors_contract_address);
             set_optional_var(var_names::NODE_FAMILIES_CONTRACT_ADDRESS, self.contracts.node_families_contract_address);
+            set_optional_var(var_names::DIRECTORY_CONTRACT_ADDRESS, self.contracts.directory_contract_address);
+            set_optional_var(var_names::GEOLOCATION_CONTRACT_ADDRESS, self.contracts.geolocation_contract_address);
             set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
             set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
             set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
             set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
 
-            set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
             set_optional_var(var_names::NYM_VPN_APIS, nym_vpn_api_urls);
             set_optional_var(var_names::NYM_APIS, nym_api_urls);
 
@@ -375,6 +425,18 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_directory_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.directory_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_geolocation_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.geolocation_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
     pub fn with_ecash_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.ecash_contract_address = contract.map(Into::into);
         self
@@ -410,14 +472,9 @@ impl NymNetworkDetails {
         self
     }
 
-    #[must_use]
-    pub fn with_nym_vpn_api_url<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
-        self.nym_vpn_api_url = endpoint.map(Into::into);
-        self
-    }
-
     pub fn set_nym_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
-        self.nym_api_urls = Some(urls.into_iter().map(Into::into).collect());
+        let urls: Vec<ApiUrl> = urls.into_iter().map(Into::into).collect();
+        self.nym_api_urls = (!urls.is_empty()).then_some(urls);
     }
 
     #[must_use]
@@ -426,40 +483,111 @@ impl NymNetworkDetails {
         self
     }
 
+    pub fn set_nym_vpn_api_urls<U: Into<ApiUrl>>(&mut self, urls: Vec<U>) {
+        let urls: Vec<ApiUrl> = urls.into_iter().map(Into::into).collect();
+        if urls.is_empty() {
+            self.nym_vpn_api_urls = None;
+            self.nym_vpn_api_url = None
+        } else {
+            self.nym_vpn_api_url = Some(urls.first().expect("checked non-empty above").url.clone());
+            self.nym_vpn_api_urls = Some(urls);
+        }
+    }
+
     #[must_use]
-    pub fn with_nym_vpn_api_urls(mut self, urls: Option<Vec<ApiUrl>>) -> Self {
-        self.nym_vpn_api_urls = urls;
+    pub fn with_nym_vpn_api_urls<U: Into<ApiUrl>>(mut self, urls: Vec<U>) -> Self {
+        self.set_nym_vpn_api_urls(urls);
         self
     }
 
-    pub fn nym_vpn_api_url(&self) -> Option<Url> {
-        self.nym_vpn_api_url.as_ref().map(|url| {
-            url.parse()
-                .expect("the provided nym-vpn api url is invalid!")
-        })
+    /// Returns the configured `nym_api_urls` if any are set, otherwise
+    /// falls back to the api urls derived from `endpoints` (the legacy validator list).
+    pub fn nym_api_urls(&self) -> Vec<ApiUrl> {
+        if let Some(urls) = &self.nym_api_urls
+            && !urls.is_empty()
+        {
+            return urls.clone();
+        }
+
+        self.endpoints
+            .iter()
+            .filter_map(|e| e.api_url())
+            .map(ApiUrl::from)
+            .collect()
     }
 
     #[cfg(feature = "env")]
-    fn nym_api_urls(&self) -> Option<String> {
-        serde_json::to_string(self.nym_api_urls.as_deref()?)
+    fn nym_api_urls_str(&self) -> Option<String> {
+        serde_json::to_string(&self.nym_api_urls())
             .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
             .ok()
     }
 
+    pub fn nym_vpn_api_urls(&self) -> Vec<ApiUrl> {
+        self.nym_vpn_api_urls.clone().unwrap_or_default()
+    }
+
     #[cfg(feature = "env")]
-    fn nym_vpn_api_urls(&self) -> Option<String> {
-        serde_json::to_string(self.nym_vpn_api_urls.as_deref()?)
+    fn nym_vpn_api_urls_str(&self) -> Option<String> {
+        serde_json::to_string(&self.nym_vpn_api_urls())
             .inspect_err(|e| tracing::warn!("failed to serialize nym_vpn_api_urls for env: {e}"))
             .ok()
     }
 }
 
 #[cfg(feature = "env")]
-fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Option<Vec<ApiUrl>> {
+pub(crate) fn json_serialise<T>(data: &T) -> String
+where
+    T: ?Sized + serde::Serialize,
+{
+    serde_json::to_string(data)
+        .inspect_err(|e| tracing::warn!("failed to serialise data for env: {e}"))
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "env")]
+pub(crate) fn json_deserialise_env<T>(k: impl AsRef<OsStr>) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
     let raw = var(k).ok()?;
     serde_json::from_str(&raw)
-        .inspect_err(|e| tracing::warn!("failed to parse api urls from env \"{raw:?}\": {e}"))
+        .inspect_err(|e| tracing::warn!("failed to parse data from env \"{raw:?}\": {e}"))
         .ok()
+}
+
+#[cfg(feature = "env")]
+fn try_parse_api_urls(k: impl AsRef<OsStr>) -> Result<Vec<ApiUrl>, serde_json::Error> {
+    match var(k) {
+        Ok(raw) if !raw.is_empty() => serde_json::from_str(&raw),
+        _ => Ok(Vec::new()),
+    }
+}
+
+#[cfg(feature = "env")]
+fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
+    match var(env) {
+        Ok(var) => (!var.is_empty()).then_some(var),
+        Err(VarError::NotPresent) => None,
+        err => panic!("Unable to set: {err:?}"),
+    }
+}
+
+// NYM_APIS was introduced to replace the singular NYM_API; fall back to it so
+// setups that only ever configured NYM_API (via setup_env's legacy migration
+// or otherwise) keep working.
+#[cfg(feature = "env")]
+fn parse_legacy_nym_api() -> ApiUrl {
+    let legacy_api = get_optional_env(var_names::NYM_API).unwrap_or_else(|| {
+        panic!(
+            "neither {} nor legacy {} is set",
+            var_names::NYM_APIS,
+            var_names::NYM_API
+        )
+    });
+    Url::parse(&legacy_api)
+        .unwrap_or_else(|e| panic!("{} is not a valid url: {e}", var_names::NYM_API))
+        .into()
 }
 
 #[derive(Debug, Copy, Serialize, Deserialize, Clone, PartialEq, Eq)]

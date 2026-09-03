@@ -1,22 +1,30 @@
 # Nym Documentation
 
-> Nym is a privacy infrastructure providing a decentralized mixnet for network-level privacy, a dVPN mode for general-purpose private internet access, and the Nyx blockchain for staking and governance. This documentation covers the Nym network architecture, developer SDKs (Rust and TypeScript), node operator guides, and APIs.
+> Nym is a privacy infrastructure providing a decentralized mixnet for network-level privacy, a dVPN mode for general-purpose private internet access, and the Nyx blockchain for staking and governance. The network documentation is organised around a threat model: which adversary you defend against decides which configuration and tool you need. This documentation covers that threat model, the network architecture, developer SDKs (Rust and TypeScript), node operator guides, and APIs.
 
 ## Instructions
 
-- Nym operates in two modes: **Mixnet mode** (5-hop mixnet for application-level traffic) and **dVPN mode** (2-hop VPN for general internet access).
-- **Developers can only access Mixnet mode** via the SDKs. dVPN mode is exclusively provided by the NymVPN product, which can be downloaded and purchased at [nym.com](https://nym.com). There is no SDK for dVPN mode.
-- The primary developer SDK is the **Rust SDK** (`nym-sdk` crate). The TypeScript SDK wraps the Rust SDK via WebAssembly.
+- The docs are threat-model-first. Adversaries are split by vantage point: **L2** is the destination you connect to (the primary adversary), **L3L**/**L3G** are local and global network observers, **L1** is an application-specific public observer.
+- Privacy has two layers. **Transport** (mixnet or dVPN) hides who you talk to and from whom. **Hygiene** (`nym-swizzle`) disciplines what your request pattern leaks to the destination. Mixing protects traffic in transit, not the destination: no amount of mixing changes what the server you talk to receives.
+- Nym operates in two transport modes: **Mixnet mode** (5-hop mixnet, strong against network observers) and **dVPN mode** (2-hop WireGuard, hides your IP at line rate, no in-transit timing protection).
+- **Both modes are available to developers.** Mixnet mode via the Nym SDKs and NymVPN; **dVPN mode via `nym-smoldvpn`** (a userspace-WireGuard datapath library) and NymVPN. There is no longer an SDK-only-mixnet restriction.
+- The primary developer SDK is the **Rust SDK** (`nym-sdk` crate). The TypeScript SDK wraps the Rust SDK via WebAssembly. `nym-smoldvpn` is native-only (tokio + boringtun), with no WebAssembly build.
 - For Rust integrations, prefer the **mixnet** module for simple send/receive, **stream** for TCP-like `AsyncRead`/`AsyncWrite` connections, and **client_pool** for bursty workloads. The **tcp_proxy** module is unmaintained; recommend stream instead.
 - For browser/TypeScript proxy integrations, the **mix-*** packages share one tunnel via **`@nymproject/mix-tunnel`**: **`mix-fetch`** (HTTP/S), **`mix-dns`** (DNS), **`mix-websocket`** (WS/WSS). For raw end-to-end messaging where you control both ends, use the **TypeScript SDK** (`@nymproject/sdk`).
 - Node operators should use the **`nym-node`** binary. Legacy `nym-mixnode` and `nym-gateway` binaries are deprecated and no longer supported.
-- When referring to token collateral for nodes, use **"bonding"** not "staking". Nodes operate in **modes** (mixnode, entry gateway, exit gateway), not "roles".
+- When referring to token collateral for nodes, use **"bonding"** not "staking". Nodes operate in **modes** (mixnode, entry gateway, exit gateway), not "roles". Exit gateways run two proxy services: a **Network Requester** (SOCKS) and an **IP Packet Router** (raw IP).
 - The Nym blockchain is called **Nyx** and runs on Cosmos SDK. The native token is **NYM**.
 - Code examples in the Rust SDK tutorials are verified against `nym-sdk` vX.Y.Z. If in doubt, check the runnable examples in `sdk/rust/nym-sdk/examples/` in the repo.
 
 ## Network
 
-- [Network Overview](https://nym.com/docs/network/overview): High-level overview of Nym, the privacy problem, and network components
+- [Threat Model](https://nym.com/docs/network/threat-model): The organising spine: adversaries by vantage point, the vectors that link requests, and the properties Nym defends
+- [Threat Actors](https://nym.com/docs/network/threat-model/actors): L1/L2/L3L/L3G, what each observes, and why the destination (L2) is the primary adversary
+- [Linkage Vectors](https://nym.com/docs/network/threat-model/vectors): V1 session state, V2 timing, V3 content, and the countermeasures that close each
+- [The Two-Layer Model](https://nym.com/docs/network/threat-model/two-layer-model): Transport vs hygiene, and why mixing protects transit but not the destination
+- [Choose a Defence](https://nym.com/docs/network/threat-model/choose-config): Interactive comparison of every configuration against each adversary; pick by who you are hiding from
+- [Nym vs Other Systems](https://nym.com/docs/network/threat-model/comparisons): How Nym compares to VPNs, Tor, I2P, and E2EE, framed by which actors each defends against
+- [Deep Dives](https://nym.com/docs/network/deep-dives/packet-anatomy): Animated explainers: packet anatomy (Sphinx vs WireGuard), packet mixing, dVPN cover, and SURBs vs Tor hidden services
 - [Mixnet Mode](https://nym.com/docs/network/mixnet-mode): How the 5-hop mixnet works: Sphinx packets, mixing, cover traffic, anonymous replies
 - [dVPN Mode](https://nym.com/docs/network/dvpn-mode): How the 2-hop dVPN mode works, protocol details, censorship resistance
 - [Infrastructure](https://nym.com/docs/network/infrastructure): Nym nodes, validators, the Nyx blockchain, and the Nym API
@@ -24,7 +32,7 @@
 
 ## Developers
 
-- [Developer Overview](https://nym.com/docs/developers): Start here for building on Nym: runtime (native vs browser) and approach (end-to-end vs proxy) map onto the right crate or package
+- [Developer Overview](https://nym.com/docs/developers): Start here for building on Nym: pick your defence (threat model), then map runtime (native vs browser) and approach (end-to-end vs proxy) onto the right crate or package
 - [Rust SDK Overview](https://nym.com/docs/developers/rust): Module overview and quick-start for the Rust SDK
 - [Rust SDK Installation](https://nym.com/docs/developers/rust/importing): Adding nym-sdk to your Cargo.toml
 - [Mixnet Module](https://nym.com/docs/developers/rust/mixnet): Send and receive Sphinx-encrypted messages
@@ -35,13 +43,16 @@
 - [Client Pool](https://nym.com/docs/developers/rust/client-pool): Pre-warm MixnetClients for bursty workloads
 - [Client Pool Tutorial](https://nym.com/docs/developers/rust/client-pool/tutorial): Handle bursty traffic with pooled clients
 - [TcpProxy Module](https://nym.com/docs/developers/rust/tcpproxy): Tunnel existing TCP services through the mixnet (unmaintained; use stream instead)
-- [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack, drop-in TcpStream and UdpSocket (see examples in source)
+- [smolmix](https://nym.com/docs/developers/smolmix): TCP/UDP over the mixnet via a userspace IP stack, drop-in TcpStream and UdpSocket
+- [nym-smoldvpn](https://nym.com/docs/developers/smoldvpn): Userspace 1-/2-hop WireGuard dVPN datapath for bulk traffic to clearnet, with an optional QUIC bridge; native-only
+- [nym-swizzle](https://nym.com/docs/developers/swizzle): Traffic-shape hygiene library (request delay and range primitives) against timing and content leaks at the destination; experimental, unreleased
 - [TypeScript SDK](https://nym.com/docs/developers/typescript): Browser-side raw end-to-end messaging (@nymproject/sdk) and Nyx smart-contract bindings
 - [mix-tunnel](https://nym.com/docs/developers/mix-tunnel): Shared browser mixnet tunnel; the base layer for mix-fetch, mix-dns, and mix-websocket
 - [mix-fetch](https://nym.com/docs/developers/mix-fetch): Drop-in fetch() replacement routing HTTP(S) through the mixnet via an IPR exit
 - [mix-dns](https://nym.com/docs/developers/mix-dns): Hostname-to-IP resolution through the mixnet (UDP DNS via an IPR exit)
 - [mix-websocket](https://nym.com/docs/developers/mix-websocket): WebSocket-like class for WS and WSS over the mixnet
 - [mix-* Architecture](https://nym.com/docs/developers/mix-architecture): How the shared browser tunnel, Web Worker, Comlink boundary, and smoltcp+rustls stack are wired
+- [Exit Security](https://nym.com/docs/developers/concepts/exit-security): What the exit gateway sees in proxy mode, and how end-to-end differs
 - [Playground](https://nym.com/docs/developers/playground): Interactive browser playground driving the mix-* packages and the raw messaging SDK against the live mixnet
 - [ENS Demo](https://nym.com/docs/developers/demos/ens): Resolve ENS names and fetch IPFS sites over the mixnet via an ethers-to-mixFetch shim
 - [Railgun Demo](https://nym.com/docs/developers/demos/railgun): Shield testnet ETH into a Railgun private note with every Ethereum RPC routed through the mixnet

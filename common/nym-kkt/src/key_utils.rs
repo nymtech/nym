@@ -4,26 +4,26 @@
 use libcrux_ml_kem::mlkem768::MlKem768KeyPair;
 use libcrux_psq::handshake::types::DHKeyPair;
 use nym_kkt_ciphersuite::{DEFAULT_HASH_LEN, HashFunction, KEMKeyDigests};
-use rand09::{CryptoRng, RngCore};
+use rand010::{CryptoRng, Rng};
 use std::collections::BTreeMap;
 
 pub fn generate_lp_keypair_x25519<R>(rng: &mut R) -> DHKeyPair
 where
-    R: RngCore + CryptoRng,
+    R: Rng + CryptoRng,
 {
     DHKeyPair::new(rng)
 }
 
 pub fn generate_keypair_mlkem<R>(rng: &mut R) -> MlKem768KeyPair
 where
-    R: RngCore + CryptoRng,
+    R: Rng + CryptoRng,
 {
     libcrux_ml_kem::mlkem768::rand::generate_key_pair(rng)
 }
 
 pub fn generate_keypair_mceliece<R>(rng: &mut R) -> libcrux_psq::classic_mceliece::KeyPair
 where
-    R: RngCore + CryptoRng,
+    R: Rng + CryptoRng,
 {
     libcrux_psq::classic_mceliece::KeyPair::generate_key_pair(rng)
 }

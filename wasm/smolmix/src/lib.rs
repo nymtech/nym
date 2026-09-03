@@ -52,6 +52,10 @@ mod util;
 pub use error::FetchError;
 #[cfg(target_arch = "wasm32")]
 pub use tunnel::WasmTunnel;
+// Re-exported so the `pub` wasm-bindgen `getTunnelState` accessor can name the
+// return type, and so tsify emits its `.d.ts` (see state.rs).
+#[cfg(target_arch = "wasm32")]
+pub use state::{FailureReason, TaskName, TunnelState};
 
 #[cfg(target_arch = "wasm32")]
 use serde::Deserialize;
@@ -278,14 +282,14 @@ pub fn disconnect_mix_tunnel() -> js_sys::Promise {
     })
 }
 
-/// Returns `{state, reason?}`. See [`state::TunnelState`] serde tags
-/// for the exact shape. Pre-`setupMixTunnel` reads as `connecting`.
+/// Returns the current tunnel state. The `TunnelState` type is generated from the
+/// Rust serde by tsify (see state.rs), so the `.d.ts` and the SDK type stay in
+/// step with the runtime. Pre-`setupMixTunnel` reads as `connecting`.
 #[wasm_bindgen(js_name = "getTunnelState")]
 #[cfg(target_arch = "wasm32")]
-pub fn get_tunnel_state() -> JsValue {
-    let s = match TUNNEL.get() {
+pub fn get_tunnel_state() -> TunnelState {
+    match TUNNEL.get() {
         Some(tunnel) => tunnel.tunnel_state(),
         None => state::TunnelState::Connecting,
-    };
-    serde_wasm_bindgen::to_value(&s).unwrap_or(JsValue::NULL)
+    }
 }

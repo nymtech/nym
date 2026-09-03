@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "network")]
-use crate::{ApiUrlConst, DenomDetails, ValidatorDetails};
+use crate::{ApiUrlConst, DenomDetails, DirectoryAttestationSourceConst, ValidatorDetails};
+
+mod directory_checkpoint;
+pub use directory_checkpoint::DIRECTORY_CHECKPOINT;
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -26,6 +29,12 @@ pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1m3a2ltkjqud8mkmrpqvgllrtv2p4r6js6qwl7p8cqkzrq8jg6e2qwqgl8z";
 pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
     "n1na0vys0z077hq3zrz6pfea85zgv8ks3t5zysdt6y38c87q045hnsyf2g5x";
+pub const GEOLOCATION_CONTRACT_ADDRESS: &str =
+    "n1fjj4xngrw85dgzt336ehj72p4mc9q20ymhqsu5egtx755mf83gwsrccq7k";
+
+pub const DIRECTORY_CONTRACT_ADDRESS: &str =
+    "n1f53zk7txj5v37s588dyxcav3wd3y6eruymlpuy6dw3nym794c9gql3txua";
+
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =
@@ -53,7 +62,11 @@ pub const NYM_APIS: &[ApiUrlConst] = &[
     },
     ApiUrlConst {
         url: "https://nym-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        front_hosts: Some(&[
+            // "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
+        ]),
     },
     ApiUrlConst {
         url: "https://cdn1.media-platform.net/api/",
@@ -65,8 +78,30 @@ pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 
 pub const UPGRADE_MODE_ATTESTATION_URL: &str =
     "https://nymtech.net/.wellknown/upgrade-mode/attestation.json";
-pub const UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY: &str =
-    "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+pub const ROOT_ATTESTER_ED25519_BS58_PUBKEY: &str = "3bgffBYcfFkTTXc2npNNn9MkddFZ3H2LrPjXDmnJzrqd";
+
+// TODO: FILL THIS IN ONCE DEPLOYED
+// probably @ https://nymtech.net/.wellknown/directory/checkpoint.json
+// \/
+pub const NYX_TRUSTED_CHECKPOINT_URL: &str = "";
+// /\
+// TODO: FILL THIS IN ONCE DEPLOYED
+
+#[cfg(feature = "network")]
+pub const DIRECTORY_ATTESTATION_SOURCES: &[DirectoryAttestationSourceConst] = &[
+    DirectoryAttestationSourceConst {
+        api_url: "https://nym-api-signer-1.nymtech.net/api",
+        identity_ed25519_bs58: "5dRq2oCSD6GUozZH3Qq5p1hPuztT6sFvpxtSbK311tDp",
+    },
+    DirectoryAttestationSourceConst {
+        api_url: "https://nym-api-signer-2.nymtech.net/api",
+        identity_ed25519_bs58: "2dJHDhUr5bRWxELMzZBZGVAW8cUHEJC1mGQYniKscQMo",
+    },
+    DirectoryAttestationSourceConst {
+        api_url: "https://validator.nymtech.net/api",
+        identity_ed25519_bs58: "Dp7x8TaSNyUX9k2n9A2v5yr6D5UHevhEegRu6aCiCC45",
+    },
+];
 
 #[cfg(feature = "network")]
 pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
@@ -76,7 +111,11 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
     ApiUrlConst {
         url: "https://nymvpn-frontdoor.global.ssl.fastly.net/api/",
-        front_hosts: Some(&["yelp.global.ssl.fastly.net"]),
+        front_hosts: Some(&[
+            // "fastly-support.global.ssl.fastly.net",
+            "yelp.global.ssl.fastly.net",
+            // "pypi.global.ssl.fastly.net",
+        ]),
     },
     ApiUrlConst {
         url: "https://edge1.streaming-gateway.com/api/",
@@ -84,14 +123,6 @@ pub const NYM_VPN_APIS: &[ApiUrlConst] = &[
     },
 ];
 
-#[cfg(feature = "env")]
-fn serialize_api_urls(urls: &[ApiUrlConst]) -> String {
-    serde_json::to_string(urls)
-        .inspect_err(|e| tracing::warn!("failed to serialize nym_api_urls for env: {e}"))
-        .unwrap_or_default()
-}
-
-// I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 
@@ -152,6 +183,7 @@ pub fn read_parsed_var<T: std::str::FromStr>(var: &str) -> Result<T, T::Err> {
 
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
+    use crate::network::json_serialise;
     use crate::var_names;
 
     set_var_to_default(var_names::CONFIGURED, "true");
@@ -193,30 +225,48 @@ pub fn export_to_env() {
         NODE_FAMILIES_CONTRACT_ADDRESS,
     );
     set_var_to_default(
+        var_names::DIRECTORY_CONTRACT_ADDRESS,
+        DIRECTORY_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
+        var_names::GEOLOCATION_CONTRACT_ADDRESS,
+        GEOLOCATION_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
-    set_var_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
+    set_var_to_default(var_names::NYM_APIS, &json_serialise(NYM_APIS));
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
-    set_var_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
+    set_var_to_default(var_names::NYM_VPN_APIS, &json_serialise(NYM_VPN_APIS));
     set_var_to_default(
         var_names::UPGRADE_MODE_ATTESTATION_URL,
         UPGRADE_MODE_ATTESTATION_URL,
     );
     set_var_to_default(
-        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
-        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY,
+        ROOT_ATTESTER_ED25519_BS58_PUBKEY,
     );
     set_var_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
+    set_var_to_default(
+        var_names::DIRECTORY_ATTESTATION_SOURCES,
+        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
+    set_var_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
+    );
 }
 
 #[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env_if_not_set() {
+    use crate::network::json_serialise;
     use crate::var_names;
 
     set_var_conditionally_to_default(var_names::CONFIGURED, "true");
@@ -250,14 +300,22 @@ pub fn export_to_env_if_not_set() {
         NODE_FAMILIES_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
+        var_names::DIRECTORY_CONTRACT_ADDRESS,
+        DIRECTORY_CONTRACT_ADDRESS,
+    );
+    set_var_conditionally_to_default(
+        var_names::GEOLOCATION_CONTRACT_ADDRESS,
+        GEOLOCATION_CONTRACT_ADDRESS,
+    );
+    set_var_conditionally_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
-    set_var_conditionally_to_default(var_names::NYM_APIS, &serialize_api_urls(NYM_APIS));
+    set_var_conditionally_to_default(var_names::NYM_APIS, &json_serialise(NYM_APIS));
     set_var_conditionally_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
-    set_var_conditionally_to_default(var_names::NYM_VPN_APIS, &serialize_api_urls(NYM_VPN_APIS));
+    set_var_conditionally_to_default(var_names::NYM_VPN_APIS, &json_serialise(NYM_VPN_APIS));
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
     set_var_conditionally_to_default(
@@ -265,9 +323,18 @@ pub fn export_to_env_if_not_set() {
         UPGRADE_MODE_ATTESTATION_URL,
     );
     set_var_conditionally_to_default(
-        var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
-        UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY,
+        var_names::ROOT_ATTESTER_ED25519_BS58_PUBKEY,
+        ROOT_ATTESTER_ED25519_BS58_PUBKEY,
     );
     set_var_conditionally_to_default(var_names::NYXD_QUERY_LITE, NYXD_QUERY_LITE);
     set_var_conditionally_to_default(var_names::NYXD_WS_LITE, NYXD_WS_LITE);
+    set_var_conditionally_to_default(
+        var_names::DIRECTORY_ATTESTATION_SOURCES,
+        &json_serialise(DIRECTORY_ATTESTATION_SOURCES),
+    );
+    set_var_conditionally_to_default(var_names::DIRECTORY_CHECKPOINT, DIRECTORY_CHECKPOINT);
+    set_var_conditionally_to_default(
+        var_names::NYX_TRUSTED_CHECKPOINT_URL,
+        NYX_TRUSTED_CHECKPOINT_URL,
+    );
 }

@@ -1,9 +1,9 @@
 ---
 title: "Exit Gateway Services: Network Requester & IP Packet Router"
-description: "The two proxy services running on Nym Exit Gateways: the Network Requester (SOCKS proxy) and the IP Packet Router (raw IP tunneling). How they work, what they see, and who uses them."
+description: "The two proxy services running on Nym Exit Gateways: the Network Requester (SOCKS proxy) and the IP Packet Router (raw IP tunneling). How they work, what each hop on the path can see, and the trust you place in the exit."
 schemaType: "TechArticle"
 section: "Network"
-lastUpdated: "2026-04-15"
+lastUpdated: "2026-08-12"
 ---
 
 # Exit Gateway Services
@@ -17,6 +17,14 @@ Exit Gateways are where traffic leaves the Nym network and reaches the wider int
 
 Both services run on every Exit Gateway. Which one handles your traffic depends on how you connect.
 
+<Callout type="info">
+This page describes the **proxy-mode** path, where traffic leaves the mixnet and
+continues to a third-party server over the public internet. When both ends run a
+Nym client there is no Exit Gateway and none of this applies: traffic stays
+Sphinx-encrypted from one client to the other. That case is
+[end to end](/network/threat-model/configurations/end-to-end).
+</Callout>
+
 ## Network Requester
 
 The Network Requester is a SOCKS4/4a/5 proxy. Clients send SOCKS-formatted requests through the mixnet, and the NR makes the corresponding connection on their behalf: resolving hostnames, opening TCP connections, and relaying data.
@@ -27,12 +35,11 @@ Client → Entry Gateway → Mixnodes1..3 → Exit Gateway (NR) → SOCKS connec
 ```
 
 Because it operates at the application layer, the NR:
-- Resolves DNS on behalf of the client (the client sends hostnames, not IPs)
+- Resolves DNS on behalf of the client, but only when the client sends a hostname. SOCKS5 also permits a pre-resolved IPv4 or IPv6 address. An application that resolves locally has already leaked the DNS query on clearnet. Use `socks5h://`, or `curl --socks5-hostname`, to send the name rather than the address
 - Opens individual TCP connections per SOCKS request
 - Can enforce allow/deny lists on destination hosts and ports
-- Sees the destination hostname and port, but not the contents if TLS is used
 
-**Used by:** the [SDK's SOCKS client](/developers/rust/mixnet), [standalone SOCKS5 client](/developers/clients/socks5), and [mixFetch](/developers/mix-fetch) (which wraps SOCKS requests in a browser-friendly `fetch` API).
+**Used by:** the [SDK's SOCKS5 module](/developers/rust/socks5) and the [standalone SOCKS5 client](/developers/clients/socks5).
 
 ## IP Packet Router
 
@@ -49,17 +56,17 @@ On connection, the IPR:
 3. Sends them to the internet from the gateway's own IP address
 4. Routes response packets back through the mixnet to the client
 
-Because it operates at the IP layer, the IPR:
-- Does not resolve DNS; the client handles its own DNS (either via clearnet or by sending DNS queries as UDP packets through the tunnel)
-- Handles any IP protocol: TCP, UDP, ICMP, etc.
-- Sees raw IP packets, including destination IPs and ports
-- Does not see contents if the client uses TLS or another encryption layer
+Because it operates at the IP layer, the IPR does not resolve DNS. The client handles its own, either over clearnet or by sending DNS queries as UDP packets through the tunnel.
 
-<Callout type="warning">
-In both services, traffic between the Exit Gateway and the destination travels over the public internet, exactly as it would from any other server. The mixnet protects sender anonymity (the destination sees the gateway's IP, not yours), but does not encrypt the payload past the gateway. Use TLS or another application-layer cipher to protect payload confidentiality, just as you would on a direct connection.
-</Callout>
+### The exit policy applies
 
-**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), and [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK).
+Both exit services enforce the same [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): a deny list of destination ports and addresses that may not be reached through the mixnet. It is identical across operators, and an individual operator cannot vary it. That uniformity is what makes exit behaviour predictable for the clients that depend on it.
+
+For anyone building on Nym, that policy is the first constraint to check. If the port your service listens on is not permitted, no client-side configuration changes the outcome.
+
+The policy is a deny list rather than an allow list, replacing the earlier `allowed.list`, and it was shaped after Tor's reduced exit policy. Changes are made through operator governance rather than by Nym directly. **If you need a port or destination the policy currently refuses, the route is a governance proposal**, which the [exit gateway community counsel](/operators/community-counsel/exit-gateway) describes, decided by an operator vote on the [Nym forum](https://forum.nym.com/).
+
+**Used by:** [NymVPN anonymous mode](/network/dvpn-mode/protocol) (5-hop mixnet routing to the IPR), [`smolmix`](/developers/smolmix) (programmatic `TcpStream`/`UdpSocket` access to the IPR via the Rust SDK), and the browser `mix-*` packages built on `smolmix`: [`mix-tunnel`](/developers/mix-tunnel), [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), and [`mix-websocket`](/developers/mix-websocket).
 
 ## Comparison
 
@@ -70,15 +77,67 @@ In both services, traffic between the Exit Gateway and the destination travels o
 | **DNS** | Resolved by the NR | Client resolves its own |
 | **Client gets** | Proxied connections | An allocated IP address |
 | **Connection model** | Per-request | Persistent tunnel |
-| **Used by** | SDK SOCKS client, mixFetch | NymVPN (anonymous mode), smolmix |
+| **Used by** | SDK SOCKS5 module, standalone SOCKS5 client | NymVPN (anonymous mode), smolmix, mix-* packages |
+
+## What each hop sees
+
+Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. The Exit Gateway strips the Sphinx layers and forwards the request onward, analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
+
+```text
+you → entry gateway → 3 mix layers → exit gateway → destination
+└─────────────── Sphinx-encrypted ──────────────┘└─ clearnet ─┘
+                                     exit gateway
+                                     strips Sphinx
+                                     here
+```
+
+| Segment | Mixnet encryption | What's visible |
+|---|---|---|
+| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
+| Inside the mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
+| Exit Gateway (IPR or NR) | Sphinx removed; raw IP packet (IPR) or SOCKS request (NR) exposed | The IPR sees the destination IP and port; the NR sees the destination hostname. Either way the payload depends on your application layer |
+| Exit Gateway → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the Exit Gateway's IP, not yours |
+
+## Encrypt your own payload
+
+Because the Exit Gateway removes the Sphinx layers, whatever is inside is visible to the exit unless you encrypted it yourself.
+
+- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the exit. It still sees the destination, but not the content. Over TLS the exit only ever handles ciphertext bound for that destination.
+- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
+
+Traffic between the Exit Gateway and the destination travels over the public internet exactly as it would from any other server. Use TLS or another application-layer cipher, just as you would on a direct connection.
 
 ## Trust model
 
-Both services share the same fundamental trust property: **the Exit Gateway can see destinations but not senders.** The mixnet's layered encryption ensures that the Exit Gateway cannot determine who sent a given packet; it only knows where it's going.
+Both services share the same fundamental trust property: **the Exit Gateway can see destinations but not senders.** The mixnet's layered encryption ensures that the Exit Gateway cannot determine who sent a given packet; it only knows where it is going. The sender's identity is protected by 5-hop routing, Sphinx encryption, cover traffic, and packet mixing.
 
-Specifically, the Exit Gateway:
-- **Can see:** destination IP/hostname, destination port, unencrypted payload content, traffic volume and timing at the exit hop
-- **Cannot see:** the sender's IP address, the sender's Nym address, which Entry Gateway the traffic entered through
-- **Cannot determine:** the linkage between different requests from the same sender (unless the payload itself contains identifying information)
+Neither service learns your IP address. What else they learn differs sharply, and the SOCKS-based Network Requester is the weaker of the two by default.
 
-The sender's identity is protected by the mixnet's 5-hop routing, Sphinx encryption, cover traffic, and packet mixing. The Exit Gateway is the last hop: it decrypts the final Sphinx layer and sees the destination, but the chain of Mix Nodes between Entry and Exit has destroyed any timing or ordering correlation.
+- **IP Packet Router.** Sees the destination IP and port, the unencrypted payload, and traffic volume and timing at the exit hop. Client traffic arrives under an ephemeral sender tag, so the IPR never learns your Nym address or your Entry Gateway. It does link every packet within a tunnel session, because it allocated the address they come from, but that linkage is confined to the session and cannot be attributed to a person or an IP.
+- **Network Requester.** Sees the destination and payload as above. In addition, the default SOCKS5 configuration sends replies to a return address rather than over SURBs, so the NR receives your **Nym address** on every connect request. That address embeds your Entry Gateway identity and is stable across sessions, which makes it a far stronger correlator than anything the IPR holds. Anonymous replies remove it, and they are off by default.
+
+<Callout type="warning">
+If you use a SOCKS5 exit and care about the requester not building a profile,
+turn anonymous replies on. The standalone client takes
+`--use-anonymous-replies`. Left off, the Network Requester can link every
+request you ever make through it, and can see which gateway you entered by.
+</Callout>
+
+You trust the Exit Gateway in the same way you trust a VPN exit or a Tor exit node, but the shape of that trust differs between the two services:
+
+- **IP Packet Router.** A packet forwarder, like a VPN exit. It receives raw IP packets, so it sees the destination IP and port and reads any packet payload you did not encrypt. It works at the network layer and does not parse your application protocol.
+- **Network Requester.** A SOCKS proxy that makes the request on your behalf, so your trust in it is exactly the trust you place in any SOCKS5 proxy. With `socks5h://` the client hands it the destination *hostname* plus the byte stream, and the NR opens the TCP connection itself and relays bytes back. With plain `socks5://` the client resolves first and sends an IP, so the NR sees an address instead of a name and the lookup has already gone out over clearnet.
+
+You also trust the mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and it degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary observing a large fraction of the network.
+
+## What the exit does not protect against
+
+The mixnet operates at the network layer. It hides your IP and unlinks sender from receiver, and it does nothing at the application layer, so anything you reveal in the content of your traffic is yours to manage. If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. A stable request pattern or a recognisable account correlates your traffic across sessions in the same way.
+
+That split is the subject of [the two-layer model](/network/threat-model/two-layer-model): transport hides who you are talking to and from whom, while hygiene disciplines what your request pattern leaks to the destination. Choosing an exit service is a transport decision and settles only the first half.
+
+## Read more
+
+- [Threat actors](/network/threat-model/actors#actor-L3G): who the exit is, and is not, defending you against.
+- [Nym vs other systems](/network/threat-model/comparisons): how this exit model compares with VPNs, Tor, I2P, and end-to-end encryption.
+- [Exit security for developers](/developers/concepts/exit-security): which exit service each Nym package uses, and how to pin one.

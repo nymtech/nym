@@ -3,7 +3,7 @@
 
 mod legacy_helpers;
 
-use crate::models::{EmergencyCredential, EmergencyCredentialContent};
+use crate::models::{AvailableGlobalData, EmergencyCredential, EmergencyCredentialContent};
 use crate::{
     backends::sqlite::{
         get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
@@ -241,6 +241,10 @@ impl Storage for PersistentStorage {
                 expected_current_total_spent,
             )
             .await?)
+    }
+
+    async fn get_available_global_data(&self) -> Result<AvailableGlobalData, Self::StorageError> {
+        Ok(self.storage_manager.get_available_global_data().await?)
     }
 
     async fn get_master_verification_key(

@@ -1,0 +1,27 @@
+[package]
+name = "nyx-checkpoint-updater"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+zeroize = { workspace = true }
+time = { workspace = true, features = ["parsing"] }
+serde_json = { workspace = true }
+
+nym-crypto = { workspace = true, features = ["asymmetric"] }
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-directory-client = { workspace = true, features = ["light-client"] }
+nym-validator-client = { workspace = true }
+
+[lints]
+workspace = true

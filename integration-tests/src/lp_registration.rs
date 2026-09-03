@@ -23,7 +23,7 @@ mod tests {
     use nym_node::node::lp::{SharedLpClientControlState, SharedLpState};
     use nym_node::wireguard::{PeerManager, PeerRegistrator};
     use nym_registration_client::{LpClientError, LpRegistrationClient};
-    use nym_test_utils::helpers::{CryptoRng09, seeded_rng};
+    use nym_test_utils::helpers::{CryptoRng010, seeded_rng};
     use nym_test_utils::mocks::async_read_write::MockIOStream;
     use nym_test_utils::traits::Timeboxed;
     use nym_wireguard::peer_controller::IpPair;
@@ -60,7 +60,7 @@ mod tests {
     }
 
     impl Party {
-        fn generate(rng: &mut impl CryptoRng09) -> Self {
+        fn generate(rng: &mut impl CryptoRng010) -> Self {
             let mut ip = [0u8; 4];
             let mut port = [0u8; 2];
 
@@ -99,7 +99,7 @@ mod tests {
     }
 
     impl Client {
-        fn mock(rng: &mut impl CryptoRng09) -> Self {
+        fn mock(rng: &mut impl CryptoRng010) -> Self {
             Client {
                 base: Party::generate(rng),
                 ticket_provider: Default::default(),
@@ -190,7 +190,7 @@ mod tests {
             Ok(GatewayStorage::from_connection_pool(conn_pool, 100).await?)
         }
 
-        async fn mock(rng: &mut impl CryptoRng09) -> anyhow::Result<Self> {
+        async fn mock(rng: &mut impl CryptoRng010) -> anyhow::Result<Self> {
             let base = Party::generate(rng);
 
             // 1. create in-memory gateway storage

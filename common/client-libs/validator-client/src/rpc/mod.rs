@@ -6,10 +6,30 @@
 // the corresponding features in tendermint-rpc are enabled transitively
 #![allow(unexpected_cfgs)]
 
+use crate::nyxd;
+use crate::nyxd::cosmwasm_client::client_traits::query_client::{
+    DEFAULT_BROADCAST_POLLING_RATE, DEFAULT_BROADCAST_TIMEOUT,
+};
+use crate::nyxd::cosmwasm_client::types::{Account, SequenceResponse, SimulateResponse};
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::helpers::{create_pagination, next_page_key};
+use crate::nyxd::{BlockResponse, Coin, TxResponse};
+use crate::rpc::types::ProvableAbciQueryResponse;
 use async_trait::async_trait;
-use cosmrs::tendermint::{self, abci, block::Height, evidence::Evidence, Genesis, Hash};
+use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
+use cosmrs::proto::cosmos::bank::v1beta1::{
+    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
+    QueryTotalSupplyRequest, QueryTotalSupplyResponse,
+};
+use cosmrs::proto::cosmos::tx::v1beta1::{
+    SimulateRequest, SimulateResponse as ProtoSimulateResponse,
+};
+use cosmrs::tendermint::{self, abci, block::Height, chain, evidence::Evidence, Genesis, Hash};
+use cosmrs::{AccountId, Coin as CosmosCoin};
+use prost::Message;
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt;
+use std::time::Duration;
 use tendermint_rpc::{
     endpoint::{validators::DEFAULT_VALIDATORS_PER_PAGE, *},
     query::Query,
@@ -25,7 +45,20 @@ use tendermint_rpc::client::CompatMode;
 #[cfg(feature = "http-client")]
 use tendermint_rpc::HttpClientUrl;
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
+
+#[cfg(feature = "mocks")]
+pub mod mocks;
 pub mod reqwest;
+pub mod types;
 
 #[cfg(feature = "http-client")]
 pub fn http_client<U>(url: U) -> Result<HttpRpcClient, TendermintRpcError>
@@ -36,6 +69,367 @@ where
         .compat_mode(CompatMode::V0_37)
         .build()
 }
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait TendermintRpcClientExt: TendermintRpcClient {
+    async fn make_abci_query_with_proof<Req, Res>(
+        &self,
+        path: Option<String>,
+        req: Req,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Res>, NyxdError>
+    where
+        Req: Message,
+        Res: Message + Default,
+    {
+        if let Some(ref abci_path) = path {
+            tracing::trace!("performing query on abci path {abci_path}")
+        }
+        let mut buf = Vec::with_capacity(req.encoded_len());
+        req.encode(&mut buf)?;
+
+        let res = self.abci_query(path, buf, height, true).await?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
+
+        let Some(proof) = res_success.proof else {
+            return Err(NyxdError::MissingProof);
+        };
+
+        let response = Res::decode(res_success.value.as_ref())?;
+
+        Ok(ProvableAbciQueryResponse {
+            response,
+            height: res_success.height,
+            proof,
+        })
+    }
+
+    async fn make_raw_abci_query_with_proof(
+        &self,
+        path: Option<String>,
+        key: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
+        if let Some(ref abci_path) = path {
+            tracing::trace!("performing query on abci path {abci_path}")
+        }
+
+        let res = self.abci_query(path, key, height, true).await?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
+
+        let Some(proof) = res_success.proof else {
+            return Err(NyxdError::MissingProof);
+        };
+
+        Ok(ProvableAbciQueryResponse {
+            response: res_success.value,
+            height: res_success.height,
+            proof,
+        })
+    }
+
+    async fn make_abci_query_without_proof<Req, Res>(
+        &self,
+        path: Option<String>,
+        req: Req,
+        height: Option<Height>,
+    ) -> Result<Res, NyxdError>
+    where
+        Req: Message,
+        Res: Message + Default,
+    {
+        if let Some(ref abci_path) = path {
+            tracing::trace!("performing query on abci path {abci_path}")
+        }
+        let mut buf = Vec::with_capacity(req.encoded_len());
+        req.encode(&mut buf)?;
+
+        let res = self.abci_query(path, buf, height, false).await?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
+
+        Ok(Res::decode(res_success.value.as_ref())?)
+    }
+
+    async fn get_chain_id(&self) -> Result<chain::Id, NyxdError> {
+        Ok(self.status().await?.node_info.network)
+    }
+
+    async fn get_height(&self) -> Result<cosmrs::tendermint::block::Height, NyxdError> {
+        Ok(self.status().await?.sync_info.latest_block_height)
+    }
+
+    // TODO: the return type should probably be changed to a non-proto, type-safe Account alternative
+    async fn get_account(&self, address: &AccountId) -> Result<Option<Account>, NyxdError> {
+        let path = Some("/cosmos.auth.v1beta1.Query/Account".to_owned());
+
+        let req = QueryAccountRequest {
+            address: address.to_string(),
+        };
+
+        let res = self
+            .make_abci_query_without_proof::<_, QueryAccountResponse>(path, req, None)
+            .await?;
+
+        res.account.map(TryFrom::try_from).transpose()
+    }
+
+    async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NyxdError> {
+        let account = self
+            .get_account(address)
+            .await?
+            .ok_or_else(|| NyxdError::NonExistentAccountError(address.clone()))?;
+        let base_account = account.try_get_base_account()?;
+
+        Ok(SequenceResponse {
+            account_number: base_account.account_number,
+            sequence: base_account.sequence,
+        })
+    }
+
+    async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
+        match height {
+            Some(height) => self.block(height).await.map_err(|err| err.into()),
+            None => self.latest_block().await.map_err(|err| err.into()),
+        }
+    }
+
+    async fn get_balance(
+        &self,
+        address: &AccountId,
+        search_denom: String,
+    ) -> Result<Option<Coin>, NyxdError> {
+        let path = Some("/cosmos.bank.v1beta1.Query/Balance".to_owned());
+
+        let req = QueryBalanceRequest {
+            address: address.to_string(),
+            denom: search_denom,
+        };
+
+        let res = self
+            .make_abci_query_without_proof::<_, QueryBalanceResponse>(path, req, None)
+            .await?;
+
+        res.balance
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
+            .transpose()
+            .map_err(|_| NyxdError::SerializationError("Coin".to_owned()))
+    }
+
+    async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError> {
+        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".to_owned());
+
+        let mut raw_balances = Vec::new();
+        let mut pagination = None;
+
+        loop {
+            let req = QueryAllBalancesRequest {
+                address: address.to_string(),
+                pagination,
+                resolve_denom: false,
+            };
+
+            let mut res = self
+                .make_abci_query_without_proof::<_, QueryAllBalancesResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
+                .await?;
+
+            let early_break = res.balances.is_empty();
+            raw_balances.append(&mut res.balances);
+
+            if early_break {
+                break;
+            }
+
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
+            } else {
+                break;
+            }
+        }
+
+        raw_balances
+            .into_iter()
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
+            .collect::<Result<_, _>>()
+            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
+    }
+
+    async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError> {
+        let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".to_owned());
+
+        let mut supply = Vec::new();
+        let mut pagination = None;
+
+        loop {
+            let req = QueryTotalSupplyRequest { pagination };
+
+            let mut res = self
+                .make_abci_query_without_proof::<_, QueryTotalSupplyResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
+                .await?;
+
+            let early_break = res.supply.is_empty();
+            supply.append(&mut res.supply);
+
+            if early_break {
+                break;
+            }
+
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
+            } else {
+                break;
+            }
+        }
+
+        supply
+            .into_iter()
+            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
+            .collect::<Result<_, _>>()
+            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
+    }
+
+    async fn get_tx(&self, id: Hash) -> Result<TxResponse, NyxdError> {
+        Ok(self.tx(id, false).await?)
+    }
+
+    async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NyxdError> {
+        // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
+        // the maximum entries per page is 100 and the default is 30
+        // so let's attempt to use the maximum
+        let per_page = 100;
+
+        let mut results = Vec::new();
+        let mut page = 1;
+
+        loop {
+            let mut res = self
+                .tx_search(query.clone(), false, page, per_page, Order::Ascending)
+                .await?;
+
+            // sanity check for if tendermint's maximum per_page was modified -
+            // we don't want to accidentally be stuck in an infinite loop
+            let early_break = res.total_count == 0 || res.txs.is_empty();
+            results.append(&mut res.txs);
+
+            if early_break {
+                break;
+            }
+
+            if res.total_count > results.len() as u32 {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Broadcast a transaction, returning immediately.
+    async fn broadcast_tx_async<T>(&self, tx: T) -> Result<broadcast::tx_async::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(TendermintRpcClient::broadcast_tx_async(self, tx).await?)
+    }
+
+    /// Broadcast a transaction, returning the response from `CheckTx`.
+    async fn broadcast_tx_sync<T>(&self, tx: T) -> Result<broadcast::tx_sync::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(TendermintRpcClient::broadcast_tx_sync(self, tx).await?)
+    }
+
+    /// Broadcast a transaction, returning the response from `DeliverTx`.
+    async fn broadcast_tx_commit<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_commit::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(TendermintRpcClient::broadcast_tx_commit(self, tx).await?)
+    }
+
+    async fn broadcast_tx<T>(
+        &self,
+        tx: T,
+        timeout: impl Into<Option<Duration>> + Send,
+        poll_interval: impl Into<Option<Duration>> + Send,
+    ) -> Result<TxResponse, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        let timeout = timeout.into().unwrap_or(DEFAULT_BROADCAST_TIMEOUT);
+        let poll_interval = poll_interval
+            .into()
+            .unwrap_or(DEFAULT_BROADCAST_POLLING_RATE);
+
+        let broadcasted = TendermintRpcClientExt::broadcast_tx_sync(self, tx).await?;
+
+        if broadcasted.code.is_err() {
+            let code_val = broadcasted.code.value();
+            return Err(NyxdError::BroadcastTxErrorDeliverTx {
+                hash: broadcasted.hash,
+                height: None,
+                code: code_val,
+                raw_log: broadcasted.log.to_string(),
+            });
+        }
+
+        let tx_hash = broadcasted.hash;
+
+        let start = Instant::now();
+        loop {
+            tracing::debug!(
+                "Polling for result of including {} in a block...",
+                broadcasted.hash
+            );
+            if Instant::now().duration_since(start) >= timeout {
+                return Err(NyxdError::BroadcastTimeout {
+                    hash: tx_hash,
+                    timeout,
+                });
+            }
+
+            if let Ok(poll_res) = self.get_tx(tx_hash).await {
+                return Ok(poll_res);
+            }
+
+            sleep(poll_interval).await;
+        }
+    }
+
+    async fn query_simulate(&self, tx_bytes: Vec<u8>) -> Result<SimulateResponse, NyxdError> {
+        let path = Some("/cosmos.tx.v1beta1.Service/Simulate".to_owned());
+
+        let req = SimulateRequest {
+            tx_bytes,
+            ..Default::default()
+        };
+
+        let res = self
+            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req, None)
+            .await?;
+
+        res.try_into()
+    }
+
+    async fn get_all_validators(&self, height: Height) -> Result<validators::Response, NyxdError> {
+        Ok(self.validators(height, Paging::All).await?)
+    }
+}
+
+impl<T> TendermintRpcClientExt for T where T: TendermintRpcClient {}
 
 // we have to create a sealed trait since `TendermintClient` needs T: Send (due to how async trait is created)
 // which we can't do in wasm

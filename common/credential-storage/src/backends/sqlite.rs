@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, EmergencyCredential, EmergencyCredentialContent,
-    RawCoinIndexSignatures, RawExpirationDateSignatures, RawVerificationKey,
-    StoredIssuedTicketbook,
+    AvailableGlobalData, BasicTicketbookInformation, EmergencyCredential,
+    EmergencyCredentialContent, RawCoinIndexSignatures, RawExpirationDateSignatures,
+    RawVerificationKey, StoredIssuedTicketbook,
 };
 use nym_ecash_time::Date;
 use nym_sqlx_pool_guard::SqlitePoolGuard;
@@ -263,6 +263,43 @@ impl SqliteEcashTicketbookManager {
             .execute(&*self.connection_pool)
             .await?;
         Ok(())
+    }
+
+    pub(crate) async fn get_available_global_data(
+        &self,
+    ) -> Result<AvailableGlobalData, sqlx::Error> {
+        let master_verification_key_epochs = sqlx::query_scalar!(
+            r#"SELECT epoch_id as "epoch_id: i64" FROM master_verification_key"#
+        )
+        .fetch_all(&*self.connection_pool)
+        .await?;
+
+        let coin_index_signature_epochs = sqlx::query_scalar!(
+            r#"SELECT epoch_id as "epoch_id: i64" FROM coin_indices_signatures"#
+        )
+        .fetch_all(&*self.connection_pool)
+        .await?;
+
+        let expiration_date_signatures = sqlx::query!(
+            r#"SELECT epoch_id as "epoch_id: i64", expiration_date as "expiration_date: Date" FROM expiration_date_signatures"#
+        )
+        .fetch_all(&*self.connection_pool)
+        .await?;
+
+        Ok(AvailableGlobalData {
+            master_verification_key_epochs: master_verification_key_epochs
+                .into_iter()
+                .map(|epoch_id| epoch_id as u64)
+                .collect(),
+            coin_index_signature_epochs: coin_index_signature_epochs
+                .into_iter()
+                .map(|epoch_id| epoch_id as u64)
+                .collect(),
+            expiration_date_signatures: expiration_date_signatures
+                .into_iter()
+                .map(|row| (row.epoch_id as u64, row.expiration_date))
+                .collect(),
+        })
     }
 
     pub(crate) async fn get_emergency_credential(

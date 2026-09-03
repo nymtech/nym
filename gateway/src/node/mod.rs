@@ -9,6 +9,7 @@ use crate::node::internal_service_providers::{
     authenticator, ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use crate::node::stale_data_cleaner::StaleMessagesCleaner;
+use crate::node::wireguard::{PeerManager, PeerRegistrator};
 use futures::channel::oneshot;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager, MockEcashManager,
@@ -25,18 +26,16 @@ use nym_node_metrics::events::MetricEventsSender;
 use nym_node_metrics::NymNodeMetrics;
 use nym_task::ShutdownTracker;
 use nym_topology::TopologyProvider;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::*;
-use zeroize::Zeroizing;
 
 pub use crate::node::upgrade_mode::watcher::UpgradeModeWatcher;
-use crate::node::wireguard::{PeerManager, PeerRegistrator};
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_credential_verification::upgrade_mode::UpgradeModeCheckRequestSender;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
@@ -103,7 +102,8 @@ pub struct GatewayTasksBuilder {
 
     upgrade_mode_state: UpgradeModeState,
 
-    mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+    /// Address associated with this node derived from the mnemonic.
+    node_address: AccountId,
 
     shutdown_tracker: ShutdownTracker,
 
@@ -128,7 +128,7 @@ impl GatewayTasksBuilder {
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
         metrics: NymNodeMetrics,
-        mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
+        node_address: AccountId,
         user_agent: UserAgent,
         upgrade_mode_state: UpgradeModeState,
         use_mock_ecash: bool,
@@ -148,7 +148,7 @@ impl GatewayTasksBuilder {
             metrics_sender,
             metrics,
             upgrade_mode_state,
-            mnemonic,
+            node_address,
             shutdown_tracker,
             use_mock_ecash,
             ecash_manager: None,
@@ -180,9 +180,7 @@ impl GatewayTasksBuilder {
     }
 
     // if this is to be used anywhere else, we might need some wrapper around it
-    async fn build_nyxd_signing_client(
-        &self,
-    ) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
+    async fn build_nyxd_query_client(&self) -> Result<QueryHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
@@ -190,33 +188,7 @@ impl GatewayTasksBuilder {
 
         let client_config = nyxd::Config::try_from_nym_network_details(&self.network)?;
 
-        let nyxd_client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
-            client_config,
-            validator_nyxd.as_ref(),
-            (**self.mnemonic).clone(),
-        )?;
-
-        let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
-        let account = nyxd_client.address();
-        let balance = nyxd_client
-            .get_balance(&account, mix_denom_base.clone())
-            .await?
-            .unwrap_or(Coin::new(0, mix_denom_base));
-
-        // see if we have at least 1nym (i.e. 1'000'000unym)
-        if balance.amount < 1_000_000 {
-            // don't allow constructing the client of we have to use zknym and don't have sufficient balance
-            if self.config.gateway.enforce_zk_nyms {
-                return Err(GatewayError::InsufficientNodeBalance { account, balance });
-            }
-
-            // TODO: this has to be enforced **ALL THE TIME in ENTRY mode**,
-            // because even if we don't demand zknym, somebody may send them and we need sufficient tokens for
-            // transaction fees for submitting redemption proposals
-            // but we're not going to introduce this check now as it would break a lot of existing gateways,
-            // so for now just log this error
-            error!("this gateway ({account}) has insufficient balance for possible zk-nym redemption transaction fees. it only has {balance} available.")
-        }
+        let nyxd_client = QueryHttpRpcNyxdClient::connect(client_config, validator_nyxd.as_ref())?;
 
         Ok(nyxd_client)
     }
@@ -254,11 +226,12 @@ impl GatewayTasksBuilder {
                 .maximum_time_between_redemption,
         };
 
-        let nyxd_client = self.build_nyxd_signing_client().await?;
+        let nyxd_client = self.build_nyxd_query_client().await?;
 
         let (ecash_manager, credential_handler) = EcashManager::new(
             handler_config,
             nyxd_client,
+            self.node_address.clone(),
             self.identity_keypair.public_key().to_bytes(),
             self.storage.clone(),
         )

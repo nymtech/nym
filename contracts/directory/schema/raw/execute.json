@@ -1,0 +1,236 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Create or replace a node entry. Authorised by an ed25519 `signature` from the node's identity key over [`crate::node_signing_payload`]; any account may relay the transaction. `sequence` must equal the node's expected next sequence (query [`QueryMsg::Sequence`]).",
+      "type": "object",
+      "required": [
+        "set_node_entry"
+      ],
+      "properties": {
+        "set_node_entry": {
+          "type": "object",
+          "required": [
+            "data",
+            "label",
+            "node_id",
+            "sequence",
+            "signature"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "label": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Delete a node entry. Same authorisation as [`Self::SetNodeEntry`].",
+      "type": "object",
+      "required": [
+        "delete_node_entry"
+      ],
+      "properties": {
+        "delete_node_entry": {
+          "type": "object",
+          "required": [
+            "label",
+            "node_id",
+            "sequence",
+            "signature"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "sequence": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "signature": {
+              "$ref": "#/definitions/Binary"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Create or replace a curated entry. Admin only. `key` is an arbitrary path chosen by the admin (the contract imposes no label/suffix structure on it).",
+      "type": "object",
+      "required": [
+        "set_curated_entry"
+      ],
+      "properties": {
+        "set_curated_entry": {
+          "type": "object",
+          "required": [
+            "data",
+            "key"
+          ],
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/Binary"
+            },
+            "key": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Delete a curated entry. Admin only.",
+      "type": "object",
+      "required": [
+        "remove_curated_entry"
+      ],
+      "properties": {
+        "remove_curated_entry": {
+          "type": "object",
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Add or update a whitelisted label and its `max_size`. Admin only; `max_size` must not exceed [`crate::constants::MAX_LABEL_SIZE_CEILING`].",
+      "type": "object",
+      "required": [
+        "set_label"
+      ],
+      "properties": {
+        "set_label": {
+          "type": "object",
+          "required": [
+            "label",
+            "max_size"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "max_size": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Remove a label from the whitelist. Non-destructive: existing entries under the label stay readable; only new writes are blocked. Admin only.",
+      "type": "object",
+      "required": [
+        "remove_label"
+      ],
+      "properties": {
+        "remove_label": {
+          "type": "object",
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Transfer the admin role to `admin`. Admin only. The admin can never be cleared - there must always be exactly one.",
+      "type": "object",
+      "required": [
+        "update_admin"
+      ],
+      "properties": {
+        "update_admin": {
+          "type": "object",
+          "required": [
+            "admin"
+          ],
+          "properties": {
+            "admin": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Cross-contract callback from the mixnet contract when `node_id` unbonds; deletes all of that node's entries. Sender must be the configured mixnet contract.",
+      "type": "object",
+      "required": [
+        "on_nym_node_unbond"
+      ],
+      "properties": {
+        "on_nym_node_unbond": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    }
+  }
+}

@@ -22,6 +22,7 @@ import (
 	"net/netip"
 	netUrl "net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -200,6 +201,32 @@ func wgPingTwoHop(cReq *C.char) *C.char {
 	return jsonResponse(response)
 }
 
+// hasHandshaked reports whether dev has completed at least one real
+// WireGuard handshake with its configured peer. dev.Up() succeeding only
+// means the local interface came up -- it says nothing about whether the
+// remote peer ever responded, so it must not be used on its own as evidence
+// of a working handshake. This checks the actual per-peer
+// last_handshake_time exposed by the WireGuard userspace configuration
+// protocol (see IpcGetOperation in the amneziawg-go/wireguard-go device
+// package), which is only set once a Noise handshake response has been
+// received from the peer.
+func hasHandshaked(dev *device.Device) bool {
+	config, err := dev.IpcGet()
+	if err != nil {
+		log.Printf("hasHandshaked: IpcGet failed: %v", err)
+		return false
+	}
+	for _, line := range strings.Split(config, "\n") {
+		if secStr, ok := strings.CutPrefix(line, "last_handshake_time_sec="); ok {
+			sec, err := strconv.ParseInt(strings.TrimSpace(secStr), 10, 64)
+			if err == nil && sec > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 	log.Printf("=== Two-Hop WireGuard Probe ===")
 	log.Printf("Entry endpoint: %s", req.EntryEndpoint)
@@ -324,9 +351,6 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 		return response, fmt.Errorf("failed to bring up exit device: %w", err)
 	}
 	log.Printf("Exit tunnel up (via forwarder)")
-
-	// If we got here, both tunnels and forwarder are set up
-	response.CanHandshake = true
 	log.Printf("Two-hop tunnel setup complete!")
 
 	// ============================================
@@ -409,6 +433,11 @@ func pingTwoHop(req TwoHopNetstackRequest) (NetstackResponse, error) {
 	response.DownloadDurationMilliseconds = uint64(downloadDuration.Milliseconds())
 	response.DownloadedFile = usedURL
 
+	// The exit device is the node under test in this call; its handshake
+	// only happens once real traffic has been forwarded through it, which
+	// is why this is checked here rather than right after exitDev.Up().
+	response.CanHandshake = hasHandshaked(exitDev)
+
 	log.Printf("=== Two-Hop Probe Complete ===")
 	return response, nil
 }
@@ -468,12 +497,13 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 		return NetstackResponse{}, err
 	}
 
-	response.CanHandshake = true
-
 	// port-check-only mode: skip pings/download, only test TCP port reachability
 	if req.PortCheckOnly && len(req.PortCheckPorts) > 0 {
 		log.Printf("=== Port Check Only Mode ===")
 		response.PortCheckResults = checkPorts(req.PortCheckTarget, req.PortCheckPorts, req.PortCheckTimeoutSec, tnet)
+		// checkPorts already dialed through the tunnel, which is enough to
+		// trigger a handshake attempt if the peer is reachable.
+		response.CanHandshake = hasHandshaked(dev)
 		return response, nil
 	}
 
@@ -585,6 +615,8 @@ func ping(req NetstackRequestGo) (NetstackResponse, error) {
 		response.DownloadError = ""
 		response.DownloadedFileSizeBytes = uint64(len(fileContent))
 	}
+
+	response.CanHandshake = hasHandshaked(dev)
 
 	return response, nil
 }

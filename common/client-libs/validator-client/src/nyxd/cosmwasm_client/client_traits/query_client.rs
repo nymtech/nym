@@ -1,22 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd;
 use crate::nyxd::coin::Coin;
-use crate::nyxd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nyxd::cosmwasm_client::types::{
     Account, CodeDetails, Contract, ContractCodeId, Model, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::Query;
-use crate::rpc::TendermintRpcClient;
+use crate::nyxd::{Height, Query};
+use crate::rpc::{TendermintRpcClient, TendermintRpcClientExt};
 use async_trait::async_trait;
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
-use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
-use cosmrs::proto::cosmos::bank::v1beta1::{
-    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
-    QueryTotalSupplyRequest, QueryTotalSupplyResponse,
-};
 use cosmrs::proto::cosmos::tx::v1beta1::{
     SimulateRequest, SimulateResponse as ProtoSimulateResponse,
 };
@@ -28,35 +21,30 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     QueryRawContractStateResponse, QuerySmartContractStateRequest, QuerySmartContractStateResponse,
 };
 use cosmrs::tendermint::{block, chain, Hash};
-use cosmrs::{AccountId, Coin as CosmosCoin};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
+use cosmrs::AccountId;
 use std::time::Duration;
-use tendermint_rpc::{
-    endpoint::{block::Response as BlockResponse, broadcast, tx::Response as TxResponse},
-    Order,
+use tendermint_rpc::endpoint::{
+    block::Response as BlockResponse, broadcast, tx::Response as TxResponse,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::sleep;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::Instant;
-
-#[cfg(target_arch = "wasm32")]
-use wasmtimer::std::Instant;
-#[cfg(target_arch = "wasm32")]
-use wasmtimer::tokio::sleep;
+use crate::nyxd::helpers::{create_pagination, next_page_key};
+use crate::rpc::types::ProvableAbciQueryResponse;
 
 pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
+// this trait should only be concerned with the cosmwasm module,
+// so all other legacy methods are deprecated and will be removed in the future
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait CosmWasmClient: TendermintRpcClient {
+pub trait CosmWasmClient: TendermintRpcClientExt {
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
+    #[deprecated(note = "use TendermintRpcClientExt::make_abci_query_without_proof instead")]
     async fn make_abci_query<Req, Res>(
         &self,
         path: Option<String>,
@@ -66,209 +54,83 @@ pub trait CosmWasmClient: TendermintRpcClient {
         Req: Message,
         Res: Message + Default,
     {
-        if let Some(ref abci_path) = path {
-            tracing::trace!("performing query on abci path {abci_path}")
-        }
-        let mut buf = Vec::with_capacity(req.encoded_len());
-        req.encode(&mut buf)?;
-
-        let res = self.abci_query(path, buf, None, false).await?;
-        let res_success = nyxd::error::parse_abci_query_result(res)?;
-
-        Ok(Res::decode(res_success.value.as_ref())?)
+        TendermintRpcClientExt::make_abci_query_without_proof(self, path, req, None).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_chain_id instead")]
     async fn get_chain_id(&self) -> Result<chain::Id, NyxdError> {
-        Ok(self.status().await?.node_info.network)
+        TendermintRpcClientExt::get_chain_id(self).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_height instead")]
     async fn get_height(&self) -> Result<block::Height, NyxdError> {
-        Ok(self.status().await?.sync_info.latest_block_height)
+        TendermintRpcClientExt::get_height(self).await
     }
 
-    // TODO: the return type should probably be changed to a non-proto, type-safe Account alternative
+    #[deprecated(note = "use TendermintRpcClientExt::get_account instead")]
     async fn get_account(&self, address: &AccountId) -> Result<Option<Account>, NyxdError> {
-        let path = Some("/cosmos.auth.v1beta1.Query/Account".to_owned());
-
-        let req = QueryAccountRequest {
-            address: address.to_string(),
-        };
-
-        let res = self
-            .make_abci_query::<_, QueryAccountResponse>(path, req)
-            .await?;
-
-        res.account.map(TryFrom::try_from).transpose()
+        TendermintRpcClientExt::get_account(self, address).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_sequence instead")]
     async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NyxdError> {
-        let account = self
-            .get_account(address)
-            .await?
-            .ok_or_else(|| NyxdError::NonExistentAccountError(address.clone()))?;
-        let base_account = account.try_get_base_account()?;
-
-        Ok(SequenceResponse {
-            account_number: base_account.account_number,
-            sequence: base_account.sequence,
-        })
+        TendermintRpcClientExt::get_sequence(self, address).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_block instead")]
     async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
-        match height {
-            Some(height) => self.block(height).await.map_err(|err| err.into()),
-            None => self.latest_block().await.map_err(|err| err.into()),
-        }
+        TendermintRpcClientExt::get_block(self, height).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_balance instead")]
     async fn get_balance(
         &self,
         address: &AccountId,
         search_denom: String,
     ) -> Result<Option<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/Balance".to_owned());
-
-        let req = QueryBalanceRequest {
-            address: address.to_string(),
-            denom: search_denom,
-        };
-
-        let res = self
-            .make_abci_query::<_, QueryBalanceResponse>(path, req)
-            .await?;
-
-        res.balance
-            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
-            .transpose()
-            .map_err(|_| NyxdError::SerializationError("Coin".to_owned()))
+        TendermintRpcClientExt::get_balance(self, address, search_denom).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_all_balances instead")]
     async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".to_owned());
-
-        let mut raw_balances = Vec::new();
-        let mut pagination = None;
-
-        loop {
-            let req = QueryAllBalancesRequest {
-                address: address.to_string(),
-                pagination,
-                resolve_denom: false,
-            };
-
-            let mut res = self
-                .make_abci_query::<_, QueryAllBalancesResponse>(path.clone(), req)
-                .await?;
-
-            let early_break = res.balances.is_empty();
-            raw_balances.append(&mut res.balances);
-
-            if early_break {
-                break;
-            }
-
-            if let Some(next_key) = next_page_key(res.pagination) {
-                pagination = Some(create_pagination(next_key))
-            } else {
-                break;
-            }
-        }
-
-        raw_balances
-            .into_iter()
-            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
-            .collect::<Result<_, _>>()
-            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
+        TendermintRpcClientExt::get_all_balances(self, address).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_total_supply instead")]
     async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".to_owned());
-
-        let mut supply = Vec::new();
-        let mut pagination = None;
-
-        loop {
-            let req = QueryTotalSupplyRequest { pagination };
-
-            let mut res = self
-                .make_abci_query::<_, QueryTotalSupplyResponse>(path.clone(), req)
-                .await?;
-
-            let early_break = res.supply.is_empty();
-            supply.append(&mut res.supply);
-
-            if early_break {
-                break;
-            }
-
-            if let Some(next_key) = next_page_key(res.pagination) {
-                pagination = Some(create_pagination(next_key))
-            } else {
-                break;
-            }
-        }
-
-        supply
-            .into_iter()
-            .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
-            .collect::<Result<_, _>>()
-            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
+        TendermintRpcClientExt::get_total_supply(self).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::get_tx instead")]
     async fn get_tx(&self, id: Hash) -> Result<TxResponse, NyxdError> {
-        Ok(self.tx(id, false).await?)
+        TendermintRpcClientExt::get_tx(self, id).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::search_tx instead")]
     async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NyxdError> {
-        // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
-        // the maximum entries per page is 100 and the default is 30
-        // so let's attempt to use the maximum
-        let per_page = 100;
-
-        let mut results = Vec::new();
-        let mut page = 1;
-
-        loop {
-            let mut res = self
-                .tx_search(query.clone(), false, page, per_page, Order::Ascending)
-                .await?;
-
-            // sanity check for if tendermint's maximum per_page was modified -
-            // we don't want to accidentally be stuck in an infinite loop
-            let early_break = res.total_count == 0 || res.txs.is_empty();
-            results.append(&mut res.txs);
-
-            if early_break {
-                break;
-            }
-
-            if res.total_count > results.len() as u32 {
-                page += 1
-            } else {
-                break;
-            }
-        }
-
-        Ok(results)
+        TendermintRpcClientExt::search_tx(self, query).await
     }
 
     /// Broadcast a transaction, returning immediately.
+    #[deprecated(note = "use TendermintRpcClientExt::broadcast_tx_async instead")]
     async fn broadcast_tx_async<T>(&self, tx: T) -> Result<broadcast::tx_async::Response, NyxdError>
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(TendermintRpcClient::broadcast_tx_async(self, tx).await?)
+        TendermintRpcClientExt::broadcast_tx_async(self, tx).await
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
+    #[deprecated(note = "use TendermintRpcClientExt::broadcast_tx_sync instead")]
     async fn broadcast_tx_sync<T>(&self, tx: T) -> Result<broadcast::tx_sync::Response, NyxdError>
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(TendermintRpcClient::broadcast_tx_sync(self, tx).await?)
+        TendermintRpcClientExt::broadcast_tx_sync(self, tx).await
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
+    #[deprecated(note = "use TendermintRpcClientExt::broadcast_tx_commit instead")]
     async fn broadcast_tx_commit<T>(
         &self,
         tx: T,
@@ -276,9 +138,10 @@ pub trait CosmWasmClient: TendermintRpcClient {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(TendermintRpcClient::broadcast_tx_commit(self, tx).await?)
+        TendermintRpcClientExt::broadcast_tx_commit(self, tx).await
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::broadcast_tx instead")]
     async fn broadcast_tx<T>(
         &self,
         tx: T,
@@ -288,44 +151,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
     where
         T: Into<Vec<u8>> + Send,
     {
-        let timeout = timeout.into().unwrap_or(DEFAULT_BROADCAST_TIMEOUT);
-        let poll_interval = poll_interval
-            .into()
-            .unwrap_or(DEFAULT_BROADCAST_POLLING_RATE);
-
-        let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
-
-        if broadcasted.code.is_err() {
-            let code_val = broadcasted.code.value();
-            return Err(NyxdError::BroadcastTxErrorDeliverTx {
-                hash: broadcasted.hash,
-                height: None,
-                code: code_val,
-                raw_log: broadcasted.log.to_string(),
-            });
-        }
-
-        let tx_hash = broadcasted.hash;
-
-        let start = Instant::now();
-        loop {
-            tracing::debug!(
-                "Polling for result of including {} in a block...",
-                broadcasted.hash
-            );
-            if Instant::now().duration_since(start) >= timeout {
-                return Err(NyxdError::BroadcastTimeout {
-                    hash: tx_hash,
-                    timeout,
-                });
-            }
-
-            if let Ok(poll_res) = self.get_tx(tx_hash).await {
-                return Ok(poll_res);
-            }
-
-            sleep(poll_interval).await;
-        }
+        TendermintRpcClientExt::broadcast_tx(self, tx, timeout, poll_interval).await
     }
 
     async fn get_codes(&self) -> Result<Vec<CodeInfoResponse>, NyxdError> {
@@ -338,7 +164,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
             let req = QueryCodesRequest { pagination };
 
             let mut res = self
-                .make_abci_query::<_, QueryCodesResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryCodesResponse>(path.clone(), req, None)
                 .await?;
 
             let early_break = res.code_infos.is_empty();
@@ -367,7 +193,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
         let req = QueryCodeRequest { code_id };
 
         let res = self
-            .make_abci_query::<_, QueryCodeResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryCodeResponse>(path, req, None)
             .await?;
 
         if let Some(code_info) = res.code_info {
@@ -389,7 +215,11 @@ pub trait CosmWasmClient: TendermintRpcClient {
             };
 
             let mut res = self
-                .make_abci_query::<_, QueryContractsByCodeResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryContractsByCodeResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.contracts.is_empty();
@@ -421,7 +251,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query::<_, QueryContractInfoResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryContractInfoResponse>(path, req, None)
             .await?;
 
         let response_address = res.address;
@@ -451,7 +281,11 @@ pub trait CosmWasmClient: TendermintRpcClient {
             };
 
             let mut res = self
-                .make_abci_query::<_, QueryContractHistoryResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryContractHistoryResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let early_break = res.entries.is_empty();
@@ -487,7 +321,11 @@ pub trait CosmWasmClient: TendermintRpcClient {
             };
 
             let mut res = self
-                .make_abci_query::<_, QueryAllContractStateResponse>(path.clone(), req)
+                .make_abci_query_without_proof::<_, QueryAllContractStateResponse>(
+                    path.clone(),
+                    req,
+                    None,
+                )
                 .await?;
 
             let empty_response = res.models.is_empty();
@@ -511,6 +349,16 @@ pub trait CosmWasmClient: TendermintRpcClient {
         address: &AccountId,
         query_data: Vec<u8>,
     ) -> Result<Vec<u8>, NyxdError> {
+        self.query_contract_raw_at_height(address, query_data, None)
+            .await
+    }
+
+    async fn query_contract_raw_at_height(
+        &self,
+        address: &AccountId,
+        query_data: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<Vec<u8>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".to_owned());
 
         let req = QueryRawContractStateRequest {
@@ -519,16 +367,42 @@ pub trait CosmWasmClient: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query::<_, QueryRawContractStateResponse>(path, req)
+            .make_abci_query_without_proof::<_, QueryRawContractStateResponse>(path, req, height)
             .await?;
 
         Ok(res.data)
+    }
+
+    async fn query_contract_raw_with_proof(
+        &self,
+        address: &AccountId,
+        query_data: Vec<u8>,
+        height: Option<Height>,
+    ) -> Result<ProvableAbciQueryResponse<Vec<u8>>, NyxdError> {
+        let path = Some("/store/wasm/key".to_owned());
+        let key = crate::nyxd::cosmwasm_client::contract_storage_key(address, &query_data);
+
+        self.make_raw_abci_query_with_proof(path, key, height).await
     }
 
     async fn query_contract_smart<M, T>(
         &self,
         address: &AccountId,
         query_msg: &M,
+    ) -> Result<T, NyxdError>
+    where
+        M: ?Sized + Serialize + Sync,
+        for<'a> T: Deserialize<'a>,
+    {
+        self.query_contract_smart_at_height(address, query_msg, None)
+            .await
+    }
+
+    async fn query_contract_smart_at_height<M, T>(
+        &self,
+        address: &AccountId,
+        query_msg: &M,
+        height: Option<Height>,
     ) -> Result<T, NyxdError>
     where
         M: ?Sized + Serialize + Sync,
@@ -549,13 +423,14 @@ pub trait CosmWasmClient: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query::<_, QuerySmartContractStateResponse>(path, req)
+            .make_abci_query_without_proof::<_, QuerySmartContractStateResponse>(path, req, height)
             .await?;
 
         tracing::trace!("raw query response: {}", String::from_utf8_lossy(&res.data));
         Ok(serde_json::from_slice(&res.data)?)
     }
 
+    #[deprecated(note = "use TendermintRpcClientExt::query_simulate instead")]
     async fn query_simulate(&self, tx_bytes: Vec<u8>) -> Result<SimulateResponse, NyxdError> {
         let path = Some("/cosmos.tx.v1beta1.Service/Simulate".to_owned());
 
@@ -565,7 +440,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
         };
 
         let res = self
-            .make_abci_query::<_, ProtoSimulateResponse>(path, req)
+            .make_abci_query_without_proof::<_, ProtoSimulateResponse>(path, req, None)
             .await?;
 
         res.try_into()

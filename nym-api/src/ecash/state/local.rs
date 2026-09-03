@@ -135,7 +135,7 @@ impl DailyMerkleTree {
 
 pub(crate) struct LocalEcashState {
     pub(crate) ecash_keypair: KeyPair,
-    pub(crate) identity_keypair: ed25519::KeyPair,
+    pub(crate) identity_keypair: Arc<ed25519::KeyPair>,
 
     pub(crate) explicitly_disabled: bool,
 
@@ -153,7 +153,7 @@ pub(crate) struct LocalEcashState {
 impl LocalEcashState {
     pub(crate) fn new(
         ecash_keypair: KeyPair,
-        identity_keypair: ed25519::KeyPair,
+        identity_keypair: Arc<ed25519::KeyPair>,
         explicitly_disabled: bool,
     ) -> Self {
         LocalEcashState {

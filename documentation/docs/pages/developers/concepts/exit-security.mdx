@@ -1,97 +1,109 @@
 ---
-title: "Exit Security: What the Mixnet Protects and What It Doesn't"
-description: "The canonical security model for traffic that leaves the Nym mixnet at an IPR exit gateway. Applies to smolmix, mix-tunnel, mix-fetch, mix-dns, and mix-websocket alike."
+title: "Exit Security: Which Exit Your Package Uses and How to Control It"
+description: "Which Nym packages leave the mixnet at an Exit Gateway and which exit service they use, how to pin a specific exit, and what your application owes the payload. Covers smolmix, the SOCKS5 module, mix-tunnel, mix-fetch, mix-dns, and mix-websocket."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-06-03"
+lastUpdated: "2026-08-12"
 ---
 
 # Exit security
 
 import { Callout } from 'nextra/components'
 
-Every tool that reaches an external service through the Nym mixnet shares the same security model, whether it's the Rust [`smolmix`](/developers/smolmix) crate or the mix-* packages built on [`mix-tunnel`](/developers/mix-tunnel) ([`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket)). They all exit the mixnet at an [IPR (Internet Packet Router)](/network/infrastructure/exit-services#ip-packet-router) gateway, so they inherit the same properties and the same single caveat. This page is the canonical statement of that model; the package pages link here rather than restating it.
+Every tool that reaches an external service through the Nym mixnet shares one exit security model. The Exit Gateway sees your **destination** and any payload you did not encrypt yourself. It does not see who you are. [Exit Gateway Services](/network/infrastructure/exit-services) documents that model once: what each hop sees, and the trust it implies. This page is the developer-facing half. It covers which exit your package uses, how to pin one, and what your application is responsible for.
 
-## The one-sentence version
+Tools where both ends run a Nym client ([`nym-sdk`](/developers/rust), the [TypeScript SDK](/developers/typescript)) never exit the mixnet at all. Traffic stays Sphinx-encrypted from your client to the peer's client. There is no Exit Gateway and no clearnet hop, so nothing on this page applies. No exit exists to trust, and no payload is exposed to one. For the threat-model verdicts on that mode, see [end to end](/network/threat-model/configurations/end-to-end).
 
-The mixnet hides **who** you are from the destination and **where** you're going from the network, but the exit gateway sees your **destination** and any payload you didn't encrypt yourself.
+## Which exit your package uses
 
-## Proxy mode or end-to-end?
+Exit Gateways run two proxy services, and which one carries your traffic is decided by the package, not by configuration.
 
-This page is about **proxy mode**: your traffic leaves the mixnet at an IPR exit and continues to a third-party server over clearnet, where the security trade-offs apply.
-
-If both ends run a Nym client (**end-to-end**), traffic never exits the mixnet. It stays Sphinx-encrypted from your client to the other client, there is no IPR, and the [encrypt-your-own-payload](#encrypt-your-own-payload) concern below does not arise: the mixnet is the encrypted channel. What still applies to end-to-end traffic is everything that is not exit-specific: the [trust boundaries](#trust-boundaries) (unlinkability is statistical, not absolute) and [what the mixnet does not protect](#what-the-mixnet-does-not-protect) (application identity, fingerprinting, traffic analysis). For the end-to-end wiring itself, see [`nym-sdk`](/developers/rust) and the [TypeScript SDK](/developers/typescript).
-
-## What each hop sees
-
-```text
- you
-  │  Sphinx
-  ▼
- entry gateway
-  │  Sphinx
-  ▼
- 3 mix layers
-  │  Sphinx
-  ▼
- IPR exit gateway
-  │  plain IP (Sphinx removed here)
-  ▼
- destination
-```
-
-| Segment | Mixnet encryption | What's visible |
+| Package | Exit service | What the exit sees |
 |---|---|---|
-| Your machine → mixnet entry | Sphinx (layered) | Entry gateway sees your IP but not the destination |
-| Inside the mixnet (entry gateway + 3 mix layers) | Sphinx (layered) | Each node only knows its previous and next hop |
-| Exit gateway (IPR) | Sphinx removed, raw IP packet exposed | IPR sees destination IP + port. Payload depends on your application layer (see below). |
-| IPR → remote host | None (Sphinx is mixnet-only; your own TLS, if any, still applies) | Remote host sees the IPR's IP, not yours |
+| [`smolmix`](/developers/smolmix) | [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) | Destination IP and port |
+| [`mix-tunnel`](/developers/mix-tunnel) and everything built on it: [`mix-fetch`](/developers/mix-fetch), [`mix-dns`](/developers/mix-dns), [`mix-websocket`](/developers/mix-websocket) | [IP Packet Router](/network/infrastructure/exit-services#ip-packet-router) | Destination IP and port |
+| [SOCKS5 module](/developers/rust/socks5) and the [standalone `nym-socks5-client`](/developers/clients/socks5) | [Network Requester](/network/infrastructure/exit-services#network-requester) | Destination **hostname** and port with `socks5h://`, an IP otherwise. Plus your Nym address, unless anonymous replies are on |
 
-The Sphinx encryption is the **mixnet transport layer**: it protects packets as they traverse the mix nodes. At the exit gateway the Sphinx layers are stripped and the original IP packet is forwarded to the destination. This is analogous to how a Tor exit node or VPN endpoint unwraps its tunnel.
+Two practical differences follow.
 
-## Encrypt your own payload
+The first is DNS. The IPR works at the network layer and never learns the hostname you resolved. The NR resolves DNS for you, so it sees the name, but only with `socks5h://`. With plain `socks5://` your client resolves first and the lookup goes out over clearnet.
 
-Because the IPR removes the Sphinx layers, whatever is inside that IP packet is visible to the exit unless you encrypted it yourself.
+The second is identity. The default SOCKS5 configuration sends replies to a return address. The NR therefore receives your Nym address, which is stable across sessions and names your Entry Gateway. Turn on anonymous replies (`--use-anonymous-replies` on the standalone client) to withhold it. See [the exit trust model](/network/infrastructure/exit-services#trust-model) for why that matters.
 
-- **Application-layer encryption closes the gap.** TLS, the Noise Protocol, or any authenticated encryption keeps the payload as ciphertext to the IPR. It still sees the destination IP and port, but not the content. Over TLS the IPR only ever handles ciphertext bound for that destination; the bytes inside stay opaque to it.
-- **Unencrypted payloads are fully visible.** Plain HTTP, unencrypted WebSocket (`ws://`), and plain UDP DNS are readable in full at the exit. The mixnet still hides your identity, so the exit reads the content without being able to attribute it to you.
+## Check your destination is reachable
 
-## Trust boundaries
+Every exit applies the same [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt),
+a deny list agreed by operator governance and identical across nodes. It decides
+which destination ports may leave the mixnet at all, so it constrains an
+integration before anything else does: if the port your service listens on is not
+permitted, no amount of configuration on your side helps.
 
-- You trust the mixnet to provide unlinkability between sender and receiver. Sphinx provides this cryptographically at the per-packet level: a node cannot read addressing beyond its own hop. Unlinkability of your *traffic pattern* over time is weaker, and statistical rather than absolute. It comes from mixing and cover traffic, and degrades with low network traffic, with cover traffic or Poisson timing disabled, and against an adversary that can observe a large fraction of the network.
-- You trust the IPR exit gateway in the same way you trust a VPN exit or Tor exit node: it can inspect your raw IP packets. The difference is that the IPR doesn't know who is sending the traffic (the mixnet hides your identity).
+The list is maintained outside these docs, so check the current version against
+your destination port rather than any copy of it. An individual operator cannot
+vary it.
 
-<Callout type="warning">
-Treat the IPR exactly as you would a VPN exit or a Tor exit node: it can inspect your raw IP packets. The difference Nym adds is that the IPR doesn't know who's sending the traffic. Protect the payload with TLS or equivalent, and pin a trusted exit (`preferredIpr`) if the exit operator matters to you.
+If the policy refuses a port you need, the route is a governance proposal. It is
+decided by an operator vote, and the
+[exit gateway community counsel](/operators/community-counsel/exit-gateway)
+describes the process.
+
+## Protect the payload
+
+The Exit Gateway strips the Sphinx layers, so whatever is inside is visible to it unless your application encrypted it. This is your job, not the mixnet's.
+
+- Use `https://` rather than `http://`, and `wss://` rather than `ws://`. Over TLS the exit only ever handles ciphertext bound for that destination. Plain HTTP, plain WebSocket frames, and plain UDP DNS are readable in full at the exit.
+- Do not rely on the mixnet for application-layer anonymity. Logging in, sending a cookie, or including an API token identifies you to the destination whatever the network path. See [what the exit does not protect against](/network/infrastructure/exit-services#what-the-exit-does-not-protect-against).
+
+Per-transport specifics (where TLS terminates, what the resolver sees, `wss://` vs `ws://`) are on each package page: [smolmix](/developers/smolmix), the [SOCKS5 module](/developers/rust/socks5), [mix-fetch](/developers/mix-fetch), [mix-dns](/developers/mix-dns), and [mix-websocket](/developers/mix-websocket).
+
+## Pin an exit
+
+By default a client discovers an exit automatically. If the exit operator or its jurisdiction matters to you, pin one. The control depends on the exit service:
+
+<Callout type="info">
+Pinning trades availability for predictability. A pinned exit that is offline
+fails rather than falling back, so pin when the operator matters and leave
+discovery on when it does not.
 </Callout>
 
-## What the mixnet does not protect
+**IPR-backed, browser and wasm packages.** Pass `preferredIpr` to `setupMixTunnel`:
 
-The mixnet operates at the **network layer**: it hides your IP and unlinks sender from receiver. It does nothing at the **application layer**, so anything you reveal in the content of your traffic is yours to manage:
+```ts
+await setupMixTunnel({
+  preferredIpr: 'D1rrUqJY9pesL3pTaMaxLnpZGGYQ4ZpZwpQXCqaeBXTW.6PpFkRvF...',
+});
+```
 
-- **Application identity.** If you log in, send a cookie, or include an API token, the destination knows who you are regardless of the network path. The mixnet anonymises the pipe, not what you put through it.
-- **Fingerprinting.** A stable request pattern, a distinctive TLS or HTTP fingerprint, or a recognisable account correlates your traffic across sessions. `mix-fetch`'s [default headers](/developers/mix-fetch/guides#default-request-headers) reduce trivial fingerprinting but do not make you indistinguishable from a real browser.
+**IPR-backed, native `smolmix`.** Construct the tunnel with an explicit IPR recipient instead of letting it auto-discover:
 
-Separately, the network-layer guarantee itself is not absolute:
+```rust
+let ipr: Recipient = "D1rrUqJY...@6PpFkRvF...".parse()?;
+let tunnel = Tunnel::new_with_ipr(ipr).await?;
+```
 
-- **Statistical traffic analysis.** Unlinkability is probabilistic, not a guarantee. It is strong by default but weakens with low network traffic, with cover traffic and Poisson timing turned off, and against an adversary observing a large fraction of the network.
+**Network Requester, SOCKS5 module.** Select a requester and pass it to `connect_with`:
 
-If you need anonymity at the application layer too, design for it explicitly: fresh identities, no cross-session correlators, and no logged-in accounts you also use over clearnet.
+```rust
+// a specific requester, by its Nym address
+let selector = NetworkRequesterSelector::exact("D1rrUqJY...@6PpFkRvF...")?;
 
-## Comparison with other privacy tools
+// or constrain the jurisdiction to ISO 3166 alpha-2 country codes
+let selector = NetworkRequesterSelector::in_countries(["CH", "DE"])?;
 
-| | Nym (mixnet) | Tor | VPN |
-|---|---|---|---|
-| **Exit node sees traffic?** | Yes (encrypt it) | Yes (encrypt it) | Yes (encrypt it) |
-| **Exit node knows sender?** | No (mixnet hides identity) | No (onion routing) | Yes (VPN provider knows) |
-| **Timing analysis resistance** | Strong with defaults (mixing, cover traffic) | Weak (low-latency) | None |
-| **UDP support** | Yes | No (TCP only) | Yes |
+// the second argument is the local SOCKS5 bind address; None takes the default
+let client = Socks5MixnetClient::connect_with(selector, None).await?;
+```
 
-The timing-analysis rating assumes the defaults. Cover traffic and Poisson timing can be turned off to trade that resistance for latency and bandwidth, moving Nym's row toward Tor's. The named switches for this (`disableCoverTraffic` / `disablePoissonTraffic`) are specific to the browser/wasm packages ([`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it); the native `smolmix` crate does not expose them by those names. The UDP row reflects a design difference, not a ranking: Tor is TCP-only by design, while the Nym IPR routes raw IP.
+## Cover traffic and Poisson timing
+
+The mixnet's timing protection against network observers comes from mixing delays, Poisson sending, and cover traffic. The browser and wasm packages expose switches to turn the last two off. That trades timing protection for latency and bandwidth:
+
+- `disableCoverTraffic` and `disablePoissonTraffic` on [`mix-tunnel`](/developers/mix-tunnel/guides#configuration) and the feature packages built on it.
+
+The native `smolmix` crate does not expose them. Configure the mixnet client yourself and pass it to `Tunnel::from_stream`. Turning either off changes nothing about what the *exit* sees. It weakens you against a [network observer](/network/threat-model/actors#actor-L3G), the only actor the mixing protects you from.
 
 ## Read more
 
-The package pages add the parts specific to their transport (where TLS terminates, what the resolver sees, WSS vs `ws://`):
-
-- [Exit Gateway Services](/network/infrastructure/exit-services#ip-packet-router): how the IPR allocates addresses and routes raw IP packets, and how it differs from the SOCKS-based Network Requester.
-- The per-package "Security model" section on [mix-fetch](/developers/mix-fetch/concepts#security-model), [mix-dns](/developers/mix-dns/guides#security-model), and [mix-websocket](/developers/mix-websocket/concepts#security-model) for the transport-specific exposure.
+- [Exit Gateway Services](/network/infrastructure/exit-services): the full model, what each hop sees, and the trust the exit implies.
+- [The two-layer model](/network/threat-model/two-layer-model): why hiding your identity from the destination and disciplining what your requests leak are separate problems.
+- [Nym vs other systems](/network/threat-model/comparisons): how this compares with VPNs, Tor, I2P, and end-to-end encryption.

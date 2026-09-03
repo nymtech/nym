@@ -123,7 +123,7 @@ async fn refresh_described(
 
     if let Some(updated_data) = refresh_data.try_refresh(allow_all_ips).await {
         let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
-            return Err(AxumErrorResponse::service_unavailable());
+            return Err(AxumErrorResponse::service_unavailable(""));
         };
         describe_cache.get_mut().force_update(updated_data)
     } else {

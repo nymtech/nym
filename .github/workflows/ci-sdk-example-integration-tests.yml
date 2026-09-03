@@ -1,0 +1,40 @@
+name: SDK Example Integration Tests
+
+# Expensive, mainnet-dependent tests: run nightly or on demand, never on PRs.
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  echo-example-integration-tests:
+    runs-on: arc-linux-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        id: rust-toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+
+      - name: Pin the installed toolchain
+        run: rustup override set ${{ steps.rust-toolchain.outputs.name }}
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Build the service provider examples
+        run: cargo build --package nym-sdk --examples
+
+      - name: Run the echo example integration test against mainnet
+        env:
+          NYM_SDK_MAINNET_INTEGRATION_TESTS: "1"
+        run: cargo test --package nym-sdk --test echo_example_integration -- --nocapture

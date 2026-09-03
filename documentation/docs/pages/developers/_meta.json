@@ -1,6 +1,8 @@
 {
-  "index": "Overview",
+  "index": "Overview: Choosing A Package",
+  "limitations": "What Nym Cannot Do",
   "concepts": "Key Concepts",
+  "service-providers": "Service Providers (server side)",
 
   "sep-intro": {
     "type": "separator"
@@ -10,6 +12,8 @@
     "title": "Rust"
   },
   "smolmix": "smolmix (TCP/UDP tunnel)",
+  "smoldvpn": "nym-smoldvpn (WireGuard dVPN)",
+  "swizzle": "nym-swizzle (traffic hygiene)",
   "rust": "nym-sdk",
 
   "-": {
@@ -35,6 +39,7 @@
   "nymvpncli": "Nym VPN CLI",
   "chain": "Interacting with Nyx Blockchain",
   "tools": "Tools",
+  "mcp": "MCP Server (AI agents)",
   "clients": "Standalone Clients",
   "----": {
     "type": "separator"

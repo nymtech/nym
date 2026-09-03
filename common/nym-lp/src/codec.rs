@@ -66,6 +66,7 @@ pub(crate) fn decrypt_lp_packet(
     let plaintext = decrypt_data(packet.ciphertext(), transport)?;
 
     let inner_header = InnerHeader::parse(&plaintext)?;
+    #[allow(clippy::indexing_slicing)]
     let payload = &plaintext[InnerHeader::SIZE..];
     let frame = LpFrame::decode(payload)?;
 

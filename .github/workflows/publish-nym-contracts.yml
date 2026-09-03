@@ -41,7 +41,7 @@ jobs:
           retention-days: 5
 
       - name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.event_name == 'release'
         with:
           files: |

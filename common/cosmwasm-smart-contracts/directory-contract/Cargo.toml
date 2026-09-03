@@ -1,0 +1,33 @@
+[package]
+name = "nym-directory-contract-common"
+description = "Common crate for Nym's directory contract"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version = "1.86"
+readme.workspace = true
+publish = true
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true }
+schemars = { workspace = true }
+
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-controllers = { workspace = true }
+
+nym-mixnet-contract-common = { workspace = true }
+
+utoipa = { workspace = true, optional = true }
+
+[features]
+schema = []
+utoipa = ["dep:utoipa"]
+
+[lints]
+workspace = true

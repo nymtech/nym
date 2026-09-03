@@ -1,0 +1,26 @@
+[package]
+name = "nym-directory-types"
+description = "Library containing definitions of node-submitted directory entries"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+prost = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+utoipa = { workspace = true, optional = true }
+
+[features]
+openapi = ["utoipa"]
+
+[lints]
+workspace = true

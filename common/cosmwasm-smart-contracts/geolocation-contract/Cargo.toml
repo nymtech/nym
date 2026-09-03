@@ -1,0 +1,40 @@
+[package]
+name = "nym-geolocation-contract-common"
+description = "Common library for the Nym geolocation contract"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+rust-version = "1.85"
+readme.workspace = true
+publish = true
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true }
+schemars = { workspace = true }
+
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-controllers = { workspace = true }
+
+nym-mixnet-contract-common = { workspace = true }
+
+utoipa = { workspace = true, optional = true }
+# the `float_roundtrip` feature is pinned workspace-wide and load-bearing here: the default
+# parser can round-trip a coordinate such as `25.1164` to a different nearest float, which
+# would silently break a node's signature over its own payload bytes
+serde_json = { workspace = true, optional = true }
+
+[features]
+schema = []
+# the canonical location payload; never enabled by the contract, since its `f64`
+# coordinates would put floating-point instructions in the wasm and fail `cosmwasm-check`
+payload = ["dep:serde_json"]
+utoipa = ["payload", "dep:utoipa"]
+
+[lints]
+workspace = true

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NodeEntriesResponse",
+  "description": "Response for [`crate::QueryMsg::NodeEntries`] - every entry for one node.",
+  "type": "object",
+  "required": [
+    "entries",
+    "node_id"
+  ],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/NodeLabelEntry"
+      }
+    },
+    "node_id": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "NodeEntry": {
+      "description": "A node-published entry: the opaque payload, the block height of the last write, and the `sequence` + ed25519 `signature` it was written with. Storing the sequence makes the signature independently re-verifiable - the signed message is `(node_id, label, sequence, data)` - and both are committed to the digest, so an entry is self-authenticating and the directory is auditable from current state alone.",
+      "type": "object",
+      "required": [
+        "data",
+        "sequence",
+        "signature",
+        "updated_at_height"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Binary"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "signature": {
+          "$ref": "#/definitions/Binary"
+        },
+        "updated_at_height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "NodeLabelEntry": {
+      "description": "A `(label, entry)` pair belonging to a single node.",
+      "type": "object",
+      "required": [
+        "entry",
+        "label"
+      ],
+      "properties": {
+        "entry": {
+          "$ref": "#/definitions/NodeEntry"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

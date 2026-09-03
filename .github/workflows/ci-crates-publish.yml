@@ -63,7 +63,12 @@ jobs:
               echo "  $TEAM already owns $crate, skipping"
             else
               echo "  Adding $TEAM as owner of $crate..."
-              cargo owner --add "$TEAM" "$crate"
+              # TODO: proper fix needed. Some crates (e.g. nym-outfox) are owned only via a
+              # team, and crates.io forbids team-derived owners from modifying the owner list
+              # (403 "team members don't have permission to modify owners"). Tolerate that here
+              # so one crate's ownership gap does not abort the whole publish; the missing owner
+              # must then be added out of band by a named individual owner of that crate.
+              cargo owner --add "$TEAM" "$crate" || echo "  WARN: could not add $TEAM to $crate (needs manual ownership sorting); continuing"
               sleep 2
             fi
           done
@@ -84,7 +89,9 @@ jobs:
               echo "  $TEAM_MEMBER already owns $crate, skipping"
             else
               echo "  Adding $TEAM_MEMBER as owner of $crate..."
-              cargo owner --add "$TEAM_MEMBER" "$crate"
+              # See TODO in the "Add team as crate owners" step: tolerate the crates.io 403
+              # for team-owned crates so a single ownership gap does not abort the publish.
+              cargo owner --add "$TEAM_MEMBER" "$crate" || echo "  WARN: could not add $TEAM_MEMBER to $crate (needs manual ownership sorting); continuing"
               sleep 2
             fi
           done

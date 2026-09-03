@@ -4,6 +4,138 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2026.17-djibouti] (2026-09-01)
+
+- fixed nym-node config migration ([#7106])
+- Bugfix/djubouti nym api ([#7097])
+- bugfix: don't use hickory within the credential proxy ([#7091])
+- bugfix: dont inline mixnet initialise function ([#7090])
+- feat: add config score penalty for nodes incapable of sending nyx transactions ([#7073])
+- feat: add additional check for signer status in the validator-status-check tool ([#7068])
+- fix(wireguard): don't crash node startup over one corrupted peer record ([#7065])
+- bugfix: reject packets to unknown clients ([#7061])
+- feat: introduce Geolocator service alongside associated contract ([#7055])
+- Network Details v2 Endpoint Type ([#7051])
+- fix(nym-node): bridge_client_params must survive --write-changes ([#7049])
+- chore: removed support for outfox packets ([#7048])
+- fix(gateway-probe): CanHandshake must reflect a real WireGuard handshake, not local interface state ([#7047])
+- fix(gateway-probe): bracket IPv6 addresses in the WireGuard endpoint string ([#7046])
+- feat: Directory node publishing ([#7013])
+- feat: Directory checkpoint bootstrapping ([#7004])
+- feat: Directory Attestation Provider ([#6954])
+- feat: expose nym-api public keys + proof of possession ([#6949])
+- feat: Directory Client: Attested Anchor ([#6948])
+- feat: Directory Client: TM Light Client Anchor ([#6941])
+- feat: Verifiable Directory Contract retrieval ([#6936])
+- feat: Directory Contract ([#6933])
+
+[#7106]: https://github.com/nymtech/nym/pull/7106
+[#7097]: https://github.com/nymtech/nym/pull/7097
+[#7091]: https://github.com/nymtech/nym/pull/7091
+[#7090]: https://github.com/nymtech/nym/pull/7090
+[#7073]: https://github.com/nymtech/nym/pull/7073
+[#7068]: https://github.com/nymtech/nym/pull/7068
+[#7065]: https://github.com/nymtech/nym/pull/7065
+[#7061]: https://github.com/nymtech/nym/pull/7061
+[#7055]: https://github.com/nymtech/nym/pull/7055
+[#7051]: https://github.com/nymtech/nym/pull/7051
+[#7049]: https://github.com/nymtech/nym/pull/7049
+[#7048]: https://github.com/nymtech/nym/pull/7048
+[#7047]: https://github.com/nymtech/nym/pull/7047
+[#7046]: https://github.com/nymtech/nym/pull/7046
+[#7013]: https://github.com/nymtech/nym/pull/7013
+[#7004]: https://github.com/nymtech/nym/pull/7004
+[#6954]: https://github.com/nymtech/nym/pull/6954
+[#6949]: https://github.com/nymtech/nym/pull/6949
+[#6948]: https://github.com/nymtech/nym/pull/6948
+[#6941]: https://github.com/nymtech/nym/pull/6941
+[#6936]: https://github.com/nymtech/nym/pull/6936
+[#6933]: https://github.com/nymtech/nym/pull/6933
+
+## [2026.16-como] (2026-08-18)
+
+- Como Network Details v2 Endpoint Type ([#7052])
+- bugfix: change constraints on stress testing results table to allow for orchestrator database reset ([#7035])
+- feat: add nym-lthash incremental multiset-hash crate ([#7025])
+- chore: patch updates ([#7016])
+- chore: upgrade rand 0.9 uses to rand 0.10 ([#7014])
+- Bump brace-expansion from 5.0.2 to 5.0.9 in /documentation/scripts/post-process ([#7011])
+- Bugfix: don't report end-of-stream from ChannelDevice ([#7009])
+- bugfix: allow NMv3 to correctly test nodes with multiple ip addresses ([#7008])
+- Add several more API options ([#7007])
+- HTTP Error handling  ([#7006])
+- Bump qs and express in /wasm/client/internal-dev ([#7001])
+- Bump uuid from 8.3.2 to 14.0.0 in /wasm/smolmix/internal-dev ([#6995])
+- Bump websocket-driver from 0.7.4 to 0.7.5 in /clients/native/examples/js-examples/websocket ([#6994])
+- Bump webpack-dev-server from 4.7.4 to 5.2.6 in /clients/native/examples/js-examples/websocket ([#6992])
+- Bump shell-quote from 1.8.4 to 1.10.0 in /wasm/client/internal-dev ([#6991])
+-  [BandwidthController] Background global-data fetching + global-data-aware readiness ([#6988])
+- Bump next from 15.5.10 to 15.5.21 in /documentation/docs ([#6987])
+- Bump quinn-proto from 0.11.14 to 0.11.15 ([#6986])
+- SDK: nym-swizzle ([#6984])
+- chore: forbid direct slice indexing in core crypto crates ([#6983])
+- Bump next from 16.1.6 to 16.2.12 in /nym-node-status-api/nym-node-status-ui ([#6982])
+- Bump next from 14.2.35 to 15.5.21 ([#6975])
+- Bump fast-uri from 3.1.2 to 3.1.4 in /wasm/smolmix/tests ([#6974])
+- NTM: Hotfix ([#6971])
+- Bump websocket-driver from 0.7.4 to 0.7.5 in /wasm/client/internal-dev ([#6957])
+- Bump js-yaml and @redocly/openapi-core in /nym-node-status-api/nym-node-status-ui ([#6926])
+- Networking and Bootstrapping configuration changes ([#6901])
+- chore(deps): bump webpack-dev-server from 4.15.2 to 5.2.6 ([#6893])
+- Bump petgraph from 0.6.5 to 0.8.3 ([#6885])
+- Bump test-with from 0.15.8 to 0.16.3 ([#6884])
+- Bump serde_with from 3.20.0 to 3.21.0 ([#6881])
+- Bump launch-editor from 2.6.0 to 2.14.1 in /wasm/client/internal-dev ([#6851])
+- Bump qs and express in /clients/native/examples/js-examples/websocket ([#6821])
+- Bump qs from 6.15.1 to 6.15.2 ([#6818])
+- Bump serialize-javascript and terser-webpack-plugin in /clients/native/examples/js-examples/websocket ([#6814])
+- build(deps): bump softprops/action-gh-release from 2 to 3 ([#6806])
+- build(deps): bump mikefarah/yq from 4.52.4 to 4.53.2 ([#6805])
+- build(deps): bump SonarSource/sonarqube-scan-action from 7 to 8 ([#6804])
+- build(deps): bump pnpm/action-setup from 5.0.0 to 6.0.9 ([#6803])
+- build(deps): bump timheuer/base64-to-file from 1.2 to 2.0 ([#6802])
+
+[#7052]: https://github.com/nymtech/nym/pull/7052
+[#7035]: https://github.com/nymtech/nym/pull/7035
+[#7025]: https://github.com/nymtech/nym/pull/7025
+[#7016]: https://github.com/nymtech/nym/pull/7016
+[#7014]: https://github.com/nymtech/nym/pull/7014
+[#7011]: https://github.com/nymtech/nym/pull/7011
+[#7009]: https://github.com/nymtech/nym/pull/7009
+[#7008]: https://github.com/nymtech/nym/pull/7008
+[#7007]: https://github.com/nymtech/nym/pull/7007
+[#7006]: https://github.com/nymtech/nym/pull/7006
+[#7001]: https://github.com/nymtech/nym/pull/7001
+[#6995]: https://github.com/nymtech/nym/pull/6995
+[#6994]: https://github.com/nymtech/nym/pull/6994
+[#6992]: https://github.com/nymtech/nym/pull/6992
+[#6991]: https://github.com/nymtech/nym/pull/6991
+[#6988]: https://github.com/nymtech/nym/pull/6988
+[#6987]: https://github.com/nymtech/nym/pull/6987
+[#6986]: https://github.com/nymtech/nym/pull/6986
+[#6984]: https://github.com/nymtech/nym/pull/6984
+[#6983]: https://github.com/nymtech/nym/pull/6983
+[#6982]: https://github.com/nymtech/nym/pull/6982
+[#6975]: https://github.com/nymtech/nym/pull/6975
+[#6974]: https://github.com/nymtech/nym/pull/6974
+[#6971]: https://github.com/nymtech/nym/pull/6971
+[#6957]: https://github.com/nymtech/nym/pull/6957
+[#6926]: https://github.com/nymtech/nym/pull/6926
+[#6901]: https://github.com/nymtech/nym/pull/6901
+[#6893]: https://github.com/nymtech/nym/pull/6893
+[#6885]: https://github.com/nymtech/nym/pull/6885
+[#6884]: https://github.com/nymtech/nym/pull/6884
+[#6881]: https://github.com/nymtech/nym/pull/6881
+[#6851]: https://github.com/nymtech/nym/pull/6851
+[#6821]: https://github.com/nymtech/nym/pull/6821
+[#6818]: https://github.com/nymtech/nym/pull/6818
+[#6814]: https://github.com/nymtech/nym/pull/6814
+[#6806]: https://github.com/nymtech/nym/pull/6806
+[#6805]: https://github.com/nymtech/nym/pull/6805
+[#6804]: https://github.com/nymtech/nym/pull/6804
+[#6803]: https://github.com/nymtech/nym/pull/6803
+[#6802]: https://github.com/nymtech/nym/pull/6802
+
 ## [2026.15-bydgoszcz] (2026-08-05)
 
 - Cherry pick new domain ([#7018])

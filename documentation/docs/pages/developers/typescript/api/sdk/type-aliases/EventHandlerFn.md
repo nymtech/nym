@@ -30,4 +30,4 @@ The **EventHandlerFn** is a callback function that is passed to the [EventHandle
 
 ## Source
 
-[mixnet/wasm/types.ts:309](https://github.com/nymtech/nym/blob/8ea9a230a7d5819511b34aec8d6705e038511ad3/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L309)
+[mixnet/wasm/types.ts:309](https://github.com/nymtech/nym/blob/develop/sdk/typescript/packages/sdk/src/mixnet/wasm/types.ts#L309)

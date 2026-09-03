@@ -70,7 +70,7 @@ impl AddressDataCollector {
             .nym_contract_cache
             .all_cached_nym_nodes()
             .await
-            .ok_or_else(AxumErrorResponse::service_unavailable)?
+            .ok_or_else(|| AxumErrorResponse::service_unavailable(""))?
             .iter()
             .filter_map(|node_details| {
                 // is this an operator of this node?

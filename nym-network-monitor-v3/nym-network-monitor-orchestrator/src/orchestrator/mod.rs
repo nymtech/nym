@@ -16,7 +16,8 @@ use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{
     NetworkMonitorsQueryClient, NetworkMonitorsSigningClient, PagedNetworkMonitorsQueryClient,
 };
-use nym_validator_client::nyxd::{AccountId, CosmWasmClient, bip39};
+use nym_validator_client::nyxd::{AccountId, bip39};
+use nym_validator_client::rpc::TendermintRpcClientExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;

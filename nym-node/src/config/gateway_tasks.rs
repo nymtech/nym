@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::helpers::log_error_and_return;
+use crate::config::helpers::{log_error_and_return, resolve_attester_pubkey};
 use crate::config::persistence::GatewayTasksPaths;
 use crate::error::NymNodeError;
 use nym_config::defaults::{
@@ -48,6 +48,12 @@ pub struct GatewayTasksConfig {
 
     #[serde(default)]
     pub debug: Debug,
+}
+
+impl GatewayTasksConfig {
+    pub(crate) fn external_ws_port(&self) -> u16 {
+        self.announce_ws_port.unwrap_or(self.ws_bind_address.port())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -276,7 +282,7 @@ impl UpgradeModeWatcher {
         info!("\t- url: {}", mainnet::UPGRADE_MODE_ATTESTATION_URL);
         info!(
             "\t- attester public key: {}",
-            mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+            mainnet::ROOT_ATTESTER_ED25519_BS58_PUBKEY
         );
 
         // SAFETY:
@@ -287,7 +293,7 @@ impl UpgradeModeWatcher {
             .expect("invalid default upgrade mode attestation URL");
 
         #[allow(clippy::expect_used)]
-        let attester_public_key = mainnet::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
+        let attester_public_key = mainnet::ROOT_ATTESTER_ED25519_BS58_PUBKEY
             .parse()
             .expect("invalid default upgrade mode attester public key");
 
@@ -313,15 +319,6 @@ impl UpgradeModeWatcher {
             ));
         };
 
-        let Ok(env_attester_pubkey) =
-            env::var(var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY)
-        else {
-            return log_error_and_return(format!(
-                "'{}' is not set whilst the env is set to be configured",
-                var_names::UPGRADE_MODE_ATTESTER_ED25519_BS58_PUBKEY
-            ));
-        };
-
         let attestation_url = match env_attestation_url.parse() {
             Ok(url) => url,
             Err(err) => {
@@ -331,14 +328,7 @@ impl UpgradeModeWatcher {
             }
         };
 
-        let attester_public_key = match env_attester_pubkey.parse() {
-            Ok(public_key) => public_key,
-            Err(err) => {
-                return log_error_and_return(format!(
-                    "provided attester public key {env_attester_pubkey} is invalid: {err}!"
-                ));
-            }
-        };
+        let attester_public_key = resolve_attester_pubkey()?;
 
         Ok(UpgradeModeWatcher {
             enabled: true,

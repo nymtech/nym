@@ -75,6 +75,7 @@ pub(crate) async fn start_cache_refresh(
             .performance_provider
             .debug
             .stress_testing_score_weight,
+        chain_interactions_penalty: config.performance_provider.debug.chain_interactions_penalty,
     };
 
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(

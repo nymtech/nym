@@ -12,9 +12,8 @@ use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryC
 use nym_validator_client::nyxd::module_traits::staking::{
     QueryHistoricalInfoResponse, QueryValidatorsResponse,
 };
-use nym_validator_client::nyxd::{
-    AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
-};
+use nym_validator_client::nyxd::{AccountId, Coin, Hash, PageRequest, StakingQueryClient};
+use nym_validator_client::rpc::TendermintRpcClientExt;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, nyxd};
 use std::collections::HashMap;
 use std::ops::Deref;

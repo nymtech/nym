@@ -91,3 +91,14 @@ pub mod epoch_routes {
     pub const CURRENT: &str = "current";
     pub const KEY_ROTATION_INFO: &str = "key-rotation-info";
 }
+
+pub mod directory {
+    pub const SNAPSHOT: &str = "snapshot";
+    pub const LATEST: &str = "latest";
+    pub const DIGEST: &str = "digest";
+    pub const DATA: &str = "data";
+    pub const ENTRIES: &str = "entries";
+    pub const RECORDS: &str = "records";
+    pub const NODE_IDENTITIES: &str = "node-identities";
+    pub const UNATTESTED: &str = "unattested";
+}

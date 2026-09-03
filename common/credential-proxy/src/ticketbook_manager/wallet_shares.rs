@@ -24,6 +24,11 @@ use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 impl TicketbookManager {
+    /// `epoch` is resolved once by the caller and used for everything here: the signers asked,
+    /// the threshold required of them, the auxiliary data returned alongside, the epoch stated on
+    /// each request, and the epoch the shares are stored under. Resolving it again here would let
+    /// a ceremony concluding in between hand back shares and auxiliary data from two different
+    /// epochs, which a client cannot combine.
     #[instrument(
         skip(self, request_data, request, requested_on),
             fields(
@@ -31,11 +36,6 @@ impl TicketbookManager {
                 ticketbook_type = %request_data.ticketbook_type
         )
     )]
-    /// `epoch` is resolved once by the caller and used for everything here: the signers asked,
-    /// the threshold required of them, the auxiliary data returned alongside, the epoch stated on
-    /// each request, and the epoch the shares are stored under. Resolving it again here would let
-    /// a ceremony concluding in between hand back shares and auxiliary data from two different
-    /// epochs, which a client cannot combine.
     pub async fn try_obtain_wallet_shares(
         &self,
         request: Uuid,

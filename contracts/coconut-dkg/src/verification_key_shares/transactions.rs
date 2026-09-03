@@ -537,11 +537,18 @@ mod tests {
             .plus_seconds(timings.verification_key_validation_time_secs);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
-        // now the stale order finally gets executed
-        let replayed = crate::contract::execute(deps.as_mut(), env, multisig_info, epoch_0_order);
+        // now the stale order finally gets executed, and it is the epoch guard that
+        // refuses it, not some incidental failure
+        let replayed =
+            crate::contract::execute(deps.as_mut(), env, multisig_info, epoch_0_order).unwrap_err();
 
-        assert!(
-            replayed.is_err(),
+        assert_eq!(
+            replayed,
+            ContractError::StaleVerificationOrder {
+                owner: owner.to_string(),
+                order_epoch_id: 0,
+                current_epoch_id: 1,
+            },
             "an order minted for epoch 0 verified a share in epoch 1"
         );
         let share = vk_shares().load(&deps.storage, (&owner, 1)).unwrap();

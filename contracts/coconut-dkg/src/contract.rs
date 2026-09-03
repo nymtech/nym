@@ -20,7 +20,8 @@ use crate::epoch_state::queries::{
 };
 use crate::epoch_state::storage::{load_current_epoch, save_epoch};
 use crate::epoch_state::transactions::{
-    try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
+    try_advance_epoch_state, try_initiate_dkg, try_trigger_forced_reset, try_trigger_reset,
+    try_trigger_resharing,
 };
 use crate::error::ContractError;
 use crate::state::queries::query_state;
@@ -130,6 +131,7 @@ pub fn execute(
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
+        ExecuteMsg::TriggerForcedReset {} => try_trigger_forced_reset(deps, env, info),
         ExecuteMsg::TransferOwnership { transfer_to } => {
             try_transfer_ownership(deps, env, info, transfer_to)
         }

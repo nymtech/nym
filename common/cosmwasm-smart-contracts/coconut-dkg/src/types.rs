@@ -278,10 +278,12 @@ impl Epoch {
     ///
     /// Sitting below the current epoch is not enough: a failed ceremony moves the id on and
     /// leaves an epoch behind that concluded nothing, and calling that concluded would let
-    /// callers cache its empty signer set for good. So the boundary is the epoch in service,
-    /// which no unconcluded epoch is ever ahead of. Callers working from a cached copy of the
-    /// current epoch can only get a pessimistic answer out of a stale one, never a premature
-    /// "yes".
+    /// callers cache its empty signer set for good. So the boundary is the epoch in service:
+    /// nothing at or below it can ever change again, and no epoch that can still change reads
+    /// concluded. (An epoch a failed ceremony abandoned below the boundary reads concluded
+    /// too - its records are equally frozen, merely empty.) Callers working from a cached
+    /// copy of the current epoch can only get a pessimistic answer out of a stale one, never
+    /// a premature "yes".
     pub fn is_ceremony_concluded(&self, epoch_id: EpochId) -> bool {
         match self.issuing_epoch_id() {
             Some(in_service) => epoch_id <= in_service,

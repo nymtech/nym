@@ -393,7 +393,7 @@ impl FakeChainState {
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
                 owner,
                 resharing,
-                ..
+                epoch_id: order_epoch_id,
             } => {
                 if sender.sender != self.multisig_contract.address {
                     panic!("not multisig")
@@ -403,6 +403,9 @@ impl FakeChainState {
                     EpochState::VerificationKeyFinalization { resharing }
                 );
                 let epoch_id = self.dkg_contract.epoch.epoch_id;
+                // mirror the contract's StaleVerificationOrder gate: an order names the
+                // epoch it was minted for, and only that epoch's share may be verified by it
+                assert_eq!(order_epoch_id, epoch_id, "stale verification order");
                 let Some(shares) = self.dkg_contract.verification_shares.get_mut(&epoch_id) else {
                     panic!("no shares for epoch")
                 };
@@ -1198,10 +1201,15 @@ impl SharedCommState {
 
     /// Put the current epoch mid-ceremony, as a rotation would: its own keys do not exist yet, so
     /// the epoch before it is the one in service.
+    /// A ceremony for the current epoch id begins. This doubles as a state constructor
+    /// (pair it with `set_epoch`), so unlike the chain it synthesizes `keys_in_service`
+    /// from the id below; the other fields follow `next_ceremony` - the recorded
+    /// conclusion is cleared (starting a ceremony revokes the grace window) and
+    /// `outgoing_keys` carries over untouched.
     pub async fn start_ceremony(&self) {
         self.inner.ceremony_in_flight.store(true, Ordering::Relaxed);
         *self.inner.keys_in_service.write().await = self.current_epoch().checked_sub(1);
-        *self.inner.outgoing_keys.write().await = None;
+        *self.inner.ceremony_concluded_at.write().await = None;
     }
 
     /// A ceremony that failed: the contract resets into a fresh epoch id and the keys already in

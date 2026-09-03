@@ -245,26 +245,43 @@ pub const MAX_BRINGUP_ATTEMPTS: usize = 3;
 /// the first `exit: down` re-registers only the exit (the common "stale cached exit" case); if a
 /// **fresh** exit is *still* down on the next attempt, the entry is implicated.
 ///
+/// For that inference to be sound the exit-only retry must actually re-register the *same* exit,
+/// *fresh*, through the *same* (healthy) entry. With a `random`/`<country>` spec a plain re-selection
+/// guarantees neither: it may roll a different entry (spending a fresh entry ticket and discarding
+/// the healthy cached one) or a different, cache-served exit whose staleness then gets blamed on the
+/// entry. So the exit-only retry pins both hops to the identities just used: the exit's cache entry
+/// was just invalidated, so re-registering it is fresh by construction, and the entry stays fixed.
+/// The pins are dropped (back to the CLI specs) as soon as blame moves or the entry itself fails.
+///
 /// What happens to an implicated entry depends on the entry spec. A **substitutable** spec
 /// (`random`/`<country>`) is invalidated AND added to an avoid set, so re-selection moves to a
-/// different entry (via [`Session::register_two_hop_avoiding_entries`]). A **pinned** `--entry
-/// <identity>` is honored: it is never switched — it is retried and then fails on the attempt bound.
+/// different entry (via [`Session::register_two_hop_avoiding_entries`], or its QUIC twin). A
+/// **pinned** `--entry <identity>` is honored: it is never switched — it is retried and then fails on
+/// the attempt bound.
 pub async fn connect(session: &Session, cli: &Cli) -> Result<(Registration, Tunnel), BoxError> {
     // A random/country entry may be re-selected onto a different gateway; a pinned identity is not.
     let entry_substitutable = matches!(cli.entry, GatewaySpec::Random | GatewaySpec::Country(_));
     // Entry identities implicated as non-forwarding, excluded from re-selection (substitutable only).
     let mut failed_entries: Vec<ed25519::PublicKey> = Vec::new();
+    // The specs to register with on the next attempt: the CLI specs, or — during an exit-only
+    // retry — the previous attempt's identities pinned so the retry is a controlled experiment.
+    let mut entry_spec = cli.entry.clone();
+    let mut exit_spec = cli.exit.clone();
     let mut prev_exit_down = false;
     let mut last_status: Option<NotEstablished> = None;
 
     for attempt in 1..=MAX_BRINGUP_ATTEMPTS {
-        let reg = register(session, cli, &failed_entries).await?;
+        let reg = register(session, cli, &entry_spec, &exit_spec, &failed_entries).await?;
         let tunnel = build_tunnel(&reg, cli.quic).await?;
         match tunnel.await_established(ESTABLISH_BOUND).await {
             Ok(()) => return Ok((reg, tunnel)),
             Err(status) => {
                 tunnel.shutdown().await;
                 let exit_down = matches!(status.exit, Some(false));
+
+                // Default to a free re-selection; the exit-only case below narrows it.
+                entry_spec = cli.entry.clone();
+                exit_spec = cli.exit.clone();
 
                 // Entry's own (direct) handshake failed → re-register the entry.
                 if !status.entry {
@@ -274,14 +291,27 @@ pub async fn connect(session: &Session, cli: &Cli) -> Result<(Registration, Tunn
                     if let Some(hop) = reg.exit.as_ref() {
                         session.invalidate_registration(&hop.gateway_identity, WgRole::Exit);
                     }
-                    // A *fresh* exit that is STILL down (exit failed last attempt too, with the entry
-                    // up) implicates the entry's forwarding, not the exit. For a substitutable entry
-                    // spec, invalidate it and add it to the avoid set so re-selection escapes the
-                    // non-forwarding entry; a pinned entry is honored — retried, never switched.
-                    if prev_exit_down && status.entry && entry_substitutable {
-                        session.invalidate_registration(&reg.entry.gateway_identity, WgRole::Entry);
-                        if !failed_entries.contains(&reg.entry.gateway_identity) {
-                            failed_entries.push(reg.entry.gateway_identity);
+                    if prev_exit_down && status.entry {
+                        // A *fresh* exit that is STILL down (exit failed last attempt too, with the
+                        // entry up) implicates the entry's forwarding, not the exit. For a
+                        // substitutable entry spec, invalidate it and add it to the avoid set so
+                        // re-selection escapes the non-forwarding entry; a pinned entry is honored —
+                        // retried, never switched. Either way the retry pins are dropped.
+                        if entry_substitutable {
+                            session.invalidate_registration(
+                                &reg.entry.gateway_identity,
+                                WgRole::Entry,
+                            );
+                            if !failed_entries.contains(&reg.entry.gateway_identity) {
+                                failed_entries.push(reg.entry.gateway_identity);
+                            }
+                        }
+                    } else if status.entry {
+                        // First exit-only failure: retry the SAME exit (fresh — just invalidated)
+                        // through the SAME entry, so a repeat failure is attributable.
+                        entry_spec = GatewaySpec::Identity(reg.entry.gateway_identity);
+                        if let Some(hop) = reg.exit.as_ref() {
+                            exit_spec = GatewaySpec::Identity(hop.gateway_identity);
                         }
                     }
                 }
@@ -425,22 +455,27 @@ pub fn parse_cli() -> Result<Cli, BoxError> {
     })
 }
 
-/// Issue the required ticketbooks and register the gateway(s) for `cli`. `avoid_entries` is the set
-/// of entry gateway identities to exclude from entry selection (see [`connect`]); it only affects the
-/// plain two-hop path, and is empty on the first attempt.
+/// Issue the required ticketbooks and register the gateway(s) for `cli`'s topology, selecting per
+/// `entry`/`exit` (the CLI specs, or the identities [`connect`] pins during an exit-only retry).
+/// `avoid_entries` is the set of entry gateway identities to exclude from entry selection (see
+/// [`connect`]); it applies to both two-hop paths (plain and QUIC) and is empty on the first attempt.
 pub async fn register(
     session: &Session,
     cli: &Cli,
+    entry: &GatewaySpec,
+    exit: &GatewaySpec,
     avoid_entries: &[ed25519::PublicKey],
 ) -> Result<Registration, BoxError> {
     session.ensure_ticketbooks(cli.two_hop).await?;
     let reg = if !cli.two_hop {
-        session.register_single_hop(&cli.entry).await?
+        session.register_single_hop(entry).await?
     } else if cli.quic {
-        session.register_two_hop_quic(&cli.entry, &cli.exit).await?
+        session
+            .register_two_hop_quic_avoiding_entries(entry, exit, avoid_entries)
+            .await?
     } else {
         session
-            .register_two_hop_avoiding_entries(&cli.entry, &cli.exit, avoid_entries)
+            .register_two_hop_avoiding_entries(entry, exit, avoid_entries)
             .await?
     };
     Ok(reg)

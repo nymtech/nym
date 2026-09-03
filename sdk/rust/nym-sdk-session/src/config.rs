@@ -94,8 +94,10 @@ pub struct SessionConfig {
     /// controller *manages* (proactively restocks on provisioning): two-hop manages entry **and**
     /// exit, single-hop manages entry only — so a single-hop session never deposits an unused exit
     /// ticketbook. Must be a superset of the register calls made against the session:
-    /// `register_two_hop*` needs `two_hop = true`; `register_single_hop` works under either.
-    /// Ignored when [`bandwidth_provider`](Self::bandwidth_provider) is set (the caller provisions).
+    /// `register_two_hop*` needs `two_hop = true` (a two-hop registration on a single-hop session
+    /// is rejected with `SessionError::TopologyMismatch`); `register_single_hop` works under either.
+    /// With [`bandwidth_provider`](Self::bandwidth_provider) set the caller provisions, so this does
+    /// not scope any controller, but it still declares the session's topology for that check.
     pub two_hop: bool,
 }
 

@@ -34,8 +34,9 @@ The client id used for issuance SHALL be derived from a hash of the mnemonic ent
 
 #### Scenario: Issue wireguard ticketbooks
 - **WHEN** a caller provides a funded mnemonic and requests dVPN access
-- **THEN** the session deposits NYM, contacts the signers, and obtains
-  `V1WireguardEntry`/`V1WireguardExit` ticketbooks
+- **THEN** the session deposits NYM, contacts the signers, and obtains the WireGuard
+  ticketbooks its topology needs (`V1WireguardEntry` and `V1WireguardExit` for two-hop,
+  `V1WireguardEntry` only for single-hop)
 
 #### Scenario: Default-mode provisioning succeeds without an installed-at-construction fetcher
 - **WHEN** a default session (no automatic top-ups) with no stored ticketbooks calls
@@ -432,7 +433,25 @@ to exclude the chosen entry so the two hops stay distinct. When the entry spec i
 pinned identity that is in the avoid set, registration SHALL fail with the
 distinct-gateways error rather than substituting a different gateway. The existing
 two-hop registration entry point SHALL behave exactly as before, equivalent to
-passing an empty avoid set.
+passing an empty avoid set. The QUIC two-hop registration SHALL offer the same
+avoid-set variant, so a retrying caller can escape a non-forwarding entry behind a
+QUIC bridge too.
+
+Every two-hop registration entry point SHALL reject a session configured single-hop
+(`two_hop = false`) up front with a dedicated topology-mismatch error — before any
+topology fetch, ticketbook provisioning, or spend — since such a session manages
+entry ticketbooks only and could never provision the exit ticketbook the registration
+needs.
+
+#### Scenario: QUIC two-hop registration honours the avoid set
+- **WHEN** a QUIC two-hop registration is requested with a random entry spec and an
+  avoid set containing a previously-implicated entry identity
+- **THEN** the selected QUIC entry gateway is not in the avoid set
+
+#### Scenario: Single-hop session rejects two-hop registration
+- **WHEN** a session constructed with `two_hop = false` requests any two-hop
+  registration
+- **THEN** it fails immediately with the topology-mismatch error and spends nothing
 
 #### Scenario: Random entry avoids an implicated entry
 - **WHEN** a two-hop registration is requested with a random entry spec and an avoid

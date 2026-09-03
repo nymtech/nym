@@ -170,7 +170,17 @@ impl<B: FetcherBuilder> OwnedController<B> {
         types: Vec<TicketType>,
         cancel: &CancellationToken,
     ) -> Result<(), SessionError> {
-        let mut installed = self.installed.lock().await;
+        // Acquiring the mutex is itself cancellable: a caller queued behind another in-progress
+        // provision must not be stuck (uncancellable) for that provision's whole budget. Only the
+        // acquisition is raced — once the guard is held, the cycle below runs to completion so the
+        // one-shot fetcher removal always happens under the lock. (`tokio::sync::Mutex::lock` is
+        // cancel-safe.) Timing the acquisition out is unnecessary: the holder is itself bounded by
+        // `PROVISIONING_TIMEOUT`, so the wait is already finite.
+        let mut installed = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(SessionError::Cancelled),
+            guard = self.installed.lock() => guard,
+        };
 
         // Race cancellation so a caller that cancels mid-wait gets a prompt `Cancelled` instead of
         // blocking; this is funds-safe because the deposit itself runs in the controller task and any
@@ -276,6 +286,12 @@ pub struct Session {
     /// read from nor written to disk). Guarded by a std mutex — held only across synchronous
     /// lookup/insert calls, never across an await.
     reg_cache: Option<std::sync::Mutex<RegistrationCache>>,
+    /// The topology this session was configured for (`SessionConfig::two_hop`). A single-hop
+    /// session's own controller manages entry ticketbooks only, so a two-hop registration on it is
+    /// rejected up front with [`SessionError::TopologyMismatch`] rather than failing later with a
+    /// generic "ticketbooks unavailable" from the exit-type wait. With an external bandwidth
+    /// provider the caller provisions, so the guard is not applied.
+    two_hop: bool,
 }
 
 impl Session {
@@ -356,6 +372,7 @@ impl Session {
             cancel,
             directory,
             reg_cache,
+            two_hop,
         })
     }
 
@@ -695,6 +712,22 @@ impl Session {
         self.register_two_hop_inner(entry, exit, true, &[]).await
     }
 
+    /// Like [`register_two_hop_quic`](Self::register_two_hop_quic), but excludes
+    /// `avoid_entries` from **entry** selection, exactly as
+    /// [`register_two_hop_avoiding_entries`](Self::register_two_hop_avoiding_entries)
+    /// does for the plain two-hop path. A non-forwarding entry is just as possible
+    /// behind a QUIC bridge (and the QUIC-capable pool is smaller, so re-picking it
+    /// is likelier), so a retrying caller passes its implicated entries here too.
+    pub async fn register_two_hop_quic_avoiding_entries(
+        &self,
+        entry: &GatewaySpec,
+        exit: &GatewaySpec,
+        avoid_entries: &[ed25519::PublicKey],
+    ) -> Result<Registration, SessionError> {
+        self.register_two_hop_inner(entry, exit, true, avoid_entries)
+            .await
+    }
+
     /// `avoid_entries` is a set of entry gateway identities excluded from entry
     /// selection (see [`register_two_hop_avoiding_entries`](Self::register_two_hop_avoiding_entries)).
     async fn register_two_hop_inner(
@@ -704,6 +737,11 @@ impl Session {
         entry_quic: bool,
         avoid_entries: &[ed25519::PublicKey],
     ) -> Result<Registration, SessionError> {
+        // A single-hop session manages entry ticketbooks only; fail clearly before any network
+        // work rather than later, from the exit-type wait, with a generic "unavailable" error.
+        if !self.two_hop {
+            return Err(SessionError::TopologyMismatch);
+        }
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
 
         // Selection and the LP handshake spend no ticket and stay cancellable (topology fetch here,

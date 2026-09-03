@@ -135,7 +135,7 @@ tracing.workspace = true
 nym-lp-data = { workspace = true, optional = true }
 
 # Feature: socks5 and ipr (nym-http-api-client is shared by both discovery paths)
-nym-http-api-client = { workspace = true, optional = true }
+nym-http-api-client = { workspace = true, optional = true, features = ["network-defaults"] }
 
 # Feature: socks5
 nym-socks5-client-core = { workspace = true, optional = true }

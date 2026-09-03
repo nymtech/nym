@@ -65,6 +65,7 @@ pub enum Error {
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
+    #[cfg(feature = "bandwidth")]
     #[error("invalid voucher blob")]
     InvalidVoucherBlob,
 

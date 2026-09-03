@@ -605,6 +605,41 @@ impl StressTestingScore {
     }
 }
 
+/// A node's aggregated liveness score: the average of the minimal-hop delivery ratios measured
+/// against it over the configured window.
+///
+/// Same shape as [`StressTestingScore`] and deliberately a distinct type, because the two are
+/// separate components with separate weights: liveness ships at weight ZERO while its divergence
+/// from the v1 routing score is measured, so a consumer that confused the two would silently
+/// weight an inert score.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/LivenessScore.ts"
+    )
+)]
+pub struct LivenessScore {
+    pub score: f64,
+
+    /// Distinguishes a genuine zero score (the node was probed and delivered nothing) from
+    /// "no sample was collected". A liveness zero is expected during rollout for reasons unrelated
+    /// to forwarding - a node that has not ingested its agents' authorisations, or a gateway not
+    /// yet carrying the monitor-session behaviour - so consumers need to tell the two apart.
+    pub was_reachable: bool,
+}
+
+impl LivenessScore {
+    pub fn unreachable() -> Self {
+        LivenessScore {
+            score: 0.0,
+            was_reachable: false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

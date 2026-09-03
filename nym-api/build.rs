@@ -6,6 +6,15 @@ const SQLITE_DB_FILENAME: &str = "nym-api-example.sqlite";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // The scratch database below is what `sqlx::query!` / `query_as!` are checked against, and it
+    // is built purely from `./migrations`, so that directory is this script's real input. Without
+    // saying so, a NEW migration does not re-run this script and the macros keep compiling against
+    // a database that predates it - which surfaces as a baffling "no such table" on a table whose
+    // migration is plainly sitting on disk. Naming any input also opts out of cargo's default
+    // "re-run when any package file changed" heuristic, so `build.rs` itself has to be listed too.
+    println!("cargo:rerun-if-changed=migrations");
+    println!("cargo:rerun-if-changed=build.rs");
+
     let out_dir = env::var("OUT_DIR")?;
     let database_path = format!("{out_dir}/{SQLITE_DB_FILENAME}");
 

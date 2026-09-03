@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 pub(crate) async fn connect_async(
     endpoint: &str,
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), ClientCoreError> {
-    let resolver = HickoryDnsResolver::default();
+    let resolver = HickoryDnsResolver::new();
     let uri = Url::parse(endpoint).map_err(|_| ClientCoreError::InvalidUrl(endpoint.to_owned()))?;
     let port: u16 = uri.port_or_known_default().unwrap_or(443);
 

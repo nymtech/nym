@@ -143,6 +143,7 @@ impl Client {
 mod tests {
     use super::*;
     use crate::{ApiClientCore, NO_PARAMS, Url};
+    use serial_test::serial;
 
     impl Front {
         pub(crate) fn policy(&self) -> FrontPolicy {
@@ -213,8 +214,19 @@ mod tests {
     // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
     // AN IMPACT ON OTHER TESTS
     #[test]
-    #[cfg(any())] // #[ignore] we run --ignore in CI/CD assuming it just means slow -_-
+    #[serial]
     fn set_policy_shared_client() {
+        // restores the shared policy to whatever it was before this test on scope exit (including
+        // on panic/assertion failure), so a leaked mutation can't leak into whichever test the
+        // shared-state lock is handed to next.
+        struct RestoreFrontPolicy(FrontPolicy);
+        impl Drop for RestoreFrontPolicy {
+            fn drop(&mut self) {
+                *SHARED_FRONTING_POLICY.write().unwrap() = self.0.clone();
+            }
+        }
+        let _restore_policy = RestoreFrontPolicy(SHARED_FRONTING_POLICY.read().unwrap().clone());
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -291,7 +303,11 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn nym_api_works() {
+        // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
+        // marker - must not run concurrently with tests that mutate it.
+
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -324,7 +340,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn fallback_on_failure() {
+        // sends real requests and relies on host rotation not being suppressed, which depends on
+        // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
+        // tests that mutate it.
+
         let url1 = Url::new(
             "https://fake-domain.nymtech.net",
             Some(vec![

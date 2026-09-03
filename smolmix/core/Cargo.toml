@@ -17,7 +17,7 @@ nym-smol-core = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
-nym-sdk = { workspace = true }
+nym-sdk = { workspace = true, default-features = false, features = ["ipr"] }
 nym-ip-packet-requests = { workspace = true, default-features = true }
 thiserror.workspace = true
 

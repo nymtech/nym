@@ -43,7 +43,7 @@ answer on its own.
 | Question | Why it decides the answer |
 |---|---|
 | **Does it see something that identifies this user?** An account address, an authenticated session, a device ID, an email. | This is the reason to route first. A destination that sees no application identifier has less to correlate, but it still sees and logs the IP address itself. |
-| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/concepts/exit-security#protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
+| **Is it HTTPS?** | The exit gateway reads plain HTTP in full (see [exit security](/developers/exit-security#protect-the-payload)), so routing an `http://` endpoint moves the observer without removing it. |
 | **Does a user wait on it?** A request that blocks a screen, against a background refresh. | Latency is [the mechanism](/developers/limitations#latency-is-the-mechanism), not a shortfall you can tune away. Deferred work absorbs it; a call in front of a user does not. |
 | **Is it called in sequence with others?** | Sequential dependent calls multiply the cost, and no single request reveals it. See below. |
 | **Can you reach its transport at all?** | Third-party frames, vendor SDKs and libraries that do their own networking stay outside your control, whatever your policy says. |
@@ -90,7 +90,7 @@ under [proxy mode](/developers#end-to-end-or-proxy) its own TLS handshake
 through the mixnet. You pay the full setup cost on every call. Libraries that
 batch or parallelise on your behalf do this on their own. The requests also
 share one client, which paces its sending on a Poisson schedule (see
-[the message queue](/developers/concepts/message-queue)). Concurrent requests
+[the message queue](/developers/what-is-a-nym-client#the-always-on-stream)). Concurrent requests
 queue behind each other at the sender as well.
 
 A strict queue overcorrects. One stalled request then blocks everything behind

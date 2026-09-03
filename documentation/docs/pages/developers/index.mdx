@@ -105,7 +105,7 @@ The runtime axis is about where your code runs: a native process has raw sockets
 </Callout>
 
 <Callout type="warning">
-Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe, and [Exit security](/developers/concepts/exit-security) for which exit your package uses.
+Past the Exit Gateway, traffic travels the public internet like any other connection. The mixnet anonymises the sender but does not encrypt the payload beyond the gateway. Use TLS or another application-layer cipher. See [Exit Gateway Services](/network/infrastructure/exit-services) for what the exit can and cannot observe, and [Exit security](/developers/exit-security) for which exit your package uses.
 </Callout>
 
 In a browser or WebView, your app talks to that WASM client through JS bindings rather than direct calls. The mixnet behaviour is identical in both modes, only the integration shape differs. See [mix-* architecture](/developers/mix-architecture) for the full picture.

@@ -43,7 +43,7 @@ workload, neither mode fits.
 ## The default sending rate
 
 A client paces its own sending on a Poisson schedule; the
-[message queue page](/developers/concepts/message-queue) walks through how the
+[message queue page](/developers/what-is-a-nym-client#the-always-on-stream) walks through how the
 two packet streams work. By default a client emits, per second:
 
 - **50 real packets**, one every 20 ms on average
@@ -126,7 +126,7 @@ cannot vary it.
 
 Check it against the port your service listens on before anything else. It is
 the one constraint that no code on your side can work around. See
-[exit security](/developers/concepts/exit-security) for which exit your package
+[exit security](/developers/exit-security) for which exit your package
 uses.
 
 A refused port is not final: the policy can be changed through a governance

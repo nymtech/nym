@@ -8,12 +8,22 @@ use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::v3::{
-    KnownNetworkMonitorResponse, StressTestBatchSubmission, StressTestBatchSubmissionResponse,
+    KnownNetworkMonitorResponse, LivenessTestBatchSubmission, LivenessTestBatchSubmissionResponse,
+    StressTestBatchSubmission, StressTestBatchSubmissionResponse,
 };
 use nym_crypto::asymmetric::ed25519;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::{error, warn};
+
+/// How old a submission body may be before either ingest endpoint refuses it.
+///
+/// Shared by both endpoints rather than written out at each: two independent literals would let
+/// the windows drift apart with nothing failing to compile, and there is no reason for an
+/// orchestrator to face a different deadline depending on which stream it is draining. Not a
+/// config value - nobody has asked to tune it, and the delta spec fixes 30 seconds as normative -
+/// but this const is the single place that would become a config read if that changes.
+const SUBMISSION_STALENESS_WINDOW: Duration = Duration::from_secs(30);
 
 /// Accept a batch of stress-test results from an authorised network monitor orchestrator.
 ///
@@ -46,9 +56,7 @@ async fn batch_submit_stress_testing_results(
     Json(body): Json<StressTestBatchSubmission>,
 ) -> ApiResult<Json<StressTestBatchSubmissionResponse>> {
     // 1. check if the request is not stale
-    // TODO: make the timeout configurable. currently we have an issue of no easy way of
-    // propagating config values, but hardcoding it to 30s is fine for now
-    if body.body.is_stale(Duration::from_secs(30)) {
+    if body.body.is_stale(SUBMISSION_STALENESS_WINDOW) {
         return Err(AxumErrorResponse::bad_request(
             "request is stale, please resubmit it with a fresh timestamp",
         ));
@@ -157,6 +165,103 @@ async fn batch_submit_stress_testing_results(
     }))
 }
 
+/// Accept a batch of liveness results from an authorised network monitor orchestrator.
+///
+/// Applies the SAME ordered validation as the stress endpoint above - staleness window, contract
+/// membership of the signer, strict per-signer timestamp monotonicity, then signature - but against
+/// its own replay high-water mark. The mark is what must not be shared: one orchestrator identity
+/// signs both streams, so a single mark would have whichever stream posted second look replayed
+/// forever. The checks themselves are deliberately repeated rather than abstracted over the two
+/// body types, so that the order of a security-relevant sequence is readable in one place.
+///
+/// Unlike the stress endpoint, an entry for a gateway-capable node is expected rather than
+/// dropped: liveness probes gateways as well as mixnodes, and the submitted score is a single
+/// average whose shape is identical for both.
+#[utoipa::path(
+    tag = "Nym Nodes",
+    post,
+    path = "/liveness-testing/batch-submit",
+    context_path = "/v3/nym-nodes",
+    responses(
+        (status = 200, body = LivenessTestBatchSubmissionResponse, description = "the submitted batch has been accepted, with a per-result breakdown of what was stored"),
+        (status = 400, description = "the submitted request is stale or replayed"),
+        (status = 401, description = "the submitted request was unauthorised or failed integrity check"),
+        (status = 501, description = "this nym-api validates liveness batches but cannot yet store them"),
+    ),
+)]
+async fn batch_submit_liveness_testing_results(
+    State(state): State<AppState>,
+    Json(body): Json<LivenessTestBatchSubmission>,
+) -> ApiResult<Json<LivenessTestBatchSubmissionResponse>> {
+    // 1. check if the request is not stale
+    if body.body.is_stale(SUBMISSION_STALENESS_WINDOW) {
+        return Err(AxumErrorResponse::bad_request(
+            "request is stale, please resubmit it with a fresh timestamp",
+        ));
+    }
+
+    // 2. check if the sent public key is even in the authorised set. the authorised set is shared
+    // with the stress endpoint - one contract lists the orchestrators, and being authorised is not
+    // per-kind
+    if !state
+        .network_monitors()
+        .is_authorised(&state.nyxd_client, &body.body.signer)
+        .await?
+    {
+        return Err(AxumErrorResponse::unauthorised(
+            "the provided public key does not correspond to any known network monitor",
+        ));
+    }
+
+    // 3. check if the request is not replayed, against THIS endpoint's mark only
+    let last_request = state
+        .network_monitor_submissions
+        .liveness_submitted(body.body.signer)
+        .await;
+
+    // if we have no known requests, we might have just restarted
+    // so we use the time of when we came back online - it's impossible there were any other requests since then
+    let last_known = match last_request {
+        Some(last) => last,
+        None => {
+            let uptime = state.api_status.uptime();
+            OffsetDateTime::now_utc() - uptime
+        }
+    };
+
+    if body.body.timestamp <= last_known {
+        return Err(AxumErrorResponse::bad_request(
+            "each request must have an explicitly greater timestamp than the previous one",
+        ));
+    }
+
+    // 4. verify the signature on the request
+    if !body.verify_signature(&body.body.signer) {
+        return Err(AxumErrorResponse::unauthorised(
+            "the provided request failed integrity check",
+        ));
+    }
+
+    // 5. update the latest submission timestamp
+    state
+        .network_monitor_submissions
+        .set_liveness_submitted(body.body.signer, body.body.timestamp)
+        .await;
+
+    // 6. process received results
+    //
+    // Not yet implemented: the storage table this writes to arrives with task 11.3. Returning an
+    // error rather than a `200` with zero counts is deliberate - the orchestrator only advances a
+    // stream's watermark after a successful POST, so failing here makes it re-send these rows once
+    // storage exists, whereas a bare success would silently drop every measurement in the batch.
+    error!(
+        signer = %body.body.signer,
+        submitted = body.body.results.len(),
+        "rejecting a validated liveness batch: this nym-api cannot store liveness results yet"
+    );
+    Err(AxumErrorResponse::not_implemented())
+}
+
 /// Report whether the given identity key is currently recognised by this nym-api as an
 /// authorised network monitor orchestrator.
 ///
@@ -202,7 +307,16 @@ fn stress_testing_routes() -> Router<AppState> {
         .route("/known-monitors/{identity_key}", get(known_network_monitor))
 }
 
+/// Liveness has its own subtree because it has its own replay state; it carries no
+/// `known-monitors` route of its own, since the authorised-orchestrator set is one contract-derived
+/// set rather than one per test kind.
+fn liveness_testing_routes() -> Router<AppState> {
+    Router::new().route("/batch-submit", post(batch_submit_liveness_testing_results))
+}
+
 /// Build the `/v3/nym-nodes` subtree hosting the v3 network-monitor endpoints.
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new().nest("/stress-testing", stress_testing_routes())
+    Router::new()
+        .nest("/stress-testing", stress_testing_routes())
+        .nest("/liveness-testing", liveness_testing_routes())
 }

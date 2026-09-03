@@ -98,6 +98,16 @@ async fn offline_session(
     reuse: bool,
     provider: Arc<CountingProvider>,
 ) -> Session {
+    offline_session_with_topology(data_path, reuse, provider, true).await
+}
+
+/// [`offline_session`] with an explicit `SessionConfig::two_hop`.
+async fn offline_session_with_topology(
+    data_path: PathBuf,
+    reuse: bool,
+    provider: Arc<CountingProvider>,
+    two_hop: bool,
+) -> Session {
     Session::new(
         SessionConfig {
             mnemonic: test_mnemonic(),
@@ -108,12 +118,52 @@ async fn offline_session(
             automatic_topups: None,
             bandwidth_provider: Some(provider),
             reuse_registrations: reuse,
-            two_hop: true,
+            two_hop,
         },
         CancellationToken::new(),
     )
     .await
     .unwrap()
+}
+
+/// A session configured single-hop rejects every two-hop registration entry point up front, with
+/// the dedicated topology error and before any network work (this test is fully offline).
+#[tokio::test]
+async fn single_hop_session_rejects_two_hop_registration() {
+    let dir = tempdir();
+    let provider = Arc::new(CountingProvider::default());
+    let session = offline_session_with_topology(dir, true, provider.clone(), false).await;
+    let avoid = [gateway_identity(9)];
+
+    let attempts = [
+        session
+            .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random)
+            .await,
+        session
+            .register_two_hop_avoiding_entries(&GatewaySpec::Random, &GatewaySpec::Random, &avoid)
+            .await,
+        session
+            .register_two_hop_quic(&GatewaySpec::Random, &GatewaySpec::Random)
+            .await,
+        session
+            .register_two_hop_quic_avoiding_entries(
+                &GatewaySpec::Random,
+                &GatewaySpec::Random,
+                &avoid,
+            )
+            .await,
+    ];
+    for res in attempts {
+        assert!(
+            matches!(res, Err(SessionError::TopologyMismatch)),
+            "single-hop session must reject two-hop registration with TopologyMismatch"
+        );
+    }
+    assert_eq!(
+        provider.spends.load(Ordering::SeqCst),
+        0,
+        "a rejected registration spends nothing"
+    );
 }
 
 /// A seeded cache entry is served by `cached_hop` — assembled into a
@@ -506,6 +556,41 @@ async fn default_mode_removes_fetcher_even_on_failure() {
         calls.cleanups() >= 1,
         "removal must clean up the fetcher even after a failed provision"
     );
+
+    cancel.cancel();
+    let _ = owned.task.await;
+}
+
+/// A caller queued behind another provision (the `installed` mutex is held) is still cancellable:
+/// it returns `Cancelled` promptly instead of blocking for the holder's whole budget. The guard is
+/// held for the test's duration, so the only way `ensure` can return is via the cancel arm of the
+/// lock acquisition; and since it never acquired the lock, it must not touch the fetcher.
+#[tokio::test]
+async fn ensure_lock_wait_is_cancellable() {
+    let calls = Arc::new(FetcherCalls::default());
+    let cancel = CancellationToken::new();
+    let owned = spawn_owned(calls.clone(), false, false, &cancel);
+
+    let held = owned.installed.lock().await;
+    let caller_cancel = CancellationToken::new();
+    caller_cancel.cancel();
+
+    let res = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        owned.ensure(vec![TicketType::V1WireguardEntry], &caller_cancel),
+    )
+    .await
+    .expect("a cancelled caller must not block behind the held provisioning lock");
+    assert!(
+        matches!(res, Err(SessionError::Cancelled)),
+        "queued caller must surface Cancelled, got {res:?}"
+    );
+    assert_eq!(
+        calls.builds(),
+        0,
+        "a caller that never acquired the lock must not install a fetcher"
+    );
+    drop(held);
 
     cancel.cancel();
     let _ = owned.task.await;

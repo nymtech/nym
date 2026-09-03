@@ -66,6 +66,15 @@ pub enum SessionError {
     #[error("entry and exit resolved to the same gateway ({0}); a two-hop tunnel needs distinct gateways")]
     SameGatewaySelected(String),
 
+    /// A two-hop registration was requested on a session configured single-hop
+    /// (`SessionConfig::two_hop = false`), whose controller manages entry ticketbooks only and so
+    /// could never provision the exit ticketbook the registration needs.
+    #[error(
+        "two-hop registration requested on a single-hop session; construct the session with \
+         `two_hop = true` to provision exit ticketbooks"
+    )]
+    TopologyMismatch,
+
     /// A selected gateway advertised malformed LP data.
     #[error("gateway {identity} advertised malformed LP data: {reason}")]
     MalformedGateway { identity: String, reason: String },

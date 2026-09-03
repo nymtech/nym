@@ -504,12 +504,6 @@ impl<St: Storage> BandwidthController<St> {
         } else {
             tracing::debug!("Finished pruning of expired ticketbooks");
         }
-
-        if let Some(fetcher) = &self.credential_fetcher {
-            if let Err(err) = fetcher.prune().await {
-                tracing::warn!("Could not prune fetcher expired ticketbooks: {err}");
-            }
-        }
     }
 
     /// Spawns a background fetch for `ticket_type` unless one is already in flight for it.

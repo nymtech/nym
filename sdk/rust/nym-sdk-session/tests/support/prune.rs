@@ -4,10 +4,9 @@ use time::Date;
 
 use crate::support::TestEcash;
 
-/// Calling prune on the bandwidth controller frees up expected data in ticketbook storage,
-/// as well as in pending storage.
+/// Calling prune on the bandwidth controller frees up expected data in ticketbook storage
 #[tokio::test]
-async fn prune_empty_storage() {
+async fn prune_storage() {
     let ecash = TestEcash::new();
     let storage = initialise_ephemeral_storage();
     let controller = BandwidthController::new(storage.clone());

@@ -180,7 +180,7 @@ use std::sync::{Arc, LazyLock};
 #[cfg(feature = "tunneling")]
 mod fronted;
 #[cfg(feature = "tunneling")]
-pub use fronted::FrontPolicy;
+pub use fronted::{FrontPolicy, FrontingConfig};
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;

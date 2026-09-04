@@ -687,11 +687,7 @@ mod mocked_tests {
         str::FromStr,
     };
 
-    // sends real requests and relies on host rotation not being suppressed, which depends on
-    // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
-    // tests that mutate it.
     #[tokio::test]
-    #[serial]
     async fn fallback_on_failure() {
         // `fake-front-1`/`fake-front-2` are pinned to deterministic DNS failures via `MockResolver`
         // below (one NXDOMAIN, one SERVFAIL - exercising both branches of

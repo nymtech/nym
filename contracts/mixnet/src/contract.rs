@@ -323,6 +323,16 @@ pub fn execute(
                 deps, env, info, node_id,
             )
         }
+        ExecuteMsg::Redelegate {
+            from_node_id,
+            targets,
+        } => crate::delegations::transactions::try_redelegate_between_nodes(
+            deps,
+            env,
+            info,
+            from_node_id,
+            targets,
+        ),
 
         // reward-related
         ExecuteMsg::RewardNode { node_id, params } => {

@@ -7,8 +7,8 @@ use crate::{
 };
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use cw_controllers::AdminError;
-use nym_contracts_common::Percent;
 use nym_contracts_common::signing::verifier::ApiVerifierError;
+use nym_contracts_common::Percent;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -168,6 +168,24 @@ pub enum MixnetContractError {
         address: String,
         proxy: Option<String>,
     },
+
+    #[error("A redelegation must specify at least one target node")]
+    EmptyRedelegationTargets,
+
+    #[error("A redelegation may target at most {max} nodes, got {got}")]
+    TooManyRedelegationTargets { max: usize, got: usize },
+
+    #[error("A redelegation target weight must be greater than zero")]
+    ZeroRedelegationWeight,
+
+    #[error("A redelegation lists node {node_id} as a target more than once")]
+    DuplicateRedelegationTarget { node_id: NodeId },
+
+    #[error("A redelegation with a single target equal to the source has no destination change")]
+    RedelegationSingleTargetToSelf { node_id: NodeId },
+
+    #[error("No funds should be attached to a redelegation; the stake being moved already lives in the contract")]
+    UnexpectedFundsOnRedelegation,
 
     #[error("Provided message to update rewarding params did not contain any updates")]
     EmptyParamsChangeMsg,

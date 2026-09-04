@@ -158,8 +158,8 @@ async fn main() {
     // server's first data does, so we avoid writing before the server is ready.
     //
     // A timeout leaves the peer's state unknown: an older SDK without
-    // acknowledgement support, no reply SURBs, or an absent server all look the
-    // same. The stream stays usable either way, so proceed after logging.
+    // acknowledgement support, or a slow or absent peer. wait_established is
+    // best-effort, so log the timeout and proceed.
     if let Err(e) = stream.wait_established(Duration::from_secs(30)).await {
         println!("Establishment not confirmed: {e}; proceeding anyway");
     }
@@ -196,7 +196,7 @@ async fn main() {
 ```
 
 <Callout type="info">
-`wait_established(timeout)` confirms the server accepted the stream. The acknowledgement returns over reply SURBs, so `open_stream` needs at least one; the `None` default provides them. Pass zero reply SURBs and the call always times out even though the stream still works, so read a timeout as "peer state unknown", not "stream failed".
+`wait_established(timeout)` confirms the server accepted the stream. The server sends its acknowledgement and the echo data over reply SURBs, so `open_stream` needs at least one; the `None` default provides them. With zero reply SURBs the server cannot answer at all: the acknowledgement never arrives and no echo returns. When SURBs are available, a timeout instead means the peer state is unknown, for example an older SDK, so do not discard the stream on a timeout alone.
 </Callout>
 
 ## Step 4: Run it

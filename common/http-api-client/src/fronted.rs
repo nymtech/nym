@@ -3,8 +3,9 @@
 
 //! Utilities for and implementation of request tunneling
 
+use std::collections::HashMap;
 use std::sync::{
-    Arc, LazyLock, RwLock,
+    Arc, LazyLock, Mutex, RwLock,
     atomic::{AtomicBool, Ordering},
 };
 use tracing::warn;
@@ -14,11 +15,13 @@ use crate::{Client, ClientBuilder};
 static SHARED_FRONTING_POLICY: LazyLock<Arc<RwLock<FrontPolicy>>> =
     LazyLock::new(|| Arc::new(RwLock::new(FrontPolicy::Off)));
 
-// #[cfg(feature = "tunneling")]
 #[derive(Debug)]
 pub(crate) struct Front {
     pub(crate) policy: Arc<RwLock<FrontPolicy>>,
     enabled: AtomicBool,
+    // Per-domain failure counts, used by `FrontPolicy::ConfiguredRetry` to decide when enough
+    // domains have failed often enough to justify enabling fronting.
+    domain_failures: Mutex<HashMap<String, usize>>,
 }
 
 impl Clone for Front {
@@ -26,6 +29,7 @@ impl Clone for Front {
         Self {
             policy: self.policy.clone(),
             enabled: AtomicBool::new(false),
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -35,6 +39,7 @@ impl Front {
         Self {
             enabled: AtomicBool::new(false),
             policy: Arc::new(RwLock::new(policy)),
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 
@@ -47,31 +52,89 @@ impl Front {
         Self {
             enabled: AtomicBool::new(false),
             policy,
+            domain_failures: Mutex::new(HashMap::new()),
         }
     }
 
     pub(crate) fn set_policy(&self, policy: FrontPolicy) {
         *self.policy.write().unwrap() = policy;
         self.enabled.store(false, Ordering::Relaxed);
+        self.domain_failures.lock().unwrap().clear();
     }
 
     pub(crate) fn is_enabled(&self) -> bool {
         match *self.policy.read().unwrap() {
             FrontPolicy::Off => false,
-            FrontPolicy::OnRetry => self.enabled.load(Ordering::Relaxed),
+            FrontPolicy::OnRetry | FrontPolicy::ConfiguredRetry(_) => {
+                self.enabled.load(Ordering::Relaxed)
+            }
             FrontPolicy::Always => true,
         }
     }
 
-    // Used to indicate that the client hit an error that should trigger the retry policy
-    // to enable fronting.
-    pub(crate) fn retry_enable(&self) {
+    // Used to indicate that the client hit an error for the given domain that should trigger the
+    // retry policy to enable fronting. `domain` should be the host of the URL that failed.
+    pub(crate) fn retry_enable(&self, domain: Option<&str>) {
         if self.is_enabled() {
             return;
         }
-        if matches!(*self.policy.read().unwrap(), FrontPolicy::OnRetry) {
-            self.enabled.store(true, Ordering::Relaxed);
+
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::OnRetry => self.enabled.store(true, Ordering::Relaxed),
+            FrontPolicy::ConfiguredRetry(cfg) => {
+                let Some(domain) = domain else {
+                    return;
+                };
+
+                let mut failures = self.domain_failures.lock().unwrap();
+                let count = failures.entry(domain.to_string()).or_insert(0);
+                *count += 1;
+
+                let failed_domains = failures
+                    .values()
+                    .filter(|&&count| count >= cfg.failures_per_domain)
+                    .count();
+
+                // both comparisons are inclusive, so a threshold of 0 is trivially satisfied -
+                // see the `FrontingConfig` docs for the resulting edge-case behavior.
+                if failed_domains >= cfg.num_domains_failed {
+                    self.enabled.store(true, Ordering::Relaxed);
+                }
+            }
+            FrontPolicy::Off | FrontPolicy::Always => {}
         }
+    }
+
+    /// Whether domains without a front configured should still be considered when rotating
+    /// hosts while fronting is enabled. Only meaningful for [`FrontPolicy::ConfiguredRetry`] -
+    /// other policies keep the existing behavior of only rotating between fronted domains.
+    pub(crate) fn include_non_fronted_in_rotation(&self) -> bool {
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::ConfiguredRetry(cfg) => cfg.include_non_fronted_in_rotation,
+            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+        }
+    }
+
+    /// Whether a successful request against a non-fronted domain, while fronting was enabled,
+    /// should reset accumulated failure state and disable fronting again. See
+    /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
+    pub(crate) fn should_recover_on_non_fronted_success(&self) -> bool {
+        match &*self.policy.read().unwrap() {
+            FrontPolicy::ConfiguredRetry(cfg) => {
+                // this recovery path only makes sense if non-fronted domains can actually be
+                // selected during rotation in the first place.
+                cfg.include_non_fronted_in_rotation && cfg.disable_fronting_on_non_fronting_success
+            }
+            FrontPolicy::Off | FrontPolicy::OnRetry | FrontPolicy::Always => false,
+        }
+    }
+
+    /// Disable fronting and clear any accumulated per-domain failure counts, letting the retry
+    /// policy start fresh. Used to recover once a non-fronted domain succeeds, per
+    /// [`FrontingConfig::disable_fronting_on_non_fronting_success`].
+    pub(crate) fn recover(&self) {
+        self.enabled.store(false, Ordering::Relaxed);
+        self.domain_failures.lock().unwrap().clear();
     }
 }
 
@@ -80,11 +143,92 @@ impl Front {
 pub enum FrontPolicy {
     /// Always use domain fronting for all requests.
     Always,
+
     /// Only use domain fronting when retrying failed requests.
     OnRetry,
-    #[default]
+
+    /// Only enable domain fronting once enough distinct domains have each failed enough times,
+    /// as configured by [`FrontingConfig`].
+    ConfiguredRetry(FrontingConfig),
+
     /// Never use domain fronting.
+    #[default]
     Off,
+}
+
+/// Configuration for [`FrontPolicy::ConfiguredRetry`]. A domain is considered "failed" once it
+/// has failed `failures_per_domain` times; fronting is enabled once `num_domains_failed` distinct
+/// domains have failed.
+///
+/// Both thresholds are inclusive (`>=`), so `0` is a valid, well-defined value for either field
+/// rather than an error - it simply means the threshold is already satisfied:
+/// - `failures_per_domain: 0` - a domain counts as "failed" on its very first failure.
+/// - `num_domains_failed: 0` - fronting is enabled as soon as `retry_enable` is called with a
+///   domain, even before any domain has reached `failures_per_domain`. This makes
+///   `failures_per_domain` irrelevant, so setting `num_domains_failed` to `0` alongside a
+///   non-zero `failures_per_domain` is almost certainly a configuration mistake - use
+///   [`FrontPolicy::OnRetry`] instead if "enable on the first failure" is actually what's wanted.
+/// - `FrontingConfig::default()` (both `0`) therefore enables fronting on the very first failure
+///   seen, same as `num_domains_failed: 0` above.
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct FrontingConfig {
+    /// Allow N failures per domain before fronting enables. `0` means a single failure is
+    /// enough for a domain to count as "failed" - see the type-level docs for details.
+    failures_per_domain: usize,
+
+    /// Allow N domains to fail before fronting is enabled. `0` means fronting enables as soon as
+    /// any failure is recorded, bypassing `failures_per_domain` entirely - see the type-level
+    /// docs for details.
+    num_domains_failed: usize,
+
+    /// Once Fronting is enabled allow non-fronted domains to be included in the
+    /// rotation of domains that are used as the external facing SNI.
+    include_non_fronted_in_rotation: bool,
+
+    /// Requires `include_non_fronted_in_rotation()` to be set and on the success of a non-fronted
+    /// domain for an API request resets the counters and disables domain fronting. This is meant to
+    /// allow the http client to recover and use domain fronting less if it doesn't need to do so.
+    disable_fronting_on_non_fronting_success: bool,
+}
+
+impl FrontingConfig {
+    /// Create a new configuration for [`FrontPolicy::ConfiguredRetry`].
+    pub fn new(failures_per_domain: usize, num_domains_failed: usize) -> Self {
+        Self {
+            failures_per_domain,
+            num_domains_failed,
+            include_non_fronted_in_rotation: false,
+            disable_fronting_on_non_fronting_success: false,
+        }
+    }
+
+    /// Set the number of failures allowed for a single domain before it is considered failed.
+    pub fn with_failures_per_domain(mut self, failures_per_domain: usize) -> Self {
+        self.failures_per_domain = failures_per_domain;
+        self
+    }
+
+    /// Set the number of distinct domains that must fail before fronting is enabled.
+    pub fn with_num_domains_failed(mut self, num_domains_failed: usize) -> Self {
+        self.num_domains_failed = num_domains_failed;
+        self
+    }
+
+    /// Once fronting is enabled, allow domains without a configured front to still be selected
+    /// when rotating hosts (rather than only rotating between fronted domains).
+    pub fn with_include_non_fronted_in_rotation(mut self, include: bool) -> Self {
+        self.include_non_fronted_in_rotation = include;
+        self
+    }
+
+    /// Requires [`Self::with_include_non_fronted_in_rotation`] to also be set. When a request
+    /// against a non-fronted domain succeeds while fronting is enabled, reset the accumulated
+    /// failure counts and disable fronting again, letting the client rely less on fronting once
+    /// it is no longer needed.
+    pub fn with_disable_fronting_on_non_fronting_success(mut self, disable: bool) -> Self {
+        self.disable_fronting_on_non_fronting_success = disable;
+        self
+    }
 }
 
 impl ClientBuilder {
@@ -210,9 +354,191 @@ mod tests {
         );
     }
 
-    /// Policy can be set for the shared client and the update is applied properly
-    // NOTE THIS TEST IS DISABLED BECAUSE IT INTERACTS WITH THE SHARED POLICY AND AS SUCH CAN HAVE
-    // AN IMPACT ON OTHER TESTS
+    /// `ConfiguredRetry` should only enable fronting once enough distinct domains have each
+    /// failed at least `failures_per_domain` times.
+    #[test]
+    fn configured_retry_enables_after_thresholds_met() {
+        let cfg = FrontingConfig::new(2, 2);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+        assert!(!front.is_enabled());
+
+        // one failure on domain-a is not enough to count it as "failed" (needs 2)
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // domain-a fails again, reaching its threshold, but only 1 domain has failed so far
+        // (needs 2 domains)
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // repeated failures on the SAME domain don't count as additional failed domains
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        // domain-b fails once - not enough on its own
+        front.retry_enable(Some("domain-b"));
+        assert!(!front.is_enabled());
+
+        // domain-b reaches its own threshold - now 2 distinct domains have failed enough times
+        front.retry_enable(Some("domain-b"));
+        assert!(front.is_enabled());
+    }
+
+    /// `ConfiguredRetry` should ignore failures with no associated domain rather than panicking
+    /// or enabling fronting.
+    #[test]
+    fn configured_retry_ignores_failures_without_a_domain() {
+        let cfg = FrontingConfig::new(1, 1);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(None);
+        assert!(!front.is_enabled());
+    }
+
+    /// `failures_per_domain: 0` means a domain counts as "failed" on its very first failure,
+    /// rather than being an invalid or ignored configuration.
+    #[test]
+    fn configured_retry_zero_failures_per_domain_counts_first_failure() {
+        let cfg = FrontingConfig::new(0, 2);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        // domain-a's single failure immediately counts it as "failed" (threshold of 0), but a
+        // second distinct domain is still required to reach num_domains_failed.
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+
+        front.retry_enable(Some("domain-b"));
+        assert!(front.is_enabled());
+    }
+
+    /// `num_domains_failed: 0` means the threshold is already satisfied, so fronting enables on
+    /// the very first tracked failure regardless of `failures_per_domain` - even a very high
+    /// `failures_per_domain` does not delay this.
+    #[test]
+    fn configured_retry_zero_num_domains_failed_enables_immediately() {
+        let cfg = FrontingConfig::new(1000, 0);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+    }
+
+    /// The default `FrontingConfig` (all fields zeroed) enables fronting on the very first
+    /// tracked failure - documenting this explicitly since a naive reading of "default" might
+    /// otherwise suggest fronting never turns on.
+    #[test]
+    fn configured_retry_default_config_enables_on_first_failure() {
+        let front = Front::new(FrontPolicy::ConfiguredRetry(FrontingConfig::default()));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+    }
+
+    /// Setting a new policy resets both the enabled flag and any accumulated per-domain failure
+    /// counts.
+    #[test]
+    fn configured_retry_resets_on_policy_change() {
+        let cfg = FrontingConfig::new(1, 1);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg.clone()));
+
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+
+        // re-applying the same policy should reset accumulated failure state
+        front.set_policy(FrontPolicy::ConfiguredRetry(cfg));
+        assert!(!front.is_enabled());
+    }
+
+    /// By default, host rotation should skip domains that have no front configured once fronting
+    /// is enabled - only `include_non_fronted_in_rotation` opts into visiting them.
+    #[test]
+    fn rotation_skips_non_fronted_domains_by_default() {
+        let fronted_url =
+            Url::new("https://has-front.test", Some(vec!["https://front.test"])).unwrap();
+        let plain_url = Url::new("https://no-front.test", None).unwrap();
+
+        let cfg = FrontingConfig::new(1, 1);
+        let client = ClientBuilder::new_with_urls(vec![fronted_url, plain_url])
+            .unwrap()
+            .with_fronting(Some(FrontPolicy::ConfiguredRetry(cfg)))
+            .build()
+            .unwrap();
+
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+
+        client.front.retry_enable(Some("has-front.test"));
+        assert!(client.front.is_enabled());
+
+        // the only other base url has no front - rotation should skip it and stay put.
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+    }
+
+    /// `include_non_fronted_in_rotation` allows a non-fronted domain to be selected during host
+    /// rotation even while fronting is enabled.
+    #[test]
+    fn rotation_includes_non_fronted_domains_when_configured() {
+        let fronted_url =
+            Url::new("https://has-front.test", Some(vec!["https://front.test"])).unwrap();
+        let plain_url = Url::new("https://no-front.test", None).unwrap();
+
+        let cfg = FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true);
+        let client = ClientBuilder::new_with_urls(vec![fronted_url, plain_url])
+            .unwrap()
+            .with_fronting(Some(FrontPolicy::ConfiguredRetry(cfg)))
+            .build()
+            .unwrap();
+
+        client.front.retry_enable(Some("has-front.test"));
+        assert!(client.front.is_enabled());
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://no-front.test/");
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://has-front.test/");
+
+        client.update_host(None);
+        assert_eq!(client.current_url().as_str(), "https://front.test/");
+    }
+
+    /// `disable_fronting_on_non_fronting_success` requires `include_non_fronted_in_rotation` to
+    /// also be set - it has no effect on its own.
+    #[test]
+    fn recover_flag_requires_include_non_fronted_in_rotation() {
+        let cfg = FrontingConfig::new(1, 1).with_disable_fronting_on_non_fronting_success(true);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        assert!(!front.should_recover_on_non_fronted_success());
+    }
+
+    /// When both flags are set, [`Front::recover`] disables fronting and clears accumulated
+    /// per-domain failure counts, so it takes a fresh run of failures to re-enable fronting.
+    #[test]
+    fn recover_disables_fronting_and_clears_failure_counts() {
+        let cfg = FrontingConfig::new(2, 1)
+            .with_include_non_fronted_in_rotation(true)
+            .with_disable_fronting_on_non_fronting_success(true);
+        let front = Front::new(FrontPolicy::ConfiguredRetry(cfg));
+
+        front.retry_enable(Some("domain-a"));
+        front.retry_enable(Some("domain-a"));
+        assert!(front.is_enabled());
+        assert!(front.should_recover_on_non_fronted_success());
+
+        front.recover();
+        assert!(!front.is_enabled());
+
+        // a single failure is not enough on its own (needs 2) - proves the counters were cleared,
+        // not just the enabled flag.
+        front.retry_enable(Some("domain-a"));
+        assert!(!front.is_enabled());
+    }
+
+    /// Policy can be set for the shared client and the update is applied properly.
+    ///
+    /// This mutates the process-wide `SHARED_FRONTING_POLICY`, so it holds the shared test-state
+    /// lock to prevent interference with other tests (previously disabled for this reason).
     #[test]
     #[serial]
     fn set_policy_shared_client() {
@@ -297,17 +623,19 @@ mod tests {
         assert!(!client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
 
-        client1.front.retry_enable();
+        client1.front.retry_enable(None);
         assert!(client1.front.is_enabled());
         assert!(!client2.front.is_enabled());
+
+        // leave the shared policy as we found it for whichever test runs next
+        Client::set_shared_front_policy(FrontPolicy::Off);
     }
 
+    // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
+    // marker - must not run concurrently with tests that mutate it.
     #[tokio::test]
     #[serial]
     async fn nym_api_works() {
-        // sends a real request, which reads the process-wide SHARED_NETWORK_RECONFIGURATION
-        // marker - must not run concurrently with tests that mutate it.
-
         let url1 = Url::new(
             "https://validator.global.ssl.fastly.net",
             Some(vec!["https://yelp.global.ssl.fastly.net"]),
@@ -338,19 +666,36 @@ mod tests {
         // println!("{response:?}");
         assert_eq!(response.status(), 200);
     }
+}
+
+#[cfg(test)]
+mod mocked_tests {
+    use super::*;
+    use crate::{ApiClientCore, HickoryDnsResolver, NO_PARAMS, Url};
+    use hickory_resolver::{
+        net::{DnsError, NetError, NoRecords},
+        proto::{
+            op::{Query, ResponseCode},
+            rr::{Name as HickoryName, RecordType},
+        },
+    };
+    use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+    use std::{
+        net::{IpAddr, SocketAddr},
+        str::FromStr,
+    };
 
     #[tokio::test]
-    #[serial]
     async fn fallback_on_failure() {
-        // sends real requests and relies on host rotation not being suppressed, which depends on
-        // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
-        // tests that mutate it.
-
+        // `fake-front-1`/`fake-front-2` are pinned to deterministic DNS failures via
+        // `MockResolver` below (one NXDOMAIN, one SERVFAIL - exercising both branches of
+        // `might_be_network_interference`'s DNS classification) rather than relying on any live
+        // DNS infrastructure to keep answering consistently for hostnames that don't exist.
         let url1 = Url::new(
-            "https://fake-domain.nymtech.net",
+            "https://fake-domain.invalid",
             Some(vec![
-                "https://fake-front-1.nymtech.net",
-                "https://fake-front-2.nymtech.net",
+                "https://fake-front-1.invalid",
+                "https://fake-front-2.invalid",
             ]),
         )
         .unwrap();
@@ -360,20 +705,25 @@ mod tests {
         )
         .unwrap(); // fastly
 
+        let mock_resolver = MockResolver::new()
+            .with_nxdomain("fake-front-1.invalid")
+            .with_servfail("fake-front-2.invalid");
+
         let client = ClientBuilder::new_with_urls(vec![url1, url2])
             .expect("bad url")
             .with_fronting(Some(FrontPolicy::Always))
+            .dns_resolver(std::sync::Arc::new(mock_resolver))
             .build()
             .expect("failed to build client");
 
         // Check that the initial configuration has the broken domain and front.
         assert_eq!(
             client.current_url().as_str(),
-            "https://fake-domain.nymtech.net/",
+            "https://fake-domain.invalid/",
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-1.nymtech.net"),
+            Some("fake-front-1.invalid"),
         );
 
         let result = client
@@ -389,11 +739,11 @@ mod tests {
         // Check that the host configuration updated the front on error.
         assert_eq!(
             client.current_url().as_str(),
-            "https://fake-domain.nymtech.net/",
+            "https://fake-domain.invalid/",
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-2.nymtech.net"),
+            Some("fake-front-2.invalid"),
         );
 
         let result = client
@@ -415,17 +765,99 @@ mod tests {
             client.current_url().front_str(),
             Some("yelp.global.ssl.fastly.net"),
         );
+    }
 
-        let response = client
-            .send_request::<_, (), &str, &str>(
-                reqwest::Method::GET,
-                &["api", "v1", "network", "details"],
-                NO_PARAMS,
-                None,
-            )
-            .await
-            .expect("failed get request");
+    /// Deterministic outcome a [`MockResolver`] returns for one hostname.
+    #[derive(Clone)]
+    enum MockOutcome {
+        /// Resolve to these addresses, as if the lookup succeeded.
+        #[allow(dead_code)]
+        Addrs(Vec<IpAddr>),
+        /// Fail as a clean NXDOMAIN (the domain does not exist).
+        NxDomain,
+        /// Fail as a SERVFAIL (the server could not process the query).
+        ServFail,
+    }
 
-        assert_eq!(response.status(), 200);
+    /// A [`Resolve`] implementation for tests that need a specific, deterministic DNS outcome
+    /// for one or more hostnames without depending on any live DNS infrastructure for them.
+    ///
+    /// Any hostname not explicitly configured falls through to a real (independent, non-shared)
+    /// resolver, so a test can mock only the hosts it cares about (e.g. hosts standing in for a
+    /// network failure) while still reaching the network for the rest (e.g. a host the test
+    /// expects to actually succeed against).
+    struct MockResolver {
+        outcomes: HashMap<String, MockOutcome>,
+        fallback: HickoryDnsResolver,
+    }
+
+    impl MockResolver {
+        fn new() -> Self {
+            Self {
+                outcomes: HashMap::new(),
+                fallback: HickoryDnsResolver::thread_resolver(),
+            }
+        }
+
+        fn with_nxdomain(mut self, host: &str) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::NxDomain);
+            self
+        }
+
+        fn with_servfail(mut self, host: &str) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::ServFail);
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_addrs(mut self, host: &str, addrs: Vec<IpAddr>) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::Addrs(addrs));
+            self
+        }
+    }
+
+    /// Wraps a [`NetError`] the same way the real resolver does (see `dns::ResolveError`), so it
+    /// reaches [`crate::might_be_network_interference`] in exactly the shape a genuine DNS
+    /// failure takes: a `crate::ResolveError::ResolveError(NetError)`, one `.source()` hop below
+    /// the `reqwest::Error` the client actually sees.
+    fn mock_dns_error(net_err: NetError) -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(crate::ResolveError::ResolveError(net_err))
+    }
+
+    impl Resolve for MockResolver {
+        fn resolve(&self, name: Name) -> Resolving {
+            let host = name.as_str().to_string();
+            match self.outcomes.get(&host) {
+                Some(MockOutcome::Addrs(addrs)) => {
+                    let addrs = addrs.clone();
+                    Box::pin(async move {
+                        let addrs: Addrs =
+                            Box::new(addrs.into_iter().map(|ip| SocketAddr::new(ip, 0)));
+                        Ok(addrs)
+                    })
+                }
+                Some(MockOutcome::NxDomain) => {
+                    // the exact query contents don't matter to `NetError::is_nx_domain()`, only
+                    // the response code does, but a real `Query` is required to build one.
+                    let query = HickoryName::from_str(&host)
+                        .map(|name| Query::query(name, RecordType::A))
+                        .unwrap_or_default();
+                    let err = mock_dns_error(NetError::Dns(DnsError::NoRecordsFound(
+                        NoRecords::new(Box::new(query), ResponseCode::NXDomain),
+                    )));
+                    Box::pin(async move { Err(err) })
+                }
+                Some(MockOutcome::ServFail) => {
+                    let err = mock_dns_error(NetError::Dns(DnsError::ResponseCode(
+                        ResponseCode::ServFail,
+                    )));
+                    Box::pin(async move { Err(err) })
+                }
+                None => self.fallback.resolve(name),
+            }
+        }
     }
 }

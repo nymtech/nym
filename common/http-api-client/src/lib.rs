@@ -160,7 +160,7 @@ use bytes::Bytes;
 use cfg_if::cfg_if;
 use http::{
     HeaderMap,
-    header::{ACCEPT, CONTENT_TYPE},
+    header::{ACCEPT, CONTENT_TYPE, RETRY_AFTER},
 };
 use itertools::Itertools;
 use mime::Mime;
@@ -181,7 +181,7 @@ use std::sync::{Arc, LazyLock};
 #[cfg(feature = "tunneling")]
 mod fronted;
 #[cfg(feature = "tunneling")]
-pub use fronted::FrontPolicy;
+pub use fronted::{FrontPolicy, FrontingConfig};
 mod url;
 pub use url::{IntoUrl, Url};
 mod user_agent;
@@ -614,10 +614,12 @@ pub trait ApiClientCore {
     /// multiple times.
     fn maybe_rotate_hosts(&self, offending_url: Option<Url>);
 
-    /// If the fronting policy for the client is set to `OnRetry` this function will enable the
-    /// fronting if not already enabled.
+    /// If the fronting policy for the client is set to `OnRetry` or `ConfiguredRetry` this
+    /// function will enable fronting if not already enabled. `domain` should be the host of the
+    /// URL that triggered the failure, and is used by `ConfiguredRetry` to track failures per
+    /// domain.
     #[cfg(feature = "tunneling")]
-    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug);
+    fn maybe_enable_fronting(&self, domain: Option<&str>, context: impl std::fmt::Debug);
 }
 
 /// A `ClientBuilder` can be used to create a [`Client`] with custom configuration applied consistently
@@ -974,7 +976,16 @@ impl Client {
         // Only compare against the front host if the current url actually has one configured -
         // otherwise requests to it go out unfronted, so the offending host will be the real one.
         if self.front.is_enabled() && self.current_url().has_front() {
-            url.host_str() == self.current_url().front_str()
+            let active_front = if self.front.include_non_fronted_in_rotation() {
+                self.current_url().active_rotation_front_str()
+            } else {
+                self.current_url().front_str()
+            };
+
+            match active_front {
+                Some(_) => url.host_str() == active_front,
+                None => url.host_str() == self.current_url().host_str(),
+            }
         } else {
             url.host_str() == self.current_url().host_str()
         }
@@ -1001,13 +1012,18 @@ impl Client {
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            // if we are using fronting, try updating to the next front
             let url = self.current_url();
 
-            // try to update the current host to use a next front, if one is available, otherwise
-            // we move on and try the next base url (if one is available)
-            if url.has_front() && !url.update() {
-                // we swapped to the next front for the current host
+            if self.front.include_non_fronted_in_rotation() {
+                // each host gets a turn shown directly before cycling through its fronts one at
+                // a time - only rotate away once the direct turn and every front are exhausted.
+                if url.has_front() && url.take_rotation_turn() {
+                    return;
+                }
+            } else if url.has_front() && !url.update() {
+                // if we are using fronting, try updating to the next front. If one is available
+                // we swapped to it for the current host, otherwise we move on and try the next
+                // base url (if one is available)
                 return;
             }
         }
@@ -1018,9 +1034,10 @@ impl Client {
             #[allow(unused_mut)]
             let mut next = (orig + 1) % self.base_urls.len();
 
-            // if fronting is enabled we want to update to a host that has fronts configured
+            // if fronting is enabled we want to update to a host that has fronts configured,
+            // unless the policy explicitly allows non-fronted domains into the rotation.
             #[cfg(feature = "tunneling")]
-            if self.front.is_enabled() {
+            if self.front.is_enabled() && !self.front.include_non_fronted_in_rotation() {
                 while next != orig {
                     if self.base_urls[next].has_front() {
                         // we have a front for the next host, so we can use it
@@ -1051,13 +1068,23 @@ impl Client {
     /// this method. For example, if the client is configured to rotate hosts after each error, this
     /// method should be called after the host has been updated -- i.e. as part of the subsequent
     /// send.
-    pub(crate) fn apply_hosts_to_req(&self, r: &mut reqwest::Request) -> (&str, Option<&str>) {
+    pub(crate) fn apply_hosts_to_req(
+        &self,
+        r: &mut reqwest::Request,
+    ) -> (Option<&str>, Option<&str>) {
         let url = self.current_url();
-        r.url_mut().set_host(url.host_str()).unwrap();
+        let domain = url.host_str();
+        r.url_mut().set_host(domain).unwrap();
 
         #[cfg(feature = "tunneling")]
         if self.front.is_enabled() {
-            if let Some(front_host) = url.front_str() {
+            let front_host = if self.front.include_non_fronted_in_rotation() {
+                url.active_rotation_front_str()
+            } else {
+                url.front_str()
+            };
+
+            if let Some(front_host) = front_host {
                 if let Some(actual_host) = url.host_str() {
                     tracing::debug!(
                         "Domain fronting enabled: routing via CDN {} to actual host {}",
@@ -1083,7 +1110,7 @@ impl Client {
                         .headers_mut()
                         .insert(NYM_OUTER_SNI_HEADER, front_host_header);
 
-                    return (url.as_str(), url.front_str());
+                    return (domain, Some(front_host));
                 } else {
                     tracing::debug!(
                         "Domain fronting is enabled, but no host_url is defined for current URL"
@@ -1095,7 +1122,14 @@ impl Client {
                 )
             }
         }
-        (url.as_str(), None)
+
+        // Ensure no stale fronting headers survive from a prior fronted attempt on this
+        // (possibly cloned/retried) request -- e.g. after a host rotation or a recovery to
+        // fronting-disabled.
+        r.headers_mut().remove(reqwest::header::HOST);
+        r.headers_mut().remove(NYM_OUTER_SNI_HEADER);
+
+        (domain, None)
     }
 }
 
@@ -1175,7 +1209,8 @@ impl ApiClientCore for Client {
             let mut req = r
                 .build()
                 .map_err(HttpClientError::reqwest_client_build_error)?;
-            self.apply_hosts_to_req(&mut req);
+            let (domain, _front_used) = self.apply_hosts_to_req(&mut req);
+            let domain = domain.map(str::to_owned);
             let url: Url = req.url().clone().into();
 
             let request_start = Instant::now();
@@ -1204,11 +1239,32 @@ impl ApiClientCore for Client {
 
             match response {
                 Ok(resp) => {
-                    // Check if the response includes a rate limit error from the vercel API
+                    // Check if the response indicates that we are being rate limited
                     if is_http_rate_limit_err(&resp) {
-                        warn!("encountered vercel rate limit error for {}", url.as_str());
+                        warn!("encountered rate limit error for {}", url.as_str());
                         // if we have multiple urls, update to the next
                         self.maybe_rotate_hosts(Some(url.clone()));
+                    } else {
+                        // If fronting is enabled and we rotate through a non-fronted SNI that
+                        // succeeds it means that an API endpoint is working when accessed directly.
+                        // We then reset counters for fronting enable and begin state tracking anew.
+                        //
+                        // While HTTP failures (e.g. 400 404, 502, etc.) to non-fronted API calls
+                        // still indicate that the request "succeeded" from the point of view of
+                        // domain fronting this check requires that the HTTP request itself
+                        // succeeded (e.g. 2XX response).
+                        #[cfg(feature = "tunneling")]
+                        if _front_used.is_none()
+                            && self.front.is_enabled()
+                            && self.front.should_recover_on_non_fronted_success()
+                            && resp.status().is_success()
+                        {
+                            debug!(
+                                "non-fronted request to {} succeeded while fronting was enabled; disabling fronting and resetting retry counters",
+                                url.as_str()
+                            );
+                            self.front.recover();
+                        }
                     }
 
                     return Ok(resp);
@@ -1229,7 +1285,10 @@ impl ApiClientCore for Client {
                         self.maybe_rotate_hosts(Some(url.clone()));
 
                         #[cfg(feature = "tunneling")]
-                        self.maybe_enable_fronting(("network", url.as_str(), &err));
+                        self.maybe_enable_fronting(
+                            domain.as_deref(),
+                            ("network", url.as_str(), &err),
+                        );
                     }
 
                     if attempts < self.retry_limit {
@@ -1259,11 +1318,11 @@ impl ApiClientCore for Client {
     }
 
     #[cfg(feature = "tunneling")]
-    fn maybe_enable_fronting(&self, context: impl std::fmt::Debug) {
-        // If fronting is set to be OnRetry, enable domain fronting as we
+    fn maybe_enable_fronting(&self, domain: Option<&str>, context: impl std::fmt::Debug) {
+        // If fronting is set to be OnRetry or ConfiguredRetry, enable domain fronting as we
         // have encountered an error.
         let was_enabled = self.front.is_enabled();
-        self.front.retry_enable();
+        self.front.retry_enable(domain);
         if !was_enabled && self.front.is_enabled() {
             tracing::debug!("Domain fronting activated after failure: {context:?}",);
         }
@@ -1273,15 +1332,31 @@ impl ApiClientCore for Client {
 const VERCEL_CHALLENGE_HEADER: &str = "x-vercel-mitigated";
 const VERCEL_CHALLENGE_VALUE: &[u8] = b"challenge";
 
-/// Check for Rate Limit challenge response from the vercel API
+/// Check for a rate limit response: a plain HTTP 429, a 503 with a `Retry-After` header, or a
+/// rate limit challenge response from the vercel API.
 pub(crate) fn is_http_rate_limit_err(resp: &Response) -> bool {
-    let status = resp.status() == StatusCode::FORBIDDEN;
-    let header = resp
-        .headers()
+    is_rate_limit_response(resp.status(), resp.headers())
+}
+
+fn is_rate_limit_response(status: StatusCode, headers: &HeaderMap) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS
+        || is_throttled_service_unavailable(status, headers)
+        || is_vercel_rate_limit_challenge(status, headers)
+}
+
+/// A 503 accompanied by `Retry-After` indicates the server is asking us to back off, as opposed
+/// to a plain 503 which may just mean the service is down.
+fn is_throttled_service_unavailable(status: StatusCode, headers: &HeaderMap) -> bool {
+    status == StatusCode::SERVICE_UNAVAILABLE && headers.contains_key(RETRY_AFTER)
+}
+
+/// Check for a Rate Limit challenge response from the vercel API
+fn is_vercel_rate_limit_challenge(status: StatusCode, headers: &HeaderMap) -> bool {
+    let status = status == StatusCode::FORBIDDEN;
+    let header = headers
         .get(VERCEL_CHALLENGE_HEADER)
         .is_some_and(|v| v.as_bytes() == VERCEL_CHALLENGE_VALUE);
-    let content_type = resp
-        .headers()
+    let content_type = headers
         .get(CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<Mime>().ok())
@@ -1341,8 +1416,18 @@ pub(crate) fn might_be_network_interference(err: &reqwest::Error) -> bool {
                 // try downcast to TLS error
                 return true;
             } else if let Some(resolve_err) = e.downcast_ref::<hickory_resolver::net::NetError>() {
-                // try downcast to DNS error
-                return resolve_err.is_nx_domain();
+                // try downcast to DNS error. NXDOMAIN means the domain doesn't exist, SERVFAIL
+                // indicates a recurive lookup failure and is likely ephemeral but given that it is
+                // a failure within (expected reliable DoH/DoT) we rotate the domain.
+                return resolve_err.is_nx_domain()
+                    || matches!(
+                        resolve_err,
+                        hickory_resolver::net::NetError::Dns(
+                            hickory_resolver::net::DnsError::ResponseCode(
+                                hickory_resolver::proto::op::ResponseCode::ServFail
+                            )
+                        )
+                    );
             } else if let Some(h2_err) = e.downcast_ref::<h2::Error>() {
                 // try downcast to a h2 (HTTP/2) error. hyper only wraps these as io::Error
                 // when they are actually backed by one (see `hyper::Error::new_h2`), so if we
@@ -1538,7 +1623,7 @@ pub trait ApiClient: ApiClientCore {
             ) {
                 self.maybe_rotate_hosts(Some(url.clone()));
                 #[cfg(feature = "tunneling")]
-                self.maybe_enable_fronting(("parse/read", url.as_str(), e));
+                self.maybe_enable_fronting(url.host_str(), ("parse/read", url.as_str(), e));
             }
         })
     }

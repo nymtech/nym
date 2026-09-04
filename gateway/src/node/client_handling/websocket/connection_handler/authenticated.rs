@@ -14,11 +14,9 @@ use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
+use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_credential_verification::upgrade_mode::UpgradeModeEnableError;
 use nym_credential_verification::CredentialVerifier;
-use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
-};
 use nym_credentials_interface::DEFAULT_MIXNET_REQUEST_BANDWIDTH_THRESHOLD;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
@@ -26,7 +24,6 @@ use nym_gateway_requests::{
     SensitiveServerResponse, SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::error::GatewayStorageError;
-use nym_gateway_storage::traits::BandwidthGatewayStorage;
 use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_statistics_common::{gateways::GatewaySessionEvent, types::SessionType};
@@ -185,27 +182,10 @@ impl<R, S> AuthenticatedHandler<R, S> {
         mix_receiver: MixMessageReceiver,
         is_active_request_receiver: IsActiveRequestReceiver,
     ) -> Result<Self, RequestHandlingError> {
-        // note: the `upgrade` function can only be called after registering or authenticating the client,
-        // meaning the appropriate database rows must have been created
-        // so in theory we could just unwrap the value here, but since we're returning a Result anyway,
-        // we might as well return a failure response instead
-        let bandwidth = fresh
-            .shared_state
-            .storage
-            .get_available_bandwidth(client.id)
-            .await?
-            .ok_or(RequestHandlingError::MissingClientBandwidthEntry {
-                client_address: client.address.as_base58_string(),
-            })?;
+        let bandwidth_storage_manager = fresh.create_bandwidth_storage_manager(&client).await?;
 
         let handler = AuthenticatedHandler {
-            bandwidth_storage_manager: BandwidthStorageManager::new(
-                Box::new(fresh.shared_state.storage.clone()),
-                ClientBandwidth::new(bandwidth.into()),
-                client.id,
-                fresh.shared_state.cfg.bandwidth,
-                fresh.shared_state.cfg.enforce_zk_nym,
-            ),
+            bandwidth_storage_manager,
             inner: fresh,
             client,
             mix_receiver,
@@ -688,5 +668,51 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
 
         trace!("The stream was closed!");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn into_response(err: RequestHandlingError) -> ServerResponse {
+        let Message::Text(text) = err.into_error_message() else {
+            panic!("the error was not reported as a text frame")
+        };
+
+        ServerResponse::try_from(text.to_string()).expect("the error frame did not parse back")
+    }
+
+    // An out-of-bandwidth outcome MUST stay a typed error carrying both figures, never collapse into
+    // the generic string error. It is the only signal that tells a client its session was metered,
+    // which for a network monitor agent means the gateway has not ingested its announced identity -
+    // otherwise a run scoring zero is indistinguishable from a dead gateway.
+    #[test]
+    fn running_out_of_bandwidth_is_reported_as_a_typed_error() {
+        let response = into_response(RequestHandlingError::CredentialVerification(
+            nym_credential_verification::Error::OutOfBandwidth {
+                required: 2048,
+                available: 0,
+            },
+        ));
+
+        assert!(matches!(
+            response,
+            ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::OutOfBandwidth {
+                    required: 2048,
+                    available: 0
+                }
+            }
+        ));
+    }
+
+    // The boundary of the above: everything else is a generic error, so the typed variant keeps
+    // meaning exactly one thing to whoever matches on it.
+    #[test]
+    fn other_failures_are_reported_generically() {
+        let response = into_response(RequestHandlingError::InternalError);
+
+        assert!(response.is_error());
     }
 }

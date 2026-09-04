@@ -6142,6 +6142,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-authorised-network-monitors"
+version = "1.21.6"
+dependencies = [
+ "arc-swap",
+ "nym-crypto",
+ "nym-test-utils",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "1.21.6"
 dependencies = [
@@ -7153,6 +7162,7 @@ dependencies = [
  "ipnetwork 0.20.0",
  "mock_instant",
  "nym-authenticator-requests",
+ "nym-authorised-network-monitors",
  "nym-client-core",
  "nym-config",
  "nym-credential-verification",
@@ -7187,6 +7197,7 @@ dependencies = [
  "nym-wireguard-types",
  "rand 0.8.6",
  "serde",
+ "sqlx",
  "thiserror 2.0.19",
  "time",
  "tokio",
@@ -8128,6 +8139,7 @@ dependencies = [
  "indicatif",
  "ipnetwork 0.20.0",
  "lioness",
+ "nym-authorised-network-monitors",
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",

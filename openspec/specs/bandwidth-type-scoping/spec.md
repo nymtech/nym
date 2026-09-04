@@ -10,15 +10,19 @@ periodic sweep, the post-spend top-up, and the restock triggered when a credenti
 fetcher is installed — to the set configured in
 `BandwidthControllerConfig::managed_ticket_types`. The default SHALL be every
 non-mixnet-exit type (prior behaviour). An empty managed set SHALL disable proactive
-restocking entirely. The managed set gates every restock path, including an explicit
-`restock_ticketbooks` request: a type outside the managed set is never fetched, so an
-empty managed set means no path deposits. A caller that wants a one-off restock
-without leaving background restock enabled SHALL therefore control it through the
-fetcher lifecycle — install the credential fetcher (with the wanted types in the
-managed set) to trigger issuance, wait for readiness, then uninstall the fetcher —
-rather than by pairing an empty managed set with an explicit `restock_ticketbooks`
-call. The credential fetcher itself SHALL remain unchanged — it fetches whatever type
-it is asked for; deciding what to request is the controller's responsibility.
+restocking entirely. The managed set gates every restock path on a running controller,
+including an explicit `restock_ticketbooks` request: a type outside the managed set is
+never fetched by those paths, so an empty managed set means no restock path deposits.
+A caller that wants a one-off issuance without background restock SHALL use a
+**non-running** controller: construct it with the credential fetcher and the wanted
+types in the managed set, call the inline `fetch_ticketbook` for each type that needs
+it, and tear the controller down (drop it, clean up its fetcher) — rather than running
+the event loop and toggling the fetcher, or pairing an empty managed set with an
+explicit `restock_ticketbooks` call. A caller that wants continuous restock SHALL run
+the event loop with the fetcher installed at construction and let the sweep act on the
+managed set. The credential fetcher itself SHALL remain unchanged — it fetches whatever
+type it is asked for; deciding what to request is the controller's (or the one-off
+caller's) responsibility.
 
 #### Scenario: Sweep restocks only managed types
 - **WHEN** the config's managed set is the WireGuard ticket types and the periodic
@@ -31,12 +35,20 @@ it is asked for; deciding what to request is the controller's responsibility.
   explicit `restock_ticketbooks` request) deposits, because every path is scoped to
   the managed set
 
-#### Scenario: One-off restock via the fetcher lifecycle
-- **WHEN** the managed set is the WireGuard types, a caller installs the credential
-  fetcher, waits for the WireGuard ticketbooks to become ready, then uninstalls the
+#### Scenario: One-off issuance via a non-running controller
+- **WHEN** a caller constructs a controller with the credential fetcher and the
+  WireGuard types in the managed set, does not run its event loop, calls
+  `fetch_ticketbook` for each WireGuard type whose stock needs a restock, and then
+  tears the controller down
+- **THEN** exactly those WireGuard ticketbooks are issued and stored, the fetcher is
+  cleaned up, and no further deposit can be made because no loop is running
+
+#### Scenario: Continuous restock via a running controller
+- **WHEN** a caller constructs a controller with the credential fetcher installed and
+  the WireGuard types in the managed set, and runs its event loop
+- **THEN** the startup sweep restocks any low WireGuard type and later sweeps restock
+  per the configured thresholds, without the caller installing or uninstalling the
   fetcher
-- **THEN** the WireGuard ticketbooks are issued and stored, and no further deposit is
-  made once the fetcher is removed
 
 #### Scenario: Post-spend restock respects the managed set
 - **WHEN** a ticket of a type outside the managed set is spent

@@ -4,6 +4,7 @@
 use crate::error::NymNodeError;
 use crate::node::lp::data::MAX_UDP_PACKET_SIZE;
 use crate::node::lp::data::shared::SharedLpDataState;
+use nym_lp::transport::{LpDatagramChannel, LpTransportError};
 use nym_lp_data::packet::EncryptedLpPacket;
 use nym_metrics::inc;
 use std::net::SocketAddr;
@@ -67,7 +68,7 @@ impl LpDataListener {
                 result = self.output_rx.recv() => {
                     match result {
                         Some((payload, dst_addr)) => {
-                            if let Err(e) = socket.send_to(&payload.to_bytes(), dst_addr).await {
+                            if let Err(e) = socket.send_packet_to(&payload, dst_addr).await {
                                 warn!("LP data packet error to {dst_addr}: {e}");
                                 inc!("lp_data_packet_egress_errors");
                             } else {
@@ -81,28 +82,29 @@ impl LpDataListener {
                     }
                 }
 
-                result = socket.recv_from(&mut buf) => {
+                result = socket.receive_packet_into(&mut buf) => {
                     match result {
-                        Ok((len, src_addr)) => {
-                            info!("received {len} bytes from {src_addr} on the LP Data endpoint");
+                        Ok((packet, src_addr)) => {
+                            info!("received a packet from {src_addr} on the LP Data endpoint");
                             self.shared_state.packet_received(src_addr);
-                            if let Ok(packet) = EncryptedLpPacket::decode(&buf[..len]) {
-                                if let Err(e) = self.input_tx.try_send((packet, src_addr)) {
-                                    match e {
-                                       TrySendError::Full(_) =>  {
-                                            warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
-                                            self.shared_state.pipeline_overloaded_packet_dropped();
-                                        },
-                                        TrySendError::Disconnected(_) => {
-                                            warn!("LP data listener: incoming packet channel is closed");
-                                            break;
-                                        },
-                                    }
+                            if let Err(e) = self.input_tx.try_send((packet, src_addr)) {
+                                match e {
+                                   TrySendError::Full(_) =>  {
+                                        warn!("LP data listener: packet sending buffer is full, the node might be overloaded");
+                                        self.shared_state.pipeline_overloaded_packet_dropped();
+                                    },
+                                    TrySendError::Disconnected(_) => {
+                                        warn!("LP data listener: incoming packet channel is closed");
+                                        break;
+                                    },
                                 }
-                            } else {
-                                warn!("Error reading LP packet from wire");
-                                inc!("lp_data_ingress_processing_errors");
                             }
+                        }
+                        // a datagram we could not parse is one bad sender, not a broken socket, so
+                        // the two are counted apart
+                        Err(LpTransportError::MalformedPacket(e)) => {
+                            warn!("Error reading LP packet from wire: {e}");
+                            inc!("lp_data_ingress_processing_errors");
                         }
                         Err(e) => {
                             warn!("LP data socket recv error: {e}");

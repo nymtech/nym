@@ -26,6 +26,8 @@ tracing.workspace = true
 
 nym-lp = { workspace = true }
 nym-lp-data.workspace = true
+nym-registration-common = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric"] }
 
 [dev-dependencies]
 nym-kkt.workspace = true

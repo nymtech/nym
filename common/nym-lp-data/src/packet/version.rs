@@ -21,6 +21,19 @@ pub const CURRENT: u8 = V1;
 /// branch if it changes the header layout.
 pub const SUPPORTED: &[u8] = &[V1];
 
+/// The version to speak with a node advertising `advertised`, or `None` when there is none both
+/// ends know.
+///
+/// A node at least as new as this build is met at [`CURRENT`]: it knows every version we do. An
+/// older one is met at its own version, so long as that version is still in [`SUPPORTED`].
+pub fn negotiate(advertised: u8) -> Option<u8> {
+    if advertised >= CURRENT {
+        return Some(CURRENT);
+    }
+
+    SUPPORTED.contains(&advertised).then_some(advertised)
+}
+
 pub mod node_compatibility {
     /// Indicates the initial version where LP has been introduced, alongside the KKT
     /// handshake it is built on.
@@ -51,6 +64,28 @@ mod tests {
     fn the_current_version_is_one_we_support() {
         // a `CURRENT` outside `SUPPORTED` means we'd propose a version we then refuse
         assert!(SUPPORTED.contains(&CURRENT));
+    }
+
+    #[test]
+    fn a_node_newer_than_this_build_is_met_at_our_current_version() {
+        assert_eq!(Some(CURRENT), negotiate(CURRENT));
+        assert_eq!(Some(CURRENT), negotiate(CURRENT + 1));
+        assert_eq!(Some(CURRENT), negotiate(u8::MAX));
+    }
+
+    #[test]
+    fn every_supported_version_negotiates_to_a_supported_one() {
+        for &supported in SUPPORTED {
+            let agreed = negotiate(supported).expect("a supported version must negotiate");
+            assert!(SUPPORTED.contains(&agreed));
+        }
+    }
+
+    #[test]
+    fn a_version_we_no_longer_speak_finds_no_overlap() {
+        // 0 is below V1, so it can never be in `SUPPORTED` - it stands in for any version
+        // eventually dropped from the list
+        assert_eq!(None, negotiate(0));
     }
 
     #[test]

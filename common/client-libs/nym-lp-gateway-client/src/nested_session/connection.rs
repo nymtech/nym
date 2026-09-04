@@ -6,23 +6,34 @@ use crate::{LpClientError, LpGatewayClient};
 use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use nym_lp::KEM;
+use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
-use nym_lp::transport::traits::{HandshakeMessage, LpTransportChannel};
+use nym_lp::transport::traits::{HandshakeMessage, LpDatagramChannel, LpTransportChannel};
 use nym_lp::transport::{LpHandshakeChannel, LpTransportError};
 use nym_lp_data::packet::{EncryptedLpPacket, ForwardPacketData, frame::ExpectedResponseSize};
 use std::io;
 use std::net::SocketAddr;
+use tokio::net::{TcpStream, UdpSocket};
 
-/// Attempt to treat the inner client as a LP connection
-pub struct NestedConnection<'a, S> {
+/// An entry gateway's control connection, dressed up as a channel to an exit gateway behind it.
+///
+/// Implements the same channel traits as a TCP stream, so a handshake run over one of these cannot
+/// tell it is being forwarded.
+pub struct NestedConnection<'a, S = TcpStream, D = UdpSocket> {
     /// Exit gateway's LP address (e.g., "2.2.2.2:41264")
     pub(crate) exit_address: SocketAddr,
 
+    /// The entry gateway doing the forwarding.
+    pub(crate) outer_gateway: SocketAddr,
+
     // exact mechanisms of determining this value are TBD
-    pub(crate) outer_client: &'a mut LpGatewayClient<S>,
+    pub(crate) outer_client: &'a mut LpGatewayClient<S, D>,
+
+    /// The session with the entry gateway, which encrypts the forwarding envelope.
+    pub(crate) outer_session: &'a mut LpTransportSession,
 }
 
-impl<'a, S> NestedConnection<'a, S> {
+impl<'a, S, D> NestedConnection<'a, S, D> {
     fn prepare_handshake_message<M: HandshakeMessage>(
         &self,
         message: M,
@@ -57,6 +68,7 @@ impl<'a, S> NestedConnection<'a, S> {
     async fn send_forward_packet(&mut self, data: ForwardPacketData) -> Result<(), LpClientError>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
+        D: LpDatagramChannel,
     {
         tracing::debug!(
             "Sending ForwardPacket to {} ({} inner bytes, persistent connection)",
@@ -67,10 +79,8 @@ impl<'a, S> NestedConnection<'a, S> {
         // 1. Serialize the ForwardPacketData
         let input = convert_forward_data(data)?;
 
-        // 2. Encrypt and prepare packet via state machine
-        let state_machine = self.outer_client.transport_session_mut()?;
-
-        let action = state_machine.process_input(input)?;
+        // 2. Encrypt and prepare packet on the outer session
+        let action = self.outer_session.process_input(input)?;
 
         let forward_packet = match action {
             LpAction::SendPacket(packet) => packet,
@@ -79,8 +89,11 @@ impl<'a, S> NestedConnection<'a, S> {
 
         // 3. Send the packet with timeout
         let timeout = self.outer_client.config.forward_timeout;
+        let gateway = self.outer_gateway;
         tokio::time::timeout(timeout, async {
-            self.outer_client.try_send_packet(&forward_packet).await
+            self.outer_client
+                .send_control(gateway, &forward_packet)
+                .await
         })
         .await
         .map_err(|_| LpClientError::ConnectionTimeout)??;
@@ -91,18 +104,21 @@ impl<'a, S> NestedConnection<'a, S> {
     async fn receive_forward_packet_data(&mut self) -> Result<Vec<u8>, LpClientError>
     where
         S: LpTransportChannel + LpHandshakeChannel + Unpin,
+        D: LpDatagramChannel,
     {
         // 1. Receive the packet with timeout
         let timeout = self.outer_client.config.forward_timeout;
+        let gateway = self.outer_gateway;
         let response_packet = tokio::time::timeout(timeout, async {
-            self.outer_client.try_receive_packet().await
+            self.outer_client.receive_control(gateway).await
         })
         .await
         .map_err(|_| LpClientError::ConnectionTimeout)??;
 
-        // 2. Decrypt via state machine (re-borrow)
-        let state_machine = self.outer_client.transport_session_mut()?;
-        let action = state_machine.process_input(LpInput::ReceivePacket(response_packet))?;
+        // 2. Decrypt on the outer session
+        let action = self
+            .outer_session
+            .process_input(LpInput::ReceivePacket(response_packet))?;
 
         // 3. Extract decrypted response data
         let response_data = try_convert_forward_response(action)?;
@@ -118,9 +134,10 @@ impl<'a, S> NestedConnection<'a, S> {
 }
 
 #[async_trait]
-impl<'a, S> LpHandshakeChannel for NestedConnection<'a, S>
+impl<'a, S, D> LpHandshakeChannel for NestedConnection<'a, S, D>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
+    D: LpDatagramChannel,
 {
     #[allow(clippy::unimplemented)]
     async fn write_all_and_flush(&mut self, _: &[u8]) -> Result<(), LpTransportError> {
@@ -160,9 +177,10 @@ where
 }
 
 #[async_trait]
-impl<'a, S> LpTransportChannel for NestedConnection<'a, S>
+impl<'a, S, D> LpTransportChannel for NestedConnection<'a, S, D>
 where
     S: LpTransportChannel + LpHandshakeChannel + Unpin + Send,
+    D: LpDatagramChannel,
 {
     #[allow(clippy::unimplemented)]
     async fn connect(_: SocketAddr) -> Result<Self, LpTransportError> {

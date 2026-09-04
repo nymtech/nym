@@ -15,7 +15,8 @@ use nym_bandwidth_controller::{BandwidthController, BandwidthTicketProvider, Tic
 use nym_bandwidth_fetcher::NyxdCredentialFetcher;
 use nym_credentials_interface::BandwidthCredential;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_lp::peer::{DHKeyPair, LpRemotePeer};
+use nym_lp::peer::{DHKeyPair, LpLocalPeer, LpRemotePeer};
+use nym_lp::psq::initiator::HandshakeMode;
 use nym_network_defaults::NymNetworkDetails;
 use nym_registration_client::{
     LpDvpnRegistrationClient, LpGatewayClient, NestedLpDvpnRegistrationClient, NestedLpSession,
@@ -590,24 +591,24 @@ impl Session {
         let entry_keypair = Arc::new(DHKeyPair::new(&mut rng));
         let entry_peer =
             LpRemotePeer::new(entry_lp.x25519).with_key_digests(entry_lp.expected_kem_key_hashes);
-        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config(
-            entry_keypair,
-            entry_peer,
-            entry_lp.address,
-            entry_lp.ciphersuite,
-            entry_lp.lp_protocol_version,
-        );
+        let mut entry_client = LpGatewayClient::<TcpStream>::new_with_default_config();
         // The LP handshake spends no ticket, so it stays cancellable — otherwise a stalled/
         // black-holed entry gateway would ignore the cancel token until the OS TCP timeout. Only
         // the ticket-spending registration calls below run without racing cancel.
-        tokio::select! {
+        let mut entry_session = tokio::select! {
             biased;
             _ = self.cancel.cancelled() => return Err(SessionError::Cancelled),
-            r = entry_client.perform_handshake() => r.map_err(|source| SessionError::Registration {
+            r = entry_client.handshake(
+                entry_lp.address,
+                LpLocalPeer::new(entry_lp.ciphersuite, entry_keypair),
+                entry_peer,
+                entry_lp.lp_protocol_version,
+                HandshakeMode::OneWayEntry,
+            ) => r.map_err(|source| SessionError::Registration {
                 address: entry_lp.address,
                 source,
             })?,
-        }
+        };
 
         // Exit hop: reuse or register via entry forwarding.
         let exit_hop = match cached_exit {
@@ -616,35 +617,41 @@ impl Session {
                 let exit_keypair = Arc::new(DHKeyPair::new(&mut rng));
                 let exit_peer = LpRemotePeer::new(exit_lp.x25519)
                     .with_key_digests(exit_lp.expected_kem_key_hashes);
-                let mut nested = NestedLpSession::new(
+                let nested = NestedLpSession::new(
                     exit_lp.address,
                     exit_keypair,
                     exit_peer,
                     exit_lp.ciphersuite,
                     exit_lp.lp_protocol_version,
                 );
-                nested
-                    .perform_handshake(&mut entry_client)
+                let exit_session = nested
+                    .perform_handshake(&mut entry_client, entry_lp.address, &mut entry_session)
                     .await
                     .map_err(|source| SessionError::Registration {
                         address: exit_lp.address,
                         source,
                     })?;
                 let exit_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let exit_cfg = NestedLpDvpnRegistrationClient::new(&mut nested, &mut entry_client)
-                    .register(
-                        &mut rng,
-                        &exit_wg,
-                        &exit_gw.identity,
-                        self.provider.as_ref(),
-                        None,
-                        TicketType::V1WireguardExit,
-                    )
-                    .await
-                    .map_err(|source| SessionError::Registration {
-                        address: exit_lp.address,
-                        source,
-                    })?;
+                let exit_cfg = NestedLpDvpnRegistrationClient::new(
+                    &nested,
+                    exit_session,
+                    &mut entry_client,
+                    entry_lp.address,
+                    &mut entry_session,
+                )
+                .register(
+                    &mut rng,
+                    &exit_wg,
+                    &exit_gw.identity,
+                    self.provider.as_ref(),
+                    None,
+                    TicketType::V1WireguardExit,
+                )
+                .await
+                .map_err(|source| SessionError::Registration {
+                    address: exit_lp.address,
+                    source,
+                })?;
                 self.finalize_hop(
                     &exit_gw.identity,
                     exit_gw.info(),
@@ -660,20 +667,24 @@ impl Session {
             Some(hop) => hop,
             None => {
                 let entry_wg = x25519::KeyPair::new(&mut rand::thread_rng());
-                let entry_cfg = LpDvpnRegistrationClient::new(&mut entry_client)
-                    .register(
-                        &mut rng,
-                        &entry_wg,
-                        &entry_gw.identity,
-                        self.provider.as_ref(),
-                        None,
-                        TicketType::V1WireguardEntry,
-                    )
-                    .await
-                    .map_err(|source| SessionError::Registration {
-                        address: entry_lp.address,
-                        source,
-                    })?;
+                let entry_cfg = LpDvpnRegistrationClient::new(
+                    &mut entry_client,
+                    entry_lp.address,
+                    entry_session,
+                )
+                .register(
+                    &mut rng,
+                    &entry_wg,
+                    &entry_gw.identity,
+                    self.provider.as_ref(),
+                    None,
+                    TicketType::V1WireguardEntry,
+                )
+                .await
+                .map_err(|source| SessionError::Registration {
+                    address: entry_lp.address,
+                    source,
+                })?;
                 self.finalize_hop(
                     &entry_gw.identity,
                     entry_gw.info(),
@@ -701,28 +712,28 @@ impl Session {
         let mut rng = rand010::rngs::StdRng::try_from_rng(&mut SysRng)?;
         let keypair = Arc::new(DHKeyPair::new(&mut rng));
         let peer = LpRemotePeer::new(lp.x25519).with_key_digests(lp.expected_kem_key_hashes);
-        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config(
-            keypair,
-            peer,
-            lp.address,
-            lp.ciphersuite,
-            lp.lp_protocol_version,
-        );
+        let mut client = LpGatewayClient::<TcpStream>::new_with_default_config();
 
         // The LP handshake spends no ticket, so it stays cancellable (a stalled gateway would
         // otherwise hang past the cancel token); only the ticket-spending `register_dvpn` below runs
         // without racing cancel.
-        tokio::select! {
+        let session = tokio::select! {
             biased;
             _ = self.cancel.cancelled() => return Err(SessionError::Cancelled),
-            r = client.perform_handshake() => r.map_err(|source| SessionError::Registration {
+            r = client.handshake(
+                lp.address,
+                LpLocalPeer::new(lp.ciphersuite, keypair),
+                peer,
+                lp.lp_protocol_version,
+                HandshakeMode::OneWayEntry,
+            ) => r.map_err(|source| SessionError::Registration {
                 address: lp.address,
                 source,
             })?,
-        }
+        };
 
         let wg = x25519::KeyPair::new(&mut rand::thread_rng());
-        let cfg = LpDvpnRegistrationClient::new(&mut client)
+        let cfg = LpDvpnRegistrationClient::new(&mut client, lp.address, session)
             .register(
                 &mut rng,
                 &wg,

@@ -8,7 +8,7 @@ use nym_kkt_ciphersuite::KEM;
 use nym_lp_data::packet::{EncryptedLpPacket, OuterHeader};
 use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UdpSocket};
 use tracing::debug;
 
 #[cfg(any(feature = "mock", test))]
@@ -227,6 +227,106 @@ where
         .map_err(LpTransportError::receive_failure)?;
 
     Ok(packet_buf)
+}
+
+/// A connectionless channel: one socket, many peers, and the datagram is the frame.
+///
+/// The sibling of [`LpTransportChannel`], and the differences from it are not incidental:
+///
+/// - **No length prefix.** A datagram already carries its length, so prefixing one would only add
+///   bytes that say what the transport just said.
+/// - **Every send names a destination, every receive reports a source.** One socket serves every
+///   peer, so neither can be implied by the channel.
+/// - **`&self` throughout.** That is what lets the same socket be read in one task and written from
+///   another, which is the whole reason a client can have a single data plane.
+#[async_trait]
+pub trait LpDatagramChannel: Sized + Send + Sync {
+    /// Bind a local address. `[::]:0` takes an ephemeral port on every interface.
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError>;
+
+    /// The address this is actually bound to, once the OS has chosen a port.
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError>;
+
+    /// Send this there.
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError>;
+
+    /// Read the next datagram into `buf`, and decode it.
+    ///
+    /// The buffer is the caller's so a receive loop can keep one for its lifetime rather than
+    /// taking a fresh one per packet. A decode failure surfaces as
+    /// [`LpTransportError::MalformedPacket`], which is how a caller tells a bad datagram from a
+    /// bad socket.
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError>;
+
+    /// The next packet off the wire, and who sent it.
+    ///
+    /// Takes a buffer big enough for any datagram, per call. [`Self::receive_packet_into`] is the
+    /// one for a loop that cares.
+    async fn receive_packet_from(
+        &self,
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let mut buf = vec![0u8; MAX_TRANSPORT_PACKET_SIZE];
+        self.receive_packet_into(&mut buf).await
+    }
+}
+
+#[async_trait]
+impl LpDatagramChannel for UdpSocket {
+    async fn bind(local: SocketAddr) -> Result<Self, LpTransportError> {
+        UdpSocket::bind(local)
+            .await
+            .map_err(|err| LpTransportError::connection_failure(err.to_string()))
+    }
+
+    fn local_address(&self) -> Result<SocketAddr, LpTransportError> {
+        self.local_addr()
+            .map_err(|err| LpTransportError::connection_config(err.to_string()))
+    }
+
+    async fn send_packet_to(
+        &self,
+        packet: &EncryptedLpPacket,
+        destination: SocketAddr,
+    ) -> Result<(), LpTransportError> {
+        let bytes = packet.to_bytes();
+
+        self.send_to(&bytes, destination)
+            .await
+            .map_err(LpTransportError::send_failure)?;
+
+        tracing::trace!("sent {} bytes to {destination}", bytes.len());
+        Ok(())
+    }
+
+    async fn receive_packet_into(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<(EncryptedLpPacket, SocketAddr), LpTransportError> {
+        let (len, source) = self
+            .recv_from(buf)
+            .await
+            .map_err(LpTransportError::receive_failure)?;
+
+        tracing::trace!("received {len} bytes from {source}");
+
+        // a datagram longer than the buffer arrives truncated rather than split, so it is already
+        // unusable - saying so beats handing the decoder a silently short packet
+        let datagram = buf
+            .get(..len)
+            .ok_or(LpTransportError::PacketTooBig { size: len })?;
+
+        let packet = EncryptedLpPacket::decode(datagram)
+            .map_err(|err| LpTransportError::MalformedPacket(err.to_string()))?;
+
+        Ok((packet, source))
+    }
 }
 
 #[async_trait]

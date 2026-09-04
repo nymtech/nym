@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-api"
-version = "1.1.86"
+version = "1.1.87"
 authors.workspace = true
 edition = "2021"
 license = "GPL-3.0"
@@ -139,6 +139,21 @@ dotenvy = { workspace = true }
 test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }
+nym-directory-contract-common = { workspace = true }
+
+# `test-util` for `#[tokio::test(start_paused = true)]`: the dkg controller sleeps
+# between polls, and a test driving it should not wait in real time
+tokio = { workspace = true, features = ["test-util"] }
+
+# the real contract code, driven under cw_multi_test. `nym-coconut-dkg` belongs to
+# the separate contracts workspace; see this workspace's [patch.crates-io].
+nym-coconut-dkg = { path = "../contracts/coconut-dkg", features = [
+    "testable-dkg-contract",
+] }
+nym-contracts-common-testing = { path = "../common/cosmwasm-smart-contracts/contracts-common-testing" }
+nym-group-contract-common = { workspace = true }
+nym-multisig-contract-common = { workspace = true }
+cw-multi-test = { workspace = true }
 
 [lints]
 workspace = true

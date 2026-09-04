@@ -6,7 +6,10 @@ use crate::config::old_configs::old_config_v13::unchanged_v13_types::{
     MetricsConfigV13, MixnetV13, NodeModesV13, ServiceProvidersConfigV13, StaleMessageDebugV13,
     UpgradeModeWatcherV13, VerlocV13, WireguardV13, ZkNymTicketHandlerDebugV13,
 };
-use crate::config::old_configs::old_config_v14::{ConfigV14, NyxV14};
+use crate::config::old_configs::old_config_v14::{
+    ConfigV14, GatewayTasksConfigV14, GatewayTasksPathsV14, KeysPathsV14, MixnetDebugV14,
+    MixnetV14, NymNodePathsV14, NyxV14,
+};
 use crate::error::NymNodeError;
 use nym_config::read_config_from_toml_file;
 use nym_config::serde_helpers::de_maybe_port;
@@ -438,13 +441,88 @@ pub async fn try_upgrade_config_v13<P: AsRef<Path>>(
         // use default to switch to the lite query node
         nyx: NyxV14::default(),
         // /\ ADDED
-        mixnet: old_cfg.mixnet,
-        storage_paths: old_cfg.storage_paths,
+        mixnet: MixnetV14 {
+            bind_address: old_cfg.mixnet.bind_address,
+            announce_port: old_cfg.mixnet.announce_port,
+            nym_api_urls: old_cfg.mixnet.nym_api_urls,
+            replay_protection: old_cfg.mixnet.replay_protection,
+            key_rotation: old_cfg.mixnet.key_rotation,
+            debug: MixnetDebugV14 {
+                maximum_forward_packet_delay: old_cfg.mixnet.debug.maximum_forward_packet_delay,
+                packet_forwarding_initial_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_initial_backoff,
+                packet_forwarding_maximum_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_maximum_backoff,
+                initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
+                maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
+                unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
+                use_legacy_packet_encoding: old_cfg.mixnet.debug.use_legacy_packet_encoding,
+                ..MixnetDebugV14::default()
+            },
+        },
+        storage_paths: NymNodePathsV14 {
+            keys: KeysPathsV14 {
+                private_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_ed25519_identity_key_file,
+                public_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_ed25519_identity_key_file,
+                primary_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .primary_x25519_sphinx_key_file,
+                secondary_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .secondary_x25519_sphinx_key_file,
+                private_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_x25519_noise_key_file,
+                public_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_x25519_noise_key_file,
+                private_x25519_lp_key_file: old_cfg.storage_paths.keys.private_x25519_lp_key_file,
+                public_x25519_lp_key_file: old_cfg.storage_paths.keys.public_x25519_lp_key_file,
+                private_mlkem768_lp_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_mlkem768_lp_key_file,
+                public_mlkem768_lp_key_file: old_cfg.storage_paths.keys.public_mlkem768_lp_key_file,
+                private_mceliece_lp_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_mceliece_lp_key_file,
+                public_mceliece_lp_key_file: old_cfg.storage_paths.keys.public_mceliece_lp_key_file,
+            },
+            description: old_cfg.storage_paths.description,
+        },
         http: old_cfg.http,
         verloc: old_cfg.verloc,
         wireguard: old_cfg.wireguard,
         lp: old_cfg.lp,
-        gateway_tasks: old_cfg.gateway_tasks,
+        gateway_tasks: GatewayTasksConfigV14 {
+            storage_paths: GatewayTasksPathsV14 {
+                clients_storage: old_cfg.gateway_tasks.storage_paths.clients_storage,
+                stats_storage: old_cfg.gateway_tasks.storage_paths.stats_storage,
+                cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
+                bridge_client_params: old_cfg.gateway_tasks.storage_paths.bridge_client_params,
+            },
+            enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,
+            ws_bind_address: old_cfg.gateway_tasks.ws_bind_address,
+            announce_ws_port: old_cfg.gateway_tasks.announce_ws_port,
+            announce_wss_port: old_cfg.gateway_tasks.announce_wss_port,
+            upgrade_mode: old_cfg.gateway_tasks.upgrade_mode,
+            debug: old_cfg.gateway_tasks.debug,
+        },
         service_providers: old_cfg.service_providers,
         metrics: old_cfg.metrics,
         logging: old_cfg.logging,

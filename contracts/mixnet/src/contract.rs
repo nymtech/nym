@@ -64,12 +64,39 @@ fn default_initial_state(
     }
 }
 
+/// Entry-point shims deserializing their message behind an `#[inline(never)]` boundary,
+/// keeping the exported wrappers under cosmwasm's 100-locals limit. Only effective
+/// together with the bounded single-caller inlining `wasm-opt` receives in
+/// `make optimize-contracts`; unbounded, it merges the boundary back.
+pub mod wasm_entry {
+    use super::*;
+    use serde::{Deserialize, Deserializer};
+
+    pub struct NoInlineDeserialize<T>(T);
+
+    impl<'de, T: Deserialize<'de>> Deserialize<'de> for NoInlineDeserialize<T> {
+        #[inline(never)]
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            T::deserialize(deserializer).map(Self)
+        }
+    }
+
+    #[entry_point]
+    pub fn instantiate(
+        deps: DepsMut<'_>,
+        env: Env,
+        info: MessageInfo,
+        msg: NoInlineDeserialize<InstantiateMsg>,
+    ) -> Result<Response, MixnetContractError> {
+        super::instantiate(deps, env, info, msg.0)
+    }
+}
+
 /// Instantiate the contract.
 ///
 /// `deps` contains Storage, API and Querier
 /// `env` contains block, message and contract info
 /// `msg` is the contract initialization message, sort of like a constructor call.
-#[entry_point]
 pub fn instantiate(
     mut deps: DepsMut<'_>,
     env: Env,

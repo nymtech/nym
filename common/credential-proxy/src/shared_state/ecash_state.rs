@@ -6,32 +6,35 @@ use crate::nym_api_helpers::{
     CachedEpoch, CachedImmutableEpochItem, ensure_sane_expiration_date, query_all_threshold_apis,
 };
 use crate::quorum_checker::QuorumState;
-use crate::shared_state::nyxd_client::ChainClient;
+use crate::shared_state::nyxd_client::{ChainClient, EpochSource};
 use crate::shared_state::required_deposit_cache::RequiredDepositCache;
 use crate::storage::traits::GlobalEcashDataCache;
 use nym_cache::CachedImmutableItems;
+use nym_compact_ecash::Base58;
+pub use nym_compact_ecash::VerificationKeyAuth;
+pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
 use nym_compact_ecash::scheme::coin_indices_signatures::aggregate_annotated_indices_signatures;
+pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
 use nym_compact_ecash::scheme::expiration_date_signatures::aggregate_annotated_expiration_signatures;
 use nym_credentials::ecash::utils::EcashTime;
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
+pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
+use nym_http_api_client::{UserAgent, bin_info};
 use nym_validator_client::EcashApiClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
+use nym_validator_client::nyxd::contract_traits::dkg_query_client::{ContractVKShare, Epoch};
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tracing::info;
-
-pub use nym_compact_ecash::VerificationKeyAuth;
-pub use nym_compact_ecash::scheme::coin_indices_signatures::CoinIndexSignatureShare;
-pub use nym_compact_ecash::scheme::expiration_date_signatures::ExpirationDateSignatureShare;
-pub use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
-pub use nym_credentials_interface::{TicketType, TicketTypeRepr};
+use tracing::{info, warn};
+use url::Url;
 
 pub struct EcashState {
     pub required_deposit_cache: RequiredDepositCache,
@@ -52,6 +55,63 @@ pub struct EcashState {
         CachedImmutableItems<(EpochId, Date), AggregatedExpirationDateSignatures>,
 }
 
+fn construct_usable_ecash_api_clients(shares: Vec<ContractVKShare>) -> Vec<EcashApiClient> {
+    let mut clients = Vec::with_capacity(shares.len());
+
+    for share in shares {
+        let owner = share.owner.clone();
+        let epoch_id = share.epoch_id;
+
+        match construct_ecash_api_client(share) {
+            Ok(client) => clients.push(client),
+            Err(err) => {
+                warn!("ignoring the key share of {owner} for epoch {epoch_id}: {err}")
+            }
+        }
+    }
+
+    clients
+}
+
+fn construct_ecash_api_client(share: ContractVKShare) -> Result<EcashApiClient, EcashApiError> {
+    if !share.verified {
+        return Err(EcashApiError::UnverifiedShare);
+    }
+
+    let url_address = Url::parse(&share.announce_address)?;
+
+    let api_client = nym_http_api_client::Client::builder(url_address)
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+        .with_timeout(Duration::from_secs(5))
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .no_hickory_dns()
+        .build()
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+
+    Ok(EcashApiClient {
+        api_client,
+        verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
+        node_id: share.node_index,
+        cosmos_address: share.owner.as_str().parse()?,
+    })
+}
+
+/// What a caller has told us it is able to do, which decides whether issuing to it right now is
+/// safe. Defaults to the least capable thing, because that is what a caller predating a given
+/// field is.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct CallerCapabilities {
+    /// The caller states which epoch it means when fetching verification material, so a ceremony
+    /// concluding between issuance and unblinding cannot leave it holding shares it can never use.
+    pub epoch_aware: bool,
+}
+
+impl CallerCapabilities {
+    pub fn epoch_aware(epoch_aware: bool) -> Self {
+        CallerCapabilities { epoch_aware }
+    }
+}
+
 impl EcashState {
     pub fn new(
         required_deposit_cache: RequiredDepositCache,
@@ -69,13 +129,45 @@ impl EcashState {
         }
     }
 
+    /// Refuse to *issue* to a caller that cannot say which epoch it means, while a ceremony runs.
+    ///
+    /// A book issued mid-ceremony belongs to the epoch still in service, which is not the chain's
+    /// current one. A caller that omits the epoch when it later fetches verification material is
+    /// served the current one, and once the ceremony concludes that no longer matches - so it can
+    /// never unblind what it just paid for, and the failure is permanent because the epoch its
+    /// shares were signed under never changes.
+    ///
+    /// Such a caller waits instead, which is recoverable and is exactly what it did before
+    /// mid-ceremony issuance existed. Deliberately separate from
+    /// [`Self::ensure_credentials_issuable`]: that one asks whether ecash works at all, and gates
+    /// reads as well, which issue nothing and cannot strand anybody.
+    pub async fn ensure_issuable_to_caller(
+        &self,
+        client: &impl EpochSource,
+        caller: CallerCapabilities,
+    ) -> Result<(), CredentialProxyError> {
+        if caller.epoch_aware {
+            return Ok(());
+        }
+
+        if !self.current_epoch(client).await?.state.is_final() {
+            return Err(CredentialProxyError::CallerCannotIssueMidCeremony);
+        }
+
+        Ok(())
+    }
+
     pub async fn ensure_credentials_issuable(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
     ) -> Result<(), CredentialProxyError> {
         let epoch = self.current_epoch(client).await?;
 
-        if epoch.state.is_final() {
+        // a ceremony running no longer stops issuance: signers keep issuing under the epoch it is
+        // replacing, so the only genuine refusal is when no epoch has ever concluded and there is
+        // nothing to issue under at all. that is not "epoch 0" - a ceremony that fails moves the
+        // id on without producing keys, so the first one can be retried arbitrarily far
+        if epoch.issuing_epoch_id().is_some() {
             Ok(())
         } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // SAFETY: the timestamp values in our DKG contract should be valid timestamps,
@@ -97,26 +189,61 @@ impl EcashState {
         self.required_deposit_cache.get_or_update(client).await
     }
 
+    /// Whether the ceremony for `epoch_id` has concluded, so its set of signers is settled.
+    async fn ceremony_concluded(
+        &self,
+        client: &impl EpochSource,
+        epoch_id: EpochId,
+    ) -> Result<bool, CredentialProxyError> {
+        Ok(self
+            .current_epoch(client)
+            .await?
+            .is_ceremony_concluded(epoch_id))
+    }
+
+    /// The signers registered for `epoch_id`, skipping any whose share cannot be used.
+    ///
+    /// A single share that was never verified - or that carries an announce address the DKG
+    /// contract never validated - must not deny the caller every *other* signer of that epoch.
+    async fn registered_ecash_clients(
+        &self,
+        client: &ChainClient,
+        epoch_id: EpochId,
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
+        Ok(construct_usable_ecash_api_clients(
+            client
+                .query_chain()
+                .await
+                .get_all_verification_key_shares(epoch_id)
+                .await?,
+        ))
+    }
+
     pub async fn ecash_clients(
         &self,
         client: &ChainClient,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
+        // the moment a ceremony starts, the epoch id increments and the new epoch has no
+        // verified shares yet. this cache has no expiry, so answering from it then would
+        // remember an empty signer set for the life of the process - and this proxy would
+        // keep failing to fan out long after the ceremony finished.
+        if !self.ceremony_concluded(client, epoch_id).await? {
+            return self.registered_ecash_clients(client, epoch_id).await;
+        }
+
         self.epoch_clients
             .get_or_init(epoch_id, || async {
-                Ok(client
-                    .query_chain()
-                    .await
-                    .get_all_verification_key_shares(epoch_id)
-                    .await?
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<anyhow::Result<Vec<_>, EcashApiError>>()?)
+                self.registered_ecash_clients(client, epoch_id).await
             })
             .await
+            .map(|guard| guard.clone())
     }
 
-    pub async fn current_epoch(&self, client: &ChainClient) -> Result<Epoch, CredentialProxyError> {
+    pub async fn current_epoch(
+        &self,
+        client: &impl EpochSource,
+    ) -> Result<Epoch, CredentialProxyError> {
         let read_guard = self.cached_epoch.read().await;
         if read_guard.is_valid() {
             return Ok(read_guard.current_epoch);
@@ -125,28 +252,28 @@ impl EcashState {
         // update cache
         drop(read_guard);
         let mut write_guard = self.cached_epoch.write().await;
-        let epoch = client.query_chain().await.get_current_epoch().await?;
+        let epoch = client.current_epoch().await?;
 
         write_guard.update(epoch);
         Ok(epoch)
     }
 
-    pub async fn current_epoch_id(
+    /// The epoch signers are issuing under: the most recent whose ceremony has concluded. While a
+    /// ceremony runs that is an earlier epoch, whose keys exist and whose credentials are still
+    /// circulating - not necessarily the one directly below the current id, since a ceremony that
+    /// failed moved that id on without producing any keys.
+    ///
+    /// Everything about one request has to agree on this - the signers asked, the threshold, the
+    /// auxiliary data returned alongside the shares, and the epoch stated on each request - so it
+    /// is resolved once per request and threaded through.
+    pub async fn issuable_epoch_id(
         &self,
-        client: &ChainClient,
+        client: &impl EpochSource,
     ) -> Result<EpochId, CredentialProxyError> {
-        let read_guard = self.cached_epoch.read().await;
-        if read_guard.is_valid() {
-            return Ok(read_guard.current_epoch.epoch_id);
-        }
-
-        // update cache
-        drop(read_guard);
-        let mut write_guard = self.cached_epoch.write().await;
-        let epoch = client.query_chain().await.get_current_epoch().await?;
-
-        write_guard.update(epoch);
-        Ok(epoch.epoch_id)
+        self.current_epoch(client)
+            .await?
+            .issuing_epoch_id()
+            .ok_or(CredentialProxyError::UninitialisedDkg)
     }
 
     pub async fn master_verification_key<S>(
@@ -160,7 +287,7 @@ impl EcashState {
     {
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.current_epoch_id(client).await?,
+            None => self.issuable_epoch_id(client).await?,
         };
 
         self.master_verification_key
@@ -209,7 +336,7 @@ impl EcashState {
     {
         let epoch_id = match epoch_id {
             Some(id) => id,
-            None => self.current_epoch_id(client).await?,
+            None => self.issuable_epoch_id(client).await?,
         };
 
         self.coin_index_signatures
@@ -251,8 +378,7 @@ impl EcashState {
                 };
 
                 let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
-                        .await?;
+                    query_all_threshold_apis(all_apis, threshold, get_partial_signatures).await?;
 
                 let aggregated = aggregate_annotated_indices_signatures(
                     nym_credentials_interface::ecash_parameters(),
@@ -326,7 +452,7 @@ impl EcashState {
                 };
 
                 let shares =
-                    query_all_threshold_apis(all_apis.clone(), threshold, get_partial_signatures)
+                    query_all_threshold_apis(all_apis, threshold, get_partial_signatures)
                         .await?;
 
                 let aggregated = aggregate_annotated_expiration_signatures(
@@ -371,5 +497,198 @@ impl EcashState {
             })
             .await
             .map(|t| *t)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+    use cosmwasm_std::Timestamp;
+    use nym_validator_client::nyxd::contract_traits::dkg_query_client::EpochState;
+
+    /// The chain frozen at one point of one epoch.
+    struct FixedEpoch(Epoch);
+
+    impl EpochSource for FixedEpoch {
+        async fn current_epoch(&self) -> Result<Epoch, CredentialProxyError> {
+            Ok(self.0)
+        }
+    }
+
+    fn state() -> EcashState {
+        EcashState::new(RequiredDepositCache::default(), QuorumState::fixed(true))
+    }
+
+    /// `epoch_id`'s ceremony is running, so the keys in service are the previous epoch's.
+    fn mid_ceremony(epoch_id: EpochId) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::DealingExchange { resharing: true },
+            epoch_id,
+            keys_in_service: epoch_id.checked_sub(1),
+            ..Default::default()
+        })
+    }
+
+    /// `epoch_id`'s ceremony concluded and its keys are the ones in service.
+    fn concluded(epoch_id: EpochId) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::InProgress,
+            epoch_id,
+            keys_in_service: Some(epoch_id),
+            ..Default::default()
+        })
+    }
+
+    /// The ceremony for `epoch_id` failed, so the contract reset into a fresh id while
+    /// `in_service` kept serving - however many attempts it has taken.
+    fn after_failed_ceremony(epoch_id: EpochId, in_service: Option<EpochId>) -> FixedEpoch {
+        FixedEpoch(Epoch {
+            state: EpochState::PublicKeySubmission { resharing: false },
+            epoch_id,
+            keys_in_service: in_service,
+            deadline: Some(Timestamp::from_seconds(1_700_000_000)),
+            ..Default::default()
+        })
+    }
+
+    #[tokio::test]
+    async fn epoch_aware_caller_may_issue_mid_ceremony() {
+        assert!(
+            state()
+                .ensure_issuable_to_caller(&mid_ceremony(5), CallerCapabilities::epoch_aware(true))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn caller_that_cannot_state_the_epoch_is_refused_mid_ceremony() {
+        let err = state()
+            .ensure_issuable_to_caller(&mid_ceremony(5), CallerCapabilities::default())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            CredentialProxyError::CallerCannotIssueMidCeremony
+        ));
+    }
+
+    #[tokio::test]
+    async fn caller_that_cannot_state_the_epoch_may_issue_between_ceremonies() {
+        assert!(
+            state()
+                .ensure_issuable_to_caller(&concluded(5), CallerCapabilities::default())
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_running_ceremony_does_not_stop_issuance_once_an_epoch_has_concluded() {
+        assert!(
+            state()
+                .ensure_credentials_issuable(&mid_ceremony(5))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn issuance_is_refused_until_the_first_ceremony_concludes() {
+        let deadline = 1_700_000_000;
+        let first_ceremony = FixedEpoch(Epoch {
+            state: EpochState::PublicKeySubmission { resharing: false },
+            epoch_id: 0,
+            deadline: Some(Timestamp::from_seconds(deadline)),
+            ..Default::default()
+        });
+
+        let err = state()
+            .ensure_credentials_issuable(&first_ceremony)
+            .await
+            .unwrap_err();
+
+        let CredentialProxyError::CredentialsNotYetIssuable { availability } = err else {
+            panic!("expected the refusal to say when issuance becomes available, got: {err}")
+        };
+        // the caller is pointed at the end of the whole ceremony, not of its current state
+        assert!(availability > OffsetDateTime::from_unix_timestamp(deadline as i64).unwrap());
+    }
+
+    #[tokio::test]
+    async fn issuance_is_refused_while_the_dkg_is_uninitialised() {
+        let uninitialised = FixedEpoch(Epoch::default());
+        assert!(uninitialised.0.state.is_waiting_initialisation());
+
+        let err = state()
+            .ensure_credentials_issuable(&uninitialised)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, CredentialProxyError::UninitialisedDkg));
+    }
+
+    #[tokio::test]
+    async fn issuable_epoch_is_the_current_one_between_ceremonies() {
+        assert_eq!(5, state().issuable_epoch_id(&concluded(5)).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn issuable_epoch_is_the_one_being_replaced_mid_ceremony() {
+        assert_eq!(
+            4,
+            state().issuable_epoch_id(&mid_ceremony(5)).await.unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn no_epoch_is_issuable_during_the_very_first_ceremony() {
+        let err = state()
+            .issuable_epoch_id(&mid_ceremony(0))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(err, CredentialProxyError::UninitialisedDkg));
+    }
+
+    /// A failed ceremony leaves the epoch id ahead of the keys, by as many attempts as it takes.
+    /// The proxy issues under the generation actually in service rather than the id below the
+    /// current one, which by then names an epoch that concluded nothing.
+    #[tokio::test]
+    async fn issuance_continues_under_the_epoch_in_service_after_failed_ceremonies() {
+        let after_two_failures = after_failed_ceremony(7, Some(4));
+
+        assert!(
+            state()
+                .ensure_credentials_issuable(&after_two_failures)
+                .await
+                .is_ok()
+        );
+        assert_eq!(
+            4,
+            state()
+                .issuable_epoch_id(&after_two_failures)
+                .await
+                .unwrap()
+        );
+    }
+
+    /// When it is the *first* ceremony that keeps failing there is still nothing to issue under,
+    /// however far the epoch id has run on. Refusing as "not yet issuable" makes that retryable:
+    /// the condition clears the moment a ceremony finally concludes.
+    #[tokio::test]
+    async fn issuance_is_refused_while_the_first_ceremony_is_still_being_retried() {
+        let err = state()
+            .ensure_credentials_issuable(&after_failed_ceremony(3, None))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            err,
+            CredentialProxyError::CredentialsNotYetIssuable { .. }
+        ));
+        assert_eq!(StatusCode::SERVICE_UNAVAILABLE, err.status_code());
     }
 }

@@ -16,11 +16,14 @@ use nym_contracts_common_testing::{
     PermissionedFn, QueryFn, RandExt, SliceRandom, TEST_DENOM,
 };
 
+use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};
 use crate::epoch_state::storage::load_current_epoch;
 use crate::state::storage::{MULTISIG, STATE};
 use crate::testable_dkg_contract::helpers::group_members;
+use crate::verification_key_shares::storage::vk_shares;
 use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
-use nym_coconut_dkg_common::types::{Epoch, EpochState};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, Epoch, EpochId, EpochState};
+use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::dealings::ContractSafeBytes;
 
 pub use cw3_flex_multisig::testable_cw3_contract::{Duration, MultisigContract, Threshold};
@@ -220,6 +223,129 @@ pub trait DkgContractTesterExt:
             .clone()
     }
 
+    fn key_size(&self) -> u32 {
+        STATE.load(self.storage()).unwrap().key_size
+    }
+
+    /// The chunk indices a dealer committed for a given dealing, in ascending order.
+    fn submitted_chunk_indices(
+        &self,
+        epoch_id: EpochId,
+        dealer: &Addr,
+        dealing_index: DealingIndex,
+    ) -> Vec<ChunkIndex> {
+        DEALINGS_METADATA
+            .may_load(self.storage(), (epoch_id, dealer, dealing_index))
+            .unwrap()
+            .map(|metadata| metadata.submitted_chunks.into_keys().collect())
+            .unwrap_or_default()
+    }
+
+    /// Rewrite the raw bytes of a stored dealing chunk.
+    ///
+    /// Dealing chunks are written to storage as raw bytes bypassing serialisation, so
+    /// this reaches past the contract's own handlers deliberately: it fabricates
+    /// on-chain data that a well-behaved dealer would never submit, which is exactly
+    /// what a test of *recipient-side* dealing validation needs.
+    fn mutate_dealing_chunk<F>(
+        &mut self,
+        epoch_id: EpochId,
+        dealer: &Addr,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+        mutate: F,
+    ) where
+        F: FnOnce(&mut Vec<u8>),
+    {
+        let mut data =
+            StoredDealing::read(self.storage(), epoch_id, dealer, dealing_index, chunk_index)
+                .expect("attempted to corrupt a dealing chunk that was never submitted")
+                .0;
+        mutate(&mut data);
+        StoredDealing::save(
+            self.storage_mut(),
+            epoch_id,
+            dealer,
+            PartialContractDealing {
+                dealing_index,
+                chunk_index,
+                data: ContractSafeBytes(data),
+            },
+        );
+    }
+
+    /// Drop the final byte of one chunk, so the reassembled dealing no longer decodes.
+    fn truncate_dealing_chunk(
+        &mut self,
+        epoch_id: EpochId,
+        dealer: &Addr,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) {
+        self.mutate_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index, |data| {
+            data.pop()
+                .expect("attempted to truncate an already empty dealing chunk");
+        })
+    }
+
+    /// Drop the final byte of every chunk of every dealing submitted by `dealer`.
+    fn truncate_all_dealings(&mut self, epoch_id: EpochId, dealer: &Addr) {
+        for dealing_index in 0..self.key_size() {
+            for chunk_index in self.submitted_chunk_indices(epoch_id, dealer, dealing_index) {
+                self.truncate_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index);
+            }
+        }
+    }
+
+    /// Alter the final byte of a dealing's last chunk, keeping its length intact.
+    ///
+    /// Unlike truncation, the dealing still decodes - it simply fails cryptographic
+    /// verification, which is a different rejection path on the recipient side.
+    fn corrupt_dealing_payload(
+        &mut self,
+        epoch_id: EpochId,
+        dealer: &Addr,
+        dealing_index: DealingIndex,
+    ) {
+        let last_chunk = *self
+            .submitted_chunk_indices(epoch_id, dealer, dealing_index)
+            .last()
+            .expect("the dealer submitted no chunks for this dealing");
+
+        self.mutate_dealing_chunk(epoch_id, dealer, dealing_index, last_chunk, |data| {
+            let last = data
+                .last_mut()
+                .expect("attempted to corrupt an empty dealing chunk");
+            *last = if *last == 42 { 43 } else { 42 };
+        })
+    }
+
+    fn vk_share(&self, epoch_id: EpochId, owner: &Addr) -> Option<ContractVKShare> {
+        vk_shares()
+            .may_load(self.storage(), (owner, epoch_id))
+            .unwrap()
+    }
+
+    /// Overwrite a dealer's submitted verification key share.
+    fn replace_vk_share(&mut self, epoch_id: EpochId, owner: &Addr, share: ContractVKShare) {
+        vk_shares()
+            .save(self.storage_mut(), (owner, epoch_id), &share)
+            .unwrap()
+    }
+
+    /// Corrupt a dealer's stored verification key share with the supplied mutation, so
+    /// that it no longer pairs with the dealings that dealer actually distributed.
+    fn corrupt_vk_share<F>(&mut self, epoch_id: EpochId, owner: &Addr, mutate: F)
+    where
+        F: FnOnce(&mut VerificationKeyShare),
+    {
+        let mut share = self
+            .vk_share(epoch_id, owner)
+            .expect("the dealer submitted no verification key share");
+        mutate(&mut share.share);
+        self.replace_vk_share(epoch_id, owner, share);
+    }
+
     fn dummy_dkg_steps(&mut self, resharing: bool) {
         let admin = self.admin().unwrap();
         let group_members = self.group_members();
@@ -316,6 +442,7 @@ pub trait DkgContractTesterExt:
                 &ExecuteMsg::VerifyVerificationKeyShare {
                     owner: group_member.to_string(),
                     resharing,
+                    epoch_id: self.epoch().epoch_id,
                 },
             )
             .unwrap();

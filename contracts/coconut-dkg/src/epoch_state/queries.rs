@@ -19,6 +19,20 @@ pub(crate) fn query_can_advance_state(
         return Ok(StateAdvanceResponse::default());
     }
 
+    // mirror of the same refusal in `ensure_can_advance_state`: an epoch in progress is where the
+    // state machine stops, so callers must never be told it can be advanced - they would spend a
+    // transaction to be refused. Explicit rather than left to fall out of the missing deadline, so
+    // the two cannot drift apart.
+    if epoch.state.is_in_progress() {
+        return Ok(StateAdvanceResponse {
+            current_state: epoch.state,
+            progress: epoch.state_progress,
+            deadline: epoch.deadline,
+            reached_deadline: false,
+            is_complete: false,
+        });
+    }
+
     let is_complete = check_state_completion(storage, &epoch)?;
     let reached_deadline = if let Some(finish_timestamp) = epoch.deadline {
         finish_timestamp <= env.block.time

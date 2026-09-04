@@ -1,6 +1,7 @@
 // Copyright 2025 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use axum::http::StatusCode;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_signer_check::SignerCheckError;
 use nym_validator_client::coconut::EcashApiError;
@@ -110,6 +111,14 @@ pub enum CredentialProxyError {
     )]
     CredentialsNotYetIssuable { availability: OffsetDateTime },
 
+    #[error(
+        "a DKG ceremony is in progress. credentials issued right now belong to the epoch it is \
+         replacing, and this client does not state which epoch it means when fetching \
+         verification material, so it could not use them. retry once the ceremony completes, or \
+         upgrade to a client that states the epoch"
+    )]
+    CallerCannotIssueMidCeremony,
+
     #[error("reached seemingly impossible ecash failure")]
     UnknownEcashFailure,
 
@@ -201,6 +210,73 @@ impl CredentialProxyError {
     pub fn database_inconsistency<S: Into<String>>(reason: S) -> CredentialProxyError {
         CredentialProxyError::DatabaseInconsistency {
             reason: reason.into(),
+        }
+    }
+}
+
+impl CredentialProxyError {
+    /// The HTTP status this failure should surface as.
+    ///
+    /// Conditions that resolve on their own, and which a caller should therefore retry, are
+    /// `503`; everything else is reported as a server fault. The distinction matters to clients:
+    /// a mid-ceremony refusal is over within minutes, and a client that reads it as a `500` gives
+    /// up on something that was about to succeed.
+    ///
+    /// These two are the cases the ticketbook routes already document as `503`. Others are
+    /// arguably transient too - an unavailable signing quorum, most obviously - but they are not
+    /// what those routes advertise, so they are deliberately left alone rather than reclassified
+    /// on the way past.
+    pub fn status_code(&self) -> StatusCode {
+        match self {
+            CredentialProxyError::CredentialsNotYetIssuable { .. }
+            | CredentialProxyError::CallerCannotIssueMidCeremony => StatusCode::SERVICE_UNAVAILABLE,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conditions_that_resolve_on_their_own_are_retryable() {
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::CredentialsNotYetIssuable {
+                availability: OffsetDateTime::UNIX_EPOCH
+            }
+            .status_code()
+        );
+        assert_eq!(
+            StatusCode::SERVICE_UNAVAILABLE,
+            CredentialProxyError::CallerCannotIssueMidCeremony.status_code()
+        );
+    }
+
+    #[test]
+    fn everything_else_is_reported_as_a_server_fault() {
+        // `UninitialisedDkg` is in here deliberately: nothing resolves it on its own, so a caller
+        // retrying against it would loop forever
+        let permanent = [
+            CredentialProxyError::UninitialisedDkg,
+            CredentialProxyError::UnknownEcashFailure,
+            CredentialProxyError::UnavailableSigningQuorum,
+            CredentialProxyError::DepositFailure,
+            CredentialProxyError::ExpirationDateTooLate,
+            CredentialProxyError::UnavailableThreshold { epoch_id: 42 },
+            CredentialProxyError::InsufficientNumberOfSigners {
+                available: 1,
+                threshold: 3,
+            },
+        ];
+
+        for err in permanent {
+            assert_eq!(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                err.status_code(),
+                "{err} should not have been reported as retryable"
+            );
         }
     }
 }

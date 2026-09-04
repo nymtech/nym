@@ -54,6 +54,8 @@
           "minimum": 0.0
         },
         "in_progress_time_secs": {
+          "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+          "deprecated": true,
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0

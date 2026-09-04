@@ -102,7 +102,7 @@ impl TicketbookManager {
     async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
         let default_expiration = ecash_default_expiration_date();
 
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
         let _ = self.state.deposit_amount().await?;
         let _ = self.state.master_verification_key(Some(epoch_id)).await?;
         let _ = self.state.ecash_threshold(epoch_id).await?;

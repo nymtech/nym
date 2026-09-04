@@ -13,6 +13,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::ecash::BlindSignRequestBody;
+use nym_validator_client::nym_api::EpochId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,6 +24,11 @@ use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 impl TicketbookManager {
+    /// `epoch` is resolved once by the caller and used for everything here: the signers asked,
+    /// the threshold required of them, the auxiliary data returned alongside, the epoch stated on
+    /// each request, and the epoch the shares are stored under. Resolving it again here would let
+    /// a ceremony concluding in between hand back shares and auxiliary data from two different
+    /// epochs, which a client cannot combine.
     #[instrument(
         skip(self, request_data, request, requested_on),
             fields(
@@ -35,20 +41,20 @@ impl TicketbookManager {
         request: Uuid,
         requested_on: OffsetDateTime,
         request_data: TicketbookRequest,
+        epoch: EpochId,
     ) -> Result<Vec<WalletShare>, CredentialProxyError> {
         // don't proceed if we don't have quorum available as the request will definitely fail
         if !self.state.ecash_state().quorum_state.available() {
             return Err(CredentialProxyError::UnavailableSigningQuorum);
         }
 
-        let epoch = self.state.current_epoch_id().await?;
         let threshold = self.state.ecash_threshold(epoch).await?;
         let expiration_date = request_data.expiration_date;
 
         // before we commit to making the deposit, ensure we have required signatures cached and stored
         self.ensure_global_data_cached(epoch, expiration_date)
             .await?;
-        let ecash_api_clients = self.state.ecash_clients(epoch).await?.clone();
+        let ecash_api_clients = self.state.ecash_clients(epoch).await?;
 
         let deposit_data = self
             .state
@@ -77,7 +83,9 @@ impl TicketbookManager {
                 debug!("contacting {client} for blinded partial wallet");
                 let res = timeout(
                     Duration::from_secs(5),
-                    client.api_client.blind_sign(&credential_request),
+                    client
+                        .api_client
+                        .blind_sign(&credential_request, Some(epoch)),
                 )
                 .await
                 .map_err(|_| CredentialProxyError::EcashApiRequestTimeout {
@@ -146,11 +154,12 @@ impl TicketbookManager {
         request: Uuid,
         requested_on: OffsetDateTime,
         request_data: TicketbookRequest,
+        epoch: EpochId,
         device_id: &str,
         credential_id: &str,
     ) -> Result<Vec<WalletShare>, CredentialProxyError> {
         let shares = match self
-            .try_obtain_wallet_shares(request, requested_on, request_data)
+            .try_obtain_wallet_shares(request, requested_on, request_data, epoch)
             .await
         {
             Ok(shares) => shares,
@@ -191,7 +200,7 @@ impl TicketbookManager {
         params: TicketbookObtainParams,
         pending: &BlindedShares,
     ) -> Result<(), CredentialProxyError> {
-        let epoch_id = self.state.current_epoch_id().await?;
+        let epoch_id = self.state.issuable_epoch_id().await?;
 
         let device_id = &request_data.device_id;
         let credential_id = &request_data.credential_id;
@@ -213,6 +222,7 @@ impl TicketbookManager {
                 request,
                 requested_on,
                 request_data.inner,
+                epoch_id,
                 device_id,
                 credential_id,
             )

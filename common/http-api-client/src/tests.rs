@@ -1,4 +1,5 @@
 use super::*;
+use serial_test::serial;
 use std::time::{Duration, Instant};
 
 #[test]
@@ -351,8 +352,12 @@ fn from_network_configures_multiple_urls_and_retries() {
 /// If a network reconfiguration happened after request start we avoid rotating and avoid enabling
 /// fronting. Otherwise, a network error should rotate host and enable fronting (for `OnRetry`).
 #[tokio::test]
+#[serial]
 #[cfg(feature = "tunneling")]
 async fn host_rotation_tempered_by_net_reconfigure() {
+    // mutates the process-wide SHARED_NETWORK_RECONFIGURATION marker and sends real requests
+    // sensitive to it - must not run concurrently with tests that touch the same state.
+
     let url1 = Url::new("http://nym-api.test", Some(vec!["http://cdn1.test"])).unwrap();
     let url2 = Url::new("http://nym-api2.test", Some(vec!["http://cdn2.test"])).unwrap();
     let urls = vec![url1.clone(), url2.clone()];

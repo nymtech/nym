@@ -19,6 +19,18 @@
         "time_configuration"
       ],
       "properties": {
+        "ceremony_concluded_at": {
+          "description": "When this epoch's ceremony finished, i.e. when its keys came into service.\n\nNothing else on chain records this: the epoch id increments when a ceremony *starts*, and [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs it - the window in which a signer still honours the epoch just superseded, and any pruning of retired key material.\n\n`None` for an epoch mid-ceremony, and for one that concluded before this field existed.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "deadline": {
           "anyOf": [
             {
@@ -31,6 +43,26 @@
         },
         "epoch_id": {
           "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "keys_in_service": {
+          "description": "The epoch whose keys signers are issuing under.\n\nOnly a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind with no keys and never any.\n\n`None` before the first ceremony concludes, and on an epoch stored before this field existed. Read that as \"unknown\", never as \"none in service\".",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "outgoing_keys": {
+          "description": "The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed ceremonies may sit between the two.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint64",
           "minimum": 0.0
         },
@@ -222,6 +254,8 @@
           "minimum": 0.0
         },
         "in_progress_time_secs": {
+          "description": "Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with a fresh deadline while rotating nothing. That self-extension is gone, so this is now unused; it stays because it is serialised inside every stored [`Epoch`].",
+          "deprecated": true,
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0

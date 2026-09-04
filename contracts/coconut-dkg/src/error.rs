@@ -37,6 +37,9 @@ pub enum ContractError {
     #[error("Too soon to advance epoch state. {0} more seconds until it can be advanced")]
     EarlyEpochStateAdvancement(u64),
 
+    #[error("the epoch is already in progress; rotating its keys is an explicit admin action")]
+    EpochAlreadyInProgress,
+
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
 
@@ -130,6 +133,13 @@ pub enum ContractError {
 
     #[error("No verification key committed for owner {owner}")]
     NoCommitForOwner { owner: String },
+
+    #[error("this order is to verify the key share of {owner} for epoch {order_epoch_id}, but the current epoch is {current_epoch_id}")]
+    StaleVerificationOrder {
+        owner: String,
+        order_epoch_id: EpochId,
+        current_epoch_id: EpochId,
+    },
 
     #[error("cannot perform DKG reset during an ongoing exchange")]
     CantResetDuringExchange,

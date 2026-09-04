@@ -10,7 +10,7 @@ use bytes::Bytes;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_kcp::driver::KcpDriver;
 use nym_kcp::session::KcpSession;
-use nym_registration_client::LpRegistrationClient;
+use nym_registration_client::LpGatewayClient;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::message::NymMessage;
@@ -66,7 +66,7 @@ pub struct SpeedtestClient {
     /// RNG for packet building
     rng: ChaCha8Rng,
     /// LP registration client (kept alive for data framing)
-    lp_client: Option<LpRegistrationClient>,
+    lp_client: Option<LpGatewayClient>,
 }
 
 /// Prepared Sphinx packet data ready for sending
@@ -128,7 +128,7 @@ impl SpeedtestClient {
         let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
             .with_key_digests(self.gateway.kem_key_hashes.clone());
 
-        let mut lp_client = LpRegistrationClient::<TcpStream>::new_with_default_config(
+        let mut lp_client = LpGatewayClient::<TcpStream>::new_with_default_config(
             self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
@@ -173,7 +173,7 @@ impl SpeedtestClient {
         let gw_peer = LpRemotePeer::new(self.gateway.lp_key)
             .with_key_digests(self.gateway.kem_key_hashes.clone());
 
-        let mut lp_client = LpRegistrationClient::new_with_default_config(
+        let mut lp_client = LpGatewayClient::new_with_default_config(
             self.lp_keypair.clone(),
             gw_peer,
             self.gateway.lp_address,
@@ -215,7 +215,7 @@ impl SpeedtestClient {
     /// Close LP session and cleanup resources.
     ///
     /// This fully destroys the LP session (state machine + TCP stream), unlike
-    /// `LpRegistrationClient::close()` which only drops the TCP stream.
+    /// `LpGatewayClient::close()` which only drops the TCP stream.
     /// After calling this, `init_lp_session()` must be called again to re-establish.
     pub fn close_lp_session(&mut self) {
         if let Some(mut client) = self.lp_client.take() {

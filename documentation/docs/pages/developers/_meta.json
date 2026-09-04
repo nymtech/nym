@@ -1,8 +1,9 @@
 {
   "index": "Overview: Choosing A Package",
+  "what-is-a-nym-client": "What A Nym Client Is",
   "limitations": "What Nym Cannot Do",
   "integrating": "Planning an Integration",
-  "concepts": "Key Concepts",
+  "exit-security": "Exit Security",
   "service-providers": "Service Providers (server side)",
 
   "sep-intro": {

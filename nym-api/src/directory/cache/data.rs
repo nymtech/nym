@@ -121,7 +121,7 @@ impl From<DirectoryCacheUpdate> for NymDirectoryCacheData {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct NymDirectoryCacheData {
     last_polled_height: Height,
     directory: BTreeMap<Height, CachedDirectory>,
@@ -148,6 +148,11 @@ impl NymDirectoryCacheData {
             .insert(directory.raw.digest_snapshot.snapshot.height, directory);
     }
 
+    /// Records the chain tip the cache was last reconciled against.
+    pub(crate) fn set_last_polled_height(&mut self, height: Height) {
+        self.last_polled_height = height;
+    }
+
     pub(crate) fn remove_stale(&mut self, to_retain: &[Height]) {
         self.directory
             .retain(|height, _| to_retain.contains(height));
@@ -155,10 +160,6 @@ impl NymDirectoryCacheData {
 
     pub(crate) fn contains_entry(&self, height: Height) -> bool {
         self.directory.contains_key(&height)
-    }
-
-    pub(crate) fn most_recent_height(&self) -> Option<Height> {
-        self.directory.keys().last().copied()
     }
 
     pub(crate) fn most_recent_entry(&self, settle_lag: usize) -> Option<&CachedDirectory> {
@@ -183,7 +184,9 @@ impl NymDirectoryCacheData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::caching::cache::test_helpers::round_trip_through_disk_cache;
     use nym_directory_attestation::source::mock::mock_digest_snapshot;
+    use nym_directory_contract_common::CuratedEntry;
     use rand_chacha::rand_core::SeedableRng;
 
     fn signed_snapshot(height: u32) -> SignedDigestSnapshot {
@@ -197,6 +200,24 @@ mod tests {
             signed_snapshot(height),
             Vec::new(),
             BTreeMap::new(),
+        ))
+    }
+
+    /// A cached directory carrying actual content. Empty `records` / `node_identities`
+    /// never reach their element encoders, so only a populated value can exercise them.
+    fn populated_cached_directory(height: u32) -> CachedDirectory {
+        let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(height as u64);
+        let kp = ed25519::KeyPair::new(&mut rng);
+
+        let records = vec![DirectoryEntryRecord::new_curated(
+            "nym-api-1".to_string(),
+            CuratedEntry::try_from_bytes(b"curated-payload").unwrap(),
+        )];
+
+        CachedDirectory::new(RawCachedDirectory::new(
+            signed_snapshot(height),
+            records,
+            BTreeMap::from([(1, *kp.public_key())]),
         ))
     }
 
@@ -267,12 +288,51 @@ mod tests {
     }
 
     #[test]
+    fn recording_the_tip_after_warmup_makes_the_newest_snapshot_servable() {
+        let mut cache = empty_cache(0);
+        cache.insert_entry(cached_directory(900));
+        // insert alone leaves last_polled at the snapshot height, so the settle lag hides it
+        assert!(cache.most_recent_entry(60).is_none());
+
+        cache.set_last_polled_height(Height::from(1000u32));
+        assert_eq!(
+            cache
+                .most_recent_entry(60)
+                .unwrap()
+                .digest_snapshot()
+                .snapshot
+                .height,
+            Height::from(900u32)
+        );
+    }
+
+    #[test]
     fn most_recent_entry_saturates_when_lag_exceeds_tip() {
         let mut cache = empty_cache(0);
         cache.insert_entry(cached_directory(100));
         cache.last_polled_height = Height::from(10u32);
         // allowed latest saturates to 0, so nothing qualifies (rather than underflowing)
         assert!(cache.most_recent_entry(50).is_none());
+    }
+
+    // The cache is persisted to disk with bincode; a populated value must survive that
+    // round trip or the on-disk cache silently never writes.
+    #[test]
+    fn populated_cache_round_trips_through_the_on_disk_format() -> anyhow::Result<()> {
+        let mut cache = empty_cache(0);
+        for h in [800u32, 900, 1000] {
+            cache.insert_entry(populated_cached_directory(h));
+        }
+        cache.set_last_polled_height(Height::from(1050u32));
+
+        let restored = round_trip_through_disk_cache(cache)?;
+
+        assert_eq!(restored.last_polled_height, Height::from(1050u32));
+        assert_eq!(restored.directory.len(), 3);
+        let entry = restored.get_entry(Height::from(900u32)).unwrap();
+        assert_eq!(entry.directory_records().len(), 1);
+        assert_eq!(entry.directory_node_identities().len(), 1);
+        Ok(())
     }
 
     #[test]

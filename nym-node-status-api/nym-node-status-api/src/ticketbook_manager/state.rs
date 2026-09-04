@@ -158,7 +158,7 @@ impl TicketbookManagerState {
     pub async fn build_initial_cache(&self) -> Result<(), CredentialProxyError> {
         let default_expiration = ecash_default_expiration_date();
 
-        let epoch_id = self.current_epoch_id().await?;
+        let epoch_id = self.issuable_epoch_id().await?;
         let _ = self.deposit_amount().await?;
         let _ = self.master_verification_key(Some(epoch_id)).await?;
         let _ = self.ecash_threshold(epoch_id).await?;
@@ -184,8 +184,10 @@ impl TicketbookManagerState {
             .await
     }
 
-    pub async fn current_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
-        self.ecash_state().current_epoch_id(self.client()).await
+    /// The epoch signers are issuing under, which while a ceremony runs is the one before the
+    /// current epoch. See the credential-proxy's `issuable_epoch_id`.
+    pub async fn issuable_epoch_id(&self) -> Result<EpochId, CredentialProxyError> {
+        self.ecash_state().issuable_epoch_id(self.client()).await
     }
 
     pub async fn master_verification_key(
@@ -224,7 +226,7 @@ impl TicketbookManagerState {
     pub async fn ecash_clients(
         &self,
         epoch_id: EpochId,
-    ) -> Result<RwLockReadGuard<'_, Vec<EcashApiClient>>, CredentialProxyError> {
+    ) -> Result<Vec<EcashApiClient>, CredentialProxyError> {
         self.ecash_state()
             .ecash_clients(self.client(), epoch_id)
             .await

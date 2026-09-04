@@ -137,10 +137,17 @@
         "verify_verification_key_share": {
           "type": "object",
           "required": [
+            "epoch_id",
             "owner",
             "resharing"
           ],
           "properties": {
+            "epoch_id": {
+              "description": "The epoch whose share this order is about. Multisig proposals outlive the round that created them, so without it an order that never got voted on could still be executed against whatever share its owner has in a later epoch.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
             "owner": {
               "type": "string"
             },
@@ -186,6 +193,20 @@
       ],
       "properties": {
         "trigger_resharing": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Admin-only escape hatch: force a reset from any epoch state, including mid-exchange. A ceremony that keeps ending sub-threshold auto-resets straight into the next attempt without ever passing through `InProgress`, which is the only state [`Self::TriggerReset`] accepts - so without this, a looping ceremony can never be stopped or redirected.",
+      "type": "object",
+      "required": [
+        "trigger_forced_reset"
+      ],
+      "properties": {
+        "trigger_forced_reset": {
           "type": "object",
           "additionalProperties": false
         }

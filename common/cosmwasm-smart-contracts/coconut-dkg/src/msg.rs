@@ -66,6 +66,10 @@ pub enum ExecuteMsg {
     VerifyVerificationKeyShare {
         owner: String,
         resharing: bool,
+        /// The epoch whose share this order is about. Multisig proposals outlive the round
+        /// that created them, so without it an order that never got voted on could still be
+        /// executed against whatever share its owner has in a later epoch.
+        epoch_id: EpochId,
     },
 
     AdvanceEpochState {},
@@ -73,6 +77,12 @@ pub enum ExecuteMsg {
     TriggerReset {},
 
     TriggerResharing {},
+
+    /// Admin-only escape hatch: force a reset from any epoch state, including mid-exchange.
+    /// A ceremony that keeps ending sub-threshold auto-resets straight into the next attempt
+    /// without ever passing through `InProgress`, which is the only state [`Self::TriggerReset`]
+    /// accepts - so without this, a looping ceremony can never be stopped or redirected.
+    TriggerForcedReset {},
 
     /// Transfers ownership of the epoch dealer to another address.
     /// This assumes off-chain hand-over of keys

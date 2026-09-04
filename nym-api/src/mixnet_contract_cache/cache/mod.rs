@@ -76,7 +76,10 @@ impl MixnetContractCache {
     pub async fn legacy_gateways(
         &self,
     ) -> Result<Vec<LegacyGatewayBondWithId>, UninitialisedCache> {
-        self.get_owned(|c| c.legacy_gateways.clone()).await
+        // the cache stores a non-flattened shape (see `CachedLegacyGatewayBond`); convert to the
+        // response type here, where the flat JSON shape is what callers expect
+        self.get_owned(|c| c.legacy_gateways.iter().cloned().map(Into::into).collect())
+            .await
     }
 
     pub async fn all_cached_nym_nodes(&self) -> Option<RwLockReadGuard<'_, Vec<NymNodeDetails>>> {

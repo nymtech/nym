@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
+use nym_bin_common::bin_info;
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
@@ -20,10 +21,12 @@ use nym_coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
+use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
+use nym_http_api_client::UserAgent;
 use nym_mixnet_contract_common::gateway::PreassignedId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::nym_node::Role;
@@ -65,8 +68,11 @@ use nym_validator_client::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
+use std::time::Duration;
 use tendermint::abci::response::Info;
 use tokio::sync::{RwLock, RwLockReadGuard};
+use tracing::warn;
+use url::Url;
 
 #[macro_export]
 macro_rules! query_guard {
@@ -109,11 +115,13 @@ pub enum ClientInner {
 }
 
 impl Client {
-    pub(crate) fn new(config: &Config) -> anyhow::Result<Self> {
-        let details = NymNetworkDetails::new_from_env();
+    pub(crate) fn new(
+        config: &Config,
+        network_details: &NymNetworkDetails,
+    ) -> anyhow::Result<Self> {
         let nyxd_url = config.get_nyxd_url();
 
-        let client_config = nyxd::Config::try_from_nym_network_details(&details).context(
+        let client_config = nyxd::Config::try_from_nym_network_details(network_details).context(
             "failed to construct valid validator client config with the provided network",
         )?;
 
@@ -476,6 +484,49 @@ impl Client {
     }
 }
 
+fn construct_usable_ecash_api_clients(shares: Vec<ContractVKShare>) -> Vec<EcashApiClient> {
+    let mut clients = Vec::with_capacity(shares.len());
+
+    for share in shares {
+        let owner = share.owner.clone();
+        let epoch_id = share.epoch_id;
+
+        match construct_ecash_api_client(share) {
+            Ok(client) => clients.push(client),
+            Err(err) => {
+                warn!("ignoring the key share of {owner} for epoch {epoch_id}: {err}")
+            }
+        }
+    }
+
+    clients
+}
+
+pub(crate) fn construct_ecash_api_client(
+    share: ContractVKShare,
+) -> std::result::Result<EcashApiClient, EcashApiError> {
+    if !share.verified {
+        return Err(EcashApiError::UnverifiedShare);
+    }
+
+    let url_address = Url::parse(&share.announce_address)?;
+
+    let api_client = nym_http_api_client::Client::builder(url_address)
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?
+        .with_timeout(Duration::from_secs(5))
+        .with_user_agent(UserAgent::from(bin_info!()))
+        .no_hickory_dns()
+        .build()
+        .map_err(|e| EcashApiError::ClientError(e.to_string()))?;
+
+    Ok(EcashApiClient {
+        api_client,
+        verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
+        node_id: share.node_index,
+        cosmos_address: share.owner.as_str().parse()?,
+    })
+}
+
 #[async_trait]
 impl crate::ecash::client::Client for Client {
     async fn address(&self) -> Result<AccountId, EcashError> {
@@ -664,12 +715,9 @@ impl crate::ecash::client::Client for Client {
         &self,
         epoch_id: nym_coconut_dkg_common::types::EpochId,
     ) -> Result<Vec<EcashApiClient>, EcashError> {
-        Ok(self
-            .get_verification_key_shares(epoch_id)
-            .await?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<Vec<_>, EcashApiError>>()?)
+        Ok(construct_usable_ecash_api_clients(
+            self.get_verification_key_shares(epoch_id).await?,
+        ))
     }
 
     async fn vote_proposal(

@@ -48,7 +48,10 @@ pub struct TimeConfiguration {
     pub verification_key_submission_time_secs: u64,
     pub verification_key_validation_time_secs: u64,
     pub verification_key_finalization_time_secs: u64,
-    // The time an epoch lasts
+    /// Formerly the length of the `InProgress` phase, after which the epoch re-saved itself with
+    /// a fresh deadline while rotating nothing. That self-extension is gone, so this is now
+    /// unused; it stays because it is serialised inside every stored [`Epoch`].
+    #[deprecated(note = "the InProgress phase no longer expires, so this value governs nothing")]
     pub in_progress_time_secs: u64,
 }
 
@@ -67,7 +70,10 @@ impl TimeConfiguration {
             EpochState::VerificationKeyFinalization { .. } => {
                 Some(self.verification_key_finalization_time_secs)
             }
-            EpochState::InProgress => Some(self.in_progress_time_secs),
+            // the state machine stops here: rotation is an admin action, so there is no later
+            // state for a deadline to lead to. One left behind would only go stale and then read
+            // as "expired" to everything treating it as a cache bound.
+            EpochState::InProgress => None,
         }
     }
 }
@@ -84,6 +90,8 @@ impl FromStr for TimeConfiguration {
         if times.len() != 6 {
             Err(String::from("Not enough time specified"))
         } else {
+            // the vestigial field still has to be populated: it is part of the serialised form
+            #[allow(deprecated)]
             Ok(TimeConfiguration {
                 public_key_submission_time_secs: times[0],
                 dealing_exchange_time_secs: times[1],
@@ -97,6 +105,8 @@ impl FromStr for TimeConfiguration {
 }
 
 impl Default for TimeConfiguration {
+    // as above: written so the serialised form stays complete, never read
+    #[allow(deprecated)]
     fn default() -> Self {
         Self {
             public_key_submission_time_secs: 60 * 10,      // 10 minutes
@@ -154,6 +164,34 @@ pub struct Epoch {
 
     #[serde(alias = "finish_timestamp")]
     pub deadline: Option<Timestamp>,
+
+    /// When this epoch's ceremony finished, i.e. when its keys came into service.
+    ///
+    /// Nothing else on chain records this: the epoch id increments when a ceremony *starts*, and
+    /// [`Self::deadline`] is per-state. Anything sized against the age of the current keys needs
+    /// it - the window in which a signer still honours the epoch just superseded, and any pruning
+    /// of retired key material.
+    ///
+    /// `None` for an epoch mid-ceremony, and for one that concluded before this field existed.
+    #[serde(default)]
+    pub ceremony_concluded_at: Option<Timestamp>,
+
+    /// The epoch whose keys signers are issuing under.
+    ///
+    /// Only a concluded ceremony puts keys into service, so this is not `epoch_id - 1` while a
+    /// ceremony runs: the id also increments when a ceremony *fails*, leaving an epoch behind
+    /// with no keys and never any.
+    ///
+    /// `None` before the first ceremony concludes, and on an epoch stored before this field
+    /// existed. Read that as "unknown", never as "none in service".
+    #[serde(default)]
+    pub keys_in_service: Option<EpochId>,
+
+    /// The epoch [`Self::keys_in_service`] replaced, for the window in which a collection begun
+    /// under it may still be completed. Likewise not `keys_in_service - 1`: any number of failed
+    /// ceremonies may sit between the two.
+    #[serde(default)]
+    pub outgoing_keys: Option<EpochId>,
 }
 
 impl Epoch {
@@ -171,6 +209,12 @@ impl Epoch {
             state_progress: Default::default(),
             time_configuration,
             deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
+            // a freshly constructed epoch is one whose ceremony is about to run
+            ceremony_concluded_at: None,
+            // and one that has produced no keys, so it puts none into service. an epoch
+            // succeeding another carries its predecessor's answer over - see `next_reset`
+            keys_in_service: None,
+            outgoing_keys: None,
         }
     }
 
@@ -179,25 +223,74 @@ impl Epoch {
         let duration = self.time_configuration.state_duration(next_state);
         self.deadline = duration.map(|d| current_timestamp.plus_seconds(d));
 
+        // reaching `InProgress` *is* the ceremony concluding, and the state machine stops here,
+        // so this is written exactly once per key generation
+        if next_state.is_in_progress() {
+            self.ceremony_concluded_at = Some(current_timestamp);
+
+            // and it is the moment this epoch's keys come into service, superseding whichever
+            // generation held that position - not `epoch_id - 1`, which may be an epoch that a
+            // failed ceremony abandoned
+            self.outgoing_keys = self.keys_in_service;
+            self.keys_in_service = Some(self.epoch_id);
+        }
+
         self
     }
 
     pub fn next_reset(self, current_timestamp: Timestamp) -> Self {
-        Epoch::new(
-            EpochState::PublicKeySubmission { resharing: false },
-            self.epoch_id + 1,
-            self.time_configuration,
+        self.next_ceremony(false, current_timestamp)
+    }
+
+    pub fn next_resharing(self, current_timestamp: Timestamp) -> Self {
+        self.next_ceremony(true, current_timestamp)
+    }
+
+    /// The epoch a fresh ceremony runs under, succeeding `self` whether it concluded or failed.
+    fn next_ceremony(mut self, resharing: bool, current_timestamp: Timestamp) -> Self {
+        self.epoch_id += 1;
+        self.state_progress = Default::default();
+        self.ceremony_concluded_at = None;
+
+        // `keys_in_service` and `outgoing_keys` are deliberately left alone: a ceremony starting -
+        // or failing - retires nothing, so the generation in service keeps serving until a
+        // *successful* ceremony replaces it
+        self.update(
+            EpochState::PublicKeySubmission { resharing },
             current_timestamp,
         )
     }
 
-    pub fn next_resharing(self, current_timestamp: Timestamp) -> Self {
-        Epoch::new(
-            EpochState::PublicKeySubmission { resharing: true },
-            self.epoch_id + 1,
-            self.time_configuration,
-            current_timestamp,
-        )
+    /// The epoch a fresh issuance is signed under, or `None` if no key generation is in service.
+    pub fn issuing_epoch_id(&self) -> Option<EpochId> {
+        // an epoch in service is its own answer, which keeps this honest against an epoch stored
+        // before `keys_in_service` existed
+        if self.state.is_final() {
+            return Some(self.epoch_id);
+        }
+
+        self.keys_in_service
+    }
+
+    /// Whether the DKG ceremony that establishes `epoch_id`'s keys has finished, judged against
+    /// `self` as the current epoch. Note this says nothing about whether that epoch is *over* -
+    /// the current epoch's own ceremony is concluded for all of the time it is in use.
+    ///
+    /// Sitting below the current epoch is not enough: a failed ceremony moves the id on and
+    /// leaves an epoch behind that concluded nothing, and calling that concluded would let
+    /// callers cache its empty signer set for good. So the boundary is the epoch in service:
+    /// nothing at or below it can ever change again, and no epoch that can still change reads
+    /// concluded. (An epoch a failed ceremony abandoned below the boundary reads concluded
+    /// too - its records are equally frozen, merely empty.) Callers working from a cached
+    /// copy of the current epoch can only get a pessimistic answer out of a stale one, never
+    /// a premature "yes".
+    pub fn is_ceremony_concluded(&self, epoch_id: EpochId) -> bool {
+        match self.issuing_epoch_id() {
+            Some(in_service) => epoch_id <= in_service,
+            // nothing has ever concluded, or a contract predating the field is mid-ceremony,
+            // where refusing to cache is the safe answer
+            None => false,
+        }
     }
 
     pub fn final_timestamp_secs(&self) -> Option<u64> {
@@ -338,5 +431,247 @@ impl EpochState {
 
     pub fn is_waiting_initialisation(&self) -> bool {
         matches!(self, EpochState::WaitingInitialisation)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn epoch_at(epoch_id: EpochId, state: EpochState) -> Epoch {
+        Epoch::new(
+            state,
+            epoch_id,
+            TimeConfiguration::default(),
+            Timestamp::from_seconds(0),
+        )
+    }
+
+    /// An epoch whose ceremony concluded, reached the way the chain reaches it: by advancing into
+    /// `InProgress`, never by being constructed there.
+    fn concluded(epoch_id: EpochId) -> Epoch {
+        epoch_at(
+            epoch_id,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        )
+        .update(EpochState::InProgress, Timestamp::from_seconds(1234))
+    }
+
+    /// Nothing is in service until a ceremony finishes, and the epoch id cannot say so on its
+    /// own: it counts ceremonies started, not key generations produced.
+    #[test]
+    fn no_keys_are_in_service_before_the_first_ceremony_concludes() {
+        let uninitialised = epoch_at(0, EpochState::WaitingInitialisation);
+        assert_eq!(None, uninitialised.keys_in_service);
+        assert_eq!(None, uninitialised.issuing_epoch_id());
+
+        let first_ceremony = epoch_at(0, EpochState::DealingExchange { resharing: false });
+        assert_eq!(None, first_ceremony.issuing_epoch_id());
+    }
+
+    #[test]
+    fn concluding_a_ceremony_puts_its_own_keys_into_service() {
+        let concluded = concluded(3);
+
+        assert_eq!(Some(3), concluded.keys_in_service);
+        assert_eq!(Some(3), concluded.issuing_epoch_id());
+    }
+
+    /// B1: the epoch a ceremony is running for has no keys yet, so the generation already in
+    /// service stays there for the duration.
+    #[test]
+    fn a_running_ceremony_leaves_the_keys_already_in_service_alone() {
+        let mid_ceremony = concluded(3).next_reset(Timestamp::from_seconds(2000));
+
+        assert_eq!(4, mid_ceremony.epoch_id);
+        assert_eq!(Some(3), mid_ceremony.issuing_epoch_id());
+    }
+
+    #[test]
+    fn resharing_also_leaves_the_keys_in_service_alone() {
+        let mid_resharing = concluded(3).next_resharing(Timestamp::from_seconds(2000));
+
+        assert_eq!(4, mid_resharing.epoch_id);
+        assert_eq!(Some(3), mid_resharing.issuing_epoch_id());
+    }
+
+    /// A ceremony that fails takes the epoch id with it and leaves the keys where they were.
+    /// Deriving the issuing epoch as `current - 1` instead names epoch 4 here: an epoch that
+    /// never concluded, has no aggregate key, and never will.
+    #[test]
+    fn a_failed_ceremony_does_not_retire_the_keys_in_service() {
+        // epoch 3's keys are in service; the ceremony for 4 runs, fails, and the contract resets
+        // into 5 rather than remaining on an epoch it cannot complete
+        let after_failure = concluded(3)
+            .next_reset(Timestamp::from_seconds(2000))
+            .next_reset(Timestamp::from_seconds(3000));
+
+        assert_eq!(5, after_failure.epoch_id);
+        assert_eq!(Some(3), after_failure.issuing_epoch_id());
+    }
+
+    /// However many failed on the way, the epoch superseded by a conclusion is the one that was
+    /// actually in service - which the grace window then names, so a collection begun under it
+    /// can still be completed.
+    #[test]
+    fn concluding_after_failures_supersedes_the_epoch_that_was_in_service() {
+        let concluded_at_last = concluded(3)
+            .next_reset(Timestamp::from_seconds(2000)) // ceremony 4, fails
+            .next_reset(Timestamp::from_seconds(3000)) // ceremony 5, fails
+            .next_reset(Timestamp::from_seconds(4000)) // ceremony 6, concludes
+            .update(EpochState::InProgress, Timestamp::from_seconds(5000));
+
+        assert_eq!(6, concluded_at_last.epoch_id);
+        assert_eq!(Some(6), concluded_at_last.issuing_epoch_id());
+        assert_eq!(Some(3), concluded_at_last.outgoing_keys);
+    }
+
+    /// A contract that has not been migrated yet reports nothing in service while a ceremony
+    /// runs, which refuses issuance for its duration - the behaviour from before mid-ceremony
+    /// issuance existed, and the safe direction. The conclusion then writes the real value.
+    #[test]
+    fn an_unseeded_epoch_mid_ceremony_reports_nothing_in_service() {
+        let unseeded = epoch_at(5, EpochState::DealingExchange { resharing: false });
+
+        assert_eq!(None, unseeded.keys_in_service);
+        assert_eq!(None, unseeded.issuing_epoch_id());
+    }
+
+    /// When a ceremony concluded is the only record of when a key generation came into service.
+    /// Nothing else on chain carries it: the epoch id increments when a ceremony *starts*, and
+    /// the deadline is per-state. Sizing anything against the age of the current keys - the
+    /// issuance grace window, pruning of retired keys - depends on this being recorded.
+    #[test]
+    fn entering_in_progress_records_when_the_ceremony_concluded() {
+        let mid_ceremony = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        );
+        assert_eq!(mid_ceremony.ceremony_concluded_at, None);
+
+        let concluded = mid_ceremony.update(EpochState::InProgress, Timestamp::from_seconds(1234));
+        assert_eq!(
+            concluded.ceremony_concluded_at,
+            Some(Timestamp::from_seconds(1234))
+        );
+    }
+
+    /// An epoch in progress is where the state machine stops: rotation is an admin action, so
+    /// there is no later state to hold a deadline for. Leaving one behind would also go stale and
+    /// then read as "expired" to everything that treats it as a cache bound.
+    #[test]
+    fn an_epoch_in_progress_has_no_deadline() {
+        let concluded = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        )
+        .update(EpochState::InProgress, Timestamp::from_seconds(1234));
+
+        assert_eq!(concluded.deadline, None);
+    }
+
+    /// The epoch already stored on chain predates this field, so it has to keep deserialising -
+    /// which is what lets the contract be migrated without touching stored data. Its conclusion
+    /// time reads as unknown, deliberately: nothing on chain records it (the snapshot history is
+    /// keyed by height, not time) and deriving it from the deadline would recover the last
+    /// self-extension instead, which looks recent and would grant a window rather than withhold
+    /// one. Callers must read `None` as "no window".
+    #[test]
+    fn an_epoch_stored_before_this_field_existed_still_loads() {
+        let stored = r#"{
+            "state": "in_progress",
+            "epoch_id": 0,
+            "state_progress": {
+                "registered_dealers": 3,
+                "registered_resharing_dealers": 0,
+                "submitted_dealings": 15,
+                "submitted_key_shares": 3,
+                "verified_keys": 3
+            },
+            "time_configuration": {
+                "public_key_submission_time_secs": 600,
+                "dealing_exchange_time_secs": 300,
+                "verification_key_submission_time_secs": 300,
+                "verification_key_validation_time_secs": 60,
+                "verification_key_finalization_time_secs": 60,
+                "in_progress_time_secs": 1209600
+            },
+            "deadline": "1750000000000000000"
+        }"#;
+
+        // the same entry point cw_storage_plus reads stored values through
+        let epoch: Epoch = cosmwasm_std::from_json(stored).unwrap();
+        assert_eq!(epoch.epoch_id, 0);
+        assert!(epoch.state.is_in_progress());
+        assert_eq!(epoch.ceremony_concluded_at, None);
+
+        // which keys are in service is unrecorded too, but unlike the conclusion time it is
+        // recoverable: an epoch in service is its own answer, so issuance keeps working against
+        // a contract that has not been migrated yet
+        assert_eq!(None, epoch.keys_in_service);
+        assert_eq!(None, epoch.outgoing_keys);
+        assert_eq!(Some(0), epoch.issuing_epoch_id());
+    }
+
+    /// A fresh ceremony has not concluded, whatever the epoch it replaced had recorded.
+    #[test]
+    fn a_reset_clears_the_recorded_conclusion() {
+        let concluded = epoch_at(
+            5,
+            EpochState::VerificationKeyFinalization { resharing: false },
+        )
+        .update(EpochState::InProgress, Timestamp::from_seconds(1234));
+
+        let reset = concluded.next_reset(Timestamp::from_seconds(2000));
+        assert_eq!(reset.ceremony_concluded_at, None);
+    }
+
+    /// Signer sets are only settled once a ceremony finishes, and callers cache them per epoch
+    /// with no expiry. Answering "concluded" for an epoch still mid-ceremony - or for one a
+    /// failed ceremony abandoned - would have them remember a set that is empty or partial.
+    #[test]
+    fn a_ceremony_is_concluded_only_once_its_keys_are_in_service() {
+        let current = concluded(5);
+
+        // earlier ceremonies are finished, and later ones cannot have started
+        assert!(current.is_ceremony_concluded(4));
+        assert!(!current.is_ceremony_concluded(6));
+
+        // the current epoch's own ceremony is concluded for all the time it is in use
+        assert!(current.is_ceremony_concluded(5));
+
+        // whichever phase a ceremony is in, its own epoch has not concluded
+        for state in [
+            EpochState::PublicKeySubmission { resharing: false },
+            EpochState::DealingExchange { resharing: false },
+            EpochState::VerificationKeySubmission { resharing: true },
+            EpochState::VerificationKeyValidation { resharing: false },
+            EpochState::VerificationKeyFinalization { resharing: false },
+        ] {
+            let in_flight = current
+                .next_reset(Timestamp::from_seconds(2000))
+                .update(state, Timestamp::from_seconds(2000));
+
+            assert!(
+                !in_flight.is_ceremony_concluded(6),
+                "{state} was treated as a concluded ceremony"
+            );
+            // and the generation still in service remains concluded throughout
+            assert!(in_flight.is_ceremony_concluded(5));
+        }
+    }
+
+    /// An epoch a failed ceremony left behind sits *below* the current id while having concluded
+    /// nothing, so proximity to the current epoch cannot be what settles this.
+    #[test]
+    fn an_epoch_abandoned_by_a_failed_ceremony_never_counts_as_concluded() {
+        let after_failure = concluded(5)
+            .next_reset(Timestamp::from_seconds(2000))
+            .next_reset(Timestamp::from_seconds(3000));
+
+        assert_eq!(7, after_failure.epoch_id);
+        assert!(!after_failure.is_ceremony_concluded(7));
+        assert!(!after_failure.is_ceremony_concluded(6));
+        assert!(after_failure.is_ceremony_concluded(5));
     }
 }

@@ -29,13 +29,11 @@ pub const NETWORK_MONITORS_CONTRACT_ADDRESS: &str =
     "n1m3a2ltkjqud8mkmrpqvgllrtv2p4r6js6qwl7p8cqkzrq8jg6e2qwqgl8z";
 pub const NODE_FAMILIES_CONTRACT_ADDRESS: &str =
     "n1na0vys0z077hq3zrz6pfea85zgv8ks3t5zysdt6y38c87q045hnsyf2g5x";
-// \/ TODO: this has to be updated once the contract is deployed
-pub const GEOLOCATION_CONTRACT_ADDRESS: &str = "";
-// /\ TODO: this has to be updated once the contract is deployed
+pub const GEOLOCATION_CONTRACT_ADDRESS: &str =
+    "n1fjj4xngrw85dgzt336ehj72p4mc9q20ymhqsu5egtx755mf83gwsrccq7k";
 
-// \/ TODO: this has to be updated once the contract is deployed
-pub const DIRECTORY_CONTRACT_ADDRESS: &str = "";
-// /\ TODO: this has to be updated once the contract is deployed
+pub const DIRECTORY_CONTRACT_ADDRESS: &str =
+    "n1f53zk7txj5v37s588dyxcav3wd3y6eruymlpuy6dw3nym794c9gql3txua";
 
 pub const ECASH_CONTRACT_ADDRESS: &str =
     "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";

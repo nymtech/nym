@@ -202,6 +202,10 @@ impl LocalnetOrchestrator {
         Ok(nym_coconut_dkg_common::msg::InstantiateMsg {
             group_addr: ctx.data.contracts.cw4_group.address()?.to_string(),
             multisig_addr: ctx.data.contracts.cw3_multisig.address()?.to_string(),
+            // the deprecated field still has to be given a value: it is part of the serialised
+            // instantiate message. The absurd number it carries was there to keep a localnet
+            // epoch from expiring, which the epoch no longer does on its own.
+            #[allow(deprecated)]
             time_configuration: Some(TimeConfiguration {
                 public_key_submission_time_secs: 3600,
                 dealing_exchange_time_secs: 3600,

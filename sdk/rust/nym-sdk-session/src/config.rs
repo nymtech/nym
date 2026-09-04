@@ -70,12 +70,15 @@ pub struct SessionConfig {
     /// (`register_two_hop_quic`). Fetched best-effort — a failure is logged and
     /// treated as an empty directory.
     pub dvpn_directory_url: Option<String>,
-    /// Opt-in automatic chain-side restock. `None` (default) provisions once and never deposits in
-    /// the background; the tunnel still tops up from already-stored tickets. `Some(policy)` lets a
-    /// long-lived session re-issue ticketbooks when stock runs low (this spends NYM).
+    /// Opt-in automatic chain-side restock; selects the controller mode. `None` (default) is
+    /// one-shot: no controller event loop runs, the spending path has no credential fetcher, and
+    /// `ensure_ticketbooks` issues only what is missing — never in the background; the tunnel still
+    /// tops up from already-stored tickets. `Some(policy)` runs the controller with the fetcher
+    /// installed so a long-lived session re-issues ticketbooks when stock runs low (this spends
+    /// NYM).
     pub automatic_topups: Option<RestockPolicy>,
     /// Externally-managed bandwidth provider. When set, the session uses it for all ticket
-    /// spending and does NOT spawn its own controller — for callers already running a controller
+    /// spending and sets up no controller of its own — for callers already running a controller
     /// over the same credential store (preserving the single-writer invariant). `mnemonic` and the
     /// credential store are then unused, and the caller is responsible for provisioning.
     pub bandwidth_provider: Option<Arc<dyn BandwidthTicketProvider>>,
@@ -91,18 +94,18 @@ pub struct SessionConfig {
     /// connection — every registration then spends a ticket, and nothing is persisted.
     pub reuse_registrations: bool,
     /// The tunnel topology this session provisions for. Governs which WireGuard ticket types the
-    /// controller *manages* (proactively restocks on provisioning): two-hop manages entry **and**
-    /// exit, single-hop manages entry only — so a single-hop session never deposits an unused exit
-    /// ticketbook. Must be a superset of the register calls made against the session:
+    /// session provisions (and, in automatic top-up mode, the controller restocks): two-hop
+    /// provisions entry **and** exit, single-hop entry only — so a single-hop session never
+    /// deposits an unused exit ticketbook. Must be a superset of the register calls made against the session:
     /// `register_two_hop*` needs `two_hop = true` (a two-hop registration on a single-hop session
     /// is rejected with `SessionError::TopologyMismatch`); `register_single_hop` works under either.
-    /// With [`bandwidth_provider`](Self::bandwidth_provider) set the caller provisions, so this does
-    /// not scope any controller, but it still declares the session's topology for that check.
+    /// With [`bandwidth_provider`](Self::bandwidth_provider) set the caller provisions, so this
+    /// scopes nothing, but it still declares the session's topology for that check.
     pub two_hop: bool,
 }
 
 impl SessionConfig {
-    /// A config with the required fields and sensible defaults (no automatic topups, own controller).
+    /// A config with the required fields and sensible defaults (one-shot mode, own controller).
     pub fn new(mnemonic: bip39::Mnemonic, network: NymNetworkDetails, data_path: PathBuf) -> Self {
         Self {
             mnemonic,

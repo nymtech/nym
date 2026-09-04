@@ -388,13 +388,18 @@ plain-WG config in §11) sets the **gateway `public_key`** and the
   2. *Chain-side restock* (buying **new** ticketbooks by depositing NYM): handled by
      the `BandwidthController` and **opt-in** via `SessionConfig::automatic_topups`,
      because a ticketbook is large (≈37.5 GB) and over-requesting costs the
-     implementer NYM. Scoping lives in `BandwidthControllerConfig::managed_ticket_types`
-     (the set of types the controller proactively restocks): the session sets it to the
-     WireGuard types when opted in, and leaves it **empty** by default — an empty set
-     means no proactive restock, so the controller only spends existing stock while
-     still provisioning on demand. (There is no separate `auto_restock` flag; the
-     credential fetcher is unchanged and mixnet types are simply never in the managed
-     set, so a dVPN session never deposits for mixnet bandwidth.)
+     implementer NYM. The opt-in selects the controller *mode*. Off (default) is
+     **one-shot**: no controller event loop runs; spending goes through a non-running
+     controller with no credential fetcher (it cannot deposit), and
+     `ensure_ticketbooks` issues — inline, on a short-lived non-running controller via
+     `fetch_ticketbook` — exactly the required types whose stock is low, then tears it
+     down. On, it is **automatic top-up**: the controller runs with the fetcher
+     installed from construction and its sweep restocks per policy;
+     `ensure_ticketbooks` is a readiness wait. In both modes
+     `BandwidthControllerConfig::managed_ticket_types` is the topology's WireGuard
+     types (entry only for single-hop), so a dVPN session never deposits for mixnet
+     bandwidth or an unused exit ticketbook. (The credential fetcher and the controller
+     crate are unchanged.)
 - **The metadata client dials through the tunnel.** The metadata endpoint IP is in
   the entry peer's `allowed_ips` and is served in-tunnel; `nym-smoldvpn` reaches it with
   a hyper HTTP/1 client over the tunnel's own `TunnelConnector`, never the host

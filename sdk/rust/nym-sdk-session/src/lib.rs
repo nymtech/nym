@@ -10,6 +10,17 @@
 //! registers them, returning the per-hop WireGuard configuration the dVPN
 //! datapath needs. Shared by both mixnet and dvpn modes.
 //!
+//! ## Controller modes
+//!
+//! `SessionConfig::automatic_topups` selects how the session uses the bandwidth
+//! controller. Unset (the default) is **one-shot**: no controller event loop runs,
+//! ticket spending goes through a non-running controller that has no credential
+//! fetcher (so it cannot deposit), and `ensure_ticketbooks` issues — inline, on a
+//! short-lived controller that is torn down afterwards — exactly the ticketbooks
+//! whose stock is low. Set, it is **automatic top-up**: the controller runs with the
+//! fetcher installed from construction and its sweep provisions and restocks the
+//! WireGuard types per policy; `ensure_ticketbooks` is then a readiness wait.
+//!
 //! ## Registration reuse
 //!
 //! Registrations are persisted (client WireGuard key + assigned configuration,
@@ -41,7 +52,7 @@
 //! use nym_sdk_session::{GatewaySpec, Session, SessionConfig};
 //! use tokio_util::sync::CancellationToken;
 //!
-//! // Provisions once and tops up a live tunnel from stored tickets; opt into background
+//! // One-shot mode: issues on demand, never in the background; opt into background
 //! // re-issuance with `.with_automatic_topups(..)`.
 //! let config = SessionConfig::new(
 //!     "..".parse()?,
@@ -69,6 +80,6 @@ mod session;
 pub use config::{RestockPolicy, SessionConfig};
 pub use dvpn::QuicBridge;
 pub use error::SessionError;
-pub use fetcher::{SignerTimeout, TimeoutFetcher, DEFAULT_PUBLIC_DATA_TIMEOUT};
+pub use fetcher::{FetcherStillShared, SignerTimeout, TimeoutFetcher, DEFAULT_PUBLIC_DATA_TIMEOUT};
 pub use gateway::{GatewayInfo, GatewaySpec, SelectedGateway, WgRole};
 pub use session::{HopConfig, Registration, Session};

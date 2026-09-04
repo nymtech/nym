@@ -3,19 +3,33 @@
 
 //! The provisioning session: mnemonic → issued ticketbooks → registered gateways.
 //!
-//! The session runs a [`BandwidthController`] event loop (the single writer to the credential
-//! store) and performs all ticket spending through its [`BandwidthControllerRequestSender`], which
-//! implements [`BandwidthTicketProvider`]. Chain-side restock (depositing NYM for new ticketbooks)
-//! is off by default and opted into via [`SessionConfig::automatic_topups`]; gateway-side top-up of
-//! a live tunnel spends already-stored tickets and is driven by the datapath, not here.
+//! The session uses the [`BandwidthController`] in one of two modes, fixed at construction by
+//! [`SessionConfig::automatic_topups`]:
+//!
+//! - **Automatic top-up** (`Some(policy)`): the controller is built with the credential fetcher
+//!   installed and its event loop runs for the session's lifetime. The controller's own sweep
+//!   (which fires once at startup and then per policy) provisions and restocks the managed
+//!   WireGuard types; provisioning here is a readiness wait. Spending goes through the running
+//!   controller's request sender.
+//! - **One-shot** (`None`, the default): nothing runs in the background. Spending goes through a
+//!   non-running controller that has no credential fetcher (so it cannot deposit); provisioning
+//!   builds a short-lived, non-running controller (over the same store handle) with a fresh
+//!   fetcher, issues inline exactly the ticketbooks that are missing, then drops the controller
+//!   and cleans its fetcher up.
+//!
+//! Gateway-side top-up of a live tunnel spends already-stored tickets and is driven by the
+//! datapath, not here.
 
-use async_trait::async_trait;
 use nym_bandwidth_controller::config::BandwidthControllerConfig;
+use nym_bandwidth_controller::error::BandwidthControllerError;
 use nym_bandwidth_controller::requests::BandwidthControllerRequestSender;
 use nym_bandwidth_controller::{
-    BandwidthController, BandwidthTicketProvider, CredentialFetcher, TicketType,
+    AvailableTicketbooks, BandwidthController, BandwidthTicketProvider, CredentialFetcher,
+    TicketType,
 };
-use nym_bandwidth_fetcher::NyxdCredentialFetcher;
+use nym_bandwidth_fetcher::{NyxdCredentialFetcher, NyxdGlobalDataFetcher};
+use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::BandwidthCredential;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_lp::peer::{DHKeyPair, LpRemotePeer};
@@ -30,7 +44,8 @@ use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use rand010::rngs::SysRng;
 use rand010::SeedableRng;
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
+use std::future::Future;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -90,197 +105,204 @@ pub struct Registration {
     pub exit: Option<HopConfig>,
 }
 
-/// Builds a **fresh** credential fetcher for each install. A fetcher must not be reused across
-/// install cycles: removing it from the controller (unset, or replace on retry) calls
-/// [`CredentialFetcher::cleanup`], which for the `NyxdCredentialFetcher` closes its pending-request
-/// recovery store — so the same instance cannot be installed again. A builder constructs a new one
-/// per install; the on-disk recovery store it reopens carries any interrupted issuance forward.
-///
-/// The associated `Fetcher` type is concrete (Sized), so a built fetcher is handed straight to the
-/// controller's generic `set_credential_fetcher` — no type-erasing newtype is needed. Production
-/// uses [`NyxdFetcherBuilder`]; tests supply a recording builder.
-#[async_trait]
-pub(crate) trait FetcherBuilder: Send + Sync {
-    /// The concrete fetcher this builder produces.
-    type Fetcher: CredentialFetcher + 'static;
-
-    /// Build a new, ready-to-install fetcher.
-    async fn build(&self) -> Result<Arc<Self::Fetcher>, SessionError>;
-}
-
-/// The production [`FetcherBuilder`]: a chain-backed `NyxdCredentialFetcher` (deposits NYM and
+/// The chain-backed credential fetcher both modes use: a `NyxdCredentialFetcher` (deposits NYM and
 /// aggregates issued wallets) wrapped in [`TimeoutFetcher`] so the read-only global-signing-data
-/// fetches are time-bounded. Unresponsive ecash signers (a permanent fact of the distributed
-/// deployment) must yield a fast fetch error — which the controller's best-effort store path
-/// tolerates, persisting the paid-for ticketbook anyway — rather than hanging the controller loop
-/// and losing the book. Issuance itself (the deposit) is deliberately not timed; see
-/// `TimeoutFetcher` docs.
-struct NyxdFetcherBuilder {
+/// fetches are time-bounded. Issuance itself (the deposit) is deliberately not timed.
+type ChainFetcher = TimeoutFetcher<NyxdCredentialFetcher<DirectSigningHttpRpcNyxdClient>>;
+
+/// Chain-side inputs shared by both controller modes: the signing chain client, the issuance client
+/// id, the on-disk stores, and the topology-scoped controller config.
+struct ChainSetup {
     nyxd: Arc<DirectSigningHttpRpcNyxdClient>,
-    /// Pending-request recovery database, reopened by every fetcher this builder makes.
-    fetcher_db: PathBuf,
+    /// Stable, non-reversible client id derived from the mnemonic (see [`derive_client_id`]).
     client_id: Zeroizing<Vec<u8>>,
+    /// The session's persistent credential store handle (survives bring-down / bring-up). Clones
+    /// share the underlying pool, so one-shot provisioning works on the same handle as spending —
+    /// a second pool on the file would make closing either one wait on the other's file handles.
+    storage: PersistentStorage,
+    /// The fetcher's pending-request recovery database; carries an interrupted issuance forward
+    /// across fetcher instances.
+    fetcher_db: PathBuf,
+    /// `managed_ticket_types` scoped to the topology's WireGuard types (two-hop: entry + exit;
+    /// single-hop: entry only — never an unused exit book, and never a mixnet type).
+    config: BandwidthControllerConfig,
 }
 
-#[async_trait]
-impl FetcherBuilder for NyxdFetcherBuilder {
-    type Fetcher = TimeoutFetcher<NyxdCredentialFetcher<DirectSigningHttpRpcNyxdClient>>;
-
-    async fn build(&self) -> Result<Arc<Self::Fetcher>, SessionError> {
+impl ChainSetup {
+    /// Build a fresh chain-backed fetcher. Every one-shot provision builds its own because teardown
+    /// `cleanup`s (closes) the fetcher's recovery store; the running mode builds exactly one.
+    async fn build_fetcher(&self) -> Result<ChainFetcher, SessionError> {
         let fetcher =
             NyxdCredentialFetcher::new(self.nyxd.clone(), &self.fetcher_db, self.client_id.clone())
                 .await
                 .map_err(|e| SessionError::Issuance(e.to_string()))?;
-        Ok(Arc::new(TimeoutFetcher::new(fetcher)))
+        Ok(TimeoutFetcher::new(fetcher))
+    }
+
+    /// The one-shot provisioning task for `types`: builds a fresh fetcher and runs
+    /// [`provision_once`] over the session's store handle. Owns everything it touches so it can be
+    /// spawned and left to finish even if the caller stops waiting.
+    fn provision(
+        &self,
+        types: Vec<TicketType>,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send + 'static {
+        let nyxd = self.nyxd.clone();
+        let client_id = self.client_id.clone();
+        let storage = self.storage.clone();
+        let fetcher_db = self.fetcher_db.clone();
+        let config = self.config.clone();
+        async move {
+            let fetcher = NyxdCredentialFetcher::new(nyxd, &fetcher_db, client_id)
+                .await
+                .map_err(|e| SessionError::Issuance(e.to_string()))?;
+            provision_once(storage, TimeoutFetcher::new(fetcher), config, types).await
+        }
     }
 }
 
-/// A session-owned, running bandwidth controller: the request sender used for spending/provisioning
-/// and the join handle for the background event loop.
+/// How the session owns its bandwidth controller (absent with an external provider).
+enum ControllerMode {
+    /// Automatic top-up: the controller event loop runs with the fetcher installed; the sender is
+    /// the spending provider and drives readiness waits.
+    Running {
+        sender: BandwidthControllerRequestSender,
+        task: JoinHandle<()>,
+    },
+    /// One-shot: no event loop. Provisioning spins up a short-lived controller per call from
+    /// `chain`; `lock` serialises those calls so two concurrent provisions can't issue twice for
+    /// the same type.
+    OneShot {
+        chain: ChainSetup,
+        lock: tokio::sync::Mutex<()>,
+    },
+}
+
+/// Open the persistent credential store at `path`, creating its directory.
+async fn open_store(path: &Path) -> Result<PersistentStorage, SessionError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| SessionError::Storage(e.to_string()))?;
+    }
+    PersistentStorage::init(path)
+        .await
+        .map_err(|e| SessionError::Storage(e.to_string()))
+}
+
+/// Read the stored ticketbook stock through the public `Storage` trait.
+async fn read_stock<St: Storage>(storage: &St) -> Result<AvailableTicketbooks, SessionError> {
+    let info = storage
+        .get_ticketbooks_info()
+        .await
+        .map_err(|e| SessionError::Storage(e.to_string()))?;
+    AvailableTicketbooks::try_from(info).map_err(|e| SessionError::Storage(e.to_string()))
+}
+
+/// One-shot issuance on a **non-running** controller: for each of `types` whose stock the
+/// controller's own restock predicate judges low or about to expire, issue one ticketbook inline
+/// via [`BandwidthController::fetch_ticketbook`]; then require every requested type to be usable.
+/// A sufficiently stocked type is never fetched.
 ///
-/// The credential fetcher is NOT installed at construction; provisioning installs a freshly built
-/// fetcher on demand (its install triggers a restock of the managed WireGuard types) and — in
-/// one-shot mode — removes it again, so background restock is governed by whether a fetcher is
-/// installed, not by an empty managed set. See [`Session::ensure_ticket_types`].
-struct OwnedController<B: FetcherBuilder> {
-    sender: BandwidthControllerRequestSender,
-    task: JoinHandle<()>,
-    /// Builds a fresh fetcher for each install (see [`FetcherBuilder`]). The controller cleans up
-    /// (closes) whichever fetcher it currently holds when a new one is set or it is unset, so we
-    /// never reinstall a used instance.
-    builder: B,
-    /// Whether a fetcher is currently installed in the running controller. The mutex both holds the
-    /// flag and serialises the whole install → wait → unset cycle, so two concurrent `ensure` calls
-    /// can't both install a fetcher (the second silently replacing — and cleaning up — the first).
-    installed: tokio::sync::Mutex<bool>,
-    /// Automatic top-ups enabled: leave the fetcher installed after provisioning so the controller's
-    /// sweep restocks per policy. When false (one-shot), the fetcher is removed after every
-    /// provision, on success or failure alike.
-    auto_topup: bool,
+/// The controller is ALWAYS torn down afterwards (success or failure): it is dropped and its
+/// fetcher cleaned up (closing the fetcher's recovery store). `storage` is the caller's shared
+/// handle and is left open. No event loop ever runs, so nothing here can deposit except the
+/// explicit fetches above.
+pub(crate) async fn provision_once<St, F>(
+    storage: St,
+    fetcher: F,
+    config: BandwidthControllerConfig,
+    types: Vec<TicketType>,
+) -> Result<(), SessionError>
+where
+    St: Storage + 'static,
+    F: CredentialFetcher + Clone + 'static,
+{
+    // The controller takes its fetcher by value and never hands it back, so give it a clone of the
+    // shared handle and keep ours for the cleanup below.
+    let controller = BandwidthController::new(storage.clone())
+        .with_config(config.clone())
+        .with_credential_fetcher(fetcher.clone());
+
+    let outcome = issue_missing(&controller, &storage, &config, &types).await;
+
+    // Teardown: a non-running controller has no in-flight work, so dropping it is complete; the
+    // fetcher's recovery store is closed through our retained handle.
+    drop(controller);
+    fetcher.cleanup().await;
+
+    outcome
 }
 
-impl<B: FetcherBuilder> OwnedController<B> {
-    /// Provision `types` end to end: run the (cancellable, budget-bounded) fetcher-lifecycle work,
-    /// then — in one-shot mode — remove the fetcher on EVERY exit path (success, error, timeout,
-    /// cancellation), so a completed or failed provision never leaves background restock enabled.
-    /// Automatic top-up leaves the fetcher installed so the controller's sweep restocks per policy.
-    ///
-    /// The whole cycle runs under the `installed` mutex, so concurrent callers can't race the
-    /// install/unset (which would leak a fetcher or clean one up out from under the other).
-    async fn ensure(
-        &self,
-        types: Vec<TicketType>,
-        cancel: &CancellationToken,
-    ) -> Result<(), SessionError> {
-        // Acquiring the mutex is itself cancellable: a caller queued behind another in-progress
-        // provision must not be stuck (uncancellable) for that provision's whole budget. Only the
-        // acquisition is raced — once the guard is held, the cycle below runs to completion so the
-        // one-shot fetcher removal always happens under the lock. (`tokio::sync::Mutex::lock` is
-        // cancel-safe.) Timing the acquisition out is unnecessary: the holder is itself bounded by
-        // `PROVISIONING_TIMEOUT`, so the wait is already finite.
-        let mut installed = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => return Err(SessionError::Cancelled),
-            guard = self.installed.lock() => guard,
-        };
-
-        // Race cancellation so a caller that cancels mid-wait gets a prompt `Cancelled` instead of
-        // blocking; this is funds-safe because the deposit itself runs in the controller task and any
-        // interrupted issuance is recovered from the fetcher's pending-request store on a later
-        // fetch. The work arm is additionally bounded by an overall budget (defense in depth over the
-        // per-fetch `TimeoutFetcher` bounds): whatever else might stall, provisioning surfaces a
-        // `ProvisioningTimeout` naming unresponsive signers as the likely cause instead of blocking
-        // forever.
-        let outcome = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => Err(SessionError::Cancelled),
-            res = tokio::time::timeout(PROVISIONING_TIMEOUT, self.provision(&mut installed, types))
-                => res.unwrap_or(Err(SessionError::ProvisioningTimeout {
-                    after: PROVISIONING_TIMEOUT,
-                })),
-        };
-
-        if !self.auto_topup {
-            self.remove_fetcher(&mut installed).await;
-        }
-
-        outcome
-    }
-
-    /// Provision `types`: install a freshly built fetcher if needed (its install triggers a restock
-    /// of the managed WireGuard types), then wait until the types are stocked and spendable. In
-    /// automatic top-up mode a failure is retried once by installing a fresh fetcher (a failed fetch
-    /// leaves no persistent marker, so re-installing re-runs the restock and fetches again). Removal
-    /// is [`ensure`](Self::ensure)'s responsibility, so it happens on every exit path in one-shot
-    /// mode. `installed` is the flag under the mutex held by `ensure`.
-    async fn provision(
-        &self,
-        installed: &mut bool,
-        types: Vec<TicketType>,
-    ) -> Result<(), SessionError> {
-        self.set_fetcher_if_absent(installed).await?;
-        match self.wait_for(types.clone()).await {
-            Ok(()) => Ok(()),
-            Err(e) if self.auto_topup => {
-                // Install a fresh fetcher to re-trigger a fetch, rather than wait for the periodic
-                // sweep. (One-shot mode does not retry in-call: the fetcher is removed afterwards,
-                // so a later `ensure_ticketbooks` call re-installs and re-fetches.)
-                tracing::warn!(
-                    "ticketbook provisioning failed ({e}); re-installing fetcher to retry"
-                );
-                self.set_fetcher(installed).await?;
-                self.wait_for(types).await
-            }
-            Err(e) => Err(e),
+/// The issuance half of [`provision_once`]: fetch what is low, then verify what was requested.
+async fn issue_missing<St: Storage>(
+    controller: &BandwidthController<St>,
+    storage: &St,
+    config: &BandwidthControllerConfig,
+    types: &[TicketType],
+) -> Result<(), SessionError> {
+    let stock = read_stock(storage).await?;
+    for &typ in types {
+        if stock.needs_restock(typ, config) {
+            tracing::info!("issuing a {typ} ticketbook (stock at or below the restock threshold)");
+            controller
+                .fetch_ticketbook(typ)
+                .await
+                .map_err(|e| SessionError::Issuance(format!("{typ}: {e}")))?;
+        } else {
+            tracing::debug!("{typ} ticketbooks sufficiently stocked; no issuance needed");
         }
     }
 
-    /// Install a fresh fetcher only if none is currently installed (auto top-up mode reuses the
-    /// standing install and skips the churny re-install; one-shot mode always starts uninstalled).
-    async fn set_fetcher_if_absent(&self, installed: &mut bool) -> Result<(), SessionError> {
-        if *installed {
-            return Ok(());
+    // The one-shot analogue of the running mode's readiness gate: every requested type must now be
+    // spendable. (Signing data is best-effort here, as it is there — a missing piece is fetched at
+    // spend time through the provider's public-data fetcher.)
+    let stock = read_stock(storage).await?;
+    for &typ in types {
+        if !stock.contains_minimal_tickets(typ, config) {
+            return Err(SessionError::Issuance(format!(
+                "no usable {typ} ticketbook after issuance"
+            )));
         }
-        self.set_fetcher(installed).await
     }
+    Ok(())
+}
 
-    /// Build a fresh fetcher and install it, triggering a restock of the managed WireGuard types. If
-    /// one was already installed the controller cleans it up first (so we always hand it a new,
-    /// open-store instance — a used one has had its recovery store closed by `cleanup`).
-    async fn set_fetcher(&self, installed: &mut bool) -> Result<(), SessionError> {
-        let fetcher = self.builder.build().await?;
-        self.sender
-            .set_credential_fetcher(fetcher)
-            .await
-            .map_err(|e| SessionError::Issuance(e.to_string()))?;
-        *installed = true;
-        Ok(())
-    }
-
-    /// Remove the fetcher so the controller makes no further deposits. Best-effort: after
-    /// cancellation the controller may already be gone, and a failed unset must not mask the
-    /// provisioning outcome.
-    async fn remove_fetcher(&self, installed: &mut bool) {
-        let _ = self.sender.unset_credential_fetcher().await;
-        *installed = false;
-    }
-
-    async fn wait_for(&self, types: Vec<TicketType>) -> Result<(), SessionError> {
-        self.sender
-            .wait_for_ticketbooks(types)
-            .await
-            .map_err(|e| SessionError::Issuance(e.to_string()))
+/// Running-mode provisioning: wait until `types` are stocked and spendable. The controller's own
+/// sweep (fired once at startup, then per policy) is what issues. If the wait reports the types as
+/// neither stocked nor in flight — the startup fetch already failed, or the wait was processed
+/// before the startup tick (the first tick is not guaranteed to run ahead of an already-queued
+/// request) — request a restock of exactly these types once and wait again. A restock for a type
+/// already in flight is a no-op on the controller side, so this can never double-issue.
+/// `restock_ticketbooks` is documented as a manual safety valve rather than a routine call, which
+/// is why it is only the recovery step and not the first move.
+async fn await_stocked(
+    sender: &BandwidthControllerRequestSender,
+    types: Vec<TicketType>,
+) -> Result<(), SessionError> {
+    let issuance = |e: BandwidthControllerError| SessionError::Issuance(e.to_string());
+    match sender.wait_for_ticketbooks(types.clone()).await {
+        Ok(()) => Ok(()),
+        Err(BandwidthControllerError::TicketbooksUnavailable) => {
+            tracing::info!(
+                "required ticketbooks are neither stocked nor being fetched; requesting a restock"
+            );
+            sender
+                .restock_ticketbooks(types.clone())
+                .await
+                .map_err(issuance)?;
+            sender.wait_for_ticketbooks(types).await.map_err(issuance)
+        }
+        Err(e) => Err(issuance(e)),
     }
 }
 
 /// Provisioning facade over the credential + registration machinery.
 pub struct Session {
     api: nym_http_api_client::Client,
-    /// Bandwidth provider used for all ticket spending (registration + gateway top-up). Either the
-    /// session's own controller sender or a caller-supplied external provider.
+    /// Bandwidth provider used for all ticket spending (registration + gateway top-up). The
+    /// running controller's sender, the one-shot non-running controller, or a caller-supplied
+    /// external provider.
     provider: Arc<dyn BandwidthTicketProvider>,
-    /// Present when the session spawned its own controller; drives provisioning and shutdown.
-    owned: Option<OwnedController<NyxdFetcherBuilder>>,
+    /// Present when the session owns its controller; drives provisioning and shutdown.
+    mode: Option<ControllerMode>,
     cancel: CancellationToken,
     /// dVPN gateway directory (empty if none configured or the fetch failed).
     directory: Option<DvpnDirectory>,
@@ -289,17 +311,17 @@ pub struct Session {
     /// lookup/insert calls, never across an await.
     reg_cache: Option<std::sync::Mutex<RegistrationCache>>,
     /// The topology this session was configured for (`SessionConfig::two_hop`). A single-hop
-    /// session's own controller manages entry ticketbooks only, so a two-hop registration on it is
-    /// rejected up front with [`SessionError::TopologyMismatch`] rather than failing later with a
-    /// generic "ticketbooks unavailable" from the exit-type wait. With an external bandwidth
-    /// provider the caller provisions, so the guard is not applied.
+    /// session provisions entry ticketbooks only, so a two-hop registration on it is rejected up
+    /// front with [`SessionError::TopologyMismatch`] rather than failing later with a generic
+    /// "ticketbooks unavailable" from the exit-type wait. With an external bandwidth provider the
+    /// caller provisions, so the guard is not applied.
     two_hop: bool,
 }
 
 impl Session {
     /// Build a session. Unless an external `bandwidth_provider` is supplied, this connects the
-    /// signing chain client, opens the credential store, wires the bandwidth controller + credential
-    /// fetcher (scoped to WireGuard ticket types), and spawns the controller event loop.
+    /// signing chain client, opens the credential store, and sets the bandwidth controller up in
+    /// the mode selected by `automatic_topups` (see the module docs).
     pub async fn new(
         config: SessionConfig,
         cancel: CancellationToken,
@@ -350,10 +372,10 @@ impl Session {
         };
 
         // Bandwidth provider: an external one (caller runs its own controller) or our own.
-        let (provider, owned) = match bandwidth_provider {
+        let (provider, mode) = match bandwidth_provider {
             Some(external) => (external, None),
             None => {
-                let (provider, owned) = Self::spawn_controller(
+                let (provider, mode) = Self::own_controller(
                     mnemonic,
                     network,
                     credential_store_path,
@@ -363,14 +385,14 @@ impl Session {
                     cancel.clone(),
                 )
                 .await?;
-                (provider, Some(owned))
+                (provider, Some(mode))
             }
         };
 
         Ok(Self {
             api,
             provider,
-            owned,
+            mode,
             cancel,
             directory,
             reg_cache,
@@ -378,9 +400,9 @@ impl Session {
         })
     }
 
-    /// Build the nyxd client + credential store + fetcher builder, then spawn the controller loop.
+    /// Build the chain client + credential store and set the controller up in the selected mode.
     /// `two_hop` scopes the managed WireGuard ticket types (single-hop manages entry only).
-    async fn spawn_controller(
+    async fn own_controller(
         mnemonic: bip39::Mnemonic,
         network: NymNetworkDetails,
         credential_store_path: Option<PathBuf>,
@@ -388,13 +410,7 @@ impl Session {
         automatic_topups: Option<RestockPolicy>,
         two_hop: bool,
         cancel: CancellationToken,
-    ) -> Result<
-        (
-            Arc<dyn BandwidthTicketProvider>,
-            OwnedController<NyxdFetcherBuilder>,
-        ),
-        SessionError,
-    > {
+    ) -> Result<(Arc<dyn BandwidthTicketProvider>, ControllerMode), SessionError> {
         let nyxd_url = network
             .endpoints
             .first()
@@ -413,32 +429,8 @@ impl Session {
         )?;
         let nyxd = Arc::new(nyxd);
 
-        // Persistent credential store (survives bring-down / bring-up).
         let store_path = credential_store_path.unwrap_or_else(|| data_path.join("credentials.db"));
-        if let Some(parent) = store_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| SessionError::Storage(e.to_string()))?;
-        }
-        let storage = nym_credential_storage::initialise_persistent_storage(&store_path).await;
-
-        // Fetcher builder: constructs a fresh chain-backed fetcher for every install (see
-        // `FetcherBuilder` / `NyxdFetcherBuilder` for why an instance is never reused). The on-disk
-        // `fetcher-requests.db` carries pending issuance across instances.
-        let builder = NyxdFetcherBuilder {
-            nyxd,
-            fetcher_db: data_path.join("fetcher-requests.db"),
-            client_id,
-        };
-
-        // `managed_ticket_types` is scoped to the WireGuard types this session's topology actually
-        // provisions (two-hop: entry + exit; single-hop: entry only — never an unused exit book), so
-        // installing the fetcher triggers a restock of exactly those (and mixnet types are never in
-        // the set, so the session can never deposit for mixnet bandwidth). What differs by mode is
-        // the fetcher's lifetime, not the managed set: the fetcher is installed on demand during
-        // provisioning (see `ensure_ticket_types`), and in one-shot mode removed again afterwards so
-        // the controller never deposits in the background; automatic top-up leaves it installed so
-        // the sweep restocks per policy.
         let managed = needed_ticket_types(two_hop);
-        let auto_topup = automatic_topups.is_some();
         let config = match automatic_topups {
             Some(policy) => {
                 let mut config: BandwidthControllerConfig = policy.into();
@@ -450,29 +442,61 @@ impl Session {
                 ..Default::default()
             },
         };
-        // Do NOT install the fetcher via the builder: provisioning installs it on demand (the
-        // install is what triggers issuance) and one-shot mode removes it afterwards.
-        let controller = BandwidthController::new(storage).with_config(config);
+        let storage = open_store(&store_path).await?;
+        let chain = ChainSetup {
+            nyxd,
+            client_id,
+            storage: storage.clone(),
+            fetcher_db: data_path.join("fetcher-requests.db"),
+            config,
+        };
 
-        let sender = controller.get_request_sender();
-        let shutdown = ShutdownToken::new_from_tokio_token(cancel.clone());
-        let task = tokio::spawn(async move { controller.run(shutdown).await });
-
-        let provider: Arc<dyn BandwidthTicketProvider> = Arc::new(sender.clone());
-        Ok((
-            provider,
-            OwnedController {
-                sender,
-                task,
-                builder,
-                installed: tokio::sync::Mutex::new(false),
-                auto_topup,
-            },
-        ))
+        if automatic_topups.is_some() {
+            // Automatic top-up: fetcher installed at construction, event loop running. The
+            // controller's sweep fires once immediately at startup and then per policy, so it
+            // provisions and restocks the managed WireGuard types on its own.
+            let fetcher = match chain.build_fetcher().await {
+                Ok(fetcher) => fetcher,
+                Err(e) => {
+                    storage.close().await;
+                    return Err(e);
+                }
+            };
+            let controller = BandwidthController::new(storage)
+                .with_config(chain.config.clone())
+                .with_credential_fetcher(fetcher);
+            let sender = controller.get_request_sender();
+            let shutdown = ShutdownToken::new_from_tokio_token(cancel);
+            let task = tokio::spawn(async move { controller.run(shutdown).await });
+            let provider: Arc<dyn BandwidthTicketProvider> = Arc::new(sender.clone());
+            Ok((provider, ControllerMode::Running { sender, task }))
+        } else {
+            // One-shot: no event loop. Spending goes through a non-running controller with NO
+            // credential fetcher — nothing on this path can deposit. Its public-data fetcher lets a
+            // spend fetch signing data that was missing at issuance time.
+            let provider = BandwidthController::new(storage)
+                .with_config(chain.config.clone())
+                .with_credential_public_data_fetcher(NyxdGlobalDataFetcher::new(
+                    chain.nyxd.clone(),
+                ));
+            let provider: Arc<dyn BandwidthTicketProvider> = Arc::new(provider);
+            Ok((
+                provider,
+                ControllerMode::OneShot {
+                    chain,
+                    lock: tokio::sync::Mutex::new(()),
+                },
+            ))
+        }
     }
 
-    /// Ensure the WireGuard ticketbooks needed for the tunnel shape are stored, issuing (and
-    /// depositing) only when no usable ticketbook of a required type is already stored.
+    /// Ensure the WireGuard ticketbooks needed for the tunnel shape are stored and usable, issuing
+    /// (and depositing) only for a required type whose stock is low or about to expire.
+    ///
+    /// Bounded by the overall provisioning budget and the session's cancellation token. In one-shot
+    /// mode the issuance runs in a spawned task that is never aborted: a call that is cancelled or
+    /// times out returns at once while the task finishes (or records its deposit for recovery) in
+    /// the background, so a deposit is never dropped mid-flight.
     ///
     /// With an external bandwidth provider this is a no-op — the caller provisions.
     pub async fn ensure_ticketbooks(&self, two_hop: bool) -> Result<(), SessionError> {
@@ -487,14 +511,52 @@ impl Session {
         if types.is_empty() {
             return Ok(());
         }
-        let Some(owned) = &self.owned else {
+        let Some(mode) = &self.mode else {
             // external provider: the caller is responsible for provisioning
             return Ok(());
         };
-        // Provision via the fetcher lifecycle (the reference `nym-vpn-client` pattern): installing
-        // the fetcher triggers a restock of the managed WireGuard types, we wait until they are
-        // usable, and — in one-shot mode — remove the fetcher again afterwards.
-        owned.ensure(types, &self.cancel).await
+        let timed_out = || {
+            Err(SessionError::ProvisioningTimeout {
+                after: PROVISIONING_TIMEOUT,
+            })
+        };
+        match mode {
+            ControllerMode::Running { sender, .. } => {
+                // Safe to race cancel around the wait: deposits run inside the controller task, not
+                // in this future, so dropping it loses nothing.
+                tokio::select! {
+                    biased;
+                    _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
+                    res = tokio::time::timeout(PROVISIONING_TIMEOUT, await_stocked(sender, types))
+                        => res.unwrap_or_else(|_| timed_out()),
+                }
+            }
+            ControllerMode::OneShot { chain, lock } => {
+                // Acquiring the lock is itself cancellable, so a caller queued behind an in-progress
+                // provision is not stuck for that provision's whole budget. (`tokio::sync::Mutex::
+                // lock` is cancel-safe.) The holder is bounded by `PROVISIONING_TIMEOUT`, so the wait
+                // is already finite.
+                let _guard = tokio::select! {
+                    biased;
+                    _ = self.cancel.cancelled() => return Err(SessionError::Cancelled),
+                    guard = lock.lock() => guard,
+                };
+                // Spawned, never aborted: the deposit must not be dropped mid-flight if the caller
+                // cancels or the budget elapses (see `ensure_ticketbooks`).
+                let task = tokio::spawn(chain.provision(types));
+                tokio::select! {
+                    biased;
+                    _ = self.cancel.cancelled() => Err(SessionError::Cancelled),
+                    res = tokio::time::timeout(PROVISIONING_TIMEOUT, task) => match res {
+                        Ok(Ok(outcome)) => outcome,
+                        Ok(Err(join)) => Err(SessionError::Issuance(format!(
+                            "provisioning task failed: {join}"
+                        ))),
+                        Err(_elapsed) => timed_out(),
+                    },
+                }
+            }
+        }
     }
 
     /// Obtain a spendable bandwidth credential for `gateway_id` by spending one
@@ -972,12 +1034,19 @@ impl Session {
         ))
     }
 
-    /// Shut down the session's bandwidth controller (if it owns one), awaiting its cleanup so the
-    /// credential store is closed cleanly. Stored tickets are retained.
+    /// Shut down the session's bandwidth controller (if it owns one) so the credential store is
+    /// closed cleanly. Stored tickets are retained. Running mode awaits the event loop, whose exit
+    /// path cleans up the fetcher and closes the store; one-shot mode closes the non-running
+    /// provider's store (a detached provisioning task shares that handle and cleans up its own
+    /// fetcher when it finishes).
     pub async fn shutdown(mut self) {
         self.cancel.cancel();
-        if let Some(owned) = self.owned.take() {
-            let _ = owned.task.await;
+        match self.mode.take() {
+            Some(ControllerMode::Running { task, .. }) => {
+                let _ = task.await;
+            }
+            Some(ControllerMode::OneShot { .. }) => self.provider.close().await,
+            None => {}
         }
     }
 }

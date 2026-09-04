@@ -1,6 +1,6 @@
 ## 1. Provisional defaults and the one compatibility check
 
-- [ ] 1.1 Adopt the provisional liveness profile defaults (100 packets per target, a 500 packets/second aggregate budget, a wave size of 20) and make every one of them CLI- and env-overridable, so an agent host that cannot sustain the budget is a configuration change rather than a code change
+- [ ] 1.1 Adopt the provisional liveness profile defaults (100 packets per target, a 500 packets/second aggregate budget, wave sizes of 100 mixnode and 50 gateway targets) and make every one of them CLI- and env-overridable, so an agent host that cannot sustain the budget is a configuration change rather than a code change
 - [ ] 1.2 Size the liveness lease budget, straggler wait and per-target timeouts from those defaults with slack, and make them configurable on the same terms, with no behaviour depending on a specific value
 - [ ] 1.3 Confirm on a devnet that an un-upgraded node still ingests an `AuthoriseNetworkMonitor` carrying an unknown field, rather than logging a parse failure and skipping it. The `cw_serde` reading says it will; this assumption is load-bearing for every future contract change and gates the orchestrator deploy, not the migration, which emits no message at all
 
@@ -41,12 +41,12 @@
 
 ## 5. Orchestrator scheduling
 
-- [ ] 5.1 Rewrite `assign_next_mixnode_testrun` as a kind-aware assignment: choose the kind, filter by that kind's eligible node types and required non-null fields, apply that kind's staleness age for the chosen role, exclude any node with an in-progress row of any kind or role, apply `liveness_after_stress_cooldown` for liveness, take one target for stress or up to `liveness_wave_size` for liveness, advance each node's rotation pointer for that (kind, role) pairing, and insert one in-progress row per target with its lease, kind and role
-- [ ] 5.2 Add the kind-selection policy (which kind an agent is handed when several are due) and the liveness enable flag that switches liveness assignment off without a redeploy
-- [ ] 5.3 Extend the node refresher to record the entry-gateway client websocket port
-- [ ] 5.4 Add the liveness config knobs (staleness interval, lease budget, wave size, cooldown, enable flag) with the provisional defaults from 1.1 and 1.2, all CLI- and env-overridable
-- [ ] 5.5 Add prometheus series for liveness assignments, wave sizes, per-kind in-progress counts, lease expiries, and cooldown skips
-- [ ] 5.6 Unit-test that a node with an open stress in-progress row is not assigned liveness and vice versa, that a recently stress-tested node is skipped by the cooldown, and that a wave never exceeds `liveness_wave_size`
+- [x] 5.1 Rewrite `assign_next_mixnode_testrun` as a kind-aware assignment: choose the kind, filter by that kind's eligible node types and required non-null fields, apply that kind's staleness age for the chosen role, exclude any node with an in-progress row of any kind or role, take one target for stress or up to the chosen role's liveness wave size, advance each node's rotation pointer for that (kind, role) pairing, and insert one in-progress row per target with its lease, kind and role
+- [x] 5.2 Add the kind-selection policy (which kind an agent is handed when several are due) and the liveness enable flag that switches liveness assignment off without a redeploy
+- [x] 5.3 Extend the node refresher to record the entry-gateway client websocket port
+- [x] 5.4 Add the liveness config knobs (staleness interval, lease budget, per-role wave sizes, enable flag) with the provisional defaults from 1.1 and 1.2, all CLI- and env-overridable
+- [x] 5.5 Add prometheus series for liveness assignments, wave sizes, per-kind in-progress counts, and lease expiries
+- [x] 5.6 Unit-test that a node with an open stress in-progress row is not assigned liveness and vice versa, that a node freed by one kind is immediately assignable by another, and that a wave never exceeds its role's wave size
 
 ## 6. nym-node: final-hop delivery for monitors
 

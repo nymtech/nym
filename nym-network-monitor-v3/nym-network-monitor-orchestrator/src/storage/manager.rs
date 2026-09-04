@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::storage::models::{
-    AssignedTestrun, AssignmentCandidate, CompletedTestRun, InsertedTestRun,
-    KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, TestKind, TestRun, TestRunInProgress,
-    TestRunMeasurement, TestedRole, next_ip_to_test,
+    AssignedTestrun, AssignmentCandidate, AssignmentRequest, BondedNymNode, CompletedTestRun,
+    InsertedTestRun, KeyedTestRunMeasurement, NewNymNode, NewTestRun, NymNode, PairingHead,
+    TestKind, TestPairing, TestRun, TestRunInProgress, TestRunMeasurement, TestedRole,
+    next_ip_to_test,
 };
 use sqlx::{QueryBuilder, SqliteConnection};
 use std::collections::HashMap;
@@ -18,6 +19,26 @@ const MEASUREMENT_LOOKUP_CHUNK: usize = 500;
 #[derive(Clone)]
 pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
+}
+
+/// The eligibility predicates that depend on the role a run would probe: which node types may be
+/// assigned in it, and which stored fields its probe cannot do without. Composed into the candidate
+/// query as a literal fragment rather than expressed as role-conditioned SQL, so that each role's
+/// filter reads as the plain predicate it is and leaves the node-type index usable.
+///
+/// A node classified `mixnode_and_gateway` is eligible in BOTH roles, which is what makes it
+/// testable as each, one run per role.
+fn role_eligibility(role: TestedRole) -> &'static str {
+    match role {
+        // the mixnet listener every probe needs is already required of every candidate
+        TestedRole::Mixnode => "AND n.node_type IN ('mixnode', 'mixnode_and_gateway')",
+
+        // the gateway probe opens a client session over the announced websocket port, so a node
+        // that has never reported one is untestable in this role however it is bonded
+        TestedRole::Gateway => {
+            "AND n.node_type IN ('gateway', 'mixnode_and_gateway') AND n.clients_ws_port IS NOT NULL"
+        }
+    }
 }
 
 /// Fetches the measurements of the given runs, grouped by the run they belong to.
@@ -306,14 +327,68 @@ impl StorageManager {
     ///
     /// The comparison is strict, so a lease expiring exactly at `now` survives until the next
     /// sweep, matching the result eviction sweep.
+    ///
+    /// Reports how many rows each kind lost, because that is the signal that a kind's lease budget
+    /// is too short for the work it covers, and a total would hide it: liveness leases are minutes
+    /// shorter than stress ones, so the two expire at very different rates even when both are
+    /// healthy. Counted before the delete, in the same transaction, since the delete itself reports
+    /// only a total.
     pub(crate) async fn clear_expired_testruns_in_progress(
         &self,
         now: OffsetDateTime,
-    ) -> anyhow::Result<u64> {
-        let res = sqlx::query!("DELETE FROM testrun_in_progress WHERE expires_at < ?", now,)
-            .execute(&self.connection_pool)
+    ) -> anyhow::Result<HashMap<TestKind, u64>> {
+        let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
+
+        let expiring = sqlx::query_as::<_, (TestKind, i64)>(
+            "SELECT test_kind, COUNT(*) FROM testrun_in_progress WHERE expires_at < ? GROUP BY test_kind",
+        )
+        .bind(now)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        sqlx::query!("DELETE FROM testrun_in_progress WHERE expires_at < ?", now,)
+            .execute(&mut *tx)
             .await?;
-        Ok(res.rows_affected())
+
+        tx.commit().await?;
+        Ok(expiring
+            .into_iter()
+            .map(|(kind, count)| (kind, count as u64))
+            .collect())
+    }
+
+    /// Records that these nodes are still bonded WITHOUT touching anything their own endpoint would
+    /// have supplied.
+    ///
+    /// Used for a node whose describe failed this cycle. Overwriting its learned fields with nulls
+    /// would fail every eligibility predicate at once and drop the node out of all kinds until a
+    /// later cycle answered, so a failed describe leaves the previous reading in place instead. A
+    /// node seen for the first time is inserted with those columns empty, which is the one state
+    /// that genuinely means "never described".
+    pub(crate) async fn batch_touch_bonded_nodes(
+        &self,
+        nodes: &[BondedNymNode],
+    ) -> anyhow::Result<()> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        for node in nodes {
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node (node_id, identity_key, last_seen_bonded)
+                VALUES (?, ?, ?)
+                ON CONFLICT (node_id) DO UPDATE SET
+                    last_seen_bonded = excluded.last_seen_bonded
+                "#,
+                node.node_id,
+                node.identity_key,
+                node.last_seen_bonded,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
     }
 
     /// Returns the number of rows currently in `testrun_in_progress` — i.e. the number of
@@ -325,42 +400,51 @@ impl StorageManager {
         Ok(total)
     }
 
-    /// Atomically selects the most stale idle mixnode and marks it as having a test run in
-    /// progress.
-    ///
-    /// Staleness, the rotation pointer and the resulting lock are all read and written for the
-    /// `(stress, mixnode)` pairing specifically, so no other kind's cadence can disturb this one.
-    /// Only that pairing is assignable today; per-kind selection replaces the hardcoded pairing
-    /// with the kind the orchestrator chose.
-    ///
-    /// "Most stale" is defined as: nodes that pairing has never tested come first, followed by
-    /// those whose last run under it has the oldest timestamp. `last_tested_before` acts as a
-    /// minimum-staleness gate that never-tested nodes bypass; the caller is expected to pass
-    /// `now - staleness_age`.
-    ///
-    /// `now` and `expires_at` are stamped onto the resulting `testrun_in_progress` row, the latter
-    /// materialising the lease deadline so the eviction sweep needs no knowledge of kinds. Both are
-    /// accepted as arguments rather than read from the clock so a caller can use one consistent
-    /// timestamp across related operations.
-    ///
-    /// Nodes with a row in `testrun_in_progress` are excluded entirely, REGARDLESS of the kind or
-    /// role that row belongs to: a node under one kind of test must not be measured by another at
-    /// the same time. Nodes missing `mixnet_socket_address`, `noise_key` or `sphinx_key` are
-    /// excluded as untestable, and only `mixnode` / `mixnode_and_gateway` nodes are eligible.
-    ///
-    /// Returns `None` if no eligible idle mixnode exists.
-    pub(crate) async fn assign_next_mixnode_testrun(
+    /// The same count broken down by kind, for the per-kind in-flight gauges. Kinds with no rows are
+    /// absent from the map rather than present as zero, so a caller publishing gauges has to decide
+    /// what an absent kind means - it means zero.
+    pub(crate) async fn count_testruns_in_progress_by_kind(
         &self,
-        now: OffsetDateTime,
-        last_tested_before: OffsetDateTime,
-        expires_at: OffsetDateTime,
-    ) -> anyhow::Result<Option<AssignedTestrun>> {
-        let (test_kind, tested_role) = (TestKind::Stress, TestedRole::Mixnode);
+    ) -> anyhow::Result<HashMap<TestKind, i64>> {
+        let counts = sqlx::query_as::<_, (TestKind, i64)>(
+            "SELECT test_kind, COUNT(*) FROM testrun_in_progress GROUP BY test_kind",
+        )
+        .fetch_all(&self.connection_pool)
+        .await?;
 
+        Ok(counts.into_iter().collect())
+    }
+
+    /// Atomically selects the most stale idle nodes eligible for one (kind, role) pairing and marks
+    /// each of them as having a test run in progress.
+    ///
+    /// Staleness, the rotation pointer and the resulting locks are all read and written for the
+    /// requested pairing alone, so no other kind's or role's cadence can disturb this one. A stress
+    /// request asks for one target; a liveness request asks for up to its role's wave size, and the
+    /// returned targets form one wave.
+    ///
+    /// "Most stale" is defined as: nodes this pairing has never tested come first, followed by those
+    /// whose last run under it has the oldest timestamp. [`AssignmentRequest::last_tested_before`]
+    /// acts as a minimum-staleness gate that never-tested nodes bypass.
+    ///
+    /// Eligibility beyond staleness: nodes with a row in `testrun_in_progress` are excluded
+    /// entirely, REGARDLESS of the kind or role that row belongs to, since a node under one kind of
+    /// test must not be measured by another at the same time; nodes missing `mixnet_socket_address`,
+    /// `noise_key` or `sphinx_key` are untestable by any probe; and the node types a role may assign
+    /// along with the extra fields its probe needs come from [`role_eligibility`]. A node whose
+    /// in-flight row has just cleared is immediately eligible for another kind, the per-node lock
+    /// being the whole of the mutual exclusion between kinds.
+    ///
+    /// Returns an empty vector when no eligible idle node exists. A target whose stored addresses
+    /// cannot be parsed is dropped from the wave rather than failing the assignment.
+    pub(crate) async fn assign_next_testruns(
+        &self,
+        request: &AssignmentRequest,
+    ) -> anyhow::Result<Vec<AssignedTestrun>> {
         // Starts a write (IMMEDIATE) transaction, to prevent issue when upgrading from a read one to a write one
         let mut tx = self.connection_pool.begin_with("BEGIN IMMEDIATE").await?;
 
-        let candidate = sqlx::query_as::<_, AssignmentCandidate>(
+        let query = format!(
             r#"
             SELECT
                 n.node_id,
@@ -383,70 +467,131 @@ impl StorageManager {
               AND n.mixnet_socket_address IS NOT NULL
               AND n.noise_key IS NOT NULL
               AND n.sphinx_key IS NOT NULL
-              AND n.node_type IN ('mixnode', 'mixnode_and_gateway')
+              {role_gate}
+              AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
+            ORDER BY s.last_tested_at ASC NULLS FIRST
+            LIMIT ?
+            "#,
+            role_gate = role_eligibility(request.pairing.tested_role),
+        );
+
+        // bound in the order the placeholders appear above: the pairing being joined, the staleness
+        // cutoff, then the wave size
+        let candidates = sqlx::query_as::<_, AssignmentCandidate>(&query)
+            .bind(request.pairing.test_kind)
+            .bind(request.pairing.tested_role)
+            .bind(request.last_tested_before)
+            .bind(request.wave_size as i64)
+            .fetch_all(&mut *tx)
+            .await?;
+
+        let mut assigned = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            // rotate onto the next announced address of that node, following this pairing's own
+            // pointer. the eligibility filter guarantees a parseable `mixnet_socket_address`, so
+            // this can only be `None` for a row whose stored addresses are corrupt, and dropping
+            // that one target keeps the rest of the wave assignable
+            let announced = candidate.node.announced_ips();
+            let Some(tested_ip) = next_ip_to_test(&announced, candidate.last_tested_ip.as_deref())
+            else {
+                continue;
+            };
+
+            // advance the rotation pointer here rather than on result submission, so that runs which
+            // never report back still move the node onto its next address
+            let node_id = candidate.node.inner.node_id;
+            let stored_tested_ip = tested_ip.to_string();
+            sqlx::query!(
+                r#"
+                INSERT INTO node_test_state (node_id, test_kind, tested_role, last_tested_ip)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (node_id, test_kind, tested_role) DO UPDATE SET
+                    last_tested_ip = excluded.last_tested_ip
+                "#,
+                node_id,
+                request.pairing.test_kind,
+                request.pairing.tested_role,
+                stored_tested_ip,
+            )
+            .execute(&mut *tx)
+            .await?;
+
+            sqlx::query!(
+                r#"
+                INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
+                VALUES (?, ?, ?, ?, ?)
+                "#,
+                node_id,
+                request.now,
+                request.expires_at,
+                request.pairing.test_kind,
+                request.pairing.tested_role,
+            )
+            .execute(&mut *tx)
+            .await?;
+
+            assigned.push(AssignedTestrun {
+                node: candidate.node,
+                tested_ip,
+            });
+        }
+
+        tx.commit().await?;
+        Ok(assigned)
+    }
+
+    /// How overdue the node this pairing would assign next is, or `None` when it has nothing
+    /// eligible.
+    ///
+    /// Exists so that a kind with more than one pairing can pick between them by need: the most
+    /// overdue head wins, which keeps the two liveness roles interleaving in proportion to how far
+    /// behind each has fallen instead of by a fixed share.
+    ///
+    /// Applies the SAME eligibility and ordering as [`Self::assign_next_testruns`], and reports the
+    /// staleness position of the very row that assignment would take first. The two queries are
+    /// written out separately so that each keeps its binds beside its own placeholders; that they
+    /// agree is pinned by a test, since a peek judging a different population could nominate a
+    /// pairing whose node the assignment then fails to find.
+    pub(crate) async fn peek_pairing_head(
+        &self,
+        pairing: TestPairing,
+        last_tested_before: OffsetDateTime,
+    ) -> anyhow::Result<Option<PairingHead>> {
+        let query = format!(
+            r#"
+            SELECT s.last_tested_at
+            FROM nym_node n
+            LEFT JOIN testrun_in_progress tip ON tip.node_id = n.node_id
+            LEFT JOIN node_test_state     s   ON s.node_id   = n.node_id
+                                             AND s.test_kind   = ?
+                                             AND s.tested_role  = ?
+            WHERE tip.node_id IS NULL
+              AND n.mixnet_socket_address IS NOT NULL
+              AND n.noise_key IS NOT NULL
+              AND n.sphinx_key IS NOT NULL
+              {role_gate}
               AND (s.last_tested_at IS NULL OR s.last_tested_at < ?)
             ORDER BY s.last_tested_at ASC NULLS FIRST
             LIMIT 1
             "#,
-        )
-        .bind(test_kind)
-        .bind(tested_role)
-        .bind(last_tested_before)
-        .fetch_optional(&mut *tx)
-        .await?;
+            role_gate = role_eligibility(pairing.tested_role),
+        );
 
-        let Some(candidate) = candidate else {
-            tx.commit().await?;
-            return Ok(None);
-        };
+        // bound in the order the placeholders appear above: the pairing being joined, then the
+        // staleness cutoff. the column is a nullable TIMESTAMP, which sqlx cannot infer a Rust type
+        // for through the query! macro, hence the explicit `Option` here
+        let head = sqlx::query_scalar::<_, Option<OffsetDateTime>>(&query)
+            .bind(pairing.test_kind)
+            .bind(pairing.tested_role)
+            .bind(last_tested_before)
+            .fetch_optional(&self.connection_pool)
+            .await?;
 
-        // rotate onto the next announced address of that node, following this pairing's own
-        // pointer. the eligibility filter guarantees a parseable `mixnet_socket_address`, so this
-        // can only be `None` for a row whose stored addresses are corrupt
-        let announced = candidate.node.announced_ips();
-        let Some(tested_ip) = next_ip_to_test(&announced, candidate.last_tested_ip.as_deref())
-        else {
-            tx.commit().await?;
-            return Ok(None);
-        };
-
-        // advance the rotation pointer here rather than on result submission, so that runs which
-        // never report back still move the node onto its next address
-        let node_id = candidate.node.inner.node_id;
-        let stored_tested_ip = tested_ip.to_string();
-        sqlx::query!(
-            r#"
-            INSERT INTO node_test_state (node_id, test_kind, tested_role, last_tested_ip)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (node_id, test_kind, tested_role) DO UPDATE SET
-                last_tested_ip = excluded.last_tested_ip
-            "#,
-            node_id,
-            test_kind,
-            tested_role,
-            stored_tested_ip,
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            INSERT INTO testrun_in_progress (node_id, started_at, expires_at, test_kind, tested_role)
-            VALUES (?, ?, ?, ?, ?)
-            "#,
-            node_id,
-            now,
-            expires_at,
-            test_kind,
-            tested_role,
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-        Ok(Some(AssignedTestrun {
-            node: candidate.node,
-            tested_ip,
+        // the outer Option is whether a node is eligible at all, the inner one whether this pairing
+        // has ever measured it
+        Ok(head.map(|last_tested_at| match last_tested_at {
+            Some(last_tested_at) => PairingHead::LastTestedAt(last_tested_at),
+            None => PairingHead::NeverTested,
         }))
     }
 
@@ -750,27 +895,26 @@ mod tests {
         ExercisedInterface, NewNymNode, NewTestRun, NodeTestState, NodeType,
     };
     use std::net::IpAddr;
-    use std::path::Path;
     use time::macros::datetime;
 
     async fn setup() -> StorageManager {
-        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+        crate::storage::NetworkMonitorStorage::in_memory()
             .await
-            .expect("failed to create in-memory SQLite pool");
-        let migrations_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-        sqlx::migrate::Migrator::new(migrations_path.as_path())
-            .await
-            .expect("failed to find migrations")
-            .run(&pool)
-            .await
-            .expect("failed to run migrations");
-        StorageManager {
-            connection_pool: pool,
-        }
+            .storage_manager
     }
 
     fn node(id: i64, identity_key: &str) -> NewNymNode {
         node_with_ips(id, identity_key, "1.2.3.4")
+    }
+
+    /// A gateway-capable node, optionally announcing the client websocket port that the gateway
+    /// liveness probe cannot open a session without.
+    fn gateway_node(id: i64, clients_ws_port: Option<i64>) -> NewNymNode {
+        NewNymNode {
+            node_type: NodeType::Gateway,
+            clients_ws_port,
+            ..node(id, &format!("key_{id}"))
+        }
     }
 
     /// A node announcing `announced_ips` (comma-separated), for exercising the address rotation.
@@ -882,15 +1026,41 @@ mod tests {
         datetime!(9999-12-31 23:59:59 UTC)
     }
 
-    /// Assigns at `now`, with an hour-long lease and the given staleness gate.
+    /// A request for `pairing` at `now`, with an hour-long lease and the given staleness gate.
+    fn request(
+        pairing: TestPairing,
+        now: OffsetDateTime,
+        last_tested_before: OffsetDateTime,
+        wave_size: usize,
+    ) -> AssignmentRequest {
+        AssignmentRequest {
+            pairing,
+            now,
+            last_tested_before,
+            expires_at: now + time::Duration::hours(1),
+            wave_size,
+        }
+    }
+
+    /// A `(stress, mixnode)` request, i.e. the one-target wave that pairing always asks for.
+    fn stress_request(
+        now: OffsetDateTime,
+        last_tested_before: OffsetDateTime,
+    ) -> AssignmentRequest {
+        request(TestPairing::STRESS_MIXNODE, now, last_tested_before, 1)
+    }
+
+    /// Assigns the stress pairing at `now`, returning the single target such a request can produce.
     async fn assign(
         db: &StorageManager,
         now: OffsetDateTime,
         last_tested_before: OffsetDateTime,
     ) -> Option<AssignedTestrun> {
-        db.assign_next_mixnode_testrun(now, last_tested_before, now + time::Duration::hours(1))
+        db.assign_next_testruns(&stress_request(now, last_tested_before))
             .await
             .unwrap()
+            .into_iter()
+            .next()
     }
 
     /// Seeds a pairing's rotation pointer, standing in for an assignment of a (kind, role) the
@@ -974,6 +1144,76 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(count, 2);
+        }
+
+        /// The bond-only write, i.e. what a node whose describe failed this cycle gets.
+        async fn touch(db: &StorageManager, node_id: i64, last_seen_bonded: OffsetDateTime) {
+            db.batch_touch_bonded_nodes(&[BondedNymNode {
+                node_id,
+                identity_key: format!("key_{node_id}"),
+                last_seen_bonded,
+            }])
+            .await
+            .unwrap()
+        }
+
+        // A failed describe must not cost the node everything an earlier cycle learned: nulling
+        // these columns fails every eligibility predicate at once, which would drop a node that is
+        // merely slow out of EVERY kind until a later cycle answered.
+        #[tokio::test]
+        async fn a_bond_only_refresh_keeps_what_was_already_learned() {
+            let db = setup().await;
+            let mut described = node(1, "key_1");
+            described.clients_ws_port = Some(9000);
+            described.node_type = NodeType::MixnodeAndGateway;
+            db.batch_insert_or_update_nym_nodes(&[described])
+                .await
+                .unwrap();
+
+            touch(&db, 1, datetime!(2025-06-02 00:00:00 UTC)).await;
+
+            let node = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(node.mixnet_socket_address.as_deref(), Some("1.2.3.4:1789"));
+            assert_eq!(node.noise_key.as_deref(), Some("placeholder_noise_key"));
+            assert_eq!(node.sphinx_key.as_deref(), Some("placeholder_sphinx_key"));
+            assert_eq!(node.announced_ips.as_deref(), Some("1.2.3.4"));
+            assert_eq!(node.key_rotation_id, Some(0));
+            assert_eq!(node.clients_ws_port, Some(9000));
+            assert_eq!(node.node_type, NodeType::MixnodeAndGateway);
+
+            // the one thing it does record is that the bond is still there
+            assert_eq!(node.last_seen_bonded, datetime!(2025-06-02 00:00:00 UTC));
+        }
+
+        // A node seen for the first time still has to exist as a row, and its empty describe columns
+        // are the one state that genuinely means "never described" rather than "described once".
+        #[tokio::test]
+        async fn a_bond_only_refresh_inserts_an_undescribed_node() {
+            let db = setup().await;
+            touch(&db, 7, datetime!(2025-06-02 00:00:00 UTC)).await;
+
+            let node = db.get_nym_node_by_id(7).await.unwrap().unwrap().inner;
+            assert_eq!(node.identity_key, "key_7");
+            assert!(node.mixnet_socket_address.is_none());
+            assert!(node.noise_key.is_none());
+            assert!(node.sphinx_key.is_none());
+            assert!(node.clients_ws_port.is_none());
+            assert_eq!(node.node_type, NodeType::Unknown);
+        }
+
+        // and being described afterwards fills it in, so a node that answers late is not stuck as a
+        // stub
+        #[tokio::test]
+        async fn a_later_describe_replaces_a_bond_only_row() {
+            let db = setup().await;
+            touch(&db, 1, datetime!(2025-06-02 00:00:00 UTC)).await;
+            db.batch_insert_or_update_nym_nodes(&[node(1, "key_1")])
+                .await
+                .unwrap();
+
+            let node = db.get_nym_node_by_id(1).await.unwrap().unwrap().inner;
+            assert_eq!(node.noise_key.as_deref(), Some("placeholder_noise_key"));
+            assert_eq!(node.node_type, NodeType::Mixnode);
         }
 
         #[tokio::test]
@@ -1217,11 +1457,22 @@ mod tests {
             started_at: OffsetDateTime,
             expires_at: OffsetDateTime,
         ) {
+            lease_of(db, node_id, TestKind::Stress, started_at, expires_at).await
+        }
+
+        /// The same, under a chosen kind. The role plays no part in expiry, so it stays fixed.
+        async fn lease_of(
+            db: &StorageManager,
+            node_id: i64,
+            test_kind: TestKind,
+            started_at: OffsetDateTime,
+            expires_at: OffsetDateTime,
+        ) {
             db.mark_testrun_in_progress(
                 node_id,
                 started_at,
                 expires_at,
-                TestKind::Stress,
+                test_kind,
                 TestedRole::Mixnode,
             )
             .await
@@ -1274,8 +1525,33 @@ mod tests {
             lease(&db, 4, datetime!(2025-06-01 11:55:00 UTC), now).await;
 
             let cleared = db.clear_expired_testruns_in_progress(now).await.unwrap();
-            assert_eq!(cleared, 1);
+            assert_eq!(cleared.get(&TestKind::Stress).copied(), Some(1));
             assert_eq!(remaining(&db).await, vec![2, 3, 4]);
+        }
+
+        // the breakdown is the whole point of counting before the delete: it says WHICH kind's lease
+        // is too short for the work it covers, which a single total cannot, since the two kinds run
+        // on leases minutes apart and so expire at different rates even when both are healthy
+        #[tokio::test]
+        async fn expiries_are_counted_per_kind() {
+            let db = setup().await;
+            for node_id in 1..=3 {
+                seed_node(&db, node_id).await;
+            }
+            let expired_at = datetime!(2025-06-01 11:00:00 UTC);
+
+            lease_of(&db, 1, TestKind::Stress, expired_at, expired_at).await;
+            lease_of(&db, 2, TestKind::Liveness, expired_at, expired_at).await;
+            lease_of(&db, 3, TestKind::Liveness, expired_at, expired_at).await;
+
+            let cleared = db
+                .clear_expired_testruns_in_progress(datetime!(2025-06-01 12:00:00 UTC))
+                .await
+                .unwrap();
+
+            assert_eq!(cleared.get(&TestKind::Stress).copied(), Some(1));
+            assert_eq!(cleared.get(&TestKind::Liveness).copied(), Some(2));
+            assert!(remaining(&db).await.is_empty());
         }
 
         #[tokio::test]
@@ -1294,8 +1570,27 @@ mod tests {
                 .clear_expired_testruns_in_progress(datetime!(2025-06-01 12:00:00 UTC))
                 .await
                 .unwrap();
-            assert_eq!(cleared, 0);
+            assert!(cleared.is_empty());
             assert_eq!(remaining(&db).await, vec![1]);
+        }
+
+        // the per-kind gauges are published from this count, and a kind absent from the map is
+        // published as zero - so absence has to mean "none in flight", not "not measured"
+        #[tokio::test]
+        async fn in_flight_rows_are_counted_per_kind_and_a_drained_kind_is_absent() {
+            let db = setup().await;
+            for node_id in 1..=3 {
+                seed_node(&db, node_id).await;
+            }
+            let started_at = datetime!(2025-06-01 12:00:00 UTC);
+            let expires_at = datetime!(2025-06-01 13:00:00 UTC);
+
+            lease_of(&db, 1, TestKind::Liveness, started_at, expires_at).await;
+            lease_of(&db, 2, TestKind::Liveness, started_at, expires_at).await;
+
+            let counts = db.count_testruns_in_progress_by_kind().await.unwrap();
+            assert_eq!(counts.get(&TestKind::Liveness).copied(), Some(2));
+            assert_eq!(counts.get(&TestKind::Stress), None);
         }
     }
 
@@ -1411,8 +1706,99 @@ mod tests {
         }
     }
 
-    mod assign_next_mixnode_testrun {
+    mod assign_next_testruns {
         use super::*;
+
+        // The role gate is the branch of the composed query that no stress request reaches, so this
+        // exercises it against one eligible node and one decoy per predicate it applies.
+        // One assignment, many targets, each locked and rotated in its own right - the property that
+        // separates a wave from the single-target assignment this used to be.
+        #[tokio::test]
+        async fn a_wave_locks_every_target_it_returns_and_stops_at_the_wave_size() {
+            let db = setup().await;
+            for node_id in 1..=3 {
+                seed_node(&db, node_id).await;
+            }
+
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            let wave = db
+                .assign_next_testruns(&AssignmentRequest {
+                    expires_at: now + time::Duration::minutes(1),
+                    ..request(TestPairing::LIVENESS_MIXNODE, now, no_staleness_gate(), 2)
+                })
+                .await
+                .unwrap();
+
+            assert_eq!(wave.len(), 2);
+
+            for target in &wave {
+                let node_id = target.node.inner.node_id;
+
+                // a lock per target, each carrying this wave's lease rather than one shared row
+                let row = db.get_testrun_in_progress(node_id).await.unwrap().unwrap();
+                assert_eq!(row.expires_at, now + time::Duration::minutes(1));
+                assert_eq!(row.test_kind, TestKind::Liveness);
+                assert_eq!(row.tested_role, TestedRole::Mixnode);
+
+                // and a rotation pointer per target, under the pairing that was dispatched
+                let state = work_state(&db, node_id, TestKind::Liveness, TestedRole::Mixnode)
+                    .await
+                    .unwrap();
+                assert_eq!(state.last_tested_ip.as_deref(), Some("1.2.3.4"));
+            }
+
+            // the target the cap left behind is still assignable, i.e. it was passed over rather
+            // than locked
+            let remaining = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    no_staleness_gate(),
+                    2,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(remaining.len(), 1);
+        }
+
+        #[tokio::test]
+        async fn a_gateway_request_takes_only_gateways_announcing_a_websocket_port() {
+            let db = setup().await;
+            db.batch_insert_or_update_nym_nodes(&[
+                gateway_node(1, Some(9000)),
+                // gateway-capable, but has never reported the port the session needs
+                gateway_node(2, None),
+                // announces a port, but is not gateway-capable
+                NewNymNode {
+                    clients_ws_port: Some(9000),
+                    ..node(3, "key_3")
+                },
+            ])
+            .await
+            .unwrap();
+
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            let assigned = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_GATEWAY,
+                    now,
+                    no_staleness_gate(),
+                    2,
+                ))
+                .await
+                .unwrap();
+
+            let assigned_ids: Vec<_> = assigned
+                .iter()
+                .map(|target| target.node.inner.node_id)
+                .collect();
+            assert_eq!(assigned_ids, vec![1]);
+
+            // the lock records the pairing that was dispatched, not the one stress would have used
+            let row = db.get_testrun_in_progress(1).await.unwrap().unwrap();
+            assert_eq!(row.test_kind, TestKind::Liveness);
+            assert_eq!(row.tested_role, TestedRole::Gateway);
+        }
 
         #[tokio::test]
         async fn returns_none_when_no_nodes() {
@@ -1534,6 +1920,64 @@ mod tests {
             assert!(result.is_none());
         }
 
+        // and the other direction, which is the one the liveness kind depends on: a node being
+        // stress-tested at high rate must not be measured by a liveness probe at the same time, or
+        // both results describe something other than the node
+        #[tokio::test]
+        async fn a_stress_run_in_flight_blocks_a_liveness_assignment() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            assert!(assign(&db, now, no_staleness_gate()).await.is_some());
+
+            let wave = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    no_staleness_gate(),
+                    10,
+                ))
+                .await
+                .unwrap();
+            assert!(wave.is_empty());
+        }
+
+        // The per-node lock is the WHOLE of the exclusion between kinds: there is no cooldown after
+        // it clears. The staleness gate here would reject the node if the stress run's timestamp
+        // were consulted for liveness, so this also pins that each pairing reads only its own.
+        #[tokio::test]
+        async fn a_node_freed_by_one_kind_is_immediately_assignable_by_another() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+
+            // a stress run takes the node, completes, and releases the lock
+            assert!(assign(&db, now, no_staleness_gate()).await.is_some());
+            insert_run(
+                &db,
+                &NewTestRun {
+                    test_timestamp: now,
+                    ..minimal_test_run(1)
+                },
+            )
+            .await;
+            assert!(db.get_testrun_in_progress(1).await.unwrap().is_none());
+
+            // at the very same instant, under a gate an hour in the past
+            let wave = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    now - time::Duration::hours(1),
+                    10,
+                ))
+                .await
+                .unwrap();
+
+            assert_eq!(wave.len(), 1);
+            assert_eq!(wave[0].node.inner.node_id, 1);
+        }
+
         #[tokio::test]
         async fn skips_node_tested_too_recently() {
             let db = setup().await;
@@ -1619,6 +2063,145 @@ mod tests {
 
     /// The two properties the three-part `(node_id, test_kind, tested_role)` work-state key exists
     /// to provide, driven through the real assignment and eviction paths.
+    mod peek_pairing_head {
+        use super::*;
+
+        /// Everything that makes a node ineligible, so the peek is asked about a population where
+        /// only one node qualifies and every exclusion is represented.
+        async fn seed_mixed_population(db: &StorageManager) {
+            db.batch_insert_or_update_nym_nodes(&[
+                // eligible, never tested by any pairing
+                node(1, "key_1"),
+                // eligible on paper, but locked by a run of another kind entirely
+                node(2, "key_2"),
+                // untestable: a gateway cannot be probed as a mixing hop
+                NewNymNode {
+                    node_type: NodeType::Gateway,
+                    ..node(3, "key_3")
+                },
+                // untestable: never answered its self-described endpoint
+                NewNymNode {
+                    noise_key: None,
+                    ..node(4, "key_4")
+                },
+            ])
+            .await
+            .unwrap();
+            mark_in_progress(db, 2, datetime!(2025-06-01 11:00:00 UTC)).await;
+        }
+
+        #[tokio::test]
+        async fn a_pairing_with_nothing_eligible_has_no_head() {
+            let db = setup().await;
+            let head = db
+                .peek_pairing_head(TestPairing::LIVENESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+            assert!(head.is_none());
+        }
+
+        #[tokio::test]
+        async fn a_never_tested_node_reads_as_the_most_overdue_head() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+
+            let head = db
+                .peek_pairing_head(TestPairing::LIVENESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+            assert_eq!(head, Some(PairingHead::NeverTested));
+
+            // and it outranks any measured node, which is what makes the most overdue head the
+            // minimum of the pairings a kind holds
+            assert!(
+                PairingHead::NeverTested
+                    < PairingHead::LastTestedAt(datetime!(1970-01-01 00:00:00 UTC))
+            );
+        }
+
+        #[tokio::test]
+        async fn a_measured_node_reads_as_its_last_run() {
+            let db = setup().await;
+            seed_node(&db, 1).await;
+            insert_run(
+                &db,
+                &NewTestRun {
+                    test_kind: TestKind::Liveness,
+                    test_timestamp: datetime!(2025-06-01 09:00:00 UTC),
+                    ..minimal_test_run(1)
+                },
+            )
+            .await;
+
+            let head = db
+                .peek_pairing_head(TestPairing::LIVENESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+            assert_eq!(
+                head,
+                Some(PairingHead::LastTestedAt(datetime!(
+                    2025-06-01 09:00:00 UTC
+                )))
+            );
+
+            // the same node under a pairing that has never measured it still reads as never tested,
+            // so one pairing's progress cannot answer for another's
+            let other = db
+                .peek_pairing_head(TestPairing::STRESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+            assert_eq!(other, Some(PairingHead::NeverTested));
+        }
+
+        // The peek and the assignment are separate hand-written queries, each keeping its binds
+        // beside its own placeholders. That independence is only safe while they agree on who is
+        // eligible and in what order, so this asserts the peek describes the very row the
+        // assignment then takes, against a population exercising every exclusion.
+        #[tokio::test]
+        async fn the_peek_describes_the_node_the_assignment_takes() {
+            let db = setup().await;
+            seed_mixed_population(&db).await;
+
+            let now = datetime!(2025-06-01 12:00:00 UTC);
+            let head = db
+                .peek_pairing_head(TestPairing::LIVENESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+
+            let assigned = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    no_staleness_gate(),
+                    1,
+                ))
+                .await
+                .unwrap();
+
+            // the peek said there was work, and the assignment took exactly the node it described
+            assert_eq!(head, Some(PairingHead::NeverTested));
+            assert_eq!(assigned.len(), 1);
+            assert_eq!(assigned[0].node.inner.node_id, 1);
+
+            // with that node locked, both queries agree the pairing is drained
+            let head = db
+                .peek_pairing_head(TestPairing::LIVENESS_MIXNODE, no_staleness_gate())
+                .await
+                .unwrap();
+            let assigned = db
+                .assign_next_testruns(&request(
+                    TestPairing::LIVENESS_MIXNODE,
+                    now,
+                    no_staleness_gate(),
+                    1,
+                ))
+                .await
+                .unwrap();
+            assert!(head.is_none());
+            assert!(assigned.is_empty());
+        }
+    }
+
     mod per_pairing_work_state {
         use super::*;
 

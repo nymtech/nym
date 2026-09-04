@@ -13,7 +13,7 @@ use crate::{
         shared_network::CachedFullTopology,
     },
 };
-use nym_gateway::node::ClientRegistry;
+use nym_gateway::node::{ClientRegistry, EmbeddedServiceProviders};
 use nym_lp_data::packet::header::LpReceiverIndex;
 use nym_lp_data::packet::{EncryptedLpPacket, LpFrame};
 use nym_lp_data::{PipelinePayload, fragmentation::reconstruction::MessageReconstructor};
@@ -274,16 +274,24 @@ impl SharedLpDataState {
 /// role (entry/exit).
 pub struct SharedGatewayLpDataState {
     pub(crate) cached_topology: CachedFullTopology,
+
+    /// Service providers this node runs itself, reached by channel rather than over the wire.
+    pub(crate) service_providers: EmbeddedServiceProviders,
 }
 
 impl SharedGatewayLpDataState {
-    pub(crate) fn new(cached_topology: CachedFullTopology) -> Self {
-        Self { cached_topology }
+    pub(crate) fn new(
+        cached_topology: CachedFullTopology,
+        service_providers: EmbeddedServiceProviders,
+    ) -> Self {
+        Self {
+            cached_topology,
+            service_providers,
+        }
     }
 
-    // SW Placeholder for SP routing while we don't have gateway state
-    pub(super) fn is_internal_service_provider(&self, _client_address: ClientAddress) -> bool {
-        false
+    pub(super) fn is_internal_service_provider(&self, client_address: ClientAddress) -> bool {
+        self.service_providers.hosts(client_address)
     }
 }
 
@@ -331,6 +339,7 @@ impl SharedGatewayLpDataState {
     pub fn new_for_simulation(topology: nym_topology::NymTopology) -> Self {
         Self {
             cached_topology: CachedFullTopology::from_topology(topology),
+            service_providers: Default::default(),
         }
     }
 }

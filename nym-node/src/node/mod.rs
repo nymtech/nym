@@ -90,6 +90,7 @@ use crate::node::directory_publisher::{
 };
 use crate::node::node_details::{NodeDescription, NodeDetails, ServiceProvidersKeys};
 pub use nym_gateway::node::ActiveClientsStore;
+use nym_gateway::node::EmbeddedServiceProviders;
 pub use nym_gateway::node::GatewayStorage;
 
 pub mod bonding_information;
@@ -314,6 +315,7 @@ impl NymNode {
         .await
     }
 
+    #[expect(clippy::too_many_arguments)]
     pub(crate) fn build_lp_data_tasks(
         &self,
         cached_network: CachedFullTopology,
@@ -321,6 +323,7 @@ impl NymNode {
         routing_filter: NetworkRoutingFilter,
         sessions: ActiveLpSessions,
         clients: ClientRegistry,
+        service_providers: EmbeddedServiceProviders,
         dialer: LpDialer,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
@@ -335,11 +338,9 @@ impl NymNode {
         );
 
         // gateway-only LP data state
-        let gateway_state = self
-            .config()
-            .modes
-            .expects_client_traffic()
-            .then(|| lp::data::shared::SharedGatewayLpDataState::new(cached_network));
+        let gateway_state = self.config().modes.expects_client_traffic().then(|| {
+            lp::data::shared::SharedGatewayLpDataState::new(cached_network, service_providers)
+        });
 
         LpDataSetup::new(
             shared_state,
@@ -1280,7 +1281,7 @@ impl NymNode {
                 node_address,
                 network_refresher.cached_network(),
                 metrics_sender,
-                active_clients_store,
+                active_clients_store.clone(),
                 mix_packet_sender,
             )
             .await?;
@@ -1315,6 +1316,8 @@ impl NymNode {
             network_refresher.routing_filter(),
             sessions,
             clients,
+            // taken after the providers have started, so the snapshot is complete
+            active_clients_store.embedded_service_providers(),
             dialer,
         )?;
         lp_data_tasks.start_tasks();

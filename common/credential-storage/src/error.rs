@@ -5,14 +5,14 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum StorageError {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "persistent-storage"))]
     #[error("Database experienced an internal error - {0}")]
     InternalDatabaseError(#[from] sqlx::Error),
 
     #[error("experienced internal storage error due to database inconsistency: {reason}")]
     DatabaseInconsistency { reason: String },
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "persistent-storage"))]
     #[error("Failed to perform database migration - {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
 

@@ -30,9 +30,19 @@ nym-ecash-time = { workspace = true }
 nym-validator-client = { workspace = true }
 
 # the pending-credential-requests store is sqlite-backed, so it (and its deps) are native-only
+# and gated behind the `credentials` feature.
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
-sqlx = { workspace = true }
-nym-sqlx-pool-guard = { workspace = true }
+# list the sqlx features this crate uses directly: `query!`/`query_as` (macros),
+# `migrate!` (migrate), and `Date` columns (time). Do not rely on another crate
+# in the graph to unify them in; the feature-powerset check builds this crate alone.
+sqlx = { workspace = true, optional = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+    "time",
+] }
+nym-sqlx-pool-guard = { workspace = true, optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
@@ -45,8 +55,14 @@ sqlx = { workspace = true, features = [
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [features]
-# exposes `NyxdRecoveryFetcher`, a recover-only fetcher usable with a plain query client
-recovery = []
+# native credential issuance/import, backed by a sqlite pending-requests store.
+# exposes `NyxdCredentialFetcher` and pulls in sqlx. The storage-free
+# `NyxdGlobalDataFetcher` is always available and needs none of this.
+credentials = ["dep:sqlx", "dep:nym-sqlx-pool-guard"]
+
+# exposes `NyxdRecoveryFetcher`, a recover-only fetcher; implies `credentials`
+# since it uses the same pending-requests store.
+recovery = ["credentials"]
 
 [lints]
 workspace = true

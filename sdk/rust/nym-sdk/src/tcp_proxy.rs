@@ -4,8 +4,8 @@
 //!
 //! <div class="warning">
 //!
-//! This module is deprecated. For new projects, use the
-//! [`stream`](crate::mixnet::stream) module instead, which provides
+//! This module is deprecated. For new projects, use the `mixnet::stream`
+//! module instead (enable the `stream` feature), which provides
 //! `AsyncRead + AsyncWrite` streams directly over the mixnet without the
 //! TCP socket overhead.
 //!

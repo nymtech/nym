@@ -1,5 +1,7 @@
 use crate::mixnet::client::MixnetClientBuilder;
+#[cfg(feature = "stream")]
 use crate::mixnet::client::DEFAULT_NUMBER_OF_SURBS;
+#[cfg(feature = "stream")]
 use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
@@ -28,6 +30,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::RwLockReadGuard;
+
+/// Default idle timeout after which the stream router cleans up an inactive stream.
+pub(crate) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 use tokio_util::sync::CancellationToken;
 
 /// Client connected to the Nym mixnet.
@@ -140,6 +145,7 @@ pub struct MixnetClient {
     pub(crate) stream_mode: Arc<AtomicBool>,
 
     /// Opaque stream multiplexing state (lazily initialized by stream module).
+    #[cfg(feature = "stream")]
     pub(crate) streams: Option<super::stream::StreamState>,
 
     /// How long a stream can be idle before the router cleans it up.
@@ -175,8 +181,9 @@ impl MixnetClient {
             forget_me,
             remember_me,
             stream_mode: Arc::new(AtomicBool::new(false)),
+            #[cfg(feature = "stream")]
             streams: None,
-            stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
+            stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
         }
     }
 
@@ -417,6 +424,7 @@ impl MixnetClient {
     /// This method is **not** cancel safe. Cancelling after the `Open`
     /// message is sent but before the `MixnetStream` is returned will
     /// leave the stream registered in the routing table with no owner.
+    #[cfg(feature = "stream")]
     pub async fn open_stream(
         &mut self,
         recipient: Recipient,
@@ -454,6 +462,7 @@ impl MixnetClient {
     /// }
     /// # }
     /// ```
+    #[cfg(feature = "stream")]
     pub fn listener(&mut self) -> Result<MixnetListener> {
         super::stream::listener(self)
     }

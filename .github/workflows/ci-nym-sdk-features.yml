@@ -1,0 +1,99 @@
+name: ci-nym-sdk-features
+
+# Verifies the nym-sdk feature gating: every feature combination compiles, and an
+# ephemeral (default-features = false) client does not pull in the sqlx storage stack.
+on:
+  pull_request:
+    paths:
+      - 'sdk/rust/nym-sdk/**'
+      - 'common/credential-storage/**'
+      - 'common/bandwidth-fetcher/**'
+      - 'common/client-core/surb-storage/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/ci-nym-sdk-features.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  feature-powerset:
+    runs-on: arc-linux-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        id: rust-toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+
+      - name: Pin the installed toolchain
+        run: rustup override set ${{ steps.rust-toolchain.outputs.name }}
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev protobuf-compiler
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
+      # The nym-sdk gate itself: every feature combination up to pairs, across all
+      # targets so the feature-gated examples are compiled under the combos that
+      # enable them.
+      - name: nym-sdk feature powerset
+        run: cargo hack check -p nym-sdk --feature-powerset --depth 2 --all-targets
+
+      # The upstream crates whose sqlx dependency is now optional.
+      - name: nym-credential-storage feature powerset
+        run: cargo hack check -p nym-credential-storage --feature-powerset
+
+      - name: nym-bandwidth-fetcher feature powerset
+        run: cargo hack check -p nym-bandwidth-fetcher --feature-powerset
+
+      - name: nym-client-core-surb-storage feature powerset
+        run: cargo hack check -p nym-client-core-surb-storage --feature-powerset
+
+  sqlx-free-ephemeral:
+    runs-on: arc-linux-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        id: rust-toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ vars.REQUIRED_RUSTC_VERSION }}
+
+      - name: Pin the installed toolchain
+        run: rustup override set ${{ steps.rust-toolchain.outputs.name }}
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev protobuf-compiler
+
+      # An ephemeral client must not link the sqlite/sqlx stack. `cargo tree -i` lists
+      # everything that depends on sqlx; with no default features that set must be empty.
+      - name: Assert sqlx is absent from an ephemeral nym-sdk
+        run: |
+          if cargo tree -p nym-sdk --no-default-features -e normal -i sqlx 2>/dev/null | grep -q '^sqlx'; then
+            echo "::error::sqlx is linked into an ephemeral (default-features = false) nym-sdk"
+            cargo tree -p nym-sdk --no-default-features -e normal -i sqlx
+            exit 1
+          fi
+          echo "ok: sqlx is not in the ephemeral nym-sdk dependency tree"

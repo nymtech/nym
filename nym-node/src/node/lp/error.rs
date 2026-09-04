@@ -9,6 +9,8 @@ use nym_topology::NodeId;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
+use crate::node::lp::data::handler::error::LpDataHandlerError;
+
 #[derive(Debug, Error)]
 pub enum LpHandlerError {
     #[error("failed to establish egress connection to {egress}: {reason}")]
@@ -20,11 +22,23 @@ pub enum LpHandlerError {
     #[error("missing session state for {receiver_index} - has it been removed due to inactivity?")]
     MissingLpSession { receiver_index: LpReceiverIndex },
 
+    #[error("no LP session established with peer {peer_ip}")]
+    NoSessionForPeer { peer_ip: IpAddr },
+
+    #[error("an LP session with receiver index {receiver_index} already exists")]
+    DuplicateLpSession { receiver_index: LpReceiverIndex },
+
+    #[error("the LP session returned an action inconsistent with the requested input")]
+    UnexpectedLpAction,
+
     #[error(transparent)]
     LpProtocolError(#[from] LpError),
 
     #[error("the initial KKT/PSQ handshake has not been completed")]
     IncompleteHandshake,
+
+    #[error("timed out while attempting the initial KKT/PSQ handshake")]
+    HandshakeTimeout,
 
     #[error("receiver_idx mismatch: connection bound to {established}, packet has {received}")]
     MismatchedReceiverIndex {
@@ -41,6 +55,9 @@ pub enum LpHandlerError {
     #[error("received a malformed packet: {0}")]
     MalformedLpPacket(#[from] MalformedLpPacketError),
 
+    #[error(transparent)]
+    DataHandlerError(#[from] LpDataHandlerError),
+
     #[error("received payload type of an unexpected type: {typ:?}")]
     UnexpectedLpPayload { typ: LpFrameKind },
 
@@ -50,11 +67,11 @@ pub enum LpHandlerError {
     #[error("missing KEM key hashes for node {node_id} connected from {node_ip}")]
     MissingNodeKEMKeyHashes { node_ip: IpAddr, node_id: NodeId },
 
-    #[error("data channel is not yet implemented")]
-    UnimplementedDataChannel,
-
     #[error("{ip_addr} does not correspond to any known LP node")]
     NotLpNode { ip_addr: IpAddr },
+
+    #[error("node is configured for client traffic but no gateway LP data state was provided")]
+    MissingGatewayState,
 
     #[error("{0}")]
     Internal(String),

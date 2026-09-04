@@ -45,6 +45,28 @@ pub enum LpAction {
     DeliverFrame(LpFrame),
 }
 
+/// Lifecycle state of an established session.
+///
+/// Transport → ReadOnlyTransport (superseded by a newer session for the same peer)
+/// ReadOnlyTransport → (expires via TTL cleanup)
+///
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LpSessionState {
+    /// Live session: may send and receive.
+    Transport,
+
+    /// Superseded by a newer session for the same peer. May only receive, draining packets
+    /// already in flight towards it; any attempt to send fails.
+    ReadOnlyTransport,
+}
+
+impl LpSessionState {
+    pub fn can_send(&self) -> bool {
+        matches!(self, LpSessionState::Transport)
+    }
+}
+
 pub type SessionId = [u8; 32];
 
 /// A session in the Lewes Protocol..
@@ -67,6 +89,9 @@ pub struct LpTransportSession {
 
     /// Negotiated protocol version from handshake.
     protocol_version: u8,
+
+    /// Lifecycle state. See [`LpSessionState`]
+    state: LpSessionState,
 }
 
 /// A transport channel bundled with the counter state guarding its keys.
@@ -170,6 +195,7 @@ impl LpTransportSession {
             channel: LpChannel::new(transport),
             receiver_index,
             protocol_version,
+            state: LpSessionState::Transport,
         })
     }
 
@@ -185,6 +211,24 @@ impl LpTransportSession {
     /// Returns the size of the replay protection window in bits.
     pub fn replay_window_bits(&self) -> usize {
         self.channel.receiving_counter.window_bits()
+    }
+
+    /// Demote this session to [`LpSessionState::ReadOnlyTransport`].
+    ///
+    /// Called when a newer session is established with the same peer. The demoted session
+    /// keeps decrypting packets already in flight towards it, but any attempt to send on it
+    /// fails with [`LpError::SessionReadOnly`]. It is expected to be dropped shortly after,
+    /// on a shorter TTL than a live session.
+    pub fn demote(&mut self) {
+        self.state = LpSessionState::ReadOnlyTransport;
+    }
+
+    pub fn state(&self) -> LpSessionState {
+        self.state
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        !self.state.can_send()
     }
 
     /// Helper function to create `PSQHandshakeState` for the handshake initiator
@@ -343,6 +387,12 @@ impl LpTransportSession {
     /// * `Ok(EncryptedLpPacket)` containing the encrypted message ciphertext.
     /// * `Err(LpError)` if the session is not in transport mode or encryption fails.
     pub(crate) fn wrap_lp_frame(&mut self, frame: LpFrame) -> Result<EncryptedLpPacket, LpError> {
+        // a demoted session may only drain what is already in flight towards it
+        if !self.state.can_send() {
+            return Err(LpError::SessionReadOnly {
+                receiver_index: self.receiver_index,
+            });
+        }
         let packet = self.next_packet(frame)?;
         encrypt_lp_packet(packet, &mut self.channel.transport)
     }

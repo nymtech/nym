@@ -1,10 +1,9 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::lp::cleanup::TimestampedState;
-use crate::node::lp::control::{LP_DURATION_BUCKETS, LpConnectionStats};
+use crate::node::lp::control::stats::{LP_DURATION_BUCKETS, LpConnectionStats};
 use crate::node::lp::error::LpHandlerError;
-use crate::node::lp::state::SharedLpClientControlState;
+use crate::node::lp::state::{SharedLpClientControlState, TimestampedState};
 use dashmap::mapref::one::RefMut;
 use nym_lp::LpTransportSession;
 use nym_lp::session::{LpAction, LpInput};
@@ -74,7 +73,6 @@ where
     {
         let receiver_index = self.bound_receiver_index()?;
         self.state
-            .shared
             .session_states
             .get_state_entry_mut(receiver_index)
     }
@@ -125,7 +123,7 @@ where
         let receiver_idx = session.receiver_index();
 
         // 2. insert the state machine into the shared state
-        self.state.shared.session_states.insert_new_session(session);
+        self.state.session_states.insert_new_session(session)?;
         self.bound_receiver_idx = Some(receiver_idx);
 
         // 3. handle any new incoming packet
@@ -263,27 +261,14 @@ where
                 self.handle_forwarding_request(receiver_idx, forward_data)
                     .await
             }
-            LpFrameKind::Opaque => {
+            other => {
                 // Neither registration nor forwarding - unknown payload type
                 warn!(
                     "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
                     bytes.len()
                 );
                 inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::Opaque,
-                })
-            }
-            LpFrameKind::SphinxStream => {
-                // Neither registration nor forwarding - unknown payload type
-                warn!(
-                    "Unknown transport payload type from {remote} (receiver_idx={receiver_idx}). dropping {} bytes",
-                    bytes.len()
-                );
-                inc!("lp_errors_unknown_payload_type");
-                Err(LpHandlerError::UnexpectedLpPayload {
-                    typ: LpFrameKind::SphinxStream,
-                })
+                Err(LpHandlerError::UnexpectedLpPayload { typ: other })
             }
         }
     }
@@ -599,7 +584,8 @@ mod tests {
     use super::*;
     use crate::config::LpConfig;
     use crate::config::lp::LpDebug;
-    use crate::node::lp::state::{ActiveLpSessions, SharedLpState};
+    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::state::SharedLpState;
     use nym_lp::peer::{KEMKeys, LpLocalPeer, generate_keypair_mceliece, generate_keypair_mlkem};
     use nym_lp::{Ciphersuite, SessionManager, sessions_for_tests};
     use nym_test_utils::helpers::{deterministic_rng, deterministic_rng_09};
@@ -636,10 +622,10 @@ mod tests {
             local_lp_peer: lp_peer,
             peer_registrator: None,
             forward_semaphore,
+            session_states: ActiveLpSessions::new(),
             shared: SharedLpState {
                 lp_config,
                 metrics: nym_node_metrics::NymNodeMetrics::default(),
-                session_states: ActiveLpSessions::new(),
             },
         }
     }

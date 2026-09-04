@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use futures::{Sink, SinkExt, StreamExt};
 use nym_noise::config::NoiseConfig;
 use nym_noise::upgrade_noise_initiator;
+use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -608,7 +609,13 @@ impl Client {
 
 impl SendWithoutResponse for Client {
     fn send_without_response(&self, packet: Traced<MixPacket>) -> io::Result<()> {
-        let address = packet.inner.next_hop_address();
+        let address = match packet.inner.next_hop() {
+            NymNodeRoutingAddress::Client(_) => {
+                warn!("mix packet addressed to a client in the legacy send_without_response path. This should never happen!");
+                return Ok(());
+            }
+            NymNodeRoutingAddress::Node(address) => address,
+        };
         trace!("Sending packet to {address}");
 
         // capture the sample state before the trace is moved into `queued`

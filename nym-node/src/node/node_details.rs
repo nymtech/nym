@@ -555,7 +555,7 @@ impl NodeDetails {
         node_config: &Config,
     ) -> StaticNodeInformation {
         let lewes_protocol = LewesProtocol {
-            enabled: self.modes.entry,
+            enabled: true,
             control_port: self.lewes_protocol_details.control_port,
             data_port: self.lewes_protocol_details.data_port,
             x25519: self.lewes_protocol_details.x25519,

@@ -67,135 +67,13 @@
 // To view metrics, the nym-metrics registry automatically collects all metrics.
 // They can be exported via Prometheus format using the metrics endpoint.
 
-use crate::config::LpConfig;
-use crate::error::NymNodeError;
-use crate::node::lp::cleanup::CleanupTask;
-use crate::node::lp::data::listener::LpDataListener;
-use control::ingress::listener::LpControlListener;
-use nym_gateway::node::wireguard::PeerRegistrator;
-use nym_lp::peer::LpLocalPeer;
-use nym_mixnet_client::forwarder::MixForwardingSender;
-use nym_node_metrics::NymNodeMetrics;
-use nym_task::ShutdownTracker;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
-use tracing::error;
+pub use state::{SharedLpClientControlState, SharedLpState};
 
-use crate::node::lp::directory::LpNodes;
-use crate::node::lp::state::{ActiveLpSessions, SharedLpNodeControlState};
-pub use nym_mixnet_client::forwarder::{MixForwardingReceiver, mix_forwarding_channels};
-pub use state::{SharedLpClientControlState, SharedLpDataState, SharedLpState};
-
+pub mod active_sessions;
 mod cleanup;
 pub mod control;
-mod data;
+pub mod data;
 pub mod directory;
 pub mod error;
 mod registration;
 pub mod state;
-
-pub struct LpSetup {
-    control_listener: LpControlListener,
-    data_listener: LpDataListener,
-    cleanup_task: CleanupTask,
-
-    /// Shutdown coordination
-    shutdown: ShutdownTracker,
-}
-
-impl LpSetup {
-    pub async fn new(
-        local_lp_peer: LpLocalPeer,
-        lp_config: LpConfig,
-        metrics: NymNodeMetrics,
-        peer_registrator: Option<PeerRegistrator>,
-        network_nodes: LpNodes,
-        mix_packet_sender: MixForwardingSender,
-        shutdown: ShutdownTracker,
-    ) -> Result<Self, NymNodeError> {
-        // TODO: this will require loading old states from disk in the future
-        let session_states = ActiveLpSessions::new();
-
-        let shared_lp_state = SharedLpState {
-            metrics,
-            lp_config,
-            session_states: session_states.clone(),
-        };
-
-        let client_control_state = SharedLpClientControlState {
-            local_lp_peer: local_lp_peer.clone(),
-            peer_registrator,
-            forward_semaphore: Arc::new(Semaphore::new(lp_config.debug.max_concurrent_forwards)),
-            shared: shared_lp_state.clone(),
-        };
-
-        let nodes_control_state = SharedLpNodeControlState {
-            local_lp_peer,
-            nodes: network_nodes,
-            shared: shared_lp_state.clone(),
-        };
-
-        let data_state = SharedLpDataState {
-            outbound_mix_sender: mix_packet_sender,
-            shared: shared_lp_state,
-        };
-
-        let control_listener = LpControlListener::new(
-            lp_config.control_bind_address,
-            client_control_state,
-            nodes_control_state,
-            shutdown.clone(),
-        );
-        let data_listener = LpDataListener::new(
-            lp_config.data_bind_address,
-            data_state,
-            shutdown.clone_shutdown_token(),
-        );
-        let cleanup_task = CleanupTask::new(
-            session_states,
-            lp_config.debug,
-            shutdown.clone_shutdown_token(),
-        );
-
-        Ok(LpSetup {
-            control_listener,
-            data_listener,
-            cleanup_task,
-            shutdown,
-        })
-    }
-
-    pub fn start_tasks(mut self) {
-        // control listener
-        let shutdown_token = self.shutdown.clone_shutdown_token();
-        self.shutdown.try_spawn_named(
-            async move {
-                if let Err(err) = self.control_listener.run().await {
-                    shutdown_token.cancel();
-                    error!("LP control listener error: {err}");
-                }
-            },
-            "LP::LpControlListener",
-        );
-
-        // Spawn the UDP data handler for LP data plane
-        // The data handler listens on UDP port 51264 and processes LP-wrapped Sphinx packets
-        // from registered clients. It decrypts the LP layer and forwards the Sphinx packets
-        let shutdown_token = self.shutdown.clone_shutdown_token();
-        self.shutdown.try_spawn_named(
-            async move {
-                if let Err(err) = self.data_listener.run().await {
-                    shutdown_token.cancel();
-                    error!("LP data listener error: {err}");
-                }
-            },
-            "LP::LpDataListener",
-        );
-
-        // cleanup task
-        self.shutdown.try_spawn_named(
-            async move { self.cleanup_task.run().await },
-            "LP::CleanupTask",
-        );
-    }
-}

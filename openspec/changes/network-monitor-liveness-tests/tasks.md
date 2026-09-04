@@ -86,11 +86,11 @@
 
 ## 10. Orchestrator: per-kind submission
 
-- [ ] 10.1 Split the result submitter into one stream per kind, each reading and advancing its own watermark and posting to its own endpoint
-- [ ] 10.2 Convert a liveness run into its submission shape: the average over the kind's fixed measurement set with a missing measurement counted as zero, carrying the per-interface breakdown
-- [ ] 10.3 Keep the strictly-increasing timestamp behaviour per stream
-- [ ] 10.4 Expose the per-interface breakdown and the test kind on the operator read surface (`/v1/results/*`)
-- [ ] 10.5 Unit-test that submitting one stream does not advance the other's watermark, and that a failed post leaves its own watermark unmoved
+- [x] 10.1 Split the result submitter into one stream per kind, each reading and advancing its own watermark and posting to its own endpoint. The sweep iterates `TestKind` itself rather than calling two hand-written stream functions, so a future kind cannot be added without a stream to submit it, and a stream whose POST fails is logged and skipped rather than aborting the sweep
+- [x] 10.2 Convert a liveness run into its submission shape: the average over the kind's fixed measurement set with a missing measurement counted as zero, carrying the per-interface breakdown. An interface that saw duplicates counts as zero too, matching the stress path, because a node replaying one packet nine times counts ten received against ten sent and the clamp on the ratio caps that at a perfect score rather than preventing it. The breakdown is built from the expected set rather than from the measurements that arrived, so an absent interface is carried as an explicit zero and one the role should not have produced is ignored
+- [x] 10.3 Keep the strictly-increasing timestamp behaviour per stream. Falls out of 10.1: the tracker is a local of the per-kind sweep, so each stream bumps against its own previous batch and never against the other's, matching nym-api's per-endpoint replay mark
+- [x] 10.4 Expose the per-interface breakdown and the test kind on the operator read surface (`/v1/results/*`). The completed-run side was already satisfied by group 4, whose `TestRunData` carries the kind, the role and the measurements; what was missing was the in-progress side, which dropped the lease, kind and role. All three are now carried, so an operator can tell a slow run from one whose lease has lapsed, and the two runs of a dual-role node from each other
+- [x] 10.5 Unit-test that submitting one stream does not advance the other's watermark, and that a failed post leaves its own watermark unmoved. Tested against a fake nym-api behind a `BatchSubmission` seam rather than an HTTP server: the production client wraps a `reqwest::Client` with no substitutable transport, so an HTTP-level fake would have to bind a socket. The trade recorded on the trait itself is that the route constants and the wire encoding are NOT covered by these tests
 
 ## 11. nym-api: liveness ingest and shadow-weighted component
 

@@ -1,8 +1,5 @@
-# bandwidth-type-scoping Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change fix-dvpn-review-6953. Update Purpose after archive.
-## Requirements
 ### Requirement: Controller-scoped proactive restock
 
 `BandwidthController` SHALL restrict the ticket types it proactively restocks — the
@@ -57,4 +54,3 @@ caller's) responsibility.
 #### Scenario: Default scoping preserves current behavior
 - **WHEN** the controller is built without overriding `managed_ticket_types`
 - **THEN** the sweep considers the same type list as before the change
-

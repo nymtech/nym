@@ -94,6 +94,20 @@ fn wg_capable(desc: &NymNodeDescriptionV2, _role: WgRole) -> bool {
     d.wireguard.is_some() && d.lewes_protocol.is_some() && d.authenticator.is_some()
 }
 
+/// Whether a node is an eligible candidate for a `Random`/`Country` selection: WireGuard-capable,
+/// QUIC-ok (per `require_quic`), and not in the exclusion set. Factored out of the selection filters
+/// (which pass the already-computed capability/QUIC facts) so the exclusion + capability gate is
+/// unit-testable without constructing signed described nodes. A `Country` selection ANDs its own
+/// country match on top of this.
+fn candidate_eligible(
+    id: &ed25519::PublicKey,
+    wg_capable: bool,
+    quic_ok: bool,
+    exclude: &[ed25519::PublicKey],
+) -> bool {
+    wg_capable && quic_ok && !exclude.contains(id)
+}
+
 /// Build the LP information block for a node, verifying its LP signature and
 /// deriving the ciphersuite from the node's version.
 fn build_lp(
@@ -223,17 +237,20 @@ fn quic_ok(
 ///
 /// When `require_quic` is set, only gateways the dVPN `directory` reports as
 /// QUIC-bridge-capable are eligible; if none match, [`SessionError::NoQuicGateway`]
-/// is returned. `exclude` (the already-chosen hop's identity, e.g. the entry when
-/// picking the exit) is never selected, so a two-hop tunnel gets distinct gateways.
+/// is returned. `exclude` is a set of gateway identities that are never selected —
+/// e.g. the already-chosen entry when picking the exit (so a two-hop tunnel gets
+/// distinct gateways), plus any entries a caller has implicated and wants to avoid.
+/// A pinned `Identity` spec in `exclude` is never substituted: selection fails with
+/// the distinct-gateways error rather than returning a different gateway.
 pub(crate) fn select(
     nodes: &[NymNodeDescriptionV2],
     spec: &GatewaySpec,
     role: WgRole,
     directory: Option<&DvpnDirectory>,
     require_quic: bool,
-    exclude: Option<&ed25519::PublicKey>,
+    exclude: &[ed25519::PublicKey],
 ) -> Result<SelectedGateway, SessionError> {
-    let excluded = |id: &ed25519::PublicKey| exclude == Some(id);
+    let excluded = |id: &ed25519::PublicKey| exclude.contains(id);
     match spec {
         GatewaySpec::Identity(id) => {
             if excluded(id) {
@@ -258,14 +275,17 @@ pub(crate) fn select(
                 .iter()
                 .filter(|n| {
                     let id = n.ed25519_identity_key();
-                    !excluded(&id)
-                        && wg_capable(n, role)
-                        && n.description
-                            .auxiliary_details
-                            .location
-                            .as_ref()
-                            .is_some_and(|c| c.alpha2.eq_ignore_ascii_case(cc))
-                        && quic_ok(directory, require_quic, &id)
+                    candidate_eligible(
+                        &id,
+                        wg_capable(n, role),
+                        quic_ok(directory, require_quic, &id),
+                        exclude,
+                    ) && n
+                        .description
+                        .auxiliary_details
+                        .location
+                        .as_ref()
+                        .is_some_and(|c| c.alpha2.eq_ignore_ascii_case(cc))
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
@@ -284,7 +304,12 @@ pub(crate) fn select(
                 .iter()
                 .filter(|n| {
                     let id = n.ed25519_identity_key();
-                    !excluded(&id) && wg_capable(n, role) && quic_ok(directory, require_quic, &id)
+                    candidate_eligible(
+                        &id,
+                        wg_capable(n, role),
+                        quic_ok(directory, require_quic, &id),
+                        exclude,
+                    )
                 })
                 .collect();
             let desc = candidates.choose(&mut rand::thread_rng()).ok_or_else(|| {
@@ -324,7 +349,7 @@ mod tests {
             WgRole::Entry,
             None,
             false,
-            None,
+            &[],
         )
         .err()
         .expect("expected selection error");
@@ -347,7 +372,7 @@ mod tests {
             WgRole::Exit,
             None,
             false,
-            Some(&id),
+            std::slice::from_ref(&id),
         )
         .err()
         .expect("expected selection error");
@@ -365,7 +390,7 @@ mod tests {
             WgRole::Exit,
             None,
             false,
-            None,
+            &[],
         )
         .err()
         .expect("expected selection error");
@@ -377,16 +402,47 @@ mod tests {
 
     #[test]
     fn random_no_gateway_over_empty_set() {
-        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, false, None)
+        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, false, &[])
             .err()
             .expect("expected selection error");
         assert!(matches!(err, SessionError::NoWireguardGateway));
     }
 
     #[test]
+    fn random_candidate_filter_skips_excluded_set() {
+        // A `Random`/`Country` selection keeps only candidates that pass `candidate_eligible`, which
+        // drops excluded identities. Exercising the filter directly (rather than a full `select`,
+        // which needs signed described nodes) proves a random pick can never return an excluded node.
+        let a = random_identity();
+        let b = random_identity();
+
+        // An excluded, otherwise-eligible node is filtered out; a non-excluded one is kept.
+        assert!(!candidate_eligible(
+            &a,
+            true,
+            true,
+            std::slice::from_ref(&a)
+        ));
+        assert!(candidate_eligible(&b, true, true, std::slice::from_ref(&a)));
+
+        // An empty exclude set excludes nothing.
+        assert!(candidate_eligible(&a, true, true, &[]));
+
+        // Excluding every candidate leaves none eligible — in `select` this is the
+        // `NoWireguardGateway` (no candidate to `choose`) path.
+        assert!(![a, b]
+            .iter()
+            .any(|id| candidate_eligible(id, true, true, &[a, b])));
+
+        // Capability / QUIC gates still apply regardless of exclusion.
+        assert!(!candidate_eligible(&b, false, true, &[]));
+        assert!(!candidate_eligible(&b, true, false, &[]));
+    }
+
+    #[test]
     fn require_quic_without_directory_fails() {
         // With no directory (None), requiring QUIC can never be satisfied.
-        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, true, None)
+        let err = select(&[], &GatewaySpec::Random, WgRole::Entry, None, true, &[])
             .err()
             .expect("expected selection error");
         assert!(matches!(err, SessionError::NoQuicGateway { .. }));

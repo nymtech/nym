@@ -41,6 +41,19 @@ fn peer_from_hop(hop: HopConfig) -> PeerConfig {
     }
 }
 
+/// Gateway selector for a hop, overridable from the environment so a sweep can pin specific
+/// gateways: `$var` holds a base58 ed25519 identity (→ `Identity`), else `Random`. Used to hunt for
+/// a healthy sandbox gateway / pair when the default random pick lands on an unreachable one.
+fn spec_from_env(var: &str) -> GatewaySpec {
+    match std::env::var(var) {
+        Ok(s) if !s.trim().is_empty() => GatewaySpec::Identity(
+            nym_crypto::asymmetric::ed25519::PublicKey::from_base58_string(s.trim())
+                .expect("valid base58 ed25519 gateway identity"),
+        ),
+        _ => GatewaySpec::Random,
+    }
+}
+
 fn mnemonic() -> Option<bip39::Mnemonic> {
     let mnemonic = std::env::var("MNEMONIC")
         .or_else(|_| std::env::var("NYX_ACCOUNT_MNEMONIC"))
@@ -51,7 +64,7 @@ fn mnemonic() -> Option<bip39::Mnemonic> {
     Some(mnemonic)
 }
 
-async fn new_session(data_dir: &str) -> Option<Session> {
+async fn new_session(data_dir: &str, two_hop: bool) -> Option<Session> {
     let cancel = CancellationToken::new();
     let session = Session::new(
         SessionConfig {
@@ -63,6 +76,7 @@ async fn new_session(data_dir: &str) -> Option<Session> {
             automatic_topups: None,
             bandwidth_provider: None,
             reuse_registrations: true,
+            two_hop,
         },
         cancel,
     )
@@ -123,7 +137,7 @@ async fn probe_traffic(builder: TunnelBuilder) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn single_hop_bringup_passes_traffic() {
-    let Some(session) = new_session("live-single").await else {
+    let Some(session) = new_session("live-single", false).await else {
         eprintln!("could not run the test without valid session");
         return;
     };
@@ -132,7 +146,7 @@ async fn single_hop_bringup_passes_traffic() {
         .await
         .expect("issue ticketbooks");
     let reg: Registration = session
-        .register_single_hop(&GatewaySpec::Random)
+        .register_single_hop(&spec_from_env("SMOLDVPN_ENTRY"))
         .await
         .expect("single-hop registration");
 
@@ -143,7 +157,7 @@ async fn single_hop_bringup_passes_traffic() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a funded mnemonic + live Nym network (sandbox)"]
 async fn two_hop_bringup_passes_traffic() {
-    let Some(session) = new_session("live-two").await else {
+    let Some(session) = new_session("live-two", true).await else {
         eprintln!("could not run the test without valid session");
         return;
     };
@@ -152,7 +166,10 @@ async fn two_hop_bringup_passes_traffic() {
         .await
         .expect("issue ticketbooks");
     let reg: Registration = session
-        .register_two_hop(&GatewaySpec::Random, &GatewaySpec::Random)
+        .register_two_hop(
+            &spec_from_env("SMOLDVPN_ENTRY"),
+            &spec_from_env("SMOLDVPN_EXIT"),
+        )
         .await
         .expect("two-hop registration");
 

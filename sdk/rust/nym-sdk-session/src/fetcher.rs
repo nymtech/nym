@@ -22,6 +22,7 @@
 //! governed by the existing cancellation-safety + pending-request recovery
 //! guarantees, not by a fetch timeout.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -60,9 +61,35 @@ impl FetcherError for SignerTimeout {
 
 /// Decorator over a [`CredentialFetcher`] bounding each read-only public-data
 /// fetch with a per-call timeout (see module docs for why issuance is exempt).
+///
+/// Cheap to clone: clones share the inner fetcher. That lets a caller hand one
+/// handle to a (non-running) bandwidth controller and keep another to
+/// [`cleanup`](CredentialFetcher::cleanup) the fetcher once that controller has
+/// been dropped — the controller exposes no other way to reach its fetcher.
 pub struct TimeoutFetcher<F> {
-    inner: F,
+    inner: Arc<F>,
     per_call: Duration,
+}
+
+impl<F> Clone for TimeoutFetcher<F> {
+    fn clone(&self) -> Self {
+        TimeoutFetcher {
+            inner: Arc::clone(&self.inner),
+            per_call: self.per_call,
+        }
+    }
+}
+
+/// `reset` was called on a [`TimeoutFetcher`] while another clone still shares
+/// its inner fetcher, so the inner fetcher cannot be consumed.
+#[derive(Debug, thiserror::Error)]
+#[error("cannot reset a fetcher that is still shared with another handle")]
+pub struct FetcherStillShared;
+
+impl FetcherError for FetcherStillShared {
+    fn kind(&self) -> FetcherErrorKind {
+        FetcherErrorKind::Other
+    }
 }
 
 impl<F> TimeoutFetcher<F> {
@@ -73,7 +100,10 @@ impl<F> TimeoutFetcher<F> {
 
     /// Wrap `inner` with a custom per-call bound.
     pub fn with_timeout(inner: F, per_call: Duration) -> Self {
-        TimeoutFetcher { inner, per_call }
+        TimeoutFetcher {
+            inner: Arc::new(inner),
+            per_call,
+        }
     }
 
     /// Run `fut` bounded by the per-call timeout, mapping elapse to [`SignerTimeout`].
@@ -146,7 +176,10 @@ impl<F: CredentialFetcher> CredentialFetcher for TimeoutFetcher<F> {
     }
 
     async fn reset(self) -> Result<(), CredentialFetcherError> {
-        self.inner.reset().await
+        match Arc::try_unwrap(self.inner) {
+            Ok(inner) => inner.reset().await,
+            Err(_shared) => Err(FetcherStillShared.into()),
+        }
     }
 }
 

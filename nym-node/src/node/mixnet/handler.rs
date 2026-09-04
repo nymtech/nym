@@ -3,6 +3,7 @@
 
 use crate::node::key_rotation::active_keys::SphinxKeyGuard;
 use crate::node::mixnet::shared::SharedData;
+use crate::node::mixnet::shared::final_hop::FinalHopResult;
 use futures::StreamExt;
 use nym_mixnet_client::metrics::{MixnetMetric, PacketTrace, Traced};
 use nym_noise::connection::Connection;
@@ -267,64 +268,63 @@ impl ConnectionHandler {
             return;
         }
 
-        if network_monitor_packet {
-            warn!(
-                event = "packet.dropped.network_monitor_final_hop",
-                remote_addr = %self.remote_address,
-                "dropping packet: unsupported network monitor final hop packets"
-            );
-            self.shared
-                .dropped_final_hop_packet(self.remote_address.ip());
-            return;
-        }
-
         let client = final_hop_data.destination;
         let message = final_hop_data.message;
         let has_ack = final_hop_data.forward_ack.is_some();
 
-        // if possible attempt to push message directly to the client
-        match self.shared.try_push_message_to_client(client, message) {
-            Err(unsent_plaintext) => {
-                // if that failed, store it on disk
-                Span::current().record("client_online", false);
-                match self
-                    .shared
-                    .store_processed_packet_payload(client, unsent_plaintext)
-                    .await
-                {
-                    Err(err) => error!("Failed to store client data - {err}"),
-                    Ok(true) => {
-                        Span::current().record("disk_fallback", true);
-                        self.shared
-                            .metrics
-                            .mixnet
-                            .egress
-                            .add_disk_persisted_packet();
-                        trace!("Stored packet for {client}")
-                    }
-                    // nothing was stored: the recipient has never registered with this gateway
-                    Ok(false) => {
-                        debug!(
-                            event = "packet.dropped.unknown_recipient",
-                            remote_addr = %self.remote_address,
-                            "dropping packet: {client} has never registered with this gateway, so nothing could ever retrieve it"
-                        );
-                        self.shared
-                            .metrics
-                            .mixnet
-                            .egress
-                            .add_unknown_recipient_dropped_packet();
-                        self.shared
-                            .dropped_final_hop_packet(self.remote_address.ip());
-
-                        // the ack is still forwarded below: withholding it would tell the sender
-                        // whether the recipient is registered with this gateway
-                    }
-                }
-            }
-            Ok(_) => {
+        // if possible push the message directly to the client, otherwise fall back to disk -
+        // unless it came from a monitor, whose packets are never persisted
+        match self
+            .shared
+            .deliver_final_hop(client, message, network_monitor_packet)
+            .await
+        {
+            FinalHopResult::Delivered => {
                 Span::current().record("client_online", true);
+                if network_monitor_packet {
+                    self.shared
+                        .metrics
+                        .mixnet
+                        .egress
+                        .add_monitor_final_hop_packet_delivered();
+                }
                 trace!("Pushed received packet to {client}");
+            }
+            FinalHopResult::Stored => {
+                Span::current().record("client_online", false);
+                Span::current().record("disk_fallback", true);
+                self.shared
+                    .metrics
+                    .mixnet
+                    .egress
+                    .add_disk_persisted_packet();
+                trace!("Stored packet for {client}")
+            }
+            FinalHopResult::StoreFailed(err) => {
+                Span::current().record("client_online", false);
+                error!("Failed to store client data - {err}");
+            }
+            FinalHopResult::DroppedNoSession => {
+                Span::current().record("client_online", false);
+                debug!(
+                    event = "packet.dropped.unknown_recipient",
+                    remote_addr = %self.remote_address,
+                    "dropping packet: no live session for {client}"
+                );
+                if !network_monitor_packet {
+                    self.shared
+                        .metrics
+                        .mixnet
+                        .egress
+                        .add_unknown_recipient_dropped_packet()
+                }
+                self.shared
+                    .metrics
+                    .mixnet
+                    .egress
+                    .add_monitor_final_hop_packet_dropped();
+                self.shared
+                    .dropped_final_hop_packet(self.remote_address.ip());
             }
         }
 

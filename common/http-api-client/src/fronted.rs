@@ -666,18 +666,36 @@ mod tests {
         // println!("{response:?}");
         assert_eq!(response.status(), 200);
     }
+}
 
-    // sends real requests and relies on host rotation not being suppressed, which depends on
-    // the process-wide SHARED_NETWORK_RECONFIGURATION marker - must not run concurrently with
-    // tests that mutate it.
+#[cfg(test)]
+mod mocked_tests {
+    use super::*;
+    use crate::{ApiClientCore, HickoryDnsResolver, NO_PARAMS, Url};
+    use hickory_resolver::{
+        net::{DnsError, NetError, NoRecords},
+        proto::{
+            op::{Query, ResponseCode},
+            rr::{Name as HickoryName, RecordType},
+        },
+    };
+    use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+    use std::{
+        net::{IpAddr, SocketAddr},
+        str::FromStr,
+    };
+
     #[tokio::test]
-    #[serial]
     async fn fallback_on_failure() {
+        // `fake-front-1`/`fake-front-2` are pinned to deterministic DNS failures via
+        // `MockResolver` below (one NXDOMAIN, one SERVFAIL - exercising both branches of
+        // `might_be_network_interference`'s DNS classification) rather than relying on any live
+        // DNS infrastructure to keep answering consistently for hostnames that don't exist.
         let url1 = Url::new(
-            "https://fake-domain.nymtech.net",
+            "https://fake-domain.invalid",
             Some(vec![
-                "https://fake-front-1.nymtech.net",
-                "https://fake-front-2.nymtech.net",
+                "https://fake-front-1.invalid",
+                "https://fake-front-2.invalid",
             ]),
         )
         .unwrap();
@@ -687,20 +705,25 @@ mod tests {
         )
         .unwrap(); // fastly
 
+        let mock_resolver = MockResolver::new()
+            .with_nxdomain("fake-front-1.invalid")
+            .with_servfail("fake-front-2.invalid");
+
         let client = ClientBuilder::new_with_urls(vec![url1, url2])
             .expect("bad url")
             .with_fronting(Some(FrontPolicy::Always))
+            .dns_resolver(std::sync::Arc::new(mock_resolver))
             .build()
             .expect("failed to build client");
 
         // Check that the initial configuration has the broken domain and front.
         assert_eq!(
             client.current_url().as_str(),
-            "https://fake-domain.nymtech.net/",
+            "https://fake-domain.invalid/",
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-1.nymtech.net"),
+            Some("fake-front-1.invalid"),
         );
 
         let result = client
@@ -716,11 +739,11 @@ mod tests {
         // Check that the host configuration updated the front on error.
         assert_eq!(
             client.current_url().as_str(),
-            "https://fake-domain.nymtech.net/",
+            "https://fake-domain.invalid/",
         );
         assert_eq!(
             client.current_url().front_str(),
-            Some("fake-front-2.nymtech.net"),
+            Some("fake-front-2.invalid"),
         );
 
         let result = client
@@ -742,17 +765,99 @@ mod tests {
             client.current_url().front_str(),
             Some("yelp.global.ssl.fastly.net"),
         );
+    }
 
-        let response = client
-            .send_request::<_, (), &str, &str>(
-                reqwest::Method::GET,
-                &["api", "v1", "network", "details"],
-                NO_PARAMS,
-                None,
-            )
-            .await
-            .expect("failed get request");
+    /// Deterministic outcome a [`MockResolver`] returns for one hostname.
+    #[derive(Clone)]
+    enum MockOutcome {
+        /// Resolve to these addresses, as if the lookup succeeded.
+        #[allow(dead_code)]
+        Addrs(Vec<IpAddr>),
+        /// Fail as a clean NXDOMAIN (the domain does not exist).
+        NxDomain,
+        /// Fail as a SERVFAIL (the server could not process the query).
+        ServFail,
+    }
 
-        assert_eq!(response.status(), 200);
+    /// A [`Resolve`] implementation for tests that need a specific, deterministic DNS outcome
+    /// for one or more hostnames without depending on any live DNS infrastructure for them.
+    ///
+    /// Any hostname not explicitly configured falls through to a real (independent, non-shared)
+    /// resolver, so a test can mock only the hosts it cares about (e.g. hosts standing in for a
+    /// network failure) while still reaching the network for the rest (e.g. a host the test
+    /// expects to actually succeed against).
+    struct MockResolver {
+        outcomes: HashMap<String, MockOutcome>,
+        fallback: HickoryDnsResolver,
+    }
+
+    impl MockResolver {
+        fn new() -> Self {
+            Self {
+                outcomes: HashMap::new(),
+                fallback: HickoryDnsResolver::thread_resolver(),
+            }
+        }
+
+        fn with_nxdomain(mut self, host: &str) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::NxDomain);
+            self
+        }
+
+        fn with_servfail(mut self, host: &str) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::ServFail);
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_addrs(mut self, host: &str, addrs: Vec<IpAddr>) -> Self {
+            self.outcomes
+                .insert(host.to_string(), MockOutcome::Addrs(addrs));
+            self
+        }
+    }
+
+    /// Wraps a [`NetError`] the same way the real resolver does (see `dns::ResolveError`), so it
+    /// reaches [`crate::might_be_network_interference`] in exactly the shape a genuine DNS
+    /// failure takes: a `crate::ResolveError::ResolveError(NetError)`, one `.source()` hop below
+    /// the `reqwest::Error` the client actually sees.
+    fn mock_dns_error(net_err: NetError) -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(crate::ResolveError::ResolveError(net_err))
+    }
+
+    impl Resolve for MockResolver {
+        fn resolve(&self, name: Name) -> Resolving {
+            let host = name.as_str().to_string();
+            match self.outcomes.get(&host) {
+                Some(MockOutcome::Addrs(addrs)) => {
+                    let addrs = addrs.clone();
+                    Box::pin(async move {
+                        let addrs: Addrs =
+                            Box::new(addrs.into_iter().map(|ip| SocketAddr::new(ip, 0)));
+                        Ok(addrs)
+                    })
+                }
+                Some(MockOutcome::NxDomain) => {
+                    // the exact query contents don't matter to `NetError::is_nx_domain()`, only
+                    // the response code does, but a real `Query` is required to build one.
+                    let query = HickoryName::from_str(&host)
+                        .map(|name| Query::query(name, RecordType::A))
+                        .unwrap_or_default();
+                    let err = mock_dns_error(NetError::Dns(DnsError::NoRecordsFound(
+                        NoRecords::new(Box::new(query), ResponseCode::NXDomain),
+                    )));
+                    Box::pin(async move { Err(err) })
+                }
+                Some(MockOutcome::ServFail) => {
+                    let err = mock_dns_error(NetError::Dns(DnsError::ResponseCode(
+                        ResponseCode::ServFail,
+                    )));
+                    Box::pin(async move { Err(err) })
+                }
+                None => self.fallback.resolve(name),
+            }
+        }
     }
 }

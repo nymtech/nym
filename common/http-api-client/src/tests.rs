@@ -544,3 +544,154 @@ fn rate_limit_detection_ignores_unrelated_responses() {
     // a normal successful response is never a rate limit
     assert!(!is_rate_limit_response(StatusCode::OK, &HeaderMap::new()));
 }
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn as_str_reports_front_after_fronting_disabled() {
+    use crate::fronted::{FrontPolicy, FrontingConfig};
+
+    let url = Url::new("https://a.test", Some(vec!["https://f0.test"])).unwrap();
+    let mut client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(FrontPolicy::ConfiguredRetry(
+            FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true),
+        )))
+        .build()
+        .unwrap();
+
+    client.front.retry_enable(Some("a.test"));
+    assert!(client.front.is_enabled());
+
+    // rotate until the host advances off its direct turn and onto a front (rotation_slot != 0)
+    client.update_host(None);
+    client.update_host(None);
+    assert_eq!(client.current_url().as_str(), "https://f0.test/");
+
+    // now turn fronting off - a plain public API call, no race required
+    client.set_front_policy(FrontPolicy::Off);
+    assert!(!client.front.is_enabled());
+
+    // the request correctly goes out direct, unfronted...
+    let mut req = reqwest::Request::new(reqwest::Method::GET, client.current_url().clone().into());
+    let (domain, front_used) = client.apply_hosts_to_req(&mut req);
+    assert_eq!(req.url().host_str(), Some("a.test"));
+    assert_eq!(domain, Some("a.test"));
+    assert_eq!(front_used, None);
+
+    // ...but as_str() still claims we are talking to the CDN.
+    assert_eq!(
+        client.current_url().as_str(),
+        "https://a.test/",
+        "as_str() reports the front while requests go out direct"
+    );
+}
+
+#[cfg(feature = "tunneling")]
+fn rotating_client(fronts: Vec<&str>) -> Client {
+    use crate::fronted::{FrontPolicy, FrontingConfig};
+    let url = Url::new("https://a.test", Some(fronts)).unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(FrontPolicy::ConfiguredRetry(
+            FrontingConfig::new(1, 1).with_include_non_fronted_in_rotation(true),
+        )))
+        .build()
+        .unwrap();
+    client.front.retry_enable(Some("a.test"));
+    assert!(client.front.is_enabled());
+    client
+}
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn front_str_tracks_the_front_actually_used() {
+    let client = rotating_client(vec!["https://f0.test", "https://f1.test"]);
+
+    // advance onto the SECOND front
+    for _ in 0..3 {
+        client.update_host(None);
+    }
+
+    let url = client.current_url();
+    let mut req = reqwest::Request::new(reqwest::Method::GET, url.clone().into());
+    let (_domain, front_used) = client.apply_hosts_to_req(&mut req);
+
+    assert_eq!(front_used, Some("f1.test"), "sanity: request goes via f1");
+    assert_eq!(
+        url.front_str(),
+        front_used,
+        "front_str() disagrees with the front on the wire; Display says {url}"
+    );
+}
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn rotation_visits_each_slot_once_per_lap() {
+    let client = rotating_client(vec!["https://f0.test", "https://f1.test"]);
+
+    let mut seq = Vec::new();
+    for _ in 0..6 {
+        seq.push(client.current_url().as_str().to_string());
+        client.update_host(None);
+    }
+
+    assert_eq!(
+        seq,
+        vec![
+            "https://a.test/",
+            "https://f0.test/",
+            "https://f1.test/",
+            "https://a.test/",
+            "https://f0.test/",
+            "https://f1.test/",
+        ],
+    );
+}
+
+#[test]
+#[cfg(feature = "tunneling")]
+fn unsatisfiable_num_domains_failed_is_reported() {
+    use crate::fronted::{FrontPolicy, FrontingConfig};
+
+    // one base url, but the policy demands two distinct domains fail
+    let url = Url::new("https://a.test", Some(vec!["https://f0.test"])).unwrap();
+    let client = ClientBuilder::new(url)
+        .unwrap()
+        .with_fronting(Some(FrontPolicy::ConfiguredRetry(FrontingConfig::new(
+            1, 2,
+        ))))
+        .build()
+        .unwrap();
+
+    for _ in 0..100 {
+        client.front.retry_enable(Some("a.test"));
+    }
+
+    assert!(
+        client.front.is_enabled(),
+        "fronting can never engage: only 1 base url but num_domains_failed = 2"
+    );
+}
+
+#[test]
+fn caller_supplied_host_header_is_preserved() {
+    let url = Url::new("https://a.test", None).unwrap();
+    let client = ClientBuilder::new(url).unwrap().build().unwrap();
+
+    let mut req = client
+        .create_request(reqwest::Method::GET, &["x"], NO_PARAMS, None::<&()>)
+        .unwrap()
+        .header(reqwest::header::HOST, "caller-supplied.test")
+        .build()
+        .unwrap();
+
+    client.apply_hosts_to_req(&mut req);
+
+    assert_eq!(
+        req.headers()
+            .get(reqwest::header::HOST)
+            .map(|v| v.to_str().unwrap()),
+        Some("caller-supplied.test"),
+        "caller's Host header was silently dropped",
+    );
+}

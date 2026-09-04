@@ -5,10 +5,11 @@ use nym_api_requests::models::described::v1::DescribedNodeTypeV1;
 use nym_api_requests::models::{
     AnnotationResponseV1, AnnotationResponseV2, ConfigScoreV1, ConfigScoreV2,
     DetailedNodePerformanceV1, DetailedNodePerformanceV2, DisplayRole, GatewayCoreStatusResponse,
-    HistoricalPerformanceResponse, HistoricalUptimeResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1, NodeAnnotationV2,
-    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse, RoutingScore,
-    StakeSaturationResponse, StressTestingScore, UptimeHistoryResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, LivenessScore,
+    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotationV1,
+    NodeAnnotationV2, NodeDatePerformanceResponse, NodePerformanceResponse,
+    PerformanceHistoryResponse, RoutingScore, StakeSaturationResponse, StressTestingScore,
+    UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
@@ -193,6 +194,7 @@ fn main() -> anyhow::Result<()> {
     do_export!(ConfigScoreV1);
     do_export!(ConfigScoreV2);
     do_export!(StressTestingScore);
+    do_export!(LivenessScore);
     do_export!(NodePerformanceResponse);
     do_export!(NodeDatePerformanceResponse);
     do_export!(PerformanceHistoryResponse);

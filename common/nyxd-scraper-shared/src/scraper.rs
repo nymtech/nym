@@ -119,6 +119,22 @@ where
         Ok(scraper)
     }
 
+    pub async fn build_unsafe(self) -> Result<NyxdScraper<S>, ScraperError> {
+        self.config.pruning_options.validate()?;
+        let storage =
+            S::initialise(&self.config.database_storage, &self.config.run_migrations).await?;
+        let rpc_client = RpcClient::new(&self.config.rpc_url)?;
+
+        Ok(NyxdScraper {
+            config: self.config,
+            task_tracker: TaskTracker::new(),
+            cancel_token: CancellationToken::new(),
+            startup_sync: Arc::new(Default::default()),
+            storage,
+            rpc_client,
+        })
+    }
+
     pub fn new(config: Config) -> Self {
         NyxdScraperBuilder {
             _storage: PhantomData,

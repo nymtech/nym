@@ -9,7 +9,7 @@ use crate::{CachedEpochRewardedSet, NymTopology, NymTopologyMetadata};
 use nym_wasm_utils::error::simple_js_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 use tsify::Tsify;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
@@ -86,6 +86,9 @@ pub struct WasmFriendlyRoutingNode {
 
     pub mix_host: SocketAddr,
 
+    /// What the entry address falls back to when the node announces no hostname.
+    pub ip_addresses: Vec<IpAddr>,
+
     pub entry: Option<EntryDetails>,
     pub identity_key: String,
     pub sphinx_key: String,
@@ -100,6 +103,7 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
         Ok(RoutingNode {
             node_id: value.node_id,
             mix_host: value.mix_host,
+            ip_addresses: value.ip_addresses,
             entry: value.entry,
             identity_key: value.identity_key.as_str().parse().map_err(|_| {
                 SerializableTopologyError::MalformedIdentity {
@@ -124,6 +128,7 @@ impl From<RoutingNode> for WasmFriendlyRoutingNode {
         WasmFriendlyRoutingNode {
             node_id: node.node_id,
             mix_host: node.mix_host,
+            ip_addresses: node.ip_addresses,
             entry: node.entry,
             identity_key: node.identity_key.to_string(),
             sphinx_key: node.sphinx_key.to_string(),

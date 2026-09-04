@@ -12,7 +12,7 @@ use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputM
 use crate::client::key_manager::ClientKeys;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::lp::data::LpDataSetup;
-use crate::client::lp::data::shared::SharedLpDataState;
+use crate::client::lp::data::shared::{LpGatewaySession, SharedLpDataState};
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController, MixTrafficEvent};
 use crate::client::real_messages_control;
@@ -48,6 +48,9 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
+use nym_lp::peer::{DHKeyPair, LpLocalPeer};
+use nym_lp::psq::initiator::HandshakeMode;
+use nym_lp_gateway_client::{LpConnectionDetails, LpGatewayClient, LpMixnetRegistrationClient};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -56,19 +59,23 @@ use nym_statistics_common::clients::ClientStatsSender;
 use nym_statistics_common::generate_client_stats_id;
 use nym_task::ShutdownTracker;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_topology::HardcodedTopologyProvider;
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::{HardcodedTopologyProvider, NodeId, NymRouteProvider};
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::{UserAgent, nyxd::contract_traits::DkgQueryClient};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use rand::thread_rng;
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::net::{Ipv6Addr, SocketAddr};
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use time::OffsetDateTime;
+use tokio::net::{TcpStream, UdpSocket};
 use tokio::sync::mpsc::Sender;
+use tracing::{error, info};
 
 #[cfg(target_arch = "wasm32")]
 #[cfg(debug_assertions)]
@@ -110,6 +117,13 @@ pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
     pub client_request_sender: ClientRequestSender,
+
+    /// Where messages go to travel over LP instead of the gateway websocket, when the client has
+    /// an LP session.
+    ///
+    /// A channel of its own rather than a fork of [`Self::input_sender`], which is
+    /// single-consumer: sharing it would make the two paths exclusive.
+    pub lp_input_sender: Option<InputMessageSender>,
 }
 
 impl ClientInput {
@@ -118,6 +132,17 @@ impl ClientInput {
         message: InputMessage,
     ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
         self.input_sender.send(message).await
+    }
+
+    /// Send over LP, if this client has an LP session.
+    pub async fn send_lp(
+        &self,
+        message: InputMessage,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
+        match &self.lp_input_sender {
+            Some(sender) => sender.send(message).await,
+            None => Err(tokio::sync::mpsc::error::SendError(message)),
+        }
     }
 }
 
@@ -833,22 +858,126 @@ where
         (mix_tx, client_tx)
     }
 
-    #[allow(dead_code)]
-    fn build_lp_data_tasks(
+    /// Our gateway's LP details, and the node id to key its session under.
+    ///
+    /// The counterpart of [`SelectedGateway::from_topology_node`] for the websocket listener: the
+    /// topology says which node, the node says how to reach that listener.
+    ///
+    /// [`SelectedGateway::from_topology_node`]: crate::init::types::SelectedGateway::from_topology_node
+    fn gateway_lp_details(
+        topology: &NymRouteProvider,
+        gateway_identity: NodeIdentity,
+    ) -> Result<(NodeId, LpConnectionDetails), ClientCoreError> {
+        // for now, let's use 'old' behaviour, the same as `SelectedGateway::from_topology_node`
+        let prefer_ipv6 = false;
+
+        let node = topology.egress_by_identity(gateway_identity)?;
+
+        Ok((
+            node.node_id,
+            LpConnectionDetails::for_node(node, prefer_ipv6)?,
+        ))
+    }
+
+    /// Establish an LP session with our gateway: handshake, then register for mixnet use.
+    ///
+    /// Registration is not decoration. It is what binds our [`ClientAddress`] to the session on the
+    /// gateway; without it the gateway holds a session it can decrypt but cannot address, so
+    /// nothing can ever be sent back to us.
+    ///
+    /// Every client tries; failing leaves it on the websocket path rather than stopping it, so
+    /// there is nothing here a caller has to handle - what went wrong is logged where it happened.
+    ///
+    /// [`ClientAddress`]: nym_sphinx_addressing::ClientAddress
+    async fn establish_lp_session(
+        topology_accessor: &TopologyAccessor,
+        gateway_identity: NodeIdentity,
+        identity_keys: &ed25519::KeyPair,
+    ) -> Option<(NodeId, LpGatewaySession)> {
+        // resolved before any await, so the read permit is not held across the handshake
+        let (node_id, details) = {
+            let permit = topology_accessor.get_read_permit().await;
+            Self::gateway_lp_details(&permit, gateway_identity)
+                .inspect_err(|err| error!("cannot reach gateway {gateway_identity} over LP: {err}"))
+                .ok()?
+        };
+
+        info!(
+            "establishing an LP session with gateway {gateway_identity} at {}",
+            details.control_address
+        );
+
+        let lp_keypair = Arc::new(DHKeyPair::new(&mut rand010::rng()));
+        let mut channel = LpGatewayClient::<TcpStream>::new_with_default_config();
+
+        let session = channel
+            .handshake(
+                details.control_address,
+                LpLocalPeer::new(details.ciphersuite, lp_keypair),
+                details.peer.clone(),
+                details.protocol_version,
+                HandshakeMode::OneWayEntry,
+            )
+            .await
+            .inspect_err(|err| error!("LP handshake with gateway {gateway_identity} failed: {err}"))
+            .ok()?;
+
+        let session =
+            LpMixnetRegistrationClient::new(&mut channel, details.control_address, session)
+                .register(*identity_keys.public_key())
+                .await
+                .inspect_err(|err| {
+                    error!("LP registration with gateway {gateway_identity} failed: {err}")
+                })
+                .ok()?;
+
+        // the control connection has done its job; the data plane carries on with the session
+        channel.disconnect(details.control_address);
+        info!("LP session with gateway {gateway_identity} is registered and ready");
+
+        Some((
+            node_id,
+            LpGatewaySession {
+                session,
+                data_address: details.data_address,
+            },
+        ))
+    }
+
+    async fn build_lp_data_tasks(
         config: &Config,
         encryption_keys: Arc<x25519::KeyPair>,
         identity_keys: Arc<ed25519::KeyPair>,
+        gateway_sessions: HashMap<NodeId, LpGatewaySession>,
         input_receiver: InputMessageReceiver,
         shutdown_tracker: &ShutdownTracker,
     ) -> Result<LpDataSetup, ClientCoreError> {
+        // one socket for every gateway, on an ephemeral port: gateways answer to whatever address
+        // a packet came from, so nothing has to know it in advance
+        let data_socket = Arc::new(
+            UdpSocket::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0))
+                .await
+                .map_err(|source| ClientCoreError::LpBindFailure { source })?,
+        );
+        info!("LP data socket bound on {}", data_socket.local_addr()?);
+
+        let gateway_client =
+            LpGatewayClient::new_with_default_config().with_data_socket(data_socket);
+
         let shared_state = SharedLpDataState::new(
             config.debug,
             encryption_keys,
             identity_keys,
+            gateway_sessions,
             shutdown_tracker.clone_shutdown_token(),
         );
 
-        LpDataSetup::new(shared_state, input_receiver, shutdown_tracker.clone())
+        LpDataSetup::new(
+            shared_state,
+            gateway_client,
+            input_receiver,
+            shutdown_tracker.clone(),
+        )
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -1016,6 +1145,10 @@ where
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
+        // the LP funnel's own input, parallel to the one above rather than a fork of it: the
+        // receiver is single-consumer, so sharing would make the two paths exclusive
+        let (lp_input_sender, lp_input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
+
         // channels responsible for event management
         let (event_sender, event_receiver) = mpsc::unbounded();
 
@@ -1085,17 +1218,28 @@ where
         )
         .await?;
 
-        // SW keep all the above
+        // LP control plane, then the data plane it feeds. Runs after the topology refresher
+        // because that is where the gateway's LP details come from.
+        let lp_session = Self::establish_lp_session(
+            &shared_topology_accessor,
+            self_address.gateway(),
+            &identity_keys,
+        )
+        .await;
 
-        // LP Data channel
-        // let lp_data_tasks = Self::build_lp_data_tasks(
-        //     &self.config,
-        //     encryption_keys.clone(),
-        //     identity_keys.clone(),
-        //     input_receiver,
-        //     &shutdown_tracker.clone(),
-        // )?;
-        // lp_data_tasks.start_tasks();
+        let lp_input_sender = lp_session.is_some().then(|| lp_input_sender.clone());
+        if let Some((gateway_id, session)) = lp_session {
+            let lp_data_tasks = Self::build_lp_data_tasks(
+                &self.config,
+                encryption_keys.clone(),
+                identity_keys.clone(),
+                HashMap::from([(gateway_id, session)]),
+                lp_input_receiver,
+                &shutdown_tracker.clone(),
+            )
+            .await?;
+            lp_data_tasks.start_tasks();
+        }
 
         // SW Piping between inbound and outbound
         let gateway_packet_router = PacketRouter::new(
@@ -1216,6 +1360,7 @@ where
                     connection_command_sender: client_connection_tx,
                     input_sender,
                     client_request_sender,
+                    lp_input_sender,
                 },
             },
             client_output: ClientOutputStatus::AwaitingConsumer {

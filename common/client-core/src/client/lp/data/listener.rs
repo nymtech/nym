@@ -1,27 +1,28 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::lp::data::MAX_UDP_PACKET_SIZE;
-use crate::client::lp::data::shared::SharedLpDataState;
 use crate::error::ClientCoreError;
-use nym_lp::transport::LpDatagramChannel;
 use nym_lp_data::packet::EncryptedLpPacket;
+use nym_lp_gateway_client::LpGatewayClient;
 use std::net::SocketAddr;
-use std::sync::{Arc, mpsc, mpsc::TrySendError};
-use tokio::net::UdpSocket;
+use std::sync::{mpsc, mpsc::TrySendError};
+use tracing::info;
 use tracing::log::warn;
-use tracing::{error, info};
 
-/// LP UDP listener that accepts TCP connections on port 51264 (by default)
+/// All of the LP data plane's socket I/O, and nothing else.
+///
+/// Keeping the writes here rather than in the handler is what lets the handler's release-time drain
+/// stay non-blocking: it ticks every millisecond and hands packets over a channel instead of
+/// waiting on the network.
 pub(crate) struct LpDataListener {
-    /// Shared state
-    shared_state: Arc<SharedLpDataState>,
+    /// Owns the data socket, and knows how to send an already-encrypted packet somewhere.
+    gateway_client: LpGatewayClient,
 
     /// Channel to send incoming data to the processing pipeline
     inbound_input_tx: mpsc::SyncSender<EncryptedLpPacket>,
 
     // This has to be a tokio channel, to be async and bounded
-    /// Channel to receive outgoing data from the processling pipeline
+    /// Channel to receive outgoing data from the processing pipeline
     outbound_output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
 
     /// Shutdown token
@@ -30,13 +31,13 @@ pub(crate) struct LpDataListener {
 
 impl LpDataListener {
     pub fn new(
-        shared_state: Arc<SharedLpDataState>,
+        gateway_client: LpGatewayClient,
         inbound_input_tx: mpsc::SyncSender<EncryptedLpPacket>,
         outbound_output_rx: tokio::sync::mpsc::Receiver<(EncryptedLpPacket, SocketAddr)>,
         shutdown: nym_task::ShutdownToken,
     ) -> Self {
         Self {
-            shared_state,
+            gateway_client,
             inbound_input_tx,
             outbound_output_rx,
             shutdown,
@@ -44,13 +45,7 @@ impl LpDataListener {
     }
 
     pub async fn run(&mut self) -> Result<(), ClientCoreError> {
-        let socket = UdpSocket::bind("[::]:0").await.map_err(|source| {
-            error!("Failed to bind LP data socket: {source}");
-            ClientCoreError::LpBindFailure { source }
-        })?;
-        info!("Started LP data socket on {}", socket.local_addr()?);
-
-        let mut buf = vec![0u8; MAX_UDP_PACKET_SIZE];
+        info!("Started the LP data listener");
 
         loop {
             tokio::select! {
@@ -62,8 +57,8 @@ impl LpDataListener {
 
                 result = self.outbound_output_rx.recv() => {
                     match result {
-                        Some((payload, dst_addr)) => {
-                            if let Err(e) = socket.send_packet_to(&payload, dst_addr).await {
+                        Some((packet, dst_addr)) => {
+                            if let Err(e) = self.gateway_client.send(&packet, dst_addr).await {
                                 warn!("LP data packet error to {dst_addr}: {e}");
                             }
                         }
@@ -74,13 +69,13 @@ impl LpDataListener {
                     }
                 }
 
-                result = socket.receive_packet_into(&mut buf) => {
+                result = self.gateway_client.recv() => {
                     match result {
-                        Ok((encrypted_packet, src_addr)) => {
-                            info!("received a packet from {src_addr} on the LP Data socket");
-                            if let Err(e) = self.inbound_input_tx.try_send(encrypted_packet) {
+                        Ok((packet, src_addr)) => {
+                            info!("received a packet from {src_addr} on the LP data socket");
+                            if let Err(e) = self.inbound_input_tx.try_send(packet) {
                                 match e {
-                                   TrySendError::Full(_) =>  {
+                                    TrySendError::Full(_) => {
                                         warn!("LP data listener: packet sending buffer is full, the client might be overloaded");
                                     },
                                     TrySendError::Disconnected(_) => {
@@ -98,7 +93,7 @@ impl LpDataListener {
             }
         }
 
-        info!("LP data handler shutdown complete");
+        info!("LP data listener shutdown complete");
         Ok(())
     }
 }

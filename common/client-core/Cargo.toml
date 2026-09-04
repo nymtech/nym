@@ -67,6 +67,8 @@ nym-lp-data = { workspace = true }
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies]
 nym-mixnet-client = { workspace = true }
 nym-lp = { workspace = true }
+nym-lp-gateway-client = { workspace = true }
+rand010 = { workspace = true }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]

@@ -118,18 +118,19 @@ impl NymIprBridge {
     /// Every future raced here is cancel-safe. In particular
     /// `IpMixStream::handle_incoming()` has a single await point (a channel
     /// receive) and mutates no state before it resolves, so losing the race
-    /// to another arm cannot drop a buffered packet. A cancelled pacing
-    /// sleep restarts at full length next iteration, which only ever waits
-    /// longer than intended.
+    /// to another arm cannot drop a buffered packet. The pacing delay uses an
+    /// absolute deadline, so a cancelled sleep waits to the same instant next
+    /// iteration. It does not restart.
     async fn event_loop(&mut self) -> Result<(), SmolmixError> {
         let mut packets_sent: u64 = 0;
         let mut packets_received: u64 = 0;
-        // Set after a transient receive error. The delay lives inside the
-        // receive arm's own future, so it paces only the receive path:
-        // outgoing packets and shutdown stay responsive in their arms
-        // while an instantly-returning error is prevented from spinning
-        // the loop.
-        let mut pace_next_receive = false;
+        // A deadline set after a transient receive error. The delay is inside
+        // the receive arm's own future, so it paces only the receive path:
+        // outgoing packets and shutdown stay responsive in their arms while an
+        // instantly-returning error cannot spin the loop. The deadline is
+        // absolute, so outgoing traffic that cancels the sleep cannot push the
+        // retry past RECEIVE_RETRY_DELAY.
+        let mut retry_at: Option<tokio::time::Instant> = None;
 
         loop {
             tokio::select! {
@@ -155,12 +156,12 @@ impl NymIprBridge {
                 }
 
                 result = async {
-                    if pace_next_receive {
-                        tokio::time::sleep(RECEIVE_RETRY_DELAY).await;
+                    if let Some(at) = retry_at {
+                        tokio::time::sleep_until(at).await;
                     }
                     self.stream.handle_incoming().await
                 } => {
-                    pace_next_receive = false;
+                    retry_at = None;
                     match result {
                         Ok(packets) if !packets.is_empty() => {
                             trace!(count = packets.len(), "Received packets from mixnet");
@@ -182,7 +183,7 @@ impl NymIprBridge {
                         }
                         Err(e) => {
                             warn!("Mixnet receive error: {e}");
-                            pace_next_receive = true;
+                            retry_at = Some(tokio::time::Instant::now() + RECEIVE_RETRY_DELAY);
                         }
                     }
                 }

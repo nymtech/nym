@@ -98,6 +98,16 @@ const DEFAULT_CHAIN_INTERACTIONS_PENALTY: f64 = 0.2;
 // makes a single lossy run distinguishable from a persistently broken node
 const DEFAULT_LIVENESS_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
+const DEFAULT_MIN_LIVENESS_TESTED_NODES: f32 = 0.5;
+
+// Liveness ships INERT: recorded, aggregated and queryable, but contributing nothing to any node's
+// performance or reward until an operator deliberately weights it. Two populations will score zero
+// for reasons unrelated to their forwarding - nodes that have not ingested their agents' on-chain
+// authorisations, and gateways not yet carrying the monitor-session behaviour - so a non-zero
+// default would penalise them for a rollout that is still in progress. The divergence gauge is
+// what turns raising this into a measurement rather than a guess.
+const DEFAULT_LIVENESS_SCORE_WEIGHT: f64 = 0.0;
+
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -221,6 +231,29 @@ impl Config {
             bail!(
                 "[performance_provider.debug].use_stress_testing_data cannot be enabled while \
                  [performance_provider].use_performance_contract_data is also enabled"
+            )
+        }
+
+        if self.performance_provider.debug.use_liveness_data
+            && self.performance_provider.use_performance_contract_data
+        {
+            bail!(
+                "[performance_provider.debug].use_liveness_data cannot be enabled while \
+                 [performance_provider].use_performance_contract_data is also enabled"
+            )
+        }
+
+        // the components share one budget with routing x config, which takes whatever weight is
+        // left over. Oversubscribing it drives that remainder negative, so a node would be
+        // PENALISED for routing well - checked unconditionally because such a config is wrong
+        // whether or not the flags that would apply it happen to be on right now.
+        let applied_weight = self.performance_provider.debug.stress_testing_score_weight
+            + self.performance_provider.debug.liveness_score_weight;
+        if applied_weight > 1.0 {
+            bail!(
+                "[performance_provider.debug] stress_testing_score_weight + \
+                 liveness_score_weight must not exceed 1.0, got {applied_weight}: the remainder \
+                 is the weight of routing x config, which cannot be negative"
             )
         }
 
@@ -563,6 +596,24 @@ pub struct PerformanceProviderDebug {
     /// own cadences, so one window length need not suit both.
     #[serde(with = "humantime_serde")]
     pub liveness_data_period: Duration,
+
+    /// Specify whether external liveness data should be used for calculating node performance
+    /// score used for rewarding and active set selection
+    /// note: this can only be enabled if use_performance_contract_data is set to false!
+    /// note: the liveness score is recorded and served on each node's annotation regardless of
+    /// this flag; the flag only controls whether it is folded into the performance score.
+    pub use_liveness_data: bool,
+
+    /// If `use_liveness_data` is set to true, this specifies the minimum % of liveness-eligible
+    /// nodes that must have their liveness data available in the `liveness_data_period`,
+    /// in order to include that metric in performance calculation.
+    /// This is done to protect against Network Monitor failures and not receiving any data.
+    pub minimum_available_liveness_results: f32,
+
+    /// If use_liveness_data is enabled, specifies the weight of the liveness score in the overall
+    /// performance score. Defaults to ZERO, so enabling the flag above changes nothing measurable
+    /// until this is also raised - see the constant's comment for why liveness ships inert.
+    pub liveness_score_weight: f64,
 }
 
 impl PerformanceProviderDebug {
@@ -598,6 +649,10 @@ impl Default for PerformanceProviderDebug {
             chain_interactions_penalty: DEFAULT_CHAIN_INTERACTIONS_PENALTY,
             stress_testing_data_period: DEFAULT_MIN_STRESS_TESTING_DATA_INTERVAL,
             liveness_data_period: DEFAULT_LIVENESS_DATA_INTERVAL,
+
+            use_liveness_data: false,
+            minimum_available_liveness_results: DEFAULT_MIN_LIVENESS_TESTED_NODES,
+            liveness_score_weight: DEFAULT_LIVENESS_SCORE_WEIGHT,
         }
     }
 }

@@ -146,15 +146,23 @@ async fn main() {
     println!("Client address: {}", client.nym_address());
 
     // Open a stream to the server.
-    // The second argument (None) uses the default number of reply SURBs.
+    // The second argument is the reply SURB count; None uses the default.
+    // The server acknowledges the stream over these SURBs, so at least one
+    // is required. With zero, the acknowledgement has no way back.
     let mut stream = client.open_stream(server_addr, None).await.unwrap();
     println!("Stream opened: {}", stream.id());
 
-    // Give the Open message time to traverse the mixnet and reach the server.
-    // open_stream() returns immediately after sending; it doesn't wait for
-    // the server to accept. Writing too soon risks the data arriving before
-    // the Open, which the server would drop.
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    // Wait for the server to acknowledge before writing. open_stream() returns
+    // as soon as the Open is sent; it does not wait for the server to accept.
+    // wait_established resolves when the acknowledgement arrives, or when the
+    // server's first data does, so we avoid writing before the server is ready.
+    //
+    // A timeout leaves the peer's state unknown: an older SDK without
+    // acknowledgement support, no reply SURBs, or an absent server all look the
+    // same. The stream stays usable either way, so proceed after logging.
+    if let Err(e) = stream.wait_established(Duration::from_secs(30)).await {
+        println!("Establishment not confirmed: {e}; proceeding anyway");
+    }
 
     // Send three payloads of different sizes and verify the echo.
     // Random bytes show that streams are binary-safe, not just text.
@@ -186,6 +194,10 @@ async fn main() {
     println!("Done!");
 }
 ```
+
+<Callout type="info">
+`wait_established(timeout)` confirms the server accepted the stream. The acknowledgement returns over reply SURBs, so `open_stream` needs at least one; the `None` default provides them. Pass zero reply SURBs and the call always times out even though the stream still works, so read a timeout as "peer state unknown", not "stream failed".
+</Callout>
 
 ## Step 4: Run it
 
@@ -254,6 +266,7 @@ See the [Architecture](./architecture) page for the full technical details.
 - `client.listener()` activates stream mode and returns a `MixnetListener`
 - `listener.accept()` blocks until a remote peer opens a stream
 - `client.open_stream(recipient, surbs)` opens an outbound stream to a Nym address
+- `stream.wait_established(timeout)` confirms the server accepted the stream; it needs at least one reply SURB, and a timeout means the peer's state is unknown, not that the stream failed
 - `MixnetStream` implements `AsyncRead + AsyncWrite`, so standard tokio I/O works unchanged
 - Multiple streams are multiplexed over a single client
 - Streams deregister on `drop`; no close handshake is needed
@@ -339,11 +352,15 @@ async fn main() {
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     println!("Client address: {}", client.nym_address());
 
+    // None uses the default reply SURB count; the server needs at least one
+    // to acknowledge the stream (see Step 3).
     let mut stream = client.open_stream(server_addr, None).await.unwrap();
     println!("Stream opened: {}", stream.id());
 
-    // Wait for the Open message to reach the server through the mixnet
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    // Wait for the server to acknowledge before writing (see Step 3).
+    if let Err(e) = stream.wait_established(Duration::from_secs(30)).await {
+        println!("Establishment not confirmed: {e}; proceeding anyway");
+    }
 
     let sizes = [320, 25_000, 1280];
 

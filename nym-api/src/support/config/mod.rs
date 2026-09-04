@@ -100,13 +100,17 @@ const DEFAULT_LIVENESS_DATA_INTERVAL: Duration = Duration::from_secs(24 * 60 * 6
 
 const DEFAULT_MIN_LIVENESS_TESTED_NODES: f32 = 0.5;
 
-// Liveness ships INERT: recorded, aggregated and queryable, but contributing nothing to any node's
-// performance or reward until an operator deliberately weights it. Two populations will score zero
-// for reasons unrelated to their forwarding - nodes that have not ingested their agents' on-chain
-// authorisations, and gateways not yet carrying the monitor-session behaviour - so a non-zero
-// default would penalise them for a rollout that is still in progress. The divergence gauge is
-// what turns raising this into a measurement rather than a guess.
-const DEFAULT_LIVENESS_SCORE_WEIGHT: f64 = 0.0;
+// Matches the stress weight. Liveness is kept INERT by `use_liveness_data` defaulting to false,
+// NOT by this being zero: a zero weight was a second gate on the same thing, and its only visible
+// effect was an "enabled but does nothing" state that read as a broken feature. So this carries
+// the weight liveness should have WHEN switched on, making that a single flip.
+//
+// Which means the flip is immediate and wants the divergence surface consulted BEFORE it, not
+// after. Two populations score zero on liveness for reasons unrelated to their forwarding - nodes
+// that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the
+// monitor-session behaviour - and enabling while either is still large penalises them for a
+// rollout in progress.
+const DEFAULT_LIVENESS_SCORE_WEIGHT: f64 = 0.2;
 
 /// Derive default path to nym-api's config directory.
 /// It should get resolved to `$HOME/.nym/nym-api/<id>/config`
@@ -611,8 +615,10 @@ pub struct PerformanceProviderDebug {
     pub minimum_available_liveness_results: f32,
 
     /// If use_liveness_data is enabled, specifies the weight of the liveness score in the overall
-    /// performance score. Defaults to ZERO, so enabling the flag above changes nothing measurable
-    /// until this is also raised - see the constant's comment for why liveness ships inert.
+    /// performance score. Non-zero by default, so `use_liveness_data` alone switches liveness on
+    /// with effect; that flag, not this value, is what keeps liveness inert until you choose.
+    /// Together with `stress_testing_score_weight` this must not exceed 1.0, the remainder being
+    /// the weight of routing x config.
     pub liveness_score_weight: f64,
 }
 

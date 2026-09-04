@@ -79,6 +79,7 @@ pub struct GatewayCoreStatusResponse {
 /// stress testing results to nym-api via signed batches.
 pub mod v3 {
     use super::*;
+    use crate::models::OffsetDateTimeJsonSchemaWrapper;
     use crate::signable::SignedMessage;
     use std::time::Duration;
     use time::OffsetDateTime;
@@ -270,6 +271,62 @@ pub mod v3 {
         pub fn is_stale(&self, max_age: Duration) -> bool {
             self.timestamp + max_age < OffsetDateTime::now_utc()
         }
+    }
+
+    /// Which role or roles a node declares, so a divergence row can be read against the probe
+    /// that produced it. The two liveness probes share no machinery, and a mixnode's divergence
+    /// has nothing in common with a gateway's.
+    ///
+    /// `Both` labels the NODE, not the measurement: a dual-role node's stored liveness score
+    /// already averages its mixnode and gateway runs together, so its divergence cannot be
+    /// attributed to one path or the other.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum DivergenceNodeRole {
+        Mixnode,
+        Gateway,
+        Both,
+    }
+
+    /// One node's liveness score set against the v1 monitor's routing score for the same node.
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct NodeLivenessDivergence {
+        #[schema(value_type = u32)]
+        pub node_id: NodeId,
+
+        /// Aggregated v3 liveness score over the configured window, in `[0.0, 1.0]`.
+        pub liveness_score: f64,
+
+        /// The v1 monitor's routing score for the same node, in `[0.0, 1.0]`.
+        pub routing_score: f64,
+
+        /// `liveness_score - routing_score`. NEGATIVE means liveness scores the node WORSE than
+        /// v1 routing does, which is the expected direction while the fleet is mid-upgrade: a node
+        /// that has not ingested its agents' on-chain authorisations, or a gateway not yet
+        /// carrying the monitor-session behaviour, scores zero on liveness for reasons unrelated
+        /// to its forwarding. Reading the sign the other way inverts the whole gauge.
+        pub divergence: f64,
+
+        /// Whether any liveness sample in the window reached the node at all. `false` with a
+        /// `liveness_score` of zero means never measured, which is a different finding from a node
+        /// that answered and delivered nothing.
+        pub was_reachable: bool,
+
+        pub role: DivergenceNodeRole,
+    }
+
+    /// Response body for the liveness divergence gauge.
+    ///
+    /// Every liveness-ELIGIBLE bonded node appears, including those with no sample yet, so that
+    /// coverage is readable off the same response as the comparison: deciding whether to give
+    /// liveness a non-zero weight needs both how much of the fleet has been measured and how the
+    /// measured part compares.
+    #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+    pub struct LivenessDivergenceResponse {
+        /// Oldest of the caches this was assembled from, so the figures' age is visible.
+        pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
+
+        pub nodes: Vec<NodeLivenessDivergence>,
     }
 
     /// Response body for `GET /v3/nym-nodes/stress-testing/known-monitors/{identity_key}`,

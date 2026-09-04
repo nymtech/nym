@@ -116,10 +116,12 @@ use_liveness_data = {{ performance_provider.debug.use_liveness_data }}
 # in order to include that metric in performance calculation.
 minimum_available_liveness_results = {{ performance_provider.debug.minimum_available_liveness_results }}
 
-# Weight of the liveness score in the overall performance score. Surfaced here, unlike the stress
-# weight, because it defaults to ZERO: enabling use_liveness_data alone changes nothing, which
-# looks like a broken feature unless the knob is visible. Liveness is deliberately inert while its
-# divergence from the v1 routing score is measured.
+# Weight of the liveness score in the overall performance score, applied when use_liveness_data is
+# enabled. Together with the stress weight this must not exceed 1.0; the remainder is the weight of
+# routing x config. Enabling liveness therefore takes effect immediately at this weight, so consult
+# the divergence surface (/v3/unstable/nym-nodes/liveness-divergence) before switching it on: nodes
+# that have not yet ingested their agents' authorisations score zero for reasons unrelated to their
+# forwarding.
 liveness_score_weight = {{ performance_provider.debug.liveness_score_weight }}
 
 ##### rewarding config options #####

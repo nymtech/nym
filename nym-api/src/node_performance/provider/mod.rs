@@ -36,6 +36,15 @@ pub(crate) struct NodesStressTestingScores {
 }
 
 impl NodesStressTestingScores {
+    /// No stress data for any node, as distinct from a failure to retrieve it. Used by a provider
+    /// that structurally has none: every node then reads as `unreachable()`, which is inert
+    /// because a provider with no stress data is only ever selected with the component disabled.
+    pub(crate) fn empty() -> Self {
+        NodesStressTestingScores {
+            inner: HashMap::new(),
+        }
+    }
+
     pub(crate) fn get_or_log(&self, node_id: NodeId) -> StressTestingScore {
         match self.inner.get(&node_id) {
             Some(Ok(score)) => *score,
@@ -71,6 +80,14 @@ pub(crate) struct NodesLivenessScores {
 }
 
 impl NodesLivenessScores {
+    /// No liveness data for any node, as distinct from a failure to retrieve it. See
+    /// [`NodesStressTestingScores::empty`].
+    pub(crate) fn empty() -> Self {
+        NodesLivenessScores {
+            inner: HashMap::new(),
+        }
+    }
+
     pub(crate) fn get_or_log(&self, node_id: NodeId) -> LivenessScore {
         match self.inner.get(&node_id) {
             Some(Ok(score)) => *score,
@@ -200,17 +217,19 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
         })
     }
 
+    /// Reports ABSENCE rather than failure, matching [`Self::get_batch_node_routing_scores`].
+    ///
+    /// This provider structurally has no stress data, which is not an error condition: the cache
+    /// refresher fetches every component unconditionally, so returning `Err` here aborted the
+    /// whole refresh before it could write any annotations, leaving them frozen for as long as
+    /// this provider was selected. Empty is also safe, because config validation forbids enabling
+    /// the stress component alongside contract data, so nothing folds these zeroes into a score.
     async fn get_batch_node_stress_testing_scores(
         &self,
         _: &[NodeId],
-        epoch_id: EpochId,
+        _: EpochId,
     ) -> Result<NodesStressTestingScores, PerformanceRetrievalFailure> {
-        error!("stress testing data not available in contract data");
-        Err(PerformanceRetrievalFailure {
-            node_id: 0,
-            epoch_id,
-            error: "stress testing data not available in contract data".to_string(),
-        })
+        Ok(NodesStressTestingScores::empty())
     }
 
     async fn get_node_liveness_score(
@@ -226,17 +245,52 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
         })
     }
 
+    /// Reports absence rather than failure, on the same reasoning as the stress equivalent above.
     async fn get_batch_node_liveness_scores(
         &self,
         _: &[NodeId],
-        epoch_id: EpochId,
+        _: EpochId,
     ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure> {
-        error!("liveness data not available in contract data");
-        Err(PerformanceRetrievalFailure {
-            node_id: 0,
-            epoch_id,
-            error: "liveness data not available in contract data".to_string(),
-        })
+        Ok(NodesLivenessScores::empty())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::caching::cache::SharedCache;
+    use crate::support::config;
+
+    /// The refresher fetches EVERY component unconditionally, so a provider that structurally has
+    /// no data for one of them must report absence rather than failure. When these returned `Err`,
+    /// the `?` in `NodeStatusCacheRefresher::refresh` aborted the whole refresh before it wrote a
+    /// single annotation, and since its caller discards the error the only symptom was a node
+    /// status cache that silently stopped updating for as long as this provider was selected.
+    #[tokio::test]
+    async fn the_contract_provider_reports_absent_stress_and_liveness_rather_than_failing() {
+        let provider = ContractPerformanceProvider::new(
+            &config::PerformanceProvider::default(),
+            SharedCache::new(),
+        );
+        let node_ids = [1, 2, 3];
+
+        let stress = provider
+            .get_batch_node_stress_testing_scores(&node_ids, 0)
+            .await
+            .expect("absent stress data must not fail the refresh");
+        let liveness = provider
+            .get_batch_node_liveness_scores(&node_ids, 0)
+            .await
+            .expect("absent liveness data must not fail the refresh");
+
+        // absent, so every node reads as unreachable - which is inert, because config validation
+        // forbids enabling either component alongside contract data
+        assert_eq!(stress.available_count(), 0);
+        assert_eq!(liveness.available_count(), 0);
+        for node_id in node_ids {
+            assert!(!stress.get_or_log(node_id).was_reachable);
+            assert!(!liveness.get_or_log(node_id).was_reachable);
+        }
     }
 }
 

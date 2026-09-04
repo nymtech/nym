@@ -16,11 +16,12 @@ publish = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 bincode.workspace = true
 bytes.workspace = true
 rand010.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["time"] }
 tracing.workspace = true
 
 nym-lp = { workspace = true }

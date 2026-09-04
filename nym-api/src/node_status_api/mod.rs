@@ -66,16 +66,16 @@ pub(crate) async fn start_cache_refresh(
             .chain_capabilities_refresh_interval,
 
         fallback_caching_interval: config.node_status_api.debug.caching_interval,
-        use_stress_testing_data: config.performance_provider.debug.use_stress_testing_data,
+        scoring: config.performance_provider.scoring,
         minimum_available_stress_testing_results: config
             .performance_provider
             .debug
             .minimum_available_stress_testing_results,
-        stress_testing_score_weight: config
+        chain_interactions_penalty: config.performance_provider.debug.chain_interactions_penalty,
+        minimum_available_liveness_results: config
             .performance_provider
             .debug
-            .stress_testing_score_weight,
-        chain_interactions_penalty: config.performance_provider.debug.chain_interactions_penalty,
+            .minimum_available_liveness_results,
     };
 
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(

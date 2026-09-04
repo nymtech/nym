@@ -136,6 +136,8 @@ cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = { workspace = true }
 dotenvy = { workspace = true }
+# so the rendered config template can be parsed back in a test
+toml = { workspace = true }
 test-with = { workspace = true, default-features = false }
 nym-crypto = { workspace = true, features = ["rand"] }
 nym-directory-attestation = { workspace = true, features = ["mock"] }

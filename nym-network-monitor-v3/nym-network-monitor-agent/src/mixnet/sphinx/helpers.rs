@@ -1,7 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::test_packet::TestPacketHeader;
+use crate::mixnet::sphinx::test_packet::TestPacketHeader;
 use arrayref::array_ref;
 use hkdf::Hkdf;
 use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
@@ -186,7 +186,7 @@ pub(crate) fn as_sphinx_node(address: SocketAddr, pub_key: x25519::PublicKey) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_packet::TestPacketContent;
+    use crate::mixnet::sphinx::test_packet::TestPacketContent;
     use nym_crypto::asymmetric::x25519;
     use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_types::ProcessedPacketData;

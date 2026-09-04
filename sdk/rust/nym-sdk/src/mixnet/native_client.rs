@@ -268,7 +268,7 @@ impl MixnetClient {
     }
 
     /// Gets the value of the currently used network topology.
-    pub fn read_current_route_provider(&self) -> Option<Arc<NymRouteProvider>> {
+    pub fn read_current_route_provider(&self) -> Option<NymRouteProvider> {
         self.client_state.topology_accessor.current_route_provider()
     }
 

@@ -50,6 +50,7 @@ use nym_bin_common::bin_info;
 use nym_config::defaults::NymNetworkDetails;
 use nym_credential_verification::UpgradeModeState;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_gateway::node::ClientRegistry;
 use nym_gateway::node::wireguard::PeerRegistrator;
 use nym_gateway::node::{GatewayTasksBuilder, UpgradeModeCheckRequestSender};
 use nym_kkt::key_utils::{
@@ -294,8 +295,8 @@ impl NymNode {
         &self,
         peer_registrator: Option<PeerRegistrator>,
         network_nodes: LpNodes,
-        client_sessions: ActiveLpSessions,
-        node_sessions: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
     ) -> Result<LpControlSetup, NymNodeError> {
         let lp_peer = LpLocalPeer::new(Ciphersuite::default(), self.x25519_lp_keys.clone())
             .with_kem_keys(self.psq_kem_keys.clone());
@@ -306,8 +307,8 @@ impl NymNode {
             self.metrics.clone(),
             peer_registrator,
             network_nodes,
-            client_sessions,
-            node_sessions,
+            sessions,
+            clients,
             self.shutdown_manager.shutdown_tracker().clone(),
         )
         .await
@@ -318,7 +319,8 @@ impl NymNode {
         cached_network: CachedFullTopology,
         replay_protection_bloomfilter: ReplayProtectionBloomfilters,
         routing_filter: NetworkRoutingFilter,
-        node_sessions: ActiveLpSessions,
+        sessions: ActiveLpSessions,
+        clients: ClientRegistry,
         dialer: LpDialer,
     ) -> Result<LpDataSetup, NymNodeError> {
         let shared_state = lp::data::shared::SharedLpDataState::new(
@@ -326,7 +328,8 @@ impl NymNode {
             self.active_sphinx_keys()?,
             replay_protection_bloomfilter,
             routing_filter,
-            node_sessions,
+            sessions,
+            clients,
             self.metrics.clone(),
             self.shutdown_token(),
         );
@@ -1274,6 +1277,7 @@ impl NymNode {
 
         let lp_peer_registrator = self
             .start_gateway_tasks(
+                node_address,
                 network_refresher.cached_network(),
                 metrics_sender,
                 active_clients_store,
@@ -1287,16 +1291,17 @@ impl NymNode {
             self.config.lp.control_bind_address, self.config.lp.data_bind_address,
         );
 
-        // node-to-node sessions: established by the control plane, consumed by the data plane
-        let node_sessions = ActiveLpSessions::new();
-        let clients_sessions = ActiveLpSessions::new();
+        // sessions are established by the control plane and consumed by the data plane; the
+        // registry is written by the data plane and swept by the control plane's cleanup task
+        let sessions = ActiveLpSessions::new();
+        let clients = ClientRegistry::default();
 
         let lp_control_tasks = self
             .build_lp_control_tasks(
                 lp_peer_registrator,
                 network_refresher.lp_nodes(),
-                clients_sessions,
-                node_sessions.clone(),
+                sessions.clone(),
+                clients.clone(),
             )
             .await?;
 
@@ -1308,7 +1313,8 @@ impl NymNode {
             network_refresher.full_topology(),
             bloomfilters_manager.bloomfilters(),
             network_refresher.routing_filter(),
-            node_sessions,
+            sessions,
+            clients,
             dialer,
         )?;
         lp_data_tasks.start_tasks();

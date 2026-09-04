@@ -61,7 +61,7 @@ impl<R: Rng> NymNodeDataPipeline<R> {
 }
 
 // Processing logic
-impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for NymNodeDataPipeline<R> {
+impl<R: Rng> NymNodeProcessingPipeline<LpFrame, NymNodeRoutingAddress> for NymNodeDataPipeline<R> {
     type Options = NymNodeMessage;
     type MessageKind = NymNodeMessage;
 
@@ -75,7 +75,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for NymNodeDataPipeline<R> {
         message_kind: NymNodeMessage,
         payload: TimedPayload,
         _: Instant,
-    ) -> Vec<PipelinePayload<NymNodeMessage>> {
+    ) -> Vec<PipelinePayload<NymNodeMessage, NymNodeRoutingAddress>> {
         // Everything specific to a given packet type should happen here
         let processing_result = match message_kind {
             NymNodeMessage::Mix(msg) => Self::process_mix_packet(&self.state, msg, payload)
@@ -109,7 +109,7 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for NymNodeDataPipeline<R> {
                     self.state.routing_filter_dropped(next_hop);
                     Vec::new()
                 } else {
-                    vec![packet_to_forward.with_dst(next_hop)]
+                    vec![packet_to_forward]
                 }
             }
             NymNodeRoutingAddress::Client(client_address) => {
@@ -128,15 +128,9 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for NymNodeDataPipeline<R> {
                     // SW TODO route packet to SP channel, no output (no need for framing and encrytpion, which is why we exit here)
                     Vec::new()
                 } else {
-                    // SW TODO proper client address lookup
-                    if let Some(client_socket_address) =
-                        self.gateway_state.client_map.get(&client_address)
-                    {
-                        vec![packet_to_forward.with_dst(*client_socket_address)]
-                    } else {
-                        warn!("Client not found");
-                        Vec::new()
-                    }
+                    // deliberately *not* resolved to an address here: the frame is held until its
+                    // release time, and the transport layer needs the ID to encrypt then.
+                    vec![packet_to_forward]
                 }
             }
         }
@@ -145,15 +139,15 @@ impl<R: Rng> NymNodeProcessingPipeline<LpFrame> for NymNodeDataPipeline<R> {
 
 // ============== Framing: delegation to FramingPipeline ==============
 
-impl<R: Rng> Framing<NymNodeMessage> for NymNodeDataPipeline<R> {
+impl<R: Rng> Framing<NymNodeMessage, NymNodeRoutingAddress> for NymNodeDataPipeline<R> {
     type Frame = LpFrame;
     const OVERHEAD_SIZE: usize = LpFrameHeader::SIZE;
 
     fn to_frame(
         &mut self,
-        payload: PipelinePayload<NymNodeMessage>,
+        payload: PipelinePayload<NymNodeMessage, NymNodeRoutingAddress>,
         frame_size: usize,
-    ) -> Vec<AddressedTimedData<Self::Frame>> {
+    ) -> Vec<AddressedTimedData<Self::Frame, NymNodeRoutingAddress>> {
         let frame = LpFrame {
             header: payload.options.into(),
             content: payload.data.data.into(),
@@ -163,14 +157,14 @@ impl<R: Rng> Framing<NymNodeMessage> for NymNodeDataPipeline<R> {
     }
 }
 
-impl<R: Rng> Transport<EncryptedLpPacket> for NymNodeDataPipeline<R> {
+impl<R: Rng> Transport<EncryptedLpPacket, NymNodeRoutingAddress> for NymNodeDataPipeline<R> {
     type Frame = LpFrame;
     type Error = LpHandlerError;
     const OVERHEAD_SIZE: usize = EncryptedLpPacket::OVERHEAD;
 
     fn to_transport_packet(
         &mut self,
-        frame: AddressedTimedData<Self::Frame>,
+        frame: AddressedTimedData<Self::Frame, NymNodeRoutingAddress>,
     ) -> Result<AddressedTimedData<EncryptedLpPacket>, Self::Error> {
         LpTransport::frame_to_packet(&self.state, frame)
     }
@@ -238,7 +232,7 @@ mod tests {
     use crate::config::{LpConfig, ReplayProtectionDebug};
     use crate::node::key_rotation::active_keys::ActiveSphinxKeys;
     use crate::node::key_rotation::key::SphinxPrivateKey;
-    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
     use crate::node::lp::data::handler::messages::{MixMessage, SphinxMixMessage};
     use crate::node::lp::data::handler::pipeline::NymNodeDataPipeline;
     use crate::node::lp::data::handler::pipeline::wire::LpTransport;
@@ -290,7 +284,9 @@ mod tests {
             replay_protection_filter: ReplayProtectionBloomfilters::new(primary_bloom_filter, None),
             message_reconstructor: MessageReconstructor::default(),
             routing_filter: NetworkRoutingFilter::new_empty(true),
-            node_sessions: ActiveLpSessions::new(),
+            sessions: ActiveLpSessions::new(),
+
+            clients: Default::default(),
             metrics: NymNodeMetrics::default(),
             shutdown_token: ShutdownToken::new(),
         }
@@ -453,7 +449,8 @@ mod tests {
         let output_packet = outputs[0].clone();
 
         assert_eq!(
-            output_packet.dst, next_hop,
+            output_packet.dst,
+            NymNodeRoutingAddress::Node(next_hop),
             "output frame must target the next hop"
         );
         assert_eq!(
@@ -587,16 +584,16 @@ mod tests {
         let sender_ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let receiver_ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
         sender
-            .node_sessions
-            .insert_node_session(receiver_ip, pair.initiator)
+            .sessions
+            .insert_addressed_session(LpPeer::node(receiver_ip), pair.initiator)
             .unwrap();
         receiver
-            .node_sessions
-            .insert_node_session(sender_ip, pair.responder)
+            .sessions
+            .insert_addressed_session(LpPeer::node(sender_ip), pair.responder)
             .unwrap();
 
         let secret = b"the payload an observer must not read".to_vec();
-        let dst = SocketAddr::new(receiver_ip, 51264);
+        let dst = NymNodeRoutingAddress::Node(SocketAddr::new(receiver_ip, 51264));
         let now = Instant::now();
 
         let mut counters = Vec::new();
@@ -632,6 +629,106 @@ mod tests {
             counters.windows(2).all(|w| w[0] < w[1]),
             "counters must advance in send order, got {counters:?}"
         );
+    }
+
+    /// The client twin of the round trip above: a client is reached through the address it was
+    /// last seen at, but its session is keyed by its [`ClientAddress`].
+    ///
+    /// The wrap only ever has a socket address to go on, so the registry is what closes the gap.
+    /// A client with no entry there cannot be sent to at all - which is also what stops an
+    /// unregistered address from borrowing somebody's session.
+    #[test]
+    fn transport_reaches_a_client_through_its_registered_address() {
+        use nym_lp::SessionsMock;
+        use nym_lp_data::packet::frame::LpFrameKind;
+        use nym_sphinx_addressing::ClientAddress;
+
+        let mut rng = deterministic_rng();
+        let gateway = mock_shared_state(&mut rng);
+        let client_state = mock_shared_state(&mut rng);
+
+        let pair = SessionsMock::mock_seeded_post_handshake(7, nym_lp::KEM::MlKem768);
+        let client = ClientAddress::from_bytes([9u8; 20]);
+        let client_at = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 3)), 51264);
+
+        gateway
+            .sessions
+            .insert_addressed_session(LpPeer::client(client), pair.responder)
+            .unwrap();
+        client_state
+            .sessions
+            .insert_new_session(pair.initiator)
+            .unwrap();
+
+        let to_client = NymNodeRoutingAddress::Client(client);
+        let frame = || {
+            AddressedTimedData::new_addressed(
+                Instant::now(),
+                LpFrame::new(LpFrameKind::Opaque, b"for the client".to_vec()),
+                to_client,
+            )
+        };
+
+        // registration bound the session, but nothing has said where that client is yet
+        assert!(!gateway.has_session_for(to_client));
+        assert!(matches!(
+            LpTransport::frame_to_packet(&gateway, frame()),
+            Err(LpHandlerError::NoSessionForPeer { .. })
+        ));
+
+        gateway.clients.refresh(client, client_at);
+        assert!(gateway.has_session_for(to_client));
+
+        let wrapped = LpTransport::frame_to_packet(&gateway, frame()).unwrap();
+        assert_eq!(
+            wrapped.dst, client_at,
+            "the wire address is resolved from the client's identity, not carried with the frame"
+        );
+
+        let unwrapped =
+            LpTransport::packet_to_frame(&client_state, wrapped.data.data, Instant::now()).unwrap();
+        assert_eq!(unwrapped.data.content.to_vec(), b"for the client".to_vec());
+    }
+
+    /// A client that moves is still reached, because the wrap resolves its address at release time
+    /// rather than when the frame was routed.
+    ///
+    /// The frame is addressed by [`ClientAddress`] throughout, so a refresh landing between the two
+    /// wraps changes where the second one goes without the frame knowing anything about it.
+    #[test]
+    fn the_wrap_follows_a_client_that_moved() {
+        use nym_lp::SessionsMock;
+        use nym_lp_data::packet::frame::LpFrameKind;
+        use nym_sphinx_addressing::ClientAddress;
+
+        let mut rng = deterministic_rng();
+        let gateway = mock_shared_state(&mut rng);
+
+        let pair = SessionsMock::mock_seeded_post_handshake(11, nym_lp::KEM::MlKem768);
+        let client = ClientAddress::from_bytes([4u8; 20]);
+        gateway
+            .sessions
+            .insert_addressed_session(LpPeer::client(client), pair.responder)
+            .unwrap();
+
+        let first = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 4)), 51264);
+        let second = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 5)), 41000);
+        let frame = || {
+            AddressedTimedData::new_addressed(
+                Instant::now(),
+                LpFrame::new(LpFrameKind::Opaque, b"follow me".to_vec()),
+                NymNodeRoutingAddress::Client(client),
+            )
+        };
+
+        gateway.clients.refresh(client, first);
+        let before = LpTransport::frame_to_packet(&gateway, frame()).unwrap();
+        assert_eq!(before.dst, first);
+
+        // an inbound packet from a new address would do this in production
+        gateway.clients.refresh(client, second);
+        let after = LpTransport::frame_to_packet(&gateway, frame()).unwrap();
+        assert_eq!(after.dst, second, "the frame must follow the client");
     }
 
     /// A packet naming no session is rejected by the *transport* layer, before anything reaches
@@ -750,7 +847,8 @@ mod tests {
 
         for out_pkt in out {
             assert_eq!(
-                out_pkt.dst, next_hop,
+                out_pkt.dst,
+                NymNodeRoutingAddress::Node(next_hop),
                 "output frame must target the next hop"
             );
 
@@ -808,7 +906,8 @@ mod tests {
         let output_packet = outputs[0].clone();
 
         assert_eq!(
-            output_packet.dst, next_hop,
+            output_packet.dst,
+            NymNodeRoutingAddress::Node(next_hop),
             "output frame must target the next hop"
         );
         assert_eq!(

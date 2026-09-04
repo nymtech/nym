@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::lp::active_sessions::LpPeer;
 use crate::node::lp::control::stats::LpConnectionStats;
 use crate::node::lp::directory::LpNodeDetails;
 use crate::node::lp::error::LpHandlerError;
@@ -101,8 +102,9 @@ where
 
         let receiver_index = session.receiver_index();
         self.state
-            .node_sessions
-            .insert_node_session(remote.ip(), session)?;
+            .shared
+            .sessions
+            .insert_addressed_session(LpPeer::node(remote.ip()), session)?;
 
         debug!(
             "stored LP session with node {} ({}); closing control connection",

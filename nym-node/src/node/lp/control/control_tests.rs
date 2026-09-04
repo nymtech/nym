@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::node::lp::active_sessions::ActiveLpSessions;
+    use crate::node::lp::active_sessions::{ActiveLpSessions, LpPeer};
     use crate::node::lp::control::egress::connection::InitialLpEgressNodeConnectionHandler;
     use crate::node::lp::control::ingress::node_handler::InitialLpIngressNodeConnectionHandler;
     use crate::node::lp::directory::LpNodeDetails;
@@ -21,8 +21,8 @@ mod tests {
         SharedLpNodeControlState {
             local_lp_peer: peer,
             nodes: LpNodes::new_empty(),
-            node_sessions: Default::default(),
             shared: SharedLpState {
+                sessions: Default::default(),
                 metrics: Default::default(),
                 lp_config: Default::default(),
             },
@@ -61,8 +61,8 @@ mod tests {
         let resp_state = shared_node_state(resp);
 
         // keep handles so we can assert on what ended up stored
-        let init_sessions = init_state.node_sessions.clone();
-        let resp_sessions = resp_state.node_sessions.clone();
+        let init_sessions = init_state.shared.sessions.clone();
+        let resp_sessions = resp_state.shared.sessions.clone();
 
         let init_handler = InitialLpEgressNodeConnectionHandler::new(
             conn_init,
@@ -90,13 +90,13 @@ mod tests {
 
         // the egress side stored its session against the peer, so the data plane can find it
         assert_eq!(
-            init_sessions.sending_index_for(init_addr.ip()),
+            init_sessions.sending_index_for(LpPeer::node(init_addr.ip())),
             Some(init_index)
         );
 
         // the ingress side stored its session against the peer, so the data plane can find it
         assert_eq!(
-            resp_sessions.sending_index_for(init_addr.ip()),
+            resp_sessions.sending_index_for(LpPeer::node(init_addr.ip())),
             Some(init_index)
         );
 
@@ -120,13 +120,19 @@ mod tests {
         let second_index = second.receiver_index();
         assert_ne!(first_index, second_index);
 
-        sessions.insert_node_session(peer_ip, first)?;
-        assert_eq!(sessions.sending_index_for(peer_ip), Some(first_index));
+        sessions.insert_addressed_session(LpPeer::node(peer_ip), first)?;
+        assert_eq!(
+            sessions.sending_index_for(LpPeer::node(peer_ip)),
+            Some(first_index)
+        );
 
-        sessions.insert_node_session(peer_ip, second)?;
+        sessions.insert_addressed_session(LpPeer::node(peer_ip), second)?;
 
         // the newest session is the one used for sending
-        assert_eq!(sessions.sending_index_for(peer_ip), Some(second_index));
+        assert_eq!(
+            sessions.sending_index_for(LpPeer::node(peer_ip)),
+            Some(second_index)
+        );
 
         // the first is demoted: still present, but refuses to encrypt
         let demoted = sessions.with_session_mut(first_index, |s| s.is_read_only())?;
@@ -143,7 +149,7 @@ mod tests {
 
         // ... while the promoted one still sends fine
         let frame = LpFrame::new(LpFrameKind::Opaque, b"yes".to_vec());
-        assert!(sessions.send_frame(peer_ip, frame).is_ok());
+        assert!(sessions.send_frame(LpPeer::node(peer_ip), frame).is_ok());
 
         Ok(())
     }

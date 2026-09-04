@@ -14,7 +14,7 @@
 //!
 //! Neither half knows the application message type carried in the frame.
 
-use std::{net::SocketAddr, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use nym_lp_data::{
     AddressedTimedData, TimedData,
@@ -26,6 +26,7 @@ use tracing::{trace, warn};
 
 use crate::node::lp::data::shared::SharedLpDataState;
 use crate::node::lp::error::LpHandlerError;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 
 /// Framing layer: fragmentation outbound, reassembly inbound.
 pub struct FramingPipeline<R> {
@@ -43,13 +44,13 @@ impl<R: Rng> FramingPipeline<R> {
     ///
     /// `frame_payload_size` is what a frame can *carry*, with its own header already accounted
     /// for - comparing the serialised length against it would charge for the header twice.
-    pub fn message_to_frame(
+    pub fn message_to_frame<NdId: Copy>(
         &mut self,
         timestamp: Instant,
         frame: LpFrame,
-        dst: SocketAddr,
+        dst: NdId,
         frame_payload_size: usize,
-    ) -> Vec<AddressedTimedData<LpFrame>> {
+    ) -> Vec<AddressedTimedData<LpFrame, NdId>> {
         let output_frames = if frame.content.len() > frame_payload_size {
             fragment_lp_message(&mut self.rng, frame, frame_payload_size)
                 .into_iter()
@@ -121,9 +122,14 @@ impl LpTransport {
     /// The frame is consumed either way, so callers that want to keep it - to park it until a
     /// session exists - must check for one before calling. An error here is a genuine failure of an
     /// existing session, not an absent one.
+    ///
+    /// The frame arrives addressed by *identity* and leaves addressed by a [`std::net::SocketAddr`]. Both
+    /// come out of the same lookup: a node is its own address, while a client is wherever it was
+    /// last seen - resolved here, at release time, so a client that has moved since the frame was
+    /// queued is still reached.
     pub fn frame_to_packet(
         state: &SharedLpDataState,
-        frame: AddressedTimedData<LpFrame>,
+        frame: AddressedTimedData<LpFrame, NymNodeRoutingAddress>,
     ) -> Result<AddressedTimedData<EncryptedLpPacket>, LpHandlerError> {
         let AddressedTimedData {
             data: TimedData { timestamp, data },
@@ -131,9 +137,11 @@ impl LpTransport {
             ..
         } = frame;
 
-        let packet = state.node_sessions.send_frame(dst.ip(), data)?;
+        let (packet, wire_dst) = state.send_frame(dst, data)?;
 
-        Ok(AddressedTimedData::new_addressed(timestamp, packet, dst))
+        Ok(AddressedTimedData::new_addressed(
+            timestamp, packet, wire_dst,
+        ))
     }
 
     /// Decrypt an [`EncryptedLpPacket`] off the wire into an [`LpFrame`], on the session its outer
@@ -148,15 +156,12 @@ impl LpTransport {
     ) -> Result<TimedData<LpFrame>, LpHandlerError> {
         let receiver_index = packet.outer_header().receiver_idx;
 
-        let frame = state
-            .node_sessions
-            .receive_packet(packet)
-            .inspect_err(|_| {
-                // An index naming no session is the signature of a peer that restarted and lost its
-                // half of the pairing: it is still sending on a session this node no longer holds.
-                // Distinct from a decrypt failure, and the trigger for redialling that peer.
-                trace!("LP transport: no session for receiver index {receiver_index}");
-            })?;
+        let frame = state.receive_packet(packet).inspect_err(|_| {
+            // An index naming no session is the signature of a peer that restarted and lost its
+            // half of the pairing: it is still sending on a session this node no longer holds.
+            // Distinct from a decrypt failure, and the trigger for redialling that peer.
+            trace!("LP transport: no session for receiver index {receiver_index}");
+        })?;
 
         Ok(TimedData {
             timestamp,

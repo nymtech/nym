@@ -98,9 +98,9 @@ struct SelfDescribedData {
     /// session on. `None` for a node announcing no entry-gateway interface, and for one whose
     /// websocket query failed.
     ///
-    /// Its `wss` counterpart is deliberately not read: the only consumer of that fact is the
-    /// divergence bucket in nym-api, which reads the same interface from its own described-nodes
-    /// cache, so a copy here would be one nothing in this service looks at.
+    /// Its `wss` counterpart is deliberately not read: nothing anywhere in the subsystem consumes
+    /// it. The probe targets `ws://<ip>` by construction, no submission carries the fact, and the
+    /// divergence surface in nym-api does not bucket on it.
     clients_ws_port: Option<u16>,
 }
 

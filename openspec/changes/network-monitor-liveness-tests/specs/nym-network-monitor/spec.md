@@ -221,7 +221,7 @@ Rehydrating that cache from the contract requires recovering which pair of on-ch
 
 ### Requirement: The node refresher builds the testable-node registry from the mixnet contract and each node's self-description
 
-The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: the only consumer of that fact is the divergence gauge's bucketing, which lives in nym-api and reads the same self-described `mixnet_websockets` interface from its own described-nodes cache, so storing it here would be a second copy no orchestrator path reads. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
+The node refresher SHALL source the node list from the MIXNET contract (all `NymNodeBond`s), NOT from nym-api. For each bonded node it MUST query that node's self-described HTTP endpoint directly (with host-info verification) to learn EVERY ip address the node announces, its announced mix port, its versioned x25519 noise key, its sphinx key and key-rotation id, and its role-derived `NodeType`. For a node that announces an entry-gateway interface it MUST additionally learn that interface's plain client websocket port. It MUST NOT record whether the node also announces a wss entry: NOTHING reads that fact. The probe ignores wss entries by construction, the submission carries no such field, and the divergence surface deliberately does not bucket on it, so storing it here would be a copy with no consumer at all. Per-node queries MUST be bounded by `node_info_query_timeout` (default 10 seconds) and run with concurrency `number_of_concurrent_node_queries` (default 32).
 
 A node MUST be described COMPLETELY or not at all: every self-described field comes from one reading of the node's endpoint, and a failure of any part of that reading - including the client websocket interface of a gateway-capable node - MUST discard the whole reading rather than storing the fields that did answer. The refresher MUST persist ALL bonded nodes, including unreachable ones, but the two outcomes are written differently: a described node has every field replaced, while a node that could not be described has only its bond recorded, leaving everything an earlier cycle learned about it in place. Nulling those fields instead would fail every eligibility predicate at once and drop a merely slow node out of EVERY kind until a later cycle answered, which at the liveness cadence costs several test slots per incident. Empty self-described columns therefore mean "never described", not "did not answer this time". `identity_key` is never updated, since a `node_id` maps to exactly one identity and is never reassigned.
 
@@ -235,7 +235,7 @@ The announced address set MUST be canonicalised (`IpAddr::to_canonical()`), dedu
 
 #### Scenario: A gateway's client websocket port is recorded
 - **WHEN** the refresher queries a node that announces an entry-gateway interface
-- **THEN** the node's plain client websocket port is stored, and its wss announcement is not, being needed only by the nym-api-side divergence bucket
+- **THEN** the node's plain client websocket port is stored, and its wss announcement is not, no consumer anywhere in the subsystem reading it
 
 #### Scenario: The announced address set is stored in a stable order
 - **WHEN** a node reports its announced addresses in a different order on a later refresh
@@ -492,9 +492,15 @@ Because the per-signer high-water mark is held in memory, it resets to the proce
 
 The stored stress-test and liveness results SHALL form the subsystem's output contract to the rest of nym-api; the detailed behaviour of each consumer is owned by its own capability, and this requirement fixes only WHICH subsystems read the results and FOR WHAT. The stored per-node stress results MUST be aggregated (average performance and a reachability flag over a configured window) into a stress-testing score; the stored per-node liveness results MUST be aggregated the same way into a separate liveness score; each score MUST feed the node performance provider, which folds them - together with routing and configuration components - into each node's detailed performance, each gated by its own `use_*_data`, `minimum_available_*_results`, and `*_score_weight` configuration flags; and the resulting composite performance MUST flow into rewarding via the node's rewarding-performance derivation.
 
-The liveness score's weight MUST default to ZERO, so that liveness is recorded and queryable without affecting performance or rewarding until the operator deliberately enables it. This is required because two populations will score zero on liveness for reasons unrelated to their forwarding capability: nodes that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the final-hop and monitor-session behaviour that gateway liveness depends on.
+Liveness MUST be INERT by default, so that it is recorded and queryable without affecting performance or rewarding until an operator deliberately enables it. This is required because two populations will score zero on liveness for reasons unrelated to their forwarding capability: nodes that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the final-hop and monitor-session behaviour that gateway liveness depends on.
 
-While the weight is zero, nym-api MUST expose a DIVERGENCE metric comparing each node's aggregated liveness score against the v1 monitor's routing score, bucketed by whether the node announces a wss entry gateway address. The bucketing is required because this subsystem deliberately probes only the plain-ws ingress, so a gateway with a broken TLS ingress is EXPECTED to diverge; without the bucket, that expected divergence is indistinguishable from a node that never learned about its agents. This metric is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
+Inertness MUST rest on the component's `use_*_data` flag defaulting to off, NOT on its weight defaulting to zero. A zero default weight was specified originally and is REJECTED: it is a second gate on the same property, and its only observable effect is a state in which the component reads as enabled while changing nothing, which is indistinguishable from a broken feature. The weight SHOULD therefore default to the value the component is expected to carry once switched on, making enabling a single change. The consequence MUST be documented where an operator will see it: enabling takes effect immediately at that weight, so the divergence surface is to be consulted BEFORE the flip rather than after.
+
+While the weight is zero, nym-api MUST expose a DIVERGENCE surface comparing each node's aggregated liveness score against the v1 monitor's routing score, PER NODE, carrying the two scores, their difference, whether any liveness sample reached the node, and the node's declared role. It MUST list every liveness-eligible bonded node including those with no sample yet, so that coverage and comparison are readable together: the decision to weight liveness needs both how much of the fleet has been measured and how the measured part compares. It MUST omit nodes the orchestrator would never assign a liveness test, since those have no divergence to report rather than a divergence of zero. This surface is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
+
+It MUST be served under the UNSTABLE route tree and is explicitly TEMPORARY: it exists to inform those two decisions and is to be deleted once they are made, so nothing durable may be built on it.
+
+The only dimension beyond the per-node rows is the declared role, and only because nym-api already holds it. Bucketing on whether the node announces a wss entry was considered and REJECTED as unjustified complexity: it is inert for mixnodes, which announce no entry interface at all and will be most of the population, and it is second-order to the confound that actually dominates during rollout, namely whether a node yet carries the behaviour liveness depends on. The consequence is accepted rather than hidden: because this subsystem probes only the plain-ws ingress, a gateway with a broken TLS ingress will diverge for a reason this design created, and reading a gateway's divergence requires knowing that. The role field is what signals which of the two unrelated probe paths produced a row.
 
 #### Scenario: Stress scores contribute to node performance when enabled
 - **WHEN** stress-testing data is enabled and a mixnode has at least the minimum number of available results
@@ -502,11 +508,23 @@ While the weight is zero, nym-api MUST expose a DIVERGENCE metric comparing each
 
 #### Scenario: Liveness scores are inert by default
 - **WHEN** liveness results are stored and aggregated with the default configuration
-- **THEN** they are queryable and appear in the divergence metric, but contribute nothing to any node's performance or reward
+- **THEN** they are queryable and appear on the divergence surface, but contribute nothing to any node's performance or reward, because the component's own enable flag is off
 
-#### Scenario: Divergence is attributable
+#### Scenario: A component with no data available does not freeze the annotations
+- **WHEN** the selected performance provider structurally has no data for a component, as the contract provider has none for stress or liveness
+- **THEN** it reports that component as absent rather than as a retrieval failure, so the refresh still writes annotations instead of aborting and leaving them frozen
+
+#### Scenario: Divergence is reported per node
 - **WHEN** a gateway scores zero on liveness while the v1 monitor scores it as routable
-- **THEN** the divergence metric records it in the bucket matching whether it announces a wss entry, so an expected TLS-path divergence is distinguishable from an unexpected one
+- **THEN** the surface reports that node's two scores, their difference, and its declared role, so the gap is attributable to that node and to which probe path measured it
+
+#### Scenario: An unmeasured node is distinguishable from a broken one
+- **WHEN** a liveness-eligible node has produced no sample in the window
+- **THEN** it is still listed, with a zero score and its reachability flag false, so coverage is visible rather than being mistaken for a fleet of well-behaved nodes
+
+#### Scenario: An ineligible node is absent rather than diverging
+- **WHEN** a node declares neither a mixnode nor an entry role, so no liveness test is ever assigned to it
+- **THEN** it does not appear on the surface at all
 
 #### Scenario: The consumer surface is bounded
 - **WHEN** reasoning about the blast radius of a stress or liveness score

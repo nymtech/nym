@@ -31,6 +31,10 @@ pub use config::LpGatewayClientConfig;
 pub use error::{LpClientError, Result};
 pub use helpers::exponential_backoff_with_jitter;
 pub use nested_session::{NestedLpSession, connection::NestedConnection};
+pub use node_details::LpConnectionDetails;
+pub use registration::{
+    LpFrameDeliverExt, LpFrameSendExt, LpMixnetRegistrationClient, exchange_registration,
+};
 pub use session_helpers::{extract_forwarded_response, prepare_send_packet};
 
 mod client;
@@ -38,4 +42,6 @@ mod config;
 mod error;
 mod helpers;
 mod nested_session;
+mod node_details;
+pub mod registration;
 mod session_helpers;

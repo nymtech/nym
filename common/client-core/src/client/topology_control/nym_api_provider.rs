@@ -60,9 +60,13 @@ impl NymApiTopologyProvider {
         warn!("Disabling bincode on existing client is not currently supported");
     }
 
+    /// Fetch every bonded node, expanded.
+    ///
+    /// The expanded endpoint is the only one carrying LP details, so a client that wants to reach
+    /// its gateway over LP has to be on this path - there is no active-set equivalent.
     async fn try_get_extended_topology(&mut self) -> Result<NymTopology, NymAPIError> {
         let rewarded_set_fut = self.validator_client.get_current_rewarded_set();
-        let all_nodes_fut = self.validator_client.get_all_basic_nodes_with_metadata();
+        let all_nodes_fut = self.validator_client.get_all_expanded_nodes_v3();
 
         // Join rewarded_set_fut and all_nodes_fut concurrently
         let (rewarded_set, all_nodes_res) = futures::try_join!(rewarded_set_fut, all_nodes_fut)
@@ -91,7 +95,9 @@ impl NymApiTopologyProvider {
         );
         let nodes_filtered = all_nodes
             .into_iter()
-            .filter(|n| n.performance.round_to_integer() >= self.config.min_node_performance())
+            .filter(|n| {
+                n.basic.performance.round_to_integer() >= self.config.min_node_performance()
+            })
             .collect::<Vec<_>>();
 
         let epoch_rewarded_set: EpochRewardedSet = rewarded_set.into();
@@ -100,7 +106,7 @@ impl NymApiTopologyProvider {
             epoch_rewarded_set,
             Vec::new(),
         )
-        .with_skimmed_nodes(&nodes_filtered))
+        .with_semi_skimmed_nodes(&nodes_filtered))
     }
 
     async fn try_get_active_topology(&mut self) -> Result<NymTopology, NymAPIError> {

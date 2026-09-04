@@ -48,7 +48,14 @@ impl FetcherError for NyxdFetcherError {
 
 
             #[cfg(all(not(target_arch = "wasm32"), feature = "credentials"))]
-            NyxdFetcherError::NoThreshold | NyxdFetcherError::NoIssuableEpoch => {
+            NyxdFetcherError::NoThreshold => {
+                FetcherErrorKind::Other
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            NyxdFetcherError::NoIssuableEpoch => {
+                FetcherErrorKind::Other
+            }
                 FetcherErrorKind::Other
             }
 

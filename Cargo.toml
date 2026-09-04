@@ -305,8 +305,8 @@ glob = "0.3"
 h2 = "0.4.14"
 handlebars = "3.5.5"
 hex = "0.4.3"
-hickory-proto = { version = "0.26.1", default-features = false }
-hickory-resolver = "0.26.1"
+hickory-proto = { version = "0.26.2", default-features = false }
+hickory-resolver = "0.26.2"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "4.6.2"
+version = "4.6.3"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -73,6 +73,7 @@ utoipauto = { workspace = true }
 zeroize = { workspace = true }
 
 nym-node-metrics = { workspace = true }
+nym-bridges-types  = { workspace = true, features=["serde", "utoipa"]}
 
 [build-dependencies]
 anyhow = { workspace = true }

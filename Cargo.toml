@@ -431,6 +431,9 @@ vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 x25519-dalek = "2.0.0"
 zeroize = "1.7.0"
+nym-bridges = "0.2.1"
+nym-bridges-types = "0.2.1"
+
 
 prometheus = { version = "0.14.0" }
 

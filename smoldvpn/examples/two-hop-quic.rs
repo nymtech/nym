@@ -5,10 +5,10 @@
 //! bridge (for clients blocked from plain WireGuard/UDP).
 //!
 //! Shows your real IP via `ipinfo.io`, brings up a two-hop tunnel whose entry
-//! gateway MUST be QUIC-bridge-capable (selected from the dVPN directory; the run
-//! fails with `NoQuicGateway` if none is available), prints both gateways, then
+//! gateway MUST be bridge-capable (selected from the dVPN directory; the run
+//! fails with `NoBridgeGateway` if none is available), prints both gateways, then
 //! queries `ipinfo.io` through the tunnel to show the IP/org/country moved to the
-//! exit gateway. QUIC only ever fronts the two-hop entry leg.
+//! exit gateway. The bridge only ever fronts the two-hop entry leg.
 //!
 //! Usage (build `--release`: boringtun is slow in debug):
 //!   MNEMONIC="<funded mnemonic>" \
@@ -20,6 +20,7 @@
 use std::process::ExitCode;
 use std::time::Duration;
 
+use nym_bridges::types::TransportAssociation;
 use tracing::{error, info};
 
 #[path = "common/mod.rs"]
@@ -47,16 +48,16 @@ async fn run() -> Result<(), common::BoxError> {
         // tunnel, gated on WireGuard establishment with stale-cache fallback.
         let (reg, tunnel) = common::connect(&session, &cli).await?;
 
-        common::print_gateway("entry (QUIC)", &reg.entry.gateway);
+        common::print_gateway("entry (BRIDGE)", &reg.entry.gateway);
         common::print_gateway(
             "exit",
             &reg.exit.as_ref().expect("two-hop has an exit hop").gateway,
         );
         if let Some(bridge) = &reg.entry.bridge {
             info!(
-                "entry QUIC bridge: {} addr(s), SNI {}",
-                bridge.addresses.len(),
-                bridge.sni_host.as_deref().unwrap_or("(none)")
+                "{} entry bridge: {} addr(s)",
+                bridge.transport_name(),
+                bridge.addresses().len(),
             );
         }
 

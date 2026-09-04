@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 let config = SessionConfig::new(mnemonic, network, "session-data".into())
     .with_credential_store_path("creds.db");
-    // .with_dvpn_directory_url(url)        // gateway monikers + QUIC selection
+    // .with_dvpn_directory_url(url)        // gateway monikers + bridge selection
     // .with_automatic_topups(RestockPolicy::default())  // opt in to background re-issuance
 let session = Session::new(config, CancellationToken::new()).await?;
 
@@ -37,7 +37,7 @@ let registration = session
 // `registration.entry` / `registration.exit` are `HopConfig`s carrying the
 // gateway pubkey, negotiated PSK, endpoint, assigned IPs, the client's WG key,
 // per-hop gateway metadata (`GatewayInfo`: identity, node id, country, moniker),
-// and — for a QUIC entry — the `QuicBridge` params.
+// and — for a Bridge entry — a `ClientConfig`.
 ```
 
 ## Gateway selection
@@ -49,17 +49,17 @@ Two-hop selection excludes the entry gateway from the exit pool, so the two hops
 are always distinct gateways (an exit spec that can only match the entry gateway
 fails with `SessionError::SameGatewaySelected`).
 
-## dVPN directory: monikers + QUIC entry selection
+## dVPN directory: monikers + bridge entry selection
 
 When `SessionConfig::dvpn_directory_url` is set, the session fetches the dVPN
-gateway directory (best-effort — a fetch failure is logged and treated as empty)
-to enrich each `GatewayInfo` with the gateway's human **moniker** and to enable
-QUIC-bridge entry selection. `register_two_hop_quic(entry, exit)` selects the
-entry only among directory gateways that advertise a QUIC bridge (honoring the
-`GatewaySpec`), returns the `QuicBridge` params (addresses / SNI host / base64
-ed25519 `id_pubkey`) on `registration.entry.bridge`, and fails with
-`SessionError::NoQuicGateway` if none match. QUIC fronts the two-hop entry leg
-only; `register_single_hop` / `register_two_hop` are unchanged (`bridge = None`).
+gateway directory (best-effort — a fetch failure is logged and treated as
+empty) to enrich each `GatewayInfo` with the gateway's human **moniker** and to
+enable bridge entry selection. `register_two_hop_bridge(entry, exit)` selects
+the entry only among directory gateways that advertise a usable bridge transport
+(honoring the `GatewaySpec`), returns `ClientConfig` on
+`registration.entry.bridge`, and fails with `SessionError::NoBridgeGateway` if
+none match.The bridge fronts the two-hop entry leg only; `register_single_hop`
+/ `register_two_hop` are unchanged (`bridge = None`).
 
 ## Cancellation
 

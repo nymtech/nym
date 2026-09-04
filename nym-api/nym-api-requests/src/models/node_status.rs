@@ -523,14 +523,21 @@ impl DetailedNodePerformanceV1 {
 )]
 #[non_exhaustive]
 pub struct DetailedNodePerformanceV2 {
-    /// routing_score * config_score
-    /// or
-    /// routing_score * config_score * stress_testing_score, if enabled
+    /// The node's overall performance.
+    ///
+    /// A weighted mean, not a product: each enabled component contributes its own weight and
+    /// `routing_score * config_score` takes whatever weight is left over. With every component
+    /// disabled it is exactly `routing_score * config_score`.
     pub performance_score: f64,
 
     pub routing_score: RoutingScore,
     pub config_score: ConfigScoreV2,
     pub stress_testing_score: StressTestingScore,
+
+    /// The node's aggregated liveness score. Always reported, whether or not it is currently
+    /// folded into `performance_score` - it is served so that the divergence between it and
+    /// `routing_score` can be measured while liveness carries zero weight.
+    pub liveness_score: LivenessScore,
 }
 
 impl DetailedNodePerformanceV2 {
@@ -539,12 +546,14 @@ impl DetailedNodePerformanceV2 {
         routing_score: RoutingScore,
         config_score: ConfigScoreV2,
         stress_testing_score: StressTestingScore,
+        liveness_score: LivenessScore,
     ) -> DetailedNodePerformanceV2 {
         Self {
             performance_score,
             routing_score,
             config_score,
             stress_testing_score,
+            liveness_score,
         }
     }
 

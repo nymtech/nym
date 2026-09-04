@@ -105,6 +105,23 @@ stress_testing_data_period = '{{ performance_provider.debug.stress_testing_data_
 # Specifies the duration of the rolling average used for the liveness score.
 liveness_data_period = '{{ performance_provider.debug.liveness_data_period }}'
 
+# Specify whether external liveness data should be used for calculating node performance score.
+# note: this can only be enabled if use_performance_contract_data is set to false!
+# note: the liveness score is served on each node's annotation either way; this only controls
+# whether it is folded into the performance score.
+use_liveness_data = {{ performance_provider.debug.use_liveness_data }}
+
+# If `use_liveness_data` is set to true, this specifies the minimum % of liveness-eligible nodes
+# that must have their liveness data available in the `liveness_data_period`,
+# in order to include that metric in performance calculation.
+minimum_available_liveness_results = {{ performance_provider.debug.minimum_available_liveness_results }}
+
+# Weight of the liveness score in the overall performance score. Surfaced here, unlike the stress
+# weight, because it defaults to ZERO: enabling use_liveness_data alone changes nothing, which
+# looks like a broken feature unless the knob is visible. Liveness is deliberately inert while its
+# divergence from the v1 routing score is measured.
+liveness_score_weight = {{ performance_provider.debug.liveness_score_weight }}
+
 ##### rewarding config options #####
 
 [rewarding]

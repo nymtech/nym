@@ -6397,6 +6397,7 @@ dependencies = [
 name = "nym-client-core"
 version = "1.21.6"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "base64 0.22.1",
  "bs58",

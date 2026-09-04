@@ -63,8 +63,8 @@ For streams, `LpFrameKind` is `SphinxStream` (0x0003) and the 14-byte
 - `OpenAck` (2) acknowledges an accepted `Open` (see Establishment)
 
 There is no `Close` type: streams clean up via `Drop` and idle timeout.
-Sequence numbers enable reorder buffering (up to `MAX_REORDER_BUFFER`
-out-of-order messages per stream). Peers running an SDK without the
+Sequence numbers enable reorder buffering (up to `MAX_REORDER_BUFFER_BYTES`,
+8 MiB of out-of-order data per stream). Peers running an SDK without the
 `OpenAck` frame type reject it during attribute parsing and drop the
 frame, so mixed-version peers interoperate without a coordinated upgrade.
 

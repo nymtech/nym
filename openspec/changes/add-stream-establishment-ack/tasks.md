@@ -34,4 +34,4 @@
 ## 7. Documentation
 
 - [x] 7.1 `stream/ARCHITECTURE.md`: establishment section with the SURB-ack privacy rationale (gateway forwards acks regardless of recipient state so they cannot become an online-status oracle; acknowledgement therefore lives at the stream layer, by consent), cross-referencing `handle_final_hop`
-- [ ] 7.2 Stream tutorial: `wait_established(timeout)` usage and the `reply_surbs >= 1` requirement
+- [x] 7.2 Stream tutorial: `wait_established(timeout)` usage and the `reply_surbs >= 1` requirement

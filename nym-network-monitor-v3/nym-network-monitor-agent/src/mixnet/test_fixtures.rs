@@ -13,7 +13,7 @@ use futures::channel::mpsc::unbounded;
 use nym_crypto::asymmetric::x25519;
 use nym_sphinx_framing::packet::FramedNymPacket;
 use nym_sphinx_params::PacketType;
-use nym_sphinx_types::NymPacket;
+use nym_sphinx_types::{DESTINATION_ADDRESS_LENGTH, DestinationAddressBytes, NymPacket};
 use rand::rngs::OsRng;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -50,8 +50,12 @@ impl ProbedTarget {
             node.as_sphinx_node(),
             as_sphinx_node(socket("127.0.0.1:9000"), agent_key),
         ];
-        let header = create_test_sphinx_packet_header(route, Duration::from_millis(50))
-            .expect("failed to build the fixture's reusable header");
+        // nothing in these tests resolves a destination: the agent hop unwraps the payload itself, so
+        // any well-formed address will do
+        let client_address = DestinationAddressBytes::from_bytes([7u8; DESTINATION_ADDRESS_LENGTH]);
+        let header =
+            create_test_sphinx_packet_header(&route, client_address, Duration::from_millis(50))
+                .expect("failed to build the fixture's reusable header");
 
         let (events, received) = unbounded();
         ProbedTarget {

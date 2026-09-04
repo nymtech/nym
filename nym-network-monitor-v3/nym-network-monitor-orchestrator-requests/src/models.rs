@@ -279,8 +279,11 @@ pub struct TestRunResultSubmissionRequest {
 /// probe exercises one interface and so produces only [`ExercisedInterface::MixForwarding`]; the
 /// gateway probe exercises two, kept separate because averaging them at the agent would make a
 /// healthy ingest with a dead delivery indistinguishable from a uniformly half-lossy node.
+/// `Ord` is derived so this can key an ordered map, which is how an agent holds the set of
+/// measurements one run produces: the ordering itself carries no meaning beyond being stable, which
+/// is what keeps a submitted payload's array order from varying between runs.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExercisedInterface {
     /// The node forwarding as a mixing hop, measured by the two-hop self-loop through its mixnet

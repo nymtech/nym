@@ -1,6 +1,7 @@
 // Copyright 2026 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::mixnet::client_session::GatewaySessionConfig;
 use nym_network_monitor_orchestrator_requests::models::{AgentMixAddresses, TestKind};
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
@@ -108,6 +109,12 @@ pub(crate) struct NodeTesterConfig {
     /// sit inside the lease the orchestrator stamped on the whole assignment.
     pub(crate) liveness_per_target_timeout: Duration,
 
+    /// Timeout for opening a gateway's client websocket.
+    pub(crate) session_connect_timeout: Duration,
+
+    /// Timeout for negotiating and registering on a gateway client session.
+    pub(crate) session_registration_timeout: Duration,
+
     /// How long the target node should delay the packet (i.e. the sphinx delay)
     pub(crate) packet_delay: Duration,
 
@@ -154,6 +161,19 @@ impl NodeTesterConfig {
         }
     }
 
+    /// The timeouts a gateway client session is held to.
+    ///
+    /// The receive timeout is the liveness profile's straggler wait rather than a knob of its own, so
+    /// that both of a gateway run's legs wait the same length for a late packet as a mixnode probe
+    /// does: the mixnet inbox is built with exactly that value.
+    pub(crate) fn gateway_session_config(&self) -> GatewaySessionConfig {
+        GatewaySessionConfig {
+            connect_timeout: self.session_connect_timeout,
+            registration_timeout: self.session_registration_timeout,
+            receive_timeout: self.liveness_profile.waiting_duration,
+        }
+    }
+
     /// The address the tested node should return the test packets to, encoded as the final hop of
     /// the sphinx route. It follows the family the node itself is being reached over, so that a
     /// test run exercises the same family in both directions rather than measuring the node's
@@ -168,6 +188,41 @@ impl NodeTesterConfig {
         AgentMixAddresses {
             v4: self.external_mixnet_address_v4,
             v6: self.external_mixnet_address_v6,
+        }
+    }
+}
+
+#[cfg(test)]
+impl NodeTesterConfig {
+    /// A config carrying the documented defaults, with every timeout shortened so a test that is
+    /// meant to fail fails within a test run rather than within a deployment's patience.
+    pub(crate) fn new_test() -> Self {
+        // SAFETY: all non-zero literals
+        #[allow(clippy::unwrap_used)]
+        let nonzero = |value: usize| NonZeroUsize::new(value).unwrap();
+
+        NodeTesterConfig {
+            stress_profile: ProbeProfile::stress(
+                nonzero(1000),
+                Duration::from_millis(50),
+                Duration::from_millis(50),
+                nonzero(50),
+            ),
+            liveness_profile: ProbeProfile::liveness(
+                nonzero(4),
+                nonzero(50),
+                Duration::from_millis(50),
+            ),
+            liveness_per_target_timeout: Duration::from_secs(5),
+            session_connect_timeout: Duration::from_millis(200),
+            session_registration_timeout: Duration::from_millis(200),
+            packet_delay: Duration::from_millis(1),
+            egress_connection_timeout: Duration::from_millis(200),
+            noise_handshake_timeout: Duration::from_millis(200),
+            reuse_header: true,
+            mixnet_bind_address: "127.0.0.1:0".parse().expect("bad test bind address"),
+            external_mixnet_address_v4: "127.0.0.1:1789".parse().expect("bad test v4 address"),
+            external_mixnet_address_v6: "[::1]:1789".parse().expect("bad test v6 address"),
         }
     }
 }

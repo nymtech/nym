@@ -22,7 +22,10 @@ nym-sphinx-types = { workspace = true }
 nym-sphinx-params = { workspace = true }
 nym-sphinx-framing = { workspace = true }
 nym-sphinx-addressing = { workspace = true }
+nym-sphinx-forwarding = { workspace = true }
+nym-gateway-requests = { workspace = true }
 nym-noise = { workspace = true }
+tokio-tungstenite = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
 tokio-util = { workspace = true }
@@ -44,6 +47,10 @@ nym-bin-common = { workspace = true, features = [
     "output_format",
 ] }
 nym-crypto = { workspace = true, features = ["asymmetric", "rand", "hashing"] }
+nym-network-defaults = { workspace = true }
+# only used by the manual `test-*` commands, which read a node's keys and ports off its http api
+# rather than having them passed in
+nym-node-requests = { workspace = true, features = ["client"] }
 nym-pemstore = { workspace = true }
 nym-task = { workspace = true }
 

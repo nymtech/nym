@@ -494,7 +494,15 @@ The stored stress-test and liveness results SHALL form the subsystem's output co
 
 Liveness MUST be INERT by default, so that it is recorded and queryable without affecting performance or rewarding until an operator deliberately enables it. This is required because two populations will score zero on liveness for reasons unrelated to their forwarding capability: nodes that have not ingested their agents' on-chain authorisations, and gateways not yet carrying the final-hop and monitor-session behaviour that gateway liveness depends on.
 
-Inertness MUST rest on the component's `use_*_data` flag defaulting to off, NOT on its weight defaulting to zero. A zero default weight was specified originally and is REJECTED: it is a second gate on the same property, and its only observable effect is a state in which the component reads as enabled while changing nothing, which is indistinguishable from a broken feature. The weight SHOULD therefore default to the value the component is expected to carry once switched on, making enabling a single change. The consequence MUST be documented where an operator will see it: enabling takes effect immediately at that weight, so the divergence surface is to be consulted BEFORE the flip rather than after.
+Node performance SHALL be computed as the weighted mean of whichever delivery properties APPLIED to that node, renormalised over their weights, MULTIPLIED by the node's config score. The properties are the legacy v1 routing score, the v3 stress score and the v3 liveness score; they measure the same thing from different sources, so their weights are proportions of one figure rather than independent axes.
+
+This supersedes a formula in which each enabled component took its weight and `routing x config` absorbed the remainder. That form let a component ESCAPE the config gate: with stress at 0.3, three tenths of a node's performance was immune to its configuration score, so a node that was out of date, unfunded or had not accepted the terms could partially buy that back by stress-testing well. Multiplying the whole delivery figure by the config score removes that shield, and the difference for a given node is exactly `stress_weight x stress_score x (1 - config_score)` - zero for a node whose config score is 1.0.
+
+Renormalisation over the APPLIED set is required rather than optional, because that set varies for two reasons outside the operator's control. A property may not apply to a node at all - stress testing covers mixnodes only, so a gateway would otherwise be docked the stress share for a test it cannot take - and a property may be dropped mid-flight when its availability threshold trips because an orchestrator is down, which would otherwise deflate every node's score for a fault that is not theirs. A consequence MUST be documented: effective weights therefore differ by role, so a declared weight is a share of whatever applies rather than a fixed fraction.
+
+The ENABLED properties' weights MUST sum to 1.0, checked at startup. At least one property MUST be enabled with a non-zero weight, and at least one of legacy v1 routing or liveness MUST be enabled: stress testing applies to mixnodes alone, so on its own it leaves every gateway with an empty applied set and no definable score. When a node's applied set IS empty, NO score may be computed for it and its previous annotation MUST be left in place - a zero would slash it for a gap that is not its fault, and any other value would reward it for nothing measured.
+
+Inertness MUST rest on the component's `enabled` flag defaulting to off, NOT on its weight defaulting to zero. A zero default weight was specified originally and is REJECTED: it is a second gate on the same property, and its only observable effect is a state in which the component reads as enabled while changing nothing, which is indistinguishable from a broken feature. The weight SHOULD therefore default to the value the component is expected to carry once switched on, making enabling a single change. The consequence MUST be documented where an operator will see it: enabling takes effect immediately at that weight, so the divergence surface is to be consulted BEFORE the flip rather than after.
 
 While the weight is zero, nym-api MUST expose a DIVERGENCE surface comparing each node's aggregated liveness score against the v1 monitor's routing score, PER NODE, carrying the two scores, their difference, whether any liveness sample reached the node, and the node's declared role. It MUST list every liveness-eligible bonded node including those with no sample yet, so that coverage and comparison are readable together: the decision to weight liveness needs both how much of the fleet has been measured and how the measured part compares. It MUST omit nodes the orchestrator would never assign a liveness test, since those have no divergence to report rather than a divergence of zero. This surface is the evidence on which the eventual decisions to weight liveness, and separately to retire the v1 routing score, are to be based.
 
@@ -509,6 +517,18 @@ The only dimension beyond the per-node rows is the declared role, and only becau
 #### Scenario: Liveness scores are inert by default
 - **WHEN** liveness results are stored and aggregated with the default configuration
 - **THEN** they are queryable and appear on the divergence surface, but contribute nothing to any node's performance or reward, because the component's own enable flag is off
+
+#### Scenario: A gateway is not docked for a test it cannot take
+- **WHEN** stress testing is enabled and a gateway, which is never stress-tested, is scored
+- **THEN** the properties that do apply are renormalised to carry the whole measurement, so the gateway is scored on what it has rather than losing the stress share
+
+#### Scenario: Configuration gates every property
+- **WHEN** a node with an imperfect config score scores well on a delivery property
+- **THEN** that property's contribution is multiplied by the config score like every other, so a good delivery score cannot lift the node above its configuration ceiling
+
+#### Scenario: A node with nothing applicable keeps its previous annotation
+- **WHEN** no delivery property applies to a node
+- **THEN** no score is computed for it and its existing annotation stands, rather than being replaced by a fabricated figure
 
 #### Scenario: A component with no data available does not freeze the annotations
 - **WHEN** the selected performance provider structurally has no data for a component, as the contract provider has none for stress or liveness

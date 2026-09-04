@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn divergence_is_liveness_minus_routing_and_negative_while_the_fleet_lags() {
-        let nodes = vec![described(1, true, false)];
+        let nodes = [described(1, true, false)];
         let annotations = HashMap::from([(
             1,
             annotated(
@@ -191,7 +191,7 @@ mod tests {
     /// the orchestrator would put it. One decoy per role combination.
     #[test]
     fn each_role_combination_is_classified_as_the_orchestrator_would() {
-        let nodes = vec![
+        let nodes = [
             described(1, true, false),
             described(2, false, true),
             described(3, true, true),
@@ -218,7 +218,7 @@ mod tests {
     /// read for: it is the difference between "the fleet is fine" and "we have measured nothing".
     #[test]
     fn an_unmeasured_node_is_listed_with_was_reachable_false() {
-        let nodes = vec![described(1, true, false)];
+        let nodes = [described(1, true, false)];
         let annotations = HashMap::from([(1, annotated(LivenessScore::unreachable(), 0.9))]);
 
         let rows = build_response(nodes.iter(), &annotations);

@@ -255,45 +255,6 @@ impl NodePerformanceProvider for ContractPerformanceProvider {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::support::caching::cache::SharedCache;
-    use crate::support::config;
-
-    /// The refresher fetches EVERY component unconditionally, so a provider that structurally has
-    /// no data for one of them must report absence rather than failure. When these returned `Err`,
-    /// the `?` in `NodeStatusCacheRefresher::refresh` aborted the whole refresh before it wrote a
-    /// single annotation, and since its caller discards the error the only symptom was a node
-    /// status cache that silently stopped updating for as long as this provider was selected.
-    #[tokio::test]
-    async fn the_contract_provider_reports_absent_stress_and_liveness_rather_than_failing() {
-        let provider = ContractPerformanceProvider::new(
-            &config::PerformanceProvider::default(),
-            SharedCache::new(),
-        );
-        let node_ids = [1, 2, 3];
-
-        let stress = provider
-            .get_batch_node_stress_testing_scores(&node_ids, 0)
-            .await
-            .expect("absent stress data must not fail the refresh");
-        let liveness = provider
-            .get_batch_node_liveness_scores(&node_ids, 0)
-            .await
-            .expect("absent liveness data must not fail the refresh");
-
-        // absent, so every node reads as unreachable - which is inert, because config validation
-        // forbids enabling either component alongside contract data
-        assert_eq!(stress.available_count(), 0);
-        assert_eq!(liveness.available_count(), 0);
-        for node_id in node_ids {
-            assert!(!stress.get_or_log(node_id).was_reachable);
-            assert!(!liveness.get_or_log(node_id).was_reachable);
-        }
-    }
-}
-
 #[async_trait]
 impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
     #[allow(unused)]
@@ -357,5 +318,44 @@ impl NodePerformanceProvider for LegacyStoragePerformanceProvider {
         epoch_id: EpochId,
     ) -> Result<NodesLivenessScores, PerformanceRetrievalFailure> {
         self.get_node_liveness_scores(node_ids, epoch_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::caching::cache::SharedCache;
+    use crate::support::config;
+
+    /// The refresher fetches EVERY component unconditionally, so a provider that structurally has
+    /// no data for one of them must report absence rather than failure. When these returned `Err`,
+    /// the `?` in `NodeStatusCacheRefresher::refresh` aborted the whole refresh before it wrote a
+    /// single annotation, and since its caller discards the error the only symptom was a node
+    /// status cache that silently stopped updating for as long as this provider was selected.
+    #[tokio::test]
+    async fn the_contract_provider_reports_absent_stress_and_liveness_rather_than_failing() {
+        let provider = ContractPerformanceProvider::new(
+            &config::PerformanceProvider::default(),
+            SharedCache::new(),
+        );
+        let node_ids = [1, 2, 3];
+
+        let stress = provider
+            .get_batch_node_stress_testing_scores(&node_ids, 0)
+            .await
+            .expect("absent stress data must not fail the refresh");
+        let liveness = provider
+            .get_batch_node_liveness_scores(&node_ids, 0)
+            .await
+            .expect("absent liveness data must not fail the refresh");
+
+        // absent, so every node reads as unreachable - which is inert, because config validation
+        // forbids enabling either component alongside contract data
+        assert_eq!(stress.available_count(), 0);
+        assert_eq!(liveness.available_count(), 0);
+        for node_id in node_ids {
+            assert!(!stress.get_or_log(node_id).was_reachable);
+            assert!(!liveness.get_or_log(node_id).was_reachable);
+        }
     }
 }

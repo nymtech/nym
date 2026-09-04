@@ -285,16 +285,15 @@ where
         }
     }
 
-    async fn generate_reply_surbs(
+    fn generate_reply_surbs(
         &mut self,
+        topology: &NymRouteProvider,
         amount: usize,
     ) -> Result<Vec<ReplySurbWithKeyRotation>, PreparationError> {
-        let topology = self.get_topology()?;
-
         let reply_surbs = self.message_preparer.generate_reply_surbs(
             self.config.use_legacy_sphinx_format,
             amount,
-            &topology,
+            topology,
         )?;
 
         Ok(reply_surbs)
@@ -486,7 +485,9 @@ where
         max_retransmissions: Option<u32>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
+        let topology = self.get_topology()?;
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             lane,
@@ -498,6 +499,7 @@ where
 
     pub(crate) async fn try_split_and_send_non_reply_message(
         &mut self,
+        topology: &NymRouteProvider,
         message: NymMessage,
         recipient: Recipient,
         lane: TransmissionLane,
@@ -507,9 +509,6 @@ where
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
-
-        // TODO2: it's really annoying we have to grab the topology again here due to borrow-checker
-        let topology = self.get_topology()?;
 
         let packet_size = if packet_type == PacketType::Outfox {
             PacketSize::OutfoxRegularPacket
@@ -530,7 +529,7 @@ where
             let chunk_clone = fragment.clone();
             let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
                 chunk_clone,
-                &topology,
+                topology,
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
@@ -562,7 +561,10 @@ where
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let reply_surbs = self.generate_reply_surbs(amount as usize).await?;
+
+        // the surbs and the message carrying them are built against the same view of the network
+        let topology = self.get_topology()?;
+        let reply_surbs = self.generate_reply_surbs(&topology, amount as usize)?;
 
         let reply_keys = reply_surbs
             .iter()
@@ -579,6 +581,7 @@ where
         let max_retransmissions = None;
 
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
@@ -604,7 +607,10 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let reply_surbs = self.generate_reply_surbs(num_reply_surbs as usize).await?;
+
+        // the surbs and the message carrying them are built against the same view of the network
+        let topology = self.get_topology()?;
+        let reply_surbs = self.generate_reply_surbs(&topology, num_reply_surbs as usize)?;
 
         let reply_keys = reply_surbs
             .iter()
@@ -619,6 +625,7 @@ where
         ));
 
         self.try_split_and_send_non_reply_message(
+            &topology,
             message,
             recipient,
             lane,

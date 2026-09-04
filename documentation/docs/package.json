@@ -89,7 +89,7 @@
     "stream-http": "^3.2.0",
     "typescript": "^5.9.3",
     "url": "^0.11.4",
-    "vitest": "^2.1.9",
+    "vitest": "^3.2.6",
     "vm-browserify": "^1.1.2"
   },
   "private": false

@@ -1,9 +1,9 @@
 ---
 title: "Install the Nym Rust SDK"
-description: "Add nym-sdk to your Rust project from Git or crates.io. Covers version requirements, minimum Rust version, and current feature gate status."
+description: "Add nym-sdk to your Rust project from Git or crates.io. Covers version requirements, minimum Rust version, and the cargo feature flags."
 schemaType: "TechArticle"
 section: "Developers"
-lastUpdated: "2026-04-17"
+lastUpdated: "2026-09-02"
 ---
 
 # Installation
@@ -30,6 +30,33 @@ nym-sdk = { git = "https://github.com/nymtech/nym", branch = "develop" }
 nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 ```
 
-<Callout type="warning">
-**No feature gates yet.** Importing `nym-sdk` pulls in everything (mixnet, tcp_proxy, client_pool, etc.) and their full dependency trees. Cargo feature flags are planned.
+## Feature flags
+
+Every feature is on by default, so the dependency line above gives you the full SDK.
+To compile only the parts you use, turn the defaults off and list the features you
+need:
+
+```toml
+[dependencies]
+nym-sdk = { version = "1.21.5", default-features = false, features = ["stream"] }
+```
+
+The core mixnet client (connecting, sending and receiving messages, `Recipient`) is
+always available and needs no feature.
+
+| Feature | Enables |
+|---------|---------|
+| `fs-storage` | On-disk persistent storage for keys, credentials, reply SURBs, and gateways. Pulls in the SQLite (`sqlx`) stack. |
+| `socks5` | SOCKS5 client mode and network-requester country discovery. |
+| `ipr` | IP packet router client and IP-over-mixnet stream. Implies `stream`. |
+| `bandwidth` | Paid coconut bandwidth credentials. |
+| `stream` | Bidirectional byte streams (`AsyncRead` + `AsyncWrite`) over the mixnet. |
+| `tcp-proxy` | TCP tunnelling over the mixnet. Implies `fs-storage` and `client-pool`. |
+| `client-pool` | Pre-warmed pool of ephemeral clients. |
+| `cli` | The `nym-proxy-server` and `nym-proxy-client` binaries. Implies `tcp-proxy`. |
+
+<Callout>
+The SQLite (`sqlx`) dependency tree comes only from on-disk storage. An ephemeral
+client that leaves `fs-storage`, `tcp-proxy`, and `bandwidth` disabled links none of
+it. This is the main reason to set `default-features = false`.
 </Callout>
